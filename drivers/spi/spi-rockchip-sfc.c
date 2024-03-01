@@ -271,6 +271,22 @@ static void rockchip_sfc_set_delay_lines(struct rockchip_sfc *sfc, u16 cells, u8
 	writel(val, sfc->regbase + cs * SFC_CS1_REG_OFFSET + SFC_DLL_CTRL0);
 }
 
+static int rockchip_sfc_clk_set_rate(struct rockchip_sfc *sfc, unsigned long  speed)
+{
+	if (sfc->version >= SFC_VER_8)
+		return clk_set_rate(sfc->clk, speed * 2);
+	else
+		return clk_set_rate(sfc->clk, speed);
+}
+
+static unsigned long rockchip_sfc_clk_get_rate(struct rockchip_sfc *sfc)
+{
+	if (sfc->version >= SFC_VER_8)
+		return clk_get_rate(sfc->clk) / 2;
+	else
+		return clk_get_rate(sfc->clk);
+}
+
 static void rockchip_sfc_irq_unmask(struct rockchip_sfc *sfc, u32 mask)
 {
 	u32 reg;
@@ -647,19 +663,19 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 	bool dll_valid = false;
 	u8 cs = mem->spi->chip_select;
 
-	clk_set_rate(sfc->clk, SFC_DLL_THRESHOLD_RATE);
+	rockchip_sfc_clk_set_rate(sfc, SFC_DLL_THRESHOLD_RATE);
 	op.data.buf.in = &id;
 	rockchip_sfc_exec_op_bypass(sfc, mem, &op);
 	if ((0xFF == id[0] && 0xFF == id[1]) ||
 	    (0x00 == id[0] && 0x00 == id[1])) {
 		dev_dbg(sfc->dev, "no dev, dll by pass\n");
-		clk_set_rate(sfc->clk, sfc->speed[cs]);
+		rockchip_sfc_clk_set_rate(sfc, sfc->speed[cs]);
 		sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
 
 		return;
 	}
 
-	clk_set_rate(sfc->clk, sfc->speed[cs]);
+	rockchip_sfc_clk_set_rate(sfc, sfc->speed[cs]);
 	op.data.buf.in = &id_temp;
 	for (right = 0; right <= cell_max; right += step) {
 		int ret;
@@ -706,10 +722,10 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 		dev_err(sfc->dev, "%d %d dll training failed in %dMHz, reduce the frequency\n",
 			left, right, sfc->speed[cs]);
 		rockchip_sfc_set_delay_lines(sfc, 0, cs);
-		clk_set_rate(sfc->clk, SFC_DLL_THRESHOLD_RATE);
+		rockchip_sfc_clk_set_rate(sfc, SFC_DLL_THRESHOLD_RATE);
 		mem->spi->max_speed_hz = SFC_DLL_THRESHOLD_RATE;
 		sfc->cur_speed = SFC_DLL_THRESHOLD_RATE;
-		sfc->cur_real_speed = clk_get_rate(sfc->clk);
+		sfc->cur_real_speed = rockchip_sfc_clk_get_rate(sfc);
 		sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
 	}
 }
@@ -729,21 +745,21 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 
 	if (unlikely(mem->spi->max_speed_hz != sfc->speed[cs]) &&
 	    !has_acpi_companion(sfc->dev)) {
-		ret = clk_set_rate(sfc->clk, mem->spi->max_speed_hz);
+		ret = rockchip_sfc_clk_set_rate(sfc, mem->spi->max_speed_hz);
 		if (ret)
 			goto out;
 		sfc->speed[cs] = mem->spi->max_speed_hz;
 		sfc->cur_speed = mem->spi->max_speed_hz;
-		sfc->cur_real_speed = clk_get_rate(sfc->clk);
+		sfc->cur_real_speed = rockchip_sfc_clk_get_rate(sfc);
 		if (rockchip_sfc_get_version(sfc) >= SFC_VER_4) {
-			if (clk_get_rate(sfc->clk) > SFC_DLL_THRESHOLD_RATE)
+			if (sfc->cur_real_speed > SFC_DLL_THRESHOLD_RATE)
 				rockchip_sfc_delay_lines_tuning(sfc, mem);
 			else
 				rockchip_sfc_set_delay_lines(sfc, 0, cs);
 		}
 
 		dev_dbg(sfc->dev, "set_freq=%dHz real_freq=%ldHz\n",
-			sfc->speed[cs], clk_get_rate(sfc->clk));
+			sfc->speed[cs], rockchip_sfc_clk_get_rate(sfc));
 	}
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
