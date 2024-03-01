@@ -799,7 +799,7 @@ enum cif_reg_index {
 #define CIF_SCALE_SW_MODE_RK3576(val)	((val & 0x3) << 8)
 #define CIF_SCALE_EN(ch)		(1 << (ch * 8))
 #define SW_SCALE_END(intstat, ch)	((intstat >> ((ch + 1) * 2)) & 0x3)
-#define SW_SCALE_END_RK3576(intstat)	(intstat >> 1)
+#define SW_SCALE_END_RK3576(intstat)	((intstat >> 1) & 0x3)
 #define SCALE_SOFT_RESET(ch)		(0x1 << (ch + 16))
 #define CIF_SCALE_DMA_EN_RK3576		(1 << 16)
 
