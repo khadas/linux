@@ -706,8 +706,6 @@ int __init dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc)
 
 char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str)
 {
-	sprintf(id_str, "%2d", sid);
-
 	if (!dmc_mon->vpu_port || sid >= dmc_mon->vpu_port_num) {
 		pr_info("vpu port null\n");
 		return id_str;

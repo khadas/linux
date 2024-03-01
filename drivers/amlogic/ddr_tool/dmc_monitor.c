@@ -44,7 +44,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.3"
+#define DMC_VERSION		"1.3.1"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
