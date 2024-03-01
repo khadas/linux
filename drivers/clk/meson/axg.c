@@ -222,7 +222,7 @@ static struct clk_regmap axg_gp0_pll_dco = {
 		.frac = {
 			.reg_off = HHI_GP0_PLL_CNTL1,
 			.shift   = 0,
-			.width   = 10,
+			.width   = 12,
 		},
 		.l = {
 			.reg_off = HHI_GP0_PLL_CNTL,
@@ -266,12 +266,18 @@ static struct clk_regmap axg_gp0_pll = {
 	},
 };
 
+static const struct pll_params_table axg_hifi_pll_params_table[] = {
+	PLL_PARAMS(75, 1), /* DCO = 1800M */
+	PLL_PARAMS(81, 1), /* DCO = 1944M */
+	{ /* sentinel */ },
+};
+
 static const struct reg_sequence axg_hifi_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0xc084b000 },
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x0a6a3a88 },
 	{ .reg = HHI_HIFI_PLL_CNTL4,	.def = 0xc000004d },
-	{ .reg = HHI_HIFI_PLL_CNTL5,	.def = 0x00058000 },
+	{ .reg = HHI_HIFI_PLL_CNTL5,	.def = 0x000581eb },
 };
 
 static struct clk_regmap axg_hifi_pll_dco = {
@@ -294,7 +300,7 @@ static struct clk_regmap axg_hifi_pll_dco = {
 		.frac = {
 			.reg_off = HHI_HIFI_PLL_CNTL5,
 			.shift   = 0,
-			.width   = 13,
+			.width   = 15,
 		},
 		.l = {
 			.reg_off = HHI_HIFI_PLL_CNTL,
@@ -306,7 +312,7 @@ static struct clk_regmap axg_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = axg_gp0_pll_params_table,
+		.table = axg_hifi_pll_params_table,
 		.init_regs = axg_hifi_init_regs,
 		.init_count = ARRAY_SIZE(axg_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
@@ -326,7 +332,7 @@ static struct clk_regmap axg_hifi_pll = {
 		.offset = HHI_HIFI_PLL_CNTL,
 		.shift = 16,
 		.width = 2,
-		.flags = CLK_DIVIDER_POWER_OF_TWO,
+		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
