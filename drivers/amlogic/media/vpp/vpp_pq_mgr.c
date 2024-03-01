@@ -1074,8 +1074,14 @@ int vpp_pq_mgr_load_3dlut_data(struct vpp_lut3d_path_s *pdata)
 
 	if (pdata->data_type == EN_LUT3D_UNIFY_KEY) {
 #ifdef CONFIG_AMLOGIC_LCD
+		tmp = lcd_unifykey_get_size(pdata->ppath, &key_len);
+		if (tmp < 0) {
+			kfree(pkey_lut_all);
+			lut3d_db_initial = false;
+			return 1;
+		}
 		tmp = lcd_unifykey_get_no_header(pdata->ppath,
-			(unsigned char *)pkey_lut_all, &key_len);
+			(unsigned char *)pkey_lut_all, key_len);
 
 		if (tmp < 0) {
 			kfree(pkey_lut_all);
