@@ -89,10 +89,6 @@ int aml_aprocess_complete(struct aml_aprocess *p_aprocess, char *out, int size)
 	pending = runtime->dma_bytes - hw_ptr;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (!snd_pcm_playback_hw_avail(runtime)) {
-			snd_pcm_stream_unlock_irqrestore(substream, flags2);
-			goto fail;
-		}
 		if (unlikely(pending < size)) {
 			memcpy(out, runtime->dma_area + hw_ptr, pending);
 			memcpy(out + pending, runtime->dma_area,
@@ -102,10 +98,6 @@ int aml_aprocess_complete(struct aml_aprocess *p_aprocess, char *out, int size)
 			       size);
 		}
 	} else {
-		if (!snd_pcm_capture_hw_avail(runtime)) {
-			snd_pcm_stream_unlock_irqrestore(substream, flags2);
-			goto fail;
-		}
 		if (unlikely(pending < size)) {
 			memcpy(runtime->dma_area + hw_ptr, out, pending);
 			memcpy(runtime->dma_area, out + pending,
