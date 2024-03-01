@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(evl_net_free_qdisc);
  */
 int evl_net_sched_packet(struct net_device *dev, struct sk_buff *skb) /* oob/in-band */
 {
-	struct evl_net_qdisc *qdisc = dev->oob_context.dev_state.estate->qdisc;
+	struct evl_net_qdisc *qdisc = dev->oob_state.estate->qdisc;
 
 	/*
 	 * Low-priority traffic sent by the sched_oob Qdisc goes to

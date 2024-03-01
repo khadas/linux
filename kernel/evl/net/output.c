@@ -62,7 +62,7 @@ void evl_net_do_tx(void *arg)
 	LIST_HEAD(list);
 	int ret;
 
-	est = dev->oob_context.dev_state.estate;
+	est = dev->oob_state.estate;
 
 	while (!evl_kthread_should_stop()) {
 		ret = evl_wait_flag(&est->tx_flag);
@@ -132,7 +132,7 @@ static void xmit_inband(struct irq_work *work) /* in-band, stalled */
 /* oob or in-band */
 static int xmit_oob(struct net_device *dev, struct sk_buff *skb)
 {
-	struct evl_netdev_state *est = dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 	int ret;
 
 	ret = evl_net_sched_packet(dev, skb);
