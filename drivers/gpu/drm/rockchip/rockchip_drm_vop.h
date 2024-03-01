@@ -570,6 +570,9 @@ struct hdrvivid_regs {
 	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH];
 };
 
+#define RK_HDR_TYPE_MASK 0xff
+#define RK_HDR_PLAT_MASK (0xff << 8)
+
 struct hdr_extend {
 	uint32_t hdr_type;
 	uint32_t length;

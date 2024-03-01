@@ -9212,7 +9212,7 @@ static void vop3_setup_dynamic_hdr(struct vop2_video_port *vp, uint8_t win_phys_
 	}
 
 	hdr_data = (struct hdr_extend *)vcstate->hdr_ext_data->data;
-	hdr_format = hdr_data->hdr_type;
+	hdr_format = hdr_data->hdr_type & RK_HDR_TYPE_MASK;
 
 	switch (hdr_format) {
 	case HDR_NONE:
