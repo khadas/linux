@@ -645,7 +645,7 @@ static __poll_t poll_packet(struct evl_socket *esk,
 
 	dev = esk->proto->get_netif(esk);
 	if (dev) {
-		est = dev->oob_context.dev_state.estate;
+		est = dev->oob_state.estate;
 		evl_poll_watch(&est->poll_head, wait, NULL);
 		if (!list_empty(&est->free_skb_pool))
 			ret = POLLOUT|POLLWRNORM;

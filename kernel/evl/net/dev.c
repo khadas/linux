@@ -121,7 +121,7 @@ static int enable_oob_port(struct net_device *dev,
 	if (is_vlan_dev(dev))
 		real_dev = vlan_dev_real_dev(dev);
 
-	rnds = &real_dev->oob_context.dev_state;
+	rnds = &real_dev->oob_state;
 	est = pest = rnds->estate;
 	if (pest == NULL) {
 		est = kzalloc(sizeof(*est), GFP_KERNEL);
@@ -130,7 +130,7 @@ static int enable_oob_port(struct net_device *dev,
 		rnds->estate = est;
 	}
 
-	nds = &dev->oob_context.dev_state;
+	nds = &dev->oob_state;
 	evl_init_crossing(&nds->crossing);
 
 	if (est->refs++ > 0)
@@ -241,7 +241,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 	 * list, first unlink the latter _then_ pass the crossing
 	 * next.
 	 */
-	nds = &dev->oob_context.dev_state;
+	nds = &dev->oob_state;
 	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
 	list_del(&nds->next);
 	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
@@ -255,7 +255,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 
 	netdev_disable_oob_port(dev);
 
-	rnds = &real_dev->oob_context.dev_state;
+	rnds = &real_dev->oob_state;
 	est = rnds->estate;
 
 	if (EVL_WARN_ON(NET, est->refs <= 0))
@@ -347,7 +347,7 @@ struct net_device *evl_net_get_dev_by_index(struct net *net, int ifindex)
 
 	list_for_each_entry(nds, &oob_netdev_list, next) {
 		dev = container_of(nds, struct net_device,
-				oob_context.dev_state);
+				oob_state);
 		if (dev_net(dev) == net && dev->ifindex == ifindex) {
 			evl_down_crossing(&nds->crossing);
 			ret = dev;
@@ -370,7 +370,7 @@ struct net_device *evl_net_get_dev_by_name(struct net *net, const char *name)
 
 	list_for_each_entry(nds, &oob_netdev_list, next) {
 		dev = container_of(nds, struct net_device,
-				oob_context.dev_state);
+				oob_state);
 		if (dev_net(dev) == net && !strcmp(netdev_name(dev), name)) {
 			evl_down_crossing(&nds->crossing);
 			ret = dev;
@@ -385,14 +385,14 @@ struct net_device *evl_net_get_dev_by_name(struct net *net, const char *name)
 
 void evl_net_get_dev(struct net_device *dev)
 {
-	struct oob_netdev_state *nds = &dev->oob_context.dev_state;
+	struct oob_netdev_state *nds = &dev->oob_state;
 
 	evl_down_crossing(&nds->crossing);
 }
 
 void evl_net_put_dev(struct net_device *dev)
 {
-	struct oob_netdev_state *nds = &dev->oob_context.dev_state;
+	struct oob_netdev_state *nds = &dev->oob_state;
 
 	EVL_WARN_ON(NET, hard_irqs_disabled());
 
@@ -443,7 +443,7 @@ ssize_t netif_oob_query_pool(struct net_device *dev, char *buf)
 	if (is_vlan_dev(dev))
 		real_dev = vlan_dev_real_dev(dev);
 
-	est = real_dev->oob_context.dev_state.estate;
+	est = real_dev->oob_state.estate;
 	if (est == NULL)
 		return -ENXIO;
 
@@ -519,7 +519,7 @@ static void __set_rx_filter(struct evl_netdev_state *est,
  */
 static int set_rx_filter(struct net_device *dev, unsigned long arg)
 {
-	struct oob_netdev_state *nds = &dev->oob_context.dev_state;
+	struct oob_netdev_state *nds = &dev->oob_state;
 	struct evl_net_ebpf_filter *new = NULL;
 	struct bpf_prog *prog;
 	int ret, fd;

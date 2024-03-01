@@ -44,7 +44,7 @@ __evl_net_filter_rx(struct evl_netdev_state *est, struct sk_buff *skb);
 static inline enum evl_net_rx_action
 evl_net_filter_rx(struct net_device *dev, struct sk_buff *skb)
 {
-	struct evl_netdev_state *est = dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 
 	if (test_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags))
 		return __evl_net_filter_rx(est, skb);

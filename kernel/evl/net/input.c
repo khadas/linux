@@ -31,7 +31,7 @@ void evl_net_do_rx(void *arg)
 	LIST_HEAD(list);
 	int ret;
 
-	est = dev->oob_context.dev_state.estate;
+	est = dev->oob_state.estate;
 
 	while (!evl_kthread_should_stop()) {
 		ret = evl_wait_flag(&est->rx_flag);
@@ -51,7 +51,7 @@ void evl_net_do_rx(void *arg)
 
 void evl_net_wake_rx(struct net_device *dev)
 {
-	struct evl_netdev_state *est = dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 
 	evl_raise_flag(&est->rx_flag);
 }
@@ -79,7 +79,7 @@ void evl_net_wake_rx(struct net_device *dev)
 void evl_net_receive(struct sk_buff *skb,
 		struct evl_net_handler *handler) /* in-band or oob */
 {
-	struct evl_netdev_state *est = skb->dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = skb->dev->oob_state.estate;
 
 	if (skb->next)
 		skb_list_del_init(skb);
@@ -122,7 +122,7 @@ void evl_net_free_rxqueue(struct evl_net_rxqueue *rxq)
 }
 
 /**
- * netif_oob_deliver - receive a network packet
+ * netif_oob_deliver - receive a network packet from the hardware.
  *
  * Decide whether we should channel a freshly incoming packet to our
  * out-of-band stack. May be called from any stage.
@@ -212,7 +212,7 @@ bool netif_oob_deliver(struct sk_buff *skb) /* oob or in-band */
  */
 void netif_oob_run(struct net_device *dev) /* in-band */
 {
-	struct evl_netdev_state *est = dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 
 	evl_raise_flag(&est->rx_flag);
 }

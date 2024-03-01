@@ -137,7 +137,7 @@ static inline size_t get_headroom(struct net_device *dev)
 struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 				      ktime_t timeout, enum evl_tmode tmode)
 {
-	struct evl_netdev_state *est = dev->oob_context.dev_state.estate;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 	struct sk_buff *skb;
 	unsigned long flags;
 	int ret;
@@ -209,7 +209,7 @@ static void free_skb_to_dev(struct sk_buff *skb)
 	struct evl_netdev_state *est;
 	unsigned long flags;
 
-	est = dev->oob_context.dev_state.estate;
+	est = dev->oob_state.estate;
 	raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
 
 	list_add(&skb->list, &est->free_skb_pool);
@@ -439,7 +439,7 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 	dma_addr_t dma_addr;
 
 	if (!netdev_is_oob_capable(dev)) {
-		est = dev->oob_context.dev_state.estate;
+		est = dev->oob_state.estate;
 		return __netdev_alloc_oob_skb(dev, est->buf_size,
 					get_headroom(dev),
 					GFP_KERNEL|GFP_DMA);
@@ -516,7 +516,7 @@ int evl_net_dev_build_pool(struct net_device *dev)
 	if (EVL_WARN_ON(NET, netif_oob_diversion(dev)))
 		return -EBUSY;
 
-	est = dev->oob_context.dev_state.estate;
+	est = dev->oob_state.estate;
 
 	INIT_LIST_HEAD(&est->free_skb_pool);
 
@@ -545,7 +545,7 @@ void evl_net_dev_purge_pool(struct net_device *dev)
 	if (EVL_WARN_ON(NET, netif_oob_diversion(dev)))
 		return;
 
-	est = dev->oob_context.dev_state.estate;
+	est = dev->oob_state.estate;
 
 	list_for_each_entry_safe(skb, next, &est->free_skb_pool, list) {
 		if (netdev_is_oob_capable(dev))
