@@ -5,6 +5,9 @@
  * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 update sensor driver.
+ * 1. adjust power sequence to suit spec.
+ * 2. add read/write reg error debug log.
  *
  */
 
@@ -28,7 +31,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #define S5K3L8XX_MAJOR_I2C_ADDR		0x10
 #define S5K3L8XX_MINOR_I2C_ADDR		0x2D
@@ -671,8 +674,11 @@ static int s5k3l8xx_write_reg(struct i2c_client *client, u16 reg,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
+	if (i2c_master_send(client, buf, len + 2) != len + 2) {
+		dev_err(&client->dev,
+			"write reg(0x%x val:0x%x) failed !\n", reg, val);
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -718,8 +724,11 @@ static int s5k3l8xx_read_reg(struct i2c_client *client, u16 reg,
 	msgs[1].buf = &data_be_p[4 - len];
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs))
+	if (ret != ARRAY_SIZE(msgs)) {
+		dev_err(&client->dev,
+			"read reg:0x%x failed !\n", reg);
 		return -EIO;
+	}
 
 	*val = be32_to_cpu(data_be);
 
@@ -1126,14 +1135,20 @@ static int __s5k3l8xx_power_on(struct s5k3l8xx *s5k3l8xx)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-	if (!IS_ERR(s5k3l8xx->reset_gpio))
-		gpiod_set_value_cansleep(s5k3l8xx->reset_gpio, 0);
 
 	ret = regulator_bulk_enable(S5K3L8XX_NUM_SUPPLIES, s5k3l8xx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
+
+	/* need reset after all vdd power on */
+	usleep_range(2000, 2100);
+
+	if (!IS_ERR(s5k3l8xx->reset_gpio))
+		gpiod_set_value_cansleep(s5k3l8xx->reset_gpio, 0);
+
+	usleep_range(1000, 1100);
 
 	if (!IS_ERR(s5k3l8xx->reset_gpio))
 		gpiod_set_value_cansleep(s5k3l8xx->reset_gpio, 1);
@@ -1142,8 +1157,8 @@ static int __s5k3l8xx_power_on(struct s5k3l8xx *s5k3l8xx)
 	if (!IS_ERR(s5k3l8xx->pwdn_gpio))
 		gpiod_set_value_cansleep(s5k3l8xx->pwdn_gpio, 1);
 
-	/* 8192 cycles prior to first SCCB transaction */
-	delay_us = s5k3l8xx_cal_delay(8192);
+	/* 23000 cycles prior to first SCCB transaction */
+	delay_us = s5k3l8xx_cal_delay(23000);
 	usleep_range(delay_us, delay_us * 2);
 
 	return 0;

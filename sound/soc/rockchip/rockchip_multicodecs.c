@@ -691,10 +691,13 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->adc = devm_iio_channel_get(&pdev->dev, "adc-detect");
 
 	if (IS_ERR(mc_data->adc)) {
-		if (PTR_ERR(mc_data->adc) != -EPROBE_DEFER) {
-			mc_data->adc = NULL;
-			dev_warn(&pdev->dev, "Failed to get ADC channel");
+		if (PTR_ERR(mc_data->adc) == -EPROBE_DEFER) {
+			dev_warn(&pdev->dev, "deferred by saradc not ready\n");
+			return -EPROBE_DEFER;
 		}
+
+		mc_data->adc = NULL;
+		dev_warn(&pdev->dev, "Has no ADC channel\n");
 	} else {
 		if (mc_data->adc->channel->type != IIO_VOLTAGE)
 			return -EINVAL;

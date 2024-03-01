@@ -32,7 +32,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_pcie: gpio-regulator {
+	vcc3v3_pcie: vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		regulator-min-microvolt = <3300000>;
@@ -43,7 +43,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	qsgmii_3v3: gpio-regulator {
+	qsgmii_3v3: qsgmii-3v3 {
 		compatible = "regulator-gpio";
 		regulator-name = "qsgmii_3v3";
 		regulator-min-microvolt = <0100000>;

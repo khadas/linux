@@ -322,6 +322,7 @@ static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 
 static const struct snd_soc_component_driver rockchip_mdais_component = {
 	.name = DAIS_DRV_NAME,
+	.legacy_dai_naming = 1,
 };
 
 static const struct of_device_id rockchip_mdais_match[] = {

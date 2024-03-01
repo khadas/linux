@@ -59,7 +59,6 @@ struct pvtm_config {
 	int temp_prop[2];
 	const char *tz_name;
 	struct thermal_zone_device *tz;
-	struct regmap *grf;
 };
 
 struct lkg_conversion_table {
@@ -337,9 +336,6 @@ static int rockchip_parse_pvtm_config(struct device_node *np,
 	if (of_property_read_bool(np, "rockchip,pvtm-pvtpll")) {
 		if (of_property_read_u32(np, "rockchip,pvtm-offset",
 					 &pvtm->offset))
-			return -EINVAL;
-		pvtm->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-		if (IS_ERR(pvtm->grf))
 			return -EINVAL;
 		return 0;
 	}
@@ -725,11 +721,11 @@ static unsigned long rockchip_pvtpll_get_rate(struct rockchip_opp_info *info)
 	int i;
 
 #define MIN_STABLE_DELTA 3
-	regmap_read(info->grf, info->pvtpll_avg_offset, &rate0);
+	regmap_read(info->pvtpll_base, info->pvtpll_avg_offset, &rate0);
 	/* max delay 2ms */
 	for (i = 0; i < 20; i++) {
 		udelay(100);
-		regmap_read(info->grf, info->pvtpll_avg_offset, &rate1);
+		regmap_read(info->pvtpll_base, info->pvtpll_avg_offset, &rate1);
 		delta = abs(rate1 - rate0);
 		rate0 = rate1;
 		if (delta <= MIN_STABLE_DELTA)
@@ -854,7 +850,7 @@ static void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 	unsigned long rate, pvtpll_rate, old_rate, cur_rate, delta0, delta1;
 	int i = 0, max_count, step, cur_step, ret;
 
-	if (!info || !info->grf)
+	if (!info || !info->pvtpll_base)
 		return;
 
 	dev_dbg(info->dev, "calibrating opp ...\n");
@@ -1051,6 +1047,7 @@ out:
 }
 
 static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
+				    struct rockchip_opp_info *info,
 				    const char *reg_name)
 {
 	struct regulator *reg;
@@ -1066,6 +1063,9 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 		dev_info(dev, "pvtm = %d, get from otp\n", pvtm_value);
 		return pvtm_value;
 	}
+
+	if (!info || !info->pvtpll_base)
+		return -ENOMEM;
 
 	pvtm = kzalloc(sizeof(*pvtm), GFP_KERNEL);
 	if (!pvtm)
@@ -1102,7 +1102,7 @@ static int rockchip_get_pvtm_pvtpll(struct device *dev, struct device_node *np,
 	}
 	usleep_range(pvtm->sample_time, pvtm->sample_time + 100);
 
-	ret = regmap_read(pvtm->grf, pvtm->offset, &pvtm_value);
+	ret = regmap_read(info->pvtpll_base, pvtm->offset, &pvtm_value);
 	if (ret < 0) {
 		dev_err(dev, "failed to get pvtm from 0x%x\n", pvtm->offset);
 		goto resetore_volt;
@@ -1179,8 +1179,9 @@ static int rockchip_get_pvtm(struct device *dev, struct device_node *np,
 }
 
 static void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
-				     const char *reg_name, int bin, int process,
-				     int *volt_sel, int *scale_sel)
+				     struct rockchip_opp_info *info,
+				     const char *reg_name, int *volt_sel,
+				     int *scale_sel)
 {
 	struct property *prop = NULL;
 	char name[NAME_MAX];
@@ -1188,7 +1189,7 @@ static void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
 	u32 hw = 0;
 
 	if (of_property_read_bool(np, "rockchip,pvtm-pvtpll"))
-		pvtm = rockchip_get_pvtm_pvtpll(dev, np, reg_name);
+		pvtm = rockchip_get_pvtm_pvtpll(dev, np, info, reg_name);
 	else
 		pvtm = rockchip_get_pvtm(dev, np, reg_name);
 	if (pvtm <= 0)
@@ -1196,19 +1197,19 @@ static void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
 
 	if (!volt_sel)
 		goto next;
-	if (process >= 0) {
+	if (info->process >= 0) {
 		snprintf(name, sizeof(name),
-			 "rockchip,p%d-pvtm-voltage-sel", process);
+			 "rockchip,p%d-pvtm-voltage-sel", info->process);
 		prop = of_find_property(np, name, NULL);
-	} else if (bin > 0) {
+	} else if (info->bin > 0) {
 		of_property_read_u32(np, "rockchip,pvtm-hw", &hw);
-		if (hw && (hw & BIT(bin))) {
+		if (hw && (hw & BIT(info->bin))) {
 			sprintf(name, "rockchip,pvtm-voltage-sel-hw");
 			prop = of_find_property(np, name, NULL);
 		}
 		if (!prop) {
 			snprintf(name, sizeof(name),
-				 "rockchip,pvtm-voltage-sel-B%d", bin);
+				 "rockchip,pvtm-voltage-sel-B%d", info->bin);
 			prop = of_find_property(np, name, NULL);
 		}
 	}
@@ -1222,9 +1223,9 @@ next:
 	if (!scale_sel)
 		return;
 	prop = NULL;
-	if (process >= 0) {
+	if (info->process >= 0) {
 		snprintf(name, sizeof(name),
-			 "rockchip,p%d-pvtm-scaling-sel", process);
+			 "rockchip,p%d-pvtm-scaling-sel", info->process);
 		prop = of_find_property(np, name, NULL);
 	}
 	if (!prop)
@@ -1485,8 +1486,8 @@ static void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 
 	rockchip_of_get_lkg_sel(dev, np, lkg_name, info->process,
 				&lkg_volt_sel, &lkg_scale);
-	rockchip_of_get_pvtm_sel(dev, np, reg_name, info->bin, info->process,
-				 &pvtm_volt_sel, &pvtm_scale);
+	rockchip_of_get_pvtm_sel(dev, np, info, reg_name, &pvtm_volt_sel,
+				 &pvtm_scale);
 	rockchip_of_get_bin_sel(dev, np, info->bin, &bin_scale);
 	rockchip_of_get_bin_volt_sel(dev, np, info->bin, &bin_volt_sel);
 	info->scale = max3(lkg_scale, pvtm_scale, bin_scale);
@@ -1496,6 +1497,25 @@ static void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 		info->volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
 
 	of_node_put(np);
+}
+
+static int rockchip_opp_set_regulator_helper(struct device *dev,
+					     struct rockchip_opp_info *info)
+{
+	struct opp_table *opp_table;
+
+	if (!info || !info->data || !info->data->config_regulators)
+		return 0;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
+
+	opp_table->config_regulators = info->data->config_regulators;
+
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return 0;
 }
 
 static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info *info,
@@ -1558,6 +1578,16 @@ static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info 
 	if (info->opp_token < 0) {
 		dev_err(dev, "failed to set opp config\n");
 		return info->opp_token;
+	}
+
+	/*
+	 * The dev_pm_opp_set_config() only support setting regulator helper
+	 * for multiple regulators, but on some platforms, still need to set
+	 * regulator helper for single regulator.
+	 */
+	if (rockchip_opp_set_regulator_helper(dev, info)) {
+		dev_err(dev, "failed to set opp regulator helper\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1671,8 +1701,16 @@ int rockchip_init_opp_info(struct device *dev, struct rockchip_opp_info *info,
 	if (IS_ERR(info->grf))
 		info->grf = NULL;
 	info->dsu_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,dsu-grf");
-	if (IS_ERR(info->dsu_grf))
+	if (IS_ERR(info->dsu_grf)) {
 		info->dsu_grf = NULL;
+		info->cci_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,cci-grf");
+		if (IS_ERR(info->cci_grf))
+			info->cci_grf = NULL;
+	}
+
+	info->pvtpll_base = syscon_regmap_lookup_by_phandle(np, "rockchip,pvtpll");
+	if (IS_ERR(info->pvtpll_base))
+		info->pvtpll_base = info->grf;
 
 	ret = rockchip_get_opp_clk(dev, np, info);
 	if (ret)
@@ -2278,7 +2316,7 @@ int rockchip_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 	unsigned long *target = data;
 	int ret;
 
-	if (!info->is_runtime_active)
+	if (info->is_scmi_clk && !info->is_runtime_active)
 		return 0;
 
 	ret = clk_bulk_prepare_enable(info->nclocks, info->clocks);
