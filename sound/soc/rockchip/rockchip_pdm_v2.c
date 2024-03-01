@@ -659,6 +659,22 @@ static void rockchip_pdm_v2_quirks_close_clk(struct rk_pdm_v2_dev *pdm)
 	}
 }
 
+static int rockchip_pdm_v2_register_platform(struct device *dev)
+{
+	int ret = 0;
+
+	if (device_property_read_bool(dev, "rockchip,no-dmaengine")) {
+		dev_info(dev, "Used for Multi-DAI\n");
+		return 0;
+	}
+
+	ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
+	if (ret)
+		dev_err(dev, "Could not register PCM\n");
+
+	return ret;
+}
+
 static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -744,16 +760,9 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	 * devm_snd_dmaengine_pcm_register
 	 * So, we should register PCM before DAI component.
 	 */
-	if (device_property_read_bool(&pdev->dev, "rockchip,no-dmaengine")) {
-		dev_info(&pdev->dev, "Used for Multi-DAI\n");
-		return 0;
-	}
-
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "could not register pcm: %d\n", ret);
+	ret = rockchip_pdm_v2_register_platform(&pdev->dev);
+	if (ret)
 		goto err_suspend;
-	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_pdm_v2_component,
