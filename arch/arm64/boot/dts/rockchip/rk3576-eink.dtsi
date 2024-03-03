@@ -34,3 +34,40 @@
 &ebc {
 	status = "okay";
 };
+
+&rockchip_suspend {
+	rockchip,sleep-pin-config = <
+		(0
+		| RKPM_SLEEP_PIN1_EN
+		)
+		(0)
+	>;
+
+	rockchip,sleep-debug-en = <1>;
+
+	rockchip,regulator-off-in-mem-lite =
+		<&vdd_cpu_big_s0>, <&vdd_npu_s0>, <&vdd_cpu_lit_s0>, <&vdd_gpu_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
+		<&vdd_ddr_s0>, <&vcca_1v8_s0>, <&vcc_1v8_cam>, <&vdda_1v2_s0>, <&vcca3v3_codec>, <&vccio_sd_s0>,
+		<&vdda_ddr_pll_s0>, <&vdda0v75_hdmi_s0>, <&vdda_0v85_s0>, <&vdda_0v75_s0>;
+
+	rockchip,regulator-on-in-mem-lite =
+		<&vcc_3v3_s3>, <&vcc_1v8_s3>, <&vdd2_ddr_s3>, <&vcca1v8_pldo6_s3>, <&vdd_0v75_s3>;
+
+	rockchip,regulator-off-in-mem =
+		<&vdd_cpu_big_s0>, <&vdd_npu_s0>, <&vdd_cpu_lit_s0>, <&vdd_gpu_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
+		<&vdd_ddr_s0>, <&vcca_1v8_s0>, <&vcc_1v8_cam>, <&vdda_1v2_s0>, <&vcca3v3_codec>, <&vccio_sd_s0>,
+		<&vdda_ddr_pll_s0>, <&vdda0v75_hdmi_s0>, <&vdda_0v85_s0>, <&vdda_0v75_s0>;
+
+	rockchip,regulator-on-in-mem =
+		<&vcc_3v3_s3>, <&vcc_1v8_s3>, <&vdd2_ddr_s3>, <&vcca1v8_pldo6_s3>, <&vdd_0v75_s3>;
+
+	rockchip,regulator-off-in-mem-ultra =
+		<&vdd_cpu_big_s0>, <&vdd_npu_s0>, <&vdd_cpu_lit_s0>, <&vdd_gpu_s0>, <&vddq_ddr_s0>, <&vdd_logic_s0>,
+		<&vdd_ddr_s0>, <&vcca_1v8_s0>, <&vcc_1v8_cam>, <&vdda_1v2_s0>, <&vcca3v3_codec>, <&vccio_sd_s0>,
+		<&vdda_ddr_pll_s0>, <&vdda0v75_hdmi_s0>, <&vdda_0v85_s0>, <&vdda_0v75_s0>, <&vcc_3v3_s3>, <&vcc_1v8_s3>,
+		<&vdd_0v75_s3>;
+
+	rockchip,regulator-on-in-mem-ultra = <&vdd2_ddr_s3>, <&vcca1v8_pldo6_s3>;
+
+	status = "okay";
+};
