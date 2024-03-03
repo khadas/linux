@@ -1461,14 +1461,10 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	bool async = false;
 	int ret;
 
 	if (stream->id == RKISP_STREAM_LDC)
 		goto skip;
-
-	async = (dev->cap_dev.stream[RKISP_STREAM_MP].streaming ||
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming);
 
 	/*
 	 * can't be async now, otherwise the latter started stream fails to
@@ -1480,7 +1476,7 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 		return ret;
 	}
 
-	ret = rkisp_stream_config_rsz(stream, async);
+	ret = rkisp_stream_config_rsz(stream, false);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "config rsz failed with error %d\n", ret);
 		return ret;

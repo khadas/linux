@@ -230,6 +230,7 @@ static const struct of_device_id rkisp_sditf_of_match[] = {
 	{
 		.compatible = "rockchip,rkisp-sditf",
 	},
+	{},
 };
 
 struct platform_driver rkisp_sditf_drv = {

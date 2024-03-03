@@ -638,8 +638,9 @@ static const struct isp_clk_info rk3568_isp_clk_rate[] = {
 };
 
 static const struct isp_clk_info rk3576_isp_clk_rate[] = {
+	/* clk 300 * 2 equal to aclk issue if ldcv enable */
 	{
-		.clk_rate = 300,
+		.clk_rate = 400,
 		.refer_data = 1920, //width
 	}, {
 		.clk_rate = 400,
