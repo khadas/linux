@@ -13,6 +13,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/display/drm_hdcp_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_of.h>
@@ -53,6 +54,8 @@
 #define DPTX_CONFIG_REG3			0x0108
 
 #define DPTX_CCTL				0x0200
+#define DPTX_CCTL_INITIATE_MST_ACT		BIT(28)
+#define ENABLE_MST_MODE				BIT(25)
 #define FORCE_HPD				BIT(4)
 #define DEFAULT_FAST_LINK_TRAIN_EN		BIT(2)
 #define ENHANCE_FRAMING_EN			BIT(1)
@@ -65,47 +68,50 @@
 #define PHY_SOFT_RESET				BIT(1)
 #define CONTROLLER_RESET			BIT(0)
 
-#define DPTX_VSAMPLE_CTRL			0x0300
+#define DPTX_MST_VCP_TABLE_REG_N(n)		(0x210 + (n) * 4)
+
+#define DPTX_VSAMPLE_CTRL_N(n)			(0x0300 + 0x10000 * (n))
 #define PIXEL_MODE_SELECT			GENMASK(22, 21)
 #define VIDEO_MAPPING				GENMASK(20, 16)
 #define VIDEO_STREAM_ENABLE			BIT(5)
-#define DPTX_VSAMPLE_STUFF_CTRL1		0x0304
-#define DPTX_VSAMPLE_STUFF_CTRL2		0x0308
-#define DPTX_VINPUT_POLARITY_CTRL		0x030c
+#define DPTX_VSAMPLE_STUFF_CTRL1_N(n)		(0x0304 + 0x10000 * (n))
+#define DPTX_VSAMPLE_STUFF_CTRL2_N(n)		(0x0308 + 0x10000 * (n))
+#define DPTX_VINPUT_POLARITY_CTRL_N(n)		(0x030c + 0x10000 * (n))
 #define DE_IN_POLARITY				BIT(2)
 #define HSYNC_IN_POLARITY			BIT(1)
 #define VSYNC_IN_POLARITY			BIT(0)
-#define DPTX_VIDEO_CONFIG1			0x0310
+#define DPTX_VIDEO_CONFIG1_N(n)			(0x0310 + 0x10000 * (n))
 #define HACTIVE					GENMASK(31, 16)
 #define HBLANK					GENMASK(15, 2)
 #define I_P					BIT(1)
 #define R_V_BLANK_IN_OSC			BIT(0)
-#define DPTX_VIDEO_CONFIG2			0x0314
+#define DPTX_VIDEO_CONFIG2_N(n)			(0x0314 + 0x10000 * (n))
 #define VBLANK					GENMASK(31, 16)
 #define VACTIVE					GENMASK(15, 0)
-#define DPTX_VIDEO_CONFIG3			0x0318
+#define DPTX_VIDEO_CONFIG3_N(n)			(0x0318 + 0x10000 * (n))
 #define H_SYNC_WIDTH				GENMASK(31, 16)
 #define H_FRONT_PORCH				GENMASK(15, 0)
-#define DPTX_VIDEO_CONFIG4			0x031c
+#define DPTX_VIDEO_CONFIG4_N(n)			(0x031c + 0x10000 * (n))
 #define V_SYNC_WIDTH				GENMASK(31, 16)
 #define V_FRONT_PORCH				GENMASK(15, 0)
-#define DPTX_VIDEO_CONFIG5			0x0320
+#define DPTX_VIDEO_CONFIG5_N(n)			(0x0320 + 0x10000 * (n))
 #define INIT_THRESHOLD_HI			GENMASK(22, 21)
 #define AVERAGE_BYTES_PER_TU_FRAC		GENMASK(19, 16)
+#define MST_AVERAGE_BYTES_PER_TU_FRAC		GENMASK(19, 14)
 #define INIT_THRESHOLD				GENMASK(13, 7)
 #define AVERAGE_BYTES_PER_TU			GENMASK(6, 0)
-#define DPTX_VIDEO_MSA1				0x0324
+#define DPTX_VIDEO_MSA1_N(n)			(0x0324 + 0x10000 * (n))
 #define VSTART					GENMASK(31, 16)
 #define HSTART					GENMASK(15, 0)
-#define DPTX_VIDEO_MSA2				0x0328
+#define DPTX_VIDEO_MSA2_N(n)			(0x0328 + 0x10000 * (n))
 #define MISC0					GENMASK(31, 24)
-#define DPTX_VIDEO_MSA3				0x032c
+#define DPTX_VIDEO_MSA3_N(n)			(0x032c + 0x10000 * (n))
 #define MISC1					GENMASK(31, 24)
-#define DPTX_VIDEO_HBLANK_INTERVAL		0x0330
+#define DPTX_VIDEO_HBLANK_INTERVAL_N(n)		(0x0330 + 0x10000 * (n))
 #define HBLANK_INTERVAL_EN			BIT(16)
 #define HBLANK_INTERVAL				GENMASK(15, 0)
 
-#define DPTX_AUD_CONFIG1			0x0400
+#define DPTX_AUD_CONFIG1_N(n)			(0x0400 + 0x10000 * (n))
 #define AUDIO_TIMESTAMP_VERSION_NUM		GENMASK(29, 24)
 #define AUDIO_PACKET_ID				GENMASK(23, 16)
 #define AUDIO_MUTE				BIT(15)
@@ -115,17 +121,17 @@
 #define AUDIO_DATA_IN_EN			GENMASK(4, 1)
 #define AUDIO_INF_SELECT			BIT(0)
 
-#define DPTX_SDP_VERTICAL_CTRL			0x0500
+#define DPTX_SDP_VERTICAL_CTRL_N(n)		(0x0500 + 0x10000 * (n))
 #define EN_VERTICAL_SDP				BIT(2)
 #define EN_AUDIO_STREAM_SDP			BIT(1)
 #define EN_AUDIO_TIMESTAMP_SDP			BIT(0)
-#define DPTX_SDP_HORIZONTAL_CTRL		0x0504
+#define DPTX_SDP_HORIZONTAL_CTRL_N(n)		(0x0504 + 0x10000 * (n))
 #define EN_HORIZONTAL_SDP			BIT(2)
-#define DPTX_SDP_STATUS_REGISTER		0x0508
-#define DPTX_SDP_MANUAL_CTRL			0x050c
-#define DPTX_SDP_STATUS_EN			0x0510
+#define DPTX_SDP_STATUS_REGISTER_N(n)		(0x0508 + 0x10000 * (n))
+#define DPTX_SDP_MANUAL_CTRL_N(n)		(0x050c + 0x10000 * (n))
+#define DPTX_SDP_STATUS_EN_N(n)			(0x0510 + 0x10000 * (n))
 
-#define DPTX_SDP_REGISTER_BANK			0x0600
+#define DPTX_SDP_REGISTER_BANK_N(n)		(0x0600 + 0x10000 * (n))
 #define SDP_REGS				GENMASK(31, 0)
 
 #define DPTX_PHYIF_CTRL				0x0a00
@@ -253,6 +259,13 @@
 
 #define SDP_REG_BANK_SIZE			16
 
+#define DPTX_MAX_STREAMS			4
+
+enum {
+	RK3576_DP,
+	RK3588_DP,
+};
+
 enum {
 	HDCP_TX_NONE,
 	HDCP_TX_1,
@@ -304,13 +317,13 @@ struct dw_dp_link {
 	struct drm_dp_desc desc;
 	u8 sink_count;
 	u8 vsc_sdp_extension_for_colorimetry_supported;
+	bool sink_support_mst;
 };
 
 struct dw_dp_video {
 	struct drm_display_mode mode;
 	u32 bus_format;
 	u8 video_mapping;
-	u8 pixel_mode;
 	u8 color_format;
 	u8 bpc;
 	u8 bpp;
@@ -334,6 +347,7 @@ struct dw_dp_sdp {
 	struct dp_sdp_header header;
 	u8 db[32];
 	unsigned long flags;
+	int stream_id;
 };
 
 struct dw_dp_hotplug {
@@ -351,7 +365,58 @@ struct dw_dp_compliance {
 	bool test_active;
 };
 
+struct dw_dp_ts {
+	u32 average_bytes_per_tu;
+	u32 average_bytes_per_tu_frac;
+	u32 init_threshold;
+};
+
+struct dw_dp_port_caps {
+	int max_hactive;
+	int max_vactive;
+	int max_pixel_clock;
+};
+
+struct dw_dp_chip_data {
+	int chip_type;
+	bool mst;
+	int mst_port_num;
+	int pixel_mode;
+	struct dw_dp_port_caps caps[DPTX_MAX_STREAMS];
+};
+
+struct dw_dp;
+struct dw_dp_mst_enc;
+struct dw_dp_mst_conn {
+	struct drm_connector connector;
+	struct drm_dp_mst_port *port;
+	struct dw_dp_mst_enc *mst_enc;
+	struct dw_dp *dp;
+	struct list_head head;
+
+	u8 vsc_sdp_extension_for_colorimetry_supported;
+};
+
+struct dw_dp_mst_enc {
+	struct drm_encoder encoder;
+	struct dw_dp_video video;
+	struct dw_dp_audio audio;
+	struct device_node *port_node;
+	struct extcon_dev *extcon;
+
+	struct clk *i2s_clk;
+	struct clk *spdif_clk;
+
+	DECLARE_BITMAP(sdp_reg_bank, SDP_REG_BANK_SIZE);
+
+	struct dw_dp_mst_conn *mst_conn;
+	struct dw_dp *dp;
+	int stream_id;
+	bool active;
+};
+
 struct dw_dp {
+	const struct dw_dp_chip_data *chip_data;
 	struct device *dev;
 	struct regmap *regmap;
 	struct phy *phy;
@@ -404,7 +469,16 @@ struct dw_dp {
 	struct dw_dp_hdcp hdcp;
 	int eotf_type;
 
+	u8 pixel_mode;
 	u32 max_link_rate;
+
+	bool support_mst;
+	bool is_mst;
+	int mst_port_num;
+	int active_mst_links;
+	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct dw_dp_mst_enc mst_enc[DPTX_MAX_STREAMS];
+	struct list_head mst_conn_list;
 };
 
 struct dw_dp_state {
@@ -1022,6 +1096,13 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 
 	req_bw = mode->clock * bpp / 8;
 	max_bw = lanes * rate;
+	/*
+	 * In MST mode, a MTP is 64 time slots, The first time slots is for
+	 * MTP Header, only 63 time slots for payload, so when calculate the
+	 * request bandwidth, req_bw = req_bw * 64 / 63;
+	 */
+	if (dp->is_mst)
+		req_bw = DIV_ROUND_UP(req_bw * 64, 63);
 	if (req_bw > max_bw)
 		return false;
 
@@ -1031,11 +1112,18 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 static bool dw_dp_detect(struct dw_dp *dp)
 {
 	u32 value;
+	int ret;
 
 	if (dp->hpd_gpio)
 		return gpiod_get_value_cansleep(dp->hpd_gpio);
 
-	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, value,
+				       FIELD_GET(HPD_STATE, value) != SOURCE_STATE_UNPLUG,
+				       100, 3000);
+	if (ret) {
+		dev_err(dp->dev, "get hpd status timeout\n");
+		return false;
+	}
 
 	return FIELD_GET(HPD_STATE, value) == SOURCE_STATE_PLUG;
 }
@@ -1486,6 +1574,8 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 		if (!link->sink_count)
 			return -ENODEV;
 	}
+
+	link->sink_support_mst = drm_dp_read_mst_cap(&dp->aux, dp->link.dpcd);
 
 	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
 				&dpcd);
@@ -2039,7 +2129,7 @@ static int dw_dp_send_sdp(struct dw_dp *dp, struct dw_dp_sdp *sdp)
 	else
 		return -EBUSY;
 
-	reg = DPTX_SDP_REGISTER_BANK + nr * 9 * 4;
+	reg = DPTX_SDP_REGISTER_BANK_N(sdp->stream_id) + nr * 9 * 4;
 
 	/* SDP header */
 	regmap_write(dp->regmap, reg, get_unaligned_le32(&sdp->header));
@@ -2050,12 +2140,12 @@ static int dw_dp_send_sdp(struct dw_dp *dp, struct dw_dp_sdp *sdp)
 			     FIELD_PREP(SDP_REGS, get_unaligned_le32(payload)));
 
 	if (sdp->flags & DPTX_SDP_VERTICAL_INTERVAL)
-		regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL,
+		regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(sdp->stream_id),
 				   EN_VERTICAL_SDP << nr,
 				   EN_VERTICAL_SDP << nr);
 
 	if (sdp->flags & DPTX_SDP_HORIZONTAL_INTERVAL)
-		regmap_update_bits(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL,
+		regmap_update_bits(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(sdp->stream_id),
 				   EN_HORIZONTAL_SDP << nr,
 				   EN_HORIZONTAL_SDP << nr);
 
@@ -2099,12 +2189,13 @@ static void dw_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	sdp->flags |= DPTX_SDP_VERTICAL_INTERVAL;
 }
 
-static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
+static int dw_dp_send_vsc_sdp(struct dw_dp *dp, int stream_id)
 {
 	struct dw_dp_video *video = &dp->video;
 	struct drm_dp_vsc_sdp vsc = {};
 	struct dw_dp_sdp sdp = {};
 
+	sdp.stream_id = stream_id;
 	vsc.revision = 0x5;
 	vsc.length = 0x13;
 
@@ -2182,13 +2273,14 @@ static ssize_t dw_dp_hdr_metadata_infoframe_sdp_pack(struct dw_dp *dp,
 	return sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE;
 }
 
-static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp)
+static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp, int stream_id)
 {
 	struct hdmi_drm_infoframe drm_infoframe = {};
 	struct dw_dp_sdp sdp = {};
 	struct drm_connector_state *conn_state;
 	int ret;
 
+	sdp.stream_id = stream_id;
 	conn_state = dp->connector.state;
 
 	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
@@ -2202,7 +2294,7 @@ static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp)
 	return dw_dp_send_sdp(dp, &sdp);
 }
 
-static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, u8 pixel_mode)
+static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, int stream_id, u8 pixel_mode)
 {
 	switch (pixel_mode) {
 	case DPTX_MP_SINGLE_PIXEL:
@@ -2213,19 +2305,27 @@ static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, u8 pixel_mode)
 		return -EINVAL;
 	}
 
-	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, PIXEL_MODE_SELECT,
+	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), PIXEL_MODE_SELECT,
 			   FIELD_PREP(PIXEL_MODE_SELECT, pixel_mode));
 
 	return 0;
 }
 
-static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp)
+static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp, int stream_id)
 {
 	struct dw_dp_link *link = &dp->link;
 	struct dw_dp_video *video = &dp->video;
 
-	if (!link->vsc_sdp_extension_for_colorimetry_supported)
-		return false;
+	if (dp->is_mst) {
+		struct dw_dp_mst_conn *mst_conn = dp->mst_enc[stream_id].mst_conn;
+
+		if (!mst_conn || !mst_conn->vsc_sdp_extension_for_colorimetry_supported)
+			return false;
+
+	} else {
+		if (!link->vsc_sdp_extension_for_colorimetry_supported)
+			return false;
+	}
 
 	if (video->color_format == DRM_COLOR_FORMAT_YCBCR420)
 		return true;
@@ -2236,12 +2336,12 @@ static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp)
 	return false;
 }
 
-static int dw_dp_video_set_msa(struct dw_dp *dp, u8 color_format, u8 bpc,
+static int dw_dp_video_set_msa(struct dw_dp *dp, int stream_id, u8 color_format, u8 bpc,
 			       u16 vstart, u16 hstart)
 {
 	u16 misc = 0;
 
-	if (dw_dp_video_need_vsc_sdp(dp))
+	if (dw_dp_video_need_vsc_sdp(dp, stream_id))
 		misc |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	switch (color_format) {
@@ -2280,113 +2380,49 @@ static int dw_dp_video_set_msa(struct dw_dp *dp, u8 color_format, u8 bpc,
 		return -EINVAL;
 	}
 
-	regmap_write(dp->regmap, DPTX_VIDEO_MSA1,
+	regmap_write(dp->regmap, DPTX_VIDEO_MSA1_N(stream_id),
 		     FIELD_PREP(VSTART, vstart) | FIELD_PREP(HSTART, hstart));
-	regmap_write(dp->regmap, DPTX_VIDEO_MSA2, FIELD_PREP(MISC0, misc));
-	regmap_write(dp->regmap, DPTX_VIDEO_MSA3, FIELD_PREP(MISC1, misc >> 8));
+	regmap_write(dp->regmap, DPTX_VIDEO_MSA2_N(stream_id), FIELD_PREP(MISC0, misc));
+	regmap_write(dp->regmap, DPTX_VIDEO_MSA3_N(stream_id), FIELD_PREP(MISC1, misc >> 8));
 
 	return 0;
 }
 
-static void dw_dp_video_disable(struct dw_dp *dp)
+static void dw_dp_video_disable(struct dw_dp *dp, int stream_id)
 {
-	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, VIDEO_STREAM_ENABLE,
+	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), VIDEO_STREAM_ENABLE,
 			   FIELD_PREP(VIDEO_STREAM_ENABLE, 0));
 }
 
-static int dw_dp_video_enable(struct dw_dp *dp)
+static int dw_dp_video_ts_calculate(struct dw_dp *dp, struct dw_dp_video *video,
+				    struct dw_dp_ts *ts)
 {
-	struct dw_dp_video *video = &dp->video;
 	struct dw_dp_link *link = &dp->link;
 	struct drm_display_mode *mode = &video->mode;
 	u8 color_format = video->color_format;
+	u8 bpp = video->bpp;
 	u8 bpc = video->bpc;
-	u8 pixel_mode = video->pixel_mode;
-	u8 bpp = video->bpp, init_threshold, vic;
-	u32 hactive, hblank, h_sync_width, h_front_porch;
-	u32 vactive, vblank, v_sync_width, v_front_porch;
-	u32 vstart = mode->vtotal - mode->vsync_start;
-	u32 hstart = mode->htotal - mode->hsync_start;
+	u8 pixel_mode = dp->pixel_mode;
 	u32 peak_stream_bandwidth, link_bandwidth;
-	u32 average_bytes_per_tu, average_bytes_per_tu_frac;
-	u32 ts, hblank_interval;
-	u32 value;
-	int ret;
+	u32 ts_calc;
+	u32 t1 = 0, t2 = 0, t3 = 0;
+	u32 hblank = mode->htotal - mode->hdisplay;
 
-	ret = dw_dp_video_set_pixel_mode(dp, pixel_mode);
-	if (ret)
-		return ret;
-
-	ret = dw_dp_video_set_msa(dp, color_format, bpc, vstart, hstart);
-	if (ret)
-		return ret;
-
-	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, VIDEO_MAPPING,
-			   FIELD_PREP(VIDEO_MAPPING, video->video_mapping));
-
-	/* Configure DPTX_VINPUT_POLARITY_CTRL register */
-	value = 0;
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		value |= FIELD_PREP(HSYNC_IN_POLARITY, 1);
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		value |= FIELD_PREP(VSYNC_IN_POLARITY, 1);
-	regmap_write(dp->regmap, DPTX_VINPUT_POLARITY_CTRL, value);
-
-	/* Configure DPTX_VIDEO_CONFIG1 register */
-	hactive = mode->hdisplay;
-	hblank = mode->htotal - mode->hdisplay;
-	value = FIELD_PREP(HACTIVE, hactive) | FIELD_PREP(HBLANK, hblank);
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		value |= FIELD_PREP(I_P, 1);
-	vic = drm_match_cea_mode(mode);
-	if (vic == 5 || vic == 6 || vic == 7 ||
-	    vic == 10 || vic == 11 || vic == 20 ||
-	    vic == 21 || vic == 22 || vic == 39 ||
-	    vic == 25 || vic == 26 || vic == 40 ||
-	    vic == 44 || vic == 45 || vic == 46 ||
-	    vic == 50 || vic == 51 || vic == 54 ||
-	    vic == 55 || vic == 58 || vic  == 59)
-		value |= R_V_BLANK_IN_OSC;
-	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG1, value);
-
-	/* Configure DPTX_VIDEO_CONFIG2 register */
-	vblank = mode->vtotal - mode->vdisplay;
-	vactive = mode->vdisplay;
-	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG2,
-		     FIELD_PREP(VBLANK, vblank) | FIELD_PREP(VACTIVE, vactive));
-
-	/* Configure DPTX_VIDEO_CONFIG3 register */
-	h_sync_width = mode->hsync_end - mode->hsync_start;
-	h_front_porch = mode->hsync_start - mode->hdisplay;
-	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG3,
-		     FIELD_PREP(H_SYNC_WIDTH, h_sync_width) |
-		     FIELD_PREP(H_FRONT_PORCH, h_front_porch));
-
-	/* Configure DPTX_VIDEO_CONFIG4 register */
-	v_sync_width = mode->vsync_end - mode->vsync_start;
-	v_front_porch = mode->vsync_start - mode->vdisplay;
-	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG4,
-		     FIELD_PREP(V_SYNC_WIDTH, v_sync_width) |
-		     FIELD_PREP(V_FRONT_PORCH, v_front_porch));
-
-	/* Configure DPTX_VIDEO_CONFIG5 register */
 	peak_stream_bandwidth = mode->clock * bpp / 8;
 	link_bandwidth = (link->rate / 1000) * link->lanes;
-	ts = peak_stream_bandwidth * 64 / link_bandwidth;
-	average_bytes_per_tu = ts / 1000;
-	average_bytes_per_tu_frac = ts / 100 - average_bytes_per_tu * 10;
+	ts_calc = peak_stream_bandwidth * 64 / link_bandwidth;
+	ts->average_bytes_per_tu = ts_calc / 1000;
+	ts->average_bytes_per_tu_frac = ts_calc / 100 - ts->average_bytes_per_tu * 10;
 	if (pixel_mode == DPTX_MP_SINGLE_PIXEL) {
-		if (average_bytes_per_tu < 6)
-			init_threshold = 32;
+		if (ts->average_bytes_per_tu < 6)
+			ts->init_threshold = 32;
 		else if (hblank <= 80 && color_format != DRM_COLOR_FORMAT_YCBCR420)
-			init_threshold = 12;
+			ts->init_threshold = 12;
 		else if (hblank <= 40 && color_format == DRM_COLOR_FORMAT_YCBCR420)
-			init_threshold = 3;
+			ts->init_threshold = 3;
 		else
-			init_threshold = 16;
+			ts->init_threshold = 16;
 	} else {
-		u32 t1 = 0, t2 = 0, t3 = 0;
-
 		switch (bpc) {
 		case 6:
 			t1 = (4 * 1000 / 9) * link->lanes;
@@ -2433,36 +2469,212 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 		else
 			t2 = (link->rate / 4) * 1000 / mode->clock;
 
-		if (average_bytes_per_tu_frac)
-			t3 = average_bytes_per_tu + 1;
+		if (ts->average_bytes_per_tu_frac)
+			t3 = ts->average_bytes_per_tu + 1;
 		else
-			t3 = average_bytes_per_tu;
-		init_threshold = t1 * t2 * t3 / (1000 * 1000);
-		if (init_threshold <= 16 || average_bytes_per_tu < 10)
-			init_threshold = 40;
+			t3 = ts->average_bytes_per_tu;
+		ts->init_threshold = t1 * t2 * t3 / (1000 * 1000);
+		if (ts->init_threshold <= 16 || ts->average_bytes_per_tu < 10)
+			ts->init_threshold = 40;
 	}
 
-	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG5,
-		     FIELD_PREP(INIT_THRESHOLD_HI, init_threshold >> 6) |
-		     FIELD_PREP(AVERAGE_BYTES_PER_TU_FRAC, average_bytes_per_tu_frac) |
-		     FIELD_PREP(INIT_THRESHOLD, init_threshold) |
-		     FIELD_PREP(AVERAGE_BYTES_PER_TU, average_bytes_per_tu));
+	return 0;
+}
+
+static int dw_dp_video_mst_ts_calculate(struct dw_dp *dp, struct dw_dp_video *video,
+					struct dw_dp_ts *ts)
+{
+	struct dw_dp_link *link = &dp->link;
+	struct drm_display_mode *mode = &video->mode;
+	u8 color_format = video->color_format;
+	u32 peak_stream_bandwidth, link_bandwidth;
+	u32 ts_calc;
+	u32 t1 = 0, t2 = 0, t3 = 0;
+	u32 slot_count = 0;
+	u32 num_lanes_divisor = 0;
+	u32 slot_count_adjust = 0;
+
+	peak_stream_bandwidth = mode->clock * video->bpp / 8;
+	link_bandwidth = (link->rate / 1000) * link->lanes;
+	ts_calc = peak_stream_bandwidth * 64 / link_bandwidth;
+	ts->average_bytes_per_tu = ts_calc / 1000;
+	ts->average_bytes_per_tu_frac = (ts_calc - ts->average_bytes_per_tu * 1000) * 64 / 1000;
+
+	switch (video->bpc) {
+	case 6:
+		if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+			return -EINVAL;
+		t1 = 72000 / 36;
+		break;
+	case 8:
+		if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+			t1 = 8000 / 4;
+		else
+			t1 = 16000 / 12;
+		break;
+	case 10:
+		if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+			t1 = 32000 / 20;
+		else
+			t1 = 64000 / 60;
+		break;
+	case 12:
+		if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+			t1 = 16000 / 20;
+		else
+			t1 = 32000 / 36;
+		break;
+	case 16:
+		if (color_format == DRM_COLOR_FORMAT_YCBCR422)
+			t1 = 4000 / 4;
+		else
+			t1 = 8000 / 12;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (color_format == DRM_COLOR_FORMAT_YCBCR420)
+		t2 = (link->rate / 4) * 1000 / (mode->clock / 2);
+	else
+		t2 = (link->rate / 4) * 1000 / mode->clock;
+
+	if (ts->average_bytes_per_tu_frac)
+		slot_count = ts->average_bytes_per_tu + 1;
+	else
+		slot_count = ts->average_bytes_per_tu;
+
+	if (link->lanes == 1) {
+		num_lanes_divisor = 4;
+		slot_count_adjust = 3;
+	} else if (link->lanes == 2) {
+		num_lanes_divisor = 2;
+		slot_count_adjust = 1;
+	} else {
+		num_lanes_divisor = 1;
+		slot_count_adjust = 0;
+	}
+
+	t3 = (slot_count + slot_count_adjust) + 8 * num_lanes_divisor;
+	ts->init_threshold = t1 * t2 * t3 / (1000 * 1000 * num_lanes_divisor);
+
+	return 0;
+}
+
+static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int stream_id)
+{
+	struct dw_dp_link *link = &dp->link;
+	struct drm_display_mode *mode = &video->mode;
+	struct dw_dp_ts ts;
+	u8 color_format = video->color_format;
+	u8 bpc = video->bpc;
+	u8 pixel_mode = dp->pixel_mode;
+	u8 vic;
+	u32 hactive, hblank, h_sync_width, h_front_porch;
+	u32 vactive, vblank, v_sync_width, v_front_porch;
+	u32 vstart = mode->vtotal - mode->vsync_start;
+	u32 hstart = mode->htotal - mode->hsync_start;
+	u32 hblank_interval;
+	u32 value;
+	int ret;
+
+	ret = dw_dp_video_set_pixel_mode(dp, stream_id, pixel_mode);
+	if (ret)
+		return ret;
+
+	ret = dw_dp_video_set_msa(dp, stream_id, color_format, bpc, vstart, hstart);
+	if (ret)
+		return ret;
+
+	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), VIDEO_MAPPING,
+			   FIELD_PREP(VIDEO_MAPPING, video->video_mapping));
+
+	/* Configure DPTX_VINPUT_POLARITY_CTRL register */
+	value = 0;
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+		value |= FIELD_PREP(HSYNC_IN_POLARITY, 1);
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		value |= FIELD_PREP(VSYNC_IN_POLARITY, 1);
+	regmap_write(dp->regmap, DPTX_VINPUT_POLARITY_CTRL_N(stream_id), value);
+
+	/* Configure DPTX_VIDEO_CONFIG1 register */
+	hactive = mode->hdisplay;
+	hblank = mode->htotal - mode->hdisplay;
+	value = FIELD_PREP(HACTIVE, hactive) | FIELD_PREP(HBLANK, hblank);
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		value |= FIELD_PREP(I_P, 1);
+	vic = drm_match_cea_mode(mode);
+	if (vic == 5 || vic == 6 || vic == 7 ||
+	    vic == 10 || vic == 11 || vic == 20 ||
+	    vic == 21 || vic == 22 || vic == 39 ||
+	    vic == 25 || vic == 26 || vic == 40 ||
+	    vic == 44 || vic == 45 || vic == 46 ||
+	    vic == 50 || vic == 51 || vic == 54 ||
+	    vic == 55 || vic == 58 || vic  == 59)
+		value |= R_V_BLANK_IN_OSC;
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG1_N(stream_id), value);
+
+	/* Configure DPTX_VIDEO_CONFIG2 register */
+	vblank = mode->vtotal - mode->vdisplay;
+	vactive = mode->vdisplay;
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG2_N(stream_id),
+		     FIELD_PREP(VBLANK, vblank) | FIELD_PREP(VACTIVE, vactive));
+
+	/* Configure DPTX_VIDEO_CONFIG3 register */
+	h_sync_width = mode->hsync_end - mode->hsync_start;
+	h_front_porch = mode->hsync_start - mode->hdisplay;
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG3_N(stream_id),
+		     FIELD_PREP(H_SYNC_WIDTH, h_sync_width) |
+		     FIELD_PREP(H_FRONT_PORCH, h_front_porch));
+
+	/* Configure DPTX_VIDEO_CONFIG4 register */
+	v_sync_width = mode->vsync_end - mode->vsync_start;
+	v_front_porch = mode->vsync_start - mode->vdisplay;
+	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG4_N(stream_id),
+		     FIELD_PREP(V_SYNC_WIDTH, v_sync_width) |
+		     FIELD_PREP(V_FRONT_PORCH, v_front_porch));
+
+	/* Configure DPTX_VIDEO_CONFIG5 register */
+	if (dp->is_mst) {
+		ret = dw_dp_video_mst_ts_calculate(dp, &dp->mst_enc[stream_id].video, &ts);
+		if (ret)
+			return ret;
+		regmap_write(dp->regmap, DPTX_VIDEO_CONFIG5_N(stream_id),
+			     FIELD_PREP(INIT_THRESHOLD_HI, ts.init_threshold >> 6) |
+			     FIELD_PREP(MST_AVERAGE_BYTES_PER_TU_FRAC,
+					ts.average_bytes_per_tu_frac) |
+			     FIELD_PREP(INIT_THRESHOLD, ts.init_threshold) |
+			     FIELD_PREP(AVERAGE_BYTES_PER_TU, ts.average_bytes_per_tu));
+	} else {
+		ret = dw_dp_video_ts_calculate(dp, &dp->video, &ts);
+		if (ret)
+			return ret;
+		regmap_write(dp->regmap, DPTX_VIDEO_CONFIG5_N(stream_id),
+			     FIELD_PREP(INIT_THRESHOLD_HI, ts.init_threshold >> 6) |
+			     FIELD_PREP(AVERAGE_BYTES_PER_TU_FRAC, ts.average_bytes_per_tu_frac) |
+			     FIELD_PREP(INIT_THRESHOLD, ts.init_threshold) |
+			     FIELD_PREP(AVERAGE_BYTES_PER_TU, ts.average_bytes_per_tu));
+	}
 
 	/* Configure DPTX_VIDEO_HBLANK_INTERVAL register */
-	hblank_interval = hblank * (link->rate / 4) / mode->clock;
-	regmap_write(dp->regmap, DPTX_VIDEO_HBLANK_INTERVAL,
+	if (dp->is_mst)
+		hblank_interval = hblank * ts.average_bytes_per_tu * (link->rate / 4) / 16 /
+				  mode->clock;
+	else
+		hblank_interval = hblank * (link->rate / 4) / mode->clock;
+	regmap_write(dp->regmap, DPTX_VIDEO_HBLANK_INTERVAL_N(stream_id),
 		     FIELD_PREP(HBLANK_INTERVAL_EN, 1) |
 		     FIELD_PREP(HBLANK_INTERVAL, hblank_interval));
 
 	/* Video stream enable */
-	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, VIDEO_STREAM_ENABLE,
+	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL_N(stream_id), VIDEO_STREAM_ENABLE,
 			   FIELD_PREP(VIDEO_STREAM_ENABLE, 1));
 
-	if (dw_dp_video_need_vsc_sdp(dp))
-		dw_dp_send_vsc_sdp(dp);
+	if (dw_dp_video_need_vsc_sdp(dp, stream_id))
+		dw_dp_send_vsc_sdp(dp, stream_id);
 
 	if (dw_dp_is_hdr_eotf(dp->eotf_type))
-		dw_dp_send_hdr_metadata_infoframe_sdp(dp);
+		dw_dp_send_hdr_metadata_infoframe_sdp(dp, stream_id);
 
 	return 0;
 }
@@ -2598,7 +2810,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
 		break;
 	case DRM_COLOR_FORMAT_YCBCR422:
-		s->output_mode = ROCKCHIP_OUT_MODE_S888_DUMMY;
+		s->output_mode = ROCKCHIP_OUT_MODE_YUV422;
 		break;
 	case DRM_COLOR_FORMAT_RGB444:
 	case DRM_COLOR_FORMAT_YCBCR444:
@@ -2850,6 +3062,756 @@ static int dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	return 0;
 }
 
+static void dw_dp_mst_connector_destroy(struct drm_connector *connector)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+
+	list_del(&mst_conn->head);
+	drm_connector_cleanup(&mst_conn->connector);
+
+	kfree(mst_conn);
+}
+
+static int dw_dp_mst_connector_late_register(struct drm_connector *connector)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+	int ret;
+
+	ret = drm_dp_mst_connector_late_register(connector, mst_conn->port);
+
+	return ret;
+}
+
+static void dw_dp_mst_connector_early_unregister(struct drm_connector *connector)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+
+	drm_dp_mst_connector_early_unregister(connector, mst_conn->port);
+}
+
+static const struct drm_connector_funcs dw_dp_mst_connector_funcs = {
+	.fill_modes		= drm_helper_probe_single_connector_modes,
+	.reset			= drm_atomic_helper_connector_reset,
+	.destroy		= dw_dp_mst_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
+	.late_register		= dw_dp_mst_connector_late_register,
+	.early_unregister	= dw_dp_mst_connector_early_unregister,
+};
+
+static int dw_dp_mst_connector_get_modes(struct drm_connector *connector)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+					  struct dw_dp_mst_conn, connector);
+	struct dw_dp *dp = mst_conn->dp;
+	struct edid *edid;
+	int num_modes = 0;
+
+	edid = drm_dp_mst_get_edid(connector, &dp->mst_mgr, mst_conn->port);
+	if (edid) {
+		drm_connector_update_edid_property(connector, edid);
+		num_modes = drm_add_edid_modes(connector, edid);
+		kfree(edid);
+	}
+
+	return num_modes;
+}
+
+/*
+ * For DP MST function, multi encoders will be register, when a connector attach to a crtc,
+ * it must select a best encoder.
+ * A simple method is to bind every DP MST encoder to a target crtc, for example:
+ * bind DP MST encoder 0 to crtc 0
+ * bind DP MST encoder 1 to crtc 1
+ * bind DP MST encoder 2 to crtc 2
+ * If different DP MST connector need attach to the same crtc, the above method may cause
+ * conflict when assign encoder. In this case, assigned encoder ass follow:
+ * 1. First loop, find the connector that will detach a crtc and not attach to a new
+ *    crtc, remove this connector's encoder;
+ * 2. Second loop, find the connector that first attach to a crtc. If a unused encoder is
+ *    available, this connector will be assigned a encoder;
+ * 3. This function will be called when each DP MST connector to find the best encoder.
+ */
+
+static void dw_dp_mst_assigned_encoder(struct dw_dp *dp, struct drm_atomic_state *state,
+				       struct drm_crtc *crtc)
+{
+	struct dw_dp_mst_conn *mst_conn;
+	struct drm_connector_state *new_con_state;
+	struct drm_connector *connector;
+	u32 encoder_mask = 0;
+	int i;
+
+	/* remove the detach connector */
+	list_for_each_entry(mst_conn, &dp->mst_conn_list, head) {
+		connector = &mst_conn->connector;
+		new_con_state = drm_atomic_get_new_connector_state(state, connector);
+		if (!new_con_state) {
+			if (connector->state->best_encoder)
+				encoder_mask |= drm_encoder_mask(connector->state->best_encoder);
+			continue;
+		}
+
+		if (!new_con_state->crtc) {
+			mst_conn->mst_enc = NULL;
+			continue;
+		}
+
+		/* if the connector attach crtc is no change but it have
+		 * a new connector state, mark it best_encoder.
+		 */
+		if (connector->state->crtc == new_con_state->crtc)
+			encoder_mask |= drm_encoder_mask(connector->state->best_encoder);
+	}
+
+	dev_info(dp->dev, "assgned encoder_mask:%x\n", encoder_mask);
+
+	/* assigned encoder for attached connector */
+	list_for_each_entry(mst_conn, &dp->mst_conn_list, head) {
+		u32 availble_encoders;
+
+		connector = &mst_conn->connector;
+		new_con_state = drm_atomic_get_new_connector_state(state, connector);
+		if (!new_con_state)
+			continue;
+
+		if (!connector->state->crtc && new_con_state->crtc) {
+			availble_encoders = encoder_mask ^ connector->possible_encoders;
+			for (i = 0; i < dp->mst_port_num; i++) {
+				if (drm_encoder_crtc_ok(&dp->mst_enc[i].encoder, crtc) &&
+				    (availble_encoders &
+				     drm_encoder_mask(&dp->mst_enc[i].encoder))) {
+					mst_conn->mst_enc = &dp->mst_enc[i];
+					encoder_mask |= drm_encoder_mask(&dp->mst_enc[i].encoder);
+					break;
+				}
+			}
+		}
+	}
+}
+
+static struct drm_encoder*
+dw_dp_mst_connector_atomic_best_encoder(struct drm_connector *connector,
+					struct drm_atomic_state *state)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+					  struct dw_dp_mst_conn, connector);
+	struct dw_dp *dp = mst_conn->dp;
+	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
+										    connector);
+
+	if (!conn_state->crtc)
+		return NULL;
+
+	dw_dp_mst_assigned_encoder(dp, state, conn_state->crtc);
+
+	return &mst_conn->mst_enc->encoder;
+}
+
+static int dw_dp_mst_connector_detect(struct drm_connector *connector,
+			    struct drm_modeset_acquire_ctx *ctx, bool force)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+					  struct dw_dp_mst_conn, connector);
+	struct dw_dp *dp = mst_conn->dp;
+	u8 dpcd;
+	int ret;
+
+	if (drm_connector_is_unregistered(connector))
+		return connector_status_disconnected;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST, &dpcd);
+	if (ret < 0)
+		return connector_status_disconnected;
+
+	mst_conn->vsc_sdp_extension_for_colorimetry_supported =
+		!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
+
+	return drm_dp_mst_detect_port(connector, ctx, &dp->mst_mgr,
+				      mst_conn->port);
+}
+
+static int dw_dp_mst_connector_atomic_check(struct drm_connector *connector,
+				  struct drm_atomic_state *state)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+	struct dw_dp *dp = mst_conn->dp;
+	struct drm_connector_state *new_conn_state =
+		drm_atomic_get_new_connector_state(state, connector);
+	struct drm_connector_state *old_conn_state =
+		drm_atomic_get_old_connector_state(state, connector);
+	struct drm_crtc *new_crtc = new_conn_state->crtc;
+	struct drm_crtc_state *crtc_state;
+	int ret;
+
+	if (!old_conn_state->crtc)
+		return 0;
+
+	if (new_crtc) {
+		crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+		if (!crtc_state ||
+		    !drm_atomic_crtc_needs_modeset(crtc_state) ||
+		    crtc_state->enable)
+			return 0;
+	}
+
+	ret =  drm_dp_atomic_release_time_slots(state, &dp->mst_mgr, mst_conn->port);
+
+	return ret;
+}
+
+static enum drm_mode_status
+dw_dp_mst_connector_mode_valid(struct drm_connector *connector, struct drm_display_mode *mode)
+{
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+	struct drm_dp_mst_port *port = mst_conn->port;
+	struct dw_dp *dp = mst_conn->dp;
+	u32 min_bpp = 24;
+
+	if (drm_connector_is_unregistered(connector))
+		return  MODE_ERROR;
+
+	if (!dw_dp_bandwidth_ok(dp, mode, min_bpp, dp->link.lanes, dp->link.rate))
+		return MODE_CLOCK_HIGH;
+
+	if (drm_dp_calc_pbn_mode(mode->clock, min_bpp, false) > port->full_pbn)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
+static const struct drm_connector_helper_funcs dw_dp_mst_connector_helper_funcs = {
+	.get_modes = dw_dp_mst_connector_get_modes,
+	.atomic_best_encoder = dw_dp_mst_connector_atomic_best_encoder,
+	.detect_ctx = dw_dp_mst_connector_detect,
+	.atomic_check = dw_dp_mst_connector_atomic_check,
+	.mode_valid = dw_dp_mst_connector_mode_valid,
+};
+
+static void dw_dp_mst_encoder_cleanup(struct drm_encoder *encoder)
+{
+	struct dw_dp_mst_enc *mst_enc = container_of(encoder, struct dw_dp_mst_enc, encoder);
+	struct dw_dp *dp = mst_enc->dp;
+
+	if (!dp->support_mst)
+		return;
+
+	drm_encoder_cleanup(encoder);
+
+	if (dp->mst_mgr.dev)
+		drm_dp_mst_topology_mgr_destroy(&dp->mst_mgr);
+}
+
+static const struct drm_encoder_funcs dw_dp_mst_encoder_funcs = {
+	.destroy = dw_dp_mst_encoder_cleanup,
+};
+
+static void dw_dp_mst_enable(struct dw_dp *dp)
+{
+	regmap_update_bits(dp->regmap, DPTX_CCTL, ENABLE_MST_MODE,
+			   FIELD_PREP(ENABLE_MST_MODE, 1));
+}
+
+__maybe_unused static void dw_dp_mst_disable(struct dw_dp *dp)
+{
+	regmap_update_bits(dp->regmap, DPTX_CCTL, ENABLE_MST_MODE,
+			   FIELD_PREP(ENABLE_MST_MODE, 0));
+}
+
+static void dw_dp_clear_vcpid_table(struct dw_dp *dp)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		regmap_write(dp->regmap, DPTX_MST_VCP_TABLE_REG_N(i), 0);
+}
+
+static int dw_dp_initiate_mst_act(struct dw_dp *dp)
+{
+	int val, ret = 0;
+
+	regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
+			   FIELD_PREP(DPTX_CCTL_INITIATE_MST_ACT, 1));
+
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_CCTL, val,
+				       !FIELD_GET(DPTX_CCTL_INITIATE_MST_ACT, val), 200, 100000);
+	/* if hardware not auto clear this bit until timeout, manual clear it */
+	if (ret)
+		regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
+				   FIELD_PREP(DPTX_CCTL_INITIATE_MST_ACT, 0));
+
+	return ret;
+}
+
+static void dw_dp_set_vcpid_table_slot(struct dw_dp *dp, u32 slot, u32 stream_id)
+{
+	u32 offset;
+	u32 mask;
+	u32 val;
+
+	offset = DPTX_MST_VCP_TABLE_REG_N(slot >> 3);
+	mask = 0xf << ((slot % 8) * 4);
+	val = stream_id << ((slot % 8) * 4);
+	regmap_update_bits(dp->regmap, offset, mask, val);
+}
+
+static void dw_dp_set_vcpid_table_range(struct dw_dp *dp, u32 start, u32 count, u32 stream_id)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		dw_dp_set_vcpid_table_slot(dp, start + i, stream_id + 1);
+	dev_dbg(dp->dev, "set stream%d start:%d, conunt:%d\n", stream_id, start, count);
+}
+
+static int dw_dp_set_vcpid_tables(struct dw_dp *dp,
+				  struct drm_dp_mst_topology_state *mst_state)
+{
+	struct dw_dp_mst_enc *mst_enc;
+	struct dw_dp_mst_conn *mst_conn;
+	struct drm_dp_mst_atomic_payload *payload;
+	int i;
+
+	dw_dp_clear_vcpid_table(dp);
+
+	for (i = 0; i < dp->mst_port_num; i++) {
+		mst_enc = &dp->mst_enc[i];
+		mst_conn = mst_enc->mst_conn;
+		if (!mst_enc->active)
+			continue;
+
+		payload = drm_atomic_get_mst_payload_state(mst_state, mst_conn->port);
+		dw_dp_set_vcpid_table_range(dp, payload->vc_start_slot, payload->time_slots,
+					    mst_enc->stream_id);
+	}
+
+	return 0;
+}
+
+static void dw_dp_enable_vop_gate(struct dw_dp *dp, struct drm_crtc *crtc,
+				  int stream_id, bool enable)
+{
+	int output_if;
+
+	switch (stream_id) {
+	case 0:
+		output_if = VOP_OUTPUT_IF_DP0;
+		break;
+	case 1:
+		output_if = VOP_OUTPUT_IF_DP1;
+		break;
+	case 2:
+		output_if = VOP_OUTPUT_IF_DP2;
+		break;
+	default:
+		dev_err(dp->dev, "invalid stream id:%d\n", stream_id);
+		return;
+	}
+
+	if (enable)
+		rockchip_drm_crtc_output_post_enable(crtc, output_if);
+	else
+		rockchip_drm_crtc_output_pre_disable(crtc, output_if);
+}
+
+static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
+					    struct drm_atomic_state *state)
+{
+	struct dw_dp_mst_enc *mst_enc = container_of(encoder, struct dw_dp_mst_enc, encoder);
+	struct dw_dp *dp = mst_enc->dp;
+	struct drm_dp_mst_topology_state *mst_state =
+		drm_atomic_get_new_mst_topology_state(state, &dp->mst_mgr);
+	struct drm_dp_mst_atomic_payload *payload;
+	struct dw_dp_mst_conn *mst_conn = NULL;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_crtc_state *crtc_state = encoder->crtc->state;
+	struct drm_display_mode *m = &mst_enc->video.mode;
+	int ret;
+	bool first_mst_stream;
+
+	drm_mode_copy(m, &crtc_state->adjusted_mode);
+
+	first_mst_stream = dp->active_mst_links == 0;
+	dp->active_mst_links++;
+	mst_enc->active = true;
+
+	drm_connector_list_iter_begin(encoder->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->state->best_encoder == encoder) {
+			mst_conn = container_of(connector, struct dw_dp_mst_conn, connector);
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	if (WARN_ON(!mst_conn))
+		return;
+	mst_enc->mst_conn = mst_conn;
+
+	if (first_mst_stream) {
+		ret = phy_power_on(dp->phy);
+		if (ret)
+			return;
+
+		ret = dw_dp_link_power_up(dp);
+		if (ret < 0)
+			return;
+
+		ret = dw_dp_link_train(dp);
+		if (ret < 0) {
+			dev_err(dp->dev, "link training failed: %d\n", ret);
+			return;
+		}
+
+		dw_dp_mst_enable(dp);
+		dw_dp_clear_vcpid_table(dp);
+	}
+
+	ret = drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, true);
+	if (ret < 0) {
+		dev_err(dp->dev, "send power updown phy failed:%d\n", ret);
+		return;
+	}
+
+	payload = drm_atomic_get_mst_payload_state(mst_state, mst_conn->port);
+	ret = drm_dp_add_payload_part1(&dp->mst_mgr, mst_state, payload);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to create MST payload:%d\n", ret);
+		return;
+	}
+
+	dw_dp_set_vcpid_table_range(dp, payload->vc_start_slot, payload->time_slots,
+				    mst_enc->stream_id);
+
+	ret = dw_dp_initiate_mst_act(dp);
+	if (ret < 0)
+		dev_warn(dp->dev, "failed to initial mst act:%d\n", ret);
+
+	ret = drm_dp_check_act_status(&dp->mst_mgr);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to check act status:%d\n", ret);
+		return;
+	}
+
+	ret = dw_dp_video_enable(dp, &mst_enc->video, mst_enc->stream_id);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to enable video: %d\n", ret);
+		return;
+	}
+
+	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, true);
+	drm_dp_add_payload_part2(&dp->mst_mgr, state, payload);
+}
+
+static void dw_dp_link_disable(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+
+	if (dw_dp_detect(dp))
+		dw_dp_link_power_down(dp);
+
+	dw_dp_phy_xmit_enable(dp, 0);
+
+	phy_power_off(dp->phy);
+
+	link->train.clock_recovered = false;
+	link->train.channel_equalized = false;
+}
+
+static void dw_dp_reset(struct dw_dp *dp)
+{
+	int val;
+
+	disable_irq(dp->irq);
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
+			   FIELD_PREP(CONTROLLER_RESET, 1));
+	udelay(100);
+	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
+			   FIELD_PREP(CONTROLLER_RESET, 0));
+
+	dw_dp_init(dp);
+	if (!dp->hpd_gpio) {
+		regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, val,
+					 FIELD_GET(HPD_HOT_PLUG, val), 200, 200000);
+		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
+	}
+	enable_irq(dp->irq);
+}
+
+static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
+					     struct drm_atomic_state *state)
+{
+	struct dw_dp_mst_enc *mst_enc = container_of(encoder, struct dw_dp_mst_enc, encoder);
+	struct dw_dp_mst_conn *mst_conn = mst_enc->mst_conn;
+	struct dw_dp *dp = mst_enc->dp;
+	struct drm_dp_mst_topology_state *old_mst_state =
+		drm_atomic_get_old_mst_topology_state(state, &dp->mst_mgr);
+	struct drm_dp_mst_topology_state *new_mst_state =
+		drm_atomic_get_new_mst_topology_state(state, &dp->mst_mgr);
+	const struct drm_dp_mst_atomic_payload *old_payload =
+		drm_atomic_get_mst_payload_state(old_mst_state, mst_conn->port);
+	struct drm_dp_mst_atomic_payload *new_payload =
+		drm_atomic_get_mst_payload_state(new_mst_state, mst_conn->port);
+	struct drm_crtc *crtc = encoder->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+	int ret;
+
+	dp->active_mst_links--;
+	mst_enc->active = false;
+
+	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, false);
+
+	if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder))) {
+		switch (mst_enc->stream_id) {
+		case 0:
+			s->output_if &= ~VOP_OUTPUT_IF_DP0;
+			break;
+		case 1:
+			s->output_if &= ~VOP_OUTPUT_IF_DP1;
+			break;
+		case 2:
+			s->output_if &= ~VOP_OUTPUT_IF_DP2;
+			break;
+		default:
+			dev_err(dp->dev, "invalid stream id:%d\n", mst_enc->stream_id);
+		}
+	}
+
+	drm_dp_remove_payload(&dp->mst_mgr, new_mst_state, old_payload, new_payload);
+
+	dw_dp_set_vcpid_tables(dp, new_mst_state);
+
+	ret = dw_dp_initiate_mst_act(dp);
+	if (ret < 0)
+		dev_err(dp->dev, "failed to initial mst act:%d\n", ret);
+
+	drm_dp_check_act_status(&dp->mst_mgr);
+
+	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
+
+	dw_dp_video_disable(dp, mst_enc->stream_id);
+	if (!dp->active_mst_links) {
+		dw_dp_link_disable(dp);
+		dw_dp_reset(dp);
+	}
+
+}
+
+static int dw_dp_mst_encoder_atomic_check(struct drm_encoder *encoder,
+					  struct drm_crtc_state *crtc_state,
+					  struct drm_connector_state *conn_state)
+{
+	struct dw_dp_mst_enc *mst_enc = container_of(encoder, struct dw_dp_mst_enc, encoder);
+	struct dw_dp *dp = mst_enc->dp;
+	struct dw_dp_video *video = &mst_enc->video;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_display_info *di = &conn_state->connector->display_info;
+	const struct dw_dp_output_format *fmt =
+		dw_dp_get_output_format(MEDIA_BUS_FMT_RGB888_1X24);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_connector *connector = conn_state->connector;
+	struct dw_dp_mst_conn *mst_conn = container_of(connector,
+						       struct dw_dp_mst_conn, connector);
+	struct drm_dp_mst_topology_state *mst_state;
+	int pbn, slot;
+
+	mst_state = drm_atomic_get_mst_topology_state(crtc_state->state, &dp->mst_mgr);
+	if (IS_ERR(mst_state))
+		return PTR_ERR(mst_state);
+
+	video->video_mapping = fmt->video_mapping;
+	video->color_format = fmt->color_format;
+	video->bus_format = fmt->bus_format;
+	video->bpc = fmt->bpc;
+	video->bpp = fmt->bpp;
+
+	switch (video->color_format) {
+	case DRM_COLOR_FORMAT_YCBCR420:
+		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
+		break;
+	case DRM_COLOR_FORMAT_YCBCR422:
+		s->output_mode = ROCKCHIP_OUT_MODE_S888_DUMMY;
+		break;
+	case DRM_COLOR_FORMAT_RGB444:
+	case DRM_COLOR_FORMAT_YCBCR444:
+	default:
+		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		break;
+	}
+
+	switch (mst_enc->stream_id) {
+	case 0:
+		s->output_if |= VOP_OUTPUT_IF_DP0;
+		break;
+	case 1:
+		s->output_if |= VOP_OUTPUT_IF_DP1;
+		break;
+	case 2:
+		s->output_if |= VOP_OUTPUT_IF_DP2;
+		break;
+	default:
+		dev_err(dp->dev, "invalid stream id:%d\n", mst_enc->stream_id);
+		return -EINVAL;
+	}
+
+	s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
+	s->bus_format = video->bus_format;
+	s->bus_flags = di->bus_flags;
+	s->tv_state = &conn_state->tv;
+	s->color_encoding = DRM_COLOR_YCBCR_BT709;
+
+	if (!mst_state->pbn_div) {
+		mst_state->pbn_div = drm_dp_get_vc_payload_bw(&dp->mst_mgr, dp->link.rate,
+							      dp->link.lanes);
+	}
+	pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.crtc_clock, video->bpp, false);
+	slot = drm_dp_atomic_find_time_slots(state, &dp->mst_mgr, mst_conn->port, pbn);
+	if (slot < 0) {
+		dev_err(dp->dev, "invalid slot:%d\n", slot);
+		return -EINVAL;
+	}
+
+	drm_dp_mst_update_slots(mst_state, DP_CAP_ANSI_8B10B);
+
+	return 0;
+}
+
+static enum drm_mode_status dw_dp_mst_encoder_mode_valid(struct drm_encoder *encoder,
+							 const struct drm_display_mode *mode)
+{
+	struct dw_dp_mst_enc *mst_enc = container_of(encoder, struct dw_dp_mst_enc, encoder);
+	struct dw_dp *dp = mst_enc->dp;
+	const struct dw_dp_chip_data *data = dp->chip_data;
+	const struct dw_dp_port_caps *cap = &data->caps[mst_enc->stream_id];
+
+	if (mode->hdisplay > cap->max_hactive)
+		return MODE_BAD_HVALUE;
+
+	if (mode->vdisplay > cap->max_vactive)
+		return MODE_BAD_VVALUE;
+
+	if (mode->clock > cap->max_pixel_clock)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
+static const struct drm_encoder_helper_funcs dw_dp_mst_encoder_help_funcs = {
+	.atomic_enable		= dw_dp_mst_encoder_atomic_enable,
+	.atomic_disable		= dw_dp_mst_encoder_atomic_disable,
+	.atomic_check		= dw_dp_mst_encoder_atomic_check,
+	.mode_valid		= dw_dp_mst_encoder_mode_valid,
+};
+
+static struct drm_connector *
+dw_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port,
+			const char *pathprop)
+{
+	struct dw_dp *dp = container_of(mgr, struct dw_dp, mst_mgr);
+	struct dw_dp_mst_conn *mst_conn;
+	struct drm_mode_config *conf = &mgr->dev->mode_config;
+	int ret, i;
+
+	mst_conn = kzalloc(sizeof(*mst_conn), GFP_KERNEL);
+	if (!mst_conn)
+		return NULL;
+
+	mst_conn->port = port;
+	mst_conn->dp = dp;
+	drm_dp_mst_get_port_malloc(port);
+	ret = drm_connector_init(mgr->dev, &mst_conn->connector, &dw_dp_mst_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret) {
+		drm_dp_mst_put_port_malloc(port);
+		kfree(mst_conn);
+		return NULL;
+	}
+
+	drm_connector_helper_add(&mst_conn->connector, &dw_dp_mst_connector_helper_funcs);
+	mst_conn->connector.funcs->reset(&mst_conn->connector);
+	for (i = 0; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
+		ret = drm_connector_attach_encoder(&mst_conn->connector, &dp->mst_enc[i].encoder);
+		if (ret)
+			goto err;
+	}
+
+	drm_object_attach_property(&mst_conn->connector.base, conf->tv_brightness_property, 50);
+	drm_object_attach_property(&mst_conn->connector.base, conf->tv_contrast_property, 50);
+	drm_object_attach_property(&mst_conn->connector.base, conf->tv_saturation_property, 50);
+	drm_object_attach_property(&mst_conn->connector.base, conf->tv_hue_property, 50);
+	mst_conn->connector.state->tv.brightness = 50;
+	mst_conn->connector.state->tv.contrast = 50;
+	mst_conn->connector.state->tv.saturation = 50;
+	mst_conn->connector.state->tv.hue = 50;
+
+	drm_object_attach_property(&mst_conn->connector.base, mgr->dev->mode_config.path_property,
+				   0);
+	ret = drm_connector_set_path_property(&mst_conn->connector, pathprop);
+	if (ret)
+		goto err;
+
+	list_add_tail(&mst_conn->head, &dp->mst_conn_list);
+
+	return &mst_conn->connector;
+err:
+	drm_connector_cleanup(&mst_conn->connector);
+	kfree(mst_conn);
+	return NULL;
+}
+
+static const struct drm_dp_mst_topology_cbs mst_cbs = {
+	.add_connector = dw_dp_add_mst_connector,
+};
+
+static bool
+dw_dp_create_fake_mst_encoders(struct dw_dp *dp)
+{
+	int i;
+
+	for (i = 0; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
+		drm_encoder_init(dp->encoder.dev, &dp->mst_enc[i].encoder,
+				 &dw_dp_mst_encoder_funcs, DRM_MODE_ENCODER_DPMST,
+				 "DP-MST %d", i);
+		dp->mst_enc[i].encoder.possible_crtcs =
+			rockchip_drm_of_find_possible_crtcs(dp->encoder.dev,
+							    dp->mst_enc[i].port_node);
+		drm_encoder_helper_add(&dp->mst_enc[i].encoder, &dw_dp_mst_encoder_help_funcs);
+		dp->mst_enc[i].stream_id = i;
+		dp->mst_enc[i].dp = dp;
+	}
+
+	return true;
+}
+
+static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
+{
+	int ret;
+
+	if (!dp->support_mst)
+		return 0;
+
+	INIT_LIST_HEAD(&dp->mst_conn_list);
+	dp->mst_mgr.cbs = &mst_cbs;
+	dw_dp_create_fake_mst_encoders(dp);
+	ret = drm_dp_mst_topology_mgr_init(&dp->mst_mgr, dp->encoder.dev,
+					   &dp->aux, 16, dp->mst_port_num, conn_base_id);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int dw_dp_connector_init(struct dw_dp *dp)
 {
 	struct drm_connector *connector = &dp->connector;
@@ -2877,6 +3839,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
+	dw_dp_mst_encoder_init(dp, connector->base.id);
 	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH,
 					color_depth_enum_list,
 					ARRAY_SIZE(color_depth_enum_list));
@@ -3055,21 +4018,6 @@ static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
 	return !drm_dp_channel_eq_ok(link_status, dp->link.lanes);
 }
 
-static void dw_dp_link_disable(struct dw_dp *dp)
-{
-	struct dw_dp_link *link = &dp->link;
-
-	if (dw_dp_detect(dp))
-		dw_dp_link_power_down(dp);
-
-	dw_dp_phy_xmit_enable(dp, 0);
-
-	phy_power_off(dp->phy);
-
-	link->train.clock_recovered = false;
-	link->train.channel_equalized = false;
-}
-
 static int dw_dp_link_enable(struct dw_dp *dp)
 {
 	int ret;
@@ -3123,37 +4071,19 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
 		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
 
-	ret = dw_dp_video_enable(dp);
+	ret = dw_dp_video_enable(dp, &dp->video, 0);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 		return;
 	}
+
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, true);
 
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
 
 	extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, true);
 	dw_dp_audio_handle_plugged_change(&dp->audio, true);
-}
-
-static void dw_dp_reset(struct dw_dp *dp)
-{
-	int val;
-
-	disable_irq(dp->irq);
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 1));
-	udelay(10);
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 0));
-
-	dw_dp_init(dp);
-	if (!dp->hpd_gpio) {
-		regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, val,
-					 FIELD_GET(HPD_HOT_PLUG, val), 200, 200000);
-		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
-	}
-	enable_irq(dp->irq);
 }
 
 static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
@@ -3164,8 +4094,9 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (dp->panel)
 		drm_panel_disable(dp->panel);
 
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, false);
 	dw_dp_hdcp_disable(dp);
-	dw_dp_video_disable(dp);
+	dw_dp_video_disable(dp, 0);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
 	dw_dp_reset(dp);
@@ -3231,6 +4162,24 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	}
 
 out:
+	if (status == connector_status_disconnected) {
+		if (dp->is_mst) {
+			dev_info(dp->dev, "MST device may have disappeared\n");
+			dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
+			phy_power_off(dp->phy);
+		}
+	} else {
+		if (dp->link.sink_support_mst && dp->mst_mgr.cbs) {
+			dev_info(dp->dev, "MST device appeared\n");
+			if (!dp->is_mst)
+				phy_power_on(dp->phy);
+			dp->is_mst = true;
+			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
+			status = connector_status_disconnected;
+		}
+	}
+
 	return status;
 }
 
@@ -3624,6 +4573,54 @@ static bool dw_dp_hpd_short_pulse(struct dw_dp *dp)
 	return true;
 }
 
+static bool
+dw_dp_get_sink_irq_esi(struct dw_dp *dp, u8 *esi)
+{
+	return drm_dp_dpcd_read(&dp->aux, DP_SINK_COUNT_ESI, esi, 4) == 4;
+}
+
+static bool dw_dp_ack_sink_irq_esi(struct dw_dp *dp, u8 esi[4])
+{
+	int retry;
+
+	for (retry = 0; retry < 3; retry++) {
+		if (drm_dp_dpcd_write(&dp->aux, DP_SINK_COUNT_ESI + 1,
+				      &esi[1], 3) == 3)
+			return true;
+	}
+
+	return false;
+}
+static bool dw_dp_check_mst_status(struct dw_dp *dp)
+{
+	bool link_ok = true;
+	bool handled = false;
+
+	for (;;) {
+		u8 esi[4] = {};
+		u8 ack[4] = {};
+
+		if (!dw_dp_get_sink_irq_esi(dp, esi)) {
+			dev_err(dp->dev, "failed to get ESI - device may have failed\n");
+			link_ok = false;
+			break;
+		}
+
+		drm_dp_mst_hpd_irq_handle_event(&dp->mst_mgr, esi, ack, &handled);
+
+		if (!memchr_inv(ack, 0, sizeof(ack)))
+			break;
+
+		if (!dw_dp_ack_sink_irq_esi(dp, ack))
+			dev_err(dp->dev, "failed to  ack ESI\n");
+
+		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
+			drm_dp_mst_hpd_irq_send_new_request(&dp->mst_mgr);
+	}
+
+	return link_ok;
+}
+
 static void dw_dp_hpd_work(struct work_struct *work)
 {
 	struct dw_dp *dp = container_of(work, struct dw_dp, hpd_work);
@@ -3637,6 +4634,11 @@ static void dw_dp_hpd_work(struct work_struct *work)
 	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
 
 	if (!long_hpd) {
+		if (dp->is_mst) {
+			dw_dp_check_mst_status(dp);
+			return;
+		}
+
 		if (dw_dp_hpd_short_pulse(dp))
 			return;
 
@@ -3755,7 +4757,7 @@ static int dw_dp_audio_hw_params(struct device *dev, void *data,
 	clk_prepare_enable(dp->spdif_clk);
 	clk_prepare_enable(dp->i2s_clk);
 
-	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1,
+	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1_N(0),
 			   AUDIO_DATA_IN_EN | NUM_CHANNELS | AUDIO_DATA_WIDTH |
 			   AUDIO_INF_SELECT,
 			   FIELD_PREP(AUDIO_DATA_IN_EN, audio_data_in_en) |
@@ -3800,7 +4802,7 @@ static int dw_dp_audio_infoframe_send(struct dw_dp *dp)
 	if (ret < 0)
 		return ret;
 
-	regmap_write(dp->regmap, DPTX_SDP_REGISTER_BANK,
+	regmap_write(dp->regmap, DPTX_SDP_REGISTER_BANK_N(0),
 		     get_unaligned_le32(&header));
 
 	for (i = 1; i < DIV_ROUND_UP(size, 4); i++) {
@@ -3810,10 +4812,10 @@ static int dw_dp_audio_infoframe_send(struct dw_dp *dp)
 		for (j = 0; j < num; j++)
 			value |= buffer[i * 4 + j] << (j * 8);
 
-		regmap_write(dp->regmap, DPTX_SDP_REGISTER_BANK + 4 * i, value);
+		regmap_write(dp->regmap, DPTX_SDP_REGISTER_BANK_N(0) + 4 * i, value);
 	}
 
-	regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL,
+	regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(0),
 			   EN_VERTICAL_SDP, FIELD_PREP(EN_VERTICAL_SDP, 1));
 
 	return 0;
@@ -3823,11 +4825,11 @@ static int dw_dp_audio_startup(struct device *dev, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
 
-	regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL,
+	regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(0),
 			   EN_AUDIO_STREAM_SDP | EN_AUDIO_TIMESTAMP_SDP,
 			   FIELD_PREP(EN_AUDIO_STREAM_SDP, 1) |
 			   FIELD_PREP(EN_AUDIO_TIMESTAMP_SDP, 1));
-	regmap_update_bits(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL,
+	regmap_update_bits(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(0),
 			   EN_AUDIO_STREAM_SDP,
 			   FIELD_PREP(EN_AUDIO_STREAM_SDP, 1));
 
@@ -3839,7 +4841,7 @@ static void dw_dp_audio_shutdown(struct device *dev, void *data)
 	struct dw_dp *dp = dev_get_drvdata(dev);
 	struct dw_dp_audio *audio = &dp->audio;
 
-	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1, AUDIO_DATA_IN_EN,
+	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1_N(0), AUDIO_DATA_IN_EN,
 			   FIELD_PREP(AUDIO_DATA_IN_EN, 0));
 
 	if (audio->format == AFMT_SPDIF)
@@ -3930,11 +4932,17 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	if (!dp->left) {
+		struct device_node *port_node;
+
+		if (dp->support_mst)
+			port_node = dp->mst_enc[0].port_node;
+		else
+			port_node = dev->of_node;
 		drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 		drm_encoder_helper_add(encoder, &dw_dp_encoder_helper_funcs);
 
 		encoder->possible_crtcs =
-			rockchip_drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+			rockchip_drm_of_find_possible_crtcs(drm_dev, port_node);
 
 		ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 		if (ret) {
@@ -3993,15 +5001,24 @@ static const struct component_ops dw_dp_component_ops = {
 static const struct regmap_range dw_dp_readable_ranges[] = {
 	regmap_reg_range(DPTX_VERSION_NUMBER, DPTX_ID),
 	regmap_reg_range(DPTX_CONFIG_REG1, DPTX_CONFIG_REG3),
-	regmap_reg_range(DPTX_CCTL, DPTX_SOFT_RESET_CTRL),
-	regmap_reg_range(DPTX_VSAMPLE_CTRL, DPTX_VIDEO_HBLANK_INTERVAL),
-	regmap_reg_range(DPTX_AUD_CONFIG1, DPTX_AUD_CONFIG1),
-	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL, DPTX_SDP_STATUS_EN),
+	regmap_reg_range(DPTX_CCTL, DPTX_MST_VCP_TABLE_REG_N(7)),
+	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(0), DPTX_VIDEO_HBLANK_INTERVAL_N(0)),
+	regmap_reg_range(DPTX_AUD_CONFIG1_N(0), DPTX_AUD_CONFIG1_N(0)),
+	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(0), DPTX_SDP_STATUS_EN_N(0)),
 	regmap_reg_range(DPTX_PHYIF_CTRL, DPTX_PHYIF_PWRDOWN_CTRL),
 	regmap_reg_range(DPTX_AUX_CMD, DPTX_AUX_DATA3),
 	regmap_reg_range(DPTX_GENERAL_INTERRUPT, DPTX_HPD_INTERRUPT_ENABLE),
 	regmap_reg_range(DPTX_HDCPCFG, DPTX_HDCPKSVMEMCTRL),
 	regmap_reg_range(DPTX_HDCPREG_BKSV0, DPTX_HDCPREG_DPK_CRC),
+	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(1), DPTX_VIDEO_HBLANK_INTERVAL_N(1)),
+	regmap_reg_range(DPTX_AUD_CONFIG1_N(1), DPTX_AUD_CONFIG1_N(1)),
+	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(1), DPTX_SDP_STATUS_EN_N(1)),
+	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(2), DPTX_VIDEO_HBLANK_INTERVAL_N(2)),
+	regmap_reg_range(DPTX_AUD_CONFIG1_N(2), DPTX_AUD_CONFIG1_N(2)),
+	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(2), DPTX_SDP_STATUS_EN_N(2)),
+	regmap_reg_range(DPTX_VSAMPLE_CTRL_N(3), DPTX_VIDEO_HBLANK_INTERVAL_N(3)),
+	regmap_reg_range(DPTX_AUD_CONFIG1_N(3), DPTX_AUD_CONFIG1_N(3)),
+	regmap_reg_range(DPTX_SDP_VERTICAL_CTRL_N(3), DPTX_SDP_STATUS_EN_N(3)),
 };
 
 static const struct regmap_access_table dw_dp_readable_table = {
@@ -4009,7 +5026,16 @@ static const struct regmap_access_table dw_dp_readable_table = {
 	.n_yes_ranges   = ARRAY_SIZE(dw_dp_readable_ranges),
 };
 
-static const struct regmap_config dw_dp_regmap_config = {
+static const struct regmap_config dw_dp_rk3576_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.fast_io = true,
+	.max_register = DPTX_MAX_REGISTER + 0x10000 * 2,
+	.rd_table = &dw_dp_readable_table,
+};
+
+static const struct regmap_config dw_dp_rk3588_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -4065,10 +5091,30 @@ static int dw_dp_parse_dt(struct dw_dp *dp)
 	return 0;
 }
 
+static int dw_dp_get_port_node(struct dw_dp *dp)
+{
+
+	struct device_node *port_node;
+	char child_name[10];
+	int i;
+
+	for (i = 0; i < dp->mst_port_num; i++) {
+		snprintf(child_name, sizeof(child_name), "dp%d", i);
+		port_node = of_get_child_by_name(dp->dev->of_node, child_name);
+		if (!port_node)
+			return -EINVAL;
+		dp->mst_enc[i].port_node = port_node;
+	}
+
+	return 0;
+}
+
 static int dw_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_dp *dp;
+	const struct dw_dp_chip_data *dp_data;
+	const struct regmap_config *config;
 	void __iomem *base;
 	int id, ret;
 
@@ -4082,11 +5128,26 @@ static int dw_dp_probe(struct platform_device *pdev)
 
 	dp->id = id;
 	dp->dev = dev;
-	dp->video.pixel_mode = DPTX_MP_QUAD_PIXEL;
+
+	dp_data = of_device_get_match_data(dev);
+	if (!dp_data)
+		return -ENODEV;
+	dp->chip_data = dp_data;
+	dp->support_mst = dp_data[dp->id].mst;
+	dp->mst_port_num = dp_data[dp->id].mst_port_num;
+	dp->pixel_mode = dp_data[dp->id].pixel_mode;
 
 	ret = dw_dp_parse_dt(dp);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to parse DT\n");
+
+	if (dp->support_mst) {
+		ret = dw_dp_get_port_node(dp);
+		if (ret) {
+			dev_err(dev, "failed to parse mst dp node\n");
+			return ret;
+		}
+	}
 
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
@@ -4096,7 +5157,17 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	dp->regmap = devm_regmap_init_mmio(dev, base, &dw_dp_regmap_config);
+	switch (dp_data[dp->id].chip_type) {
+	case RK3576_DP:
+		config = &dw_dp_rk3576_regmap_config;
+		break;
+	case RK3588_DP:
+	default:
+		config = &dw_dp_rk3588_regmap_config;
+		break;
+	}
+
+	dp->regmap = devm_regmap_init_mmio(dev, base, config);
 	if (IS_ERR(dp->regmap))
 		return dev_err_probe(dev, PTR_ERR(dp->regmap),
 				     "failed to create regmap\n");
@@ -4116,12 +5187,12 @@ static int dw_dp_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(dp->aux_clk),
 				     "failed to get aux clock\n");
 
-	dp->i2s_clk = devm_clk_get(dev, "i2s");
+	dp->i2s_clk = devm_clk_get_optional(dev, "i2s");
 	if (IS_ERR(dp->i2s_clk))
 		return dev_err_probe(dev, PTR_ERR(dp->i2s_clk),
 				     "failed to get i2s clock\n");
 
-	dp->spdif_clk = devm_clk_get(dev, "spdif");
+	dp->spdif_clk = devm_clk_get_optional(dev, "spdif");
 	if (IS_ERR(dp->spdif_clk))
 		return dev_err_probe(dev, PTR_ERR(dp->spdif_clk),
 				     "failed to get spdif clock\n");
@@ -4193,7 +5264,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dp->bridge.of_node = dev->of_node;
+	dp->bridge.of_node = dp->support_mst ? dp->mst_enc[0].port_node : dev->of_node;
 	dp->bridge.funcs = &dw_dp_bridge_funcs;
 	dp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			 DRM_BRIDGE_OP_HPD;
@@ -4258,8 +5329,52 @@ static const struct dev_pm_ops dw_dp_pm_ops = {
 				      pm_runtime_force_resume)
 };
 
+static const struct dw_dp_chip_data rk3588_dp[] = {
+	{
+		.chip_type = RK3588_DP,
+		.mst = false,
+		.pixel_mode = DPTX_MP_QUAD_PIXEL,
+	},
+	{
+		.chip_type = RK3588_DP,
+		.mst = false,
+		.pixel_mode = DPTX_MP_QUAD_PIXEL,
+	},
+	{ /* sentinel */ }
+};
+
+static const struct dw_dp_chip_data rk3576_dp[] = {
+	{
+		.chip_type = RK3576_DP,
+		.mst = true,
+		.mst_port_num = 3,
+		.pixel_mode = DPTX_MP_DUAL_PIXEL,
+		.caps = {
+			{
+				.max_hactive = 4096,
+				.max_vactive = 2160,
+				.max_pixel_clock = 1188000,
+			},
+			{
+				.max_hactive = 2560,
+				.max_vactive = 1440,
+				.max_pixel_clock = 300000,
+			},
+			{
+				.max_hactive = 1920,
+				.max_vactive = 1080,
+				.max_pixel_clock = 150000,
+			},
+
+
+		},
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id dw_dp_of_match[] = {
-	{ .compatible = "rockchip,rk3588-dp", },
+	{ .compatible = "rockchip,rk3588-dp", .data = &rk3588_dp},
+	{ .compatible = "rockchip,rk3576-dp", .data = &rk3576_dp},
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dp_of_match);

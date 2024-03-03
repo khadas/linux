@@ -45,10 +45,14 @@
 #define RGA2_MODE_CTRL_OFFSET			0x000
 #define RGA2_SRC_INFO_OFFSET			0x004
 #define RGA2_SRC_BASE0_OFFSET			0x008
+#define RGA2_FBCIN_HEAD_BASE_OFFSET		0x008 // repeat
 #define RGA2_SRC_BASE1_OFFSET			0x00c
+#define RGA2_FBCIN_PAYL_BASE_OFFSET		0x00c // repeat
 #define RGA2_SRC_BASE2_OFFSET			0x010
+#define RGA2_FBCIN_OFF_OFFSET			0x010 // repeat
 #define RGA2_SRC_BASE3_OFFSET			0x014
 #define RGA2_SRC_VIR_INFO_OFFSET		0x018
+#define RGA2_FBCIN_HEAD_VIR_INFO_OFFSET		0x018 // repeat
 #define RGA2_SRC_ACT_INFO_OFFSET		0x01c
 #define RGA2_SRC_X_FACTOR_OFFSET		0x020
 #define RGA2_OSD_CTRL0_OFFSET			0x020 // repeat
@@ -69,6 +73,7 @@
 #define RGA2_DST_BASE0_OFFSET			0x03c
 #define RGA2_DST_BASE1_OFFSET			0x040
 #define RGA2_DST_BASE2_OFFSET			0x044
+#define RGA2_TILE4x4_OUT_BASE_OFFSET		0x044 //repeat
 #define RGA2_DST_VIR_INFO_OFFSET		0x048
 #define RGA2_DST_ACT_INFO_OFFSET		0x04c
 #define RGA2_ALPHA_CTRL0_OFFSET			0x050
@@ -88,6 +93,7 @@
 #define RGA2_MASK_BASE_OFFSET			0x068
 #define RGA2_MMU_CTRL1_OFFSET			0x06c
 #define RGA2_MMU_SRC_BASE_OFFSET		0x070
+#define RGA2_PREFETCH_ADDR_TH_OFFSET		0x070 // repeat
 #define RGA2_MMU_SRC1_BASE_OFFSET		0x074
 #define RGA2_MMU_DST_BASE_OFFSET		0x078
 #define RGA2_MMU_ELS_BASE_OFFSET		0x07c
@@ -197,6 +203,13 @@
 #define m_RGA2_MODE_CTRL_SW_OSD_E			(0x1<<8)
 #define m_RGA2_MODE_CTRL_SW_MOSAIC_EN			(0x1<<9)
 #define m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN			(0x1<<10)
+#define m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN		(0x1 << 12)
+#define m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN		(0x1 << 13)
+#define m_RGA2_MODE_CTRL_SW_FBC_IN_EN			(0x1 << 16)
+#define m_RGA2_MODE_CTRL_SW_FBC_BSP_DIS			(0x1 << 18)
+#define m_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS		(0x1 << 19)
+#define m_RGA2_MODE_CTRL_SW_AXI_WR128_DIS		(0x1 << 20)
+#define m_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS		(0x1 << 21)
 
 #define s_RGA2_MODE_CTRL_SW_RENDER_MODE(x)		((x & 0x7) << 0)
 #define s_RGA2_MODE_CTRL_SW_BITBLT_MODE(x)		((x & 0x1) << 3)
@@ -207,8 +220,18 @@
 #define s_RGA2_MODE_CTRL_SW_OSD_E(x)			((x & 0x1) << 8)
 #define s_RGA2_MODE_CTRL_SW_MOSAIC_EN(x)		((x & 0x1) << 9)
 #define s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(x)		((x & 0x1) << 10)
+#define s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(x)		((x & 0x1) << 12)
+#define s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(x)		((x & 0x1) << 13)
+#define s_RGA2_MODE_CTRL_SW_FBC_IN_EN(x)		((x & 0x1) << 16)
+#define s_RGA2_MODE_CTRL_SW_FBC_BSP_DIS(x)		((x & 0x1) << 18)
+#define s_RGA2_MODE_CTRL_SW_TABLE_PRE_FETCH_DIS(x)	((x & 0x1) << 19)
+#define s_RGA2_MODE_CTRL_SW_AXI_WR128_DIS(x)		((x & 0x1) << 20)
+#define s_RGA2_MODE_CTRL_SW_HSP_LEFT_COPY_DIS(x)	((x & 0x1) << 21)
+
 /* RGA_SRC_INFO */
 #define m_RGA2_SRC_INFO_SW_SRC_FMT			(0xf << 0)
+#define m_RGA2_SRC_INFO_SW_FBCIN_MODE			(0x3 << 0) // repeat
+#define m_RGA2_SRC_INFO_SW_FBCIN_FMT			(0x3 << 2) // repeat
 #define m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP		(0x1 << 4)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP		(0x1 << 5)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP		(0x1 << 6)
@@ -225,9 +248,14 @@
 #define m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL		(0x1 << 26)
 #define m_RGA2_SRC_INFO_SW_SW_YUV10_E			(0x1 << 27)
 #define m_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E		(0x1 << 28)
+#define m_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL		(0x1 << 29)
+#define m_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL		(0x1 << 30)
+#define m_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL		(0x1 << 31)
 
 
 #define s_RGA2_SRC_INFO_SW_SRC_FMT(x)			((x & 0xf) << 0)
+#define s_RGA2_SRC_INFO_SW_FBCIN_MODE(x)		((x & 0x3) << 0) // repeat
+#define s_RGA2_SRC_INFO_SW_FBCIN_FMT(x)			((x & 0x3) << 2) // repeat
 #define s_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP(x)		((x & 0x1) << 4)
 #define s_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP(x)		((x & 0x1) << 5)
 #define s_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP(x)		((x & 0x1) << 6)
@@ -245,6 +273,9 @@
 #define s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL(x)		((x & 0x1) << 26)
 #define s_RGA2_SRC_INFO_SW_SW_YUV10_E(x)		((x & 0x1) << 27)
 #define s_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E(x)		((x & 0x1) << 28)
+#define s_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL(x)		((x & 0x1) << 29)
+#define s_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL(x)		((x & 0x1) << 30)
+#define s_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL(x)		((x & 0x1) << 31)
 
 /* RGA_SRC_VIR_INFO */
 #define m_RGA2_SRC_VIR_INFO_SW_SRC_VIR_STRIDE		(0x7fff << 0)

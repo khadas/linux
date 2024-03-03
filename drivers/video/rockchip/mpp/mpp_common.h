@@ -30,7 +30,7 @@
 #define MPP_WORK_TIMEOUT_DELAY		(500)
 
 #define MPP_MAX_MSG_NUM			(16)
-#define MPP_MAX_REG_TRANS_NUM		(60)
+#define MPP_MAX_REG_TRANS_NUM		(80)
 #define MPP_MAX_TASK_CAPACITY		(16)
 
 /* grf mask for get value */
@@ -195,7 +195,11 @@ struct mpp_hw_info {
 	u32 reg_end;
 	/* register of enable hardware */
 	int reg_en;
+	/* register of codec format */
+	int reg_fmt;
+	u32 reg_ret_status;
 	void *link_info;
+	u32 magic_base;
 };
 
 struct mpp_trans_info {

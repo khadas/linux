@@ -10,6 +10,11 @@
 
 #define MAX_NUM_CSI2_DPHY	(0x2)
 
+struct samsung_mipi_dcphy_plat_data {
+	u32 dphy_tx_max_kbps_per_lane;
+	u32 cphy_tx_max_ksps_per_lane;
+};
+
 struct samsung_mipi_dcphy {
 	struct device *dev;
 	struct clk *ref_clk;
@@ -28,6 +33,7 @@ struct samsung_mipi_dcphy {
 
 	unsigned int lanes;
 
+	const struct samsung_mipi_dcphy_plat_data *pdata;
 	struct {
 		unsigned long long rate;
 		u8 prediv;

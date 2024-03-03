@@ -49,6 +49,7 @@
 #define DDC_SEGMENT_ADDR	0x30
 
 #define HDMI_EDID_LEN		512
+#define VENDOR_INFO_LEN		10
 
 /* DW-HDMI Controller >= 0x200a are at least compliant with SCDC version 1 */
 #define SCDC_MIN_SOURCE_VERSION	0x1
@@ -179,6 +180,21 @@ static const struct drm_display_mode dw_hdmi_default_modes[] = {
 	  .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
 };
 
+enum quirk_case {
+	VSI_SEND,
+	DELAY,
+};
+
+static const struct hdmi_quirk {
+	u8 vendor_info[VENDOR_INFO_LEN];
+	u8 quirk_case;
+	u32 delay;
+} hdmi_quirk_list[] = {
+	/* XMD-004A-00000001-46-2019 */
+	{ { 0x61, 0xA4, 0x4A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2E, 0x1D, },
+	  BIT(VSI_SEND), 0, },
+};
+
 enum frl_mask {
 	FRL_3GBPS_3LANE = 1,
 	FRL_6GBPS_3LANE,
@@ -255,6 +271,7 @@ struct dw_hdmi_qp {
 	int earc_irq;
 
 	u8 edid[HDMI_EDID_LEN];
+	u8 vendor_info[VENDOR_INFO_LEN];
 
 	struct {
 		const struct dw_hdmi_qp_phy_ops *ops;
@@ -298,6 +315,8 @@ struct dw_hdmi_qp {
 	u32 scdc_intr;
 	u32 flt_intr;
 	u32 earc_intr;
+
+	u32 refclk_rate;
 
 	struct mutex audio_mutex;
 	unsigned int sample_rate;
@@ -963,6 +982,21 @@ static int hdmi_bus_fmt_color_depth(unsigned int bus_format)
 	}
 }
 
+static const struct hdmi_quirk *get_hdmi_quirk(u8 *vendor_id)
+{
+	int i;
+
+	if (!vendor_id)
+		return NULL;
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_quirk_list); i++) {
+		if (!memcmp(vendor_id, hdmi_quirk_list[i].vendor_info, VENDOR_INFO_LEN))
+			return &hdmi_quirk_list[i];
+	}
+
+	return NULL;
+}
+
 static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 {
 	/* Software reset */
@@ -1297,6 +1331,20 @@ static bool is_hdmi2_sink(const struct drm_connector *connector)
 		connector->display_info.color_formats & DRM_COLOR_FORMAT_YCBCR420;
 }
 
+static
+bool hdmi_quirk_vsi(const struct drm_connector *connector, u8 *vendor_info)
+{
+	const struct hdmi_quirk *quirk = get_hdmi_quirk(vendor_info);
+
+	if (!quirk)
+		return false;
+
+	if (!(quirk->quirk_case & BIT(VSI_SEND)))
+		return false;
+
+	return true;
+}
+
 static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 			    const struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
@@ -1389,7 +1437,7 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 		buff[4] |= ((frame.colorspace & 0x7) << 5);
 		buff[7] = hdmi->vic;
 		hdmi_infoframe_set_checksum(buff, 17);
-	} else if (is_hdmi2_sink(connector)) {
+	} else if (is_hdmi2_sink(connector) && hdmi_quirk_vsi(connector, hdmi->vendor_info)) {
 		buff[7] = hdmi->vic;
 	}
 
@@ -1458,10 +1506,6 @@ static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi_qp *hdmi,
 
 		err = 9;
 	} else {
-		if (is_hdmi2_sink(connector)) {
-			hdmi_modb(hdmi, 0, PKTSCHED_VSI_TX_EN, PKTSCHED_PKT_EN);
-			return;
-		}
 		err = drm_hdmi_vendor_infoframe_from_display_mode(&frame, connector,
 								  mode);
 		if (err < 0)
@@ -1472,6 +1516,12 @@ static void hdmi_config_vendor_specific_infoframe(struct dw_hdmi_qp *hdmi,
 			 * mode requires vendor infoframe. So just simply return.
 			 */
 			return;
+
+		if ((is_hdmi2_sink(connector) && hdmi_quirk_vsi(connector, hdmi->vendor_info)) ||
+		    !frame.vic) {
+			hdmi_modb(hdmi, 0, PKTSCHED_VSI_TX_EN, PKTSCHED_PKT_EN);
+			return;
+		}
 
 		err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
 		if (err < 0) {
@@ -2304,6 +2354,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		return 0;
 
 	memset(metedata, 0, sizeof(*metedata));
+	memset(hdmi->vendor_info, 0, VENDOR_INFO_LEN);
 
 	if (edid_blob_ptr && edid_blob_ptr->length) {
 		edid = kmalloc(edid_blob_ptr->length, GFP_KERNEL);
@@ -2316,6 +2367,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	}
 
 	if (edid) {
+		u8 *raw_edid = (u8 *)edid;
+
 		dev_dbg(hdmi->dev, "got edid: width[%d] x height[%d]\n",
 			edid->width_cm, edid->height_cm);
 
@@ -2326,6 +2379,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		if (hdmi->plat_data->get_edid_dsc_info)
 			hdmi->plat_data->get_edid_dsc_info(data, edid);
+		memcpy(hdmi->vendor_info, &raw_edid[8], VENDOR_INFO_LEN);
 		ret = drm_add_edid_modes(connector, edid);
 		if (hdmi->plat_data->get_colorimetry)
 			hdmi->plat_data->get_colorimetry(data, edid);
@@ -3782,9 +3836,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
 		hdmi->force_kernel_output = true;
 
+	hdmi->refclk_rate = hdmi->plat_data->get_refclk_rate(hdmi->plat_data->phy_data);
+
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
+	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 	hdmi->logo_plug_out = false;
 	if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) == connector_status_connected &&
 	    hdmi_readl(hdmi, I2CM_INTERFACE_CONTROL0)) {
@@ -4105,7 +4161,7 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
+	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 
 	pinctrl_pm_select_default_state(dev);
 

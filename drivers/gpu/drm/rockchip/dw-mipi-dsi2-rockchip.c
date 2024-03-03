@@ -221,6 +221,7 @@ struct cmd_header {
 };
 
 struct dw_mipi_dsi2_plat_data {
+	bool dsc;
 	const u32 *dsi0_grf_reg_fields;
 	const u32 *dsi1_grf_reg_fields;
 	unsigned long long dphy_max_bit_rate_per_lane;
@@ -242,6 +243,7 @@ struct dw_mipi_dsi2 {
 	struct clk *pclk;
 	struct clk *sys_clk;
 	bool phy_enabled;
+	bool phy_request_clkhs;
 	struct phy *dcphy;
 	union phy_configure_opts phy_opts;
 
@@ -821,14 +823,6 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 	dw_mipi_dsi2_irq_enable(dsi2, 1);
 	mipi_dcphy_power_on(dsi2);
 
-	/*
-	 * initial deskew calibration is send after phy_power_on,
-	 * then we can configure clk_type.
-	 */
-	if (!(dsi2->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
-		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
-				   CLK_TYPE_MASK, CONTIUOUS_CLK);
-
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
 
@@ -838,8 +832,20 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 {
-	u32 mode;
+	u32 clk_type, mode;
 	int ret;
+
+	/*
+	 * initial deskew calibration is send after phy_power_on,
+	 * then we can configure clk_type.
+	 */
+	if (dsi2->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		clk_type = NON_CONTINUOUS_CLK;
+	else
+		clk_type = CONTIUOUS_CLK;
+
+	regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
+			   CLK_TYPE_MASK, clk_type);
 
 	dw_mipi_dsi2_ipi_set(dsi2);
 
@@ -1257,7 +1263,8 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 
 	dsi2->c_option = of_property_read_bool(np, "phy-c-option");
 	dsi2->scrambling_en = of_property_read_bool(np, "scrambling-enable");
-	dsi2->dsc_enable = of_property_read_bool(np, "compressed-data");
+	dsi2->dsc_enable = dsi2->pdata->dsc ?
+			   of_property_read_bool(np, "compressed-data") : false;
 
 	if (dsi2->slave) {
 		dsi2->slave->c_option = dsi2->c_option;
@@ -1599,10 +1606,18 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 	u32 val;
 	u32 mode;
 
-	regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
-			   LPDT_DISPLAY_CMD_EN,
-			   msg->flags & MIPI_DSI_MSG_USE_LPM ?
-			   LPDT_DISPLAY_CMD_EN : 0);
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
+		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
+				   CLK_TYPE_MASK, dsi2->phy_request_clkhs ?
+				   CONTIUOUS_CLK : NON_CONTINUOUS_CLK);
+		regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
+				   LPDT_DISPLAY_CMD_EN, LPDT_DISPLAY_CMD_EN);
+	} else {
+		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
+				   CLK_TYPE_MASK, CONTIUOUS_CLK);
+		regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
+				   LPDT_DISPLAY_CMD_EN, 0);
+	}
 
 	/* create a packet to the DSI protocol */
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -1689,6 +1704,9 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
+
+	if (device_property_read_bool(dev, "phy-request-clkhs"))
+		dsi2->phy_request_clkhs = true;
 
 	if (device_property_read_bool(dev, "auto-calculation-mode"))
 		dsi2->auto_calc_mode = true;
@@ -1823,6 +1841,15 @@ static const struct dev_pm_ops dw_mipi_dsi2_rockchip_pm_ops = {
 			   dw_mipi_dsi2_runtime_resume, NULL)
 };
 
+static const u32 rk3576_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[TXREQCLKHS_EN]		= GRF_REG_FIELD(0x0028, 1, 1),
+	[GATING_EN]		= GRF_REG_FIELD(0x0028, 0, 0),
+	[IPI_SHUTDN]		= GRF_REG_FIELD(0x0028, 3, 3),
+	[IPI_COLORM]		= GRF_REG_FIELD(0x0028, 2, 2),
+	[IPI_COLOR_DEPTH]	= GRF_REG_FIELD(0x0028, 8, 11),
+	[IPI_FORMAT]		= GRF_REG_FIELD(0x0028, 4, 7),
+};
+
 static const u32 rk3588_dsi0_grf_reg_fields[MAX_FIELDS] = {
 	[TXREQCLKHS_EN]		= GRF_REG_FIELD(0x0000, 11, 11),
 	[GATING_EN]		= GRF_REG_FIELD(0x0000, 10, 10),
@@ -1841,7 +1868,15 @@ static const u32 rk3588_dsi1_grf_reg_fields[MAX_FIELDS] = {
 	[IPI_FORMAT]		= GRF_REG_FIELD(0x0004,  0,  3),
 };
 
+static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
+	.dsc = false,
+	.dsi0_grf_reg_fields = rk3576_dsi_grf_reg_fields,
+	.dphy_max_bit_rate_per_lane = 2500000000ULL,
+	.cphy_max_symbol_rate_per_lane = 1700000000ULL,
+};
+
 static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
+	.dsc = true,
 	.dsi0_grf_reg_fields = rk3588_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3588_dsi1_grf_reg_fields,
 	.dphy_max_bit_rate_per_lane = 4500000000ULL,
@@ -1850,6 +1885,9 @@ static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
 
 static const struct of_device_id dw_mipi_dsi2_dt_ids[] = {
 	{
+		.compatible = "rockchip,rk3576-mipi-dsi2",
+		.data = &rk3576_mipi_dsi2_plat_data,
+	}, {
 		.compatible = "rockchip,rk3588-mipi-dsi2",
 		.data = &rk3588_mipi_dsi2_plat_data,
 	},

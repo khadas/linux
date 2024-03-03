@@ -1,5 +1,5 @@
 /*
- * Rockchip isp1 driver
+ * Rockchip isp driver
  *
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  *
@@ -46,6 +46,8 @@
 #include "isp_mipi_luma.h"
 #include "procfs.h"
 #include "isp_external.h"
+#include "isp_pdaf.h"
+#include "isp_sditf.h"
 #include "version.h"
 
 #define DRIVER_NAME "rkisp"
@@ -76,12 +78,14 @@ enum rkisp_isp_state {
 	ISP_FRAME_SP = BIT(4),
 	ISP_FRAME_MPFBC = BIT(5),
 	ISP_FRAME_BP = BIT(6),
+	ISP_FRAME_LDC = BIT(7),
+	ISP_FRAME_VPSS = BIT(8),
 
-	ISP_STOP = BIT(8),
-	ISP_START = BIT(9),
-	ISP_ERROR = BIT(10),
-	ISP_MIPI_ERROR = BIT(11),
-	ISP_CIF_RESET = BIT(12),
+	ISP_STOP = BIT(16),
+	ISP_START = BIT(17),
+	ISP_ERROR = BIT(18),
+	ISP_MIPI_ERROR = BIT(19),
+	ISP_CIF_RESET = BIT(20),
 };
 
 enum rkisp_isp_inp {
@@ -170,6 +174,7 @@ struct rkisp_sensor_info {
 /* struct rkisp_hdr - hdr configured
  * @op_mode: hdr optional mode
  * @esp_mode: hdr especial mode
+ * @src_bit: src bit of expander mode
  * @index: hdr dma index
  * @refcnt: open counter
  * @q_tx: dmatx buf list
@@ -180,7 +185,7 @@ struct rkisp_sensor_info {
 struct rkisp_hdr {
 	u8 op_mode;
 	u8 esp_mode;
-	u8 compr_bit;
+	u8 src_bit;
 	u8 index[HDR_DMA_MAX];
 	atomic_t refcnt;
 	struct v4l2_subdev *sensor;
@@ -224,6 +229,7 @@ struct rkisp_device {
 	struct rkisp_csi_device csi_dev;
 	struct rkisp_bridge_device br_dev;
 	struct rkisp_luma_vdev luma_vdev;
+	struct rkisp_pdaf_vdev pdaf_vdev;
 	struct rkisp_procfs procfs;
 	struct rkisp_pipeline pipe;
 	enum rkisp_isp_ver isp_ver;
@@ -241,6 +247,8 @@ struct rkisp_device {
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */
 	wait_queue_head_t sync_onoff;
+
+	struct rkisp_sditf_device *sditf_dev;
 
 	dma_addr_t resmem_addr;
 	phys_addr_t resmem_pa;
@@ -278,7 +286,10 @@ struct rkisp_device {
 
 	struct mutex buf_lock;
 	spinlock_t cmsk_lock;
+	spinlock_t aiisp_lock;
 	struct rkisp_cmsk_cfg cmsk_cfg;
+	struct rkisp_aiisp_cfg aiisp_cfg;
+
 	bool is_cmsk_upd;
 	bool is_hw_link;
 	bool is_bigmode;
@@ -290,6 +301,8 @@ struct rkisp_device {
 	bool is_suspend;
 	bool suspend_sync;
 	bool is_suspend_one_frame;
+	bool is_aiisp_en;
+	bool is_aiisp_upd;
 
 	struct rkisp_vicap_input vicap_in;
 

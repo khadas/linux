@@ -39,18 +39,12 @@
 
 #define	RKVDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
-#define RKVDEC_REG_NUM			279
-#define RKVDEC_REG_HW_ID_INDEX		0
-#define RKVDEC_REG_START_INDEX		0
-#define RKVDEC_REG_END_INDEX		278
+#define RKVDEC_REG_NUM			360
 
 #define REVDEC_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
-#define RKVDEC_REG_FORMAT_INDEX		9
 #define RKVDEC_GET_FORMAT(x)		((x) & 0x3ff)
 
 #define RKVDEC_REG_START_EN_BASE       0x28
-
-#define RKVDEC_REG_START_EN_INDEX      10
 
 #define RKVDEC_START_EN			BIT(0)
 
@@ -110,6 +104,7 @@ enum RKVDEC_FMT {
 	RKVDEC_FMT_H264D	= 1,
 	RKVDEC_FMT_VP9D		= 2,
 	RKVDEC_FMT_AVS2		= 3,
+	RKVDEC_FMT_AV1D		= 4,
 };
 
 #define RKVDEC_MAX_RCB_NUM		(16)

@@ -207,7 +207,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_INNO;
 			mutex_unlock(&dphy_hw->mutex);
 		}
-	} else {
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562) {
 		dphy_hw = dphy->dphy_hw_group[csi_idx / 2];
 		mutex_lock(&dphy_hw->mutex);
 		if (csi_idx == 0 || csi_idx == 2) {
@@ -250,6 +250,57 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 		dphy->phy_hw[index] = (void *)dphy_hw;
 		dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_INNO;
 		mutex_unlock(&dphy_hw->mutex);
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3576) {
+		if (csi_idx < 1) {
+			dcphy_hw = dphy->samsung_phy_group[csi_idx];
+			mutex_lock(&dcphy_hw->mutex);
+			dcphy_hw->dphy_dev_num++;
+			mutex_unlock(&dcphy_hw->mutex);
+			dphy->samsung_phy = dcphy_hw;
+			dphy->phy_hw[index] = (void *)dcphy_hw;
+			dphy->dphy_param = rk3588_dcphy_param;
+			dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_SAMSUNG;
+		} else {
+			dphy_hw = dphy->dphy_hw_group[(csi_idx - 1) / 2];
+			mutex_lock(&dphy_hw->mutex);
+			if (csi_idx == 1 || csi_idx == 3) {
+				if (lanes == 4) {
+					dphy->lane_mode = PHY_FULL_MODE;
+					dphy_hw->lane_mode = LANE_MODE_FULL;
+					if (csi_idx == 1)
+						dphy->phy_index = 0;
+					else
+						dphy->phy_index = 3;
+				} else {
+					dphy->lane_mode = PHY_SPLIT_01;
+					dphy_hw->lane_mode = LANE_MODE_SPLIT;
+					if (csi_idx == 1)
+						dphy->phy_index = 1;
+					else
+						dphy->phy_index = 4;
+				}
+			} else if (csi_idx == 2 || csi_idx == 4) {
+				if (lanes == 4) {
+					dev_info(dphy->dev, "%s csi host%d only support PHY_SPLIT_23\n",
+						 __func__, csi_idx);
+					mutex_unlock(&dphy_hw->mutex);
+					return -EINVAL;
+				}
+				dphy->lane_mode = PHY_SPLIT_23;
+				dphy_hw->lane_mode = LANE_MODE_SPLIT;
+				if (csi_idx == 2)
+					dphy->phy_index = 2;
+				else
+					dphy->phy_index = 5;
+			}
+			dphy_hw->dphy_dev_num++;
+			dphy->dphy_hw = dphy_hw;
+			dphy->phy_hw[index] = (void *)dphy_hw;
+			dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_INNO;
+			mutex_unlock(&dphy_hw->mutex);
+		}
+	} else {
+		return -EINVAL;
 	}
 
 	return 0;
@@ -339,7 +390,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 			mutex_unlock(&dphy_hw->mutex);
 		}
-	} else {
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562) {
 		dphy_hw = (struct csi2_dphy_hw *)dphy->phy_hw[index];
 		if (!dphy_hw) {
 			dev_err(dphy->dev, "%s csi_idx %d detach hw failed\n",
@@ -349,6 +400,30 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 		mutex_lock(&dphy_hw->mutex);
 		rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 		mutex_unlock(&dphy_hw->mutex);
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3576) {
+		if (csi_idx < 1) {
+			dcphy_hw = (struct samsung_mipi_dcphy *)dphy->phy_hw[index];
+			if (!dcphy_hw) {
+				dev_err(dphy->dev, "%s csi_idx %d detach hw failed\n",
+					__func__, csi_idx);
+				return -EINVAL;
+			}
+			mutex_lock(&dcphy_hw->mutex);
+			dcphy_hw->dphy_dev_num--;
+			mutex_unlock(&dcphy_hw->mutex);
+		} else {
+			dphy_hw = (struct csi2_dphy_hw *)dphy->phy_hw[index];
+			if (!dphy_hw) {
+				dev_err(dphy->dev, "%s csi_idx %d detach hw failed\n",
+					__func__, csi_idx);
+				return -EINVAL;
+			}
+			mutex_lock(&dphy_hw->mutex);
+			dphy_hw->dphy_dev_num--;
+			mutex_unlock(&dphy_hw->mutex);
+		}
+	} else {
+		return -EINVAL;
 	}
 
 	return 0;
@@ -449,10 +524,6 @@ static int csi2_dphy_s_stream_start(struct v4l2_subdev *sd)
 	struct csi2_dphy *dphy = to_csi2_dphy(sd);
 	int i = 0;
 	int ret = 0;
-
-	ret = csi2_dphy_get_sensor_data_rate(sd);
-	if (ret < 0)
-		return ret;
 
 	ret = csi2_dphy_update_sensor_mbus(sd);
 	if (ret < 0)
@@ -989,6 +1060,13 @@ static struct dphy_drv_data rk3562_dphy_drv_data = {
 	.num_samsung_phy = 0,
 };
 
+static struct dphy_drv_data rk3576_dphy_drv_data = {
+	.dev_name = "csi2dphy",
+	.chip_id = CHIP_ID_RK3576,
+	.num_inno_phy = 2,
+	.num_samsung_phy = 1,
+};
+
 static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3568-csi2-dphy",
@@ -1005,6 +1083,10 @@ static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3562-csi2-dphy",
 		.data = &rk3562_dphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rk3576-csi2-dphy",
+		.data = &rk3576_dphy_drv_data,
 	},
 	{}
 };
@@ -1072,7 +1154,8 @@ static int rockchip_csi2_dphy_get_hw(struct csi2_dphy *dphy)
 {
 	int ret = 0;
 
-	if (dphy->drv_data->chip_id == CHIP_ID_RK3588) {
+	if (dphy->drv_data->chip_id == CHIP_ID_RK3588 ||
+	    dphy->drv_data->chip_id == CHIP_ID_RK3576) {
 		ret = rockchip_csi2_dphy_get_samsung_phy_hw(dphy);
 		if (ret)
 			return ret;

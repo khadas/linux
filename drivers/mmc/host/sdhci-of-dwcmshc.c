@@ -533,10 +533,24 @@ static const struct dwcmshc_driver_data rk3562_drvdata = {
 	.ddr50_strbin_delay_num = 10,
 };
 
+static const struct dwcmshc_driver_data rk3576_drvdata = {
+	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT,
+	.hs200_tx_tap = 16,
+	.hs400_tx_tap = 9,
+	.hs400_cmd_tap = 8,
+	.hs400_strbin_tap = 4,
+	.ddr50_strbin_delay_num = 16,
+};
+
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3588-dwcmshc",
 		.data = &rk3588_drvdata,
+	},
+	{
+		.compatible = "rockchip,rk3576-dwcmshc",
+		.data = &rk3576_drvdata,
 	},
 	{
 		.compatible = "rockchip,rk3568-dwcmshc",

@@ -197,6 +197,20 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	},
 };
 
+/* vdpu382 link hw info */
+struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
+	.ip_reset_base = 0x44,
+	.ip_reset_en = BIT(0),
+	.irq_base = 0x48,
+	.irq_mask = 0x30000,
+	.status_base = 0x4c,
+	.status_mask = 0x3ff0000,
+	.err_mask = 0x3fe,
+	.ip_reset_mask = 0x8000000,
+	.ip_time_base = 0x54,
+	.en_base = 0x40,
+};
+
 static void rkvdec2_link_free_task(struct kref *ref);
 static void rkvdec2_link_timeout_proc(struct work_struct *work_s);
 static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
@@ -625,13 +639,13 @@ int rkvdec2_link_procfs_init(struct mpp_dev *mpp)
 
 int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 {
-	int ret;
+	int ret = 0;
 	struct resource *res = NULL;
 	struct rkvdec_link_dev *link_dec = NULL;
 	struct device *dev = &pdev->dev;
 	struct mpp_dev *mpp = &dec->mpp;
 	struct mpp_dma_buffer *table;
-	int i;
+	u32 i;
 
 	mpp_debug_enter();
 
@@ -658,6 +672,10 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	}
 
 	link_dec->task_capacity = mpp->task_capacity;
+	/* if capacity<2, then not to alloc table array */
+	if (link_dec->task_capacity < 2)
+		goto out;
+
 	ret = rkvdec2_link_alloc_table(&dec->mpp, link_dec);
 	if (ret)
 		goto done;
@@ -685,6 +703,7 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 
 	mpp->fault_handler = rkvdec2_link_iommu_fault_handle;
 
+out:
 	link_dec->mpp = mpp;
 	link_dec->dev = dev;
 	atomic_set(&link_dec->task_timeout, 0);
@@ -1137,10 +1156,12 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 
 	if (link_info->hack_setup) {
 		u32 fmt;
+		int reg_fmt;
 		struct rkvdec2_task *dec_task = NULL;
 
 		dec_task = to_rkvdec2_task(task);
-		fmt = RKVDEC_GET_FORMAT(dec_task->reg[RKVDEC_REG_FORMAT_INDEX]);
+		reg_fmt = task->hw_info->reg_fmt;
+		fmt = RKVDEC_GET_FORMAT(dec_task->reg[reg_fmt]);
 		dec_task->need_hack = (fmt == RKVDEC_FMT_H264D);
 	}
 
@@ -1793,7 +1814,7 @@ static int rkvdec2_soft_ccu_enqueue(struct mpp_dev *mpp, struct mpp_task *mpp_ta
 	/* set registers for hardware */
 	reg_en = mpp_task->hw_info->reg_en;
 	for (i = 0; i < task->w_req_cnt; i++) {
-		int s, e;
+		u32 s, e;
 		struct mpp_request *req = &task->w_reqs[i];
 
 		s = req->offset / sizeof(u32);
@@ -1956,7 +1977,8 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 int rkvdec2_ccu_alloc_table(struct rkvdec2_dev *dec,
 			    struct rkvdec_link_dev *link_dec)
 {
-	int ret, i;
+	int ret;
+	u32 i;
 	struct mpp_dma_buffer *table;
 	struct mpp_dev *mpp = &dec->mpp;
 
@@ -2149,7 +2171,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 
 static int rkvdec2_hard_ccu_reset(struct mpp_taskqueue *queue, struct rkvdec2_ccu *ccu)
 {
-	int i = 0;
+	u32 i = 0;
 
 	mpp_debug_enter();
 

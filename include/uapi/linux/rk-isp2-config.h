@@ -10,6 +10,7 @@
 #include <linux/const.h>
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
+#include <linux/rk-camera-module.h>
 
 #define RKISP_API_VERSION		KERNEL_VERSION(2, 5, 0)
 
@@ -61,6 +62,15 @@
 #define RKISP_CMD_GET_BAY3D_BUFFD \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 15, struct rkisp_bay3dbuf_info)
 
+#define RKISP_CMD_SET_AIISP_LINECNT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 16, struct rkisp_aiisp_cfg)
+
+#define RKISP_CMD_GET_AIISP_LINECNT \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 17, struct rkisp_aiisp_cfg)
+
+#define RKISP_CMD_AIISP_RD_START \
+	_IO('V', BASE_VIDIOC_PRIVATE + 18)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -104,8 +114,14 @@
 
 #define RKISP_CMD_SET_IQTOOL_CONN_ID \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 113, int)
-/*************************************************************/
 
+#define RKISP_CMD_SET_EXPANDER \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 114, struct rkmodule_hdr_cfg)
+
+/**********************EVENT_PRIVATE***************************/
+#define RKISP_V4L2_EVENT_AIISP_LINECNT (V4L2_EVENT_PRIVATE_START + 1)
+
+/*************************************************************/
 #define ISP2X_ID_DPCC			(0)
 #define ISP2X_ID_BLS			(1)
 #define ISP2X_ID_SDG			(2)
@@ -321,6 +337,27 @@ struct isp2x_mesh_head {
 	__u32 data_oft;
 } __attribute__ ((packed));
 
+#define RKISP_AIISP_WR_LINECNT_ID	0
+#define RKISP_AIISP_RD_LINECNT_ID	1
+struct rkisp_aiisp_ev_info {
+	int sequence;
+	int height;
+} __attribute__ ((packed));
+
+/* struct rkisp_aiisp_cfg
+ * wr_mode: 0: only one RKISP_AIISP_WR_LINECNT_ID event, else event per wr_linecnt
+ * rd_mode: 0: only one RKISP_AIISP_RD_LINECNT_ID event, else event per rd_linecnt
+ * wr_linecnt: aiisp write irq line, 0 isn't RKISP_AIISP_WR_LINECNT_ID event, and aiisp no enable
+ * rd_linecnt: aiisp read irq line, 0 isn't RKISP_AIISP_RD_LINECNT_ID event
+ */
+struct rkisp_aiisp_cfg {
+	char wr_mode;
+	char rd_mode;
+
+	int wr_linecnt;
+	int rd_linecnt;
+} __attribute__ ((packed));
+
 struct rkisp_bay3dbuf_info {
 	int iir_fd;
 	int iir_size;
@@ -335,6 +372,10 @@ struct rkisp_bay3dbuf_info {
 			int ds_fd;
 			int ds_size;
 		} v32;
+		struct {
+			int gain_fd;
+			int gain_size;
+		} v39;
 	} u;
 } __attribute__ ((packed));
 

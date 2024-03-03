@@ -196,6 +196,31 @@ static const struct capture_fmt rawrd_fmts[] = {
 		.fmt_type = FMT_YUV,
 		.bpp = { 16 },
 		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB16,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG16,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG16,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR16,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 16 },
+		.mplanes = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y16,
+		.fmt_type = FMT_BAYER,
+		.bpp = { 16 },
+		.mplanes = 1,
 	}
 };
 
@@ -341,6 +366,13 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 		val |= CIF_CSI2_DT_YUV422_8b;
+		break;
+	case V4L2_PIX_FMT_SRGGB16:
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_Y16:
+		val |= CIF_CSI2_DT_RAW16;
 		break;
 	default:
 		val |= CIF_CSI2_DT_RAW12;
@@ -798,6 +830,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		if (stream->ispdev->isp_ver >= ISP_V20 &&
 		    fmt->fmt_type == FMT_BAYER &&
+		    fmt->bpp[0] != 16 &&
 		    !stream->memory &&
 		    stream->id != RKISP_STREAM_DMARX)
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);

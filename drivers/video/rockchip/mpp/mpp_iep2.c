@@ -627,7 +627,9 @@ static int iep2_irq(struct mpp_dev *mpp)
 {
 	u32 work_mode = mpp_read(mpp, IEP2_REG_WORK_MODE);
 
-	if (work_mode && !(work_mode & IEP2_REG_IEP2_MODE))
+	mpp_debug_enter();
+
+	if (work_mode && IEP2_GET_IEP2_MODE(work_mode) != IEP2_REG_IEP2_MODE)
 		return IRQ_NONE;
 	mpp->irq_status = mpp_read(mpp, IEP2_REG_INT_STS);
 	mpp_write(mpp, IEP2_REG_INT_CLR, 0xffffffff);
@@ -643,6 +645,8 @@ static int iep2_isr(struct mpp_dev *mpp)
 	struct mpp_task *mpp_task = NULL;
 	struct iep_task *task = NULL;
 	struct iep2_dev *iep = to_iep2_dev(mpp);
+
+	mpp_debug_enter();
 
 	mpp_task = mpp->cur_task;
 	task = to_iep_task(mpp_task);

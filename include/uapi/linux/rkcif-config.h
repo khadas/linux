@@ -39,6 +39,21 @@
 #define RKCIF_CMD_SET_QUICK_STREAM \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 8, struct rkcif_quick_stream_param)
 
+#define RKCIF_CMD_GET_SCL_MODE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, unsigned int)
+
+#define RKCIF_CMD_SET_SCL_MODE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 10, unsigned int)
+
+#define RKCIF_CMD_GET_EXTRACTION_PATTERN \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 11, unsigned int)
+
+#define RKCIF_CMD_SET_EXTRACTION_PATTERN \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 12, unsigned int)
+
+#define RKCIF_CMD_SET_PPI_DATA_DEBUG \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 13, unsigned int)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel
@@ -88,4 +103,16 @@ struct rkcif_quick_stream_param {
 	int resume_mode;
 };
 
+enum rkcif_scl_mode {
+	RKCIF_SCL_MODE_SCALE,
+	RKCIF_SCL_MODE_BINNING,
+	RKCIF_SCL_MODE_EXTRACTION,
+};
+
+enum rkcif_extraction_pattern {
+	RKCIF_EXTRACTION_PATTERN_UP_LEFT,
+	RKCIF_EXTRACTION_PATTERN_UP_RIGHT,
+	RKCIF_EXTRACTION_PATTERN_BOTTOM_LEFT,
+	RKCIF_EXTRACTION_PATTERN_BOTTOM_RIGHT,
+};
 #endif

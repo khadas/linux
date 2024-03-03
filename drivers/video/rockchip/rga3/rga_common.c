@@ -43,6 +43,7 @@ bool rga_is_yuv_format(uint32_t format)
 {
 	switch (format) {
 	case RGA_FORMAT_Y4:
+	case RGA_FORMAT_Y8:
 	case RGA_FORMAT_YCbCr_400:
 
 	case RGA_FORMAT_YCbCr_422_SP:
@@ -67,6 +68,9 @@ bool rga_is_yuv_format(uint32_t format)
 	case RGA_FORMAT_YCrCb_420_SP_10B:
 	case RGA_FORMAT_YCbCr_422_SP_10B:
 	case RGA_FORMAT_YCrCb_422_SP_10B:
+
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		return true;
 	default:
 		return false;
@@ -88,6 +92,8 @@ bool rga_is_alpha_format(uint32_t format)
 	case RGA_FORMAT_ABGR_8888:
 	case RGA_FORMAT_ABGR_5551:
 	case RGA_FORMAT_ABGR_4444:
+
+	case RGA_FORMAT_A8:
 		return true;
 	default:
 		return false;
@@ -172,6 +178,7 @@ bool rga_is_yuv8bit_format(uint32_t format)
 {
 	switch (format) {
 	case RGA_FORMAT_Y4:
+	case RGA_FORMAT_Y8:
 	case RGA_FORMAT_YCbCr_400:
 
 	case RGA_FORMAT_YCbCr_422_SP:
@@ -191,6 +198,9 @@ bool rga_is_yuv8bit_format(uint32_t format)
 	case RGA_FORMAT_YUYV_420:
 	case RGA_FORMAT_UYVY_422:
 	case RGA_FORMAT_UYVY_420:
+
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		return true;
 	default:
 		return false;
@@ -226,6 +236,7 @@ bool rga_is_only_y_format(uint32_t format)
 	switch (format) {
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_Y4:
+	case RGA_FORMAT_Y8:
 		return true;
 	default:
 		return false;
@@ -313,7 +324,7 @@ const char *rga_get_format_name(uint32_t format)
 	case RGA_FORMAT_YCbCr_400:
 		return "YCbCr400";
 	case RGA_FORMAT_Y4:
-		return "y4";
+		return "Y4";
 
 	case RGA_FORMAT_ARGB_8888:
 		return "ARGB8888";
@@ -334,6 +345,16 @@ const char *rga_get_format_name(uint32_t format)
 
 	case RGA_FORMAT_RGBA_2BPP:
 		return "RGBA2BPP";
+
+	case RGA_FORMAT_A8:
+		return "alpha-8";
+	case RGA_FORMAT_YCbCr_444_SP:
+		return "YCbCr444SP";
+	case RGA_FORMAT_YCrCb_444_SP:
+		return "YCrCb444SP";
+
+	case RGA_FORMAT_Y8:
+		return "Y8";
 
 	default:
 		return "UNF";
@@ -357,6 +378,8 @@ int rga_get_format_bits(uint32_t format)
 		break;
 	case RGA_FORMAT_RGB_888:
 	case RGA_FORMAT_BGR_888:
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		bits = 24;
 		break;
 	case RGA_FORMAT_RGB_565:
@@ -398,6 +421,8 @@ int rga_get_format_bits(uint32_t format)
 		break;
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_BPP8:
+	case RGA_FORMAT_A8:
+	case RGA_FORMAT_Y8:
 		bits = 8;
 		break;
 	case RGA_FORMAT_Y4:
@@ -435,6 +460,8 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 		break;
 	case RGA_FORMAT_RGB_888:
 	case RGA_FORMAT_BGR_888:
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		pixel_stride = 24;
 		break;
 	case RGA_FORMAT_RGB_565:
@@ -468,6 +495,7 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 	case RGA_FORMAT_BPP4:
 	case RGA_FORMAT_BPP8:
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_A8:
 	case RGA_FORMAT_YCbCr_420_SP:
 	case RGA_FORMAT_YCbCr_420_P:
 	case RGA_FORMAT_YCrCb_420_SP:
@@ -476,6 +504,7 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 	case RGA_FORMAT_YCbCr_422_P:
 	case RGA_FORMAT_YCrCb_422_SP:
 	case RGA_FORMAT_YCrCb_422_P:
+	case RGA_FORMAT_Y8:
 		pixel_stride = 8;
 		break;
 	case RGA_FORMAT_Y4:
@@ -607,12 +636,14 @@ const char *rga_get_mmu_type_str(enum rga_mmu mmu_type)
 const char *rga_get_core_name(enum RGA_SCHEDULER_CORE core)
 {
 	switch (core) {
-	case RGA_SCHEDULER_RGA3_CORE0:
+	case RGA3_SCHEDULER_CORE0:
 		return "RGA3_core0";
-	case RGA_SCHEDULER_RGA3_CORE1:
+	case RGA3_SCHEDULER_CORE1:
 		return "RGA3_core1";
-	case RGA_SCHEDULER_RGA2_CORE0:
+	case RGA2_SCHEDULER_CORE0:
 		return "RGA2_core0";
+	case RGA2_SCHEDULER_CORE1:
+		return "RGA2_core1";
 	default:
 		return "unknown_core";
 	}
@@ -708,6 +739,12 @@ int rga_image_size_cal(int w, int h, int format,
 		yrgb = w * h * 2;
 		break;
 	/* YUV FORMAT */
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
+		yrgb = w * h;
+		uv = w * h;
+		v = w * h;
+		break;
 	case RGA_FORMAT_YCbCr_422_SP:
 	case RGA_FORMAT_YCrCb_422_SP:
 	/* 10bit format stride is externally configured. */
@@ -737,6 +774,8 @@ int rga_image_size_cal(int w, int h, int format,
 		v = uv;
 		break;
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_A8:
+	case RGA_FORMAT_Y8:
 		yrgb = w * h;
 		break;
 	case RGA_FORMAT_Y4:

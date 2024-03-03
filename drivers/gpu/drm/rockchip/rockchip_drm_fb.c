@@ -10,6 +10,7 @@
 #include <drm/drm.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
@@ -335,10 +336,26 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
+static int rockchip_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check(dev, state);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_DRM_DISPLAY_DP_HELPER
+	ret = drm_dp_mst_atomic_check(state);
+	if (ret)
+		return ret;
+#endif
+	return 0;
+}
+
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_fb_create,
 	.output_poll_changed = rockchip_drm_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = rockchip_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 

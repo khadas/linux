@@ -29,6 +29,26 @@ enum rockchip_pwm_global_ctrl_cmd {
 };
 
 /**
+ * enum rockchip_pwm_counter_input_sel - select the input src of counter
+ * @PWM_COUNTER_INPUT_FROM_IO: input from PWM IO
+ * @PWM_COUNTER_INPUT_FROM_CRU: input from CRU
+ */
+enum rockchip_pwm_counter_input_sel {
+	PWM_COUNTER_INPUT_FROM_IO,
+	PWM_COUNTER_INPUT_FROM_CRU,
+};
+
+/**
+ * enum rockchip_pwm_freq_meter_input_sel - select the input src of frequency meter
+ * @PWM_FREQ_METER_INPUT_FROM_IO: input from PWM IO
+ * @PWM_FREQ_METER_INPUT_FROM_CRU: input from CRU
+ */
+enum rockchip_pwm_freq_meter_input_sel {
+	PWM_FREQ_METER_INPUT_FROM_IO,
+	PWM_FREQ_METER_INPUT_FROM_CRU,
+};
+
+/**
  * struct rockchip_pwm_wave_table - wave table config object
  * @offset: the offset of wave table to set
  * @len: the length of wave table to set
@@ -104,6 +124,37 @@ struct rockchip_pwm_wave_config {
 	u32 middle_hold;
 };
 
+/**
+ * enum rockchip_pwm_biphasic_mode - mode of biphasic counter
+ * @PWM_BIPHASIC_COUNTER_MODE0: single phase increase mode with A-phase
+ * @PWM_BIPHASIC_COUNTER_MODE1: single phase increase/decrease mode with A-phase
+ * @PWM_BIPHASIC_COUNTER_MODE2: dual phase with A/B-phase mode
+ * @PWM_BIPHASIC_COUNTER_MODE3: dual phase with A/B-phase 2 times frequency mode
+ * @PWM_BIPHASIC_COUNTER_MODE4: dual phase with A/B-phase 4 times frequency mode
+ */
+enum rockchip_pwm_biphasic_mode {
+	PWM_BIPHASIC_COUNTER_MODE0,
+	PWM_BIPHASIC_COUNTER_MODE1,
+	PWM_BIPHASIC_COUNTER_MODE2,
+	PWM_BIPHASIC_COUNTER_MODE3,
+	PWM_BIPHASIC_COUNTER_MODE4,
+	PWM_BIPHASIC_COUNTER_MODE0_FREQ,
+};
+
+/**
+ * struct rockchip_pwm_biphasic_config - biphasic counter config object
+ * @enable: enable: enable or disable biphasic counter
+ * @is_continuous: biphascic counter will not stop at the end of timer in continuous mode
+ * @mode: the mode of biphasic counter
+ * @delay_ms: time to wait, in milliseconds, before getting biphasic counter result
+ */
+struct rockchip_pwm_biphasic_config {
+	bool enable;
+	bool is_continuous;
+	u8 mode;
+	u32 delay_ms;
+};
+
 #if IS_REACHABLE(CONFIG_PWM_ROCKCHIP)
 /**
  * rockchip_pwm_set_counter() - setup pwm counter mode
@@ -112,7 +163,9 @@ struct rockchip_pwm_wave_config {
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable);
+int rockchip_pwm_set_counter(struct pwm_device *pwm,
+			     enum rockchip_pwm_counter_input_sel input_sel,
+			     bool enable);
 
 /**
  * rockchip_pwm_get_counter_result() - get counter result
@@ -129,11 +182,13 @@ int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
  * rockchip_pwm_set_freq_meter() - setup pwm frequency meter mode
  * @pwm: PWM device
  * @delay_ms: time to wait, in milliseconds, before getting frequency meter result
+ * @input_sel: selec the input of frequency meter
  * @freq_hz: parameter in Hz to fill with frequency meter result
  *
  * Returns: 0 on success or a negative error code on failure.
  */
 int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
+				enum rockchip_pwm_freq_meter_input_sel input_sel,
 				unsigned long *freq_hz);
 
 /**
@@ -153,8 +208,26 @@ int rockchip_pwm_global_ctrl(struct pwm_device *pwm, enum rockchip_pwm_global_ct
  * Returns: 0 on success or a negative error code on failure.
  */
 int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_config *config);
+
+/**
+ * rockchip_pwm_set_biphasic() - setup biphasic counter mode
+ * @pwm: PWM device
+ * @config: config of biphasic counter mode
+ * @biphasic_res: biphasic counter result
+ */
+int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphasic_config *config,
+			      unsigned long *biphasic_res);
+
+/**
+ * rockchip_pwm_get_biphasic_result() - get biphasic counter result (valid only in continuous mode)
+ * @pwm: PWM device
+ * @biphasic_res: biphasic counter result
+ */
+int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biphasic_res);
 #else
-static inline int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable)
+static inline int rockchip_pwm_set_counter(struct pwm_device *pwm,
+					   enum rockchip_pwm_counter_input_sel input_sel,
+					   bool enable);
 {
 	return 0;
 }
@@ -166,6 +239,7 @@ static inline int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
 }
 
 static inline int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
+					      enum rockchip_pwm_freq_meter_input_sel input_sel,
 					      unsigned long *freq_hz)
 {
 	return 0;
@@ -179,6 +253,19 @@ static inline  int rockchip_pwm_global_ctrl(struct pwm_device *pwm,
 
 static inline int rockchip_pwm_set_wave(struct pwm_device *pwm,
 					struct rockchip_pwm_wave_config *config)
+{
+	return 0;
+}
+
+static inline int rockchip_pwm_set_biphasic(struct pwm_device *pwm,
+					    struct rockchip_pwm_biphasic_config *config,
+					    unsigned long *biphasic_res)
+{
+	return 0;
+}
+
+static inline int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm,
+						   unsigned long *biphasic_res)
 {
 	return 0;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
  *
  * author:
  *	Ding Wei, leo.ding@rock-chips.com
@@ -29,6 +29,9 @@
 #define	VDPP_SESSION_MAX_BUFFERS	15
 #define VDPP_REG_WORK_MODE			0x0008
 #define VDPP_REG_VDPP_MODE			BIT(1)
+#define VDPP_GET_VDPP_MODE(x)			((x) & 0x2)
+
+#define VDPP_FMT_DEFAULT			(0)
 
 #define to_vdpp_info(info)	\
 		container_of(info, struct vdpp_hw_info, hw)
@@ -91,6 +94,7 @@ struct vdpp_dev {
 	void __iomem *zme_base;
 };
 
+// RK3528
 static struct vdpp_hw_info vdpp_v1_hw_info = {
 	.hw = {
 		.reg_num = 53,
@@ -115,18 +119,53 @@ static struct vdpp_hw_info vdpp_v1_hw_info = {
 	.bit_rst_done = BIT(0),
 };
 
+// RK3576
+static struct vdpp_hw_info vdpp_rk3576_hw_info = {
+	.hw = {
+		.reg_num = 300,
+		.reg_id = 21,
+		.reg_en = 0,
+		.reg_start = 0,
+		.reg_end = 299,
+	},
+	.start_base = 0x0000,
+	.cfg_base = 0x0004,
+	.work_mode_base = 0x0008,
+	.gate_base = 0x0010,
+	.rst_sta_base = 0x0014,
+	.int_en_base = 0x0020,
+	.int_clr_base = 0x0024,
+	.int_sta_base = 0x0028,
+	.int_mask = 0x0073,
+	.err_mask = 0x0070,
+	.zme_reg_off = 0x2000,
+	.zme_reg_num = 530,
+	.bit_rst_en = BIT(21),
+	.bit_rst_done = BIT(0),
+};
+
 /*
  * file handle translate information
  */
-static const u16 trans_tbl_vdpp[] = {
+static const u16 trans_tbl_vdpp_v1[] = {
 	24, 25, 26, 27,
 };
 
-#define VDPP_FMT_DEFAULT		0
+static const u16 trans_tbl_vdpp_rk3576[] = {
+	24, 25, 26, 27, 56, 60,
+};
+
 static struct mpp_trans_info vdpp_v1_trans[] = {
 	[VDPP_FMT_DEFAULT] = {
-		.count = ARRAY_SIZE(trans_tbl_vdpp),
-		.table = trans_tbl_vdpp,
+		.count = ARRAY_SIZE(trans_tbl_vdpp_v1),
+		.table = trans_tbl_vdpp_v1,
+	},
+};
+
+static struct mpp_trans_info vdpp_rk3576_trans[] = {
+	[VDPP_FMT_DEFAULT] = {
+		.count = ARRAY_SIZE(trans_tbl_vdpp_rk3576),
+		.table = trans_tbl_vdpp_rk3576,
 	},
 };
 
@@ -396,6 +435,8 @@ static int vdpp_result(struct mpp_dev *mpp,
 	struct vdpp_task *task = to_vdpp_task(mpp_task);
 	struct vdpp_hw_info *hw_info = to_vdpp_info(mpp_task->hw_info);
 
+	mpp_debug_enter();
+
 	for (i = 0; i < task->r_req_cnt; i++) {
 		struct mpp_request *req;
 
@@ -558,7 +599,9 @@ static int vdpp_irq(struct mpp_dev *mpp)
 	struct vdpp_hw_info *hw_info = vdpp->hw_info;
 	u32 work_mode = mpp_read(mpp, VDPP_REG_WORK_MODE);
 
-	if (!(work_mode & VDPP_REG_VDPP_MODE))
+	mpp_debug_enter();
+
+	if (!(VDPP_GET_VDPP_MODE(work_mode) & VDPP_REG_VDPP_MODE))
 		return IRQ_NONE;
 	mpp->irq_status = mpp_read(mpp, hw_info->int_sta_base);
 	if (!(mpp->irq_status & hw_info->int_mask))
@@ -577,6 +620,8 @@ static int vdpp_isr(struct mpp_dev *mpp)
 	struct vdpp_task *task = NULL;
 	struct vdpp_dev *vdpp = to_vdpp_dev(mpp);
 	struct mpp_task *mpp_task = mpp->cur_task;
+
+	mpp_debug_enter();
 
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
@@ -675,11 +720,25 @@ static const struct mpp_dev_var vdpp_v1_data = {
 	.dev_ops = &vdpp_v1_dev_ops,
 };
 
+static const struct mpp_dev_var vdpp_rk3576_data = {
+	.device_type = MPP_DEVICE_VDPP,
+	.hw_info = &vdpp_rk3576_hw_info.hw,
+	.trans_info = vdpp_rk3576_trans,
+	.hw_ops = &vdpp_v1_hw_ops,
+	.dev_ops = &vdpp_v1_dev_ops,
+};
+
 static const struct of_device_id mpp_vdpp_dt_match[] = {
 	{
 		.compatible = "rockchip,vdpp-v1",
 		.data = &vdpp_v1_data,
 	},
+#ifdef CONFIG_CPU_RK3576
+	{
+		.compatible = "rockchip,vdpp-rk3576",
+		.data = &vdpp_rk3576_data,
+	},
+#endif
 	{},
 };
 

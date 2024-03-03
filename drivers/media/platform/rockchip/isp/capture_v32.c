@@ -348,6 +348,68 @@ static const struct capture_fmt luma_fmts[] = {
 	},
 };
 
+static struct stream_config rkisp_sp_stream_config_lite = {
+	/* constraints */
+	.max_rsz_width = CIF_ISP_INPUT_W_MAX_V32_L,
+	.max_rsz_height = CIF_ISP_INPUT_H_MAX_V32_L,
+	.min_rsz_width = STREAM_MIN_RSZ_OUTPUT_WIDTH,
+	.min_rsz_height = STREAM_MIN_RSZ_OUTPUT_HEIGHT,
+	.frame_end_id = CIF_MI_SP_FRAME,
+	/* registers */
+	.rsz = {
+		.ctrl = ISP32_SELF_SCALE_CTRL,
+		.update = ISP32_SELF_SCALE_UPDATE,
+		.src_size = ISP32_SELF_SCALE_SRC_SIZE,
+		.dst_size = ISP32_SELF_SCALE_DST_SIZE,
+		.scale_hy_offs_mi = ISP32_SELF_SCALE_HY_OFFS_MI,
+		.scale_hc_offs_mi = ISP32_SELF_SCALE_HC_OFFS_MI,
+		.scale_in_crop_offs = ISP32_SELF_SCALE_IN_CROP_OFFSET,
+		.scale_hy_offs = ISP32_SELF_SCALE_HY_OFFS,
+		.scale_hc_offs = ISP32_SELF_SCALE_HC_OFFS,
+		.scale_hy_size = ISP32_SELF_SCALE_HY_SIZE,
+		.scale_hc_size = ISP32_SELF_SCALE_HC_SIZE,
+		.scale_hy = ISP32_SELF_SCALE_HY_FAC,
+		.scale_hcr = ISP32_SELF_SCALE_HC_FAC,
+		.scale_vy = ISP32_SELF_SCALE_VY_FAC,
+		.scale_vc = ISP32_SELF_SCALE_VC_FAC,
+		.scale_hy_shd = ISP32_SELF_SCALE_HY_FAC_SHD,
+		.scale_hcr_shd = ISP32_SELF_SCALE_HC_FAC_SHD,
+		.scale_vy_shd = ISP32_SELF_SCALE_VY_FAC_SHD,
+		.scale_vc_shd = ISP32_SELF_SCALE_VC_FAC_SHD,
+		.phase_hy = ISP32_SELF_SCALE_PHASE_HY,
+		.phase_hc = ISP32_SELF_SCALE_PHASE_HC,
+		.phase_vy = ISP32_SELF_SCALE_PHASE_VY,
+		.phase_vc = ISP32_SELF_SCALE_PHASE_VC,
+		.ctrl_shd = ISP32_SELF_SCALE_CTRL_SHD,
+		.phase_hy_shd = ISP32_SELF_SCALE_PHASE_HY_SHD,
+		.phase_hc_shd = ISP32_SELF_SCALE_PHASE_HC_SHD,
+		.phase_vy_shd = ISP32_SELF_SCALE_PHASE_VY_SHD,
+		.phase_vc_shd = ISP32_SELF_SCALE_PHASE_VC_SHD,
+	},
+	.dual_crop = {
+		.ctrl = CIF_DUAL_CROP_CTRL,
+		.yuvmode_mask = CIF_DUAL_CROP_SP_MODE_YUV,
+		.rawmode_mask = CIF_DUAL_CROP_SP_MODE_RAW,
+		.h_offset = CIF_DUAL_CROP_S_H_OFFS,
+		.v_offset = CIF_DUAL_CROP_S_V_OFFS,
+		.h_size = CIF_DUAL_CROP_S_H_SIZE,
+		.v_size = CIF_DUAL_CROP_S_V_SIZE,
+	},
+	.mi = {
+		.y_size_init = CIF_MI_SP_Y_SIZE_INIT,
+		.cb_size_init = CIF_MI_SP_CB_SIZE_INIT,
+		.cr_size_init = CIF_MI_SP_CR_SIZE_INIT,
+		.y_base_ad_init = CIF_MI_SP_Y_BASE_AD_INIT,
+		.cb_base_ad_init = CIF_MI_SP_CB_BASE_AD_INIT,
+		.cr_base_ad_init = CIF_MI_SP_CR_BASE_AD_INIT,
+		.y_offs_cnt_init = CIF_MI_SP_Y_OFFS_CNT_INIT,
+		.cb_offs_cnt_init = CIF_MI_SP_CB_OFFS_CNT_INIT,
+		.cr_offs_cnt_init = CIF_MI_SP_CR_OFFS_CNT_INIT,
+		.y_base_ad_shd = CIF_MI_SP_Y_BASE_AD_SHD,
+		.y_pic_size = ISP3X_MI_SP_WR_Y_PIC_SIZE,
+	},
+};
+
 static struct stream_config rkisp_luma_stream_config = {
 	.fmts = luma_fmts,
 	.fmt_size = ARRAY_SIZE(luma_fmts),
@@ -2193,13 +2255,18 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	case RKISP_STREAM_SP:
 		strscpy(vdev->name, SP_VDEV_NAME, sizeof(vdev->name));
 		stream->ops = &rkisp_sp_streams_ops;
-		stream->config = &rkisp_sp_stream_config;
 		if (dev->isp_ver == ISP_V32) {
+			stream->config = &rkisp_sp_stream_config;
 			stream->config->fmts = sp_fmts;
 			stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
 		} else {
+			stream->config = &rkisp_sp_stream_config_lite;
 			stream->config->fmts = sp_fmts_lite;
 			stream->config->fmt_size = ARRAY_SIZE(sp_fmts_lite);
+			if (dev->hw_dev->unite) {
+				stream->config->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32_L_UNITE;
+				stream->config->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32_L_UNITE;
+			}
 		}
 		break;
 	case RKISP_STREAM_BP:
@@ -2414,14 +2481,4 @@ end:
 			dev->irq_ends_mask &= ~ISP_FRAME_BP;
 		rkisp_check_idle(dev, ISP_FRAME_BP);
 	}
-}
-
-void rkisp_mipi_v32_isr(unsigned int phy, unsigned int packet,
-			unsigned int overflow, unsigned int state,
-			struct rkisp_device *dev)
-{
-	if (state & GENMASK(19, 17))
-		v4l2_warn(&dev->v4l2_dev, "RD_SIZE_ERR:0x%08x\n", state);
-	if (state & ISP21_MIPI_DROP_FRM)
-		v4l2_warn(&dev->v4l2_dev, "MIPI drop frame\n");
 }

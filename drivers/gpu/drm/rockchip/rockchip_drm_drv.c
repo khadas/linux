@@ -1138,6 +1138,28 @@ void rockchip_drm_crtc_standby(struct drm_crtc *crtc, bool standby)
 		priv->crtc_funcs[pipe]->crtc_standby(crtc, standby);
 }
 
+void rockchip_drm_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->crtc_output_post_enable)
+		priv->crtc_funcs[pipe]->crtc_output_post_enable(crtc, intf);
+}
+
+void rockchip_drm_crtc_output_pre_disable(struct drm_crtc *crtc, int intf)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->crtc_output_pre_disable)
+		priv->crtc_funcs[pipe]->crtc_output_pre_disable(crtc, intf);
+}
+
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs)
 {

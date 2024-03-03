@@ -54,6 +54,7 @@ struct rockchip_grf_reg_field {
  * @spdif_sel: grf register field of spdif_sel
  * @i2s_sel: grf register field of i2s_sel
  * @edp_mode: grf register field of edp_mode
+ * @mem_clk_auto_gating: grf register field of mem_clk_auto_gating
  * @chip_type: specific chip type
  * @ssc: check if SSC is supported by source
  * @audio: check if audio is supported by source
@@ -64,6 +65,7 @@ struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field spdif_sel;
 	const struct rockchip_grf_reg_field i2s_sel;
 	const struct rockchip_grf_reg_field edp_mode;
+	const struct rockchip_grf_reg_field mem_clk_auto_gating;
 	u32	chip_type;
 	bool	ssc;
 	bool	audio;
@@ -392,6 +394,10 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
 
+	ret = rockchip_grf_field_write(dp->grf, &dp->data->mem_clk_auto_gating, 1);
+	if (ret != 0)
+		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg mem_clk_auto_gating: %d\n", ret);
+
 	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0)
 		return;
@@ -400,7 +406,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 
 	ret = rockchip_grf_field_write(dp->grf, &dp->data->lcdc_sel, ret);
 	if (ret != 0)
-		DRM_DEV_ERROR(dp->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg lcdc_sel: %d\n", ret);
 }
 
 static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
@@ -821,6 +827,19 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dp_chip_data rk3576_edp[] = {
+	{
+		.chip_type = RK3588_EDP,
+		.spdif_sel = GRF_REG_FIELD(0x0000, 5, 5),
+		.i2s_sel = GRF_REG_FIELD(0x0000, 4, 4),
+		.mem_clk_auto_gating = GRF_REG_FIELD(0x0020, 1, 1),
+		.ssc = true,
+		.audio = true,
+		.split_mode = true,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_dp_chip_data rk3588_edp[] = {
 	{
 		.chip_type = RK3588_EDP,
@@ -847,6 +866,7 @@ static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{.compatible = "rockchip,rk3568-edp", .data = &rk3568_edp },
+	{.compatible = "rockchip,rk3576-edp", .data = &rk3576_edp },
 	{.compatible = "rockchip,rk3588-edp", .data = &rk3588_edp },
 	{}
 };

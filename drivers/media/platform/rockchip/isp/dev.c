@@ -545,7 +545,9 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 #endif
 	}
 
-	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V32_L) {
+	if (dev->isp_ver == ISP_V32 ||
+	    dev->isp_ver == ISP_V32_L ||
+	    dev->isp_ver == ISP_V39) {
 		struct v4l2_pix_format_mplane pixm = {
 			.width = width,
 			.height = height,
@@ -563,6 +565,8 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
 		}
 	}
+	if (dev->isp_ver == ISP_V39)
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_LDC, width, height, V4L2_PIX_FMT_NV12);
 	return 0;
 }
 
@@ -730,14 +734,20 @@ static int rkisp_register_platform_subdevs(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err_unreg_params_vdev;
 
+	ret = rkisp_register_pdaf_vdev(dev);
+	if (ret < 0)
+		goto err_unreg_luma_vdev;
+
 	ret = isp_subdev_notifier(dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Failed to register subdev notifier(%d)\n", ret);
-		goto err_unreg_luma_vdev;
+		goto err_unreg_pdaf_vdev;
 	}
 
 	return 0;
+err_unreg_pdaf_vdev:
+	rkisp_unregister_pdaf_vdev(dev);
 err_unreg_luma_vdev:
 	rkisp_unregister_luma_vdev(&dev->luma_vdev);
 err_unreg_params_vdev:
@@ -972,6 +982,7 @@ static int rkisp_plat_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&isp_dev->notifier);
 	v4l2_device_unregister(&isp_dev->v4l2_dev);
 	v4l2_ctrl_handler_free(&isp_dev->ctrl_handler);
+	rkisp_unregister_pdaf_vdev(isp_dev);
 	rkisp_unregister_luma_vdev(&isp_dev->luma_vdev);
 	rkisp_unregister_params_vdev(&isp_dev->params_vdev);
 	rkisp_unregister_stats_vdev(&isp_dev->stats_vdev);
