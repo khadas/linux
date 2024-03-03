@@ -751,6 +751,11 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 		    output_fmt->fourcc == V4L2_PIX_FMT_SBGGR16)
 			ret = 0;
 		break;
+	case MEDIA_BUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_NV12)
+			ret = 0;
+		break;
 	default:
 		break;
 	}
@@ -913,7 +918,10 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input
 		return 0x12;
 	case MEDIA_BUS_FMT_SPD_2X8:
 		return 0x2f;
-
+	case MEDIA_BUS_FMT_UV8_1X8:
+		return 0x1a;//use for yuv420_8bit legacy input
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		return 0x18;//use for yuv420_8bit input
 	default:
 		return 0x2b;
 	}
