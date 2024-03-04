@@ -1532,7 +1532,7 @@ ebc_probe:
 	add	x1, x1, :lo12:.L.str.3
 	add	x2, sp, #12
 	.loc	1 3654 30
-	str	x9, [x8, #144]
+	str	x9, [x8, #136]
 	.loc	1 3656 30
 	ldr	x0, [x20, #760]
 .Ltmp359:
@@ -4405,7 +4405,7 @@ ebc_auto_tast_function:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp966:
@@ -4419,7 +4419,7 @@ ebc_auto_tast_function:
 	ldr	w1, [x25, #32]
 .Ltmp969:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp970:
@@ -4429,7 +4429,7 @@ ebc_auto_tast_function:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp972:
@@ -4517,7 +4517,7 @@ ebc_auto_tast_function:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp991:
@@ -4531,7 +4531,7 @@ ebc_auto_tast_function:
 	ldr	w1, [x27, #32]
 .Ltmp994:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp995:
@@ -4541,7 +4541,7 @@ ebc_auto_tast_function:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp997:
@@ -4640,7 +4640,7 @@ ebc_auto_tast_function:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp1018:
@@ -4654,7 +4654,7 @@ ebc_auto_tast_function:
 	ldr	w1, [x25, #32]
 .Ltmp1021:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp1022:
@@ -4664,7 +4664,7 @@ ebc_auto_tast_function:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp1024:
@@ -4752,7 +4752,7 @@ ebc_auto_tast_function:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp1043:
@@ -4766,7 +4766,7 @@ ebc_auto_tast_function:
 	ldr	w1, [x27, #32]
 .Ltmp1046:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp1047:
@@ -4776,7 +4776,7 @@ ebc_auto_tast_function:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp1049:
@@ -7932,7 +7932,7 @@ ebc_thread:
 	ldr	x1, [sp, #16]
 .Ltmp1797:
 	.loc	170 64 15 is_stmt 1
-	ldr	x8, [x0, #80]
+	ldr	x8, [x0, #72]
 	.loc	170 64 9 is_stmt 0
 	blr	x8
 .Ltmp1798:
@@ -8432,7 +8432,7 @@ ebc_thread:
 	ldr	x1, [sp, #16]
 .Ltmp1926:
 	.loc	170 64 15 is_stmt 1
-	ldr	x8, [x0, #80]
+	ldr	x8, [x0, #72]
 	.loc	170 64 9 is_stmt 0
 	blr	x8
 .Ltmp1927:
@@ -8536,7 +8536,7 @@ ebc_thread:
 	ldr	x1, [sp, #16]
 .Ltmp1951:
 	.loc	170 64 15 is_stmt 1
-	ldr	x8, [x0, #80]
+	ldr	x8, [x0, #72]
 	.loc	170 64 9 is_stmt 0
 	blr	x8
 .Ltmp1952:
@@ -8682,7 +8682,7 @@ ebc_thread:
 	ldr	x1, [sp, #16]
 .Ltmp1986:
 	.loc	170 64 15 is_stmt 1
-	ldr	x8, [x0, #80]
+	ldr	x8, [x0, #72]
 	.loc	170 64 9 is_stmt 0
 	blr	x8
 .Ltmp1987:
@@ -8839,7 +8839,7 @@ ebc_thread:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp2023:
@@ -8853,7 +8853,7 @@ ebc_thread:
 	ldr	w1, [x19, #72]
 .Ltmp2026:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp2027:
@@ -8863,7 +8863,7 @@ ebc_thread:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp2029:
@@ -8963,7 +8963,7 @@ ebc_thread:
 	ldr	x0, [x19, #8]
 	str	wzr, [x19, #432]
 .Ltmp2051:
-	ldr	x8, [x0, #88]
+	ldr	x8, [x0, #80]
 	blr	x8
 .Ltmp2052:
 	ldr	x0, [x19, #16]
@@ -9074,7 +9074,7 @@ ebc_thread:
 	ldr	x1, [sp, #16]
 .Ltmp2078:
 	.loc	170 64 15 is_stmt 1
-	ldr	x8, [x0, #80]
+	ldr	x8, [x0, #72]
 	.loc	170 64 9 is_stmt 0
 	blr	x8
 .Ltmp2079:
@@ -15251,7 +15251,7 @@ ebc_frame_start:
 	mov	w3, wzr
 	mov	w4, wzr
 	.loc	170 75 15 is_stmt 0
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	.loc	170 75 9
 	blr	x8
 .Ltmp3513:
@@ -15265,7 +15265,7 @@ ebc_frame_start:
 	ldr	w1, [x19, #72]
 .Ltmp3516:
 	.loc	170 80 8
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	.loc	170 80 2 is_stmt 0
 	blr	x8
 .Ltmp3517:
@@ -15275,7 +15275,7 @@ ebc_frame_start:
 	.loc	170 95 2
 	mov	w1, #1
 	.loc	170 95 8 is_stmt 0
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	.loc	170 95 2
 	blr	x8
 .Ltmp3519:
@@ -15584,20 +15584,20 @@ ebc_frame_start:
 	mov	w2, wzr
 	mov	w3, wzr
 	mov	w4, wzr
-	ldr	x8, [x0, #96]
+	ldr	x8, [x0, #88]
 	blr	x8
 .Ltmp3594:
 	ldr	x0, [x19, #48]
 	mov	w2, wzr
 	ldr	w1, [x19, #72]
 .Ltmp3595:
-	ldr	x8, [x0, #104]
+	ldr	x8, [x0, #96]
 	blr	x8
 .Ltmp3596:
 	ldr	x0, [x19, #48]
 .Ltmp3597:
 	mov	w1, #1
-	ldr	x8, [x0, #136]
+	ldr	x8, [x0, #128]
 	blr	x8
 .Ltmp3598:
 	ldr	w8, [x19, #112]
@@ -19256,7 +19256,7 @@ ebc_suspend:
 	str	wzr, [x20, #432]
 .Ltmp4260:
 	.loc	170 69 8
-	ldr	x8, [x0, #88]
+	ldr	x8, [x0, #80]
 	.loc	170 69 2 is_stmt 0
 	blr	x8
 .Ltmp4261:
@@ -72138,7 +72138,7 @@ waveform_ops:
 	.word	61031
 	.byte	13
 	.word	.Linfo_string3291
-	.byte	152
+	.byte	144
 	.byte	170
 	.byte	36
 	.byte	14
@@ -72190,77 +72190,77 @@ waveform_ops:
 	.byte	45
 	.byte	48
 	.byte	14
-	.word	.Linfo_string189
-	.word	5012
+	.word	.Linfo_string3179
+	.word	61300
 	.byte	170
 	.byte	47
 	.byte	56
 	.byte	14
-	.word	.Linfo_string3179
-	.word	61300
+	.word	.Linfo_string3277
+	.word	430
 	.byte	170
 	.byte	48
 	.byte	64
 	.byte	14
-	.word	.Linfo_string3277
-	.word	430
+	.word	.Linfo_string189
+	.word	5012
 	.byte	170
 	.byte	49
-	.byte	72
+	.byte	68
 	.byte	14
 	.word	.Linfo_string3082
 	.word	61940
 	.byte	170
 	.byte	51
-	.byte	80
+	.byte	72
 	.byte	14
 	.word	.Linfo_string3083
 	.word	61961
 	.byte	170
 	.byte	52
-	.byte	88
+	.byte	80
 	.byte	14
 	.word	.Linfo_string3278
 	.word	61973
 	.byte	170
 	.byte	53
-	.byte	96
+	.byte	88
 	.byte	14
 	.word	.Linfo_string3279
 	.word	62005
 	.byte	170
 	.byte	54
-	.byte	104
+	.byte	96
 	.byte	14
 	.word	.Linfo_string3280
 	.word	62027
 	.byte	170
 	.byte	55
-	.byte	112
+	.byte	104
 	.byte	14
 	.word	.Linfo_string3281
 	.word	62044
 	.byte	170
 	.byte	56
-	.byte	120
+	.byte	112
 	.byte	14
 	.word	.Linfo_string3282
 	.word	62075
 	.byte	170
 	.byte	57
-	.byte	128
+	.byte	120
 	.byte	14
 	.word	.Linfo_string3289
 	.word	62135
 	.byte	170
 	.byte	58
-	.byte	136
+	.byte	128
 	.byte	14
 	.word	.Linfo_string3290
 	.word	98
 	.byte	170
 	.byte	59
-	.byte	144
+	.byte	136
 	.byte	0
 	.byte	5
 	.word	61285
