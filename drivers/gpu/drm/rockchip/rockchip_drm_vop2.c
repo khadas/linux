@@ -2470,7 +2470,7 @@ static int vop2_afbc_half_block_enable(struct vop2_plane_state *vpstate)
  * @xoffset: the src x offset of the right win in splice mode, other wise it
  * must be zero.
  */
-static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate, int xoffset)
+static uint32_t vop2_afbc_transform_offset(struct vop2 *vop2, struct vop2_plane_state *vpstate, int xoffset)
 {
 	struct drm_rect *src = &vpstate->src;
 	struct drm_framebuffer *fb = vpstate->base.fb;
@@ -2489,6 +2489,34 @@ static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate, int
 	uint8_t top_crop = 0;
 	uint8_t top_crop_line_num = 0;
 	uint8_t bottom_crop_line_num = 0;
+
+	if (is_vop3(vop2) && vop2->version != VOP_VERSION_RK3528) {
+		uint32_t vir_height = fb->height;
+		u8 block_w;
+
+		if (IS_ROCKCHIP_RFBC_MOD(fb->modifier))
+			block_w = 64;
+		else if (fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+			block_w = 32;
+		else
+			block_w = 16;
+
+		if (vpstate->xmirror_en) {
+			transform_tmp = ALIGN(act_xoffset + width, block_w);
+			transform_xoffset = transform_tmp - act_xoffset - width;
+		} else {
+			transform_xoffset = act_xoffset % block_w;
+		}
+
+		if (vpstate->ymirror_en) {
+			transform_tmp = vir_height - act_yoffset - height;
+			transform_yoffset = transform_tmp % 4;
+		} else {
+			transform_yoffset = act_yoffset % 4;
+		}
+
+		return (transform_xoffset & 0x3f) | ((transform_yoffset & 0x3f) << 16);
+	}
 
 	act_xoffset += xoffset;
 	/* 16 pixel align */
@@ -5729,7 +5757,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		vpstate->afbc_half_block_en = afbc_half_block_en;
 
-		transform_offset = vop2_afbc_transform_offset(vpstate, splice_pixel_offset);
+		transform_offset = vop2_afbc_transform_offset(vop2, vpstate, splice_pixel_offset);
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
 		VOP_AFBC_SET(vop2, win, rb_swap, rb_swap);
@@ -5746,7 +5774,10 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
 		VOP_AFBC_SET(vop2, win, transform_offset, transform_offset);
-		VOP_AFBC_SET(vop2, win, pic_offset, (afbc_xoffset | src->y1));
+		if (is_vop3(vop2) && vop2->version != VOP_VERSION_RK3528 && vpstate->ymirror_en)
+			VOP_AFBC_SET(vop2, win, pic_offset, (afbc_xoffset | ((src->y2 >> 16) - 1) << 16));
+		else
+			VOP_AFBC_SET(vop2, win, pic_offset, (afbc_xoffset | src->y1));
 		VOP_AFBC_SET(vop2, win, dsp_offset, (dst->x1 | (dst->y1 << 16)));
 		VOP_AFBC_SET(vop2, win, pic_vir_width, stride);
 		VOP_AFBC_SET(vop2, win, tile_num, afbc_tile_num);
