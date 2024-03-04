@@ -34,6 +34,8 @@ struct ufs_rockchip_host {
 	uint64_t caps;
 	uint32_t phy_config_mode;
 	bool in_suspend;
+	u32 ie;
+	u32 ahit;
 };
 
 #define ufs_sys_writel(base, val, reg)                                    \

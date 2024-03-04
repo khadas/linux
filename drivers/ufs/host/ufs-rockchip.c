@@ -24,6 +24,25 @@ static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 	return ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE;
 }
 
+static inline bool ufshcd_is_device_present(struct ufs_hba *hba)
+{
+	return ufshcd_readl(hba, REG_CONTROLLER_STATUS) & DEVICE_PRESENT;
+}
+
+static int ufshcd_dme_link_startup(struct ufs_hba *hba)
+{
+	struct uic_command uic_cmd = {0};
+	int ret;
+
+	uic_cmd.command = UIC_CMD_DME_LINK_STARTUP;
+
+	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret)
+		dev_err(hba->dev,
+			"dme-link-startup: error code %d\n", ret);
+	return ret;
+}
+
 static int ufs_rockchip_hce_enable_notify(struct ufs_hba *hba,
 					 enum ufs_notify_change_status status)
 {
@@ -66,49 +85,6 @@ start:
 	}
 
 	return err;
-}
-
-static int ufs_rockchip_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
-	enum ufs_notify_change_status status)
-{
-	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
-
-	if (status == PRE_CHANGE)
-		return 0;
-
-	if (pm_op == UFS_RUNTIME_PM)
-		return 0;
-
-	if (host->in_suspend) {
-		WARN_ON(1);
-		return 0;
-	}
-
-	/* set ref clk out disable */
-	clk_disable_unprepare(host->ref_out_clk);
-
-	host->in_suspend = true;
-
-	return 0;
-}
-
-static int ufs_rockchip_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
-{
-	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
-	int err;
-
-	if (!host->in_suspend)
-		return 0;
-
-	/* set ref clk out enable */
-	err = clk_prepare_enable(host->ref_out_clk);
-	if (err) {
-		dev_err(hba->dev, "failed to enable ref out clock %d\n", err);
-		return err;
-	}
-
-	host->in_suspend = false;
-	return 0;
 }
 
 static void ufs_rockchip_set_pm_lvl(struct ufs_hba *hba)
@@ -356,8 +332,6 @@ static const struct ufs_hba_variant_ops ufs_hba_rk3576_vops = {
 	.device_reset = ufs_rockchip_device_reset,
 	.hce_enable_notify = ufs_rockchip_hce_enable_notify,
 	.phy_initialization = ufs_rockchip_rk3576_phy_init,
-	.suspend = ufs_rockchip_suspend,
-	.resume = ufs_rockchip_resume,
 };
 
 static const struct of_device_id ufs_rockchip_of_match[] = {
@@ -388,6 +362,54 @@ static int ufs_rockchip_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ufs_rockchip_restore_link(struct ufs_hba *hba, bool is_store)
+{
+	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
+	int err, retry = 3;
+
+	if (is_store) {
+		host->ie = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
+		host->ahit = ufshcd_readl(hba, REG_AUTO_HIBERNATE_IDLE_TIMER);
+		return 0;
+	}
+
+	/* Enable controller */
+	err = ufshcd_hba_enable(hba);
+	if (err)
+		return err;
+
+	/* Link startup and wait for DP */
+	do {
+		err = ufshcd_dme_link_startup(hba);
+		if (!err && ufshcd_is_device_present(hba)) {
+			dev_dbg_ratelimited(hba->dev, "rockchip link startup successfully.\n");
+			break;
+		}
+	} while (retry--);
+
+	if (retry < 0) {
+		dev_err(hba->dev, "rockchip link startup failed.\n");
+		return -ENXIO;
+	}
+
+	/* Restore negotiated power mode */
+	err = ufshcd_config_pwr_mode(hba, &(hba->pwr_info));
+	if (err)
+		dev_err(hba->dev, "Failed to restore power mode, err = %d\n", err);
+
+	/* Restore task and transfer list */
+	ufshcd_writel(hba, 0xffffffff, REG_INTERRUPT_STATUS);
+	ufshcd_make_hba_operational(hba);
+
+	/* Restore lost regs */
+	ufshcd_writel(hba, host->ie, REG_INTERRUPT_ENABLE);
+	ufshcd_writel(hba, host->ahit, REG_AUTO_HIBERNATE_IDLE_TIMER);
+	ufshcd_writel(hba, 0x1, REG_UTP_TRANSFER_REQ_LIST_RUN_STOP);
+	ufshcd_writel(hba, 0x1, REG_UTP_TASK_REQ_LIST_RUN_STOP);
+
+	return err;
+}
+
 static int ufs_rockchip_runtime_suspend(struct device *dev)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
@@ -399,6 +421,7 @@ static int ufs_rockchip_runtime_suspend(struct device *dev)
 		return ret;
 
 	clk_disable_unprepare(host->ref_out_clk);
+	ufs_rockchip_restore_link(hba, true);
 
 	return 0;
 }
@@ -415,11 +438,39 @@ static int ufs_rockchip_runtime_resume(struct device *dev)
 		return err;
 	}
 
+	ufs_rockchip_restore_link(hba, false);
+
 	return ufshcd_runtime_resume(dev);
 }
 
+static int ufs_rockchip_suspend(struct device *dev)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	if (pm_runtime_suspended(hba->dev))
+		return 0;
+
+	ufs_rockchip_restore_link(hba, true);
+
+	return ufshcd_system_suspend(dev);
+}
+
+static int ufs_rockchip_resume(struct device *dev)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	if (pm_runtime_suspended(hba->dev))
+		return 0;
+
+	/* Reset device if possible */
+	ufs_rockchip_device_reset(hba);
+	ufs_rockchip_restore_link(hba, false);
+
+	return ufshcd_system_resume(dev);
+}
+
 static const struct dev_pm_ops ufs_rockchip_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(ufs_rockchip_suspend, ufs_rockchip_resume)
 	SET_RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
 	.prepare	 = ufshcd_suspend_prepare,
 	.complete	 = ufshcd_resume_complete,
