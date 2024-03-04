@@ -842,6 +842,7 @@
 };
 
 &usbdp_phy {
+	maximum-speed = "high-speed";
 	rockchip,dp-lane-mux = <0 1 2 3>;
 	status = "okay";
 };
@@ -851,7 +852,6 @@
 };
 
 &usbdp_phy_u3 {
-	maximum-speed = "high-speed";
 	status = "okay";
 };
 

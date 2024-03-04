@@ -1546,6 +1546,9 @@ static const struct vop2_video_port_regs rk3576_vop_vp0_regs = {
 	.mcu_bypass = VOP_REG(RK3562_VP0_MCU_CTRL, 0x1, 30),
 	.mcu_type = VOP_REG(RK3562_VP0_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3562_VP0_MCU_RW_BYPASS_PORT, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 20),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 28),
 };
 
 static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
@@ -1618,6 +1621,9 @@ static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
 	.mcu_bypass = VOP_REG(RK3562_VP1_MCU_CTRL, 0x1, 30),
 	.mcu_type = VOP_REG(RK3562_VP1_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3562_VP1_MCU_RW_BYPASS_PORT, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 21),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 29),
 };
 
 static const struct vop2_video_port_regs rk3576_vop_vp2_regs = {
@@ -1690,6 +1696,9 @@ static const struct vop2_video_port_regs rk3576_vop_vp2_regs = {
 	.mcu_bypass = VOP_REG(RK3576_VP2_MCU_CTRL, 0x1, 30),
 	.mcu_type = VOP_REG(RK3576_VP2_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3576_VP2_MCU_RW_BYPASS_PORT, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 22),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 30),
 };
 
 static const struct vop3_ovl_regs rk3576_vop_vp0_ovl_regs = {

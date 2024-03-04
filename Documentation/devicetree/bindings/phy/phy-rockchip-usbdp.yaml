@@ -78,6 +78,10 @@ properties:
       Phandle to the syscon managing the 'video output general register files'.
       When select the dp lane mapping will request its phandle.
 
+  rockchip,usbdpphy-clamp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: When set, clamp phy output. Only work when usbdpphy power off.
+
   dp-port:
     type: object
     additionalProperties: false

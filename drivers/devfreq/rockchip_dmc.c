@@ -1171,6 +1171,7 @@ int rockchip_dmcfreq_wait_complete(void)
 	 * sip_smc_dram(DRAM_POST_SET_RATE).
 	 */
 	if (wait_ctrl.dcf_en == 2 && wait_ctrl.wait_flag != 0) {
+		pr_err_ratelimited("%s: waiting for wait_ctrl.complt_irq times out.\n", __func__);
 		res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_POST_SET_RATE);
 		if (res.a0)
 			pr_err("%s: dram post set rate error:%lx\n", __func__, res.a0);
@@ -2137,6 +2138,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #endif
 #if IS_ENABLED(CONFIG_CPU_RK3568)
 	{ .compatible = "rockchip,rk3568-dmc", .data = rk3568_dmc_init },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3576)
+	{ .compatible = "rockchip,rk3576-dmc", .data = rk3588_dmc_init },
 #endif
 #if IS_ENABLED(CONFIG_CPU_RK3588)
 	{ .compatible = "rockchip,rk3588-dmc", .data = rk3588_dmc_init },
