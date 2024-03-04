@@ -142,6 +142,8 @@ struct earc {
 
 	/* audio codec type for tx */
 	enum audio_coding_types tx_audio_coding_type;
+	/* audio codec type for tx by ui kcontrol setting */
+	enum audio_coding_types ui_tx_audio_coding_type;
 
 	/* freq for tx dmac clk */
 	int tx_dmac_freq;
@@ -790,6 +792,8 @@ static int earc_open(struct snd_pcm_substream *substream)
 			goto err_ddr;
 		}
 		p_earc->earctx_on = true;
+		/* it is't same source case, so use the format by kcontrol setting */
+		p_earc->tx_audio_coding_type = p_earc->ui_tx_audio_coding_type;
 		p_earc->tx_stream_state = SNDRV_PCM_STATE_OPEN;
 	} else {
 		p_earc->tddr = aml_audio_register_toddr(dev,
@@ -1942,9 +1946,10 @@ int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 	enum audio_coding_types new_coding_type = ucontrol->value.integer.value[0];
 
 	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) ||
-	    new_coding_type == p_earc->tx_audio_coding_type)
+	    new_coding_type == p_earc->ui_tx_audio_coding_type)
 		return 0;
 
+	p_earc->ui_tx_audio_coding_type = new_coding_type;
 	return aml_earctx_set_audio_coding_type(new_coding_type);
 }
 
