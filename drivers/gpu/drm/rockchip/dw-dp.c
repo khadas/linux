@@ -472,6 +472,7 @@ struct dw_dp {
 	u8 pixel_mode;
 	u32 max_link_rate;
 
+	bool is_loader_protect;
 	bool support_mst;
 	bool is_mst;
 	int mst_port_num;
@@ -3062,6 +3063,7 @@ static int dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 {
 	struct dw_dp *dp = encoder_to_dp(encoder);
 
+	dp->is_loader_protect = true;
 	_dw_dp_loader_protect(dp, on);
 	if (dp->right)
 		_dw_dp_loader_protect(dp->right, on);
@@ -4159,6 +4161,10 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 	}
 
 out:
+	if (dp->is_loader_protect) {
+		dp->is_loader_protect = false;
+		return status;
+	}
 	if (status == connector_status_disconnected) {
 		if (dp->is_mst) {
 			dev_info(dp->dev, "MST device may have disappeared\n");
