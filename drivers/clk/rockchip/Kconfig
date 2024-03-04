@@ -210,7 +210,8 @@ config ROCKCHIP_PLL_RK3399
 
 config ROCKCHIP_PLL_RK3588
 	bool "Rockchip PLL Type RK3588"
-	default y if CPU_RK3588
+	depends on CPU_RK3588 || CPU_RK3576
+	default y
 	help
 	  Say y here to enable pll type is rk3588.
 
