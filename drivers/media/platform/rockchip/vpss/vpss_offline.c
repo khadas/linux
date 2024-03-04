@@ -9,6 +9,7 @@
 #include <media/videobuf2-v4l2.h>
 #include <linux/pm_runtime.h>
 #include <linux/rk-vpss-config.h>
+#include <linux/rk-video-format.h>
 
 #include "dev.h"
 #include "hw.h"
@@ -642,6 +643,27 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888 | RKVPSS_MI_RD_RB_SWAP;
 		break;
+	case V4L2_PIX_FMT_FBC0:
+		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
+			cfg->input.stride = ALIGN(cfg->input.width, 16);
+		in_c_offs = 0;
+		in_size = cfg->input.stride * cfg->input.height * 3 / 2;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_420SP;
+		break;
+	case V4L2_PIX_FMT_FBC2:
+		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
+			cfg->input.stride = ALIGN(cfg->input.width, 16);
+		in_c_offs = 0;
+		in_size = cfg->input.stride * cfg->input.height * 2;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP;
+		break;
+	case V4L2_PIX_FMT_FBC4:
+		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
+			cfg->input.stride = ALIGN(cfg->input.width, 16);
+		in_c_offs = 0;
+		in_size = cfg->input.stride * cfg->input.height * 3;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP | RKVPSS_MI_RD_FBCD_YUV444_EN;
+		break;
 	default:
 		v4l2_err(&ofl->v4l2_dev, "dev_id:%d no support input format:%c%c%c%c\n",
 			 cfg->dev_id, cfg->input.format, cfg->input.format >> 8,
@@ -784,8 +806,16 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 	rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_WIDTH, val);
 	val = cfg->input.height;
 	rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_HEIGHT, val);
-	val = cfg->input.stride;
-	rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_STRIDE, val);
+
+	if (cfg->input.format == V4L2_PIX_FMT_FBC0 ||
+	    cfg->input.format == V4L2_PIX_FMT_FBC2 ||
+	    cfg->input.format == V4L2_PIX_FMT_FBC4) {
+		in_ctrl |= RKVPSS_MI_RD_MODE(2) | RKVPSS_MI_RD_FBCD_OPT_DIS;
+		rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_STRIDE, 0);
+	} else {
+		val = cfg->input.stride;
+		rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_STRIDE, val);
+	}
 
 	mask = RKVPSS_MI_RD_GROUP_MODE(3) | RKVPSS_MI_RD_BURST16_LEN;
 	rkvpss_hw_set_bits(hw, RKVPSS_MI_RD_CTRL, ~mask, in_ctrl);

@@ -181,6 +181,7 @@ struct rkvpss_module_sel {
  * height: height of input image, range: 32~3504
  * stride: virtual width of input image, 16 align. auto calculate according to width and format if 0.
  * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32
+ *         V4L2_PIX_FMT_FBC0/V4L2_PIX_FMT_FBC2/V4L2_PIX_FMT_FBC4 for rkfbcd
  * buf_fd: dmabuf fd of input image buf
  */
 struct rkvpss_input_cfg {
