@@ -72,9 +72,26 @@ find_sub_dev_by_node(struct drm_device *drm_dev, struct device_node *node)
 	}
 
 	sub_dev = rockchip_drm_get_sub_dev(np_connector);
+	if (!sub_dev) {
+		/*
+		 * for DP-MST, ports node->parent node->parent node is the device node
+		 */
+		struct device_node *np_top;
+
+		np_top = of_get_parent(np_connector);
+		if (!np_top) {
+			of_node_put(np_connector);
+			return NULL;
+		}
+
+		sub_dev = rockchip_drm_get_sub_dev(np_top);
+		of_node_put(np_top);
+		if (!sub_dev) {
+			of_node_put(np_connector);
+			return NULL;
+		}
+	}
 	of_node_put(np_connector);
-	if (!sub_dev)
-		return NULL;
 
 	return sub_dev;
 }
