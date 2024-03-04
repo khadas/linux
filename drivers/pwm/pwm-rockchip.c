@@ -783,6 +783,8 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 static int rockchip_pwm_enable_v4(struct pwm_chip *chip, struct pwm_device *pwm, bool enable)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	struct pwm_state curstate;
+	unsigned long delay_us;
 	int ret;
 
 	if (enable) {
@@ -793,8 +795,12 @@ static int rockchip_pwm_enable_v4(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	writel_relaxed(PWM_EN(enable) | PWM_CLK_EN(enable), pc->base + ENABLE);
 
-	if (!enable)
+	if (!enable) {
+		pwm_get_state(pwm, &curstate);
+		delay_us = DIV_ROUND_UP_ULL(curstate.period, NSEC_PER_USEC);
+		fsleep(delay_us);
 		clk_disable(pc->clk);
+	}
 
 	return 0;
 }
