@@ -299,6 +299,7 @@ PNAME(gpll_spll_aupll_bpll_lpll_p)	= { "gpll", "spll", "aupll", "bpll_dummy", "l
 PNAME(gpll_spll_isppvtpll_bpll_lpll_p)	= { "gpll", "spll", "isp_pvtpll", "bpll_dummy", "lpll_dummy" };
 PNAME(gpll_cpll_spll_aupll_lpll_24m_p)	= { "gpll", "cpll", "spll", "aupll", "lpll_dummy", "xin24m" };
 PNAME(gpll_cpll_spll_vpll_bpll_lpll_p)	= { "gpll", "cpll", "spll", "vpll", "bpll_dummy", "lpll_dummy" };
+PNAME(cpll_vpll_lpll_bpll_p)		= { "cpll", "vpll", "lpll_dummy", "bpll_dummy" };
 PNAME(mux_24m_ccipvtpll_gpll_lpll_p)	= { "xin24m", "cci_pvtpll", "gpll", "lpll" };
 PNAME(mux_24m_spll_gpll_cpll_p)		= {"xin24m", "spll", "gpll", "cpll" };
 PNAME(audio_frac_int_p)			= { "xin24m", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2",
@@ -1012,6 +1013,9 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(ACLK_RKVDEC_ROOT, "aclk_rkvdec_root", gpll_cpll_aupll_spll_p, 0,
 			RK3576_CLKSEL_CON(110), 7, 2, MFLAGS, 2, 5, DFLAGS,
 			RK3576_CLKGATE_CON(45), 1, GFLAGS),
+	COMPOSITE(ACLK_RKVDEC_ROOT_BAK, "aclk_rkvdec_root_bak", cpll_vpll_lpll_bpll_p, 0,
+			RK3576_CLKSEL_CON(110), 14, 2, MFLAGS, 9, 5, DFLAGS,
+			RK3576_CLKGATE_CON(45), 2, GFLAGS),
 	GATE(HCLK_RKVDEC, "hclk_rkvdec", "hclk_rkvdec_root", 0,
 			RK3576_CLKGATE_CON(45), 3, GFLAGS),
 	COMPOSITE(CLK_RKVDEC_HEVC_CA, "clk_rkvdec_hevc_ca", gpll_cpll_lpll_bpll_p, 0,
