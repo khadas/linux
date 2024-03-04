@@ -23,17 +23,12 @@
 
 static inline bool timeout_infinite(ktime_t kt)
 {
-	return kt == 0;
+	return kt == EVL_INFINITE;
 }
 
 static inline bool timeout_nonblock(ktime_t kt)
 {
-	return kt < 0;
-}
-
-static inline bool timeout_valid(ktime_t kt)
-{
-	return kt > 0;
+	return kt == EVL_NONBLOCK;
 }
 
 /* Timer modes */
