@@ -55,7 +55,8 @@ config ROCKCHIP_VOP
 
 config ROCKCHIP_VOP2
 	bool "Rockchip VOP2 driver"
-	default y if CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588
+	depends on CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588 || CPU_RK3576
+	default y
 	help
 	  This selects support for the VOP2 driver. The VOP2 hardware is
 	  first found on the RK3568.
