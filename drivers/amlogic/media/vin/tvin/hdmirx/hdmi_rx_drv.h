@@ -79,6 +79,7 @@
 /* 2023.07.05 clear dv packet when no emp */
 /* optimize i2c monitor logic */
 /* 2023.11.08 dv cts 63 */
+/* 2024.03.04 fix repeater and format override*/
 #define RX_VER1 "ver.2023/11/08"
 
 

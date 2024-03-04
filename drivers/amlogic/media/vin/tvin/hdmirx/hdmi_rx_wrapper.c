@@ -1232,9 +1232,9 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	3,	0,	960,	1080,	HDMI_1080p_420},
 	/* interlace */
 	{1,	0,	0,	720,	240,	HDMI_480i60},
-	{1,	0,	0,	1440,	240,	HDMI_480i60},
+	{1,	0,	0,	1440,	240,	HDMI_1440x480i60},
 	{1, 0,	0,	720,	288,	HDMI_576i50},
-	{1,	0,	0,	1440,	288,	HDMI_576i50},
+	{1,	0,	0,	1440,	288,	HDMI_1440x576i50},
 	{1,	0,	0,	1920,	540,	HDMI_1080i50},
 	{1,	0,	0,	1920,	1103,	HDMI_1080i_ALTERNATIVE},
 	{1,	0,	0,	1920,	2228,	HDMI_1080i_FRAMEPACKING},
@@ -1463,6 +1463,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_720x480i:
 		fmt = TVIN_SIG_FMT_HDMI_720X480I_60HZ;
 		break;
+	case HDMI_1440x480i60:
+		fmt = TVIN_SIG_FMT_HDMI_1440X480I_60HZ;
+		break;
 	case HDMI_1080p24:	/* 32 */
 	case HDMI_1080p24_64x27: /* 72 */
 	case HDMI_1080p25:	/* 33 */
@@ -1518,6 +1521,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_576i200:	/* 54 */
 	case HDMI_576i200_16x9:	/* 55 */
 		fmt = TVIN_SIG_FMT_HDMI_720X576I_50HZ;
+		break;
+	case HDMI_1440x576i50:
+		fmt = TVIN_SIG_FMT_HDMI_1440X576I_50HZ;
 		break;
 	case HDMI_1440x240p60:	/* 8 */
 	case HDMI_1440x240p60_16x9:	/* 9 */

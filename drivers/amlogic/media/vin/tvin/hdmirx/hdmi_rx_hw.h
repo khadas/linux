@@ -173,7 +173,10 @@
 #define TOP_INTR_STAT                    0x00A
 #define TOP_INTR_STAT_CLR                0x00B
 #define TOP_VID_CNTL                     0x00C
+#define VID_FMT_OVERRIDE	_BIT(11)
+#define VID_FMT_VAL	MSK(3, 8)
 #define TOP_VID_STAT                     0x00D
+#define TOP_VID_FMT	MSK(4, 20)
 #define TOP_ACR_CNTL_STAT                0x00E
 #define TOP_ACR_AUDFIFO                  0x00F
 #define TOP_ARCTX_CNTL                   0x010

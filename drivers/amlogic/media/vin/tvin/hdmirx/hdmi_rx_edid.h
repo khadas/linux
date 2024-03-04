@@ -718,7 +718,9 @@ enum hdmi_vic_e {
 	HDMI_720x480i = 108,
 	HDMI_1920x2160p60_16x9 = 109,
 	HDMI_960x540 = 110,
-	HDMI_RESERVED = 111,
+	HDMI_1440x480i60 = 111,
+	HDMI_1440x576i50 = 112,
+	HDMI_RESERVED = 113,
 	/* VIC 111~255: Reserved for the Future */
 
 	/* the following VICs are for y420 mode,

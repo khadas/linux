@@ -4510,6 +4510,7 @@ void set_dv_ll_mode(bool en)
 void hdmirx_config_video(void)
 {
 	u32 temp = 0;
+	u32 top_vid_fmt;
 	u8 data8;
 	u8 pixel_rpt_cnt;
 	int reg_clk_vp_core_div, reg_clk_vp_out_div;
@@ -4565,10 +4566,20 @@ void hdmirx_config_video(void)
 	} else if (rx.chip_id >= CHIP_ID_T3) {
 		if (rx.pre.sw_vic >= HDMI_VESA_OFFSET ||
 			rx.pre.sw_vic == HDMI_640x480p60 ||
+			rx.pre.repeat == 0 ||
 			rx.pre.sw_dvi)
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 1);
 		else//use auto de-repeat
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0);
+	}
+	if (rx.chip_id >= CHIP_ID_T7) {
+		top_vid_fmt = hdmirx_rd_bits_top(TOP_VID_STAT, TOP_VID_FMT);
+		if (top_vid_fmt != rx.cur.colorspace) {
+			hdmirx_wr_bits_top(TOP_VID_CNTL, VID_FMT_OVERRIDE, 1);
+			hdmirx_wr_bits_top(TOP_VID_CNTL, VID_FMT_VAL, rx.cur.colorspace);
+		} else {
+			hdmirx_wr_bits_top(TOP_VID_CNTL, VID_FMT_OVERRIDE, 0);
+		}
 	}
 	rx_sw_reset_t7(2);
 }

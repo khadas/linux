@@ -792,10 +792,11 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 	if (!hf_vsdb_start)
 		return;
 	if (vrr_func_en) {
-		if (rx.vrr_min == 0 || rx.vrr_max == 0)
+		if (rx.vrr_min == 0)
 			return;
 		p_edid[hf_vsdb_start + 9] = rx.vrr_min;
-		p_edid[hf_vsdb_start + 10] = rx.vrr_max;
+		p_edid[hf_vsdb_start + 10] =
+			rx.vrr_max >= 100 ? rx.vrr_max : 0;
 		if (log_level & EDID_LOG)
 			rx_pr("modify vrr min = %d, vrr_max = %d\n",
 				  rx.vrr_min, rx.vrr_max);
