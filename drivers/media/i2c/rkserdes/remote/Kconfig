@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Rockchip Remote Serializer and Sensor devices
+#
+menu "Rockchip Remote Serializer devices support"
+	visible if VIDEO_RKSERDES
+
+source "drivers/media/i2c/rkserdes/remote/rkx11x/Kconfig"
+
+endmenu
+
+menu "Rockchip Remote Sensor devices support"
+	visible if VIDEO_RKSERDES
+
+config VIDEO_RK_CAM_DUMMY
+	tristate "Rockchip remote dummy sensor support"
+	depends on VIDEO_RKSERDES
+	help
+	  This driver supports the dummy sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dummy.
+
+config VIDEO_RK_CAM_AR0330
+	tristate "Rockchip remote ar0330 sensor support"
+	depends on VIDEO_RKSERDES
+	help
+	  This driver supports the ar0330 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar0330.
+
+config VIDEO_RK_CAM_OS04A10
+	tristate "Rockchip remote os04a10 sensor support"
+	depends on VIDEO_RKSERDES
+	help
+	  This driver supports the os04a10 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called os04a10.
+
+config VIDEO_RK_CAM_GC2145
+	tristate "Rockchip remote gc2145 sensor support"
+	depends on VIDEO_RKSERDES
+	help
+	  This driver supports the gc2145 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2145.
+
+endmenu

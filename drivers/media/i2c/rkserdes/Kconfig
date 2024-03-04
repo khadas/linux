@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Rockchip Camera SerDes devices
+#
+config VIDEO_RKSERDES
+	tristate "Rockchip Camera SerDes Support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This driver supports the Rockchip Camera SerDes.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rkserdes.
+
+source "drivers/media/i2c/rkserdes/local/Kconfig"
+source "drivers/media/i2c/rkserdes/remote/Kconfig"

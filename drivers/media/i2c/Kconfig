@@ -710,6 +710,7 @@ config VIDEO_MAX96756
 	  module will be called max96756.
 
 source "drivers/media/i2c/maxim/Kconfig"
+source "drivers/media/i2c/rkserdes/Kconfig"
 
 comment "Video and audio decoders"
 
