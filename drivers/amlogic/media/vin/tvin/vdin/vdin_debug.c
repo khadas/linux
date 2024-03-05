@@ -4002,26 +4002,34 @@ static inline unsigned int vdin_do_div(unsigned long long num, unsigned int den)
 
 //for vrr get input fate
 static ssize_t input_rate_show(struct device *dev,
-			 struct device_attribute *attr,
-			 char *buf)
+	struct device_attribute *attr, char *buf)
 {
 	u64 tmp_msr_clk_val;
-	unsigned int input_rate = 0;
+	unsigned int tmp;
+	static unsigned int input_rate = 60000;//60.000hz
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 
-	if (devp->flags & VDIN_FLAG_DEC_STARTED && devp->irq_cnt > 2) {
-		if (devp->cycle != 0 && devp->msr_clk_val != 0) {
+	if (devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
+		if (devp->irq_cnt > 2 && devp->cycle != 0) {
 			tmp_msr_clk_val = (u64)devp->msr_clk_val * 1000;
-			input_rate = vdin_do_div(tmp_msr_clk_val, devp->cycle);
+			tmp = vdin_do_div(tmp_msr_clk_val, devp->cycle);
+			if (tmp > devp->parm.info.fps * 1000) {
+				if (vdin_dbg_en)
+					pr_info("invalid input_rate:%d.%03d,fps:%d\n",
+						(input_rate / 1000), (input_rate % 1000),
+						devp->parm.info.fps);
+			} else {
+				input_rate = tmp;
+			}
 			return sprintf(buf, "%d.%03d\n",
 				 (input_rate / 1000), (input_rate % 1000));
 		} else {
-			input_rate = devp->parm.info.fps;
-			return sprintf(buf, "%d.000\n", input_rate);
+			input_rate = devp->parm.info.fps * 1000;
+			return sprintf(buf, "%d.000\n", (input_rate / 1000));
 		}
 	} else {
-		input_rate = devp->parm.info.fps;
-		return sprintf(buf, "%d.000\n", input_rate);
+		input_rate = 60000;//unstable default 60hz
+		return sprintf(buf, "%d.000\n", (input_rate / 1000));
 	}
 }
 static DEVICE_ATTR_RO(input_rate);
