@@ -364,6 +364,7 @@
 	cluster0_opp_table: cluster0-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
+		rockchip,opp-shared-cci;
 
 		nvmem-cells = <&cpul_leakage>;
 		nvmem-cell-names = "leakage";
@@ -475,6 +476,7 @@
 	cluster1_opp_table: cluster1-opp-table {
 		compatible = "operating-points-v2";
 		opp-shared;
+		rockchip,cpu-freq-percent = <90>;
 
 		nvmem-cells = <&cpub_leakage>;
 		nvmem-cell-names = "leakage";
