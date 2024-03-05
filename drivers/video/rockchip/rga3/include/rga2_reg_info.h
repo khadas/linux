@@ -351,6 +351,7 @@
 #define m_RGA2_DST_INFO_SW_DST_FMT_Y4_EN		(0x1 << 25)
 #define m_RGA2_DST_INFO_SW_DST_NN_QUANTIZE_EN		(0x1 << 26)
 #define m_RGA2_DST_INFO_SW_DST_UVVDS_MODE		(0x1 << 27)
+#define m_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN	(0x1 << 28)
 
 #define s_RGA2_DST_INFO_SW_DST_FMT(x)			((x & 0xf) << 0)
 #define s_RGA2_DST_INFO_SW_DST_RB_SWAP(x)		((x & 0x1) << 4)
@@ -372,7 +373,7 @@
 #define s_RGA2_DST_INFO_SW_DST_FMT_Y4_EN(x)		((x & 0x1) << 25)
 #define s_RGA2_DST_INFO_SW_DST_NN_QUANTIZE_EN(x)	((x & 0x1) << 26)
 #define s_RGA2_DST_INFO_SW_DST_UVVDS_MODE(x)		((x & 0x1) << 27)
-
+#define s_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN(x)	((x & 0x1) << 28)
 
 /* RGA_ALPHA_CTRL0 */
 #define m_RGA2_ALPHA_CTRL0_SW_ALPHA_ROP_0		(0x1 << 0)
