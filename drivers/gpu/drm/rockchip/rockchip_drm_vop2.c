@@ -4606,7 +4606,25 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 
 			hdmi1_phy_pll->vp_mask |= BIT(vp->id);
 		} else if (output_if_is_dp(vcstate->output_if)) {
-			if (vp->id == 2) {
+			struct clk_hw *hw;
+			struct clk_hw *p_hw;
+			const char *name;
+
+			hw = __clk_get_hw(vp->dclk_parent);
+			if (!hw)
+				return -EINVAL;
+			p_hw = clk_hw_get_parent(hw);
+			if (!p_hw)
+				return -EINVAL;
+			name = clk_hw_get_name(p_hw);
+			/*
+			 * For RK3588, if DP attached vp dclk parent is from v0pll, current vp
+			 * no need to use hdmi phy pll;
+			 * For RK3576, if DP attached vp dclk parent is from vpll, current vp
+			 * no need to use hdmi phy pll;
+			 */
+			if ((vop2->version == VOP_VERSION_RK3576 && !strcmp(name, "vpll")) ||
+			    (vop2->version == VOP_VERSION_RK3588 && !strcmp(name, "v0pll"))) {
 				vop2_clk_set_parent(vp->dclk, vp->dclk_parent);
 				return 0;
 			}
