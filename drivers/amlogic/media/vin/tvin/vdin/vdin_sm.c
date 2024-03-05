@@ -217,6 +217,7 @@ static inline void vdin_update_parm(struct vdin_dev_s *devp)
 
 	devp->parm.info.is_dvi = devp->prop.dvi_info;
 	devp->parm.info.fps = devp->prop.fps;
+	devp->parm.info.cfmt = devp->prop.color_format;
 }
 
 /*
