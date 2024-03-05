@@ -1284,8 +1284,8 @@ static int dv_core1_set(u32 dm_count,
 #endif
 	}
 
-	if (amdv_on_count
-		< amdv_run_mode_delay) {
+	if (amdv_on_count < amdv_run_mode_delay &&
+		bl_enable && !bypass_core1) {
 		VSYNC_WR_DV_REG
 			(VPP_VD1_CLIP_MISC0,
 			 (0x200 << 10) | 0x200);
@@ -1850,8 +1850,8 @@ static int dv_core1a_set(u32 dm_count,
 		}
 	}
 
-	if (dv_core1[0].run_mode_count
-		< amdv_run_mode_delay) {
+	if (dv_core1[0].run_mode_count < amdv_run_mode_delay &&
+		core1a_enable && !bypass_core1) {
 		VSYNC_WR_DV_REG
 			(VPP_VD1_CLIP_MISC0,
 			 (0x200 << 10) | 0x200);
@@ -2329,8 +2329,8 @@ static int dv_core1b_set(u32 dm_count,
 					p_core1_lut[i]);
 		}
 	}
-	if (dv_core1[1].run_mode_count
-		< amdv_run_mode_delay) {
+	if (dv_core1[1].run_mode_count < amdv_run_mode_delay &&
+		core1b_enable && !bypass_core1) {
 		VSYNC_WR_DV_REG
 			(VPP_VD1_CLIP_MISC0,
 			 (0x200 << 10) | 0x200);
