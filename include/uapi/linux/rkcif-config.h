@@ -54,6 +54,9 @@
 #define RKCIF_CMD_SET_PPI_DATA_DEBUG \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 13, unsigned int)
 
+#define RKCIF_CMD_START_CAPTURE_ONE_FRAME_AOV \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 14, int)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel

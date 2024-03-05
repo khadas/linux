@@ -7957,6 +7957,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	int i = 0;
 	int stream_num = 0;
 	bool is_can_be_online = false;
+	int on = 0;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -8093,6 +8094,38 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 					 "set resume mode %d\n", dev->resume_mode);
 			}
 		}
+		break;
+	case RKCIF_CMD_START_CAPTURE_ONE_FRAME_AOV:
+		if (!dev->sditf[0])
+			return -EINVAL;
+		if (dev->hdr.hdr_mode == HDR_X2)
+			stream_num = 2;
+		else if (dev->hdr.hdr_mode == HDR_X3)
+			stream_num = 3;
+		else
+			stream_num = 1;
+		for (i = 0; i < stream_num; i++) {
+			dev->stream[i].cur_skip_frame = dev->stream[i].skip_frame;
+			dev->stream[i].is_single_cap = true;
+		}
+		if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
+			for (i = 0; i < stream_num - 1; i++) {
+				dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
+				rkcif_enable_dma_capture(&dev->stream[i], true);
+			}
+		} else {
+			for (i = 0; i < stream_num; i++) {
+				if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO)
+					dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
+				else
+					dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_VICAP;
+				rkcif_enable_dma_capture(&dev->stream[i], true);
+			}
+		}
+		on = 1;
+		rkcif_dphy_quick_stream(dev, on);
+		v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+				 RKMODULE_SET_QUICK_STREAM, &on);
 		break;
 	default:
 		return -EINVAL;
