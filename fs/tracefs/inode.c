@@ -636,6 +636,9 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 		}
 	}
 #endif
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
+
 	return __create_dir(name, parent, &simple_dir_inode_operations);
 }
 

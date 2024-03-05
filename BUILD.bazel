@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2021 The Android Open Source Project
 
-load("//build/kernel/kleaf:constants.bzl", "aarch64_gz_outs")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("//build/kernel/kleaf:constants.bzl", "aarch64_gz_outs")
 
 package(
     default_visibility = [
@@ -21,6 +21,7 @@ _aarch64_additional_kmi_symbol_lists = [
     "android/abi_gki_aarch64_fips140",
     "android/abi_gki_aarch64_galaxy",
     "android/abi_gki_aarch64_general",
+    "android/abi_gki_aarch64_honda",
     "android/abi_gki_aarch64_honor",
     "android/abi_gki_aarch64_imx",
     "android/abi_gki_aarch64_lenovo",
