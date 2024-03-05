@@ -306,6 +306,13 @@
 		clock-output-names = "hym8563";
 		wakeup-source;
 	};
+
+	khadas_mcu: system-controller@18 {
+		compatible = "khadas,mcu";
+		reg = <0x18>;
+		cooling-levels = <0 50 72 100>;
+		#cooling-cells = <2>;
+	};
 };
 
 &pinctrl {
