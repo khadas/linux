@@ -74,6 +74,11 @@
 #include "register.h"
 #include "nr_downscale.h"
 
+#include "di_pre.h"
+#include "di_post.h"
+#include "di_prc.h"
+#include "di_reg_v3.h"
+
 static di_dev_t *di_pdev;
 
 struct di_dev_s *get_dim_de_devp(void)
@@ -4273,11 +4278,31 @@ static void di_clear_for_suspend(struct di_dev_s *di_devp)
 }
 
 /* must called after lcd */
+static unsigned int reg_rst[10];
 static int di_suspend(struct device *dev)
 {
 	struct di_dev_s *di_devp = NULL;
 
 	di_devp = dev_get_drvdata(dev);
+	unsigned int ch;
+	unsigned int i;
+	unsigned int ready_count = 0;
+	unsigned int sleep_count = 0;
+	struct di_ch_s *pch;
+
+	if (DIM_IS_ICS(T5W)) {
+		reg_rst[0] = RD(DI_TOP_PRE_CTRL);
+		reg_rst[1] = RD(DI_TOP_POST_CTRL);
+		reg_rst[2] = RD(DI_ARB_CTRL);
+		reg_rst[3] = RD(DI_TOP_CTRL);
+		reg_rst[4] = RD(DI_ARB_AXIRD0_PROT);
+		reg_rst[5] = RD(DI_SUB_RDARB_UGT);
+		reg_rst[6] = RD(DI_SUB_ARB_DBG_CTRL);
+		reg_rst[7] = RD(DI_SUB_ARB_DBG_STAT);
+		reg_rst[8] = RD(DI_SUB_RDARB_LIMT0);
+		reg_rst[9] = RD(DI_SUB_WRARB_UGT);
+	}
+
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
@@ -4298,9 +4323,26 @@ static int di_suspend(struct device *dev)
 
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD))
-		clk_disable_unprepare(di_devp->vpu_clkb);
-	PR_INF("%s\n", __func__);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+		while (ready_count != DI_CHANNEL_NUB && sleep_count < 20) {
+			ready_count = 0;
+			usleep_range(500, 1000);
+			for (i = 0; i < DI_CHANNEL_NUB; i++) {
+				pch = get_chdata(i);
+				ch = pch->ch_id;
+				if (dpre_can_exit(ch) && dpst_can_exit(ch) &&
+					dct_can_exit(ch))
+					ready_count++;
+			}
+			sleep_count++;
+		}
+		if (ready_count == DI_CHANNEL_NUB)
+			clk_disable_unprepare(di_devp->vpu_clkb);
+		else
+			return -1;
+	}
+	PR_INF("%s finish\n", __func__);
 	return 0;
 }
 
@@ -4312,8 +4354,26 @@ static int di_resume(struct device *dev)
 	PR_INF("%s\n", __func__);
 	di_devp = dev_get_drvdata(dev);
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		clk_prepare_enable(di_devp->vpu_clkb);
+		clk_set_rate(di_devp->vpu_clkb, di_devp->clkb_max_rate);
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
+	}
+	if (DIM_IS_ICS(T5W)) {
+		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
+		WR(DI_TOP_POST_CTRL, reg_rst[1]);
+		WR(DI_ARB_CTRL, reg_rst[2]);
+		WR(DI_TOP_CTRL, reg_rst[3]);
+		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
+		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
+		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
+		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
+		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
+		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
+	}
+
+	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
+			     dimp_get(edi_mp_mcpre_en));
 
 	di_devp->flags &= ~DI_SUSPEND_FLAG;
 

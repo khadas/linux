@@ -136,6 +136,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_RDARB_LIMT0_L1C1				0x205c
 #define DI_WRARB_UGT_L1C1				0x205d
 #define DI_WRARB_AXIWR_PROT				0x205e
+#define DI_ARB_AXIRD0_PROT				0x205f
 
 #ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define DI_PRE_GL_CTRL					0x20ab
