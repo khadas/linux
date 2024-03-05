@@ -1972,6 +1972,12 @@ static void vop2_power_domain_put(struct vop2_power_domain *pd)
 		vop2_power_domain_put(pd->parent);
 }
 
+static void vop2_power_domain_put_sync(struct vop2_power_domain *pd)
+{
+	vop2_power_domain_put(pd);
+	vop2_wait_power_domain_off(pd);
+}
+
 /*
  * Called if the pd ref_count reach 0 after 2.5
  * seconds.
@@ -4997,12 +5003,14 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		if (dual_channel) {
 			vop2_power_domain_put(vop2->dscs[0].pd);
 			vop2_power_domain_put(vop2->dscs[1].pd);
+			vop2_wait_power_domain_off(vop2->dscs[0].pd);
+			vop2_wait_power_domain_off(vop2->dscs[1].pd);
 			vop2->dscs[0].pd->vp_mask = 0;
 			vop2->dscs[1].pd->vp_mask = 0;
 			vop2->dscs[0].attach_vp_id = -1;
 			vop2->dscs[1].attach_vp_id = -1;
 		} else {
-			vop2_power_domain_put(vop2->dscs[vcstate->dsc_id].pd);
+			vop2_power_domain_put_sync(vop2->dscs[vcstate->dsc_id].pd);
 			vop2->dscs[vcstate->dsc_id].pd->vp_mask = 0;
 			vop2->dscs[vcstate->dsc_id].attach_vp_id = -1;
 		}
