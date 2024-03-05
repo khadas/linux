@@ -7206,8 +7206,12 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
 		clock = request_clock;
 	} else {
-		if (request_clock > VOP2_MAX_DCLK_RATE)
-			request_clock = request_clock >> 2;
+		if (request_clock > VOP2_MAX_DCLK_RATE) {
+			if (vop2->version == VOP_VERSION_RK3576)
+				request_clock = request_clock >> 1;
+			else if (vop2->version == VOP_VERSION_RK3588)
+				request_clock = request_clock >> 2;
+		}
 		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
@@ -7947,7 +7951,7 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	return 0;
 }
 
-static int vop3_calc_cru_cfg(struct drm_crtc *crtc)
+static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -7958,20 +7962,22 @@ static int vop3_calc_cru_cfg(struct drm_crtc *crtc)
 	bool post_dclk_core_sel = 0, pix_half_rate = 0, post_dclk_out_sel = 0;
 	bool interface_dclk_sel, interface_pix_clk_sel = 0;
 	bool double_pixel = adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656;
+	unsigned long dclk_in_rate, dclk_core_rate;
 
-	if (vp->id == 1 || vp->id == 2 ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
-	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
-		vp->dclk_div = 1;/* no div */
-	else
+	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420 ||
+	    adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE ||
+	    (vp->id == 0 && split_mode))
 		vp->dclk_div = 2;/* div2 */
-
-	if (double_pixel ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
-	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
-		post_dclk_core_sel = 1;/* div2 */
 	else
-		post_dclk_core_sel = 0;/* no div */
+		vp->dclk_div = 1;/* no div */
+	dclk_in_rate = adjusted_mode->crtc_clock / vp->dclk_div;
+
+	if (double_pixel)
+		dclk_core_rate = adjusted_mode->crtc_clock / 2;
+	else
+		dclk_core_rate = adjusted_mode->crtc_clock / port_pix_rate;
+
+	post_dclk_core_sel = dclk_in_rate > dclk_core_rate ? 1 : 0;/* 0: no div, 1: div2 */
 
 	if (split_mode || (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)) {
 		pix_half_rate = 1;
@@ -8058,7 +8064,7 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 
 		return 0;
 	} else if (vop2->version == VOP_VERSION_RK3576) {
-		vop3_calc_cru_cfg(crtc);
+		rk3576_calc_cru_cfg(crtc);
 
 		return 0;
 	}
