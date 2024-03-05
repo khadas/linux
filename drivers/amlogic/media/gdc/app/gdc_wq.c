@@ -285,11 +285,7 @@ inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 
 	/* if dma buf detach it */
 	gdc_detach_dmabuf(item);
-
-	spin_lock(&context->lock);
-	list_add_tail(&item->list, &context->free_queue);
 	item->context = NULL;
-	spin_unlock(&context->lock);
 }
 
 static int gdc_monitor_thread(void *data)
@@ -342,11 +338,6 @@ static int gdc_stop_monitor(void)
 	return  0;
 }
 
-static inline int work_queue_no_space(struct gdc_context_s *queue)
-{
-	return  list_empty(&queue->free_queue);
-}
-
 bool is_gdc_supported(void)
 {
 	if (gdc_manager.gdc_dev && gdc_manager.gdc_dev->probed)
@@ -378,8 +369,6 @@ EXPORT_SYMBOL(get_gdc_fw_version);
 
 struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 {
-	int  i;
-	struct gdc_queue_item_s *p_item;
 	struct gdc_context_s *gdc_work_queue;
 	int  empty;
 
@@ -404,17 +393,6 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 	init_waitqueue_head(&gdc_work_queue->cmd_complete);
 	mutex_init(&gdc_work_queue->d_mutext);
 	spin_lock_init(&gdc_work_queue->lock);  /* for process lock. */
-	for (i = 0; i < MAX_GDC_CMD; i++) {
-		p_item = kcalloc(1,
-				 sizeof(struct gdc_queue_item_s),
-				 GFP_KERNEL);
-		if (IS_ERR(p_item)) {
-			gdc_log(LOG_ERR, "can't request queue item memory\n");
-			goto fail;
-		}
-		list_add_tail(&p_item->list, &gdc_work_queue->free_queue);
-	}
-
 	/* put this process queue  into manager queue list. */
 	/* maybe process queue is changing . */
 	spin_lock(&gdc_manager.event.sem_lock);
@@ -423,22 +401,7 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 	spin_unlock(&gdc_manager.event.sem_lock);
 
 	gdc_work_queue->cmd.dev_type = dev_type;
-
 	return gdc_work_queue; /* find it */
-fail:
-	{
-		struct list_head *head;
-		struct gdc_queue_item_s *tmp;
-
-		head = &gdc_work_queue->free_queue;
-		list_for_each_entry_safe(p_item, tmp, head, list) {
-			if (p_item) {
-				list_del(&p_item->list);
-				kfree(p_item);
-			}
-		}
-		return NULL;
-	}
 }
 EXPORT_SYMBOL(create_gdc_work_queue);
 
@@ -517,13 +480,8 @@ void *gdc_prepare_item(struct gdc_context_s *wq)
 {
 	struct gdc_queue_item_s *pitem;
 
-	if (work_queue_no_space(wq)) {
-		gdc_log(LOG_ERR, "work queue no space\n");
-		return NULL;
-	}
-
-	pitem = list_entry(wq->free_queue.next, struct gdc_queue_item_s, list);
-	if (IS_ERR(pitem))
+	pitem = kmalloc(sizeof(*pitem), GFP_KERNEL);
+	if (!pitem)
 		return NULL;
 
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct gdc_cmd_s));
@@ -548,11 +506,12 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 		return;
 	}
 	recycle_resource(pitem, core_id);
-
 	/* for block mode, notify item cmd done */
 	if (block_mode) {
 		pitem->cmd.wait_done_flag = 0;
 		wake_up_interruptible(&current_wq->cmd_complete);
+	} else {
+		kfree(pitem);
 	}
 
 	gdc_dev->is_idle[core_id] = 1;
@@ -613,7 +572,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
-	list_move_tail(&pitem->list, &wq->work_queue);
+	list_add_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	gdc_log(LOG_DEBUG, "gdc add work ok\n");
 	/* only read not need lock */
@@ -638,6 +597,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 				}
 				continue;
 			}
+			kfree(pitem);
 			break;
 		}
 	}
