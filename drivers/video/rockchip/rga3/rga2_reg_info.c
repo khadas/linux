@@ -842,6 +842,8 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 {
+	u32 *bRGA_SRC_FG_COLOR;
+	u32 *bRGA_SRC_BG_COLOR;
 	u32 *bRGA_DST_INFO;
 	u32 *bRGA_DST_BASE0, *bRGA_DST_BASE1, *bRGA_DST_BASE2,
 		*bRGA_SRC_BASE3;
@@ -891,6 +893,9 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	x_div = y_div = 1;
 
 	dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
+
+	bRGA_SRC_FG_COLOR = (u32 *) (base + RGA2_SRC_FG_COLOR_OFFSET);
+	bRGA_SRC_BG_COLOR = (u32 *) (base + RGA2_SRC_BG_COLOR_OFFSET);
 
 	bRGA_DST_INFO = (u32 *) (base + RGA2_DST_INFO_OFFSET);
 	bRGA_DST_BASE0 = (u32 *) (base + RGA2_DST_BASE0_OFFSET);
@@ -1036,6 +1041,14 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	reg =
 		((reg & (~m_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP)) |
 		 (s_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP(src1_alpha_swp)));
+
+	if (msg->rgba5551_alpha.flags & 0x1) {
+		reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN)) |
+		       (s_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN(1)));
+
+		*bRGA_SRC_FG_COLOR = (msg->rgba5551_alpha.alpha1 & 0xff) << 24;
+		*bRGA_SRC_BG_COLOR = (msg->rgba5551_alpha.alpha0 & 0xff) << 24;
+	}
 
 	switch (msg->dst.format) {
 	case RGA_FORMAT_RGBA_8888:
@@ -2212,7 +2225,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			if ((msg->dst.format != RGA_FORMAT_Y4) &&
 			    (msg->dst.format != RGA_FORMAT_Y8)) {
 				RGA2_set_reg_alpha_info(base, msg);
-				RGA2_set_reg_rop_info(base, msg);
+				if (msg->rgba5551_alpha.flags != 1)
+					RGA2_set_reg_rop_info(base, msg);
 			}
 		}
 		if (msg->mosaic_info.enable)
@@ -2420,6 +2434,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	req->uvvds_mode = req_rga->uvvds_mode;
 
 	memcpy(&req->osd_info, &req_rga->osd_info, sizeof(req_rga->osd_info));
+
+	memcpy(&req->rgba5551_alpha, &req_rga->rgba5551_alpha, sizeof(req_rga->rgba5551_alpha));
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {
