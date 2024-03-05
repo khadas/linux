@@ -302,11 +302,6 @@ ssize_t free_queue_status_show(struct class *cla, struct class_attribute *attr,
 			get_queue_member_count(&wq->free_queue));
 }
 
-static inline int work_queue_no_space(struct ge2d_context_s *queue)
-{
-	return list_empty(&queue->free_queue);
-}
-
 static void ge2d_dump_cmd(struct ge2d_cmd_s *cfg)
 {
 	ge2d_log_info("src1_x_start=%d,src1_y_start=%d\n",
@@ -710,10 +705,12 @@ static struct list_head *ge2d_process_cmd_queue(struct ge2d_context_s *wq,
 		}
 
 		/* recycle the item to free_queue */
-		kfree(pitem_entry->config.clut8_table.data);
 		spin_lock(&wq->lock);
-		list_move_tail(&pitem_entry->list, &wq->free_queue);
+		list_del(&pitem_entry->list);
 		spin_unlock(&wq->lock);
+
+		kfree(pitem_entry->config.clut8_table.data);
+		kfree(pitem_entry);
 	}
 
 start_process:
@@ -845,15 +842,17 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 
 		/* release clut8_data */
 		kfree(pitem->config.clut8_table.data);
+
 		spin_lock(&wq->lock);
 		pos = pos->next;
-		list_move_tail(&pitem->list, &wq->free_queue);
+		list_del(&pitem->list);
 		spin_unlock(&wq->lock);
-
 		/* if block mode (cmd) */
 		if (block_mode) {
 			pitem->cmd.wait_done_flag = 0;
 			wake_up_interruptible(&wq->cmd_complete);
+		} else {
+			kfree(pitem);
 		}
 		pitem = (struct ge2d_queue_item_s *)pos;
 	} while (pos != head);
@@ -979,17 +978,10 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 	struct ge2d_queue_item_s  *pitem;
 
 	ge2d_log_dbg("add new work @@%s:%d\n", __func__, __LINE__);
-	if (work_queue_no_space(wq)) {
-		ge2d_log_dbg("work queue no space\n");
-		/* we should wait for queue empty at this point. */
-		return -1;
-	}
-
-	pitem = list_entry(wq->free_queue.next, struct ge2d_queue_item_s, list);
-	if (IS_ERR_OR_NULL(pitem)) {
-		ge2d_log_err("@@%s:%d, failed\n", __func__, __LINE__);
+	pitem = kmalloc(sizeof(*pitem), GFP_KERNEL);
+	if (!pitem)
 		goto error;
-	}
+
 	memset(&pitem->flag, 0, sizeof(struct ge2d_item_flag_s));
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct ge2d_cmd_s));
 	memset(&wq->cmd, 0, sizeof(struct ge2d_cmd_s));
@@ -999,7 +991,7 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 		pitem->flag.cmd_queue_mode = 1;
 
 	spin_lock(&wq->lock);
-	list_move_tail(&pitem->list, &wq->work_queue);
+	list_add_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	ge2d_log_dbg("add new work ok\n");
 
@@ -1012,6 +1004,7 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 			wait_event_interruptible(wq->cmd_complete,
 						 pitem->cmd.wait_done_flag == 0);
 			/* interruptible_sleep_on(&wq->cmd_complete); */
+			kfree(pitem);
 		}
 	}
 
@@ -1039,10 +1032,11 @@ int post_queue_to_process(struct ge2d_context_s *wq, int block)
 	if (ge2d_manager.event.cmd_in_com.done == 0)
 		complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
 
-	if (pitem->cmd.wait_done_flag)
+	if (pitem->cmd.wait_done_flag) {
 		wait_event_interruptible(wq->cmd_complete,
 					 pitem->cmd.wait_done_flag == 0);
-
+		kfree(pitem);
+	}
 	ge2d_log_dbg("post a queue, done\n");
 
 	return 0;
@@ -3071,8 +3065,6 @@ void ge2d_ioctl_detach_dma_fd(struct ge2d_context_s *wq,
 
 struct ge2d_context_s *create_ge2d_work_queue(void)
 {
-	int i;
-	struct ge2d_queue_item_s *p_item;
 	struct ge2d_context_s *ge2d_work_queue;
 	int  empty;
 
@@ -3092,17 +3084,6 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 	INIT_LIST_HEAD(&ge2d_work_queue->free_queue);
 	init_waitqueue_head(&ge2d_work_queue->cmd_complete);
 	spin_lock_init(&ge2d_work_queue->lock);  /* for process lock. */
-	for (i = 0; i < max_cmd_cnt; i++) {
-		p_item = kcalloc(1,
-				 sizeof(struct ge2d_queue_item_s),
-				 GFP_KERNEL);
-		if (!p_item) {
-			ge2d_log_err("can't request queue item memory\n");
-			return NULL;
-		}
-		list_add_tail(&p_item->list, &ge2d_work_queue->free_queue);
-	}
-
 	/* put this process queue  into manager queue list. */
 	/* maybe process queue is changing . */
 	spin_lock(&ge2d_manager.event.sem_lock);
