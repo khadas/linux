@@ -1427,6 +1427,7 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	struct dw_dp_state *dp_old_state, *dp_new_state;
 	struct drm_crtc_state *crtc_state;
 	struct dw_dp *dp = connector_to_dp(conn);
+	int ret;
 
 	old_state = drm_atomic_get_old_connector_state(state, conn);
 	new_state = drm_atomic_get_new_connector_state(state, conn);
@@ -1461,6 +1462,12 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 			dev_info(dp->dev, "still auto set color mode\n");
 		else
 			crtc_state->mode_changed = true;
+	}
+
+	if (dp->mst_mgr.cbs) {
+		ret = drm_dp_mst_root_conn_atomic_check(new_state, &dp->mst_mgr);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

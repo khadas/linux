@@ -65,9 +65,9 @@
 #include <asm/unaligned.h>
 #include <dhd_linux_priv.h>
 #ifdef BCMPCIE
-#if defined(CUSTOMER_HW_ROCKCHIP) && defined(CUSTOMER_HW_ROCKCHIP_RK3588)
+#if defined(CUSTOMER_HW_ROCKCHIP)
 #include <rk_dhd_pcie_linux.h>
-#endif /* CUSTOMER_HW_ROCKCHIP && CUSTOMER_HW_ROCKCHIP_RK3588 */
+#endif /* CUSTOMER_HW_ROCKCHIP */
 #endif /* BCMPCIE */
 
 #include <epivers.h>
@@ -10055,7 +10055,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	}
 
 #ifdef BCMPCIE
-#if defined(CUSTOMER_HW_ROCKCHIP) && defined(CUSTOMER_HW_ROCKCHIP_RK3588)
+#if defined(CUSTOMER_HW_ROCKCHIP)
 	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
 		rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
 #endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */

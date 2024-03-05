@@ -2155,108 +2155,76 @@
 		};
 	};
 
-	pcie21_port0 {
+	pcie0 {
 		/omit-if-no-ref/
-		pcie21_port0m0_pins: pcie21_port0m0-pins {
+		pcie0m0_pins: pcie0m0-pins {
 			rockchip,pins =
 				/* pcie21_port0_clkreq_m0 */
-				<2 RK_PB2 11 &pcfg_pull_none>,
-				/* pcie21_port0_perst_m0 */
-				<2 RK_PB4 11 &pcfg_pull_none>,
-				/* pcie21_port0_wake_m0 */
-				<0 RK_PD2 10 &pcfg_pull_none>;
+				<2 RK_PB2 11 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port0m1_pins: pcie21_port0m1-pins {
+		pcie0m1_pins: pcie0m1-pins {
 			rockchip,pins =
-				/* pcie21_port0_clkreq_m1 */
-				<1 RK_PB6 12 &pcfg_pull_none>,
-				/* pcie21_port0_perst_m1 */
-				<1 RK_PC1 12 &pcfg_pull_none>,
-				/* pcie21_port0_wake_m1 */
-				<1 RK_PB7 12 &pcfg_pull_none>;
+				/* pcie0_clkreq_m1 */
+				<1 RK_PB6 12 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port0m2_pins: pcie21_port0m2-pins {
+		pcie0m2_pins: pcie0m2-pins {
 			rockchip,pins =
-				/* pcie21_port0_clkreq_m2 */
-				<4 RK_PB5 12 &pcfg_pull_none>,
-				/* pcie21_port0_perst_m2 */
-				<4 RK_PB2 12 &pcfg_pull_none>,
-				/* pcie21_port0_wake_m2 */
-				<4 RK_PB4 12 &pcfg_pull_none>;
+				/* pcie0_clkreq_m2 */
+				<4 RK_PB5 12 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port0m3_pins: pcie21_port0m3-pins {
+		pcie0m3_pins: pcie0m3-pins {
 			rockchip,pins =
-				/* pcie21_port0_clkreq_m3 */
-				<4 RK_PC6 9 &pcfg_pull_none>,
-				/* pcie21_port0_perst_m3 */
-				<4 RK_PC7 9 &pcfg_pull_none>,
-				/* pcie21_port0_wake_m3 */
-				<4 RK_PC5 9 &pcfg_pull_none>;
+				/* pcie0_clkreq_m3 */
+				<4 RK_PC6 9 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port0_buttonrst: pcie21-port0-buttonrst {
+		pcie0_buttonrst: pcie21-port0-buttonrst {
 			rockchip,pins =
-				/* pcie21_port0_buttonrst */
+				/* pcie0_buttonrst */
 				<1 RK_PC4 12 &pcfg_pull_none>;
 		};
 	};
 
-	pcie21_port1 {
+	pcie1 {
 		/omit-if-no-ref/
-		pcie21_port1m0_pins: pcie21_port1m0-pins {
+		pcie1m0_pins: pcie1m0-pins {
 			rockchip,pins =
-				/* pcie21_port1_clkreq_m0 */
-				<2 RK_PB3 11 &pcfg_pull_none>,
-				/* pcie21_port1_perst_m0 */
-				<2 RK_PB5 11 &pcfg_pull_none>,
-				/* pcie21_port1_wake_m0 */
-				<0 RK_PD3 10 &pcfg_pull_none>;
+				/* pcie1_clkreq_m0 */
+				<2 RK_PB3 11 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port1m1_pins: pcie21_port1m1-pins {
+		pcie1m1_pins: pcie1m1-pins {
 			rockchip,pins =
-				/* pcie21_port1_clkreq_m1 */
-				<1 RK_PB4 12 &pcfg_pull_none>,
-				/* pcie21_port1_perst_m1 */
-				<1 RK_PC0 12 &pcfg_pull_none>,
-				/* pcie21_port1_wake_m1 */
-				<1 RK_PB5 12 &pcfg_pull_none>;
+				/* pcie1_clkreq_m1 */
+				<1 RK_PB4 12 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port1m2_pins: pcie21_port1m2-pins {
+		pcie1m2_pins: pcie1m2-pins {
 			rockchip,pins =
-				/* pcie21_port1_clkreq_m2 */
-				<4 RK_PA5 12 &pcfg_pull_none>,
-				/* pcie21_port1_perst_m2 */
-				<4 RK_PB2 13 &pcfg_pull_none>,
-				/* pcie21_port1_wake_m2 */
-				<4 RK_PA3 12 &pcfg_pull_none>;
+				/* pcie1_clkreq_m2 */
+				<4 RK_PA5 12 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port1m3_pins: pcie21_port1m3-pins {
+		pcie1m3_pins: pcie1m3-pins {
 			rockchip,pins =
-				/* pcie21_port1_clkreq_m3 */
-				<4 RK_PC1 10 &pcfg_pull_none>,
-				/* pcie21_port1_perst_m3 */
-				<4 RK_PC4 9 &pcfg_pull_none>,
-				/* pcie21_port1_wake_m3 */
-				<4 RK_PC0 10 &pcfg_pull_none>;
+				/* pcie1_clkreq_m3 */
+				<4 RK_PC1 10 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
-		pcie21_port1_buttonrst: pcie21-port1-buttonrst {
+		pcie1_buttonrst: pcie21-port1-buttonrst {
 			rockchip,pins =
-				/* pcie21_port1_buttonrst */
+				/* pcie1_buttonrst */
 				<1 RK_PC5 12 &pcfg_pull_none>;
 		};
 	};

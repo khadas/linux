@@ -251,6 +251,10 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 	struct rockchip_drm_private *prv = dev->dev_private;
 	struct dmcfreq_vop_info vop_bw_info;
 
+#ifdef CONFIG_DRM_DISPLAY_DP_HELPER
+	drm_dp_mst_atomic_wait_for_dependencies(old_state);
+#endif
+
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
@@ -278,6 +282,9 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 
 static const struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
 	.atomic_commit_tail = rockchip_drm_atomic_helper_commit_tail_rpm,
+#ifdef CONFIG_DRM_DISPLAY_DP_HELPER
+	.atomic_commit_setup = drm_dp_mst_atomic_setup_commit,
+#endif
 };
 
 static struct drm_framebuffer *
