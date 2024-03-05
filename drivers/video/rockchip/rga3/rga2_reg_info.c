@@ -425,28 +425,10 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA_FORMAT_RGBA_5551:
-		src0_format = 0x5;
-		pixel_width = 2;
-		break;
-	case RGA_FORMAT_RGBA_4444:
-		src0_format = 0x6;
-		pixel_width = 2;
-		break;
 	case RGA_FORMAT_BGR_565:
 		src0_format = 0x4;
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
-		src0_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_5551:
-		src0_format = 0x5;
-		pixel_width = 2;
-		src0_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_4444:
-		src0_format = 0x6;
-		pixel_width = 2;
 		src0_rb_swp = 0x1;
 		break;
 
@@ -482,23 +464,19 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_ARGB_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_ARGB_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
 
@@ -947,26 +925,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		src1_format = 0x4;
 		spw = 2;
 		break;
-	case RGA_FORMAT_RGBA_5551:
-		src1_format = 0x5;
-		spw = 2;
-		break;
-	case RGA_FORMAT_RGBA_4444:
-		src1_format = 0x6;
-		spw = 2;
-		break;
 	case RGA_FORMAT_BGR_565:
 		src1_format = 0x4;
-		spw = 2;
-		src1_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_5551:
-		src1_format = 0x5;
-		spw = 2;
-		src1_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_4444:
-		src1_format = 0x6;
 		spw = 2;
 		src1_rb_swp = 0x1;
 		break;
@@ -997,23 +957,19 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_ARGB_5551:
 		src1_format = 0x5;
 		spw = 2;
-		src1_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_5551:
 		src1_format = 0x5;
 		spw = 2;
-		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_ARGB_4444:
 		src1_format = 0x6;
 		spw = 2;
-		src1_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_4444:
 		src1_format = 0x6;
 		spw = 2;
-		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_RGBA_2BPP:
