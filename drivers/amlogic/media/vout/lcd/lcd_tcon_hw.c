@@ -899,6 +899,7 @@ lcd_tcon_data_common_parse_set_err_size:
 static int lcd_tcon_data_set(struct aml_lcd_drv_s *pdrv,
 			     struct tcon_mem_map_table_s *mm_table)
 {
+	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct lcd_tcon_data_block_header_s *block_header;
 	unsigned char *data_buf;
 	unsigned int temp_crc32;
@@ -960,6 +961,24 @@ static int lcd_tcon_data_set(struct aml_lcd_drv_s *pdrv,
 			continue;
 		}
 
+		switch (block_header->block_type) {
+		case LCD_TCON_DATA_BLOCK_TYPE_OD_LUT:
+		case LCD_TCON_DATA_BLOCK_TYPE_DEMURA_LUT:
+		case LCD_TCON_DATA_BLOCK_TYPE_DEMURA_SET:
+			if (!tcon_rmem) {
+				LCDERR("%s: tcon_rmem is NULL, bypass block[%d]: type 0x%x\n",
+					__func__, index, block_header->block_type);
+				continue;
+			}
+			if (tcon_rmem->flag == 0 || !tcon_rmem->axi_rmem) {
+				LCDERR("%s: no axi_mem, bypass block[%d]: type 0x%x\n",
+					__func__, index, block_header->block_type);
+				continue;
+			}
+			break;
+		default:
+			break;
+		}
 		if (block_header->block_ctrl == LCD_TCON_DATA_CTRL_FLAG_MULTI) {
 			ret = lcd_tcon_data_multi_match_find(pdrv, data_buf);
 			if (ret == 0) {
