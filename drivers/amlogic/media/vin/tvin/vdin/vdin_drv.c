@@ -1753,7 +1753,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			if (vdin0_devp->prop.hdcp_sts && !devp->mem_protected) {
 				pr_err("hdmi hdcp en, non-secure buffer\n");
-				devp->matrix_pattern_mode = 4;
+				devp->matrix_pattern_mode = VDIN_HDCP_PATTERN;
 			} else {
 				pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
 					vdin0_devp->prop.hdcp_sts, devp->mem_protected);
@@ -3525,11 +3525,35 @@ static struct vf_entry *check_vdin_read_list(struct vdin_dev_s *devp)
 	return vfe;
 }
 
+/* hdcp state change,set or recovery vdin1 matrix */
+static void vdin_handle_hdcp_chg(struct vdin_dev_s *devp)
+{
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+	unsigned int protect_mode = 0;
+
+	if (vdin0_devp) { /* May not probe vdin0 */
+		protect_mode = vdin0_devp->prop.hdcp_sts ? VDIN_HDCP_PATTERN : 0;
+		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
+			!devp->set_canvas_manual &&
+			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
+			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			devp->matrix_pattern_mode = protect_mode;
+			pr_debug("vdin0:hdcp chg to %d,protect_mode:%d\n",
+				vdin0_devp->prop.hdcp_sts, protect_mode);
+			vdin_set_matrix(devp);
+		} else if ((devp->matrix_pattern_mode == VDIN_HDCP_PATTERN) &&
+			!(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			devp->matrix_pattern_mode = 0;
+			pr_debug("set vdin1 matrix to normal\n");
+			vdin_set_matrix(devp);
+		}
+	}
+}
+
 irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 {
 	ulong flags;
 	struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;
-	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum vdin_vf_put_md put_md = VDIN_VF_PUT;
 	struct vf_entry *next_wr_vfe = NULL, *curr_wr_vfe = NULL;
 	struct vframe_s *curr_wr_vf = NULL;
@@ -3538,7 +3562,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	struct tvin_state_machine_ops_s *sm_ops;
 	int ret = 0;
 	unsigned int offset;
-	unsigned int protect_mode;
 
 	if (!devp)
 		return IRQ_HANDLED;
@@ -3591,17 +3614,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_v_stamp(offset);
 
-	if (vdin0_devp) { /* May not probe vdin0 */
-		/* check input content is protected */
-		protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
-		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
-			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
-			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
-			devp->matrix_pattern_mode = protect_mode;
-			pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
-			vdin_set_matrix(devp);
-		}
-	}
+	vdin_handle_hdcp_chg(devp);
 
 	/* if win_size changed for video only */
 	if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))

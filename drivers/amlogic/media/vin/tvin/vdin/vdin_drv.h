@@ -414,6 +414,9 @@ enum vdin_vf_put_md {
 
 #define CURRENT_FRAME_GET_PROP	BIT(0)
 
+//pattern 4 used for protect hdcp content,others for debug
+#define VDIN_HDCP_PATTERN	4
+
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
 /* *********************************************************************** */
