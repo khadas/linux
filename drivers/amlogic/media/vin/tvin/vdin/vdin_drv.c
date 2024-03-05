@@ -833,25 +833,34 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 
 static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 {
-	int i;
-	struct vf_entry *master = NULL;
+	vdin_game_mode_transfer(devp);
 
-	if (devp->game_mode_chg != VDIN_GAME_MODE_UN_CHG &&
+	if (devp->game_mode_chg > VDIN_GAME_MODE_UN_CHG &&
 		devp->game_mode_chg < VDIN_GAME_MODE_NUM) {
-		/* recycle all vf in write mode list */
-		for (i = 0; i < devp->vfp->size; i++) {
-			master = vf_get_master(devp->vfp, i);
-			if (!master)
-				break;
-			if (master->status == VF_STATUS_WM)
-				receiver_vf_put(&master->vf, devp->vfp);
+		if (devp->last_wr_vfe && devp->last_wr_vfe->status == VF_STATUS_WM) {
+			if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+				pr_info("%s,last->vf:%d\n", __func__,
+					devp->last_wr_vfe->vf.index);
+			receiver_vf_put(&devp->last_wr_vfe->vf, devp->vfp);
+			devp->last_wr_vfe = NULL;
 		}
-		devp->curr_wr_vfe = NULL;
-		devp->last_wr_vfe = NULL;
-		devp->chg_drop_frame_cnt = 2;
+		if (devp->game_mode & VDIN_GAME_MODE_1) {
+			if (devp->curr_wr_vfe)
+				devp->curr_wr_vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;
+		} else if (devp->game_mode & VDIN_GAME_MODE_2) {
+			if (devp->curr_wr_vfe && devp->curr_wr_vfe->status == VF_STATUS_WM) {
+				if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+					pr_info("%s,cur->vf:%d\n", __func__,
+						devp->curr_wr_vfe->vf.index);
+				receiver_vf_put(&devp->curr_wr_vfe->vf, devp->vfp);
+			}
+		} else {
+			vdin_vf_skip_all_disp(devp->vfp);
+		}
+
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
-			pr_info("%s,game_mode_chg:%d,game_mode_bak:%#x\n", __func__,
-				devp->game_mode_chg, devp->game_mode_bak);
+			pr_info("%s,%d game_mode_chg:%d,game_mode_bak:%#x\n", __func__,
+				devp->game_mode, devp->game_mode_chg, devp->game_mode_bak);
 	}
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
 }
@@ -3037,6 +3046,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
+		if (devp->game_mode & VDIN_GAME_MODE_1_2)
+			vdin_pause_hw_write(devp, 0);
 		vdin_drop_frame_info(devp, "drop frame");
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -3318,6 +3329,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* vdin_drop_cnt++; no need skip frame,only drop one */
 		goto irq_handled;
 	}
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+		pr_info("[%d %d]cur_vf_idx:%d, new_vf:%d\n", devp->irq_cnt, devp->frame_cnt,
+		devp->curr_wr_vfe->vf.index, next_wr_vfe->vf.index);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3443,7 +3457,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 	vdin_frame_write_ctrl_set(devp, next_wr_vfe,
-				  devp->flags & VDIN_FLAG_RDMA_ENABLE);
+		devp->flags & VDIN_FLAG_RDMA_ENABLE);
 
 	devp->curr_wr_vfe = next_wr_vfe;
 	vdin_set_vfe_info(devp, next_wr_vfe);
@@ -3469,7 +3483,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_vframe_put_and_recycle(devp, next_wr_vfe, put_md);
 	}
 
-	vdin_game_mode_transfer(devp);
 	devp->frame_cnt++;
 
 irq_handled:

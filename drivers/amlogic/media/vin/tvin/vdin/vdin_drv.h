@@ -294,6 +294,8 @@ struct match_data_s {
 #define VDIN_GAME_MODE_2                (BIT2)
 /*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (BIT3)
+/* game 1 or game 2 */
+#define VDIN_GAME_MODE_1_2        (VDIN_GAME_MODE_1 | VDIN_GAME_MODE_2)
 
 /*flag for flush vdin buff*/
 #define VDIN_FLAG_BLACK_SCREEN_ON	1

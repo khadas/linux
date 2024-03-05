@@ -5763,14 +5763,13 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 					__func__, index_disp);
 			return -1;
 		}
-		if (devp->game_mode || devp->skip_disp_md_check) {
-			if (devp->frame_drop_num)
-				req->disp_mode = VFRAME_DISP_MODE_SKIP;
-			else
-				req->disp_mode = VFRAME_DISP_MODE_NULL;
-		} else {
+		if (devp->frame_drop_num)
+			req->disp_mode = VFRAME_DISP_MODE_SKIP;
+		else if ((devp->game_mode & VDIN_GAME_MODE_1_2) || devp->skip_disp_md_check)
+			req->disp_mode = VFRAME_DISP_MODE_NULL;
+		else
 			req->disp_mode = p->disp_mode[index_disp];
-		}
+
 		if (req->req_mode == 1 && p->skip_vf_num)
 			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
 		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
