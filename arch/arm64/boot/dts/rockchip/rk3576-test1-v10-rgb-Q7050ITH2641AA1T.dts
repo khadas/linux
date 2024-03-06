@@ -99,7 +99,7 @@
 };
 
 &route_rgb {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp2_out_rgb>;
 };
 

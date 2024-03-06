@@ -2477,13 +2477,15 @@ static void vop_plane_destroy(struct drm_plane *plane)
 
 static void vop_atomic_plane_reset(struct drm_plane *plane)
 {
-	struct vop_plane_state *vop_plane_state =
-					to_vop_plane_state(plane->state);
+	struct vop_plane_state *vop_plane_state;
 	struct vop_win *win = to_vop_win(plane);
 
-	if (plane->state && plane->state->fb)
+	if (plane->state) {
 		__drm_atomic_helper_plane_destroy_state(plane->state);
-	kfree(vop_plane_state);
+		vop_plane_state = to_vop_plane_state(plane->state);
+		kfree(vop_plane_state);
+		plane->state = NULL;
+	}
 	vop_plane_state = kzalloc(sizeof(*vop_plane_state), GFP_KERNEL);
 	if (!vop_plane_state)
 		return;

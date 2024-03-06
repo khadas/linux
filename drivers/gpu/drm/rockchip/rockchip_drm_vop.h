@@ -570,6 +570,9 @@ struct hdrvivid_regs {
 	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH];
 };
 
+#define RK_HDR_TYPE_MASK 0xff
+#define RK_HDR_PLAT_MASK (0xff << 8)
+
 struct hdr_extend {
 	uint32_t hdr_type;
 	uint32_t length;
@@ -609,6 +612,14 @@ enum vop_hdr_format {
 	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
 	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
 	HDR_FORMAT_MAX,
+};
+
+struct post_csc_convert_mode {
+	enum drm_color_encoding color_encoding;
+	bool is_input_yuv;
+	bool is_output_yuv;
+	bool is_input_full_range;
+	bool is_output_full_range;
 };
 
 struct post_csc_coef {
@@ -1076,7 +1087,7 @@ struct vop2_win_data {
 	uint8_t axi_id;
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
-	uint8_t possible_crtcs;
+	uint8_t possible_vp_mask;
 	uint8_t dci_rid_id;
 
 	uint32_t base;

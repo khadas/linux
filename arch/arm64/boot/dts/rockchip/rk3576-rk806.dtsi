@@ -199,13 +199,13 @@
 			};
 
 			vdd_gpu_s0: DCDC_REG5 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-init-microvolt = <750000>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <900000>;
 				regulator-ramp-delay = <12500>;
 				regulator-name = "vdd_gpu_s0";
+				regulator-enable-ramp-delay = <400>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <850000>;
