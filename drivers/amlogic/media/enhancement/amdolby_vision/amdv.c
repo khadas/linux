@@ -7692,6 +7692,10 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 					p_ambient = &lightsense_test_cfg[1];
 			} else if (((struct pq_config *)pq_config_fake)->
 				tdc.ambient_config.ambient) {
+				if (((struct pq_config *)pq_config_fake)->
+					tdc.ambient_config.dark_detail)
+					ambient_config_new.dark_detail =
+						cfg_info[cur_pic_mode].dark_detail;
 				/*only if cfg enables ambient we allow use light sense feature*/
 				/*light sense: update rear and front*/
 				p_ambient = &ambient_config_new;

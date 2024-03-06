@@ -503,8 +503,8 @@ struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES] = {
 
 struct ambient_cfg_s lightsense_test_cfg[2] = {
 	/* update_flag, ambient, rear, front, whitex, whitey,dark_detail */
-	{ 9, 65536, 0, 242, 0, 0, 0},
-	{ 9, 65536, 0, 62768, 0, 0, 0},
+	{ 9, 65536, 0, 0, 0, 0, 0},
+	{ 9, 65536, 0, 65535, 0, 0, 0},
 };
 
 struct target_config def_tgt_display_cfg_bestpq = {
@@ -868,7 +868,7 @@ void calculate_user_pq_config(void)
 		user_cfg_info[cur_pic_mode].tgamma * 16384 / 10;
 	for (i = 0; i < 8; i++) {
 		user_target_config[cur_pic_mode].t_primaries[i] =
-			user_cfg_info[cur_pic_mode].tprimaries[i] * (1 << 26) / 10000;
+			((1 << 26) / 10000) * user_cfg_info[cur_pic_mode].tprimaries[i];
 	}
 	dv_user_cfg_flag = true;
 }
@@ -2070,7 +2070,7 @@ int get_dv_pq_info(char *buf)
 					user_cfg_info[cur_pic_mode].tmin);
 		pos += sprintf(buf + pos,
 					"user cfg TPrimaries:       ");
-		pos += sprintf(buf + pos, "[0.%d][0.%d][0.%d][0.%d][0.%d][0.%d][0.%d][0.%d]\n\n",
+		pos += sprintf(buf + pos, "[%d][%d][%d][%d][%d][%d][%d][%d]\n\n",
 					user_cfg_info[cur_pic_mode].tprimaries[0],
 					user_cfg_info[cur_pic_mode].tprimaries[1],
 					user_cfg_info[cur_pic_mode].tprimaries[2],
