@@ -127,6 +127,7 @@ struct rk628_csi {
 	struct device *classdev;
 	bool is_streaming;
 	bool csi_ints_en;
+	bool dual_mipi_use;
 };
 
 struct rk628_csi_mode {
@@ -1335,7 +1336,7 @@ static void rk628_csi_initial(struct v4l2_subdev *sd)
 	def_edid.pad = 0;
 	def_edid.start_block = 0;
 	def_edid.blocks = 2;
-	if (csi->rk628->version >= RK628F_VERSION)
+	if (csi->rk628->version >= RK628F_VERSION && csi->dual_mipi_use)
 		def_edid.edid = rk628f_edid_init_data;
 	else
 		def_edid.edid = edid_init_data;
@@ -2910,6 +2911,7 @@ static int rk628_csi_get_multi_dev_info(struct rk628_csi *csi)
 	struct device_node *node = dev->of_node;
 	struct device_node *multi_info_np;
 
+	csi->dual_mipi_use = false;
 	multi_info_np = of_get_child_by_name(node, "multi-dev-info");
 	if (!multi_info_np) {
 		dev_info(dev, "failed to get multi dev info\n");
@@ -2926,6 +2928,8 @@ static int rk628_csi_get_multi_dev_info(struct rk628_csi *csi)
 			&csi->multi_dev_info.pixel_offset);
 	of_property_read_u32(multi_info_np, "dev-num",
 			&csi->multi_dev_info.dev_num);
+
+	csi->dual_mipi_use = true;
 	dev_info(dev,
 		"multi dev left: mipi%d, multi dev right: mipi%d, combile mipi%d, dev num: %d\n",
 		csi->multi_dev_info.dev_idx[0], csi->multi_dev_info.dev_idx[1],
