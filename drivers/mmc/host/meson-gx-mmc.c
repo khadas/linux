@@ -3018,7 +3018,12 @@ static int meson_mmc_card_busy(struct mmc_host *mmc)
 		host->sd_sdio_switch_volat_done = 0;
 	}
 
-	/* We are only interrested in lines 0 to 3, so mask the other ones */
+	/*
+	 * eMMC: We are only interrested in line 0, so mask the other ones
+	 * SD: We are only interrested in lines 0 to 3, so mask the other ones
+	 */
+	if (aml_card_type_mmc(host))
+		return !(FIELD_GET(STATUS_DATI, regval) & 0x1);
 	return !(FIELD_GET(STATUS_DATI, regval) & 0xf);
 }
 
