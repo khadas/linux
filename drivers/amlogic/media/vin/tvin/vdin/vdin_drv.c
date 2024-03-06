@@ -2619,6 +2619,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		devp->chg_drop_frame_cnt--;
 		ret = -1;
+		vdin_drop_frame_info(devp, "chg_drop_frame_cnt");
 	} else if (devp->dbg_fr_ctl > 1 && (devp->frame_cnt % devp->dbg_fr_ctl) != 0) {
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
@@ -2679,12 +2680,14 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d cnt:%d vf:%d sg_type:%#x type:%#x flag:%#x dur:%u disp:%d\n",
+			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x type:%#x flag:%#x %#x dur:%u disp:%d\n",
 				devp->index, devp->irq_cnt,
+				&devp->vfp->last_last_vfe->vf,
 				devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
 				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->vf.flag,
+				devp->vfp->last_last_vfe->flag,
 				devp->vfp->last_last_vfe->vf.duration,
 				devp->vfp->last_last_vfe->vf.index_disp);
 
