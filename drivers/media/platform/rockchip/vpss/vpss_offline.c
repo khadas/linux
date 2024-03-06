@@ -202,6 +202,7 @@ static int internal_buf_alloc(struct file *file, struct rkvpss_buf_info *info)
 		buf->mem = mem;
 		buf->alloc = true;
 		buf->dev_id = info->dev_id;
+		ops->prepare(buf->mem);
 		mutex_lock(&hw->dev_lock);
 		list_add_tail(&buf->list, &ofl->list);
 		mutex_unlock(&hw->dev_lock);
@@ -849,8 +850,24 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		val = out_ch[i].ctrl;
 		rkvpss_hw_write(hw, reg + i * 0x100, val);
 
-		if (cfg->output[i].flip)
+		if (cfg->output[i].flip) {
 			flip_en |= RKVPSS_MI_CHN_V_FLIP(i);
+
+			switch (cfg->output[i].format) {
+			case V4L2_PIX_FMT_RGB565:
+				val = cfg->output[i].stride / 2;
+				break;
+			case V4L2_PIX_FMT_XBGR32:
+				val = cfg->output[i].stride / 4;
+				break;
+			default:
+				val = cfg->output[i].stride;
+				break;
+			}
+			val = val * h;
+			reg = RKVPSS_MI_CHN0_WR_Y_PIC_SIZE;
+			rkvpss_hw_write(hw, reg + i * 0x100, val);
+		}
 		mi_update |= (RKVPSS_MI_CHN0_FORCE_UPD << i);
 	}
 	rkvpss_hw_write(hw, RKVPSS_CROP0_CTRL, crop_en);
@@ -898,6 +915,7 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		v4l2_info(&ofl->v4l2_dev,
 			  "%s end, time:%lldus\n", __func__, us);
 	}
+
 	return ret;
 free_buf:
 	for (i -= 1; i >= 0; i--) {

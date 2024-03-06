@@ -522,6 +522,9 @@ void rkvpss_soft_reset(struct rkvpss_hw_dev *hw)
 	rkvpss_hw_write(hw, RKVPSS_VPSS_CTRL, RKVPSS_ACK_FRM_PRO_DIS);
 	rkvpss_hw_write(hw, RKVPSS_VPSS_IRQ_CFG, 0x3fff);
 	rkvpss_hw_write(hw, RKVPSS_MI_IMSC, 0xd0000000);
+	rkvpss_hw_set_bits(hw, RKVPSS_VPSS_ONLINE, RKVPSS_ONLINE_MODE_MASK,
+					   RKVPSS_ISP2VPSS_ONLINE2);
+	rkvpss_hw_write(hw, RKVPSS_VPSS_UPDATE, RKVPSS_CFG_FORCE_UPD);
 }
 
 int rkvpss_get_zme_tap_coe_index(int ratio)

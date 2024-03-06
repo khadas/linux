@@ -162,7 +162,7 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 	rkvpss_cmsc_config(dev, true);
 	rkvpss_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
 
-	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD;
+	val = RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD;
 	if (!dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_MIR_FORCE_UPD;
 	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
