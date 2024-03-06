@@ -44,11 +44,11 @@ config ROCKCHIP_DRM_SELF_TEST
 
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
-	default y if (CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
-		      CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
-		      CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
-		      CPU_RK3399 || CPU_RK322X || CPU_RK3328) && \
-		      !ROCKCHIP_MINI_KERNEL
+	depends on CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
+		   CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
+		   CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
+		   CPU_RK3399 || CPU_RK322X || CPU_RK3328
+	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects support for the VOP driver. You should enable it
 	  on older SoCs.
