@@ -185,7 +185,7 @@ int lcd_unifykey_get_tcon(char *key_name, unsigned char *buf, int len)
 		return -1;
 
 lcd_unifykey_get_tcon_retry:
-	ret = key_unify_read(get_ukdev(), key_name, buf, key_len, &key_len);
+	ret = key_unify_read(get_ukdev(), key_name, buf, len, &key_len);
 	if (ret < 0) {
 		LCDUKEYERR("%s: %s error\n", __func__, key_name);
 		return -1;
@@ -242,7 +242,7 @@ int lcd_unifykey_get_no_header(char *key_name, unsigned char *buf, int len)
 	if (ret < 0)
 		return -1;
 
-	ret = key_unify_read(get_ukdev(), key_name, buf, key_len, &key_len);
+	ret = key_unify_read(get_ukdev(), key_name, buf, len, &key_len);
 	if (ret < 0) {
 		LCDUKEYERR("%s: %s error\n", __func__, key_name);
 		return -1;
@@ -258,11 +258,17 @@ int lcd_unifykey_get_no_header(char *key_name, unsigned char *buf, int len)
 
 void lcd_unifykey_print(int index)
 {
-	unsigned char *buf;
+	unsigned char *buf, *pr_buf;
 	char key_name[32];
 	unsigned int key_len;
-	int i, j;
+	int i, j, pr_len;
 	int ret;
+
+	pr_buf = kcalloc(128, sizeof(unsigned char), GFP_KERNEL);
+	if (!pr_buf) {
+		LCDUKEY("%s: buf malloc error\n", __func__);
+		return;
+	}
 
 	if (index > 0)
 		sprintf(key_name, "lcd%d", index);
@@ -284,17 +290,17 @@ void lcd_unifykey_print(int index)
 	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
 	i = 0;
 	while (1) {
-		pr_info("0x%08x: ", (i * 16));
+		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
 		for (j = 0; j < 16; j++) {
 			if ((i * 16 + j) < key_len) {
-				pr_info("0x%02x ", buf[i * 16 + j]);
+				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
 			} else {
-				pr_info("\n");
+				pr_info("%s\n", pr_buf);
 				kfree(buf);
 				goto lcd_ukey_print_next1;
 			}
 		}
-		pr_info("\n");
+		pr_info("%s\n", pr_buf);
 		i++;
 	}
 	kfree(buf);
@@ -320,17 +326,17 @@ lcd_ukey_print_next1:
 	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
 	i = 0;
 	while (1) {
-		pr_info("0x%08x: ", (i * 16));
+		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
 		for (j = 0; j < 16; j++) {
 			if ((i * 16 + j) < key_len) {
-				pr_info("0x%02x ", buf[i * 16 + j]);
+				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
 			} else {
-				pr_info("\n");
+				pr_info("%s\n", pr_buf);
 				kfree(buf);
 				goto lcd_ukey_print_next2;
 			}
 		}
-		pr_info("\n");
+		pr_info("%s\n", pr_buf);
 		i++;
 	}
 	kfree(buf);
@@ -356,23 +362,23 @@ lcd_ukey_print_next2:
 	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
 	i = 0;
 	while (1) {
-		pr_info("0x%08x: ", (i * 16));
+		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
 		for (j = 0; j < 16; j++) {
 			if ((i * 16 + j) < key_len) {
-				pr_info("0x%02x ", buf[i * 16 + j]);
+				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
 			} else {
-				pr_info("\n");
+				pr_info("%s\n", pr_buf);
 				kfree(buf);
 				goto lcd_ukey_print_next3;
 			}
 		}
-		pr_info("\n");
+		pr_info("%s\n", pr_buf);
 		i++;
 	}
 	kfree(buf);
 
 lcd_ukey_print_next3:
-	pr_info("\n");
+	kfree(pr_buf);
 }
 
 #else

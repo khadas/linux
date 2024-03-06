@@ -475,9 +475,11 @@ static struct vinfo_s *lcd_get_current_info(void *data)
 static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_detail_timing_s *ptiming;
+	unsigned int pre_pclk;
 	int dur_index;
 
 	if (pdrv->vmode_mgr.next_vmode_info) {
+		pre_pclk = pdrv->config.timing.base_timing.pixel_clk;
 		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
 		pdrv->vmode_mgr.next_vmode_info = NULL;
 
@@ -485,6 +487,8 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
 		memcpy(&pdrv->config.timing.base_timing, ptiming,
 			sizeof(struct lcd_detail_timing_s));
+		if (pdrv->config.timing.base_timing.pixel_clk != pre_pclk)
+			pdrv->config.timing.clk_change |= LCD_CLK_PLL_RESET;
 		lcd_cus_ctrl_config_update(pdrv, (void *)ptiming, LCD_CUS_CTRL_SEL_TIMMING);
 
 		//update base_timing to act_timing
