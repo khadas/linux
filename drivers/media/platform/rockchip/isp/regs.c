@@ -448,7 +448,7 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 
 	reg = stream->config->rsz.ctrl;
 	rkisp_write(dev, reg, rsz_ctrl, false);
-	val = ISP32_SCALE_FORCE_UPD;
+	val = ISP32_SCALE_FORCE_UPD | ISP32_SCALE_GEN_UPD;
 	if (async && dev->hw_dev->is_single)
 		val = ISP32_SCALE_GEN_UPD;
 	reg = stream->config->rsz.update;

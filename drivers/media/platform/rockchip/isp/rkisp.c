@@ -226,8 +226,10 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 			CIF_ISP_INPUT_H_MAX_V32_L_UNITE : CIF_ISP_INPUT_H_MAX_V32_L;
 		break;
 	case ISP_V39:
-		max_w = CIF_ISP_INPUT_W_MAX_V39;
-		max_h = CIF_ISP_INPUT_H_MAX_V39;
+		max_w = dev->hw_dev->unite ?
+			CIF_ISP_INPUT_W_MAX_V39_UNITE : CIF_ISP_INPUT_W_MAX_V39;
+		max_h = dev->hw_dev->unite ?
+			CIF_ISP_INPUT_H_MAX_V39_UNITE : CIF_ISP_INPUT_H_MAX_V39;
 		break;
 	default:
 		max_w = CIF_ISP_INPUT_W_MAX;
@@ -721,7 +723,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 run_next:
 	if (!dev->sw_rd_cnt)
 		rkisp_rockit_frame_start(dev);
-	rkisp_params_cfgsram(params_vdev, true);
+	rkisp_params_cfgsram(params_vdev, true, false);
 	stats_vdev->rdbk_drop = false;
 	if (dev->is_frame_double) {
 		is_upd = true;
@@ -2746,8 +2748,10 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 					CIF_ISP_INPUT_H_MAX_V32_L_UNITE : CIF_ISP_INPUT_H_MAX_V32_L;
 				break;
 			case ISP_V39:
-				max_w = CIF_ISP_INPUT_W_MAX_V39;
-				max_h = CIF_ISP_INPUT_H_MAX_V39;
+				max_w = dev->hw_dev->unite ?
+					CIF_ISP_INPUT_W_MAX_V39_UNITE : CIF_ISP_INPUT_W_MAX_V39;
+				max_h = dev->hw_dev->unite ?
+					CIF_ISP_INPUT_H_MAX_V39_UNITE : CIF_ISP_INPUT_H_MAX_V39;
 				break;
 			default:
 				max_w = CIF_ISP_INPUT_W_MAX;
@@ -4518,6 +4522,7 @@ vs_skip:
 
 		dev->isp_err_cnt = 0;
 		dev->isp_state &= ~ISP_ERROR;
+		rkisp_stream_isp_end(dev, isp_mis);
 	}
 
 	if (isp_mis & CIF_ISP_V_START) {

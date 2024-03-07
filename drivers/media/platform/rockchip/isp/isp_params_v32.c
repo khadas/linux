@@ -4379,7 +4379,7 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static
-void rkisp_params_cfgsram_v32(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram_v32(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
 	u32 id = params_vdev->dev->unite_index;
 	struct isp32_isp_params_cfg *params = params_vdev->isp32_params + id;

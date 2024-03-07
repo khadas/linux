@@ -1171,9 +1171,10 @@ static void rkisp_pm_complete(struct device *dev)
 	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
 	if (!hw->is_single && hw->is_multi_overflow)
 		hw->pre_dev_id++;
-	if (isp_dev->is_suspend_one_frame && !hw->is_multi_overflow)
+	if (isp_dev->is_suspend_one_frame &&
+	    !hw->is_multi_overflow && hw->isp_ver < ISP_V33)
 		isp_dev->is_first_double = true;
-	if (hw->isp_ver > ISP_V20) {
+	if (hw->isp_ver > ISP_V20 && hw->isp_ver < ISP_V33) {
 		val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME |
 		      ISP3X_DHAZ_FST_FRAME | ISP3X_ADRC_FST_FRAME;
 		if (hw->isp_ver == ISP_V32)

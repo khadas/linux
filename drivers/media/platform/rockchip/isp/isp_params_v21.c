@@ -3757,7 +3757,7 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static
-void rkisp_params_cfgsram_v21(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram_v21(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
 	struct isp21_isp_params_cfg *params = params_vdev->isp21_params;
 
