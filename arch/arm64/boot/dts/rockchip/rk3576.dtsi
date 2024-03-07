@@ -395,6 +395,8 @@
 			675000	3
 			495000	4
 		>;
+		intermediate-threshold-freq = <816000>;
+		rockchip,reboot-freq = <1416000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -450,6 +452,7 @@
 			opp-microvolt-L4 = <787500 787500 950000>;
 			opp-microvolt-L5 = <775000 775000 950000>;
 			clock-latency-ns = <40000>;
+			opp-suspend;
 		};
 		opp-2016000000 {
 			opp-hz = /bits/ 64 <2016000000>;
@@ -506,6 +509,8 @@
 			675000	3
 			495000	4
 		>;
+		intermediate-threshold-freq = <816000>;
+		rockchip,reboot-freq = <1608000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -561,6 +566,7 @@
 			opp-microvolt-L4 = <750000 750000 950000>;
 			opp-microvolt-L5 = <737500 737500 950000>;
 			clock-latency-ns = <40000>;
+			opp-suspend;
 		};
 		opp-2016000000 {
 			opp-hz = /bits/ 64 <2016000000>;
@@ -1893,7 +1899,7 @@
 		clock-names = "clk_npu", "aclk0", "aclk1", "hclk_root",
 			      "aclk_cbuf", "hclk_cbuf";
 		assigned-clocks = <&cru CLK_RKNN_DSU0>;
-		assigned-clock-rates = <200000000>;
+		assigned-clock-rates = <198000000>;
 		resets = <&cru SRST_A_RKNN0>, <&cru SRST_A_RKNN1>,
 			 <&cru SRST_A_RKNN_CBUF>, <&cru SRST_H_RKNN_CBUF>;
 		reset-names = "srst_a0", "srst_a1",
@@ -1937,6 +1943,7 @@
 			675000	3
 			495000	4
 		>;
+		intermediate-threshold-freq = <300000>;
 		rockchip,opp-clocks = <&cru ACLK_RKNN_CBUF>,
 				      <&cru HCLK_RKNN_CBUF>,
 				      <&cru PCLK_NPUTOP_ROOT>;
@@ -2029,7 +2036,7 @@
 		clocks = <&scmi_clk CLK_GPU>, <&cru CLK_GPU>;
 		clock-names = "clk_mali", "clk_gpu";
 		assigned-clocks = <&cru CLK_GPU>;
-		assigned-clock-rates = <200000000>;
+		assigned-clock-rates = <198000000>;
 		power-domains = <&power RK3576_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>;
@@ -2067,6 +2074,7 @@
 			675000	3
 			495000	4
 		>;
+		intermediate-threshold-freq = <300000>;
 		rockchip,opp-clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_ROOT>;
 
 		opp-300000000 {
