@@ -10842,7 +10842,8 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 		 * Only disable all submodule when sharp turn off,
 		 * keep sw_sharp_enable always on
 		 */
-		writel(0x1, vop2->sharp_regs);
+		if (vop2->sharp_regs)
+			writel(0x1, vop2->sharp_regs);
 		vcstate->sharp_en = false;
 		return;
 	}
