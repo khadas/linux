@@ -1474,6 +1474,18 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 		slice_info.slice_len = 0;
 		kfifo_in(&task->slice_info, &slice_info, 1);
 	}
+
+	/*
+	 * In vepu_510 the sli_done interrupt is triggered by slice_fifo not empty status.
+	 * Therefore when the sli_done_sta interrupt is cleared without reading all the
+	 * slice_len data in slice_fifo an extra interrupt will be triggered. So it is
+	 * better to clear the interrupt after reading all slice_len to avoid false irq reporting.
+	 * On the other hand, vepu_580 is triggered only after writing a slice,
+	 * without checking if fifo is non-empty, so there is no need to clear the
+	 * interrupt again after reading the slice.
+	 */
+	if (hw->vepu_type == RKVENC_VEPU_510)
+		mpp_write(mpp, hw->int_clr_base, *irq_status);
 }
 
 static int rkvenc_irq(struct mpp_dev *mpp)

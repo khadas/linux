@@ -280,6 +280,7 @@ struct rockchip_pwm_chip {
 	bool biphasic_res_valid;
 	int channel_id;
 	int irq;
+	u32 scaler;
 	u8 main_version;
 	u8 capture_cnt;
 };
@@ -349,7 +350,9 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 enable_conf = pc->data->enable_conf;
+	u64 clk_rate_kHz = pc->clk_rate / 1000;
 	u64 tmp;
+	u32 scaler = pc->scaler ? pc->scaler * 2 : 1;
 	u32 val;
 	u32 dclk_div = 1;
 	int ret;
@@ -364,12 +367,12 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 		dclk_div = pc->oneshot_en ? 2 : 1;
 
 	tmp = readl_relaxed(pc->base + pc->data->regs.period);
-	tmp *= dclk_div * pc->data->prescaler * NSEC_PER_SEC;
-	state->period = DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate);
+	tmp *= dclk_div * pc->data->prescaler * scaler * USEC_PER_SEC;
+	state->period = DIV_ROUND_CLOSEST_ULL(tmp, clk_rate_kHz);
 
 	tmp = readl_relaxed(pc->base + pc->data->regs.duty);
-	tmp *= dclk_div * pc->data->prescaler * NSEC_PER_SEC;
-	state->duty_cycle =  DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate);
+	tmp *= dclk_div * pc->data->prescaler * scaler * USEC_PER_SEC;
+	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, clk_rate_kHz);
 
 	if (pc->main_version >= 4) {
 		val = readl_relaxed(pc->base + pc->data->regs.enable);
@@ -709,20 +712,24 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	unsigned long period, duty;
+	u64 clk_rate_kHz = pc->clk_rate / 1000;
 	u64 div = 0;
+	u64 tmp = 0;
+	u32 scaler = pc->scaler ? pc->scaler * 2 : 1;
 	u32 rpt = 0;
 	u32 offset = 0;
 
+	tmp = (u64)pc->data->prescaler * scaler * USEC_PER_SEC;
 	/*
 	 * Since period and duty cycle registers have a width of 32
 	 * bits, every possible input period can be obtained using the
 	 * default prescaler value for all practical clock rate values.
 	 */
-	div = (u64)pc->clk_rate * state->period;
-	period = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+	div = (u64)clk_rate_kHz * state->period;
+	period = DIV_ROUND_CLOSEST_ULL(div, tmp);
 
-	div = (u64)pc->clk_rate * state->duty_cycle;
-	duty = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+	div = (u64)clk_rate_kHz * state->duty_cycle;
+	duty = DIV_ROUND_CLOSEST_ULL(div, tmp);
 
 	writel_relaxed(period, pc->base + PERIOD);
 	writel_relaxed(duty, pc->base + DUTY);
@@ -745,8 +752,8 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 
 		if (state->duty_offset > 0 &&
 		    state->duty_offset <= (state->period - state->duty_cycle)) {
-			div = (u64)pc->clk_rate * state->duty_offset;
-			offset = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+			div = (u64)clk_rate_kHz * state->duty_offset;
+			offset = DIV_ROUND_CLOSEST_ULL(div, tmp);
 		} else if (state->duty_offset > (state->period - state->duty_cycle)) {
 			dev_err(chip->dev, "Duty_offset must be between %lld and %lld.\n",
 				state->duty_cycle, state->period);
@@ -1413,7 +1420,10 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u64 table_val = 0;
+	u64 clk_rate_kHz = pc->clk_rate / 1000;
 	u64 div = 0;
+	u64 tmp = 0;
+	u32 scaler = pc->scaler ? pc->scaler * 2 : 1;
 	u32 arbiter = 0;
 	u32 val;
 	u16 table_max;
@@ -1444,8 +1454,9 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 
 	if (width_mode == PWM_WAVE_TABLE_16BITS_WIDTH) {
 		for (i = 0; i < table_config->len; i++) {
-			div = (u64)pc->clk_rate * table_config->table[i];
-			table_val = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+			div = (u64)clk_rate_kHz * table_config->table[i];
+			tmp = (u64)pc->data->prescaler * scaler * USEC_PER_SEC;
+			table_val = DIV_ROUND_CLOSEST_ULL(div, tmp);
 			writel_relaxed(table_val & 0xff,
 				       pc->base + WAVE_MEM + (table_config->offset + i) * 2 * 4);
 			if (readl_poll_timeout(pc->base + WAVE_MEM_STATUS,
@@ -1471,8 +1482,9 @@ static int rockchip_pwm_set_wave_table_v4(struct pwm_chip *chip, struct pwm_devi
 		}
 	} else {
 		for (i = 0; i < table_config->len; i++) {
-			div = (u64)pc->clk_rate * table_config->table[i];
-			table_val = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
+			div = (u64)clk_rate_kHz * table_config->table[i];
+			tmp = (u64)pc->data->prescaler * scaler * USEC_PER_SEC;
+			table_val = DIV_ROUND_CLOSEST_ULL(div, tmp);
 			writel_relaxed(table_val,
 				       pc->base + WAVE_MEM + (table_config->offset + i) * 4);
 			if (readl_poll_timeout(pc->base + WAVE_MEM_STATUS,
@@ -1526,9 +1538,11 @@ static int rockchip_pwm_set_wave_v4(struct pwm_chip *chip, struct pwm_device *pw
 
 		rpt = config->rpt << FIRST_DIMENSIONAL_SHIFT;
 	} else {
+		pc->scaler = 0;
 		ctrl = WAVE_DUTY_EN(false) | WAVE_PERIOD_EN(false);
 	}
 
+	writel_relaxed(CLK_SCALE(pc->scaler), pc->base + CLK_CTRL);
 	writel_relaxed(ctrl, pc->base + WAVE_CTRL);
 	writel_relaxed(max_val, pc->base + WAVE_MAX);
 	writel_relaxed(min_val, pc->base + WAVE_MIN);
@@ -1559,6 +1573,18 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 	if (!pc->wave_support ||
 	    !pc->data->funcs.set_wave_table || !pc->data->funcs.set_wave) {
 		dev_err(chip->dev, "Unsupported wave generator mode\n");
+		return -EINVAL;
+	}
+
+	if (!config->clk_rate) {
+		dev_err(chip->dev, "clk rate can not be 0\n");
+		return -EINVAL;
+	}
+
+	pc->scaler = DIV_ROUND_CLOSEST_ULL(pc->clk_rate, config->clk_rate * 2);
+	if (pc->scaler > 256) {
+		dev_err(chip->dev, "Unsupported scale factor %d(max: 512) for PWM%d\n",
+			pc->scaler * 2, pc->channel_id);
 		return -EINVAL;
 	}
 

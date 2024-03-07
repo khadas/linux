@@ -608,6 +608,12 @@ struct rga_iommu_prefetch {
 	uint32_t uv_threshold;
 };
 
+struct rga_rgba5551_alpha {
+	uint16_t flags;
+	uint8_t alpha0;
+	uint8_t alpha1;
+};
+
 struct rga_req {
 	/* (enum) process mode sel */
 	uint8_t render_mode;
@@ -737,7 +743,9 @@ struct rga_req {
 
 	struct rga_csc_clip full_csc_clip;
 
-	uint8_t reservr[43];
+	struct rga_rgba5551_alpha rgba5551_alpha;
+
+	uint8_t reservr[39];
 };
 
 struct rga_alpha_config {
@@ -868,6 +876,8 @@ struct rga2_req {
 	struct rga_interp interp;
 
 	struct rga_iommu_prefetch iommu_prefetch;
+
+	struct rga_rgba5551_alpha rgba5551_alpha;
 };
 
 struct rga3_req {

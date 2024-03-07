@@ -98,11 +98,12 @@
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
 		rockchip,uboot-charge-on = <1>;
-		rockchip,android-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
 		rockchip,uboot-low-power-voltage = <3450>;
 		rockchip,screen-on-voltage = <3500>;
 		rockchip,uboot-exit-charge-level = <2>;
 		rockchip,uboot-exit-charge-voltage = <3500>;
+		rockchip,uboot-exit-charge-auto = <1>;
 		status = "okay";
 	};
 
@@ -1166,6 +1167,12 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
+
+	rockchip,sleep-io-ret-config = <
+		(0
+		| RKPM_VCCIO3_RET_EN
+		)
+	>;
 };
 
 &route_dsi {

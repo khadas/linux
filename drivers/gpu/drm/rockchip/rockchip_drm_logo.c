@@ -43,13 +43,18 @@ find_crtc_by_node(struct drm_device *drm_dev, struct device_node *node)
 	struct drm_crtc *crtc;
 
 	np_crtc = of_get_parent(node);
-	if (!np_crtc || !of_device_is_available(np_crtc))
+	if (!np_crtc || !of_device_is_available(np_crtc)) {
+		of_node_put(np_crtc);
 		return NULL;
+	}
 
 	drm_for_each_crtc(crtc, drm_dev) {
-		if (crtc->port == np_crtc)
+		if (crtc->port == np_crtc) {
+			of_node_put(np_crtc);
 			return crtc;
+		}
 	}
+	of_node_put(np_crtc);
 
 	return NULL;
 }
@@ -61,12 +66,32 @@ find_sub_dev_by_node(struct drm_device *drm_dev, struct device_node *node)
 	struct rockchip_drm_sub_dev *sub_dev;
 
 	np_connector = of_graph_get_remote_port_parent(node);
-	if (!np_connector || !of_device_is_available(np_connector))
+	if (!np_connector || !of_device_is_available(np_connector)) {
+		of_node_put(np_connector);
 		return NULL;
+	}
 
 	sub_dev = rockchip_drm_get_sub_dev(np_connector);
-	if (!sub_dev)
-		return NULL;
+	if (!sub_dev) {
+		/*
+		 * for DP-MST, ports node->parent node->parent node is the device node
+		 */
+		struct device_node *np_top;
+
+		np_top = of_get_parent(np_connector);
+		if (!np_top) {
+			of_node_put(np_connector);
+			return NULL;
+		}
+
+		sub_dev = rockchip_drm_get_sub_dev(np_top);
+		of_node_put(np_top);
+		if (!sub_dev) {
+			of_node_put(np_connector);
+			return NULL;
+		}
+	}
+	of_node_put(np_connector);
 
 	return sub_dev;
 }
@@ -108,7 +133,7 @@ find_sub_dev_by_bridge(struct drm_device *drm_dev, struct device_node *node)
 		goto err_put_port;
 	}
 
-sub_dev = rockchip_drm_get_sub_dev(np_connector);
+	sub_dev = rockchip_drm_get_sub_dev(np_connector);
 	if (!sub_dev)
 		goto err_put_port;
 
@@ -456,8 +481,10 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 		return NULL;
 
 	fb = get_framebuffer_by_node(drm_dev, route);
-	if (IS_ERR_OR_NULL(fb))
+	if (IS_ERR_OR_NULL(fb)) {
+		of_node_put(connect);
 		return NULL;
+	}
 
 	crtc = find_crtc_by_node(drm_dev, connect);
 
@@ -465,6 +492,7 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 
 	if (!sub_dev)
 		sub_dev = find_sub_dev_by_bridge(drm_dev, connect);
+	of_node_put(connect);
 
 	if (!crtc || !sub_dev) {
 		dev_warn(drm_dev->dev,

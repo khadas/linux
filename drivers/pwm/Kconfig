@@ -502,6 +502,15 @@ config PWM_ROCKCHIP_ONESHOT
 	help
 	  Support Rockchip pwm oneshot mode for specified number of cycles.
 
+config PWM_ROCKCHIP_TEST
+	tristate "Rockchip PWM test demo support"
+	depends on PWM_ROCKCHIP
+	help
+	  Rockchip PWM test demo driver.
+	  Say yes here if you want to get some demos for how to use PWM,
+	  whether it is about the generic framework or the functions
+	  supported by Rockchip PWM.
+
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST

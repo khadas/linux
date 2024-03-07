@@ -135,11 +135,8 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 
 			*bRGA_SRC_X_FACTOR = ((param_x & 0xffff) | ((scale_x_offset) << 16));
 		} else {
-#if SCALE_DOWN_LARGE
-			param_x = ((dw) << 16) / (sw) + 1;
-#else
-			param_x = ((dw) << 16) / (sw);
-#endif
+			param_x = ((dw << 16) + (sw / 2)) / sw;
+
 			*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
 		}
 	} else if (sw < dw) {
@@ -161,11 +158,8 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 
 			*bRGA_SRC_Y_FACTOR = ((param_y & 0xffff) | ((scale_y_offset) << 16));
 		} else {
-#if SCALE_DOWN_LARGE
-			param_y = ((dh) << 16) / (sh) + 1;
-#else
-			param_y = ((dh) << 16) / (sh);
-#endif
+			param_y = ((dh << 16) + (sh / 2)) / sh;
+
 			*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
 		}
 	} else if (sh < dh) {
@@ -364,7 +358,12 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			vsd_scale_mode = 0;
 			break;
 		case RGA_INTERP_LINEAR:
-			vsd_scale_mode = 1;
+			if (sh > 4096)
+				/* force select average */
+				vsd_scale_mode = 0;
+			else
+				vsd_scale_mode = 1;
+
 			break;
 		}
 	}
@@ -426,28 +425,10 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
 		break;
-	case RGA_FORMAT_RGBA_5551:
-		src0_format = 0x5;
-		pixel_width = 2;
-		break;
-	case RGA_FORMAT_RGBA_4444:
-		src0_format = 0x6;
-		pixel_width = 2;
-		break;
 	case RGA_FORMAT_BGR_565:
 		src0_format = 0x4;
 		pixel_width = 2;
 		msg->src_trans_mode &= 0x07;
-		src0_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_5551:
-		src0_format = 0x5;
-		pixel_width = 2;
-		src0_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_4444:
-		src0_format = 0x6;
-		pixel_width = 2;
 		src0_rb_swp = 0x1;
 		break;
 
@@ -483,23 +464,19 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_ARGB_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_5551:
 		src0_format = 0x5;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_ARGB_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_4444:
 		src0_format = 0x6;
 		pixel_width = 2;
-		src0_alpha_swp = 1;
 		src0_rb_swp = 0x1;
 		break;
 
@@ -843,6 +820,8 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 {
+	u32 *bRGA_SRC_FG_COLOR;
+	u32 *bRGA_SRC_BG_COLOR;
 	u32 *bRGA_DST_INFO;
 	u32 *bRGA_DST_BASE0, *bRGA_DST_BASE1, *bRGA_DST_BASE2,
 		*bRGA_SRC_BASE3;
@@ -892,6 +871,9 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	x_div = y_div = 1;
 
 	dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
+
+	bRGA_SRC_FG_COLOR = (u32 *) (base + RGA2_SRC_FG_COLOR_OFFSET);
+	bRGA_SRC_BG_COLOR = (u32 *) (base + RGA2_SRC_BG_COLOR_OFFSET);
 
 	bRGA_DST_INFO = (u32 *) (base + RGA2_DST_INFO_OFFSET);
 	bRGA_DST_BASE0 = (u32 *) (base + RGA2_DST_BASE0_OFFSET);
@@ -943,26 +925,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		src1_format = 0x4;
 		spw = 2;
 		break;
-	case RGA_FORMAT_RGBA_5551:
-		src1_format = 0x5;
-		spw = 2;
-		break;
-	case RGA_FORMAT_RGBA_4444:
-		src1_format = 0x6;
-		spw = 2;
-		break;
 	case RGA_FORMAT_BGR_565:
 		src1_format = 0x4;
-		spw = 2;
-		src1_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_5551:
-		src1_format = 0x5;
-		spw = 2;
-		src1_rb_swp = 0x1;
-		break;
-	case RGA_FORMAT_BGRA_4444:
-		src1_format = 0x6;
 		spw = 2;
 		src1_rb_swp = 0x1;
 		break;
@@ -993,23 +957,19 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_ARGB_5551:
 		src1_format = 0x5;
 		spw = 2;
-		src1_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_5551:
 		src1_format = 0x5;
 		spw = 2;
-		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_ARGB_4444:
 		src1_format = 0x6;
 		spw = 2;
-		src1_alpha_swp = 1;
 		break;
 	case RGA_FORMAT_ABGR_4444:
 		src1_format = 0x6;
 		spw = 2;
-		src1_alpha_swp = 1;
 		src1_rb_swp = 0x1;
 		break;
 	case RGA_FORMAT_RGBA_2BPP:
@@ -1037,6 +997,14 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	reg =
 		((reg & (~m_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP)) |
 		 (s_RGA2_DST_INFO_SW_SRC1_ALPHA_SWP(src1_alpha_swp)));
+
+	if (msg->rgba5551_alpha.flags & 0x1) {
+		reg = ((reg & (~m_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN)) |
+		       (s_RGA2_DST_INFO_SW_SRC1_A1555_ACONFIG_EN(1)));
+
+		*bRGA_SRC_FG_COLOR = (msg->rgba5551_alpha.alpha1 & 0xff) << 24;
+		*bRGA_SRC_BG_COLOR = (msg->rgba5551_alpha.alpha0 & 0xff) << 24;
+	}
 
 	switch (msg->dst.format) {
 	case RGA_FORMAT_RGBA_8888:
@@ -2213,7 +2181,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			if ((msg->dst.format != RGA_FORMAT_Y4) &&
 			    (msg->dst.format != RGA_FORMAT_Y8)) {
 				RGA2_set_reg_alpha_info(base, msg);
-				RGA2_set_reg_rop_info(base, msg);
+				if (msg->rgba5551_alpha.flags != 1)
+					RGA2_set_reg_rop_info(base, msg);
 			}
 		}
 		if (msg->mosaic_info.enable)
@@ -2421,6 +2390,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	req->uvvds_mode = req_rga->uvvds_mode;
 
 	memcpy(&req->osd_info, &req_rga->osd_info, sizeof(req_rga->osd_info));
+
+	memcpy(&req->rgba5551_alpha, &req_rga->rgba5551_alpha, sizeof(req_rga->rgba5551_alpha));
 
 	if (((req_rga->alpha_rop_flag) & 1)) {
 		if ((req_rga->alpha_rop_flag >> 3) & 1) {

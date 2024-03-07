@@ -422,6 +422,7 @@
 				regulator-enable-ramp-delay = <400>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -434,6 +435,7 @@
 				regulator-name = "vdd_npu_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -446,6 +448,7 @@
 				regulator-name = "vdd_cpu_lit_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 					regulator-suspend-microvolt = <750000>;
 				};
 			};
@@ -458,6 +461,7 @@
 				regulator-name = "vcc_3v3_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -470,6 +474,7 @@
 				regulator-name = "vdd_gpu_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 					regulator-suspend-microvolt = <850000>;
 				};
 			};
@@ -480,6 +485,7 @@
 				regulator-name = "vddq_ddr_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -491,6 +497,7 @@
 				regulator-name = "vdd_logic_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -502,6 +509,7 @@
 				regulator-name = "vcc_1v8_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
@@ -512,6 +520,7 @@
 				regulator-name = "vdd2_ddr_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -523,6 +532,7 @@
 				regulator-name = "vdd_ddr_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -534,6 +544,7 @@
 				regulator-name = "vcca_1v8_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -545,6 +556,7 @@
 				regulator-name = "vcc_1v8_cam";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -556,6 +568,7 @@
 				regulator-name = "vdda_1v2_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -567,6 +580,7 @@
 				regulator-name = "vcca3v3_codec";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -578,6 +592,7 @@
 				regulator-name = "vccio_sd_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -589,6 +604,7 @@
 				regulator-name = "vcca1v8_pldo6_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
 				};
 			};
@@ -601,6 +617,7 @@
 				regulator-name = "vdd_0v75_s3";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
 					regulator-suspend-microvolt = <750000>;
 				};
 			};
@@ -613,6 +630,7 @@
 				regulator-name = "vdda_ddr_pll_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -624,6 +642,7 @@
 				regulator-name = "vdda0v75_hdmi_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -635,6 +654,7 @@
 				regulator-name = "vdda_0v85_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -646,6 +666,7 @@
 				regulator-name = "vdda_0v75_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 		};

@@ -284,6 +284,8 @@
 			capacity-dmips-mhz = <485>;
 			clocks = <&scmi_clk ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <120>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -324,6 +326,8 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
+			#cooling-cells = <2>;
+			dynamic-power-coefficient = <320>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -1204,6 +1208,7 @@
 			| RKPM_SLP_ARMOFF_LOGOFF
 			| RKPM_SLP_PMU_PMUALIVE_32K
 			| RKPM_SLP_PMU_DIS_OSC
+			| RKPM_SLP_PMIC_LP
 			)
 		>;
 		rockchip,wakeup-config = <
@@ -1260,14 +1265,43 @@
 		little_core_thermal: little-core-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <1390>; /* milliwatts */
+
 			thermal-sensors = <&tsadc 2>;
 			trips {
+				threshold: trip-point-0 {
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
 				little_core_crit: little-core-crit {
 					/* millicelsius */
 					temperature = <115000>;
 					/* millicelsius */
 					hysteresis = <2000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map2 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -1866,6 +1900,8 @@
 		power-domain-names = "npu0", "npu1";
 		operating-points-v2 = <&npu_opp_table>;
 		iommus = <&rknpu_mmu>;
+		#cooling-cells = <2>;
+		dynamic-power-coefficient = <2570>;
 		status = "disabled";
 	};
 
@@ -1995,7 +2031,7 @@
 		power-domains = <&power RK3576_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>;
-
+		dynamic-power-coefficient = <1625>;
 		status = "disabled";
 	};
 
