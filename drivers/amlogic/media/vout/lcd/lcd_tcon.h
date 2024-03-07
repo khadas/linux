@@ -258,8 +258,6 @@ int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv);
 
