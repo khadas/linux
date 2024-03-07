@@ -453,6 +453,11 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 
 	state->pipeline = pipeline;
 	state->global_afbc = 0;
+	state->vpp_scope_x = 0;
+	state->vpp_scope_y = 0;
+
+	for (i = 0; i < MESON_MAX_SCALERS; i++)
+		state->scaler_param[i].global = 0;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (state->sub_states[0].more_60 && i == OSD3_SLICE1) {
