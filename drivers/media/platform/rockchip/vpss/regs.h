@@ -1054,7 +1054,7 @@
 
 /* MI_WR_CTRL */
 #define RKVPSS_MI_WR_INIT_BASE_EN		BIT(4)
-#define RKVPSS_MI_WR_UV_SWAP			BIT(7)
+#define RKVPSS_MI_WR_UV_SWAP			BIT(5)
 #define RKVPSS_MI_WR_TILE_SEL(x)		(((x) & 0x3) << 8)
 #define RKVPSS_MI_WR_STRIDE_CFG_DIS		BIT(15)
 #define RKVPSS_MI_WR_GROUP_MODE(x)		(((x) & 0x3) << 16)
