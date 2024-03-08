@@ -347,6 +347,9 @@ int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg)
 		return -EINVAL;
 	}
 
+	v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
+		 "%s stream:%d\n", __func__, stream->id);
+
 	rockit_isp_ops.rkisp_stream_stop(stream);
 
 	return 0;
@@ -368,6 +371,11 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 		pr_err("the stream is NULL");
 		return -EINVAL;
 	}
+
+	v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
+		 "%s stream:%d %dx%d wrap:%d\n",
+		 __func__, stream->id, width, height, wrap_line);
+
 	stream->ispdev->cap_dev.wrap_line = wrap_line;
 	stream->out_fmt.width = width;
 	stream->out_fmt.height = height;
@@ -405,8 +413,6 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 		struct rkisp_rockit_buffer *isprk_buf =
 			container_of(isp_buf, struct rkisp_rockit_buffer, isp_buf);
 
-		if (!isprk_buf)
-			break;
 		if (stream->out_isp_fmt.mplanes == 1) {
 			u32 y_offs = input_rockit_cfg->y_offset;
 			u32 u_offs = input_rockit_cfg->u_offset;
@@ -451,12 +457,15 @@ int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg)
 		return -EINVAL;
 	}
 
-	stream->streaming = true;
+	v4l2_dbg(1, rkisp_debug, &stream->ispdev->v4l2_dev,
+		 "%s stream:%d\n", __func__, stream->id);
+
 	ret = rockit_isp_ops.rkisp_stream_start(stream);
 	if (ret < 0) {
 		pr_err("stream id %d start failed\n", stream->id);
 		return -EINVAL;
 	}
+	stream->skip_frame = 1;
 	if (stream->ispdev->isp_state == ISP_STOP) {
 		stream->ispdev->isp_state = ISP_START;
 		rkisp_rdbk_trigger_event(stream->ispdev, T_CMD_QUEUE, NULL);
