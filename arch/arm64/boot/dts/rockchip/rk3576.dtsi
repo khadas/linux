@@ -2201,9 +2201,9 @@
 		interrupt-names = "irq_jpegd";
 		clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
-		rockchip,normal-rates = <700000000>, <0>;
+		rockchip,normal-rates = <702000000>, <0>;
 		assigned-clocks = <&cru ACLK_JPEG>;
-		assigned-clock-rates = <700000000>;
+		assigned-clock-rates = <702000000>;
 		resets = <&cru SRST_A_JPEG>, <&cru SRST_H_JPEG>;
 		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
@@ -2222,9 +2222,9 @@
 		interrupt-names = "irq_jpege";
 		clocks = <&cru ACLK_JPEG>, <&cru HCLK_JPEG>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
-		rockchip,normal-rates = <700000000>, <0>;
+		rockchip,normal-rates = <702000000>, <0>;
 		assigned-clocks = <&cru ACLK_JPEG>;
-		assigned-clock-rates = <700000000>;
+		assigned-clock-rates = <702000000>;
 		resets = <&cru SRST_A_JPEG>, <&cru SRST_H_JPEG>;
 		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
