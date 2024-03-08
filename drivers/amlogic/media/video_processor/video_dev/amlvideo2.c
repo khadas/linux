@@ -28,6 +28,8 @@
 #include <media/videobuf-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-ctrls.h>
 #include <linux/types.h>
 #include <linux/timex.h>
 #include <linux/amlogic/media/canvas/canvas.h>
@@ -82,6 +84,10 @@
 /* Wake up at about 30 fps */
 #define WAKE_NUMERATOR 30
 #define WAKE_DENOMINATOR 1001
+
+/*For VIDIOC_DQEVENT ioctl*/
+#define V4L2_EVENT_PRIVATE_EXT_BASE (V4L2_EVENT_PRIVATE_START + 0X2000)
+#define V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN (V4L2_EVENT_PRIVATE_EXT_BASE + 1)
 
 #define AMLVIDEO2_MAJOR_VERSION 0
 #define AMLVIDEO2_MINOR_VERSION 7
@@ -163,6 +169,10 @@ static int dump_num_increase;
 static int amlvideo2_continue_dump;
 module_param(amlvideo2_continue_dump, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_continue_dump, "amlvideo2_continue_dump");
+
+static int amlvideo2_force_report;
+module_param(amlvideo2_force_report, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_force_report, "amlvideo2_force_report");
 
 static struct v4l2_fract amlvideo2_frmintervals_active = {
 	.numerator = 1, .denominator = DEF_FRAMERATE, };
@@ -424,6 +434,7 @@ struct amlvideo2_fh {
 	suseconds_t frm_save_time_us; /* us */
 	unsigned int f_flags;
 	enum v4l2_buf_type type;
+	struct v4l2_fh fh;
 };
 
 struct amlvideo2_output {
@@ -3864,6 +3875,25 @@ static void dump_output(struct amlvideo2_output *output, int type)
 	set_fs(fs);
 }
 
+void amlvideo2_dispatch_event(struct amlvideo2_fh *aml_fh, u32 changes)
+{
+	struct v4l2_event event = {0};
+	int dst1 = 1;
+
+	switch (changes) {
+	case V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN:
+		event.type = V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN;
+		event.id = 0;
+		memcpy(&event.u.data[0], &dst1, sizeof(int));
+		break;
+	default:
+		pr_info("amlvideo2: unsupport event\n");
+		return;
+	}
+
+	v4l2_event_queue_fh(&aml_fh->fh, &event);
+}
+
 static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 			      struct amlvideo2_node_buffer *buf,
 			      struct vframe_s *vf)
@@ -3880,6 +3910,17 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	dpr_err(node->vid_dev, 1, "%s\n", __func__);
 	if (!vbuf || !vf)
 		return -1;
+
+	if ((vf->type_ext & VIDTYPE_EXT_VDIN_HDCP) ||
+		amlvideo2_force_report) {
+		amlvideo2_dispatch_event(fh,
+			V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN);
+		pr_info("the vf is err, pattern.\n");
+	}
+
+	if (amlvideo2_dbg_en & 2)
+		pr_info("%s: amlvideo2_force_report=%d.\n", __func__,
+			amlvideo2_force_report);
 
 	/* memset(&ge2d_config,0,sizeof(struct config_para_ex_s)); */
 	memset(&output, 0, sizeof(struct amlvideo2_output));
@@ -4855,7 +4896,8 @@ static struct videobuf_queue_ops amlvideo2_qops = {
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 
 	strcpy(cap->driver, "amlvideo2");
@@ -4902,7 +4944,8 @@ static inline u32 get_bytesperline(struct amlvideo2_fmt *fmt, u32 width)
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 
 	if (fh->set_format_flag) {
 		f->fmt.pix.width = fh->width;
@@ -4932,7 +4975,8 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	struct amlvideo2_fmt *fmt = NULL;
 	enum v4l2_field field;
@@ -4979,7 +5023,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	int ret = 0;
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct videobuf_queue *q = &fh->vb_vidq;
 
 	pr_info("amlvideo2 s_fmt_1 %d * %d\n",
@@ -5047,7 +5092,8 @@ static int vidioc_g_parm(struct file *file, void *priv,
 static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *parms)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	suseconds_t def_ival = 1000000 / DEF_FRAMERATE;
 	suseconds_t ival; /* us */
@@ -5079,7 +5125,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *p)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	#ifdef USE_SEMA_QBUF
 	struct amlvideo2_node *node = fh->node;
 	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
@@ -5091,7 +5138,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 
 static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	int ret = videobuf_querybuf(&fh->vb_vidq, p);
 
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
@@ -5117,7 +5165,8 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	#ifdef USE_SEMA_QBUF
 	struct amlvideo2_node *node = fh->node;
 	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
@@ -5131,7 +5180,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	int ret;
 
 #ifdef CONFIG_PM
@@ -5145,7 +5195,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 
 	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
 }
@@ -5477,7 +5528,8 @@ static struct notifier_block amlvideo2_notifier_nb = {
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	int ret;
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	struct vdin_v4l2_ops_s *vops = &node->vops;
@@ -5717,7 +5769,8 @@ start: node->frame_inittime = 1;
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	int ret;
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	struct vdin_v4l2_ops_s *vops = &node->vops;
@@ -5876,7 +5929,8 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	*i = node->input;
 	return 0;
@@ -5884,7 +5938,8 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	/*bit 28 : start tvin service flag, 1 : enable,  0 : disable*/
 	node->start_vdin_flag = (i >> 28);
@@ -5967,7 +6022,8 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	int i;
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 
 	for (i = 0; i < ARRAY_SIZE(amlvideo2_node_qctrl); i++)
@@ -5982,7 +6038,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	int i;
-	struct amlvideo2_fh *fh = priv;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 
 	for (i = 0; i < ARRAY_SIZE(amlvideo2_node_qctrl); i++)
@@ -6058,6 +6115,29 @@ static int vidioc_s_output(struct file *file, void *fh,
 	node->mode = (enum aml_screen_mode_e)mode;
 	pr_info("amlvideo2 set aml_screen_mode_e =%d\n", mode);
 	return 0;
+}
+
+static int vidioc_subscribe_event(struct v4l2_fh *fh,
+	const struct v4l2_event_subscription *sub)
+{
+	if (amlvideo2_dbg_en & 1)
+		pr_info("%s: sub=%d\n", __func__, sub->type);
+
+	switch (sub->type) {
+	case V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN:
+		return v4l2_event_subscribe(fh, sub, 5, NULL);
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
+	}
+}
+
+static int vidioc_unsubscribe_event(struct v4l2_fh *fh,
+	const struct v4l2_event_subscription *sub)
+{
+	if (amlvideo2_dbg_en & 1)
+		pr_info("%s: sub=%d\n", __func__, sub->type);
+
+	return v4l2_event_unsubscribe(fh, sub);
 }
 
 static int alloc_canvas(struct amlvideo2_node *node)
@@ -6319,10 +6399,11 @@ static int amlvideo2_open(struct file *file)
 		node->res.end = node->vid_dev->buffer_start +
 					node->vid_dev->buffer_size;
 	}
+	v4l2_fh_init(&fh->fh, video_devdata(file));
+	file->private_data = &fh->fh;
+	v4l2_fh_add(&fh->fh);
 	mutex_unlock(&node->mutex);
-
 	node->mode = AML_SCREEN_MODE_RATIO;
-	file->private_data = fh;
 	fh->node = node;
 
 	fh->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -6352,7 +6433,8 @@ static int amlvideo2_open(struct file *file)
 static ssize_t amlvideo2_read(struct file *file, char __user *data,
 			      size_t count, loff_t *ppos)
 {
-	struct amlvideo2_fh *fh = file->private_data;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		return videobuf_read_stream(&fh->vb_vidq, data, count, ppos, 0,
@@ -6364,7 +6446,8 @@ static ssize_t amlvideo2_read(struct file *file, char __user *data,
 static unsigned int amlvideo2_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
-	struct amlvideo2_fh *fh = file->private_data;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
@@ -6378,7 +6461,8 @@ static unsigned int amlvideo2_poll(struct file *file,
 
 static int amlvideo2_close(struct file *file)
 {
-	struct amlvideo2_fh *fh = file->private_data;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 	int temp_canvas;
 	int i;
@@ -6387,6 +6471,8 @@ static int amlvideo2_close(struct file *file)
 	videobuf_mmap_free(&fh->vb_vidq);
 	free_canvas(node->vid_dev->node[node->vid]);
 	amlvideo2_cma_buf_uninit(node->vid_dev, node->vid);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 
 	for (i = 0; i < 2 * BUFFER_COUNT; i++) {
 		if (amlvideo2_canvas[node->vid][i] >= 0) {
@@ -6427,7 +6513,8 @@ static int amlvideo2_close(struct file *file)
 static int amlvideo2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret = 0;
-	struct amlvideo2_fh *fh = file->private_data;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
 
 	dpr_err(node->vid_dev, 1,
@@ -6475,6 +6562,8 @@ static const struct v4l2_ioctl_ops amlvideo2_ioctl_ops = {
 .vidioc_g_selection = vidioc_g_selection,
 .vidioc_s_selection = vidioc_s_selection,
 .vidioc_s_output = vidioc_s_output,
+.vidioc_subscribe_event = vidioc_subscribe_event,
+.vidioc_unsubscribe_event = vidioc_unsubscribe_event,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 .vidiocgmbuf = vidiocgmbuf,
 #endif

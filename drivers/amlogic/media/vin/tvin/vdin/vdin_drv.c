@@ -3550,6 +3550,14 @@ static void vdin_handle_hdcp_chg(struct vdin_dev_s *devp)
 	}
 }
 
+static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
+{
+	if (devp->matrix_pattern_mode)
+		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
+	else
+		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
+}
+
 irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 {
 	ulong flags;
@@ -3687,6 +3695,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	curr_wr_vf->type = last_field_type;
 	curr_wr_vf->type_original = curr_wr_vf->type;
 
+	vdin_set_vfe_type(devp, curr_wr_vfe);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
 	vdin_hist_tgt(devp, curr_wr_vf);
