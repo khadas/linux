@@ -71,7 +71,8 @@
 /* 2024/01/10 --- V2.40 --- Fix cvbs line output jitter. */
 /* 2024/01/15 --- V2.41 --- Fix scan audio detect and frequency sync. */
 /* 2024/02/04 --- V2.42 --- Fix get frontend. */
-#define AMLATVDEMOD_VER "V2.42"
+/* 2024/03/06 --- V2.43 --- Fix pal bg gde filter and peaking. */
+#define AMLATVDEMOD_VER "V2.43"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

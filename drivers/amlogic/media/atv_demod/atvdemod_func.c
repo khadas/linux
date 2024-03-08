@@ -359,7 +359,10 @@ void atv_dmd_ring_filter(bool on, int std)
 			0x8274bf, 0x1d175c, 0x2aa526, 0x1d175c, 0x2d19e4 },
 		/* pal-i */
 		{ 0x94d888, 0x5a39fb, 0xd8ebb, 0x5a39fb, 0x226744,
-			0x94d888, 0x5a39fb, 0xd8ebb, 0x5a39fb, 0x226744 }
+			0x94d888, 0x5a39fb, 0xd8ebb, 0x5a39fb, 0x226744 },
+		/* pal-bg */
+		{ 0x69ea01, 0x3e99ec5, 0x1e6493, 0x3e99ec5, 0x84e94,
+			0x69ea01, 0x3e99ec5, 0x1e6493, 0x3e99ec5, 0x84e94 }
 	};
 
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -367,7 +370,7 @@ void atv_dmd_ring_filter(bool on, int std)
 
 	if (on) {
 		if (std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG) {
-			filter = 2;
+			filter = 3;
 		} else if (std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK) {
 			filter = 2;
 		} else if (std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I) {
@@ -1329,13 +1332,24 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 		gd_coeff[5] = 0xe7e;	/*-12'sd386;*/
 		gd_bypass = 0x1;
 	} else if (GDE_Curve == 2) {
-		gd_coeff[0] = 0x35;	/*12'sd53;*/
-		gd_coeff[1] = 0xf41;	/*-12'sd191;*/
-		gd_coeff[2] = 0x68;	/*12'sd104;*/
-		gd_coeff[3] = 0xea5;	/*-12'sd347;*/
-		gd_coeff[4] = 0x322;	/*12'sd802;*/
-		gd_coeff[5] = 0x1bb;	/*12'sd443;*/
-		gd_bypass = 0x1;
+		if (Broadcast_Standard ==
+			AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG) {
+			gd_coeff[0] = 0x2;	/*12'sd53;*/
+			gd_coeff[1] = 0x14;	/*-12'sd191;*/
+			gd_coeff[2] = 0x22;	/*12'sd104;*/
+			gd_coeff[3] = 0xfa3;	/*-12'sd347;*/
+			gd_coeff[4] = 0x322;	/*12'sd802;*/
+			gd_coeff[5] = 0x1bb;	/*12'sd443;*/
+			gd_bypass = 0x0;
+		} else {
+			gd_coeff[0] = 0x35;	/*12'sd53;*/
+			gd_coeff[1] = 0xf41;	/*-12'sd191;*/
+			gd_coeff[2] = 0x68;	/*12'sd104;*/
+			gd_coeff[3] = 0xea5;	/*-12'sd347;*/
+			gd_coeff[4] = 0x322;	/*12'sd802;*/
+			gd_coeff[5] = 0x1bb;	/*12'sd443;*/
+			gd_bypass = 0x1;
+		}
 	} else if (GDE_Curve == 3) {
 		gd_coeff[0] = 0xf;	/*12'sd15;*/
 		gd_coeff[1] = 0xfb5;	/*-12'sd75;*/
