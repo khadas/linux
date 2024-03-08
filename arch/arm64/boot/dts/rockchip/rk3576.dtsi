@@ -2345,12 +2345,12 @@
 		interrupt-names = "irq_vepu0";
 		clocks = <&cru ACLK_VEPU0>, <&cru HCLK_VEPU0>, <&cru CLK_VEPU0_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <400000000>, <0>, <700000000>;
+		rockchip,normal-rates = <400000000>, <0>, <702000000>;
 		resets = <&cru SRST_A_VEPU0>, <&cru SRST_H_VEPU0>,
 			 <&cru SRST_VEPU0_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		assigned-clocks = <&cru ACLK_VEPU0>, <&cru CLK_VEPU0_CORE>;
-		assigned-clock-rates = <400000000>, <700000000>;
+		assigned-clock-rates = <400000000>, <702000000>;
 		iommus = <&rkvenc0_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <3>;
@@ -2382,12 +2382,12 @@
 		interrupt-names = "irq_vepu1";
 		clocks = <&cru ACLK_VEPU1>, <&cru HCLK_VEPU1>, <&cru CLK_VEPU1_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <400000000>, <0>, <700000000>;
+		rockchip,normal-rates = <400000000>, <0>, <702000000>;
 		resets = <&cru SRST_A_VEPU1>, <&cru SRST_H_VEPU1>,
 			 <&cru SRST_VEPU1_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		assigned-clocks = <&cru ACLK_VEPU1>, <&cru CLK_VEPU1_CORE>;
-		assigned-clock-rates = <400000000>, <700000000>;
+		assigned-clock-rates = <400000000>, <702000000>;
 		iommus = <&rkvenc1_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <3>;
