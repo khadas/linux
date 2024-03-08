@@ -145,17 +145,19 @@ static int rockchip_combphy_pcie_init(struct rockchip_combphy_priv *priv)
 
 static int rockchip_combphy_usb3_init(struct rockchip_combphy_priv *priv)
 {
-	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
 	int ret = 0;
 
 	if (device_property_present(priv->dev, "rockchip,dis-u3otg0-port")) {
-		ret = rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en, false);
+		ret = rockchip_combphy_param_write(priv->pipe_grf,
+						   &cfg->u3otg0_port_en, false);
 		return ret;
 	} else if (device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
-		ret = rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en, false);
+		ret = rockchip_combphy_param_write(priv->pipe_grf,
+						   &cfg->u3otg1_port_en, false);
 		if (of_device_is_compatible(priv->dev->of_node, "rockchip,rk3576-naneng-combphy"))
 			rockchip_combphy_param_write(priv->phy_grf,
-						     &phy_cfg->grfcfg->usb_mode_set, true);
+						     &cfg->usb_mode_set, true);
 		return ret;
 	}
 
@@ -312,7 +314,7 @@ static int rockchip_combphy_validate(struct phy *phy, enum phy_mode mode, int su
 	return 0;
 }
 
-static const struct phy_ops rochchip_combphy_ops = {
+static const struct phy_ops rockchip_combphy_ops = {
 	.init = rockchip_combphy_init,
 	.exit = rockchip_combphy_exit,
 	.validate = rockchip_combphy_validate,
@@ -341,7 +343,7 @@ static struct phy *rockchip_combphy_xlate(struct device *dev,
 static int rockchip_combphy_parse_dt(struct device *dev,
 				     struct rockchip_combphy_priv *priv)
 {
-	const struct rockchip_combphy_cfg *phy_cfg = priv->cfg;
+	const struct rockchip_combphy_grfcfg *cfg = priv->cfg->grfcfg;
 	int ret, mac_id;
 	u32 vals[4];
 
@@ -366,17 +368,20 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 	}
 
 	if (device_property_present(dev, "rockchip,dis-u3otg0-port")) {
-		rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en, false);
+		rockchip_combphy_param_write(priv->pipe_grf,
+					     &cfg->u3otg0_port_en, false);
 	} else if (device_property_present(dev, "rockchip,dis-u3otg1-port")) {
-		rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en, false);
+		rockchip_combphy_param_write(priv->pipe_grf,
+					     &cfg->u3otg1_port_en, false);
 		if (of_device_is_compatible(dev->of_node, "rockchip,rk3576-naneng-combphy"))
 			rockchip_combphy_param_write(priv->phy_grf,
-						     &phy_cfg->grfcfg->usb_mode_set, true);
+						     &cfg->usb_mode_set, true);
 	}
 
 	if (!device_property_read_u32(dev, "rockchip,sgmii-mac-sel", &mac_id) &&
 	    (mac_id > 0))
-		rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->pipe_sgmii_mac_sel, true);
+		rockchip_combphy_param_write(priv->pipe_grf,
+					     &cfg->pipe_sgmii_mac_sel, true);
 
 	if (!device_property_read_u32_array(dev, "rockchip,pcie1ln-sel-bits",
 					    vals, ARRAY_SIZE(vals)))
@@ -449,7 +454,7 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv->phy = devm_phy_create(dev, NULL, &rochchip_combphy_ops);
+	priv->phy = devm_phy_create(dev, NULL, &rockchip_combphy_ops);
 	if (IS_ERR(priv->phy)) {
 		dev_err(dev, "failed to create combphy\n");
 		return PTR_ERR(priv->phy);
