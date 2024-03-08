@@ -46,6 +46,7 @@
 #define DSC_STATE_GO        4
 
 #define DSC_COUNT         8
+#define DSC_OPEN_TIMES		32
 
 struct dsc_channel {
 	struct aml_dsc *dsc;
@@ -787,9 +788,9 @@ static const struct file_operations dvb_dsc_fops = {
 
 static struct dvb_device dvbdev_dsc = {
 	.priv = NULL,
-	.users = 1,
-	.readers = 1,
-	.writers = 1,
+	.users = DSC_OPEN_TIMES,
+	.readers = DSC_OPEN_TIMES,
+	.writers = DSC_OPEN_TIMES,
 	.fops = &dvb_dsc_fops,
 };
 
