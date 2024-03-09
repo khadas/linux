@@ -118,6 +118,8 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 
 int vdin_sct_start(struct vdin_dev_s *devp)
 {
+	int retry = 3, ret = 0;
+
 	struct vf_entry *vfe = NULL;
 
 	if (devp->mem_type != VDIN_MEM_TYPE_SCT)
@@ -137,13 +139,20 @@ int vdin_sct_start(struct vdin_dev_s *devp)
 		pr_info("%s vdin%d:peek vframe failed\n", __func__, devp->index);
 		return -1;
 	}
-	vdin_sct_alloc(devp, vfe->vf.index);
-	vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+	while (retry--) {
+		ret = vdin_sct_alloc(devp, vfe->vf.index);
+		if (ret >= 0) {
+			vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+			break;
+		}
+		pr_info("%s vdin%d:alloc sct failed,retry=%d\n", __func__, devp->index, retry);
+		msleep(50);
+	}
 
 	return 0;
 }
 
-void vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
+int vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 {
 	int ret;
 	unsigned int page_idx;
@@ -179,6 +188,7 @@ void vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 		pr_info("%s:use %u us\n", __func__, (unsigned int)diff);
 	if (diff > 10000)
 		pr_info("%s:takes %llu us,too long\n", __func__, diff);
+	return ret;
 }
 
 void vdin_sct_free_tail(struct vdin_dev_s *devp, int vf_idx, int buffer_used)
@@ -352,6 +362,7 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 
 void vdin_sct_worker(struct work_struct *work)
 {
+	int ret = 0;
 	struct vf_entry *vfe = NULL, *next_wr_vfe = NULL;
 
 	struct vdin_dev_s *devp =
@@ -363,6 +374,10 @@ void vdin_sct_worker(struct work_struct *work)
 			devp->msct_top.que_work_cnt, devp->msct_top.worker_run_cnt);
 	if (!devp->afbce_info) {
 		pr_err("%s vdin%d,afbce_info == NULL!!!\n", __func__, devp->index);
+		return;
+	}
+	if (devp->msct_top.sct_stop_flag) {
+		pr_info("%s vdin%d in stop process!!!\n", __func__, devp->index);
 		return;
 	}
 	/* alloc memory may take same time,save the captured vfe first */
@@ -388,8 +403,9 @@ void vdin_sct_worker(struct work_struct *work)
 			next_wr_vfe->vf.mem_handle);
 		//this memory is used for every vf in one buffer mode,donot alloc again or free it
 		if (next_wr_vfe->vf.index != devp->af_num) {
-			vdin_sct_alloc(devp, next_wr_vfe->vf.index);
-			next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+			ret = vdin_sct_alloc(devp, next_wr_vfe->vf.index);
+			if (ret >= 0)
+				next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
 		}
 
 		next_wr_vfe->vf.afbce_num = 0;
@@ -442,7 +458,6 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	      devp->index || !is_afbce ||
 	    !(devp->cma_config_flag & MEM_ALLOC_CODEC_SCT)) {
 		devp->mem_type = VDIN_MEM_TYPE_CONTINUOUS;
-		devp->msct_top.sct_pause_dec = false;
 		pr_info("%s,vdin%d do not use scatter memory;is_afbce:%d,cma_flag:%#x\n",
 			__func__, devp->index, is_afbce, devp->cma_config_flag);
 		return 0;
@@ -483,13 +498,13 @@ int vdin_mem_exit(struct vdin_dev_s *devp)
 	if (devp->mem_type != VDIN_MEM_TYPE_SCT)
 		return 0;
 
+	flush_workqueue(devp->wq);
+	destroy_workqueue(devp->wq);
+
 	for (i = 0; i < devp->vfp->size; i++)
 		vdin_sct_free(devp->vfp, i);
 
 	vdin_sct_release(devp);
-
-	flush_workqueue(devp->wq);
-	destroy_workqueue(devp->wq);
 
 	devp->frame_buff_num = devp->frame_buff_num_bak;
 

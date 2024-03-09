@@ -25,7 +25,7 @@
 
 int vdin_sct_init(struct vdin_dev_s *devp);
 void vdin_sct_worker(struct work_struct *work);
-void vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx);
+int vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx);
 int vdin_sct_start(struct vdin_dev_s *devp);
 void vdin_sct_queue_work(struct vdin_dev_s *devp);
 void vdin_sct_free(struct vf_pool *p, int index);

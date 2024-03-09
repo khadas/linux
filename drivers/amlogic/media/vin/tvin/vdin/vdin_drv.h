@@ -732,7 +732,7 @@ struct vdin_msct_top_s {
 	unsigned int mmu_4k_number; /* mmu 4k number in full size */
 	unsigned int buffer_size_nub; /* 4k number per frame */
 	unsigned int tail_cnt;
-	bool	 sct_pause_dec; /* pause dec flag on sct mem */
+	bool	sct_stop_flag;
 	/* statistics info*/
 	unsigned int que_work_cnt;
 	unsigned int worker_run_cnt;

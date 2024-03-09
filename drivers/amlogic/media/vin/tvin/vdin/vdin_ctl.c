@@ -2691,7 +2691,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 				    VDIN_WR_CTRL + devp->addr_offset,
 				    canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec || devp->debug.pause_mif_dec)
+		if (devp->pause_dec || devp->debug.pause_mif_dec)
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WR_CTRL + devp->addr_offset,
 					    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2702,7 +2702,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		wr_bits(devp->addr_offset, VDIN_WR_CTRL, canvas_id,
 			WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec || devp->debug.pause_mif_dec)
+		if (devp->pause_dec || devp->debug.pause_mif_dec)
 			wr_bits(devp->addr_offset, VDIN_WR_CTRL, 0,
 				WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else

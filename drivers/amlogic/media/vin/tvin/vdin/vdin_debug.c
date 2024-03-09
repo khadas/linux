@@ -4034,11 +4034,11 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 	struct vdin_mmu_box *box = NULL;
 
 	pr_info("mem_type:%d\n", devp->mem_type);
-	pr_info("irq:%d,frm:%d,que:%d,run:%d,pause:%d,af_num:%d\n",
+	pr_info("irq:%d,frm:%d,que:%d,run:%d,af_num:%d\n",
 		devp->irq_cnt, devp->frame_cnt,
 		devp->msct_top.que_work_cnt,
 		devp->msct_top.worker_run_cnt,
-		devp->msct_top.sct_pause_dec, devp->af_num);
+		devp->af_num);
 
 	pr_info("pool,size:%d,wr_list:%d,wr_mode:%d,rd_list:%d,rd_mode:%d\n",
 		devp->vfp->size, devp->vfp->wr_list_size,
