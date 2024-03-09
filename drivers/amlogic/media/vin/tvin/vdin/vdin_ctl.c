@@ -683,11 +683,11 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_YUV444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (!devp->vdin_pc_mode &&
-				    devp->vdin_function_sel & VDIN_444_TO_422_CONVERT)
-					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
-				else
+				if (devp->vdin_pc_mode ||
+				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+				else
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 			} else if (devp->prop.dest_cfmt == TVIN_NV21) {
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV21;
 			} else if (devp->prop.dest_cfmt == TVIN_NV12) {
@@ -713,11 +713,11 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_RGB444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (!devp->vdin_pc_mode &&
-				    devp->vdin_function_sel & VDIN_444_TO_422_CONVERT)
-					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
-				else
+				if (devp->vdin_pc_mode ||
+				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV444;
+				else
+					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
 			} else if (devp->prop.dest_cfmt == TVIN_NV21) {
 				format_convert = VDIN_FORMAT_CONVERT_RGB_NV21;
 			} else if (devp->prop.dest_cfmt == TVIN_NV12) {
