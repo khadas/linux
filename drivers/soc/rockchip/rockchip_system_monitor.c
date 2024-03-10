@@ -33,6 +33,9 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 
 #include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 #include "../../opp/opp.h"
@@ -94,6 +97,108 @@ static atomic_t monitor_in_suspend;
 
 static BLOCKING_NOTIFIER_HEAD(system_monitor_notifier_list);
 static BLOCKING_NOTIFIER_HEAD(system_status_notifier_list);
+
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+static DEFINE_MUTEX(early_suspend_mutex);
+static LIST_HEAD(early_suspend_list);
+static bool is_early_suspend;
+
+void register_early_suspend(struct early_suspend *handler)
+{
+	struct list_head *pos;
+
+	if (!handler)
+		return;
+
+	mutex_lock(&early_suspend_mutex);
+	list_for_each(pos, &early_suspend_list) {
+		struct early_suspend *tmp;
+
+		tmp = list_entry(pos, struct early_suspend, link);
+		if (tmp->level > handler->level)
+			break;
+	}
+	list_add_tail(&handler->link, pos);
+	mutex_unlock(&early_suspend_mutex);
+}
+EXPORT_SYMBOL(register_early_suspend);
+
+void unregister_early_suspend(struct early_suspend *handler)
+{
+	if (!handler)
+		return;
+
+	mutex_lock(&early_suspend_mutex);
+	list_del(&handler->link);
+	mutex_unlock(&early_suspend_mutex);
+}
+EXPORT_SYMBOL(unregister_early_suspend);
+
+void rockchip_request_early_suspend(void)
+{
+	struct early_suspend *pos;
+
+	mutex_lock(&early_suspend_mutex);
+	if (is_early_suspend)
+		goto unlock;
+	list_for_each_entry(pos, &early_suspend_list, link) {
+		if (pos->suspend != NULL)
+			pos->suspend(pos);
+	}
+	is_early_suspend = true;
+unlock:
+	mutex_unlock(&early_suspend_mutex);
+}
+EXPORT_SYMBOL(rockchip_request_early_suspend);
+
+void rockchip_request_late_resume(void)
+{
+	struct early_suspend *pos;
+
+	mutex_lock(&early_suspend_mutex);
+	if (!is_early_suspend)
+		goto unlock;
+	list_for_each_entry_reverse(pos, &early_suspend_list, link) {
+		if (pos->resume != NULL)
+			pos->resume(pos);
+	}
+	is_early_suspend = false;
+unlock:
+	mutex_unlock(&early_suspend_mutex);
+}
+EXPORT_SYMBOL(rockchip_request_late_resume);
+
+static ssize_t early_suspend_state_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return sprintf(buf, "%d\n", is_early_suspend);
+}
+
+static ssize_t early_suspend_state_store(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (!n)
+		return -EINVAL;
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+	if (val > 1)
+		return -EINVAL;
+
+	if (val)
+		rockchip_request_early_suspend();
+	else
+		rockchip_request_late_resume();
+
+	return n;
+}
+
+static struct system_monitor_attr early_suspend_state =
+	__ATTR(early_suspend, 0644, early_suspend_state_show, early_suspend_state_store);
+#endif
 
 int rockchip_register_system_status_notifier(struct notifier_block *nb)
 {
@@ -1535,6 +1640,7 @@ static struct notifier_block rockchip_monitor_reboot_nb = {
 	.notifier_call = rockchip_monitor_reboot_notifier,
 };
 
+#ifdef CONFIG_FB
 static int rockchip_monitor_fb_notifier(struct notifier_block *nb,
 					unsigned long action, void *ptr)
 {
@@ -1560,6 +1666,23 @@ static int rockchip_monitor_fb_notifier(struct notifier_block *nb,
 static struct notifier_block rockchip_monitor_fb_nb = {
 	.notifier_call = rockchip_monitor_fb_notifier,
 };
+#elif defined(CONFIG_ROCKCHIP_EARLYSUSPEND)
+static void rockchip_monitor_early_suspend(struct early_suspend *h)
+{
+	rockchip_set_system_status(SYS_STATUS_SUSPEND);
+}
+
+static void rockchip_monitor_resume(struct early_suspend *h)
+{
+	rockchip_clear_system_status(SYS_STATUS_SUSPEND);
+}
+
+static struct early_suspend monitor_early_suspend_handler = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
+	.suspend = rockchip_monitor_early_suspend,
+	.resume = rockchip_monitor_resume,
+};
+#endif
 
 static int rockchip_eink_devfs_notifier(struct notifier_block *nb,
 					unsigned long action, void *ptr)
@@ -1623,6 +1746,10 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	if (sysfs_create_file(system_monitor->kobj, &status.attr))
 		dev_err(dev, "failed to create system status sysfs\n");
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+	if (sysfs_create_file(system_monitor->kobj, &early_suspend_state.attr))
+		dev_err(dev, "failed to create early suspend state sysfs\n");
+#endif
 
 	cpumask_clear(&system_monitor->status_offline_cpus);
 	cpumask_clear(&system_monitor->offline_cpus);
@@ -1646,8 +1773,12 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 
 	register_reboot_notifier(&rockchip_monitor_reboot_nb);
 
+#ifdef CONFIG_FB
 	if (fb_register_client(&rockchip_monitor_fb_nb))
 		dev_err(dev, "failed to register fb nb\n");
+#elif defined(CONFIG_ROCKCHIP_EARLYSUSPEND)
+	register_early_suspend(&monitor_early_suspend_handler);
+#endif
 
 	ebc_register_notifier(&rockchip_monitor_ebc_nb);
 
