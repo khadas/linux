@@ -218,22 +218,15 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 			if (pdrv->status & LCD_STATUS_IF_ON)
 				lcd_vbyone_interrupt_enable(pdrv, 0);
 		}
+	}
 
-		lcd_clk_change(pdrv);
-		lcd_venc_change(pdrv);
+	lcd_clk_change(pdrv);
+	lcd_venc_change(pdrv);
 
+	if (pdrv->status & LCD_STATUS_ENCL_ON) {
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
 			if (pdrv->status & LCD_STATUS_IF_ON)
 				lcd_vbyone_wait_stable(pdrv);
-		}
-	} else {
-		/* only change parameters when panel is off */
-		switch (pdrv->config.timing.clk_change) {
-		case LCD_CLK_PLL_CHANGE:
-			lcd_clk_generate_parameter(pdrv);
-			break;
-		default:
-			break;
 		}
 	}
 

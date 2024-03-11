@@ -478,6 +478,8 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	unsigned int pre_pclk;
 	int dur_index;
 
+	/* clear clk_change flag */
+	pdrv->config.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
 	if (pdrv->vmode_mgr.next_vmode_info) {
 		pre_pclk = pdrv->config.timing.base_timing.pixel_clk;
 		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
@@ -487,9 +489,11 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
 		memcpy(&pdrv->config.timing.base_timing, ptiming,
 			sizeof(struct lcd_detail_timing_s));
-		if (pdrv->config.timing.base_timing.pixel_clk != pre_pclk)
-			pdrv->config.timing.clk_change |= LCD_CLK_PLL_RESET;
 		lcd_cus_ctrl_config_update(pdrv, (void *)ptiming, LCD_CUS_CTRL_SEL_TIMMING);
+		if (pdrv->config.timing.base_timing.pixel_clk != pre_pclk) {
+			pdrv->config.timing.clk_change |= LCD_CLK_PLL_RESET;
+			lcd_clk_generate_parameter(pdrv);
+		}
 
 		//update base_timing to act_timing
 		lcd_enc_timing_init_config(pdrv);
@@ -512,13 +516,13 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	lcd_frame_rate_change(pdrv);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s: %dx%d, duration=%d:%d, dur_index=%d\n",
+		LCDPR("[%d]: %s: %dx%d, duration=%d:%d, dur_index=%d, clk_change=0x%x\n",
 			pdrv->index, __func__,
 			pdrv->config.timing.act_timing.h_active,
 			pdrv->config.timing.act_timing.v_active,
 			pdrv->config.timing.act_timing.sync_duration_num,
 			pdrv->config.timing.act_timing.sync_duration_den,
-			dur_index);
+			dur_index, pdrv->config.timing.clk_change);
 	}
 }
 
@@ -1178,12 +1182,13 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_enc_timing_init_config(pdrv);
+	lcd_clk_config_parameter_init(pdrv);
 
 	lcd_vmode_init(pdrv);
 	lcd_frame_rate_change(pdrv);
 
-	lcd_clk_config_parameter_init(pdrv);
 	lcd_clk_generate_parameter(pdrv);
+	pdrv->config.timing.clk_change = 0; /* clear clk_change flag */
 }
 
 /* ************************************************** *

@@ -153,6 +153,8 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 		return;
 	}
 
+	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0)
+		return;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	lcd_venc_op.venc_change(pdrv);

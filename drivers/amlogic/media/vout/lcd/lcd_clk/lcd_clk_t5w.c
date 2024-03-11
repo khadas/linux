@@ -297,6 +297,8 @@ static void lcd_set_tcon_clk(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int freq, val;
 
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		return;
 	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
 	    pdrv->config.basic.lcd_type != LCD_P2P)
 		return;
