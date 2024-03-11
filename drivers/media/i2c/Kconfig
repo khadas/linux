@@ -11,6 +11,13 @@ config VIDEO_CAM_SLEEP_WAKEUP
 	help
 	  Support for sensor sleep and wake up.
 
+config VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+	bool "Enable camera Thunderboot setup function"
+	depends on ROCKCHIP_THUNDER_BOOT
+	default y
+	help
+	  Say y if you need camera Thunderboot setup functions.
+
 comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
 
