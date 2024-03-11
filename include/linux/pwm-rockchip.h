@@ -92,6 +92,8 @@ enum rockchip_pwm_wave_update_mode {
  * @enable: enable or disable wave generator
  * @duty_en: to update duty by duty table or not
  * @period_en: to update period by period table or not
+ * @clk_rate: the dclk rate in wave generator mode
+ * @rpt: the number of repeated effective periods
  * @width_mode: the width mode of wave table
  * @update_mode: the update mode of wave generator
  * @duty_max: the maximum address of duty table

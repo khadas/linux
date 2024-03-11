@@ -568,6 +568,8 @@ static int rkvdec_vdpu383_irq(struct mpp_dev *mpp)
 	mpp->irq_status = readl_relaxed(link->reg_base + link->info->status_base);
 	writel(link->info->status_mask, link->reg_base + link->info->status_base);
 
+	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x : %08x\n", irq_val, mpp->irq_status);
+
 	/* wake isr to handle current task */
 	if (mpp->irq_status & status_bits)
 		return IRQ_WAKE_THREAD;
@@ -676,59 +678,6 @@ static int rkvdec2_read_perf_sel(struct mpp_dev *mpp, u32 *regs, u32 s, u32 e)
 }
 
 static int rkvdec2_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
-{
-	u32 i;
-	u32 dec_get;
-	s32 dec_length;
-	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
-	struct mpp_request *req;
-	u32 s, e;
-
-	mpp_debug_enter();
-
-	/* read register after running */
-	for (i = 0; i < task->r_req_cnt; i++) {
-		req = &task->r_reqs[i];
-		/* read perf register */
-		if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
-			u32 off = req->offset - RKVDEC_PERF_SEL_OFFSET;
-
-			s = off / sizeof(u32);
-			e = s + req->size / sizeof(u32);
-			rkvdec2_read_perf_sel(mpp, task->reg_sel, s, e);
-		} else {
-			s = req->offset / sizeof(u32);
-			e = s + req->size / sizeof(u32);
-			mpp_read_req(mpp, task->reg, s, e);
-		}
-	}
-	/* revert hack for irq status */
-	task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
-
-	/* revert hack for decoded length */
-	dec_get = mpp_read_relaxed(mpp, RKVDEC_REG_RLC_BASE);
-	dec_length = dec_get - task->strm_addr;
-	task->reg[RKVDEC_REG_RLC_BASE_INDEX] = dec_length << 10;
-	mpp_debug(DEBUG_REGISTER, "dec_get %08x dec_length %d\n", dec_get, dec_length);
-
-	if (mpp->srv->timing_en) {
-		s64 time_diff;
-
-		mpp_task->on_finish = ktime_get();
-		set_bit(TASK_TIMING_FINISH, &mpp_task->state);
-
-		time_diff = ktime_us_delta(mpp_task->on_finish, mpp_task->on_create);
-
-		if (mpp->timing_check && time_diff > (s64)mpp->timing_check)
-			mpp_task_dump_timing(mpp_task, time_diff);
-	}
-
-	mpp_debug_leave();
-
-	return 0;
-}
-
-static int rkvdec_vdpu383_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	u32 i;
 	u32 dec_get;
@@ -1546,12 +1495,13 @@ static struct mpp_dev_ops rkvdec_vdpu383_dev_ops = {
 	.run = rkvdec_vdpu383_run,
 	.irq = rkvdec_vdpu383_irq,
 	.isr = rkvdec_vdpu383_isr,
-	.finish = rkvdec_vdpu383_finish,
+	.finish = rkvdec2_finish,
 	.result = rkvdec2_result,
 	.free_task = rkvdec2_free_task,
 	.ioctl = rkvdec2_control,
 	.init_session = rkvdec2_init_session,
 	.free_session = rkvdec2_free_session,
+	.link_irq = rkvdec_vdpu383_link_irq,
 };
 
 static const struct mpp_dev_var rkvdec_v2_data = {

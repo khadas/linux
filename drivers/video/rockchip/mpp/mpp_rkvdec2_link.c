@@ -77,6 +77,8 @@ struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 		.err_flag_base = 0x010,
 		.err_flag_bit = BIT(31),
 	},
+	.irq_base = 0x00,
+	.next_addr_base = 0x1c,
 };
 
 /* vdpu34x link hw info for rk356x */
@@ -136,6 +138,8 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 		.err_flag_base = 0x010,
 		.err_flag_bit = BIT(31),
 	},
+	.irq_base = 0x00,
+	.next_addr_base = 0x1c,
 };
 
 /* vdpu382 link hw info */
@@ -195,10 +199,56 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 		.err_flag_base = 0x024,
 		.err_flag_bit = BIT(8),
 	},
+	.irq_base = 0x00,
+	.next_addr_base = 0x1c,
 };
 
 /* vdpu382 link hw info */
 struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
+	.tb_reg_num = 256,
+	.tb_reg_next = 0,
+	.tb_reg_r = 1,
+	.tb_reg_second_en = -1,
+	.tb_reg_debug = 2,
+	.tb_reg_seg0 = 3,
+	.tb_reg_seg1 = 4,
+	.tb_reg_seg2 = 5,
+
+	.part_w_num = 3,
+	.part_r_num = 2,
+	.part_w[0] = {
+		.tb_reg_off = 80,
+		.reg_start = 8,
+		.reg_num = 24,
+	},
+	.part_w[1] = {
+		.tb_reg_off = 104,
+		.reg_start = 64,
+		.reg_num = 44,
+	},
+	.part_w[2] = {
+		.tb_reg_off = 148,
+		.reg_start = 128,
+		.reg_num = 108,
+	},
+	.part_r[0] = {
+		.tb_reg_off = 16,
+		.reg_start = 15,
+		.reg_num = 1,
+	},
+	.part_r[1] = {
+		.tb_reg_off = 20,
+		.reg_start = 320,
+		.reg_num = 40,
+	},
+	.tb_reg_int = 16,
+	.tb_reg_cycle = 27,
+	.reg_status = {
+		.dec_num_mask = 0x3fffffff,
+		.err_flag_base = 0x04c,
+		.err_flag_bit = 0x3fe,
+	},
+	.next_addr_base = 0x20,
 	.ip_reset_base = 0x44,
 	.ip_reset_en = BIT(0),
 	.irq_base = 0x48,
@@ -233,11 +283,11 @@ static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
 	error_ff1 = (readl(reg_base + err_flag_base) & err_flag_bit) ? 1 : 0;
 	enable_ff1 = readl(reg_base + RKVDEC_LINK_EN_BASE);
 
-	dev->irq_status = readl(reg_base + RKVDEC_LINK_IRQ_BASE);
+	dev->irq_status = readl(reg_base + link_info->irq_base);
 	dev->iova_curr = readl(reg_base + RKVDEC_LINK_CFG_ADDR_BASE);
 	dev->link_mode = readl(reg_base + RKVDEC_LINK_MODE_BASE);
 	dev->total = readl(reg_base + RKVDEC_LINK_TOTAL_NUM_BASE);
-	dev->iova_next = readl(reg_base + RKVDEC_LINK_NEXT_ADDR_BASE);
+	dev->iova_next = readl(reg_base + link_info->next_addr_base);
 
 	do {
 		val = readl(reg_base + RKVDEC_LINK_DEC_NUM_BASE);
@@ -414,6 +464,7 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	u32 *tb_reg = (u32 *)table->vaddr;
 	u32 off, s, n;
 	u32 i;
+	u32 reg_ret_status;
 
 	mpp_debug_enter();
 
@@ -424,7 +475,8 @@ static int rkvdec2_link_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		memcpy(&task->reg[s], &tb_reg[off], n * sizeof(u32));
 	}
 	/* revert hack for irq status */
-	task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
+	reg_ret_status = mpp->var->hw_info->reg_ret_status;
+	task->reg[reg_ret_status] = task->irq_status;
 
 	mpp_debug_leave();
 
@@ -466,8 +518,10 @@ static void *rkvdec2_link_prepare(struct mpp_dev *mpp,
 	}
 
 	/* setup error mode flag */
-	tb_reg[9] |= BIT(18) | BIT(9);
-	tb_reg[info->tb_reg_second_en] |= RKVDEC_WAIT_RESET_EN;
+	if (info->tb_reg_second_en > 0) {
+		tb_reg[9] |= BIT(18) | BIT(9);
+		tb_reg[info->tb_reg_second_en] |= RKVDEC_WAIT_RESET_EN;
+	}
 
 	/* memset read registers */
 	part = info->part_r;
@@ -476,6 +530,16 @@ static void *rkvdec2_link_prepare(struct mpp_dev *mpp,
 		n = part[i].reg_num;
 		memset(&tb_reg[off], 0, n * sizeof(u32));
 	}
+
+	/* set node registers */
+	if (info->tb_reg_debug > 0)
+		tb_reg[info->tb_reg_debug] = table->iova + info->part_r[0].tb_reg_off * sizeof(u32);
+	if (info->tb_reg_seg0 > 0)
+		tb_reg[info->tb_reg_seg0] = table->iova + info->part_w[0].tb_reg_off * sizeof(u32);
+	if (info->tb_reg_seg1 > 0)
+		tb_reg[info->tb_reg_seg1] = table->iova + info->part_w[1].tb_reg_off * sizeof(u32);
+	if (info->tb_reg_seg2 > 0)
+		tb_reg[info->tb_reg_seg2] = table->iova + info->part_w[2].tb_reg_off * sizeof(u32);
 
 	list_move_tail(&table->link, &link_dec->used_list);
 	task->table = table;
@@ -528,30 +592,53 @@ static int rkvdec2_link_reset(struct mpp_dev *mpp)
 static int rkvdec2_link_irq(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	struct rkvdec_link_dev *link_dec = dec->link_dec;
+	struct rkvdec_link_dev *link = dec->link_dec;
 	u32 irq_status = 0;
 
-	irq_status = readl(link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+	irq_status = readl(link->reg_base + link->info->irq_base);
 
 	if (irq_status & RKVDEC_LINK_BIT_IRQ_RAW) {
-		u32 enabled = readl(link_dec->reg_base + RKVDEC_LINK_EN_BASE);
+		u32 enabled = readl(link->reg_base + RKVDEC_LINK_EN_BASE);
 
 		if (!enabled) {
 			u32 bus = mpp_read_relaxed(mpp, 273 * 4);
 
 			if (bus & 0x7ffff)
-				dev_info(link_dec->dev,
+				dev_info(link->dev,
 					 "invalid bus status %08x\n", bus);
 		}
 
-		link_dec->irq_status = irq_status;
+		link->irq_status = irq_status;
 		mpp->irq_status = mpp_read_relaxed(mpp, RKVDEC_REG_INT_EN);
 
-		writel_relaxed(0, link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+		writel_relaxed(0, link->reg_base + link->info->irq_base);
 	}
 
 	mpp_debug(DEBUG_IRQ_STATUS | DEBUG_LINK_TABLE, "irq_status: %08x : %08x\n",
 		  irq_status, mpp->irq_status);
+
+	return 0;
+}
+
+int rkvdec_vdpu383_link_irq(struct mpp_dev *mpp)
+{
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link = dec->link_dec;
+	u32 irq_val;
+	u32 irq_bits = link->info->irq_mask >> 16;
+
+	/* read irq and status */
+	irq_val = readl_relaxed(link->reg_base + link->info->irq_base);
+	if (irq_val & irq_bits) {
+		link->irq_status = irq_val;
+		mpp->irq_status = readl_relaxed(link->reg_base + link->info->status_base);
+
+		/* clear irq and status */
+		writel_relaxed(0xffff0000, link->reg_base + link->info->irq_base);
+		writel_relaxed(0xffff0000, link->reg_base + link->info->status_base);
+	}
+	mpp_debug(DEBUG_IRQ_STATUS | DEBUG_LINK_TABLE, "irq_status: %08x : %08x\n",
+		  irq_val, mpp->irq_status);
 
 	return 0;
 }
@@ -1094,8 +1181,12 @@ static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 irqreturn_t rkvdec2_link_irq_proc(int irq, void *param)
 {
 	struct mpp_dev *mpp = param;
-	int ret = rkvdec2_link_irq(mpp);
+	int ret;
 
+	if (mpp->dev_ops->link_irq)
+		ret = mpp->dev_ops->link_irq(mpp);
+	else
+		ret = rkvdec2_link_irq(mpp);
 	if (!ret)
 		rkvdec2_link_trigger_work(mpp);
 
@@ -1515,6 +1606,7 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 		u32 timeout_flag = test_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
 		u32 abort_flag = test_bit(TASK_STATE_ABORT, &mpp_task->state);
 		u32 timing_en = mpp->srv->timing_en;
+		u32 reg_ret_status = mpp->var->hw_info->reg_ret_status;
 
 		if (irq_status || timeout_flag || abort_flag) {
 			struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
@@ -1540,7 +1632,7 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			if (irq_status && mpp->dev_ops->finish)
 				mpp->dev_ops->finish(mpp, mpp_task);
 			else
-				task->reg[RKVDEC_REG_INT_EN_INDEX] = RKVDEC_TIMEOUT_STA;
+				task->reg[reg_ret_status] = RKVDEC_TIMEOUT_STA;
 
 			set_bit(TASK_STATE_FINISH, &mpp_task->state);
 			set_bit(TASK_STATE_DONE, &mpp_task->state);
@@ -1780,13 +1872,14 @@ static int rkvdec2_soft_ccu_enqueue(struct mpp_dev *mpp, struct mpp_task *mpp_ta
 	u32 i, reg_en, reg;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	struct rkvdec_link_dev *link_dec = dec->link_dec;
 	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
 	/* set reg for link */
 	reg = RKVDEC_LINK_BIT_CORE_WORK_MODE | RKVDEC_LINK_BIT_CCU_WORK_MODE;
-	writel_relaxed(reg, dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+	writel_relaxed(reg, link_dec->reg_base + link_dec->info->irq_base);
 
 	/* set reg for ccu */
 	writel_relaxed(RKVDEC_CCU_BIT_WORK_EN, dec->ccu->reg_base + RKVDEC_CCU_WORK_BASE);
@@ -2045,17 +2138,18 @@ irqreturn_t rkvdec2_hard_ccu_irq(int irq, void *param)
 	u32 irq_status;
 	struct mpp_dev *mpp = param;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link_dec = dec->link_dec;
 
-	irq_status = readl(dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+	irq_status = readl(link_dec->reg_base + link_dec->info->irq_base);
 	dec->ccu->ccu_core_work_mode = readl(dec->ccu->reg_base + RKVDEC_CCU_CORE_WORK_BASE);
 	if (irq_status & RKVDEC_LINK_BIT_IRQ_RAW) {
-		dec->link_dec->irq_status = irq_status;
+		link_dec->irq_status = irq_status;
 		mpp->irq_status = mpp_read(mpp, RKVDEC_REG_INT_EN);
 		mpp_debug(DEBUG_IRQ_STATUS, "core %d link_irq=%08x, core_irq=%08x\n",
 			  mpp->core_id, irq_status, mpp->irq_status);
 
 		writel(irq_status & 0xfffff0ff,
-		       dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+		       link_dec->reg_base + link_dec->info->irq_base);
 
 		kthread_queue_work(&mpp->queue->worker, &mpp->work);
 		return IRQ_HANDLED;
@@ -2067,6 +2161,7 @@ irqreturn_t rkvdec2_hard_ccu_irq(int irq, void *param)
 static int rkvdec2_hard_ccu_finish(struct rkvdec_link_info *hw, struct rkvdec2_task *task)
 {
 	u32 i, off, s, n;
+	u32 reg_ret_status;
 	struct rkvdec_link_part *part = hw->part_r;
 	u32 *tb_reg = (u32 *)task->table->vaddr;
 
@@ -2079,7 +2174,8 @@ static int rkvdec2_hard_ccu_finish(struct rkvdec_link_info *hw, struct rkvdec2_t
 		memcpy(&task->reg[s], &tb_reg[off], n * sizeof(u32));
 	}
 	/* revert hack for irq status */
-	task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
+	reg_ret_status = task->mpp_task.hw_info->reg_ret_status;
+	task->reg[reg_ret_status] = task->irq_status;
 
 	mpp_debug_leave();
 
@@ -2299,11 +2395,12 @@ static int rkvdec2_ccu_link_fix_rcb_regs(struct rkvdec2_dev *dec)
 	int ret = 0;
 	u32 i, val;
 	u32 reg, reg_idx, rcb_size, rcb_offset;
+	struct rkvdec_link_dev *link_dec = dec->link_dec;
 
 	if (!dec->rcb_iova && !dec->rcb_info_count)
 		goto done;
 	/* check whether fixed */
-	val = readl(dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+	val = readl(link_dec->reg_base + link_dec->info->irq_base);
 	if (val & RKVDEC_CCU_BIT_FIX_RCB)
 		goto done;
 	/* set registers */
@@ -2325,7 +2422,7 @@ static int rkvdec2_ccu_link_fix_rcb_regs(struct rkvdec2_dev *dec)
 	}
 
 	val |= RKVDEC_CCU_BIT_FIX_RCB;
-	writel(val, dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+	writel(val, link_dec->reg_base + link_dec->info->irq_base);
 done:
 	return ret;
 }
@@ -2355,15 +2452,16 @@ static int rkvdec2_hard_ccu_enqueue(struct rkvdec2_ccu *ccu,
 			u32 val;
 			struct mpp_dev *core = queue->cores[i];
 			struct rkvdec2_dev *dec = to_rkvdec2_dev(core);
+			struct rkvdec_link_dev *link_dec = dec->link_dec;
 
 			if (mpp->disable)
 				continue;
 			work_mode |= dec->core_mask;
 			rkvdec2_ccu_link_fix_rcb_regs(dec);
 			/* control by ccu */
-			val = readl(dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+			val = readl(link_dec->reg_base + link_dec->info->irq_base);
 			val |= RKVDEC_LINK_BIT_CCU_WORK_MODE;
-			writel(val, dec->link_dec->reg_base + RKVDEC_LINK_IRQ_BASE);
+			writel(val, link_dec->reg_base + link_dec->info->irq_base);
 		}
 		writel(work_mode, ccu->reg_base + RKVDEC_CCU_CORE_WORK_BASE);
 		ccu->ccu_core_work_mode = readl(ccu->reg_base + RKVDEC_CCU_CORE_WORK_BASE);

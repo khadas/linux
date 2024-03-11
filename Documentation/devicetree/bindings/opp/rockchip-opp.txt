@@ -10,6 +10,10 @@ In 'operating-points-v2' table:
 
 - rockchip,opp-shared-dsu: Indicates the dsu also uses the opp table.
 
+- rockchip,opp-shared-cci: Indicates the cci also uses the opp table.
+
+- rockchip,cpu-freq-percent: The percentage of cpu frequency.
+
 - rockchip,leakage-voltage-sel: The property is an array of 3-tuples items, and
                        each item consists of leakage and voltage selector like
                        <min-leakage max-leakage volt-selector>.

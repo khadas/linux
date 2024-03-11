@@ -43,11 +43,12 @@ struct cluster_info {
 	struct list_head list_head;
 	struct monitor_dev_info *mdev_info;
 	struct rockchip_opp_info opp_info;
-	struct freq_qos_request dsu_qos_req;
+	struct freq_qos_request bus_qos_req;
 	cpumask_t cpus;
 	unsigned int idle_threshold_freq;
+	unsigned int cpu_freq_percent;
 	bool is_idle_disabled;
-	bool is_opp_shared_dsu;
+	bool is_opp_shared_cpu_bus;
 	unsigned long rate;
 	unsigned long volt, mem_volt;
 };
@@ -490,7 +491,11 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 		of_node_put(np);
 		return ret;
 	}
-	cluster->is_opp_shared_dsu = of_property_read_bool(np, "rockchip,opp-shared-dsu");
+	if (of_property_read_bool(np, "rockchip,opp-shared-dsu") ||
+	    of_property_read_bool(np, "rockchip,opp-shared-cci"))
+		cluster->is_opp_shared_cpu_bus = true;
+	of_property_read_u32(np, "rockchip,cpu-freq-percent",
+			     &cluster->cpu_freq_percent);
 	if (!of_property_read_u32(np, "rockchip,idle-threshold-freq", &freq))
 		cluster->idle_threshold_freq = freq;
 	of_node_put(np);
@@ -606,42 +611,42 @@ static int rockchip_cpufreq_remove_monitor(struct cluster_info *cluster)
 	return 0;
 }
 
-static int rockchip_cpufreq_remove_dsu_qos(struct cluster_info *cluster)
+static int rockchip_cpufreq_remove_bus_qos(struct cluster_info *cluster)
 {
 	struct cluster_info *ci;
 
-	if (!cluster->is_opp_shared_dsu)
+	if (!cluster->is_opp_shared_cpu_bus)
 		return 0;
 
 	list_for_each_entry(ci, &cluster_info_list, list_head) {
-		if (ci->is_opp_shared_dsu)
+		if (ci->is_opp_shared_cpu_bus)
 			continue;
-		if (freq_qos_request_active(&ci->dsu_qos_req))
-			freq_qos_remove_request(&ci->dsu_qos_req);
+		if (freq_qos_request_active(&ci->bus_qos_req))
+			freq_qos_remove_request(&ci->bus_qos_req);
 	}
 
 	return 0;
 }
 
-static int rockchip_cpufreq_add_dsu_qos_req(struct cluster_info *cluster,
+static int rockchip_cpufreq_add_bus_qos_req(struct cluster_info *cluster,
 					    struct cpufreq_policy *policy)
 {
 	struct device *dev = cluster->opp_info.dev;
 	struct cluster_info *ci;
 	int ret;
 
-	if (!cluster->is_opp_shared_dsu)
+	if (!cluster->is_opp_shared_cpu_bus)
 		return 0;
 
 	list_for_each_entry(ci, &cluster_info_list, list_head) {
-		if (ci->is_opp_shared_dsu)
+		if (ci->is_opp_shared_cpu_bus)
 			continue;
 		ret = freq_qos_add_request(&policy->constraints,
-					   &ci->dsu_qos_req,
+					   &ci->bus_qos_req,
 					   FREQ_QOS_MIN,
 					   FREQ_QOS_MIN_DEFAULT_VALUE);
 		if (ret < 0) {
-			dev_err(dev, "failed to add dsu freq constraint\n");
+			dev_err(dev, "failed to add cpu bus freq constraint\n");
 			goto error;
 		}
 	}
@@ -649,7 +654,7 @@ static int rockchip_cpufreq_add_dsu_qos_req(struct cluster_info *cluster,
 	return 0;
 
 error:
-	rockchip_cpufreq_remove_dsu_qos(cluster);
+	rockchip_cpufreq_remove_bus_qos(cluster);
 
 	return ret;
 }
@@ -667,11 +672,11 @@ static int rockchip_cpufreq_notifier(struct notifier_block *nb,
 	if (event == CPUFREQ_CREATE_POLICY) {
 		if (rockchip_cpufreq_add_monitor(cluster, policy))
 			return NOTIFY_BAD;
-		if (rockchip_cpufreq_add_dsu_qos_req(cluster, policy))
+		if (rockchip_cpufreq_add_bus_qos_req(cluster, policy))
 			return NOTIFY_BAD;
 	} else if (event == CPUFREQ_REMOVE_POLICY) {
 		rockchip_cpufreq_remove_monitor(cluster);
-		rockchip_cpufreq_remove_dsu_qos(cluster);
+		rockchip_cpufreq_remove_bus_qos(cluster);
 	}
 
 	return NOTIFY_OK;
@@ -735,21 +740,26 @@ static int rockchip_cpufreq_idle_state_disable(struct cpumask *cpumask,
 }
 #endif
 
-#define cpu_to_dsu_freq(freq)  ((freq) * 4 / 5)
+#define cpu_to_bus_freq(freq)  ((freq) * 4 / 5)
 
-static int rockchip_cpufreq_update_dsu_req(struct cluster_info *cluster,
+static int rockchip_cpufreq_update_bus_req(struct cluster_info *cluster,
 					   unsigned int freq)
 {
 	struct device *dev = cluster->opp_info.dev;
-	unsigned int dsu_freq = rounddown(cpu_to_dsu_freq(freq), 100000);
+	unsigned int bus_freq = 0;
 
-	if (cluster->is_opp_shared_dsu ||
-	    !freq_qos_request_active(&cluster->dsu_qos_req))
+	if (cluster->is_opp_shared_cpu_bus ||
+	    !freq_qos_request_active(&cluster->bus_qos_req))
 		return 0;
 
-	dev_dbg(dev, "cpu to dsu: %u -> %u\n", freq, dsu_freq);
+	if (cluster->cpu_freq_percent)
+		bus_freq = rounddown(freq * cluster->cpu_freq_percent / 100, 100000);
+	else
+		bus_freq = rounddown(cpu_to_bus_freq(freq), 100000);
 
-	return freq_qos_update_request(&cluster->dsu_qos_req, dsu_freq);
+	dev_dbg(dev, "cpu to bus: %u -> %u\n", freq, bus_freq);
+
+	return freq_qos_update_request(&cluster->bus_qos_req, bus_freq);
 }
 
 static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
@@ -779,7 +789,7 @@ static int rockchip_cpufreq_transition_notifier(struct notifier_block *nb,
 							    false);
 			cluster->is_idle_disabled = false;
 		}
-		rockchip_cpufreq_update_dsu_req(cluster, freqs->new);
+		rockchip_cpufreq_update_bus_req(cluster, freqs->new);
 	}
 
 	return NOTIFY_OK;
@@ -819,6 +829,7 @@ static int __init rockchip_cpufreq_driver_init(void)
 	struct cluster_info *cluster, *pos;
 	struct cpufreq_dt_platform_data pdata = {0};
 	int cpu, ret;
+	bool is_opp_shared_cpu_bus = false;
 
 	for_each_possible_cpu(cpu) {
 		cluster = rockchip_cluster_info_lookup(cpu);
@@ -837,6 +848,8 @@ static int __init rockchip_cpufreq_driver_init(void)
 			goto release_cluster_info;
 		}
 		list_add(&cluster->list_head, &cluster_info_list);
+		if (cluster->is_opp_shared_cpu_bus)
+			is_opp_shared_cpu_bus = true;
 	}
 
 	pdata.have_governor_per_policy = true;
@@ -849,7 +862,7 @@ static int __init rockchip_cpufreq_driver_init(void)
 		goto release_cluster_info;
 	}
 
-	if (of_machine_is_compatible("rockchip,rk3588")) {
+	if (is_opp_shared_cpu_bus) {
 		ret = cpufreq_register_notifier(&rockchip_cpufreq_transition_notifier_block,
 						CPUFREQ_TRANSITION_NOTIFIER);
 		if (ret) {
