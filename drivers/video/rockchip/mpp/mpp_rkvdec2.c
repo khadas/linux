@@ -1916,6 +1916,10 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 
 	dev_info(dev, "probing finish\n");
 
+	/* work workaround */
+	if (dec->fix && mpp->hw_ops->hack_run)
+		mpp->hw_ops->hack_run(mpp);
+
 	return ret;
 }
 
