@@ -1419,7 +1419,10 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "VOP vblank IRQ stuck for 10 ms\n");
 
-	synchronize_irq(vop2->irq);
+	if (vop2->merge_irq)
+		synchronize_irq(vop2->irq);
+	else
+		synchronize_irq(vp->irq);
 }
 
 static bool vop2_vp_done_bit_status(struct vop2_video_port *vp)
@@ -4178,7 +4181,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 			vop2_writel(vop2, 0xda4, 0x01000100);
 			vop2_writel(vop2, 0xda8, 0x03ff0100);
 
-			if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == true)
+			if (vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
@@ -13384,7 +13387,11 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
 	vop2->disable_win_move = of_property_read_bool(dev->of_node, "disable-win-move");
 	vop2->skip_ref_fb = of_property_read_bool(dev->of_node, "skip-ref-fb");
-	vop2->merge_irq = of_property_read_bool(dev->of_node, "rockchip,vop-merge-irq");
+	if (!is_vop3(vop2) ||
+	    vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
+		vop2->merge_irq = true;
+	else
+		vop2->merge_irq = of_property_read_bool(dev->of_node, "rockchip,vop-merge-irq");
 
 	ret = vop2_pd_data_init(vop2);
 	if (ret)
@@ -13562,7 +13569,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		INIT_WORK(&vop2->post_buf_empty_work, post_buf_empty_work_event);
 	}
 
-	if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == false)
+	if (vop2->merge_irq == false)
 		ret = devm_request_irq(dev, vop2->irq, vop3_sys_isr, IRQF_SHARED, dev_name(dev), vop2);
 	else
 		ret = devm_request_irq(dev, vop2->irq, vop2_isr, IRQF_SHARED, dev_name(dev), vop2);
@@ -13575,7 +13582,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (registered_num_crtcs <= 0)
 		return -ENODEV;
 
-	if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == false) {
+	if (vop2->merge_irq == false) {
 		struct drm_crtc *crtc;
 		char irq_name[12];
 
