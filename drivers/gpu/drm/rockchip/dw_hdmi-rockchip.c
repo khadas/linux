@@ -1352,7 +1352,7 @@ static irqreturn_t rk3576_hdmi_hardirq(int irq, void *dev_id)
 
 	regmap_read(hdmi->regmap, RK3576_IOC_HDMITX_HPD_STATUS, &intr_stat);
 
-	if (intr_stat) {
+	if (intr_stat & RK3576_HDMITX_OHPD_INT) {
 		dev_dbg(hdmi->dev, "hpd irq %#x\n", intr_stat);
 
 		val = HIWORD_UPDATE(RK3576_HDMITX_HPD_INT_MSK,
@@ -1396,9 +1396,6 @@ static irqreturn_t rk3576_hdmi_thread(int irq, void *dev_id)
 	bool stat;
 
 	regmap_read(hdmi->regmap, RK3576_IOC_HDMITX_HPD_STATUS, &intr_stat);
-
-	if (!intr_stat)
-		return IRQ_NONE;
 
 	val = HIWORD_UPDATE(RK3576_HDMITX_HPD_INT_CLR,
 			    RK3576_HDMITX_HPD_INT_CLR);
