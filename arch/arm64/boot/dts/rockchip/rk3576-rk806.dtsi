@@ -224,8 +224,9 @@
 			vdd_logic_s0: vdd_log_mem_s0: DCDC_REG7 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt = <750000>;
+				regulator-init-microvolt = <750000>;
+				regulator-min-microvolt = <550000>;
+				regulator-max-microvolt = <800000>;
 				regulator-name = "vdd_logic_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
