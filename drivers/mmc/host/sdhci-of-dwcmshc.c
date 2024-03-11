@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
@@ -692,6 +693,12 @@ static int dwcmshc_probe(struct platform_device *pdev)
 		goto err_setup_host;
 
 	if (rk_priv && !rk_priv->acpi_en) {
+		if (dev->pm_domain) {
+			struct generic_pm_domain *genpd;
+
+			genpd = pd_to_genpd(dev->pm_domain);
+			genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
+		}
 		pm_runtime_get_noresume(&pdev->dev);
 		pm_runtime_set_active(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
