@@ -3482,17 +3482,35 @@ static void dw_dp_clear_vcpid_table(struct dw_dp *dp)
 
 static int dw_dp_initiate_mst_act(struct dw_dp *dp)
 {
-	int val, ret = 0;
+	int val, retries, ret = 0;
 
 	regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
 			   FIELD_PREP(DPTX_CCTL_INITIATE_MST_ACT, 1));
 
 	ret = regmap_read_poll_timeout(dp->regmap, DPTX_CCTL, val,
-				       !FIELD_GET(DPTX_CCTL_INITIATE_MST_ACT, val), 200, 100000);
-	/* if hardware not auto clear this bit until timeout, manual clear it */
-	if (ret)
-		regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
+				       !FIELD_GET(DPTX_CCTL_INITIATE_MST_ACT, val),
+				       200, 10000);
+	/*
+	 * if hardware not auto clear this bit until timeout, something may be
+	 * wrong with the act, it should be cleared manually and retry again
+	 */
+	if (ret) {
+		for (retries = 0; retries < 3; retries++) {
+			regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
 				   FIELD_PREP(DPTX_CCTL_INITIATE_MST_ACT, 0));
+			usleep_range(2000, 2010);
+			dev_info(dp->dev, "act auto clear timeout, retry do it again\n");
+
+			regmap_update_bits(dp->regmap, DPTX_CCTL, DPTX_CCTL_INITIATE_MST_ACT,
+					   FIELD_PREP(DPTX_CCTL_INITIATE_MST_ACT, 1));
+
+			ret = regmap_read_poll_timeout(dp->regmap, DPTX_CCTL, val,
+						       !FIELD_GET(DPTX_CCTL_INITIATE_MST_ACT, val),
+						       200, 10000);
+			if (!ret)
+				break;
+		}
+	}
 
 	return ret;
 }
