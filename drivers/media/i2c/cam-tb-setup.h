@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 
-#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
 u32 get_rk_cam_w(void);
 u32 get_rk_cam_h(void);
 u32 get_rk_cam_hdr(void);
