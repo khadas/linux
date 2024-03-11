@@ -1789,14 +1789,22 @@
 				pm_qos = <&qos_gpu>;
 			};
 			/* These power domains are grouped by VD_LOGIC */
-			power-domain@RK3576_PD_SDGMAC {
-				reg = <RK3576_PD_SDGMAC>;
-				pm_qos = <&qos_fspi1>,
-					 <&qos_gmac0>,
-					 <&qos_gmac1>,
-					 <&qos_sdio>,
-					 <&qos_sdmmc>,
-					 <&qos_flexbus>;
+			power-domain@RK3576_PD_NVM {
+				reg = <RK3576_PD_NVM>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pm_qos = <&qos_emmc>,
+					 <&qos_fspi0>;
+
+				power-domain@RK3576_PD_SDGMAC {
+					reg = <RK3576_PD_SDGMAC>;
+					pm_qos = <&qos_fspi1>,
+						 <&qos_gmac0>,
+						 <&qos_gmac1>,
+						 <&qos_sdio>,
+						 <&qos_sdmmc>,
+						 <&qos_flexbus>;
+				};
 			};
 			power-domain@RK3576_PD_PHP {
 				reg = <RK3576_PD_PHP>;
@@ -3828,6 +3836,7 @@
 			 <&cru ACLK_EMMC>, <&cru BCLK_EMMC>,
 			 <&cru TCLK_EMMC>;
 		clock-names = "core", "bus", "axi", "block", "timer";
+		power-domains = <&power RK3576_PD_NVM>;
 		resets = <&cru SRST_C_EMMC>, <&cru SRST_H_EMMC>,
 			 <&cru SRST_A_EMMC>, <&cru SRST_B_EMMC>,
 			 <&cru SRST_T_EMMC>;
