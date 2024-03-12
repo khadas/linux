@@ -146,10 +146,6 @@ static int g_value;
 /* Addresses to scan -- protected by sense_data_mutex */
 static struct i2c_client *this_client;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static struct early_suspend mc3230_early_suspend;
-#endif
-
 /* status */
 #define MC3230_OPEN           1
 #define MC3230_CLOSE          0

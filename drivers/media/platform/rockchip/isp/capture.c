@@ -450,6 +450,22 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 	return 0;
 }
 
+int rkisp_stream_isp_end(struct rkisp_device *dev, u32 isp_mis)
+{
+	struct rkisp_stream *stream;
+	int i;
+
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA)
+			continue;
+		stream = &dev->cap_dev.stream[i];
+		if (stream->streaming &&
+		    stream->ops && stream->ops->isp_end)
+			stream->ops->isp_end(stream, isp_mis);
+	}
+	return 0;
+}
+
 void rkisp_stream_buf_done_early(struct rkisp_device *dev)
 {
 	struct rkisp_stream *stream;

@@ -4081,7 +4081,7 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 }
 
 static
-void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram_v3x(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
 	struct isp3x_isp_params_cfg *params = params_vdev->isp3x_params;
 

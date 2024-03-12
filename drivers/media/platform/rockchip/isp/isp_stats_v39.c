@@ -71,10 +71,7 @@ rkisp_stats_get_dhaz_stats(struct rkisp_isp_stats_vdev *stats_vdev,
 				dhaz->hist_iir[i][2 * j + 1] = value >> 16;
 			}
 		}
-		if (!dev->hw_dev->is_single) {
-			arg_rec->hist_iir_wr = true;
-			memcpy(arg_rec->hist_iir, dhaz->hist_iir, sizeof(dhaz->hist_iir));
-		}
+		memcpy(arg_rec->hist_iir, dhaz->hist_iir, sizeof(dhaz->hist_iir));
 		pbuf->meas_type |= ISP39_STAT_DHAZ;
 	}
 end:
@@ -175,6 +172,9 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 	int idx, buf_fd = -1;
 	u32 reg = 0, ctrl, mask;
 
+	if (dev->is_aiisp_en)
+		return;
+
 	priv_val = dev->params_vdev.priv_val;
 	if (!priv_val->buf_info_owner && priv_val->buf_info_idx >= 0) {
 		priv_val->buf_info_idx = -1;
@@ -252,24 +252,15 @@ rkisp_stats_send_meas_v39(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp39_stat_buffer *cur_stat_buf = NULL;
 	u32 size = stats_vdev->vdev_fmt.fmt.meta.buffersize;
 	u32 cur_frame_id = meas_work->frame_id;
-	bool is_dummy = false;
-	unsigned long flags;
 
 	if (!stats_vdev->rdbk_drop) {
-		if (!cur_buf && stats_vdev->stats_buf[0].mem_priv) {
-			rkisp_finish_buffer(stats_vdev->dev, &stats_vdev->stats_buf[0]);
-			cur_stat_buf = stats_vdev->stats_buf[0].vaddr;
-			cur_stat_buf->frame_id = -1;
-			is_dummy = true;
-		} else if (cur_buf) {
+		if (cur_buf)
 			cur_stat_buf = cur_buf->vaddr[0];
-		}
 
 		/* buffer done when frame of right handle */
 		if (dev->unite_div > ISP_UNITE_DIV1) {
 			if (dev->unite_index == ISP_UNITE_LEFT) {
 				cur_buf = NULL;
-				is_dummy = false;
 			} else if (cur_stat_buf) {
 				cur_stat_buf = (void *)cur_stat_buf + size / dev->unite_div;
 				cur_stat_buf->frame_id = cur_frame_id;
@@ -313,21 +304,6 @@ rkisp_stats_send_meas_v39(struct rkisp_isp_stats_vdev *stats_vdev,
 		rkisp_stats_get_bay3d_stats(stats_vdev, cur_stat_buf);
 	}
 
-	if (is_dummy) {
-		spin_lock_irqsave(&stats_vdev->rd_lock, flags);
-		if (!list_empty(&stats_vdev->stat)) {
-			cur_buf = list_first_entry(&stats_vdev->stat, struct rkisp_buffer, queue);
-			list_del(&cur_buf->queue);
-		} else {
-			cur_stat_buf->frame_id = cur_frame_id;
-			cur_stat_buf->params_id = params_vdev->cur_frame_id;
-		}
-		spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
-		if (cur_buf) {
-			memcpy(cur_buf->vaddr[0], cur_stat_buf, size);
-			cur_stat_buf = cur_buf->vaddr[0];
-		}
-	}
 	if (cur_buf && cur_stat_buf) {
 		cur_stat_buf->frame_id = cur_frame_id;
 		cur_stat_buf->params_id = params_vdev->cur_frame_id;
