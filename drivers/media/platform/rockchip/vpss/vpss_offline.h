@@ -13,6 +13,7 @@ struct rkvpss_offline_dev {
 	struct mutex apilock;
 	struct completion cmpl;
 	struct list_head list;
+	bool mode_sel_en;
 };
 
 int rkvpss_register_offline(struct rkvpss_hw_dev *hw);
