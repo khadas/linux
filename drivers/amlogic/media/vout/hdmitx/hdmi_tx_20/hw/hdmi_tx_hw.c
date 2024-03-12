@@ -2995,9 +2995,11 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1);
 		pr_info("reset audio fifo_rst\n");
 	}
-	usleep_range(2000, 3000);
-	if (hdev->tx_aud_cfg)
+	if (hdev->tx_aud_cfg) {
+		hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+		usleep_range(2000, 3000);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
+	}
 	mutex_unlock(&aud_mutex);
 
 	return 1;
