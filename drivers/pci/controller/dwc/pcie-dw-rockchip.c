@@ -26,6 +26,7 @@
 #include "pcie-designware.h"
 #include "../rockchip-pcie-dma.h"
 #include "pcie-dw-dmatest.h"
+#include "../../hotplug/gpiophp.h"
 
 #define RK_PCIE_DBG			0
 
@@ -131,6 +132,9 @@ struct rk_pcie {
 	bool				is_signal_test;
 	bool				bifurcation;
 	bool				supports_clkreq;
+	bool				slot_pluggable;
+	struct gpio_hotplug_slot	hp_slot;
+	bool				hp_no_link;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
@@ -280,7 +284,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	 * we still need to reset link as we need to remove all resource info
 	 * from devices, for instance BAR, as it wasn't assigned by kernel.
 	 */
-	if (dw_pcie_link_up(pci)) {
+	if (dw_pcie_link_up(pci) && !rk_pcie->hp_no_link) {
 		dev_err(pci->dev, "link is already up\n");
 		return 0;
 	}
@@ -346,6 +350,8 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 					dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
 						rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 					rk_pcie_debug_dump(rk_pcie);
+					if (rk_pcie->slot_pluggable)
+						rk_pcie->hp_no_link = false;
 					return 0;
 				}
 			}
@@ -372,7 +378,12 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		}
 	}
 
-	return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
+	if (rk_pcie->slot_pluggable) {
+		rk_pcie->hp_no_link = true;
+		return 0;
+	} else {
+		return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
+	}
 }
 
 static bool rk_pcie_udma_enabled(struct rk_pcie *rk_pcie)
@@ -1070,6 +1081,40 @@ remove:
 	return -ENOMEM;
 }
 
+static int rk_pcie_slot_enable(struct gpio_hotplug_slot *slot)
+{
+	struct rk_pcie *rk_pcie = container_of(slot, struct rk_pcie, hp_slot);
+	int ret;
+
+	dev_info(rk_pcie->pci->dev, "%s\n", __func__);
+	rk_pcie->hp_no_link = true;
+	rk_pcie_enable_power(rk_pcie);
+	rk_pcie_fast_link_setup(rk_pcie);
+	ret = rk_pcie_establish_link(rk_pcie->pci);
+	if (ret)
+		dev_err(rk_pcie->pci->dev, "fail to enable slot\n");
+
+	return ret;
+}
+
+static int rk_pcie_slot_disable(struct gpio_hotplug_slot *slot)
+{
+	struct rk_pcie *rk_pcie = container_of(slot, struct rk_pcie, hp_slot);
+
+	dev_info(rk_pcie->pci->dev, "%s\n", __func__);
+	rk_pcie->hp_no_link = true;
+	rk_pcie_disable_ltssm(rk_pcie);
+	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
+	rk_pcie_disable_power(rk_pcie);
+
+	return 0;
+}
+
+static const struct gpio_hotplug_slot_plat_ops rk_pcie_gpio_hp_plat_ops = {
+	.enable = rk_pcie_slot_enable,
+	.disable = rk_pcie_slot_disable,
+};
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1127,6 +1172,12 @@ static int rk_pcie_really_probe(void *p)
 	}
 
 	rk_pcie->supports_clkreq = device_property_read_bool(dev, "supports-clkreq");
+
+	if (device_property_read_bool(dev, "hotplug-gpios") ||
+	    device_property_read_bool(dev, "hotplug-gpio")) {
+		rk_pcie->slot_pluggable = true;
+		dev_info(dev, "support hotplug-gpios!\n");
+	}
 
 retry_regulator:
 	/* DON'T MOVE ME: must be enable before phy init */
@@ -1257,8 +1308,22 @@ retry_regulator:
 	if (rk_pcie->is_signal_test == true)
 		return 0;
 
-	if (ret)
+	if (ret && !rk_pcie->slot_pluggable)
 		goto remove_rst_wq;
+
+	if (rk_pcie->slot_pluggable) {
+		rk_pcie->hp_slot.plat_ops = &rk_pcie_gpio_hp_plat_ops;
+		rk_pcie->hp_slot.np = rk_pcie->pci->dev->of_node;
+		rk_pcie->hp_slot.slot_nr = rk_pcie->pci->pp.bridge->busnr;
+		rk_pcie->hp_slot.pdev = pci_get_slot(rk_pcie->pci->pp.bridge->bus, PCI_DEVFN(0, 0));
+
+		ret = register_gpio_hotplug_slot(&rk_pcie->hp_slot);
+		if (ret < 0)
+			dev_warn(dev, "Failed to register ops for GPIO Hot-Plug controller: %d\n",
+				 ret);
+		/* Set debounce to 200ms for safe if possible */
+		gpiod_set_debounce(rk_pcie->hp_slot.gpiod, 200);
+	}
 
 	ret = rk_pcie_init_dma_trx(rk_pcie);
 	if (ret) {
