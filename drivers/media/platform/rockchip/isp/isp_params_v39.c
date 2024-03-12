@@ -71,7 +71,7 @@ isp3_param_clear_bits(struct rkisp_isp_params_vdev *params_vdev,
 
 static void
 isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
-		const struct isp2x_dpcc_cfg *arg, u32 id)
+		const struct isp39_dpcc_cfg *arg, u32 id)
 {
 	u32 value;
 	int i;
@@ -84,7 +84,8 @@ isp_dpcc_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, value, ISP3X_DPCC0_MODE, id);
 	isp3_param_write(params_vdev, value, ISP3X_DPCC1_MODE, id);
 
-	value = (arg->sw_rk_out_sel & 0x03) << 5 |
+	value = !!arg->border_bypass_mode << 8 |
+		(arg->sw_rk_out_sel & 0x03) << 5 |
 		!!arg->sw_dpcc_output_sel << 4 |
 		!!arg->stage1_rb_3x3 << 3 |
 		!!arg->stage1_g_3x3 << 2 |

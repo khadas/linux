@@ -22,7 +22,7 @@
 struct rkisp_isp_params_vdev;
 struct rkisp_isp_params_ops_v39 {
 	void (*dpcc_config)(struct rkisp_isp_params_vdev *params_vdev,
-			    const struct isp2x_dpcc_cfg *arg, u32 id);
+			    const struct isp39_dpcc_cfg *arg, u32 id);
 	void (*dpcc_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			    bool en, u32 id);
 	void (*bls_config)(struct rkisp_isp_params_vdev *params_vdev,
