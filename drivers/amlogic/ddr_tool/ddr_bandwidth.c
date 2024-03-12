@@ -449,7 +449,7 @@ static ssize_t mode_store(struct class *cla,
 
 	if (aml_db->mode == MODE_DISABLE && val != MODE_DISABLE) {
 		int r = request_irq(aml_db->irq_num, dmc_irq_handler,
-				IRQF_SHARED, "ddr_bandwidth", (void *)aml_db);
+				IRQF_SHARED | IRQF_ONESHOT, "ddr_bandwidth", (void *)aml_db);
 		if (r < 0) {
 			pr_info("ddr bandwidth request irq failed\n");
 			return count;
