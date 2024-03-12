@@ -135,6 +135,7 @@ struct rkvdec_link_info {
 	u32 ip_reset_mask;
 	u32 ip_time_base;
 	u32 en_base;
+	u32 ip_en_base;
 };
 
 struct rkvdec_link_dev {

@@ -527,6 +527,9 @@ static int rkvdec_vdpu383_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	/* set ip time out threshold, ip watch-dog */
 	writel_relaxed(0x7fffff, link->reg_base + link->info->ip_time_base);
 
+	/* set ip func to def val */
+	writel_relaxed(0x0, link->reg_base + link->info->ip_en_base);
+
 	/* Flush the register before the start the device */
 	wmb();
 	/* enable hardware */
