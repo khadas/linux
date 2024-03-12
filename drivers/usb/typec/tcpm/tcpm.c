@@ -4201,6 +4201,8 @@ static void run_state_machine(struct tcpm_port *port)
 		else if (tcpm_port_is_disconnected(port))
 			tcpm_set_state(port, SNK_UNATTACHED,
 				       timer_val_msecs);
+		else if (tcpm_port_is_sink(port))
+			tcpm_set_state(port, SNK_DEBOUNCED, 0);
 		break;
 	case SNK_DEBOUNCED:
 		if (tcpm_port_is_disconnected(port)) {
