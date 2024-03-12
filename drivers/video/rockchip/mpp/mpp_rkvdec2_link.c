@@ -203,7 +203,7 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	.next_addr_base = 0x1c,
 };
 
-/* vdpu382 link hw info */
+/* vdpu383 link hw info */
 struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
 	.tb_reg_num = 256,
 	.tb_reg_next = 0,
@@ -259,6 +259,7 @@ struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
 	.ip_reset_mask = 0x8000000,
 	.ip_time_base = 0x54,
 	.en_base = 0x40,
+	.ip_en_base = 0x58,
 };
 
 static void rkvdec2_link_free_task(struct kref *ref);
@@ -408,12 +409,14 @@ static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
 	void __iomem *reg_base = link_dec->reg_base;
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 	struct mpp_dma_buffer *table = task->table;
+	struct rkvdec_link_info *link_info = link_dec->info;
 	u32 link_en = 0;
 	u32 frame_num = 1;
 	u32 link_mode;
 	u32 timing_en = link_dec->mpp->srv->timing_en;
 
 	link_en = readl(reg_base + RKVDEC_LINK_EN_BASE);
+	/* finish last work flow */
 	if (!link_en) {
 		rkvdec2_clear_cache(link_dec->mpp);
 		/* cleanup counter in hardware */
@@ -432,6 +435,10 @@ static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
 
 	/* set link mode */
 	writel_relaxed(link_mode, reg_base + RKVDEC_LINK_MODE_BASE);
+
+	/* set ip func to def val */
+	if (link_info->ip_en_base)
+		writel_relaxed(0x0, reg_base + link_info->ip_en_base);
 
 	/* start config before all registers are set */
 	wmb();

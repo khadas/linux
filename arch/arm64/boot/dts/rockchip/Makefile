@@ -257,6 +257,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-rgb-Q7050ITH2641AA1T.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-rk628-bt1120-2-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-rk628-hdmi2gvi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-sii9022-bt1120-to-hdmi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-sii9022-rgb2hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test2-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-iotest-v10.dtb

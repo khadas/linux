@@ -16,6 +16,8 @@
 #define V4L2_PIX_FMT_FBC2     v4l2_fourcc('F', 'B', 'C', '2')
 /* Rockchip yuv420sp frame buffer compression encoder */
 #define V4L2_PIX_FMT_FBC0     v4l2_fourcc('F', 'B', 'C', '0')
+/* Rockchip yuv444p frame buffer compression encoder */
+#define V4L2_PIX_FMT_FBC4     v4l2_fourcc('F', 'B', 'C', '4')
 #define V4L2_PIX_FMT_FBCG     v4l2_fourcc('F', 'B', 'C', 'G')
 /* embedded data 8-bit */
 #define V4l2_PIX_FMT_EBD8     v4l2_fourcc('E', 'B', 'D', '8')

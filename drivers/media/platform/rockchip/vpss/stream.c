@@ -255,39 +255,39 @@ static struct stream_config scl2_config = {
 		.v_size_shd = RKVPSS_CROP1_2_V_SIZE_SHD,
 	},
 	.scale = {
-		.ctrl = RKVPSS_SCALE1_CTRL,
-		.update = RKVPSS_SCALE1_UPDATE,
-		.src_size = RKVPSS_SCALE1_SRC_SIZE,
-		.dst_size = RKVPSS_SCALE1_DST_SIZE,
-		.hy_fac = RKVPSS_SCALE1_HY_FAC,
-		.hc_fac = RKVPSS_SCALE1_HC_FAC,
-		.vy_fac = RKVPSS_SCALE1_VY_FAC,
-		.vc_fac = RKVPSS_SCALE1_VC_FAC,
-		.hy_offs = RKVPSS_SCALE1_HY_OFFS,
-		.hc_offs = RKVPSS_SCALE1_HC_OFFS,
-		.vy_offs = RKVPSS_SCALE1_VY_OFFS,
-		.vc_offs = RKVPSS_SCALE1_VC_OFFS,
-		.hy_size = RKVPSS_SCALE1_HY_SIZE,
-		.hc_size = RKVPSS_SCALE1_HC_SIZE,
-		.hy_offs_mi = RKVPSS_SCALE1_HY_OFFS_MI,
-		.hc_offs_mi = RKVPSS_SCALE1_HC_OFFS_MI,
-		.in_crop_offs = RKVPSS_SCALE1_IN_CROP_OFFSET,
-		.ctrl_shd = RKVPSS_SCALE1_CTRL_SHD,
-		.src_size_shd = RKVPSS_SCALE1_SRC_SIZE_SHD,
-		.dst_size_shd = RKVPSS_SCALE1_DST_SIZE_SHD,
-		.hy_fac_shd = RKVPSS_SCALE1_HY_FAC_SHD,
-		.hc_fac_shd = RKVPSS_SCALE1_HC_FAC_SHD,
-		.vy_fac_shd = RKVPSS_SCALE1_VY_FAC_SHD,
-		.vc_fac_shd = RKVPSS_SCALE1_VC_FAC_SHD,
-		.hy_offs_shd = RKVPSS_SCALE1_HY_OFFS_SHD,
-		.hc_offs_shd = RKVPSS_SCALE1_HC_OFFS_SHD,
-		.vy_offs_shd = RKVPSS_SCALE1_VY_OFFS_SHD,
-		.vc_offs_shd = RKVPSS_SCALE1_VC_OFFS_SHD,
-		.hy_size_shd = RKVPSS_SCALE1_HY_SIZE_SHD,
-		.hc_size_shd = RKVPSS_SCALE1_HC_SIZE_SHD,
-		.hy_offs_mi_shd = RKVPSS_SCALE1_HY_OFFS_MI_SHD,
-		.hc_offs_mi_shd = RKVPSS_SCALE1_HC_OFFS_MI_SHD,
-		.in_crop_offs_shd = RKVPSS_SCALE1_IN_CROP_OFFSET_SHD,
+		.ctrl = RKVPSS_SCALE2_CTRL,
+		.update = RKVPSS_SCALE2_UPDATE,
+		.src_size = RKVPSS_SCALE2_SRC_SIZE,
+		.dst_size = RKVPSS_SCALE2_DST_SIZE,
+		.hy_fac = RKVPSS_SCALE2_HY_FAC,
+		.hc_fac = RKVPSS_SCALE2_HC_FAC,
+		.vy_fac = RKVPSS_SCALE2_VY_FAC,
+		.vc_fac = RKVPSS_SCALE2_VC_FAC,
+		.hy_offs = RKVPSS_SCALE2_HY_OFFS,
+		.hc_offs = RKVPSS_SCALE2_HC_OFFS,
+		.vy_offs = RKVPSS_SCALE2_VY_OFFS,
+		.vc_offs = RKVPSS_SCALE2_VC_OFFS,
+		.hy_size = RKVPSS_SCALE2_HY_SIZE,
+		.hc_size = RKVPSS_SCALE2_HC_SIZE,
+		.hy_offs_mi = RKVPSS_SCALE2_HY_OFFS_MI,
+		.hc_offs_mi = RKVPSS_SCALE2_HC_OFFS_MI,
+		.in_crop_offs = RKVPSS_SCALE2_IN_CROP_OFFSET,
+		.ctrl_shd = RKVPSS_SCALE2_CTRL_SHD,
+		.src_size_shd = RKVPSS_SCALE2_SRC_SIZE_SHD,
+		.dst_size_shd = RKVPSS_SCALE2_DST_SIZE_SHD,
+		.hy_fac_shd = RKVPSS_SCALE2_HY_FAC_SHD,
+		.hc_fac_shd = RKVPSS_SCALE2_HC_FAC_SHD,
+		.vy_fac_shd = RKVPSS_SCALE2_VY_FAC_SHD,
+		.vc_fac_shd = RKVPSS_SCALE2_VC_FAC_SHD,
+		.hy_offs_shd = RKVPSS_SCALE2_HY_OFFS_SHD,
+		.hc_offs_shd = RKVPSS_SCALE2_HC_OFFS_SHD,
+		.vy_offs_shd = RKVPSS_SCALE2_VY_OFFS_SHD,
+		.vc_offs_shd = RKVPSS_SCALE2_VC_OFFS_SHD,
+		.hy_size_shd = RKVPSS_SCALE2_HY_SIZE_SHD,
+		.hc_size_shd = RKVPSS_SCALE2_HC_SIZE_SHD,
+		.hy_offs_mi_shd = RKVPSS_SCALE2_HY_OFFS_MI_SHD,
+		.hc_offs_mi_shd = RKVPSS_SCALE2_HC_OFFS_MI_SHD,
+		.in_crop_offs_shd = RKVPSS_SCALE2_IN_CROP_OFFSET_SHD,
 	},
 	.mi = {
 		.ctrl = RKVPSS_MI_CHN2_WR_CTRL,
@@ -461,7 +461,19 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 	reg = stream->config->mi.stride;
 	rkvpss_write(dev, reg, val);
 
-	val *= out_fmt->height;
+	switch (fmt->fourcc) {
+	case V4L2_PIX_FMT_RGB565:
+		val = out_fmt->plane_fmt[0].bytesperline / 2;
+		break;
+	case V4L2_PIX_FMT_XBGR32:
+		val = out_fmt->plane_fmt[0].bytesperline / 4;
+		break;
+	default:
+		val = out_fmt->plane_fmt[0].bytesperline;
+		break;
+	}
+
+	val = val * out_fmt->height;
 	reg = stream->config->mi.y_pic_size;
 	rkvpss_write(dev, reg, val);
 
@@ -516,7 +528,8 @@ static void scl_enable_mi(struct rkvpss_stream *stream)
 	if (!dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_ISP2VPSS_ONLINE2_CMSC_EN;
 	rkvpss_set_bits(dev, RKVPSS_VPSS_ONLINE, mask, val);
-	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, RKVPSS_ONLINE2_CHN_FORCE_UPD);
+	val = RKVPSS_ONLINE2_CHN_FORCE_UPD | RKVPSS_CFG_GEN_UPD;
+	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
 }
 
 static void scl_disable_mi(struct rkvpss_stream *stream)
@@ -542,7 +555,8 @@ static void scl_disable_mi(struct rkvpss_stream *stream)
 	}
 
 	rkvpss_clear_bits(dev, RKVPSS_VPSS_ONLINE, val);
-	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, RKVPSS_ONLINE2_CHN_FORCE_UPD);
+	val = RKVPSS_ONLINE2_CHN_FORCE_UPD | RKVPSS_CFG_GEN_UPD;
+	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
 }
 
 static struct streams_ops scl_stream_ops = {
