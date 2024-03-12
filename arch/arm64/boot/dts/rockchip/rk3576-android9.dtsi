@@ -6,6 +6,10 @@
 #include "rk3576-android.dtsi"
 
 / {
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x2ad40000 console=ttyFIQ0 rcupdate.rcu_expedited=1 rcu_nocbs=all drm_kms_helper.fbdev_emulation=0";
+	};
+
 	firmware {
 		firmware_android: android {};
 	};
