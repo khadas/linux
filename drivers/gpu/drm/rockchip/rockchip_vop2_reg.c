@@ -47,7 +47,7 @@ static const uint32_t formats_for_cluster[] = {
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
 };
 
-static const uint32_t formats_for_vop3_cluster[] = {
+static const uint32_t formats_for_rk3528_cluster[] = {
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_ARGB2101010,
 	DRM_FORMAT_XBGR2101010,
@@ -73,6 +73,36 @@ static const uint32_t formats_for_vop3_cluster[] = {
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
 	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
 	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
+};
+
+static const uint32_t formats_for_rk3576_cluster[] = {
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_NV12, /* yuv420_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV21, /* yvu420_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV16, /* yuv422_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV61, /* yvu422_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV42, /* yvu444_8bit linear mode, 2 plane */
+	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
+	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
+	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
+	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
+	DRM_FORMAT_Y210, /* yuv422_10bit non-Linear mode only */
+	DRM_FORMAT_VUY888,	/* yuv444 non-Linear mode only */
+	DRM_FORMAT_VUY101010,	/* yuv444_10bit non-Linear mode only */
 };
 
 static const uint32_t formats_for_esmart[] = {
@@ -3063,8 +3093,8 @@ static const struct vop2_win_data rk3528_vop_win_data[] = {
 	  .name = "Cluster0-win0",
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER0,
 	  .base = 0x00,
-	  .formats = formats_for_vop3_cluster,
-	  .nformats = ARRAY_SIZE(formats_for_vop3_cluster),
+	  .formats = formats_for_rk3528_cluster,
+	  .nformats = ARRAY_SIZE(formats_for_rk3528_cluster),
 	  .format_modifiers = format_modifiers_afbc_tiled,
 	  .layer_sel_id = { 0, 0xff, 0xff, 0xff },
 	  .supported_rotations = DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270 |
@@ -3693,8 +3723,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .name = "Cluster0-win0",
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER0,
 	  .base = 0x00,
-	  .formats = formats_for_vop3_cluster,
-	  .nformats = ARRAY_SIZE(formats_for_vop3_cluster),
+	  .formats = formats_for_rk3576_cluster,
+	  .nformats = ARRAY_SIZE(formats_for_rk3576_cluster),
 	  .format_modifiers = format_modifiers_afbc_tiled_for_vop3,
 	  .layer_sel_id = { 0, 0, 0xff, 0xff },
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -3722,8 +3752,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER0,
 	  .base = 0x80,
 	  .layer_sel_id = { 0, 0, 0xff, 0xff },
-	  .formats = formats_for_cluster,
-	  .nformats = ARRAY_SIZE(formats_for_cluster),
+	  .formats = formats_for_rk3576_cluster,
+	  .nformats = ARRAY_SIZE(formats_for_rk3576_cluster),
 	  .format_modifiers = format_modifiers_afbc_tiled_for_vop3,
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIL,
@@ -3746,8 +3776,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .name = "Cluster1-win0",
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER1,
 	  .base = 0x00,
-	  .formats = formats_for_vop3_cluster,
-	  .nformats = ARRAY_SIZE(formats_for_vop3_cluster),
+	  .formats = formats_for_rk3576_cluster,
+	  .nformats = ARRAY_SIZE(formats_for_rk3576_cluster),
 	  .format_modifiers = format_modifiers_afbc_tiled_for_vop3,
 	  .layer_sel_id = { 1, 1, 0xff, 0xff },
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
@@ -3773,8 +3803,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .phys_id = ROCKCHIP_VOP2_CLUSTER1,
 	  .base = 0x80,
 	  .layer_sel_id = { 1, 1, 0xff, 0xff },
-	  .formats = formats_for_cluster,
-	  .nformats = ARRAY_SIZE(formats_for_cluster),
+	  .formats = formats_for_rk3576_cluster,
+	  .nformats = ARRAY_SIZE(formats_for_rk3576_cluster),
 	  .format_modifiers = format_modifiers_afbc_tiled_for_vop3,
 	  .supported_rotations = DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y,
 	  .hsu_filter_mode = VOP2_SCALE_UP_BIL,

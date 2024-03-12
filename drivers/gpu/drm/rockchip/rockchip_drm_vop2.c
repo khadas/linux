@@ -191,9 +191,9 @@ enum vop2_data_format {
 
 enum vop2_afbc_format {
 	VOP2_AFBC_FMT_RGB565,
-	VOP2_AFBC_FMT_ARGB2101010 = 2,
+	VOP2_AFBC_FMT_ARGB2101010_YUV444_10BIT = 2,
 	VOP2_AFBC_FMT_YUV420_10BIT,
-	VOP2_AFBC_FMT_RGB888,
+	VOP2_AFBC_FMT_RGB888_YUV444,
 	VOP2_AFBC_FMT_ARGB8888,
 	VOP2_AFBC_FMT_YUV420 = 9,
 	VOP2_AFBC_FMT_YUV422 = 0xb,
@@ -2060,8 +2060,10 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
+	case DRM_FORMAT_VUY888:
 		return VOP2_FMT_YUV444SP;
 	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_VUY101010:
 		return VOP2_FMT_YUV444SP_10;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
@@ -2082,7 +2084,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 	case DRM_FORMAT_ARGB2101010:
 	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_ABGR2101010:
-		return VOP2_AFBC_FMT_ARGB2101010;
+	case DRM_FORMAT_VUY101010:
+		return VOP2_AFBC_FMT_ARGB2101010_YUV444_10BIT;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -2090,7 +2093,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 		return VOP2_AFBC_FMT_ARGB8888;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
-		return VOP2_AFBC_FMT_RGB888;
+	case DRM_FORMAT_VUY888:
+		return VOP2_AFBC_FMT_RGB888_YUV444;
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return VOP2_AFBC_FMT_RGB565;
@@ -2220,6 +2224,8 @@ static bool vop2_afbc_rb_swap(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_VUY888:
+	case DRM_FORMAT_VUY101010:
 		return true;
 	default:
 		return false;
