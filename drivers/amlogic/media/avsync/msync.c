@@ -2206,6 +2206,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 	}
 	default:
+		msync_dbg(LOG_WARN, "[%d]unknown cmd %d\n",
+			session->id, cmd);
 		break;
 	}
 	return 0;
@@ -2254,6 +2256,11 @@ static void free_session(struct sync_session *session)
 	unsigned long flags;
 
 	msync_dbg(LOG_INFO, "free session[%d]\n", session->id);
+
+	spin_lock_irqsave(&sync.lock, flags);
+	list_del(&session->node);
+	spin_unlock_irqrestore(&sync.lock, flags);
+
 	mutex_lock(&session->session_mutex);
 	if (session->v_wait_work_on) {
 		cancel_delayed_work_sync(&session->v_wait_work);
@@ -2600,10 +2607,6 @@ static void destroy_session(u32 id)
 	spin_unlock_irqrestore(&sync.lock, flags);
 	if (!session)
 		return;
-
-	spin_lock_irqsave(&sync.lock, flags);
-	list_del(&session->node);
-	spin_unlock_irqrestore(&sync.lock, flags);
 
 	if (atomic_dec_and_test(&session->refcnt))
 		free_session(session);
