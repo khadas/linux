@@ -1174,6 +1174,22 @@ static const struct snd_dlp_config dconfig = {
 	.get_fifo_count = rockchip_i2s_get_fifo_count,
 };
 
+static int rockchip_i2s_wait_time_init(struct rk_i2s_dev *i2s)
+{
+	unsigned int wait_time;
+
+	if (!device_property_read_u32(i2s->dev, "rockchip,i2s-tx-wait-time-ms", &wait_time)) {
+		dev_info(i2s->dev, "Init TX wait-time-ms: %d\n", wait_time);
+		i2s->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = wait_time;
+	}
+
+	if (!device_property_read_u32(i2s->dev, "rockchip,i2s-rx-wait-time-ms", &wait_time)) {
+		dev_info(i2s->dev, "Init RX wait-time-ms: %d\n", wait_time);
+		i2s->wait_time[SNDRV_PCM_STREAM_CAPTURE] = wait_time;
+	}
+	return 0;
+}
+
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1203,6 +1219,8 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
 		if (device_property_read_bool(i2s->dev, of_quirks[i].quirk))
 			i2s->quirks |= of_quirks[i].id;
+
+	rockchip_i2s_wait_time_init(i2s);
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
