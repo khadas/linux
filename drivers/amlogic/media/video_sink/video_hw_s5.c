@@ -11108,6 +11108,8 @@ void vpp_post_blend_update_s5(const struct vinfo_s *vinfo)
 			vpp_input->bld_out_hsize,
 			vpp_input->bld_out_vsize);
 
+	if (vpp_input->slice_num == 0)
+		return;
 	vpp_post_param_set(vpp_input, &vpp_post);
 	vpp_post_set(VPP0, &vpp_post);
 	update_vpp_post_amdv_info(&vpp_post);
