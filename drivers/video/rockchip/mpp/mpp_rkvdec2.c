@@ -1464,6 +1464,7 @@ static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
 	.get_freq = rkvdec2_get_freq,
 	.set_freq = rkvdec2_set_freq,
 	.reset = rkvdec_vdpu383_reset,
+	.hack_run = rk3576_workaround_run,
 };
 
 static struct mpp_dev_ops rkvdec_v2_dev_ops = {
@@ -2031,8 +2032,8 @@ static int __maybe_unused rkvdec2_runtime_resume(struct device *dev)
 				enable_irq(mpp->iommu_info->irq);
 		}
 		/* work workaround */
-		if (dec->fix)
-			rk3576_workaround_run(mpp);
+		if (dec->fix && mpp->hw_ops->hack_run)
+			mpp->hw_ops->hack_run(mpp);
 	}
 
 	return 0;

@@ -547,6 +547,7 @@ struct mpp_service {
  * @set_freq	Set freq to hardware.
  * @reduce_freq	Reduce freq when hardware is not running.
  * @reset	When error, reset hardware.
+ * @hack_run	Hack run for some soc
  */
 struct mpp_hw_ops {
 	int (*init)(struct mpp_dev *mpp);
@@ -560,6 +561,7 @@ struct mpp_hw_ops {
 	int (*reduce_freq)(struct mpp_dev *mpp);
 	int (*reset)(struct mpp_dev *mpp);
 	int (*set_grf)(struct mpp_dev *mpp);
+	int (*hack_run)(struct mpp_dev *mpp);
 };
 
 /*
