@@ -115,6 +115,8 @@ KERNEL_VERSION(\
 #define DUR2PTS_RM(x) ((x) & 0xf)
 
 #define CMA_ALLOC_SIZE 24
+#define CMA_ALLOC_SIZE_720P 6
+#define CMA_ALLOC_SIZE_1080P 12
 #define CMA_ALLOC_SIZE_4K 48
 
 #define CANVAS_WIDTH_ALIGN 32
@@ -335,6 +337,7 @@ struct amlvideo2_device {
 	bool use_reserve;
 	int support_4k_capture;
 	u32 framebuffer_total_size;
+	int codec_mm_alloc;
 };
 
 struct crop_info_s {
@@ -6974,7 +6977,20 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 		pr_info("support_4k %d for amlvideo2.%d\n", dev->support_4k_capture, dev->node_id);
 	}
 
-	dev->framebuffer_total_size = dev->support_4k_capture ? CMA_ALLOC_SIZE_4K : CMA_ALLOC_SIZE;
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "codec_mm_alloc", &dev->codec_mm_alloc);
+	if (ret)
+		pr_err("don't find codec_mm_alloc, use default parm.\n");
+
+	if (dev->codec_mm_alloc == 1)
+		dev->framebuffer_total_size = CMA_ALLOC_SIZE_720P;
+	else if (dev->codec_mm_alloc == 2)
+		dev->framebuffer_total_size = CMA_ALLOC_SIZE_1080P;
+	else if (dev->codec_mm_alloc == 3 || dev->support_4k_capture)
+		dev->framebuffer_total_size = CMA_ALLOC_SIZE_4K;
+	else
+		dev->framebuffer_total_size = CMA_ALLOC_SIZE;
+
 	dev->pdev = pdev;
 
 	if (v4l2_device_register(&pdev->dev, &dev->v4l2_dev) < 0) {
