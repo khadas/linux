@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <uapi/linux/sched/types.h>
 
 /* Amlogic Headers */
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
@@ -1072,7 +1073,13 @@ static int ge2d_monitor_thread(void *data)
 {
 	int ret;
 	struct ge2d_manager_s *manager = (struct ge2d_manager_s *)data;
+	struct sched_param param = {.sched_priority = 2};
 
+	ret = sched_setscheduler(current, SCHED_FIFO, &param);
+	if (ret) {
+		ge2d_log_err("could not set realtime priority (%d)\n", ret);
+		return -1;
+	}
 	ge2d_log_info("ge2d workqueue monitor start\n");
 	/* setup current_wq here. */
 	while (ge2d_manager.process_queue_state != GE2D_PROCESS_QUEUE_STOP) {
