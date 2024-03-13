@@ -44,7 +44,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.4"
+#define DMC_VERSION		"1.5"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -301,11 +301,15 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 {
 	char *name = NULL;
 	int i, s_port = 0;
+	char *port_name = to_ports(mid);
 
-	if (strstr(to_ports(mid), "VPU")) {
-		name = vpu_to_sub_port(to_ports(mid), rw, sid, NULL);
-	} else if (strstr(to_ports(mid), "DEVICE")) {
-		if (strstr(to_ports(mid), "DEVICE1"))
+	if (!port_name)
+		return NULL;
+
+	if (strstr(port_name, "VPU")) {
+		name = vpu_to_sub_port(port_name, rw, sid, NULL);
+	} else if (strstr(port_name, "DEVICE")) {
+		if (strstr(port_name, "DEVICE1"))
 			s_port = sid + PORT_MAJOR + 8;
 		else
 			s_port = sid + PORT_MAJOR;
