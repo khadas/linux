@@ -2708,6 +2708,22 @@ static int rockchip_i2s_tdm_get_calibrate_mclks(struct rk_i2s_tdm_dev *i2s_tdm)
 	return 0;
 }
 
+static int rockchip_i2s_tdm_wait_time_init(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	unsigned int wait_time;
+
+	if (!device_property_read_u32(i2s_tdm->dev, "rockchip,i2s-tx-wait-time-ms", &wait_time)) {
+		dev_info(i2s_tdm->dev, "Init TX wait-time-ms: %d\n", wait_time);
+		i2s_tdm->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = wait_time;
+	}
+
+	if (!device_property_read_u32(i2s_tdm->dev, "rockchip,i2s-rx-wait-time-ms", &wait_time)) {
+		dev_info(i2s_tdm->dev, "Init RX wait-time-ms: %d\n", wait_time);
+		i2s_tdm->wait_time[SNDRV_PCM_STREAM_CAPTURE] = wait_time;
+	}
+	return 0;
+}
+
 static int rockchip_i2s_tdm_path_prepare(struct rk_i2s_tdm_dev *i2s_tdm,
 					 struct device_node *np,
 					 bool is_rx_path)
@@ -2947,6 +2963,8 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		}
 		i2s_tdm->clk_trcm = TRCM_RX;
 	}
+
+	rockchip_i2s_tdm_wait_time_init(i2s_tdm);
 
 	ret = rockchip_i2s_tdm_init_dai(i2s_tdm);
 	if (ret)

@@ -44,6 +44,21 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_poweren_gpio>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		post-power-on-delay-ms = <200>;
+		reset-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_LOW>;
+	};
+
 	vcc_1v8_s0: vcc-1v8-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8_s0";
@@ -826,6 +841,23 @@
 	status = "okay";
 };
 
+&sdio {
+	max-frequency = <200000000>;
+	no-sd;
+	no-mmc;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1m1_bus4 &sdmmc1m1_clk &sdmmc1m1_cmd>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
 &u2phy0_otg {
 	vbus-supply = <&vcc5v0_otg>;
 	rockchip,sel-pipe-phystatus;
@@ -872,4 +904,8 @@
 
 &wireless_bluetooth {
 	status = "disabled";
+};
+
+&wireless_wlan {
+	WIFI,poweren_gpio = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 };
