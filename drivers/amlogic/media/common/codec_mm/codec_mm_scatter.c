@@ -507,6 +507,7 @@ static int codec_mm_set_slot_in_hash(struct codec_mm_scatter_mgt *smgt,
 	slot->sid = sid;
 	INIT_LIST_HEAD(&slot->sid_list);
 	INIT_LIST_HEAD(&slot->free_list);
+	slot->on_alloc_free = -1; /* The init state be held until switch to alloc state. */
 	codec_mm_list_lock(smgt);
 	if (!smgt->slot_list_map[sid]) {
 		smgt->slot_list_map[sid] = slot;
@@ -1076,7 +1077,9 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 			}
 		}
 		codec_mm_list_lock(smgt);
-		if (slot && slot->on_alloc_free != 0) {
+		if (slot && slot->on_alloc_free == -1) {
+			slot->on_alloc_free = 0;
+		} else if (slot && slot->on_alloc_free != 0) {
 			ERR_LOG("the slot on alloc/free1: %d\n",
 				slot->on_alloc_free);
 			slot = NULL;	/*slot used on another alloc. */
