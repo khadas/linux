@@ -5117,10 +5117,12 @@ static bool dpvpp_parser_bypass(struct dimn_itf_s *itf,
 	int i;
 	unsigned int ds_ratio = 0;
 	struct dim_prevpp_ds_s *ds;
+	struct dev_vfram_t *pvfm;
 
 	if (!itf || !itf->ds)
 		return false;
 	ds = itf->ds;
+	pvfm = &itf->dvfm;
 
 	qin	= &ds->lk_que_in;
 	qready	= &ds->lk_que_ready;
@@ -5151,6 +5153,9 @@ static bool dpvpp_parser_bypass(struct dimn_itf_s *itf,
 
 			qidle->ops.put(qidle, vf);
 			qready->ops.put(qready, vf_ori);
+			vf_notify_receiver(pvfm->name,
+				      VP_EVENT(VFRAME_READY),
+				      NULL);
 			if (qready->ops.is_full(qready))
 				break;
 		} else {
