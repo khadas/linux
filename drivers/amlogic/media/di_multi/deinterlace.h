@@ -510,6 +510,7 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_vd1;
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
+	unsigned int sub_v;
 #ifdef DIM_TB_DETECT
 	//unsigned int tb_detect;
 	unsigned int tb_detect_period;

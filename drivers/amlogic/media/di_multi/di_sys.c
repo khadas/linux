@@ -4056,6 +4056,8 @@ static int dim_probe(struct platform_device *pdev)
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
 	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7))
 		di_devp->is_crc_ic = true;
+	if (DIM_IS_IC(T5DB) && cfgg(SUB_V))
+		di_devp->sub_v = cfgg(SUB_V);
 	dip_init_pq_ops();
 
 	if (dim_get_canvas()) {

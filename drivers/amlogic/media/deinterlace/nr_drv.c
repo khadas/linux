@@ -421,6 +421,11 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 		op->wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
 		Wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
 	} //add for crc @2k22-0102
+	if (IS_IC(dil_get_cpuver_flag(), T5DB) && dim_ic_sub() == 1) {
+		op->wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0x01039177);
+		op->wr(NR4_MCNR_MV_CTRL_REG, 0x00002098);
+		op->wr(NR4_MCNR_AC2NORM_LUT1, 0x0a060403);
+	}
 	/* noise meter */
 	op->wr(NR4_NM_X_CFG, (val << 16) | (width - val - 1));
 	op->wr(NR4_NM_Y_CFG, (val << 16) | (height - val - 1));

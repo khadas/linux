@@ -192,6 +192,7 @@ const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
 bool dip_plink_check_ponly_dct(struct di_ch_s *pch, struct vframe_s *vframe);
 
 bool dim_config_crc_icl(void);
+unsigned int dim_is_ic_sub(void);
 
 /************************************************
  * sct

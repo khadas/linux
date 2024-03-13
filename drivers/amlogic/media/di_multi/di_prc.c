@@ -5608,6 +5608,16 @@ bool dim_config_crc_icl(void)
 		return de_devp->is_crc_ic;
 }
 
+unsigned int dim_is_ic_sub(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->sub_v;
+}
+
 /************************************************
  * aisr lrhf
  ************************************************/
