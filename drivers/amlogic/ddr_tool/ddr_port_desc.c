@@ -12,7 +12,6 @@
 #include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include "ddr_port.h"
-#include "dmc_monitor.h"
 
 /*
  * NOTE:

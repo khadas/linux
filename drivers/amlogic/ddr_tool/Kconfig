@@ -111,6 +111,7 @@ config AMLOGIC_DDR_BANDWIDTH_A4
 config AMLOGIC_DMC_MONITOR
 	bool "Amlogic dmc monitor"
 	depends on AMLOGIC_DDR_TOOL
+	depends on AMLOGIC_PAGE_TRACE
 	default n
 	help
 		DMC monitor for hardware connected to DMC master. Using it can
