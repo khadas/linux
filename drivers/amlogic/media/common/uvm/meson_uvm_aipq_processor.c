@@ -434,7 +434,9 @@ int attach_aipq_hook_mod_info(int shared_fd,
 		aipq_info->dw_width = vf->width;
 		if (vf->width > 3840 ||
 		    vf->height > 2160 ||
-		    vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		    vf->flag & VFRAME_FLAG_VIDEO_SECURE ||
+		    vf->flag & VFRAME_FLAG_GAME_MODE ||
+		    vf->flag & VFRAME_FLAG_PC_MODE) {
 			aipq_print(PRINT_OTHER, "bypass %d %d\n",
 				vf->width, vf->height);
 			aipq_info->need_do_aipq = 0;
