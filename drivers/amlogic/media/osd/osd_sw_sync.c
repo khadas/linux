@@ -128,13 +128,6 @@ static bool timeline_fence_signaled(struct dma_fence *fence)
 
 static bool timeline_fence_enable_signaling(struct dma_fence *fence)
 {
-	struct sync_pt *pt = container_of(fence, struct sync_pt, base);
-	struct sync_timeline *parent = dma_fence_parent(fence);
-
-	if (timeline_fence_signaled(fence))
-		return false;
-
-	list_add_tail(&pt->active_list, &parent->active_list_head);
 	return true;
 }
 
@@ -211,6 +204,7 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 		       obj->context, value);
 	list_add_tail(&pt->link, &obj->pt_list);
 	INIT_LIST_HEAD(&pt->active_list);
+	list_add_tail(&pt->active_list, &obj->active_list_head);
 	spin_unlock_irqrestore(&obj->lock, flags);
 
 	return pt;
