@@ -244,13 +244,13 @@
 	panel,height-mm = <210>;
 #if 0
 	/* EC103KH3 panel */
-	panel,width = <2496>;
-	panel,height = <1944>;
-	panel,vir_width = <2480>;
-	panel,vir_height = <1860>;
+	panel,width = <2480>;
+	panel,height = <1860>;
+	panel,vir_width = <2496>;
+	panel,vir_height = <1944>;
 	panel,sdck = <60000000>;
-	panel,lsl = <12>;
-	panel,lbl = <13>;
+	panel,lsl = <64>;
+	panel,lbl = <64>;
 	panel,ldl = <312>;
 	panel,lel = <22>;
 	panel,gdck-sta = <1>;
@@ -262,6 +262,8 @@
 	panel,mirror = <0>;
 	panel,panel_16bit = <1>;
 	panel,panel_color = <1>;
+	panel,sdoe_mode = <1>;
+	panel,sdce_width = <1>;
 	panel,width-mm = <166>;
 	panel,height-mm = <210>;
 	panel,disable_logo = <1>;
@@ -903,7 +905,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sy7636a_default>;
 
-		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>, <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
 
 		thermal-zone = "ebcpmic-thermal";
 		#thermal-sensor-cells = <0>;
@@ -1156,7 +1158,9 @@
 
 	sy7636a {
 		sy7636a_default: sy7636a_default {
-			rockchip,pins =	<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins =
+					<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
+					<2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
