@@ -67,10 +67,8 @@ static const uint32_t formats_for_vop3_cluster[] = {
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yvu444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
-#ifdef CONFIG_NO_GKI
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-#endif
 	DRM_FORMAT_YUV420_8BIT, /* yuv420_8bit non-Linear mode only */
 	DRM_FORMAT_YUV420_10BIT, /* yuv420_10bit non-Linear mode only */
 	DRM_FORMAT_YUYV, /* yuv422_8bit non-Linear mode only*/
@@ -93,10 +91,8 @@ static const uint32_t formats_for_esmart[] = {
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yvu444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
-#ifdef CONFIG_NO_GKI
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-#endif
 	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
 	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
@@ -117,10 +113,8 @@ static const uint32_t formats_for_rk356x_esmart[] = {
 	DRM_FORMAT_NV16, /* yuv422_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
-#ifdef CONFIG_NO_GKI
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-#endif
 	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
 	DRM_FORMAT_UYVY, /* yuv422_8bit[UYVY] linear mode */
 };
@@ -150,10 +144,8 @@ static const uint32_t formats_for_vop3_esmart[] = {
 	DRM_FORMAT_NV24, /* yuv444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV42, /* yvu444_8bit linear mode, 2 plane */
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
-#ifdef CONFIG_NO_GKI
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-#endif
 	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
 	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
