@@ -29,14 +29,153 @@ static inline bool ufshcd_is_device_present(struct ufs_hba *hba)
 	return ufshcd_readl(hba, REG_CONTROLLER_STATUS) & DEVICE_PRESENT;
 }
 
+#ifdef MODULE
+static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
+{
+	#define MIN_DELAY_BEFORE_DME_CMDS_US	1000
+	unsigned long min_sleep_time_us;
+
+	if (!(hba->quirks & UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS))
+		return;
+
+	/*
+	 * last_dme_cmd_tstamp will be 0 only for 1st call to
+	 * this function
+	 */
+	if (unlikely(!ktime_to_us(hba->last_dme_cmd_tstamp))) {
+		min_sleep_time_us = MIN_DELAY_BEFORE_DME_CMDS_US;
+	} else {
+		unsigned long delta =
+			(unsigned long) ktime_to_us(
+				ktime_sub(ktime_get(),
+				hba->last_dme_cmd_tstamp));
+
+		if (delta < MIN_DELAY_BEFORE_DME_CMDS_US)
+			min_sleep_time_us =
+				MIN_DELAY_BEFORE_DME_CMDS_US - delta;
+		else
+			return; /* no more delay required */
+	}
+
+	/* allow sleep for extra 50us if needed */
+	usleep_range(min_sleep_time_us, min_sleep_time_us + 50);
+}
+
+#define UIC_CMD_TIMEOUT	500
+
+static inline bool ufshcd_ready_for_uic_cmd(struct ufs_hba *hba)
+{
+	u32 val;
+	int ret = read_poll_timeout(ufshcd_readl, val, val & UIC_COMMAND_READY,
+				    500, UIC_CMD_TIMEOUT * 1000, false, hba,
+				    REG_CONTROLLER_STATUS);
+	return ret == 0 ? true : false;
+}
+
+static inline void
+ufshcd_dispatch_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
+{
+	lockdep_assert_held(&hba->uic_cmd_mutex);
+
+	WARN_ON(hba->active_uic_cmd);
+
+	hba->active_uic_cmd = uic_cmd;
+
+	/* Write Args */
+	ufshcd_writel(hba, uic_cmd->argument1, REG_UIC_COMMAND_ARG_1);
+	ufshcd_writel(hba, uic_cmd->argument2, REG_UIC_COMMAND_ARG_2);
+	ufshcd_writel(hba, uic_cmd->argument3, REG_UIC_COMMAND_ARG_3);
+
+	/* Write UIC Cmd */
+	ufshcd_writel(hba, uic_cmd->command & COMMAND_OPCODE_MASK,
+		      REG_UIC_COMMAND);
+}
+
+static int
+ufshcd_wait_for_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
+{
+	int ret;
+	unsigned long flags;
+
+	lockdep_assert_held(&hba->uic_cmd_mutex);
+
+	if (wait_for_completion_timeout(&uic_cmd->done,
+					msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
+		ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+	} else {
+		ret = -ETIMEDOUT;
+		dev_err(hba->dev,
+			"uic cmd 0x%x with arg3 0x%x completion timeout\n",
+			uic_cmd->command, uic_cmd->argument3);
+
+		if (!uic_cmd->cmd_active) {
+			dev_err(hba->dev, "%s: UIC cmd has been completed, return the result\n",
+				__func__);
+			ret = uic_cmd->argument2 & MASK_UIC_COMMAND_RESULT;
+		}
+	}
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	hba->active_uic_cmd = NULL;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	return ret;
+}
+
+static int
+__ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd,
+		      bool completion)
+{
+	lockdep_assert_held(&hba->uic_cmd_mutex);
+
+	if (!ufshcd_ready_for_uic_cmd(hba)) {
+		dev_err(hba->dev,
+			"Controller not ready to accept UIC commands\n");
+		return -EIO;
+	}
+
+	if (completion)
+		init_completion(&uic_cmd->done);
+
+	uic_cmd->cmd_active = 1;
+	ufshcd_dispatch_uic_cmd(hba, uic_cmd);
+
+	return 0;
+}
+
+static int ufs_rockchip_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
+{
+	int ret;
+
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_UIC_CMD)
+		return 0;
+
+	ufshcd_hold(hba, false);
+	mutex_lock(&hba->uic_cmd_mutex);
+	ufshcd_add_delay_before_dme_cmd(hba);
+
+	ret = __ufshcd_send_uic_cmd(hba, uic_cmd, true);
+	if (!ret)
+		ret = ufshcd_wait_for_uic_cmd(hba, uic_cmd);
+
+	mutex_unlock(&hba->uic_cmd_mutex);
+
+	ufshcd_release(hba);
+	return ret;
+}
+#endif /* MODULE */
+
 static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 {
 	struct uic_command uic_cmd = {0};
 	int ret;
 
 	uic_cmd.command = UIC_CMD_DME_LINK_STARTUP;
-
+#ifdef MODULE
+	ret = ufs_rockchip_send_uic_cmd(hba, &uic_cmd);
+#else
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+#endif
 	if (ret)
 		dev_err(hba->dev,
 			"dme-link-startup: error code %d\n", ret);
