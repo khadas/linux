@@ -618,21 +618,18 @@ static int aml_rtos_probe(struct platform_device *pdev)
 						  sizeof(struct xrtosinfo_t),
 						  MEMREMAP_WB);
 	if (rtosinfo) {
+		if (rtosinfo->rtos_run_flag == RTOS_RUN_FLAG) {
+			if (class_register(&freertos_class)) {
+				pr_err("regist freertos_class failed\n");
+				return -EINVAL;
+			}
+		}
+		aml_rtos_logbuf_init();
 		freertos_do_finish(1);
 	} else {
 		pr_err("map freertos info failed\n");
-		goto finish;
 	}
 
-	if (rtosinfo->rtos_run_flag == RTOS_RUN_FLAG) {
-		if (class_register(&freertos_class)) {
-			pr_err("regist freertos_class failed\n");
-			return -EINVAL;
-		}
-	}
-	aml_rtos_logbuf_init();
-
-finish:
 	return 0;
 }
 
