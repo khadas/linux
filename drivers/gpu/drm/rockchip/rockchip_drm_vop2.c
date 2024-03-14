@@ -4300,9 +4300,51 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 	if (pd->data->id == VOP2_PD_CLUSTER0 || pd->data->id == VOP2_PD_CLUSTER1 ||
 	    pd->data->id == VOP2_PD_CLUSTER2 || pd->data->id == VOP2_PD_CLUSTER3 ||
 	    pd->data->id == VOP2_PD_CLUSTER || pd->data->id == VOP2_PD_ESMART) {
-		phys_id = ffs(pd->data->module_id_mask) - 1;
-		win = vop2_find_win_by_phys_id(vop2, phys_id);
-		vp_id = ffs(win->vp_mask) - 1;
+		uint32_t module_id_mask = pd->data->module_id_mask;
+		int i, win_num, temp_vp_id = -1;
+
+		/*
+		 * The win attached vp maybe unused, and the disabled vp will not register
+		 * crtc, so we need to lool up all win under the pd and check if the win attached
+		 * vp has register crtc.
+		 * If all the win attached vp is disabled, we set the first win(undter the pd)
+		 * attach to the first crtc to make sure the pd can be closed normally.
+		 */
+		win_num = hweight32(pd->data->module_id_mask);
+		for (i = 0; i < win_num; i++) {
+			phys_id = ffs(module_id_mask) - 1;
+			module_id_mask &= ~BIT(phys_id);
+			win = vop2_find_win_by_phys_id(vop2, phys_id);
+			vp_id = ffs(win->vp_mask) - 1;
+
+			drm_for_each_crtc(crtc, vop2->drm_dev) {
+				vp = to_vop2_video_port(crtc);
+				if (vp_id == vp->id) {
+					temp_vp_id = vp_id;
+					break;
+				}
+			}
+		}
+
+		/* If can't get the correct vp id, set the first win to the first crtc */
+		if (temp_vp_id < 0) {
+			phys_id = ffs(pd->data->module_id_mask) - 1;
+			crtc = drm_crtc_from_index(vop2->drm_dev, 0);
+			vp = to_vop2_video_port(crtc);
+			if (phys_id >= ROCKCHIP_MAX_LAYER) {
+				DRM_DEV_ERROR(vop2->dev, "unexpected phys_id: %d\n", phys_id);
+				return;
+			}
+			/* Notice: current designed even if the layer cannot reach
+			 * the current vp, the pd corresponding to the current layer
+			 * can be turned off normally, need note if the design changes for
+			 * this part.
+			 */
+			VOP_CTRL_SET(vop2, win_vp_id[phys_id], vp->id);
+			temp_vp_id = vp->id;
+		}
+
+		vp_id = temp_vp_id;
 		if (vp_id >= ROCKCHIP_MAX_CRTC) {
 			DRM_DEV_ERROR(vop2->dev, "unexpected vp%d\n", vp_id);
 			return;
