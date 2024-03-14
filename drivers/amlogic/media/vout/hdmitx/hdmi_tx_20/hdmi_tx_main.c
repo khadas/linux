@@ -8892,8 +8892,15 @@ static int hdmitx_boot_para_setup(char *s)
 	unsigned int token_len = 0;
 	unsigned int token_offset = 0;
 	unsigned int offset = 0;
-	int size = strlen(s);
+	int size = 0;
 
+	if (!s) {
+		memset(hdmitx_device.fmt_attr, 0, sizeof(hdmitx_device.fmt_attr));
+		memset(hdmitx_device.backup_fmt_attr, 0, sizeof(hdmitx_device.backup_fmt_attr));
+		return -EINVAL;
+	}
+
+	size = strlen(s);
 	memset(hdmitx_device.fmt_attr, 0, sizeof(hdmitx_device.fmt_attr));
 	memset(hdmitx_device.backup_fmt_attr, 0,
 	       sizeof(hdmitx_device.backup_fmt_attr));
@@ -8917,6 +8924,11 @@ __setup("hdmitx=", hdmitx_boot_para_setup);
 
 static int hdmitx_boot_frac_rate(char *str)
 {
+	if (!str) {
+		hdmitx_device.frac_rate_policy = 1;
+		return -EINVAL;
+	}
+
 	if (strncmp("0", str, 1) == 0)
 		hdmitx_device.frac_rate_policy = 0;
 	else
@@ -8935,6 +8947,11 @@ static int hdmitx_boot_edid_check(char *str)
 {
 	unsigned int val = 0;
 
+	if (!str) {
+		hdmitx_device.edid_check = 0;
+		return -EINVAL;
+	}
+
 	if ((strncmp("0", str, 1) == 0) || (strncmp("1", str, 1) == 0) ||
 		(strncmp("2", str, 1) == 0) || (strncmp("3", str, 1) == 0)) {
 		val = str[0] - '0';
@@ -8950,6 +8967,11 @@ static int hdmitx_boot_hdr_priority(char *str)
 {
 	unsigned int val = 0;
 
+	if (!str) {
+		hdmitx_device.hdr_priority = 0;
+		return -EINVAL;
+	}
+
 	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
 		val = str[0] - '0';
 		hdmitx_device.hdr_priority = val;
@@ -8962,6 +8984,11 @@ __setup("hdr_priority=", hdmitx_boot_hdr_priority);
 
 static int get_hdmi_checksum(char *str)
 {
+	if (!str) {
+		pr_err("get hdmi checksum: %s\n", hdmichecksum);
+		return -EINVAL;
+	}
+
 	snprintf(hdmichecksum, sizeof(hdmichecksum), "%s", str);
 
 	pr_info("get hdmi checksum: %s\n", hdmichecksum);
@@ -8972,6 +8999,11 @@ __setup("hdmichecksum=", get_hdmi_checksum);
 
 static int hdmitx_config_csc_en(char *str)
 {
+	if (!str) {
+		hdmitx_device.config_csc_en = false;
+		return -EINVAL;
+	}
+
 	if (strncmp("1", str, 1) == 0)
 		hdmitx_device.config_csc_en = true;
 	else

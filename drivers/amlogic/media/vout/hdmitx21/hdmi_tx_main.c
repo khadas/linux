@@ -8256,8 +8256,15 @@ static int hdmitx21_boot_para_setup(char *s)
 	u32 token_len = 0;
 	u32 token_offset = 0;
 	u32 offset = 0;
-	int size = strlen(s);
+	int size = 0;
 
+	if (!s) {
+		memset(hdev->fmt_attr, 0, sizeof(hdev->fmt_attr));
+		memset(hdev->backup_fmt_attr, 0, sizeof(hdev->backup_fmt_attr));
+		return -EINVAL;
+	}
+
+	size = strlen(s);
 	memset(hdev->fmt_attr, 0, sizeof(hdev->fmt_attr));
 	memset(hdev->backup_fmt_attr, 0,
 	       sizeof(hdev->backup_fmt_attr));
@@ -8283,6 +8290,11 @@ static int hdmitx21_boot_frac_rate(char *str)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	if (!str) {
+		hdev->frac_rate_policy = 1;
+		return -EINVAL;
+	}
+
 	if (strncmp("0", str, 1) == 0)
 		hdev->frac_rate_policy = 0;
 	else
@@ -8302,6 +8314,11 @@ static int hdmitx21_boot_edid_check(char *str)
 	unsigned int val = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	if (!str) {
+		hdev->edid_check = 0;
+		return -EINVAL;
+	}
+
 	if ((strncmp("0", str, 1) == 0) || (strncmp("1", str, 1) == 0) ||
 		(strncmp("2", str, 1) == 0) || (strncmp("3", str, 1) == 0)) {
 		val = str[0] - '0';
@@ -8318,6 +8335,11 @@ static int hdmitx21_boot_hdr_priority(char *str)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	unsigned int val = 0;
 
+	if (!str) {
+		hdev->hdr_priority = 0;
+		return -EINVAL;
+	}
+
 	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
 		val = str[0] - '0';
 		hdev->hdr_priority = val;
@@ -8330,6 +8352,11 @@ __setup("hdr_priority=", hdmitx21_boot_hdr_priority);
 
 static int __init get_hdmi21_checksum(char *str)
 {
+	if (!str) {
+		pr_err("get hdmi checksum: %s\n", hdmichecksum);
+		return -EINVAL;
+	}
+
 	snprintf(hdmichecksum, sizeof(hdmichecksum), "%s", str);
 
 	pr_info("get hdmi checksum: %s\n", hdmichecksum);
@@ -8342,6 +8369,11 @@ static int hdmitx21_boot_dsc_policy(char *str)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	unsigned int val = 0;
+
+	if (!str) {
+		hdev->dsc_policy = 0;
+		return -EINVAL;
+	}
 
 	if ((strncmp("0", str, 1) == 0) ||
 		(strncmp("1", str, 1) == 0) ||
