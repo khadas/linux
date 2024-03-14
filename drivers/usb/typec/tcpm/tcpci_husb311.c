@@ -237,15 +237,18 @@ static int husb311_pm_resume(struct device *dev)
 {
 	struct husb311_chip *chip = dev->driver_data;
 	int ret = 0;
-	u8 pwr;
+	u8 filter;
 
 	/*
 	 * When the power of husb311 is lost or i2c read failed in PM S/R
 	 * process, we must reset the tcpm port first to ensure the devices
 	 * can attach again.
+	 *
+	 * The TCPC_FILTER we amended its value to 0x0F in husb311_init, so if
+	 * husb311 powered off in suspend, the value would reset to default.
 	 */
-	ret = husb311_read8(chip, HUSB311_TCPC_POWER, &pwr);
-	if (pwr & BIT(0) || ret < 0) {
+	ret = husb311_read8(chip, HUSB311_TCPC_FILTER, &filter);
+	if (filter != 0x0F || ret < 0) {
 		ret = husb311_sw_reset(chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);
