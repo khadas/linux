@@ -191,9 +191,9 @@ enum vop2_data_format {
 
 enum vop2_afbc_format {
 	VOP2_AFBC_FMT_RGB565,
-	VOP2_AFBC_FMT_ARGB2101010 = 2,
+	VOP2_AFBC_FMT_ARGB2101010_YUV444_10BIT = 2,
 	VOP2_AFBC_FMT_YUV420_10BIT,
-	VOP2_AFBC_FMT_RGB888,
+	VOP2_AFBC_FMT_RGB888_YUV444,
 	VOP2_AFBC_FMT_ARGB8888,
 	VOP2_AFBC_FMT_YUV420 = 9,
 	VOP2_AFBC_FMT_YUV422 = 0xb,
@@ -1419,7 +1419,10 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	if (ret)
 		DRM_DEV_ERROR(vop2->dev, "VOP vblank IRQ stuck for 10 ms\n");
 
-	synchronize_irq(vop2->irq);
+	if (vop2->merge_irq)
+		synchronize_irq(vop2->irq);
+	else
+		synchronize_irq(vp->irq);
 }
 
 static bool vop2_vp_done_bit_status(struct vop2_video_port *vp)
@@ -2060,8 +2063,10 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
+	case DRM_FORMAT_VUY888:
 		return VOP2_FMT_YUV444SP;
 	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_VUY101010:
 		return VOP2_FMT_YUV444SP_10;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
@@ -2082,7 +2087,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 	case DRM_FORMAT_ARGB2101010:
 	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_ABGR2101010:
-		return VOP2_AFBC_FMT_ARGB2101010;
+	case DRM_FORMAT_VUY101010:
+		return VOP2_AFBC_FMT_ARGB2101010_YUV444_10BIT;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -2090,7 +2096,8 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 		return VOP2_AFBC_FMT_ARGB8888;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_BGR888:
-		return VOP2_AFBC_FMT_RGB888;
+	case DRM_FORMAT_VUY888:
+		return VOP2_AFBC_FMT_RGB888_YUV444;
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return VOP2_AFBC_FMT_RGB565;
@@ -2220,6 +2227,8 @@ static bool vop2_afbc_rb_swap(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV30:
+	case DRM_FORMAT_VUY888:
+	case DRM_FORMAT_VUY101010:
 		return true;
 	default:
 		return false;
@@ -4172,7 +4181,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 			vop2_writel(vop2, 0xda4, 0x01000100);
 			vop2_writel(vop2, 0xda8, 0x03ff0100);
 
-			if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == true)
+			if (vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
@@ -13378,7 +13387,11 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	vop2->disable_afbc_win = of_property_read_bool(dev->of_node, "disable-afbc-win");
 	vop2->disable_win_move = of_property_read_bool(dev->of_node, "disable-win-move");
 	vop2->skip_ref_fb = of_property_read_bool(dev->of_node, "skip-ref-fb");
-	vop2->merge_irq = of_property_read_bool(dev->of_node, "rockchip,vop-merge-irq");
+	if (!is_vop3(vop2) ||
+	    vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
+		vop2->merge_irq = true;
+	else
+		vop2->merge_irq = of_property_read_bool(dev->of_node, "rockchip,vop-merge-irq");
 
 	ret = vop2_pd_data_init(vop2);
 	if (ret)
@@ -13556,7 +13569,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		INIT_WORK(&vop2->post_buf_empty_work, post_buf_empty_work_event);
 	}
 
-	if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == false)
+	if (vop2->merge_irq == false)
 		ret = devm_request_irq(dev, vop2->irq, vop3_sys_isr, IRQF_SHARED, dev_name(dev), vop2);
 	else
 		ret = devm_request_irq(dev, vop2->irq, vop2_isr, IRQF_SHARED, dev_name(dev), vop2);
@@ -13569,7 +13582,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (registered_num_crtcs <= 0)
 		return -ENODEV;
 
-	if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == false) {
+	if (vop2->merge_irq == false) {
 		struct drm_crtc *crtc;
 		char irq_name[12];
 

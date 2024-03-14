@@ -199,7 +199,7 @@ static int husb311_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	enable_irq_wake(client->irq);
+	device_init_wakeup(chip->dev, true);
 
 	return 0;
 }
@@ -208,12 +208,14 @@ static void husb311_remove(struct i2c_client *client)
 {
 	struct husb311_chip *chip = i2c_get_clientdata(client);
 
+	device_init_wakeup(chip->dev, false);
 	tcpci_unregister_port(chip->tcpci);
 }
 
 static int husb311_pm_suspend(struct device *dev)
 {
 	struct husb311_chip *chip = dev->driver_data;
+	struct i2c_client *client = to_i2c_client(dev);
 	int ret = 0;
 	u8 pwr;
 
@@ -230,22 +232,36 @@ static int husb311_pm_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	if (device_may_wakeup(dev) && !chip->vbus_on)
+		enable_irq_wake(client->irq);
+	else
+		disable_irq(client->irq);
+
 	return 0;
 }
 
 static int husb311_pm_resume(struct device *dev)
 {
 	struct husb311_chip *chip = dev->driver_data;
+	struct i2c_client *client = to_i2c_client(dev);
 	int ret = 0;
-	u8 pwr;
+	u8 filter;
+
+	if (device_may_wakeup(dev) && !chip->vbus_on)
+		disable_irq_wake(client->irq);
+	else
+		enable_irq(client->irq);
 
 	/*
 	 * When the power of husb311 is lost or i2c read failed in PM S/R
 	 * process, we must reset the tcpm port first to ensure the devices
 	 * can attach again.
+	 *
+	 * The TCPC_FILTER we amended its value to 0x0F in husb311_init, so if
+	 * husb311 powered off in suspend, the value would reset to default.
 	 */
-	ret = husb311_read8(chip, HUSB311_TCPC_POWER, &pwr);
-	if (pwr & BIT(0) || ret < 0) {
+	ret = husb311_read8(chip, HUSB311_TCPC_FILTER, &filter);
+	if (filter != 0x0F || ret < 0) {
 		ret = husb311_sw_reset(chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);

@@ -1311,3 +1311,8 @@
 &vop_mmu {
 	status = "okay";
 };
+
+&vp1 {
+	assigned-clocks = <&cru DCLK_VP1_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};

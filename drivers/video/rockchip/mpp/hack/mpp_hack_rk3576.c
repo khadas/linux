@@ -50,10 +50,26 @@ static const char rk3576_hack_h264_pps_data[] = {
 	0x00, 0x00, 0x00, 0x00,
 };
 
+static bool rk3576_hack_flag;
+
+static bool is_rk3576(struct device *dev)
+{
+	int ret;
+
+	ret = device_property_match_string(dev, "compatible", "rockchip,rkv-decoder-rk3576");
+
+	return (ret < 0) ? false : true;
+}
+
 int rk3576_workaround_init(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	u32 *reg;
+
+	/* check current soc is rk3576 */
+	rk3576_hack_flag = is_rk3576(mpp->dev);
+	if (!rk3576_hack_flag)
+		return 0;
 
 	/* alloc buffer for node */
 	dec->fix = mpp_dma_alloc(mpp->dev, 2 * PAGE_SIZE);
@@ -113,8 +129,14 @@ int rk3576_workaround_exit(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
-	if (dec->fix)
+	/* check current soc is rk3576 */
+	if (!rk3576_hack_flag)
+		return 0;
+
+	if (dec->fix) {
 		mpp_dma_free(dec->fix);
+		dec->fix = NULL;
+	}
 
 	return 0;
 }
@@ -126,8 +148,10 @@ int rk3576_workaround_run(struct mpp_dev *mpp)
 	int ret;
 	u32 irq_val, status;
 
-	if (!dec->fix || !link)
+	/* check current soc is rk3576 */
+	if (!rk3576_hack_flag || !dec->fix || !link)
 		return 0;
+
 	/* disable hardware irq */
 	writel_relaxed(0x00008000, link->reg_base + 0x58);
 
