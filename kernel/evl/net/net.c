@@ -50,10 +50,6 @@ int __init evl_net_init(void)
 {
 	int ret;
 
-	ret = evl_net_init_pools();
-	if (ret)
-		return ret;
-
 	evl_net_init_tx();
 
 	evl_net_init_qdisc();
@@ -87,7 +83,6 @@ fail_packet:
 	unregister_netdevice_notifier(&netdev_notifier);
 fail_notifier:
 	evl_net_cleanup_qdisc();
-	evl_net_cleanup_pools();
 
 	return ret;
 }
@@ -99,7 +94,6 @@ void __init evl_net_cleanup(void)
 	evl_unregister_socket_domain(&evl_net_packet);
 	unregister_netdevice_notifier(&netdev_notifier);
 	evl_net_cleanup_qdisc();
-	evl_net_cleanup_pools();
 }
 
 static long net_ioctl(struct file *filp, unsigned int cmd,
@@ -158,14 +152,6 @@ static ssize_t vlans_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(vlans);
 
-static ssize_t clones_show(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
-{
-	return evl_net_show_clones(buf, PAGE_SIZE);
-}
-static DEVICE_ATTR_RO(clones);
-
 static ssize_t ipv4_routes_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -192,7 +178,6 @@ static DEVICE_ATTR_WO(arp);
 
 static struct attribute *net_attrs[] = {
 	&dev_attr_vlans.attr,
-	&dev_attr_clones.attr,
 	&dev_attr_ipv4_routes.attr,
 	&dev_attr_arp.attr,
 	NULL,

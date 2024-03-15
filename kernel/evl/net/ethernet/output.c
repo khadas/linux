@@ -28,7 +28,7 @@ int evl_net_ether_transmit_raw(struct net_device *dev, struct sk_buff *skb)
 		vlan_proto = vlan_dev_vlan_proto(dev);
 		vlan_tci = vlan_dev_vlan_id(dev);
 		vlan_tci |= vlan_dev_get_egress_qos_mask(dev, skb->priority);
-		__vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
+		__vlan_insert_tag(skb, vlan_proto, vlan_tci);
 	}
 
 	netdev_dbg(dev, "transmitting %px\n", skb);

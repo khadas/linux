@@ -155,7 +155,6 @@ static bool packet_deliver(struct sk_buff *skb, int protocol) /* oob */
 	u32 hkey;
 
 	hkey = get_protocol_hash(protocol);
-
 	/*
 	 * Find the rx queue linking sockets attached to the protocol.
 	 */
@@ -426,10 +425,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	if (evl_socket_f_flags(esk) & O_NONBLOCK)
 		msg_flags |= MSG_DONTWAIT;
 
-	/*
-	 * Fetch the timeout on obtaining a buffer from
-	 * est->free_skb_pool.
-	 */
+	/* Fetch the timeout on obtaining a buffer from the TX pool. */
 	ret = raw_copy_from_user(&uts, &u_msghdr->timeout, sizeof(uts));
 	if (ret)
 		return -EFAULT;
@@ -438,7 +434,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 		u_timespec_to_ktime(uts);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
-	/* Determine the xmit interface (always a VLAN device). */
+	/* Determine the xmit interface. */
 	dev = find_xmit_device(esk, u_msghdr);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
@@ -451,6 +447,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	 * first, so @real_dev cannot go stale until we are done.
 	 */
 	real_dev = evl_net_real_dev(dev);
+
 	skb = evl_net_dev_alloc_skb(real_dev, timeout, tmode);
 	if (IS_ERR(skb)) {
 		ret = PTR_ERR(skb);
@@ -634,11 +631,7 @@ static __poll_t poll_packet(struct evl_socket *esk,
 	struct net_device *dev;
 	__poll_t ret = 0;
 
-	/*
-	 * Enqueue, then test. No big deal if we race on list_empty(),
-	 * at worst this would lead to a spurious wake up, which the
-	 * caller would detect under lock then go back waiting.
-	 */
+	/* Enqueue, then test. */
 	evl_poll_watch(&esk->poll_head, wait, NULL);
 	if (!list_empty(&esk->input))
 		ret = POLLIN|POLLRDNORM;
@@ -647,8 +640,8 @@ static __poll_t poll_packet(struct evl_socket *esk,
 	if (dev) {
 		est = dev->oob_state.estate;
 		evl_poll_watch(&est->poll_head, wait, NULL);
-		if (!list_empty(&est->free_skb_pool))
-			ret = POLLOUT|POLLWRNORM;
+		/* FIXME: Assume we can always TX, which is too optimistic. */
+		ret |= POLLOUT|POLLWRNORM;
 		evl_net_put_dev(dev);
 	}
 

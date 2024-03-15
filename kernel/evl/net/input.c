@@ -19,9 +19,69 @@
 #include <evl/net/device.h>
 #include <evl/net/ipv4.h>
 
+static void napi_poll_oob(struct evl_netdev_state *est) /* oob */
+{
+	struct napi_struct *napi, *tmp;
+	LIST_HEAD(requeuing);
+	unsigned long flags;
+
+	/*
+	 * We cannot conflict with the in-band stack on queuing via
+	 * napi->poll_list by design, since we own the NAPI instances
+	 * queued to est->rx_poll until we release them in this
+	 * routine by a call to napi_schedule_unprep().
+	 */
+	raw_spin_lock_irqsave(&est->rx_lock, flags);
+
+	/*
+	 * We are about to drop the RX lock, clear this flag early to
+	 * close a race.
+	 */
+	__clear_bit(EVL_NETDEV_POLL_SCHED, &est->flags);
+
+	list_for_each_entry_safe(napi, tmp, &est->rx_poll, poll_list) {
+		int budget = napi->weight;
+		list_del_init(&napi->poll_list);
+		raw_spin_unlock_irqrestore(&est->rx_lock, flags);
+		budget -= napi->poll(napi, budget);
+		/*
+		 * If the budget was not fully consumed (> 0), then we
+		 * have no more work for this instance and we may
+		 * release it, unless a scheduling request was missed,
+		 * in which case napi_schedule_unprep() would take
+		 * care of calling napi_schedule_oob() for
+		 * it. Otherwise, we need to requeue the instance for
+		 * another polling round.
+		 */
+		if (budget > 0)
+			napi_schedule_unprep(napi);
+		else
+			list_add(&napi->poll_list, &requeuing);
+		raw_spin_lock_irqsave(&est->rx_lock, flags);
+	}
+
+	if (!list_empty(&requeuing)) {
+		list_splice(&requeuing, &est->rx_poll);
+		__set_bit(EVL_NETDEV_POLL_SCHED, &est->flags);
+	}
+
+	raw_spin_unlock_irqrestore(&est->rx_lock, flags);
+}
+
 /*
- * RX thread dealing with ingress traffic. Each net device is served
- * by a dedicated thread.
+ * RX thread dealing with ingress traffic and garbage collection for
+ * stale input fragments. Specifically, this thread handles:
+ *
+ * - the outstanding requests for polling the device for new packets
+ * (napi_schedule_oob())
+ *
+ * - the polled ingress packets queued by netif_deliver_oob(), passing
+ * them over to the proper protocol layer.
+ *
+ * - the garbage collection to flush the IP fragments which have not
+ * been collected in time.
+ *
+ * Each net device is served by a dedicated RX thread.
  */
 void evl_net_do_rx(void *arg)
 {
@@ -38,7 +98,10 @@ void evl_net_do_rx(void *arg)
 		if (ret)
 			break;
 
-		if (evl_net_move_skb_queue(&est->rx_queue, &list)) {
+		if (test_bit(EVL_NETDEV_POLL_SCHED, &est->flags))
+			napi_poll_oob(est);
+
+		if (evl_net_move_skb_queue(&est->rx_packets, &list)) {
 			list_for_each_entry_safe(skb, next, &list, list) {
 				list_del(&skb->list);
 				EVL_NET_CB(skb)->handler->ingress(skb);
@@ -92,10 +155,10 @@ void evl_net_receive(struct sk_buff *skb,
 	 * the NIC driver to invoke napi_complete_done() when the RX
 	 * side goes quiescent.
 	 */
-	evl_net_add_skb_queue(&est->rx_queue, skb);
+	evl_net_add_skb_queue(&est->rx_packets, skb);
 
 	if (running_oob())
-		evl_raise_flag(&est->rx_flag);
+		evl_net_wake_rx(skb->dev);
 }
 
 struct evl_net_rxqueue *evl_net_alloc_rxqueue(u32 hkey) /* in-band */
@@ -122,7 +185,53 @@ void evl_net_free_rxqueue(struct evl_net_rxqueue *rxq)
 }
 
 /**
- * netif_oob_deliver - receive a network packet from the hardware.
+ * napi_schedule_oob - plan for polling a NAPI instance.
+ *
+ * The RX kthread is resumed so that it polls the associated device
+ * for ingress packets directly from the oob stage.
+ *
+ * @n is the NAPI instance associated to a device for which oob packet
+ * diversion is enabled. An earlier call to napi_schedule_prep() is
+ * expected to have been issued for @n.
+ */
+void napi_schedule_oob(struct napi_struct *n) /* oob */
+{
+	struct net_device *dev = n->dev;
+	struct evl_netdev_state *est = dev->oob_state.estate;
+	unsigned long flags;
+
+	if (EVL_WARN_ON(NET, !(n->state & NAPIF_STATE_SCHED)))
+		return;
+
+	/*
+	 * We might have multiple NAPI instances per device, so
+	 * serialization is required despite a single NAPI instance
+	 * may be active at any point in time. Oh, well.
+	 */
+	raw_spin_lock_irqsave(&est->rx_lock, flags);
+	list_add(&n->poll_list, &est->rx_poll);
+	__set_bit(EVL_NETDEV_POLL_SCHED, &est->flags);
+	raw_spin_unlock_irqrestore(&est->rx_lock, flags);
+	evl_net_wake_rx(dev);
+}
+
+/**
+ * napi_complete_oob - release a NAPI instance.
+ *
+ * May be called in-band or out-of-band indifferently. Eventually, the
+ * RX kthread is resumed so that it passes the pending ingress packets
+ * to the proper protocol handlers.
+ *
+ * @n is the NAPI instance associated to a device for which oob packet
+ * diversion is enabled.
+ */
+void napi_complete_oob(struct napi_struct *n) /* inband / oob */
+{
+	evl_net_wake_rx(n->dev);
+}
+
+/**
+ * netif_deliver_oob - receive a network packet from the hardware.
  *
  * Decide whether we should channel a freshly incoming packet to our
  * out-of-band stack. May be called from any stage.
@@ -139,7 +248,7 @@ void evl_net_free_rxqueue(struct evl_net_rxqueue *rxq)
  * Returns true if the oob stack wants to handle @skb, in which case
  * the caller must assume that it does not own the packet anymore.
  */
-bool netif_oob_deliver(struct sk_buff *skb) /* oob or in-band */
+bool netif_deliver_oob(struct sk_buff *skb) /* oob or in-band */
 {
 	skb_reset_network_header(skb);
 	if (!skb_transport_header_was_set(skb))
@@ -198,21 +307,4 @@ bool netif_oob_deliver(struct sk_buff *skb) /* oob or in-band */
 
 		return false;
 	}
-}
-
-/**
- * netif_oob_run - run the oob packet delivery
- *
- * This call is invoked from napi_complete_done() in order to kick our
- * RX kthread, which will forward the oob packets to the proper
- * protocol handlers. This is an in-band call.
- *
- * @dev the device receiving packets. netif_oob_diversion(dev) is
- * true.
- */
-void netif_oob_run(struct net_device *dev) /* in-band */
-{
-	struct evl_netdev_state *est = dev->oob_state.estate;
-
-	evl_raise_flag(&est->rx_flag);
 }

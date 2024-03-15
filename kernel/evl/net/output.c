@@ -99,21 +99,23 @@ static void skb_xmit_inband(struct sk_buff *skb)
 }
 
 /* in-band hook, called upon NET_TX_SOFTIRQ. */
-void skb_inband_xmit_backlog(void)
+void process_inband_tx_backlog(struct softnet_data *sd)
 {
 	struct sk_buff *skb, *n;
 	LIST_HEAD(list);
 
 	if (evl_net_move_skb_queue(this_cpu_ptr(&oob_tx_relay), &list)) {
-		list_for_each_entry_safe(skb, n, &list, list)
+		list_for_each_entry_safe(skb, n, &list, list) {
+			list_del(&skb->list);
 			skb_xmit_inband(skb);
+		}
 	}
 }
 
 static void xmit_inband(struct irq_work *work) /* in-band, stalled */
 {
 	/*
-	 * skb_inband_xmit_backlog() should run soon, kicked by tx_action.
+	 * process_inband_tx_backlog() should run soon, kicked by tx_action.
 	 */
 	__raise_softirq_irqoff(NET_TX_SOFTIRQ);
 }
@@ -149,7 +151,6 @@ static int xmit_oob(struct net_device *dev, struct sk_buff *skb)
  *	- skb->dev is a valid (real) device. The caller must prevent from
  *        the interface going down.
  *	- skb->sk == NULL.
- *      - skb->oob == true.
  */
 int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 {
@@ -162,13 +163,6 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 		return -EINVAL;
 
 	if (EVL_WARN_ON(NET, skb->sk))
-		return -EINVAL;
-
-	/*
-	 * Only packets obtained from the per-device oob pool are
-	 * allowed to flow through this interface.
-	 */
-	if (EVL_WARN_ON(NET, !skb->oob))
 		return -EINVAL;
 
 	if (netdev_is_oob_capable(dev))
@@ -188,9 +182,10 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 	 * Running oob but net device is not oob-capable, resort to
 	 * relaying the traffic to the in-band stage for enqueuing.
 	 * Dovetail does ensure that __raise_softirq_irqoff() is safe
-	 * to call from the oob stage, but we want the softirq to be
-	 * raised as soon as in-band resumes with interrupts enabled,
-	 * so we go through the irq_work indirection first.
+	 * to call from the oob stage provided hard irqs are off, but
+	 * we want the softirq to be raised as soon as in-band resumes
+	 * with interrupts enabled, so we go through the irq_work
+	 * indirection first.
 	 */
 	raw_spin_lock_irqsave(&rl->lock, flags);
 	kick = list_empty(&rl->queue);
@@ -201,6 +196,16 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 		irq_work_queue(&oob_xmit_work);
 
 	return 0;
+}
+
+void netif_tx_lock_oob(struct netdev_queue *txq) /* oob or in-band */
+{
+	evl_lock_stax(&txq->oob.tx_lock);
+}
+
+void netif_tx_unlock_oob(struct netdev_queue *txq) /* oob or in-band */
+{
+	evl_unlock_stax(&txq->oob.tx_lock);
 }
 
 void __init evl_net_init_tx(void)

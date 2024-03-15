@@ -21,8 +21,6 @@ struct iovec;
 
 struct evl_net_cb {
 	struct evl_net_handler *handler;
-	struct sk_buff *origin;	/* of a clone. */
-	dma_addr_t dma_addr;
 	struct evl_socket *tracker;
 	union {
 		/* protocol-specific stuff should live here. */
@@ -79,11 +77,5 @@ void evl_net_uncharge_skb_wmem(struct sk_buff *skb);
 ssize_t evl_net_skb_to_uio(const struct iovec *iov, size_t iovlen,
 			struct sk_buff *skb, size_t skip,
 			bool *short_write);
-
-int evl_net_init_pools(void);
-
-void evl_net_cleanup_pools(void);
-
-ssize_t evl_net_show_clones(char *buf, size_t len);
 
 #endif /* !_EVL_NET_SKB_H */
