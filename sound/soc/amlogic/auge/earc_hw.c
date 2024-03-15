@@ -1375,18 +1375,6 @@ void earctx_compressed_enable(struct regmap *dmac_map,
 			      enum audio_coding_types coding_type,
 			      bool enable)
 {
-	/*
-	 * bch generate must be disabled if type is ARC
-	 * otherwise there is no sound from ARC
-	 */
-	if (type == ATNDTYP_ARC)
-		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL3,
-				 BIT(29),
-				 0x0);
-
-	if (type != ATNDTYP_EARC)
-		return;
-
 	if (audio_coding_is_non_lpcm(coding_type)) {
 		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL3,
 				 0x1 << 29,
@@ -1407,6 +1395,15 @@ void earctx_compressed_enable(struct regmap *dmac_map,
 				 0x0 << 22  /* valid Bit value */
 				);
 	}
+
+	/*
+	 * bch generate must be disabled if type is ARC
+	 * otherwise there is no sound from ARC
+	 */
+	if (type == ATNDTYP_ARC)
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL3,
+				 BIT(29),
+				 0x0);
 
 	mmio_update_bits(dmac_map, EARCTX_FE_CTRL0,
 			 0x1 << 30,
