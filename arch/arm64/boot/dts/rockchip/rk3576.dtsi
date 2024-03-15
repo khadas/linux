@@ -4823,6 +4823,8 @@
 		clock-names = "hclk", "i3c";
 		dmas = <&dmac0 22>, <&dmac0 23>;
 		dma-names = "rx", "tx";
+		resets = <&cru SRST_I3C0>, <&cru SRST_H_I3C0>;
+		reset-names = "i3c", "ahb";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i3c0m0_xfer &i3c0_sdam0_pu>;
 		status = "disabled";
@@ -4838,6 +4840,8 @@
 		clock-names = "hclk", "i3c";
 		dmas = <&dmac1 22>, <&dmac1 23>;
 		dma-names = "rx", "tx";
+		resets = <&cru SRST_I3C1>, <&cru SRST_H_I3C1>;
+		reset-names = "i3c", "ahb";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i3c1m0_xfer &i3c1_sdam0_pu>;
 		status = "disabled";
