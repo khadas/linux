@@ -12581,6 +12581,12 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		cursor = NULL;
 
 		/*
+		 * make sure that the vp to be registered has at least one connector.
+		 */
+		if (!(enabled_vp_mask & BIT(vp->id)))
+			continue;
+
+		/*
 		 * we assume a vp with a zero plane_mask(set from dts or bootloader)
 		 * as unused.
 		 */
