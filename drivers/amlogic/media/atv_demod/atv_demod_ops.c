@@ -310,6 +310,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	p->param.audmode = params->audmode;
 	p->param.std = params->std;
 	p->last_frequency = params->frequency;
+	p->lock_range = 0;
 
 	p->if_inv = if_info[0];
 	p->if_freq = if_info[1];
@@ -1121,7 +1122,7 @@ static int atvdemod_fe_get_frontend(struct v4l2_frontend *v4l2_fe,
 	struct atv_demod_priv *priv = v4l2_fe->fe.analog_demod_priv;
 	struct analog_parameters *param = &priv->atvdemod_param.param;
 
-	p->frequency = param->frequency;
+	p->frequency = param->frequency + priv->atvdemod_param.lock_range;
 	p->audmode = param->audmode;
 	p->soundsys = v4l2_fe->params.soundsys;
 	p->std = param->std;
