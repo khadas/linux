@@ -2229,7 +2229,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE,
 			 "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad] by %s\n",
 			 win->win_id, win->area_id, actual_w, actual_h,
-			 dsp_w, dsp_h, dsp_stx, dsp_sty, vop_plane_state->zpos, &fb->format->format,
+			 dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
 			 afbc_en ? "[AFBC]" : "",
 			 &vop_plane_state->yrgb_mst, current->comm);
 	/*
