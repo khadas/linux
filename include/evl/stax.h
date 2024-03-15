@@ -12,14 +12,17 @@
 #include <linux/irq_work.h>
 #include <evl/wait.h>
 
+#define EVL_STAX_INBAND_SPIN  BIT(0)
+
 struct evl_stax {
 	atomic_t gate;
+	int flags;
 	struct evl_wait_queue oob_wait;
 	wait_queue_head_t inband_wait;
 	struct irq_work irq_work;
 };
 
-void evl_init_stax(struct evl_stax *stax);
+void evl_init_stax(struct evl_stax *stax, int flags);
 
 void evl_destroy_stax(struct evl_stax *stax);
 

@@ -13,7 +13,10 @@
 #define STAX_INBAND_BIT  BIT(31)
 /*
  * The stax is being claimed by the converse stage. This bit is
- * manipulated exclusively while holding oob_wait.wchan.lock.
+ * manipulated exclusively while holding oob_wait.wchan.lock. When set
+ * from inband, this bit also implicitly means that the waiter is not
+ * spinning but sleeping on the stax (i.e. EVL_STAX_INBAND_SPIN is
+ * clear at init).
  */
 #define STAX_CLAIMED_BIT BIT(30)
 
@@ -22,12 +25,15 @@
 
 static void wakeup_inband_waiters(struct irq_work *work);
 
-void evl_init_stax(struct evl_stax *stax)
+void evl_init_stax(struct evl_stax *stax, int flags)
 {
 	atomic_set(&stax->gate, 0);
+	stax->flags = flags;
 	evl_init_wait(&stax->oob_wait, &evl_mono_clock, EVL_WAIT_FIFO);
-	init_waitqueue_head(&stax->inband_wait);
-	init_irq_work(&stax->irq_work, wakeup_inband_waiters);
+	if (!(flags & EVL_STAX_INBAND_SPIN)) {
+		init_waitqueue_head(&stax->inband_wait);
+		init_irq_work(&stax->irq_work, wakeup_inband_waiters);
+	}
 }
 EXPORT_SYMBOL_GPL(evl_init_stax);
 
@@ -233,17 +239,23 @@ static int lock_from_inband(struct evl_stax *stax, bool wait)
 		 */
 		if (old & STAX_CONCURRENCY_MASK)
 			old |= STAX_INBAND_BIT;
+
 		/* Keep the claim bit in arithmetics. */
 		new = ((old & ~STAX_INBAND_BIT) + 1) | STAX_INBAND_BIT;
 		prev = atomic_cmpxchg(&stax->gate, old, new);
 		if (prev == old)
-			break;
+			break;	/* Acquired. */
+
 		/*
-		 * Retry if the section is still clear for entry from
-		 * inband.
+		 * Cannot acquire for inband yet. Retry if spinning
+		 * wait is requested, or if the section is clear from
+		 * any oob activity.
 		 */
-		if (inband_may_access(prev))
+		if (stax->flags & EVL_STAX_INBAND_SPIN || inband_may_access(prev)) {
+			cpu_relax();
 			continue;
+		}
+
 		if (!wait) {
 			ret = -EAGAIN;
 			break;
@@ -295,7 +307,10 @@ static void unlock_from_oob(struct evl_stax *stax)
 	unsigned long flags;
 	int old, prev, new;
 
-	/* Try the fast path: non-contended (unclaimed by inband). */
+	/*
+	 * Try the fast path: non-contended (unclaimed by inband,
+	 * maybe spinning).
+	 */
 	prev = atomic_read(&stax->gate);
 
 	while (!(prev & STAX_CLAIMED_BIT)) {
@@ -311,8 +326,8 @@ static void unlock_from_oob(struct evl_stax *stax)
 	}
 
 	/*
-	 * stax is claimed by inband, we have to take the slow path
-	 * under lock.
+	 * stax is claimed by inband (which is therefore NOT
+	 * spinning), we have to take the slow path under lock.
 	 */
 	raw_spin_lock_irqsave(&stax->oob_wait.wchan.lock, flags);
 

@@ -612,7 +612,7 @@ static int hectic_open(struct inode *inode, struct file *filp)
 
 	init_irq_work(&ctx->wake_utask, rtswitch_utask_waker);
 	evl_init_timer(&ctx->wake_up_delay, timed_wake_up);
-	evl_init_stax(&ctx->stax);
+	evl_init_stax(&ctx->stax, 0);
 
 	filp->private_data = ctx;
 	stream_open(inode, filp);
