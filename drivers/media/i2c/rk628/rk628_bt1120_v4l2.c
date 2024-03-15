@@ -1496,9 +1496,7 @@ static int rk628_bt1120_g_frame_interval(struct v4l2_subdev *sd,
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	const struct rk628_bt1120_mode *mode = bt1120->cur_mode;
 
-	mutex_lock(&bt1120->confctl_mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&bt1120->confctl_mutex);
 
 	return 0;
 }
