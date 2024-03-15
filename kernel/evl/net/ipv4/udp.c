@@ -204,7 +204,7 @@ static bool find_egress_path(struct evl_socket *esk, __be32 daddr,
 	_ert = evl_net_get_ipv4_route(sock_net(esk->sk), daddr);
 	if (likely(_ert)) {
 		dev = _ert->rt->dst.dev;
-		if (netdev_is_oob_port(dev)) {
+		if (netif_oob_port(dev)) {
 			_earp = evl_net_get_arp_entry(dev, daddr);
 			if (likely(_earp))  {
 				*ertp = _ert;
@@ -652,13 +652,12 @@ static inline bool __validate_checksum(struct sk_buff *skb, u16 ulen, __sum16 ch
 		sum = CSUM_MANGLED_0;
 	/*
 	 * Tricky: checksumming here although CHECKSUM_COMPLETE was
-	 * set means that validate_checksum_complete() found out that
-	 * the hardware checksum was invalid. So, if our
-	 * software-computed checksum is valid instead, then we have a
-	 * mismatch between us and the hardware. This means either the
-	 * original hardware checksum is incorrect or we screwed up
-	 * skb->csum when moving skb->data around, which is quite bad
-	 * news either way.
+	 * set means that we've just found out that the hardware
+	 * checksum was invalid. If our software-computed checksum is
+	 * valid instead, then we disagree with the hardware. This
+	 * means either the original hardware checksum is incorrect or
+	 * we screwed up skb->csum when moving skb->data around, which
+	 * is quite bad news either way.
 	 */
 	sum -= check;
 	if (!sum && skb->ip_summed == CHECKSUM_COMPLETE)

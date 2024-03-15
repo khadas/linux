@@ -121,14 +121,14 @@ static void update_arp_cache(struct neighbour *neigh) /* in-band */
 
 	read_lock_bh(&neigh->lock); /* Protect against races on nud_state */
 
-	if (netdev_is_oob_port(dev))
+	if (netif_oob_port(dev))
 		netdev_dbg(dev, "proto=%#x, state=%#x, dead=%d, "
 			"iface=%s, ip=%pI4, mac=%pM\n",
 			ntohs(neigh->tbl->protocol), neigh->nud_state,
 			neigh->dead, netdev_name(neigh->dev),
 			neigh->primary_key, neigh->ha);
 
-	if (neigh->nud_state & NUD_REACHABLE && netdev_is_oob_port(dev)) {
+	if (neigh->nud_state & NUD_REACHABLE && netif_oob_port(dev)) {
 		/* Cache complete entries from oob-enabled devices. */
 		ret = cache_arp_entry(cache, neigh);
 		if (ret) {
@@ -150,7 +150,7 @@ static void update_arp_cache(struct neighbour *neigh) /* in-band */
 		 * Out-of-band caps might have just been turned off
 		 * for the device although we still keep entries
 		 * referring to it, so do not filter out on
-		 * netdev_is_oob_port().
+		 * netif_oob_port().
 		 */
 		if (neigh->dead || neigh->nud_state & (NUD_FAILED|NUD_STALE))
 			uncache_arp_entry(cache, neigh);

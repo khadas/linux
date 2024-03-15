@@ -10,95 +10,59 @@
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
+#include <linux/log2.h>
 #include <linux/err.h>
+#include <linux/of_platform.h>
+#include <net/page_pool/helpers.h>
 #include <evl/uio.h>
 #include <evl/net.h>
 #include <evl/lock.h>
 #include <evl/list.h>
 #include <evl/work.h>
 #include <evl/wait.h>
+#include <evl/net/device.h>
 #include <evl/net/socket.h>
-
-static unsigned int net_clones = 1024; /* FIXME: Kconfig? */
-
-static unsigned int net_clones_arg;
-module_param_named(net_clones, net_clones_arg, uint, 0444);
 
 /*
  * skb lifecycle:
  *
- * [RX path]: netif_oob_deliver(skb)
+ * [RX path]: netif_deliver_oob(skb)
  *             * false: pass down, freed through in-band stack
  *             * true: process -> receive -> evl_net_free_skb(skb)
- *                     skb->oob ? added to skb->dev->free_skb_pool or clone_heads
+ *                     skb_has_oob_storage(skb) ? immediately released to oob pool
  *                              : pushed to in-band recycling queue
  *
- * [TX path]: skb = evl_net_dev_alloc_skb() | netdev_alloc_skb*()
+ * [TX path]: skb = evl_net_dev_alloc_skb()
  *           ...
  *           netdev_start_xmit(skb)
  *           ...
  *           [IRQ or NAPI context]
  *              napi_consume_skb(skb)
- *                    -> recycle_oob_skb(skb)
+ *                    -> __napi_kfree_skb(skb) [3]
  *            |
  * [1]          consume_skb(skb)
  * [2]                 -> __kfree_skb(skb)
- *                           -> recycle_oob_skb(skb)
+ *                           -> free_skb_oob(skb)
  *            |
  *              __dev_kfree_skb_any(skb)
- *                        -> __dev_kfree_skb_irq(skb)
+ *                        -> __dev_kfree_skb_irq_reason(skb)
  *                             [SOFTIRQ NET_TX]
  *                                -> net_tx_action
  *                        |              -> __kfree_skb(skb) [2]
  *                        |              |
- *                        |              -> __kfree_skb_defer(skb)
- *                                                -> recycle_oob_skb(skb)
+ * [3]                    |              -> __napi_kfree_skb(skb)
+ *                                                -> free_skb_oob(skb)
  *                        -> dev_kfree_skb(skb)
  *                                -> consume_skb(skb) [1]
  */
 
-#define SKB_RECYCLING_THRESHOLD	64
+#define SKB_RECYCLING_THRESHOLD 32
 
 static LIST_HEAD(recycling_queue);
 
 static int recycling_count;
 
-/*
- * CAUTION: Innermost lock, may be nested with
- * oob_netdev_state.pool_wait.wchan.lock.
- */
 static DEFINE_HARD_SPINLOCK(recycling_lock);
-
-static struct evl_work recycler_work;
-
-static DEFINE_HARD_SPINLOCK(clone_lock);
-
-static LIST_HEAD(clone_heads);
-
-static unsigned int clone_count;
-
-/**
- *	skb_oob_recycle - release a network packet to the out-of-band
- *	stack.
- *
- *	Called by the in-band stack in order to release a socket
- *	buffer (e.g. __kfree_skb[_defer]()). This routine might decide
- *	to leave it to the in-band caller for releasing the packet
- *	eventually, in which case it would return false.
- *
- *	@skb the packet to release.
- *
- *	Returns true if the oob stack consumed the packet.
- */
-bool skb_oob_recycle(struct sk_buff *skb) /* in-band hook */
-{
-	if (EVL_WARN_ON(NET, !skb->oob || skb->dev == NULL))
-		return false;
-
-	evl_net_free_skb(skb);
-
-	return true;
-}
 
 static void skb_recycler(struct evl_work *work)
 {
@@ -111,39 +75,64 @@ static void skb_recycler(struct evl_work *work)
 	recycling_count = 0;
 	raw_spin_unlock_irqrestore(&recycling_lock, flags);
 
-	/*
-	 * The recycler runs on a workqueue context with (in-band)
-	 * irqs on, so calling dev_kfree_skb() is fine.
-	 */
 	list_for_each_entry_safe(skb, next, &list, list) {
 		skb_list_del_init(skb);
-		dev_kfree_skb(skb);
+		finalize_skb_inband(skb);
 	}
 }
 
-/*
- * get_headroom - Get the headroom length for a buffer.
- *
- * The current assumption is that we are going to deal with ethernet
- * devices. Therefore the length of a VLAN header is added to the
- * headroom, so that the lower layers never have to reallocate because
- * of the 802.1q encapsulation.
- */
-static inline size_t get_headroom(struct net_device *dev)
+static EVL_DEFINE_WORK(recycler_work, skb_recycler);
+
+static inline void maybe_kick_recycler(void)
 {
-	return VLAN_HLEN + LL_RESERVED_SPACE(dev);
+	if (READ_ONCE(recycling_count) >= SKB_RECYCLING_THRESHOLD)
+		evl_call_inband(&recycler_work);
+}
+
+static struct page *alloc_bufpage(struct net_device *dev,
+				ktime_t timeout, enum evl_tmode tmode)
+{
+	struct evl_netdev_state *est = dev->oob_state.estate;
+	unsigned long flags;
+	struct page *page;
+	int ret;
+
+	for (;;) {
+		raw_spin_lock_irqsave(&est->tx_wait.wchan.lock, flags);
+
+		page = page_pool_dev_alloc_pages(est->tx_pages);
+		if (likely(page))
+			break;
+
+		if (timeout == EVL_NONBLOCK) {
+			page = ERR_PTR(-EWOULDBLOCK);
+			break;
+		}
+
+		evl_add_wait_queue(&est->tx_wait, timeout, tmode);
+
+		raw_spin_unlock_irqrestore(&est->tx_wait.wchan.lock, flags);
+
+		ret = evl_wait_schedule(&est->tx_wait);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	raw_spin_unlock_irqrestore(&est->tx_wait.wchan.lock, flags);
+
+	return page;
 }
 
 struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 				      ktime_t timeout, enum evl_tmode tmode)
 {
-	struct evl_netdev_state *est = dev->oob_state.estate;
+	struct evl_netdev_state *est;
+	struct net_device *real_dev;
 	struct sk_buff *skb;
-	unsigned long flags;
-	int ret;
+	struct page *page;
 
 	/*
-	 * Ensure the basic sanity of our assumptions:
+	 * Statically check the sanity of our basic assumptions:
 	 *
 	 * - the size of our control block fits into the space
 	 * reserved for this purpose in the generic socket buffer.
@@ -155,128 +144,103 @@ struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 	BUILD_BUG_ON(sizeof(struct evl_net_cb) > sizeof(skb->cb));
 	BUILD_BUG_ON(sizeof(skb->list) > sizeof(struct sk_buff_list));
 
-	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
-		return ERR_PTR(-EINVAL);
+	/*
+	 * Build a free skb (for TX) from a page pulled from a
+	 * per-device pool, enforcing congestion control according to
+	 * the specified timeout rule.
+	 */
+	real_dev = evl_net_real_dev(dev);
+	page = alloc_bufpage(real_dev, timeout, tmode);
+	if (IS_ERR(page))
+		return ERR_PTR(PTR_ERR(page));
 
-	for (;;) {
-		raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
-
-		if (!list_empty(&est->free_skb_pool)) {
-			skb = list_get_entry(&est->free_skb_pool,
-					struct sk_buff, list);
-			est->pool_free--;
-			break;
-		}
-
-		if (timeout == EVL_NONBLOCK) {
-			skb = ERR_PTR(-EWOULDBLOCK);
-			break;
-		}
-
-		evl_add_wait_queue(&est->pool_wait, timeout, tmode);
-
-		raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
-
-		ret = evl_wait_schedule(&est->pool_wait);
-		if (ret)
-			return ERR_PTR(ret);
+	est = real_dev->oob_state.estate;
+	skb = build_skb(page_address(page), est->buf_size);
+	if (!skb) {
+		maybe_kick_recycler(); /* Hope for the best. */
+		return ERR_PTR(-ENOMEM);
 	}
 
-	raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
+	skb_mark_oob_storage(skb);
+	skb_mark_for_recycle(skb);
+	/*
+	 * The current assumption is that we are going to deal with
+	 * ethernet devices, for which we may need some extra header
+	 * space for adding the 802.1q encapsulation. Reserve enough
+	 * headroom, so that we won't have to reallocate for such
+	 * purpose.
+	 */
+	skb_reserve(skb, VLAN_HLEN);
+	skb->dev = real_dev;
 
 	return skb;
 }
 
-static inline void maybe_kick_recycler(void)
-{
-	if (READ_ONCE(recycling_count) >= SKB_RECYCLING_THRESHOLD)
-		evl_call_inband(&recycler_work);
-}
-
-static void free_skb_inband(struct sk_buff *skb)
+/*
+ * Plan for a skb to be released by the in-band stack.
+ *
+ * CAUTION: the caller must call evl_schedule() and call the in-band
+ * recycler.
+ */
+static void free_inband_skb(struct sk_buff *skb)
 {
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&recycling_lock, flags);
-	list_add(&skb->list, &recycling_queue);
-	recycling_count++;
-	raw_spin_unlock_irqrestore(&recycling_lock, flags);
+	if (running_inband()) {
+		finalize_skb_inband(skb);
+	} else {
+		raw_spin_lock_irqsave(&recycling_lock, flags);
+		list_add(&skb->list, &recycling_queue);
+		recycling_count++;
+		raw_spin_unlock_irqrestore(&recycling_lock, flags);
+	}
 }
 
-static void free_skb_to_dev(struct sk_buff *skb)
+static void __free_evl_skb(struct sk_buff *skb)
 {
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	struct net_device *dev = skb->dev;
-	struct evl_netdev_state *est;
+	struct evl_netdev_state *est = dev->oob_state.estate;
 	unsigned long flags;
 
-	est = dev->oob_state.estate;
-	raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
-
-	list_add(&skb->list, &est->free_skb_pool);
-	est->pool_free++;
-
-	if (evl_wait_active(&est->pool_wait))
-		evl_wake_up_head(&est->pool_wait);
-
-	raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
-
-	evl_signal_poll_events(&est->poll_head,	POLLOUT|POLLWRNORM);
-}
-
-static void free_skb_clone(struct sk_buff *skb)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&clone_lock, flags);
-	list_add(&skb->list, &clone_heads);
-	clone_count++;
-	raw_spin_unlock_irqrestore(&clone_lock, flags);
-}
-
-static void __free_skb(struct net_device *dev, struct sk_buff *skb)
-{
-	struct sk_buff *origin;
-	int dref;
+	/* If the data storage is still shared, don't release it. */
+	if (skb->cloned &&
+	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
+			      &shinfo->dataref))
+		goto release_head;
 
 	/*
-	 * We might receive requests to free regular skbs, or
-	 * associated to devices for which diversion was just turned
-	 * off: pass them on to the in-band stack if so.
-	 *
-	 * XXX: should we really receive that?
+	 * Release the data. This is the gist of skb_pp_recycle(),
+	 * since we already know for sure that an oob-managed skb is
+	 * built around a page from a per-device pool (in
+	 * evl_netdev_state).
 	 */
-	if (unlikely(!netif_oob_diversion(dev)))
-		skb->oob = false;
+	napi_pp_put_page(virt_to_page(skb->head), false);
 
-	if (!skb_is_oob(skb)) {
-		if (!skb_has_oob_clone(skb))
-			free_skb_inband(skb);
-		return;
-	}
+	/*
+	 * Wake up any thread waiting for buffer space to send to the
+	 * device we are releasing the page to.
+	 */
+	raw_spin_lock_irqsave(&est->tx_wait.wchan.lock, flags);
 
-	if (!skb_release_oob_skb(skb, &dref))
-		return;
+	if (evl_wait_active(&est->tx_wait))
+		evl_wake_up_head(&est->tx_wait);
 
-	if (skb_is_oob_clone(skb)) {
-		origin = EVL_NET_CB(skb)->origin;
-		free_skb_clone(skb);
-		if (!skb_is_oob(origin)) {
-			if (dref == 1)
-				free_skb_inband(origin);
-			else
-				EVL_WARN_ON(NET, dref < 1);
-			return;
-		}
-		skb = origin;
-	}
+	raw_spin_unlock_irqrestore(&est->tx_wait.wchan.lock, flags);
 
-	if (!dref) {
-		netdev_reset_oob_skb(dev, skb, get_headroom(dev));
-		free_skb_to_dev(skb);
-	}
+	evl_signal_poll_events(&est->poll_head,	POLLOUT|POLLWRNORM);
+
+release_head:
+	EVL_WARN_ON(NET, atomic_read(&shinfo->dataref) < 0);
+	/* Now release the buffer head. */
+	put_oob_skb(skb);
 }
 
-static void free_skb(struct sk_buff *skb)
+/*
+ * Free an skb we originally allocated from our pool. The caller has
+ * exclusive ownership on this (i.e. no other reference is pending).
+ */
+static void free_evl_skb(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct sk_buff *fskb, *nskb;
@@ -284,59 +248,40 @@ static void free_skb(struct sk_buff *skb)
 	if (EVL_WARN_ON(NET, dev == NULL))
 		return;
 
-	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
-		return;
-
 	/*
-	 * All skbs on a frag list are guaranteed to belong to the
-	 * same device.
+	 * All skbs on a given fragment list are guaranteed to belong
+	 * to the same device.
 	 */
 	for (fskb = skb_shinfo(skb)->frag_list; fskb; fskb = nskb) {
 		netdev_dbg(dev, "releasing frag %px from %px\n", fskb, skb);
 		nskb = fskb->next;
-		__free_skb(dev, fskb);
+		__free_evl_skb(fskb);
 	}
 
 	netdev_dbg(dev, "releasing skb %px (has_frags=%d)\n",
 		skb, skb_has_frag_list(skb));
 
-	__free_skb(dev, skb);
+	__free_evl_skb(skb);
 }
 
-/**
- *	evl_net_clone_skb - clone a socket buffer.
- *
- *	Allocate and build a clone of @skb, referring to the same
- *	data. Unlike its in-band counterpart, a cloned skb lives
- *	(i.e. shell + data) until all its clones are freed.
- *
- *	@skb the packet to clone.
- *
- *      CAUTION: fragments are not cloned.
- */
-struct sk_buff *evl_net_clone_skb(struct sk_buff *skb)
+static void __free_skb(struct sk_buff *skb)
 {
-	struct sk_buff *clone = NULL;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&clone_lock, flags);
-	if (!list_empty(&clone_heads)) {
-		clone = list_get_entry(&clone_heads, struct sk_buff, list);
-		clone_count--;
-	}
-	raw_spin_unlock_irqrestore(&clone_lock, flags);
-
-	if (unlikely(!clone))
-		return NULL;
-
-	skb_morph_oob_skb(clone, skb);
 	/*
-	 * Propagate the origin, this is a N(clones):1(origin)
-	 * relationship.
+	 * If the skb data does not live in an oob pool, hand over the
+	 * release to the in-band stack. Otherwise we may immediately
+	 * attempt to free the data if no other skb refers to it, and
+	 * the buffer head too.
 	 */
-	EVL_NET_CB(clone)->origin = EVL_NET_CB(skb)->origin ?: skb;
+	if (!skb_has_oob_storage(skb))
+		free_inband_skb(skb);
+	else
+		free_evl_skb(skb);
+}
 
-	return clone;
+static void free_skb(struct sk_buff *skb)
+{
+	if (skb_unref(skb))
+		__free_skb(skb);
 }
 
 /**
@@ -347,7 +292,8 @@ struct sk_buff *evl_net_clone_skb(struct sk_buff *skb)
  *	active). Otherwise, the packet is scheduled for release to the
  *	in-band pool.
  *
- *	@skb the packet to release. Not linked to any upstream queue.
+ *	@skb the packet to release. Not linked to any upstream
+ *	queue. The routine also accepts regular in-band buffers.
  */
 void evl_net_free_skb(struct sk_buff *skb) /* in-band/oob */
 {
@@ -380,6 +326,58 @@ void evl_net_free_skb_list(struct list_head *list)
 
 	evl_schedule();
 	maybe_kick_recycler();
+}
+
+/**
+ *	free_skb_oob - attempt to free a buffer head along with its
+ *	data storage.
+ *
+ *      Called from the in-band net core right after the last
+ *      reference to the buffer was dropped. We get a chance to
+ *      release the buffer immediately to our bufheads pool. However,
+ *      if the buffer data was allocated in-band, send the skb back to
+ *      the in-band core for disposal from there.
+ */
+void free_skb_oob(struct sk_buff *skb) /* inband/oob */
+{
+	EVL_WARN_ON(NET, hard_irqs_disabled());
+
+	/*
+	 * The in-band stack should give us only fully released
+	 * buffers via this hook. skb_unref() might have skipped
+	 * decrementation down to zero if skb->users == 1 on entry
+	 * (i.e. exclusive ownership), account for this.
+	 */
+	if (EVL_WARN_ON(NET, refcount_read(&skb->users) > 1))
+		return;
+
+	__free_skb(skb);
+	evl_schedule();
+	maybe_kick_recycler();
+}
+
+/**
+ *	evl_net_clone_skb - clone a socket buffer.
+ *
+ *	Allocate and build a clone of @skb, referring to the same
+ *	data.
+ *
+ *	@skb the packet to clone.
+ *
+ *      CAUTION: fragments are not cloned.
+ */
+struct sk_buff *evl_net_clone_skb(struct sk_buff *skb)
+{
+	struct sk_buff *clone;
+
+	clone = get_oob_skb();
+	if (!clone)
+		return NULL;
+
+	clone->head = NULL;	/* So we can morph safely. */
+	skb_morph(clone, skb);
+
+	return clone;
 }
 
 void evl_net_init_skb_queue(struct evl_net_skb_queue *skbq)
@@ -432,33 +430,13 @@ bool evl_net_move_skb_queue(struct evl_net_skb_queue *skbq,
 	return ret;
 }
 
-static struct sk_buff *alloc_one_skb(struct net_device *dev)
-{
-	struct evl_netdev_state *est;
-	struct sk_buff *skb;
-	dma_addr_t dma_addr;
-
-	if (!netdev_is_oob_capable(dev)) {
-		est = dev->oob_state.estate;
-		return __netdev_alloc_oob_skb(dev, est->buf_size,
-					get_headroom(dev),
-					GFP_KERNEL|GFP_DMA);
-	}
-
-	skb = netdev_alloc_oob_skb(dev, &dma_addr);
-	if (skb)
-		EVL_NET_CB(skb)->dma_addr = dma_addr;
-
-	return skb;
-}
-
 bool evl_net_charge_skb_rmem(struct evl_socket *esk, struct sk_buff *skb)
 {
-	int ret;
+	bool ret;
 
 	EVL_NET_CB(skb)->tracker = NULL;
 	ret = evl_charge_socket_rmem(esk, skb->truesize);
-	if (likely(!ret))
+	if (likely(ret))
 		EVL_NET_CB(skb)->tracker = esk;
 
 	return ret;
@@ -506,9 +484,8 @@ void evl_net_uncharge_skb_wmem(struct sk_buff *skb)
 /* in-band */
 int evl_net_dev_build_pool(struct net_device *dev)
 {
+	struct page_pool_params pp_params;
 	struct evl_netdev_state *est;
-	struct sk_buff *skb;
-	int n;
 
 	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
 		return -EINVAL;
@@ -518,19 +495,39 @@ int evl_net_dev_build_pool(struct net_device *dev)
 
 	est = dev->oob_state.estate;
 
-	INIT_LIST_HEAD(&est->free_skb_pool);
+	/*
+	 * Set up a page pool for TX from the EVL netstack through the
+	 * device.
+	 */
+	est->buf_size = ALIGN(est->buf_size, PAGE_SIZE);
+	pp_params = (struct page_pool_params){
+		.order = ilog2(est->buf_size / PAGE_SIZE),
+		.flags = PP_FLAG_PAGE_OOB,
+		.pool_size = est->pool_max,
+		.nid = dev_to_node(dev->dev.parent),
+		.dev = dev->dev.parent,
+		.dma_dir = DMA_NONE,
+		.offset = 0,
+		.max_len = est->buf_size,
+	};
 
-	for (n = 0; n < est->pool_max; n++) {
-		skb = alloc_one_skb(dev);
-		if (skb == NULL) {
-			evl_net_dev_purge_pool(dev);
-			return -ENOMEM;
-		}
-		list_add(&skb->list, &est->free_skb_pool);
+	/*
+	 * If the device is oob-capable, the page pool must perform
+	 * DMA pre-mapping so that the NIC driver only has to deal
+	 * with cache synchronization on the out-of-band TX path.  We
+	 * are piggybacked by the XDP/TX support which enables
+	 * DMA_BIDIRECTIONAL (DMA_TO_DEVICE is not supported).
+	 */
+	if (netdev_is_oob_capable(dev)) {
+		pp_params.flags |= PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pp_params.dma_dir = DMA_BIDIRECTIONAL;
 	}
 
-	est->pool_free = est->pool_max;
-	evl_init_wait(&est->pool_wait, &evl_mono_clock, EVL_WAIT_PRIO);
+	est->tx_pages = page_pool_create(&pp_params);
+	if (IS_ERR(est->tx_pages))
+		return PTR_ERR(est->tx_pages);
+
+	evl_init_wait(&est->tx_wait, &evl_mono_clock, EVL_WAIT_PRIO);
 	evl_init_poll_head(&est->poll_head);
 
 	return 0;
@@ -540,60 +537,13 @@ int evl_net_dev_build_pool(struct net_device *dev)
 void evl_net_dev_purge_pool(struct net_device *dev)
 {
 	struct evl_netdev_state *est;
-	struct sk_buff *skb, *next;
 
 	if (EVL_WARN_ON(NET, netif_oob_diversion(dev)))
 		return;
 
 	est = dev->oob_state.estate;
-
-	list_for_each_entry_safe(skb, next, &est->free_skb_pool, list) {
-		if (netdev_is_oob_capable(dev))
-			netdev_free_oob_skb(dev, skb,
-					EVL_NET_CB(skb)->dma_addr);
-		else
-			__netdev_free_oob_skb(dev, skb);
-	}
-
-	evl_destroy_wait(&est->pool_wait);
-}
-
-ssize_t evl_net_show_clones(char *buf, size_t len)
-{
-	return scnprintf(buf, len, "%u\n", clone_count);
-}
-
-int __init evl_net_init_pools(void)
-{
-	struct sk_buff *clone;
-	unsigned int n;
-
-	clone_count = net_clones;
-
-	for (n = 0; n < clone_count; n++) {
-		clone = skb_alloc_oob_head(GFP_KERNEL);
-		if (clone == NULL) {
-			evl_net_cleanup_pools();
-			return -ENOMEM;
-		}
-		list_add(&clone->list, &clone_heads);
-	}
-
-	evl_init_work(&recycler_work, skb_recycler);
-
-	return 0;
-}
-
-void evl_net_cleanup_pools(void)
-{
-	struct sk_buff *clone, *tmp;
-
-	list_for_each_entry_safe(clone, tmp, &clone_heads, list) {
-		list_del(&clone->list);
-		kfree_skb(clone);
-	}
-
-	clone_count = 0;
+	evl_destroy_wait(&est->tx_wait);
+	page_pool_destroy(est->tx_pages);
 }
 
 /*

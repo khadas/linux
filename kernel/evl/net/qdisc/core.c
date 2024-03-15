@@ -72,9 +72,6 @@ int evl_net_sched_packet(struct net_device *dev, struct sk_buff *skb) /* oob/in-
 {
 	struct evl_net_qdisc *qdisc = dev->oob_state.estate->qdisc;
 
-	if (EVL_WARN_ON(NET, !skb->oob))
-		return -EINVAL;
-
 	return qdisc->oob_ops->enqueue(qdisc, skb);
 }
 

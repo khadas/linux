@@ -6,9 +6,11 @@
 
 #include <linux/list.h>
 #include <linux/rcupdate.h>
+#include <net/page_pool/types.h>
 #include <evl/wait.h>
 #include <evl/poll.h>
 #include <evl/flag.h>
+#include <evl/stax.h>
 #include <evl/crossing.h>
 
 struct evl_net_qdisc;
@@ -25,20 +27,22 @@ struct evl_net_ebpf_filter {
 	struct bpf_prog *prog;
 };
 
-#define EVL_NETDEV_RXFILTER_BIT  0
+#define EVL_NETDEV_POLL_SCHED    0
+#define EVL_NETDEV_RXFILTER_BIT  1
 
 struct evl_netdev_state {
-	/* Buffer pool management */
-	struct list_head free_skb_pool;
-	size_t pool_free;
+	/* TX page pool (premapped if device is oob-capable). */
+	struct page_pool *tx_pages;
+	struct evl_wait_queue tx_wait;
 	size_t pool_max;
 	size_t buf_size;
-	struct evl_wait_queue pool_wait;
 	struct evl_poll_head poll_head;
 	/* RX handling */
 	struct evl_kthread *rx_handler;
 	struct evl_flag rx_flag;
-	struct evl_net_skb_queue rx_queue;
+	struct list_head rx_poll; /* NAPI instances to poll (oob) */
+	hard_spinlock_t rx_lock; /* Serializes accesses to rx_poll */
+	struct evl_net_skb_queue rx_packets; /* Ingress packets to process (oob) */
 	/* TX handling */
 	struct evl_net_qdisc *qdisc;
 	struct evl_kthread *tx_handler;
@@ -58,10 +62,35 @@ struct oob_netdev_state {
 	struct list_head next;
 };
 
-#else
+struct oob_netqueue_state {
+	struct evl_stax tx_lock;	/* inband vs oob exclusion lock */
+};
+
+static inline void netqueue_init_oob(struct oob_netqueue_state *qs)
+{
+	evl_init_stax(&qs->tx_lock, EVL_STAX_INBAND_SPIN);
+}
+
+static inline void netqueue_destroy_oob(struct oob_netqueue_state *qs)
+{
+	evl_destroy_stax(&qs->tx_lock);
+}
+
+#else  /* !CONFIG_EVL_NET */
 
 struct oob_netdev_state {
 };
+
+struct oob_netqueue_state {
+};
+
+static inline void netqueue_init_oob(struct oob_netqueue_state *qs)
+{
+}
+
+static inline void netqueue_destroy_oob(struct oob_netqueue_state *qs)
+{
+}
 
 #endif	/* !CONFIG_EVL_NET */
 
