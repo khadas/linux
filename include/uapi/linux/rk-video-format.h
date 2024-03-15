@@ -23,6 +23,10 @@
 #define V4l2_PIX_FMT_EBD8     v4l2_fourcc('E', 'B', 'D', '8')
 /* shield pix data 16-bit */
 #define V4l2_PIX_FMT_SPD16    v4l2_fourcc('S', 'P', 'D', '6')
+/* yuv420 tile */
+#define V4L2_PIX_FMT_TILE420    v4l2_fourcc('T', 'I', 'L', '0')
+/* yuv422 tile */
+#define V4L2_PIX_FMT_TILE422    v4l2_fourcc('T', 'I', 'L', '2')
 
 /* Vendor specific - used for Rockchip ISP1 camera sub-system */
 #define V4L2_META_FMT_RK_ISP1_PARAMS	v4l2_fourcc('R', 'K', '1', 'P') /* Rockchip ISP1 params */
