@@ -261,6 +261,7 @@ struct vop {
 	int num_wins;
 
 	uint32_t *regsbak;
+	struct resource *res;
 	void __iomem *regs;
 	struct regmap *grf;
 	struct regmap *vo0_grf;
@@ -2835,13 +2836,15 @@ static void vop_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct vop *vop = to_vop(crtc);
 	struct drm_crtc_state *crtc_state = crtc->state;
 	int dump_len = vop->len > 0x400 ? 0x400 : vop->len;
+	resource_size_t offset_addr;
 	int i;
 
 	if (!crtc_state->active)
 		return;
 
+	offset_addr = vop->res->start;
 	for (i = 0; i < dump_len; i += 16) {
-		DEBUG_PRINT("0x%08x: %08x %08x %08x %08x\n", i,
+		DEBUG_PRINT("0x%08x: %08x %08x %08x %08x\n", (u32)offset_addr + i,
 			    vop_readl(vop, i), vop_readl(vop, i + 4),
 			    vop_readl(vop, i + 8), vop_readl(vop, i + 12));
 	}
@@ -3269,6 +3272,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
 	.debugfs_init = vop_crtc_debugfs_init,
 	.debugfs_dump = vop_crtc_debugfs_dump,
+	.active_regs_dump = vop_crtc_regs_dump,
 	.regs_dump = vop_crtc_regs_dump,
 	.bandwidth = vop_crtc_bandwidth,
 	.crtc_close = vop_crtc_close,
@@ -5265,6 +5269,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		dev_warn(vop->dev, "failed to get vop register byname\n");
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	}
+	vop->res = res;
 	vop->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(vop->regs))
 		return PTR_ERR(vop->regs);
