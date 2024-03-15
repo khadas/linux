@@ -3118,10 +3118,10 @@
 		resets = <&cru SRST_DP0>;
 		phys = <&usbdp_phy_dp>;
 		power-domains = <&power RK3576_PD_VO1>;
-		#sound-dai-cells = <1>;
 		status = "disabled";
 
 		dp0: dp0 {
+			#sound-dai-cells = <1>;
 			status = "disabled";
 
 			ports {
@@ -3155,6 +3155,7 @@
 		};
 
 		dp1: dp1 {
+			#sound-dai-cells = <1>;
 			status = "disabled";
 
 			ports {
@@ -3188,6 +3189,7 @@
 		};
 
 		dp2: dp2 {
+			#sound-dai-cells = <1>;
 			status = "disabled";
 
 			ports {
