@@ -686,7 +686,7 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		if (can_from_res) {
 			if (mgt->cma_res_pool.total_size > 0 &&
 			    (mgt->cma_res_pool.alloced_size +
-			    mem->buffer_size) < mgt->cma_res_pool.total_size) {
+			    mem->buffer_size) <= mgt->cma_res_pool.total_size) {
 				/*
 				 *from cma res first.
 				 */
