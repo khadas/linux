@@ -20,6 +20,7 @@ config ROCKCHIP_SERDES_DRM_PANEL
 	tristate "Generic RK Serdes panel driver"
 	depends on OF
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on MFD_RKX110_X120
 	select VIDEOMODE_HELPERS
 	help
 	  This driver supports rk serdes panels.
