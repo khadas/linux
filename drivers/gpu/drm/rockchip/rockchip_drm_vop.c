@@ -2120,7 +2120,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		else
 			src_blend_m0 = ALPHA_GLOBAL;
 
-		if (vop_plane_state->blend_mode == 0 || src_blend_m0 == ALPHA_GLOBAL)
+		if (vop_plane_state->blend_mode != DRM_MODE_BLEND_PREMULTI || src_blend_m0 == ALPHA_GLOBAL)
 			pre_multi_alpha = ALPHA_SRC_NO_PRE_MUL;
 
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
