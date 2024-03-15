@@ -3651,10 +3651,8 @@ static int rkisp_set_aiisp_linecnt(struct rkisp_device *dev,
 	spin_lock_irqsave(&dev->aiisp_lock, lock_flags);
 	if (cfg->wr_linecnt)
 		en = true;
-	if (en != dev->is_aiisp_en) {
-		dev->is_aiisp_en = en;
-		dev->is_aiisp_upd = true;
-	}
+	dev->is_aiisp_en = en;
+	dev->is_aiisp_upd = true;
 	memcpy(&dev->aiisp_cfg, cfg, sizeof(*cfg));
 	spin_unlock_irqrestore(&dev->aiisp_lock, lock_flags);
 	return 0;

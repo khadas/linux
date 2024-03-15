@@ -375,6 +375,8 @@ struct rkisp_bay3dbuf_info {
 		struct {
 			int gain_fd;
 			int gain_size;
+			int aiisp_fd;
+			int aiisp_size;
 		} v39;
 	} u;
 } __attribute__ ((packed));

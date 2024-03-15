@@ -178,6 +178,7 @@ struct rkisp_isp_params_val_v39 {
 	u32 bay3d_iir_size;
 	u32 bay3d_cur_size;
 	struct rkisp_dummy_buffer buf_gain;
+	struct rkisp_dummy_buffer buf_aiisp;
 	struct rkisp_dummy_buffer buf_3dnr_iir;
 	struct rkisp_dummy_buffer buf_3dnr_cur;
 
