@@ -1413,8 +1413,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 	for (i = 0; i < match_data->num_clks; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
-		if (IS_ERR(clk))
+		if (IS_ERR(clk)) {
 			pr_err("failed to get %s\n", match_data->clks[i]);
+			return PTR_ERR(clk);
+		}
 
 		scheduler->clks[i] = clk;
 	}
