@@ -3687,8 +3687,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 
-	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
-
+	rockchip_drm_dclk_set_rate(vop->version, vop->dclk, adjusted_mode->crtc_clock * 1000);
 
 	vop_cfg_done(vop);
 

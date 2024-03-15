@@ -21,6 +21,8 @@
 #define VOP_MAJOR(version)		((version) >> 8)
 #define VOP_MINOR(version)		((version) & 0xff)
 
+#define VOP_VERSION_RK3576_LITE		VOP_VERSION(0x2, 0xd)
+
 #define VOP2_VERSION(major, minor, build)	((major) << 24 | (minor) << 16 | (build))
 #define VOP2_MAJOR(version)		(((version) >> 24) & 0xff)
 #define VOP2_MINOR(version)		(((version) >> 16) & 0xff)
