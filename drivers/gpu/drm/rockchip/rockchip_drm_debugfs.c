@@ -119,9 +119,10 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 
 static int rockchip_drm_dump_buffer_show(struct seq_file *m, void *data)
 {
-	seq_puts(m, "  echo dump    > dump to dump one frame\n");
+	seq_puts(m, "  echo enable  > Enable dump feature\n");
+	seq_puts(m, "  echo dump    > Immediately dump the current frame\n");
 	seq_puts(m, "  echo dumpon  > dump to start vop keep dumping\n");
-	seq_puts(m, "  echo dumpoff > dump to stop keep dumping\n");
+	seq_puts(m, "  echo dumpoff > Disable dump feature and stop keep dumping\n");
 	seq_puts(m, "  echo dumpn   > dump n is the number of dump times\n");
 	seq_puts(m, "  dump path is /data\n");
 
@@ -180,6 +181,8 @@ rockchip_drm_dump_buffer_write(struct file *file, const char __user *ubuf,
 			drm_modeset_unlock_all(crtc->dev);
 			rockchip_crtc->frame_count++;
 		}
+	} else if (strncmp(buf, "enable", 6) == 0) {
+		rockchip_crtc->vop_dump_status = DUMP_ENABLE;
 	} else {
 		return -EINVAL;
 	}
