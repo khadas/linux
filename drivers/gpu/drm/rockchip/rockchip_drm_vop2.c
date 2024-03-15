@@ -812,6 +812,11 @@ struct vop2_video_port {
 	bool refresh_rate_change;
 
 	/**
+	 * @acm_state_changed: indicate whether acm state change
+	 */
+	bool acm_state_changed;
+
+	/**
 	 * @has_extra_layer: like rk3576, the vp1 layer can merge into vp0 layer after overlay
 	 */
 	bool has_extra_layer;
@@ -9027,6 +9032,41 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 		return pa->plane->base.id - pb->plane->base.id;
 }
 
+static bool check_acm_state_changed(struct rockchip_crtc_state *new_vcstate,
+				    struct rockchip_crtc_state *old_vcstate,
+				    struct vop2_video_port *vp)
+{
+	struct drm_property_blob *old_blob = old_vcstate->acm_lut_data;
+	struct drm_property_blob *new_blob = new_vcstate->acm_lut_data;
+	struct post_acm *new_acm = NULL, *old_acm = NULL;
+
+	if (new_blob)
+		new_acm = (struct post_acm *)new_blob->data;
+
+	if (old_blob)
+		old_acm = (struct post_acm *)old_blob->data;
+
+	if (!old_acm && !new_acm)
+		return false;
+
+	if (!old_acm && new_acm) {
+		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
+		return true;
+	}
+
+	if (old_acm && !new_acm) {
+		memset(&vp->acm_info, 0, sizeof(struct post_acm));
+		return true;
+	}
+
+	if (old_acm && new_acm && memcmp(new_acm, old_acm, sizeof(struct post_acm))) {
+		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
+		return true;
+	}
+
+	return false;
+}
+
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state)
 {
@@ -9034,10 +9074,12 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop2_video_port *splice_vp;
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
-	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(new_crtc_state);
+	struct rockchip_crtc_state *old_vcstate = to_rockchip_crtc_state(old_crtc_state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 
 	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
@@ -9050,10 +9092,16 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if ((vcstate->request_refresh_rate != new_vcstate->request_refresh_rate) ||
-	    crtc_state->active_changed || crtc_state->mode_changed)
+	    new_crtc_state->active_changed || new_crtc_state->mode_changed)
 		vp->refresh_rate_change = true;
 	else
 		vp->refresh_rate_change = false;
+
+	if (check_acm_state_changed(new_vcstate, old_vcstate, vp) ||
+	    new_crtc_state->active_changed)
+		vp->acm_state_changed = true;
+	else
+		vp->acm_state_changed = false;
 
 	return 0;
 }
@@ -10917,7 +10965,6 @@ static void vop3_post_config(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct post_acm *acm;
 	struct post_csc *csc;
 
 	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
@@ -10925,14 +10972,8 @@ static void vop3_post_config(struct drm_crtc *crtc)
 		memcpy(&vp->csc_info, csc, sizeof(struct post_csc));
 	vop3_post_csc_config(crtc, &vp->acm_info, vp->csc_info.csc_enable ? &vp->csc_info : NULL);
 
-	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
-
-	if (acm && memcmp(&vp->acm_info, acm, sizeof(struct post_acm))) {
-		memcpy(&vp->acm_info, acm, sizeof(struct post_acm));
+	if (vp->acm_state_changed)
 		vop3_post_acm_config(crtc, &vp->acm_info);
-	} else if (crtc->state->active_changed) {
-		vop3_post_acm_config(crtc, &vp->acm_info);
-	}
 }
 
 static void vop2_cfg_update(struct drm_crtc *crtc,
