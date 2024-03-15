@@ -2167,9 +2167,7 @@ static int rk628_csi_g_frame_interval(struct v4l2_subdev *sd,
 	struct rk628_csi *csi = to_csi(sd);
 	const struct rk628_csi_mode *mode = csi->cur_mode;
 
-	mutex_lock(&csi->confctl_mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&csi->confctl_mutex);
 
 	return 0;
 }
