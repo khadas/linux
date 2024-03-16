@@ -7250,6 +7250,9 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 						     request_clock * 1000) / 1000;
 	}
 
+	if (request_clock > vp_data->dclk_max / 1000)
+		return MODE_CLOCK_HIGH;
+
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
 	 */
