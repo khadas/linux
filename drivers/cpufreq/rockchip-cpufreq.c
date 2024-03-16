@@ -543,7 +543,7 @@ int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq)
 	rockchip_opp_dvfs_lock(opp_info);
 	ret = dev_pm_opp_set_rate(dev, target_freq);
 	if (!ret) {
-		cluster->rate = target_freq;
+		cluster->rate = freq = target_freq;
 		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
 		if (!IS_ERR(opp)) {
 			dev_pm_opp_get_supplies(opp, supplies);
