@@ -730,9 +730,7 @@ static struct early_suspend gt1x_early_suspend = {
 	.suspend = gt1x_ts_early_suspend,
 	.resume = gt1x_ts_late_resume,
 };
-#endif
-
-#ifdef CONFIG_PM
+#elif defined(CONFIG_PM)
 /**
  * gt1x_ts_suspend - i2c suspend callback function.
  * @dev: i2c device.
@@ -805,7 +803,7 @@ static struct i2c_driver gt1x_ts_driver = {
 #ifdef GTP_CONFIG_OF
 		   .of_match_table = gt1x_match_table,
 #endif
-#if !defined(CONFIG_FB) && defined(CONFIG_PM)
+#if !defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_PM)
 		   .pm = &gt1x_ts_pm_ops,
 #endif
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
