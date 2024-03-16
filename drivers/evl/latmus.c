@@ -439,7 +439,7 @@ static struct latmus_runner *create_sirq_runner(int cpu)
 	return &sirq_runner->runner;
 }
 
-void kthread_handler(void *arg)
+static void kthread_handler(void *arg)
 {
 	struct kthread_runner *k_runner = arg;
 	ktime_t now;

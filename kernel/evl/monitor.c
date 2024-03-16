@@ -58,7 +58,7 @@ struct evl_monitor {
 
 static const struct file_operations monitor_fops;
 
-struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **efilpp)
+static struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **efilpp)
 {
 	struct evl_file *efilp = evl_get_file(efd);
 

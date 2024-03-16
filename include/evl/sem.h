@@ -43,4 +43,6 @@ int evl_trydown(struct evl_ksem *ksem);
 
 void evl_up(struct evl_ksem *ksem);
 
+void evl_broadcast(struct evl_ksem *ksem);
+
 #endif /* !_EVL_SEM_H */
