@@ -2113,6 +2113,30 @@ static ssize_t lineevent_read(struct file *file, char __user *buf,
 	return bytes_read;
 }
 
+static int lineevent_read_pin(struct lineevent_state *le,
+			struct gpioevent_data *ge, bool may_sleep)
+{
+	if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE
+	    && le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
+		if (may_sleep)
+			/* Emit low-to-high event */
+			ge->id = GPIOEVENT_EVENT_RISING_EDGE;
+		else
+			/* Emit high-to-low event */
+			ge->id = GPIOEVENT_EVENT_FALLING_EDGE;
+	} else if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE) {
+		/* Emit low-to-high event */
+		ge->id = GPIOEVENT_EVENT_RISING_EDGE;
+	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
+		/* Emit high-to-low event */
+		ge->id = GPIOEVENT_EVENT_FALLING_EDGE;
+	} else {
+ 		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
 #ifdef CONFIG_GPIOLIB_OOB
 
 static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
@@ -2320,7 +2344,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	else
 		ge.timestamp = le->timestamp;
 
-	if (lineevent_read_pin(le, &ge, true) == IRQ_NONE)
+	if (lineevent_read_pin(le, &ge, gpiod_get_value_cansleep(le->desc)) == IRQ_NONE)
 		return IRQ_NONE;
 
 	ret = kfifo_in_spinlocked_noirqsave(&le->events, &ge,
