@@ -13351,14 +13351,21 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 		if (is_aml_txlx() || is_aml_tm2() || is_aml_t7() ||
 		    is_aml_t3() || is_aml_t5w()) {
+			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 1, 4, 1);
 			reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
 			WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
 			reg_value = READ_VPP_DV_REG(AMDV_TV_REG_START + 1);
+			pr_info("reg_clk=%x %x, VPU_CLK_GATE=0x%x\n",
+				reg_clk, READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL),
+				READ_VPP_DV_REG(VPU_CLK_GATE));
+
 			if ((reg_value & 0x400) == 0)
 				efuse_mode = 0;
 			else
 				efuse_mode = 1;
 			WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
+			if (efuse_mode)
+				WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
 		} else {
 			reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
 			if ((reg_value & 0x100) == 0)
