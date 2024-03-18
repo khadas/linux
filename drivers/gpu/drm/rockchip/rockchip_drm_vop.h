@@ -798,6 +798,7 @@ struct vop2_win_regs {
 	struct vop_reg ymirror;
 	struct vop_reg rb_swap;
 	struct vop_reg uv_swap;
+	struct vop_reg rg_swap;
 	struct vop_reg act_info;
 	struct vop_reg dsp_info;
 	struct vop_reg dsp_st;

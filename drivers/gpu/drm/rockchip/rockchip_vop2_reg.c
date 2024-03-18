@@ -2931,6 +2931,7 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.dither_up = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 12),
 	.rb_swap = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 14),
 	.uv_swap = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 16),
+	.rg_swap = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 18),
 	.act_info = VOP_REG(RK3568_ESMART0_REGION0_ACT_INFO, 0x1fff1fff, 0),
 	.dsp_info = VOP_REG(RK3568_ESMART0_REGION0_DSP_INFO, 0x1fff1fff, 0),
 	.dsp_st = VOP_REG(RK3568_ESMART0_REGION0_DSP_ST, 0x1fff1fff, 0),
