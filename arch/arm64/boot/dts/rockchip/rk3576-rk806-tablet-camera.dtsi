@@ -76,6 +76,12 @@
 				remote-endpoint = <&s5k3l8xx_out0>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_in_ov16880: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov16880_out0>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -168,6 +174,33 @@
 		port {
 			s5k3l8xx_out0: endpoint {
 				remote-endpoint = <&mipi_in_s5k3l8xx>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	ov16880: ov16880@36 {
+		status = "okay";
+		compatible = "ovti,ov16880";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M2>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2m0_clk2>;
+		pwdn-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		avdd-supply = <&vcc_mipipwr>;
+		dovdd-supply = <&vcc_1v8_cam>;
+		//dvdd-supply = <&vcc1v2_dvp>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "KYT-11379-V1";
+		rockchip,camera-module-lens-name = "default";
+		lens-focus = <&ces6301>;
+		flash-leds = <&flash_rgb13h>;
+		port {
+			ov16880_out0: endpoint {
+				remote-endpoint = <&mipi_in_ov16880>;
 				data-lanes = <1 2 3 4>;
 			};
 		};

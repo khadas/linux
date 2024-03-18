@@ -62,6 +62,9 @@
 #define RKVPSS_CMD_BUF_DEL \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 53, struct rkvpss_buf_info)
 
+#define RKVPSS_CMD_MODULE_GET \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 54, struct rkvpss_module_sel)
+
 /********************************************************************/
 
 /* struct rkvpss_mirror_flip

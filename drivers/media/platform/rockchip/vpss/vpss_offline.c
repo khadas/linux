@@ -607,6 +607,7 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		t = ktime_get();
 	}
 	init_completion(&ofl->cmpl);
+	ofl->mode_sel_en = false;
 
 	in_c_offs = 0;
 	in_ctrl = 0;
@@ -958,6 +959,30 @@ err:
 	return -ENOMEM;
 }
 
+static int rkvpss_module_get(struct file *file,
+			     struct rkvpss_module_sel *get)
+{
+	struct rkvpss_offline_dev *ofl = video_drvdata(file);
+	struct rkvpss_hw_dev *hw = ofl->hw;
+	int i, ret = 0;
+
+	mutex_lock(&hw->dev_lock);
+	if (hw->is_ofl_cmsc)
+		get->mirror_cmsc_en = 1;
+	else
+		get->mirror_cmsc_en = 0;
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		if (hw->is_ofl_ch[i])
+			get->ch_en[i] = 1;
+		else
+			get->ch_en[i] = 0;
+	}
+	mutex_unlock(&hw->dev_lock);
+
+	return ret;
+}
+
 static int rkvpss_module_sel(struct file *file,
 			     struct rkvpss_module_sel *sel)
 {
@@ -967,6 +992,13 @@ static int rkvpss_module_sel(struct file *file,
 	int i, ret = 0;
 
 	mutex_lock(&hw->dev_lock);
+
+	if (!ofl->mode_sel_en) {
+		v4l2_err(&ofl->v4l2_dev, "already set module_sel\n");
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	for (i = 0; i < hw->dev_num; i++) {
 		vpss = hw->vpss[i];
 		if (vpss && (vpss->vpss_sdev.state & VPSS_START)) {
@@ -995,6 +1027,9 @@ static long rkvpss_ofl_ioctl(struct file *file, void *fh,
 	switch (cmd) {
 	case RKVPSS_CMD_MODULE_SEL:
 		ret = rkvpss_module_sel(file, arg);
+		break;
+	case RKVPSS_CMD_MODULE_GET:
+		ret = rkvpss_module_get(file, arg);
 		break;
 	case RKVPSS_CMD_FRAME_HANDLE:
 		ret = rkvpss_ofl_run(file, arg);
@@ -1097,6 +1132,7 @@ int rkvpss_register_offline(struct rkvpss_hw_dev *hw)
 
 	mutex_init(&ofl->apilock);
 	ofl->vfd = offline_videodev;
+	ofl->mode_sel_en = true;
 	vfd = &ofl->vfd;
 	vfd->device_caps = V4L2_CAP_STREAMING;
 	vfd->lock = &ofl->apilock;

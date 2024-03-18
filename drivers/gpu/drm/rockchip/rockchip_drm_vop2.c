@@ -812,6 +812,11 @@ struct vop2_video_port {
 	bool refresh_rate_change;
 
 	/**
+	 * @acm_state_changed: indicate whether acm state change
+	 */
+	bool acm_state_changed;
+
+	/**
 	 * @has_extra_layer: like rk3576, the vp1 layer can merge into vp0 layer after overlay
 	 */
 	bool has_extra_layer;
@@ -4300,9 +4305,51 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 	if (pd->data->id == VOP2_PD_CLUSTER0 || pd->data->id == VOP2_PD_CLUSTER1 ||
 	    pd->data->id == VOP2_PD_CLUSTER2 || pd->data->id == VOP2_PD_CLUSTER3 ||
 	    pd->data->id == VOP2_PD_CLUSTER || pd->data->id == VOP2_PD_ESMART) {
-		phys_id = ffs(pd->data->module_id_mask) - 1;
-		win = vop2_find_win_by_phys_id(vop2, phys_id);
-		vp_id = ffs(win->vp_mask) - 1;
+		uint32_t module_id_mask = pd->data->module_id_mask;
+		int i, win_num, temp_vp_id = -1;
+
+		/*
+		 * The win attached vp maybe unused, and the disabled vp will not register
+		 * crtc, so we need to lool up all win under the pd and check if the win attached
+		 * vp has register crtc.
+		 * If all the win attached vp is disabled, we set the first win(undter the pd)
+		 * attach to the first crtc to make sure the pd can be closed normally.
+		 */
+		win_num = hweight32(pd->data->module_id_mask);
+		for (i = 0; i < win_num; i++) {
+			phys_id = ffs(module_id_mask) - 1;
+			module_id_mask &= ~BIT(phys_id);
+			win = vop2_find_win_by_phys_id(vop2, phys_id);
+			vp_id = ffs(win->vp_mask) - 1;
+
+			drm_for_each_crtc(crtc, vop2->drm_dev) {
+				vp = to_vop2_video_port(crtc);
+				if (vp_id == vp->id) {
+					temp_vp_id = vp_id;
+					break;
+				}
+			}
+		}
+
+		/* If can't get the correct vp id, set the first win to the first crtc */
+		if (temp_vp_id < 0) {
+			phys_id = ffs(pd->data->module_id_mask) - 1;
+			crtc = drm_crtc_from_index(vop2->drm_dev, 0);
+			vp = to_vop2_video_port(crtc);
+			if (phys_id >= ROCKCHIP_MAX_LAYER) {
+				DRM_DEV_ERROR(vop2->dev, "unexpected phys_id: %d\n", phys_id);
+				return;
+			}
+			/* Notice: current designed even if the layer cannot reach
+			 * the current vp, the pd corresponding to the current layer
+			 * can be turned off normally, need note if the design changes for
+			 * this part.
+			 */
+			VOP_CTRL_SET(vop2, win_vp_id[phys_id], vp->id);
+			temp_vp_id = vp->id;
+		}
+
+		vp_id = temp_vp_id;
 		if (vp_id >= ROCKCHIP_MAX_CRTC) {
 			DRM_DEV_ERROR(vop2->dev, "unexpected vp%d\n", vp_id);
 			return;
@@ -7164,8 +7211,12 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
 		clock = request_clock;
 	} else {
-		if (request_clock > VOP2_MAX_DCLK_RATE)
-			request_clock = request_clock >> 2;
+		if (request_clock > VOP2_MAX_DCLK_RATE) {
+			if (vop2->version == VOP_VERSION_RK3576)
+				request_clock = request_clock >> 1;
+			else if (vop2->version == VOP_VERSION_RK3588)
+				request_clock = request_clock >> 2;
+		}
 		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
@@ -7905,7 +7956,7 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	return 0;
 }
 
-static int vop3_calc_cru_cfg(struct drm_crtc *crtc)
+static int rk3576_calc_cru_cfg(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
@@ -7916,20 +7967,22 @@ static int vop3_calc_cru_cfg(struct drm_crtc *crtc)
 	bool post_dclk_core_sel = 0, pix_half_rate = 0, post_dclk_out_sel = 0;
 	bool interface_dclk_sel, interface_pix_clk_sel = 0;
 	bool double_pixel = adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656;
+	unsigned long dclk_in_rate, dclk_core_rate;
 
-	if (vp->id == 1 || vp->id == 2 ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
-	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
-		vp->dclk_div = 1;/* no div */
-	else
+	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420 ||
+	    adjusted_mode->crtc_clock > VOP2_MAX_DCLK_RATE ||
+	    (vp->id == 0 && split_mode))
 		vp->dclk_div = 2;/* div2 */
-
-	if (double_pixel ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
-	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
-		post_dclk_core_sel = 1;/* div2 */
 	else
-		post_dclk_core_sel = 0;/* no div */
+		vp->dclk_div = 1;/* no div */
+	dclk_in_rate = adjusted_mode->crtc_clock / vp->dclk_div;
+
+	if (double_pixel)
+		dclk_core_rate = adjusted_mode->crtc_clock / 2;
+	else
+		dclk_core_rate = adjusted_mode->crtc_clock / port_pix_rate;
+
+	post_dclk_core_sel = dclk_in_rate > dclk_core_rate ? 1 : 0;/* 0: no div, 1: div2 */
 
 	if (split_mode || (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420)) {
 		pix_half_rate = 1;
@@ -8016,7 +8069,7 @@ static int vop2_calc_cru_cfg(struct drm_crtc *crtc, int conn_id,
 
 		return 0;
 	} else if (vop2->version == VOP_VERSION_RK3576) {
-		vop3_calc_cru_cfg(crtc);
+		rk3576_calc_cru_cfg(crtc);
 
 		return 0;
 	}
@@ -8979,6 +9032,41 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 		return pa->plane->base.id - pb->plane->base.id;
 }
 
+static bool check_acm_state_changed(struct rockchip_crtc_state *new_vcstate,
+				    struct rockchip_crtc_state *old_vcstate,
+				    struct vop2_video_port *vp)
+{
+	struct drm_property_blob *old_blob = old_vcstate->acm_lut_data;
+	struct drm_property_blob *new_blob = new_vcstate->acm_lut_data;
+	struct post_acm *new_acm = NULL, *old_acm = NULL;
+
+	if (new_blob)
+		new_acm = (struct post_acm *)new_blob->data;
+
+	if (old_blob)
+		old_acm = (struct post_acm *)old_blob->data;
+
+	if (!old_acm && !new_acm)
+		return false;
+
+	if (!old_acm && new_acm) {
+		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
+		return true;
+	}
+
+	if (old_acm && !new_acm) {
+		memset(&vp->acm_info, 0, sizeof(struct post_acm));
+		return true;
+	}
+
+	if (old_acm && new_acm && memcmp(new_acm, old_acm, sizeof(struct post_acm))) {
+		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
+		return true;
+	}
+
+	return false;
+}
+
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state)
 {
@@ -8986,10 +9074,12 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	struct vop2_video_port *splice_vp;
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
-	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(new_crtc_state);
+	struct rockchip_crtc_state *old_vcstate = to_rockchip_crtc_state(old_crtc_state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 
 	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
@@ -9002,10 +9092,16 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if ((vcstate->request_refresh_rate != new_vcstate->request_refresh_rate) ||
-	    crtc_state->active_changed || crtc_state->mode_changed)
+	    new_crtc_state->active_changed || new_crtc_state->mode_changed)
 		vp->refresh_rate_change = true;
 	else
 		vp->refresh_rate_change = false;
+
+	if (check_acm_state_changed(new_vcstate, old_vcstate, vp) ||
+	    new_crtc_state->active_changed)
+		vp->acm_state_changed = true;
+	else
+		vp->acm_state_changed = false;
 
 	return 0;
 }
@@ -10869,7 +10965,6 @@ static void vop3_post_config(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct post_acm *acm;
 	struct post_csc *csc;
 
 	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
@@ -10877,14 +10972,8 @@ static void vop3_post_config(struct drm_crtc *crtc)
 		memcpy(&vp->csc_info, csc, sizeof(struct post_csc));
 	vop3_post_csc_config(crtc, &vp->acm_info, vp->csc_info.csc_enable ? &vp->csc_info : NULL);
 
-	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
-
-	if (acm && memcmp(&vp->acm_info, acm, sizeof(struct post_acm))) {
-		memcpy(&vp->acm_info, acm, sizeof(struct post_acm));
+	if (vp->acm_state_changed)
 		vop3_post_acm_config(crtc, &vp->acm_info);
-	} else if (crtc->state->active_changed) {
-		vop3_post_acm_config(crtc, &vp->acm_info);
-	}
 }
 
 static void vop2_cfg_update(struct drm_crtc *crtc,
@@ -12531,6 +12620,12 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		vp->cursor_win_id = -1;
 		primary = NULL;
 		cursor = NULL;
+
+		/*
+		 * make sure that the vp to be registered has at least one connector.
+		 */
+		if (!(enabled_vp_mask & BIT(vp->id)))
+			continue;
 
 		/*
 		 * we assume a vp with a zero plane_mask(set from dts or bootloader)

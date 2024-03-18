@@ -197,6 +197,15 @@
 	};
 };
 
+&route_dsi {
+	status = "okay";
+};
+
+&route_hdmi {
+	status = "okay";
+	connect = <&vp0_out_hdmi>;
+};
+
 &sai2 {
 	status = "okay";
 };

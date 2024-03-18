@@ -1571,7 +1571,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(CLK_REF_PCIE1_PHY, "clk_ref_pcie1_phy", clk_ref_pcie0_phy_p, 0,
 			RK3576_PHP_CLKSEL_CON(0), 14, 2, MFLAGS,
 			RK3576_PHP_CLKGATE_CON(1), 8, GFLAGS),
-	COMPOSITE_NOMUX(CLK_REF_MPHY_26M, "clk_ref_mphy_26m", "ppll", 0,
+	COMPOSITE_NOMUX(CLK_REF_MPHY_26M, "clk_ref_mphy_26m", "ppll", CLK_IS_CRITICAL,
 			RK3576_PHP_CLKSEL_CON(1), 0, 8, DFLAGS,
 			RK3576_PHP_CLKGATE_CON(1), 9, GFLAGS),
 

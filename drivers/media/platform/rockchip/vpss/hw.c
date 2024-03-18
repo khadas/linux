@@ -842,6 +842,7 @@ static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
 	rkvpss_hw_write(hw_dev, RKVPSS_MI_IMSC, 0);
 	rkvpss_hw_write(hw_dev, RKVPSS_VPSS_IMSC, 0);
 	disable_sys_clk(hw_dev);
+	hw_dev->ofl_dev.mode_sel_en = true;
 	return 0;
 }
 
