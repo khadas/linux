@@ -43,6 +43,7 @@
 #include "rknpu_drv.h"
 #include "rknpu_gem.h"
 #include "rknpu_devfreq.h"
+#include "rknpu_iommu.h"
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
 #include <drm/drm_device.h>
@@ -403,6 +404,15 @@ static int rknpu_action(struct rknpu_device *rknpu_dev,
 			args->value = 0;
 		ret = 0;
 		break;
+	case RKNPU_GET_IOMMU_DOMAIN_ID:
+		args->value = rknpu_dev->iommu_domain_id;
+		ret = 0;
+		break;
+	case RKNPU_SET_IOMMU_DOMAIN_ID: {
+		ret = rknpu_iommu_switch_domain(rknpu_dev,
+						*(int32_t *)&args->value);
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
@@ -492,7 +502,7 @@ static int rknpu_action_ioctl(struct rknpu_device *rknpu_dev,
 	return ret;
 }
 
-static long rknpu_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
+static long rknpu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = -EINVAL;
 	struct rknpu_device *rknpu_dev = NULL;
@@ -504,22 +514,22 @@ static long rknpu_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	rknpu_power_get(rknpu_dev);
 
-	switch (cmd) {
-	case IOCTL_RKNPU_ACTION:
+	switch (_IOC_NR(cmd)) {
+	case RKNPU_ACTION:
 		ret = rknpu_action_ioctl(rknpu_dev, arg);
 		break;
-	case IOCTL_RKNPU_SUBMIT:
+	case RKNPU_SUBMIT:
 		ret = rknpu_submit_ioctl(rknpu_dev, arg);
 		break;
-	case IOCTL_RKNPU_MEM_CREATE:
-		ret = rknpu_mem_create_ioctl(rknpu_dev, arg, file);
+	case RKNPU_MEM_CREATE:
+		ret = rknpu_mem_create_ioctl(rknpu_dev, file, cmd, arg);
 		break;
 	case RKNPU_MEM_MAP:
 		break;
-	case IOCTL_RKNPU_MEM_DESTROY:
-		ret = rknpu_mem_destroy_ioctl(rknpu_dev, arg, file);
+	case RKNPU_MEM_DESTROY:
+		ret = rknpu_mem_destroy_ioctl(rknpu_dev, file, arg);
 		break;
-	case IOCTL_RKNPU_MEM_SYNC:
+	case RKNPU_MEM_SYNC:
 		ret = rknpu_mem_sync_ioctl(rknpu_dev, arg);
 		break;
 	default:
@@ -1199,7 +1209,11 @@ static int rknpu_probe(struct platform_device *pdev)
 	rknpu_dev->dev = dev;
 
 	rknpu_dev->iommu_en = rknpu_is_iommu_enable(dev);
-	if (!rknpu_dev->iommu_en) {
+	if (rknpu_dev->iommu_en) {
+		rknpu_dev->iommu_group = iommu_group_get(dev);
+		if (!rknpu_dev->iommu_group)
+			return -EINVAL;
+	} else {
 		/* Initialize reserved memory resources */
 		ret = of_reserved_mem_device_init(dev);
 		if (!ret) {
@@ -1254,6 +1268,7 @@ static int rknpu_probe(struct platform_device *pdev)
 	spin_lock_init(&rknpu_dev->irq_lock);
 	mutex_init(&rknpu_dev->power_lock);
 	mutex_init(&rknpu_dev->reset_lock);
+	mutex_init(&rknpu_dev->domain_lock);
 	for (i = 0; i < config->num_irqs; i++) {
 		INIT_LIST_HEAD(&rknpu_dev->subcore_datas[i].todo_list);
 		init_waitqueue_head(&rknpu_dev->subcore_datas[i].job_done_wq);
@@ -1393,6 +1408,9 @@ static int rknpu_probe(struct platform_device *pdev)
 	    rknpu_dev->config->nbuf_size > 0)
 		rknpu_find_nbuf_resource(rknpu_dev);
 
+	if (rknpu_dev->iommu_en)
+		rknpu_iommu_init_domain(rknpu_dev);
+
 	rknpu_power_off(rknpu_dev);
 	atomic_set(&rknpu_dev->power_refcount, 0);
 	atomic_set(&rknpu_dev->cmdline_power_refcount, 0);
@@ -1429,15 +1447,20 @@ static int rknpu_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&rknpu_dev->power_off_work);
 	destroy_workqueue(rknpu_dev->power_off_wq);
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->sram_mm)
-		rknpu_mm_destroy(rknpu_dev->sram_mm);
-
 	rknpu_debugger_remove(rknpu_dev);
 	rknpu_cancel_timer(rknpu_dev);
 
 	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
 		WARN_ON(rknpu_dev->subcore_datas[i].job);
 		WARN_ON(!list_empty(&rknpu_dev->subcore_datas[i].todo_list));
+	}
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->sram_mm)
+		rknpu_mm_destroy(rknpu_dev->sram_mm);
+
+	if (rknpu_dev->iommu_en) {
+		rknpu_iommu_free_domains(rknpu_dev);
+		iommu_group_put(rknpu_dev->iommu_group);
 	}
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
