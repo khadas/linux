@@ -121,6 +121,15 @@
 		cm-jeita-temp-charge-table = <0 15 2400000 4400000>, <15 45 10000000 4400000>, <45 60 6000000 4200000>;
 	};
 
+	dp_sound: dp-sound {
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <512>;
+		rockchip,card-name = "rockchip-dp0";
+		rockchip,cpu = <&spdif_tx3>;
+		rockchip,codec = <&dp 1>;
+		rockchip,jack-det;
+	};
+
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
@@ -1220,6 +1229,10 @@
 	disable-wp;
 	sd-uhs-sdr104;
 	vqmmc-supply = <&vccio_sd_s0>;
+	status = "okay";
+};
+
+&spdif_tx3 {
 	status = "okay";
 };
 
