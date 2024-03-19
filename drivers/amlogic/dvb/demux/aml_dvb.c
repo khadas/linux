@@ -232,7 +232,7 @@ int demux_get_stc(int demux_device_index, int index,
 
 	return 0;
 }
-EXPORT_SYMBOL(demux_get_stc);
+EXPORT_SYMBOL_GPL(demux_get_stc);
 
 int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 {
@@ -243,7 +243,7 @@ int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 
 	return dmx_get_pcr(&dvb->dmx[demux_device_index].dmx, index, pcr);
 }
-EXPORT_SYMBOL(demux_get_pcr);
+EXPORT_SYMBOL_GPL(demux_get_pcr);
 
 ssize_t tsn_source_show(struct class *class,
 			struct class_attribute *attr, char *buf)
@@ -630,7 +630,7 @@ struct aml_dvb *aml_get_dvb_device(void)
 {
 	return &aml_dvb_device;
 }
-EXPORT_SYMBOL(aml_get_dvb_device);
+EXPORT_SYMBOL_GPL(aml_get_dvb_device);
 
 struct device *aml_get_device(void)
 {
@@ -643,7 +643,7 @@ struct dvb_adapter *aml_get_dvb_adapter(void)
 
 	return aml_dvb_get_adapter(dev);
 }
-EXPORT_SYMBOL(aml_get_dvb_adapter);
+EXPORT_SYMBOL_GPL(aml_get_dvb_adapter);
 
 static int aml_dvb_remove(struct platform_device *pdev)
 {
