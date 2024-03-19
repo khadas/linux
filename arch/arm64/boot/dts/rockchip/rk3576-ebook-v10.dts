@@ -371,8 +371,8 @@
 		gpio_detect = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
 		gpio_intr = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		gpio_rst = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-		revert_x = <0>;
-		revert_y = <0>;
+		revert_x = <1>;
+		revert_y = <1>;
 		xy_exchange = <0>;
 	};
 };

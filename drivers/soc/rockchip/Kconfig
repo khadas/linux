@@ -194,6 +194,19 @@ config ROCKCHIP_SYSTEM_MONITOR
 	help
 	  Say y here to enable rockchip system monitor support.
 
+config HAS_EARLYSUSPEND
+	bool
+
+config ROCKCHIP_EARLYSUSPEND
+	bool "Rockchip early suspend"
+	select HAS_EARLYSUSPEND
+	depends on !EARLYSUSPEND
+	depends on !FB_NOTIFY
+	depends on ROCKCHIP_SYSTEM_MONITOR
+	help
+	  Call early suspend handlers when the user requested sleep state
+	  changes.
+
 config ROCKCHIP_VENDOR_STORAGE
 	tristate "Rockchip vendor storage support"
 	help

@@ -212,4 +212,17 @@ rockchip_system_monitor_unregister_notifier(struct notifier_block *nb)
 };
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
 
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+void rockchip_request_early_suspend(void);
+void rockchip_request_late_resume(void);
+#else
+static inline void rockchip_request_early_suspend(void)
+{
+}
+
+static inline void rockchip_request_late_resume(void)
+{
+}
+#endif
+
 #endif

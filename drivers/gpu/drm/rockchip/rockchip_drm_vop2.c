@@ -2208,6 +2208,11 @@ static void vop2_set_system_status(struct vop2 *vop2)
 		rockchip_set_system_status(SYS_STATUS_DUALVIEW);
 	else
 		rockchip_clear_system_status(SYS_STATUS_DUALVIEW);
+
+	if (hweight8(vop2->active_vp_mask))
+		rockchip_request_late_resume();
+	else
+		rockchip_request_early_suspend();
 }
 
 static bool vop2_win_rb_swap(uint32_t format)

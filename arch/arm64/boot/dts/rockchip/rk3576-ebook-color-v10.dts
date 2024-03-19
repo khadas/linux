@@ -30,12 +30,45 @@
 	panel,fel = <16>;
 	panel,mirror = <0>;
 	panel,panel_16bit = <1>;
-	panel,panel_color = <1>;
+
+	//panel_color defined for user space
+	//grayscale screen
+	//RKCFA_PLAT_COMMON   = 0,
+	//corlor screen
+	//RKCFA_PLAT_EC060KC1 = 1,
+	//RKCFA_PLAT_EC060KH3 = 2,
+	//RKCFA_PLAT_EC060KH4 = 3,
+	//RKCFA_PLAT_EC070KC1 = 4,
+	//RKCFA_PLAT_EC078KH3 = 5,
+	//RKCFA_PLAT_EC078KH6 = 6,
+	//RKCFA_PLAT_EC103KH3 = 7,
+	panel,panel_color = <7>;
+
 	panel,sdoe_mode = <1>;
 	panel,sdce_width = <1>;
 	panel,width-mm = <166>;
 	panel,height-mm = <210>;
 	panel,disable_logo = <1>;
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m2_xfer>;
+
+	wacom: wacom@9 {
+		compatible = "wacom,w9013";
+		reg = <0x09>;
+		pwr-supply = <&vcc_emr>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wacom_gpio>;
+		gpio_detect = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		gpio_intr = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		gpio_rst = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		revert_x = <0>;
+		revert_y = <1>;
+		xy_exchange = <1>;
+	};
 };
 
 &i2c9 {

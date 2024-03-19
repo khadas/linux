@@ -177,6 +177,172 @@
 #define ISP39_BNR2AEBIG_SEL_EN		0x10
 #define ISP39_BNR2AE0_SEL_EN		0x20
 
+struct isp39_dpcc_cfg {
+	/* MODE */
+	__u8 stage1_enable;
+	__u8 grayscale_mode;
+	/* OUTPUT_MODE */
+	__u8 border_bypass_mode;
+	__u8 sw_rk_out_sel;
+	__u8 sw_dpcc_output_sel;
+	__u8 stage1_rb_3x3;
+	__u8 stage1_g_3x3;
+	__u8 stage1_incl_rb_center;
+	__u8 stage1_incl_green_center;
+	/* SET_USE */
+	__u8 stage1_use_fix_set;
+	__u8 stage1_use_set_3;
+	__u8 stage1_use_set_2;
+	__u8 stage1_use_set_1;
+	/* METHODS_SET_1 */
+	__u8 sw_rk_red_blue1_en;
+	__u8 rg_red_blue1_enable;
+	__u8 rnd_red_blue1_enable;
+	__u8 ro_red_blue1_enable;
+	__u8 lc_red_blue1_enable;
+	__u8 pg_red_blue1_enable;
+	__u8 sw_rk_green1_en;
+	__u8 rg_green1_enable;
+	__u8 rnd_green1_enable;
+	__u8 ro_green1_enable;
+	__u8 lc_green1_enable;
+	__u8 pg_green1_enable;
+	/* METHODS_SET_2 */
+	__u8 sw_rk_red_blue2_en;
+	__u8 rg_red_blue2_enable;
+	__u8 rnd_red_blue2_enable;
+	__u8 ro_red_blue2_enable;
+	__u8 lc_red_blue2_enable;
+	__u8 pg_red_blue2_enable;
+	__u8 sw_rk_green2_en;
+	__u8 rg_green2_enable;
+	__u8 rnd_green2_enable;
+	__u8 ro_green2_enable;
+	__u8 lc_green2_enable;
+	__u8 pg_green2_enable;
+	/* METHODS_SET_3 */
+	__u8 sw_rk_red_blue3_en;
+	__u8 rg_red_blue3_enable;
+	__u8 rnd_red_blue3_enable;
+	__u8 ro_red_blue3_enable;
+	__u8 lc_red_blue3_enable;
+	__u8 pg_red_blue3_enable;
+	__u8 sw_rk_green3_en;
+	__u8 rg_green3_enable;
+	__u8 rnd_green3_enable;
+	__u8 ro_green3_enable;
+	__u8 lc_green3_enable;
+	__u8 pg_green3_enable;
+	/* LINE_THRESH_1 */
+	__u8 sw_mindis1_rb;
+	__u8 sw_mindis1_g;
+	__u8 line_thr_1_rb;
+	__u8 line_thr_1_g;
+	/* LINE_MAD_FAC_1 */
+	__u8 sw_dis_scale_min1;
+	__u8 sw_dis_scale_max1;
+	__u8 line_mad_fac_1_rb;
+	__u8 line_mad_fac_1_g;
+	/* PG_FAC_1 */
+	__u8 pg_fac_1_rb;
+	__u8 pg_fac_1_g;
+	/* RND_THRESH_1 */
+	__u8 rnd_thr_1_rb;
+	__u8 rnd_thr_1_g;
+	/* RG_FAC_1 */
+	__u8 rg_fac_1_rb;
+	__u8 rg_fac_1_g;
+	/* LINE_THRESH_2 */
+	__u8 sw_mindis2_rb;
+	__u8 sw_mindis2_g;
+	__u8 line_thr_2_rb;
+	__u8 line_thr_2_g;
+	/* LINE_MAD_FAC_2 */
+	__u8 sw_dis_scale_min2;
+	__u8 sw_dis_scale_max2;
+	__u8 line_mad_fac_2_rb;
+	__u8 line_mad_fac_2_g;
+	/* PG_FAC_2 */
+	__u8 pg_fac_2_rb;
+	__u8 pg_fac_2_g;
+	/* RND_THRESH_2 */
+	__u8 rnd_thr_2_rb;
+	__u8 rnd_thr_2_g;
+	/* RG_FAC_2 */
+	__u8 rg_fac_2_rb;
+	__u8 rg_fac_2_g;
+	/* LINE_THRESH_3 */
+	__u8 sw_mindis3_rb;
+	__u8 sw_mindis3_g;
+	__u8 line_thr_3_rb;
+	__u8 line_thr_3_g;
+	/* LINE_MAD_FAC_3 */
+	__u8 sw_dis_scale_min3;
+	__u8 sw_dis_scale_max3;
+	__u8 line_mad_fac_3_rb;
+	__u8 line_mad_fac_3_g;
+	/* PG_FAC_3 */
+	__u8 pg_fac_3_rb;
+	__u8 pg_fac_3_g;
+	/* RND_THRESH_3 */
+	__u8 rnd_thr_3_rb;
+	__u8 rnd_thr_3_g;
+	/* RG_FAC_3 */
+	__u8 rg_fac_3_rb;
+	__u8 rg_fac_3_g;
+	/* RO_LIMITS */
+	__u8 ro_lim_3_rb;
+	__u8 ro_lim_3_g;
+	__u8 ro_lim_2_rb;
+	__u8 ro_lim_2_g;
+	__u8 ro_lim_1_rb;
+	__u8 ro_lim_1_g;
+	/* RND_OFFS */
+	__u8 rnd_offs_3_rb;
+	__u8 rnd_offs_3_g;
+	__u8 rnd_offs_2_rb;
+	__u8 rnd_offs_2_g;
+	__u8 rnd_offs_1_rb;
+	__u8 rnd_offs_1_g;
+	/* BPT_CTRL */
+	__u8 bpt_rb_3x3;
+	__u8 bpt_g_3x3;
+	__u8 bpt_incl_rb_center;
+	__u8 bpt_incl_green_center;
+	__u8 bpt_use_fix_set;
+	__u8 bpt_use_set_3;
+	__u8 bpt_use_set_2;
+	__u8 bpt_use_set_1;
+	__u8 bpt_cor_en;
+	__u8 bpt_det_en;
+	/* BPT_NUMBER */
+	__u16 bp_number;
+	/* BPT_ADDR */
+	__u16 bp_table_addr;
+	/* BPT_DATA */
+	__u16 bpt_v_addr;
+	__u16 bpt_h_addr;
+	/* BP_CNT */
+	__u32 bp_cnt;
+	/* PDAF_EN */
+	__u8 sw_pdaf_en;
+	/* PDAF_POINT_EN */
+	__u8 pdaf_point_en[ISP39_DPCC_PDAF_POINT_NUM];
+	/* PDAF_OFFSET */
+	__u16 pdaf_offsety;
+	__u16 pdaf_offsetx;
+	/* PDAF_WRAP */
+	__u16 pdaf_wrapy;
+	__u16 pdaf_wrapx;
+	/* PDAF_SCOPE */
+	__u16 pdaf_wrapy_num;
+	__u16 pdaf_wrapx_num;
+	/* PDAF_POINT */
+	struct isp2x_dpcc_pdaf_point point[ISP39_DPCC_PDAF_POINT_NUM];
+	/* PDAF_FORWARD_MED */
+	__u8 pdaf_forward_med;
+} __attribute__ ((packed));
+
 struct isp39_yuvme_cfg {
 	/* CTRL */
 	__u8 bypass;
@@ -1416,7 +1582,7 @@ struct isp39_rawaf_meas_cfg {
 
 struct isp39_isp_other_cfg {
 	struct isp32_bls_cfg bls_cfg;
-	struct isp2x_dpcc_cfg dpcc_cfg;
+	struct isp39_dpcc_cfg dpcc_cfg;
 	struct isp3x_lsc_cfg lsc_cfg;
 	struct isp32_awb_gain_cfg awb_gain_cfg;
 	struct isp21_gic_cfg gic_cfg;
