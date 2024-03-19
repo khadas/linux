@@ -1955,7 +1955,12 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			}
 
 			VOP_CLUSTER_SET(vop2, win, enable, 0);
-			VOP_CLUSTER_SET(vop2, win, afbc_enable, 0);
+			/*
+			 * If disable AFBC when close cluster will lead to VOP iommu
+			 * pagefault at rk356x.
+			 */
+			if (vop2->version != VOP_VERSION_RK3568)
+				VOP_CLUSTER_SET(vop2, win, afbc_enable, 0);
 		}
 
 		/*
