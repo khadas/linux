@@ -225,6 +225,7 @@ config MMC_SDHCI_OF_DWCMSHC
 	depends on OF
 	depends on COMMON_CLK
 	select MMC_HSQ
+	select MMC_CQHCI
 	help
 	  This selects Synopsys DesignWare Cores Mobile Storage Controller
 	  support.
