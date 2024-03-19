@@ -1186,142 +1186,142 @@ static struct miscdevice rga_dev = {
 	.fops = &rga_fops,
 };
 
-static const char *const old_rga2_clks[] = {
+static const char *const rga_clks[] = {
 	"aclk_rga",
 	"hclk_rga",
 	"clk_rga",
 };
 
-static const char *const rk3588_rga2_clks[] = {
+static const char *const legacy_rga2_clks[] = {
 	"aclk_rga2",
 	"hclk_rga2",
 	"clk_rga2",
 };
 
-static const char *const rga2_core0_clks[] = {
-	"aclk_rga2e_0",
-	"hclk_rga2e_0",
-	"clk_rga2e_0",
-};
-
-static const char *const rga2_core1_clks[] = {
-	"aclk_rga2e_1",
-	"hclk_rga2e_1",
-	"clk_rga2e_1",
-};
-
-static const char *const rga3_core_0_clks[] = {
+static const char *const legacy_rga3_core_0_clks[] = {
 	"aclk_rga3_0",
 	"hclk_rga3_0",
 	"clk_rga3_0",
 };
 
-static const char *const rga3_core_1_clks[] = {
+static const char *const legacy_rga3_core_1_clks[] = {
 	"aclk_rga3_1",
 	"hclk_rga3_1",
 	"clk_rga3_1",
 };
 
-static const struct rga_match_data_t old_rga2_match_data = {
-	.clks = old_rga2_clks,
-	.num_clks = ARRAY_SIZE(old_rga2_clks),
+static const struct rga_match_data_t rga2_match_data = {
+	.device_type = RGA_DEVICE_RGA2,
+	.ops = &rga2_ops,
+	.clks = rga_clks,
+	.num_clks = ARRAY_SIZE(rga_clks),
 };
 
-static const struct rga_match_data_t rk3588_rga2_match_data = {
-	.clks = rk3588_rga2_clks,
-	.num_clks = ARRAY_SIZE(rk3588_rga2_clks),
+static const struct rga_match_data_t rga3_match_data = {
+	.device_type = RGA_DEVICE_RGA3,
+	.ops = &rga3_ops,
+	.clks = rga_clks,
+	.num_clks = ARRAY_SIZE(rga_clks),
 };
 
-static const struct rga_match_data_t rga2_core0_match_data = {
-	.clks = rga2_core0_clks,
-	.num_clks = ARRAY_SIZE(rga2_core0_clks),
+static const struct rga_match_data_t legacy_rga2_match_data = {
+	.device_type = RGA_DEVICE_RGA2,
+	.ops = &rga2_ops,
+	.clks = legacy_rga2_clks,
+	.num_clks = ARRAY_SIZE(legacy_rga2_clks),
 };
 
-static const struct rga_match_data_t rga2_core1_match_data = {
-	.clks = rga2_core1_clks,
-	.num_clks = ARRAY_SIZE(rga2_core1_clks),
+static const struct rga_match_data_t legacy_rga3_core0_match_data = {
+	.device_type = RGA_DEVICE_RGA3,
+	.ops = &rga3_ops,
+	.clks = legacy_rga3_core_0_clks,
+	.num_clks = ARRAY_SIZE(legacy_rga3_core_0_clks),
 };
 
-static const struct rga_match_data_t rga3_core0_match_data = {
-	.clks = rga3_core_0_clks,
-	.num_clks = ARRAY_SIZE(rga3_core_0_clks),
+static const struct rga_match_data_t legacy_rga3_core1_match_data = {
+	.device_type = RGA_DEVICE_RGA3,
+	.ops = &rga3_ops,
+	.clks = legacy_rga3_core_1_clks,
+	.num_clks = ARRAY_SIZE(legacy_rga3_core_1_clks),
 };
 
-static const struct rga_match_data_t rga3_core1_match_data = {
-	.clks = rga3_core_1_clks,
-	.num_clks = ARRAY_SIZE(rga3_core_1_clks),
-};
-
-static const struct of_device_id rga3_core0_dt_ids[] = {
+static const struct of_device_id rga3_dt_ids[] = {
+	{
+	 .compatible = "rockchip,rga3",
+	 .data = &rga3_match_data,
+	},
+	/* legacy */
 	{
 	 .compatible = "rockchip,rga3_core0",
-	 .data = &rga3_core0_match_data,
+	 .data = &legacy_rga3_core0_match_data,
 	},
-	{},
-};
-
-static const struct of_device_id rga3_core1_dt_ids[] = {
 	{
 	 .compatible = "rockchip,rga3_core1",
-	 .data = &rga3_core1_match_data,
-	},
-	{},
-};
-
-static const struct of_device_id rga2_core0_dt_ids[] = {
-	{
-	 .compatible = "rockchip,rga2_core0",
-	 .data = &rga2_core0_match_data,
-	},
-	{},
-};
-
-static const struct of_device_id rga2_core1_dt_ids[] = {
-	{
-	 .compatible = "rockchip,rga2_core1",
-	 .data = &rga2_core1_match_data,
+	 .data = &legacy_rga3_core1_match_data,
 	},
 	{},
 };
 
 static const struct of_device_id rga2_dt_ids[] = {
 	{
-	 .compatible = "rockchip,rga2_core0",
-	 .data = &rk3588_rga2_match_data,
-	},
-	{
 	 .compatible = "rockchip,rga2",
-	 .data = &old_rga2_match_data,
+	 .data = &rga2_match_data,
+	},
+	/* legacy */
+	{
+	 .compatible = "rockchip,rga2_core0",
+	 .data = &legacy_rga2_match_data,
 	},
 	{},
 };
 
-static void init_scheduler(struct rga_scheduler_t *scheduler,
-			 const char *name)
+static int init_scheduler(struct rga_scheduler_t *scheduler,
+			  struct device *dev,
+			  const struct rga_match_data_t *match_data,
+			  struct rga_drvdata_t *drv_data)
 {
+	switch (match_data->device_type) {
+	case RGA_DEVICE_RGA2:
+		switch (drv_data->device_count[match_data->device_type]) {
+		case 0:
+			scheduler->core = RGA2_SCHEDULER_CORE0;
+			break;
+		case 1:
+			scheduler->core = RGA2_SCHEDULER_CORE1;
+			break;
+		default:
+			pr_err("scheduler failed to match RGA2\n");
+			return -EINVAL;
+		}
+
+		break;
+	case RGA_DEVICE_RGA3:
+		switch (drv_data->device_count[match_data->device_type]) {
+		case 0:
+			scheduler->core = RGA3_SCHEDULER_CORE0;
+			break;
+		case 1:
+			scheduler->core = RGA3_SCHEDULER_CORE1;
+			break;
+		default:
+			pr_err("scheduler failed to match RGA2\n");
+			return -EINVAL;
+		}
+
+		break;
+	default:
+
+		return -EINVAL;
+	}
+
+	scheduler->ops = match_data->ops;
+	scheduler->dev = dev;
+
 	spin_lock_init(&scheduler->irq_lock);
 	INIT_LIST_HEAD(&scheduler->todo_list);
 	init_waitqueue_head(&scheduler->job_done_wq);
 
-	if (!strcmp(name, "rga3_core0")) {
-		scheduler->ops = &rga3_ops;
-		/* TODO: get by hw version */
-		scheduler->core = RGA3_SCHEDULER_CORE0;
-	} else if (!strcmp(name, "rga3_core1")) {
-		scheduler->ops = &rga3_ops;
-		scheduler->core = RGA3_SCHEDULER_CORE1;
-	} else if (!strcmp(name, "rga2_core0")) {
-		scheduler->ops = &rga2_ops;
-		scheduler->core = RGA2_SCHEDULER_CORE0;
-	} else if (!strcmp(name, "rga2_core1")) {
-		scheduler->ops = &rga2_ops;
-		scheduler->core = RGA2_SCHEDULER_CORE1;
-	} else if (!strcmp(name, "rga2")) {
-		scheduler->ops = &rga2_ops;
-		scheduler->core = RGA2_SCHEDULER_CORE0;
-	} else {
-		pr_err("Scheduler failed to match hardware[%s]\n", name);
-	}
+	return 0;
 }
 
 static int rga_drv_probe(struct platform_device *pdev)
@@ -1341,19 +1341,12 @@ static int rga_drv_probe(struct platform_device *pdev)
 	if (!dev->of_node)
 		return -EINVAL;
 
-	if (!strcmp(dev_driver_string(dev), "rga3_core0"))
-		match = of_match_device(rga3_core0_dt_ids, dev);
-	else if (!strcmp(dev_driver_string(dev), "rga3_core1"))
-		match = of_match_device(rga3_core1_dt_ids, dev);
-	else if (!strcmp(dev_driver_string(dev), "rga2_core0"))
-		match = of_match_device(rga2_core0_dt_ids, dev);
-	else if (!strcmp(dev_driver_string(dev), "rga2_core1"))
-		match = of_match_device(rga2_core1_dt_ids, dev);
+	if (!strcmp(dev_driver_string(dev), "rga3"))
+		match = of_match_device(rga3_dt_ids, dev);
 	else if (!strcmp(dev_driver_string(dev), "rga2"))
 		match = of_match_device(rga2_dt_ids, dev);
 	else
 		match = NULL;
-
 	if (!match) {
 		dev_err(dev, "%s missing DT entry!\n", dev_driver_string(dev));
 		return -EINVAL;
@@ -1365,9 +1358,12 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	init_scheduler(scheduler, dev_driver_string(dev));
-
-	scheduler->dev = dev;
+	match_data = match->data;
+	ret = init_scheduler(scheduler, dev, match_data, data);
+	if (ret < 0) {
+		dev_err(dev, "init scheduler failed!\n");
+		return ret;
+	}
 
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1384,8 +1380,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 	}
 
 	/* get the IRQ */
-	match_data = match->data;
-
 	/* there are irq names in dts */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1465,8 +1459,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 	}
 
 	data->scheduler[data->num_of_scheduler] = scheduler;
-
 	data->num_of_scheduler++;
+	data->device_count[match_data->device_type]++;
 
 #ifndef RGA_DISABLE_PM
 	for (i = scheduler->num_clks - 1; i >= 0; i--)
@@ -1509,39 +1503,12 @@ static int rga_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver rga3_core0_driver = {
+static struct platform_driver rga3_driver = {
 	.probe = rga_drv_probe,
 	.remove = rga_drv_remove,
 	.driver = {
-		 .name = "rga3_core0",
-		 .of_match_table = of_match_ptr(rga3_core0_dt_ids),
-		 },
-};
-
-static struct platform_driver rga3_core1_driver = {
-	.probe = rga_drv_probe,
-	.remove = rga_drv_remove,
-	.driver = {
-		 .name = "rga3_core1",
-		 .of_match_table = of_match_ptr(rga3_core1_dt_ids),
-		 },
-};
-
-static struct platform_driver rga2_core0_driver = {
-	.probe = rga_drv_probe,
-	.remove = rga_drv_remove,
-	.driver = {
-		 .name = "rga2_core0",
-		 .of_match_table = of_match_ptr(rga2_core0_dt_ids),
-		 },
-};
-
-static struct platform_driver rga2_core1_driver = {
-	.probe = rga_drv_probe,
-	.remove = rga_drv_remove,
-	.driver = {
-		 .name = "rga2_core1",
-		 .of_match_table = of_match_ptr(rga2_core1_dt_ids),
+		 .name = "rga3",
+		 .of_match_table = of_match_ptr(rga3_dt_ids),
 		 },
 };
 
@@ -1566,34 +1533,15 @@ static int __init rga_init(void)
 
 	mutex_init(&rga_drvdata->lock);
 
-	ret = platform_driver_register(&rga3_core0_driver);
+	ret = platform_driver_register(&rga3_driver);
 	if (ret != 0) {
-		pr_err("Platform device rga3_core0_driver register failed (%d).\n", ret);
+		pr_err("Platform device rga3_driver register failed (%d).\n", ret);
 		goto err_free_drvdata;
 	}
-
-	ret = platform_driver_register(&rga3_core1_driver);
-	if (ret != 0) {
-		pr_err("Platform device rga3_core1_driver register failed (%d).\n", ret);
-		goto err_unregister_rga3_core0;
-	}
-
-	ret = platform_driver_register(&rga2_core0_driver);
-	if (ret != 0) {
-		pr_err("Platform device rga2_core0_driver register failed (%d).\n", ret);
-		goto err_unregister_rga3_core1;
-	}
-
-	ret = platform_driver_register(&rga2_core1_driver);
-	if (ret != 0) {
-		pr_err("Platform device rga2_core1_driver register failed (%d).\n", ret);
-		goto err_unregister_rga2_core0;
-	}
-
 	ret = platform_driver_register(&rga2_driver);
 	if (ret != 0) {
 		pr_err("Platform device rga2_driver register failed (%d).\n", ret);
-		goto err_unregister_rga2_core1;
+		goto err_unregister_rga3;
 	}
 
 	ret = rga_iommu_bind();
@@ -1634,17 +1582,8 @@ err_unbind_iommu:
 err_unregister_rga2:
 	platform_driver_unregister(&rga2_driver);
 
-err_unregister_rga2_core1:
-	platform_driver_unregister(&rga2_core1_driver);
-
-err_unregister_rga2_core0:
-	platform_driver_unregister(&rga2_core0_driver);
-
-err_unregister_rga3_core1:
-	platform_driver_unregister(&rga3_core1_driver);
-
-err_unregister_rga3_core0:
-	platform_driver_unregister(&rga3_core0_driver);
+err_unregister_rga3:
+	platform_driver_unregister(&rga3_driver);
 
 err_free_drvdata:
 	kfree(rga_drvdata);
@@ -1672,8 +1611,7 @@ static void __exit rga_exit(void)
 
 	rga_iommu_unbind();
 
-	platform_driver_unregister(&rga3_core0_driver);
-	platform_driver_unregister(&rga3_core1_driver);
+	platform_driver_unregister(&rga3_driver);
 	platform_driver_unregister(&rga2_driver);
 
 	misc_deregister(&rga_dev);

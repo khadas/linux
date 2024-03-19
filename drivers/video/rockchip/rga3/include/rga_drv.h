@@ -140,6 +140,12 @@ enum rga_job_state {
 	RGA_JOB_STATE_ABORT,
 };
 
+enum RGA_DEVICE_TYPE {
+	RGA_DEVICE_RGA2 = 0,
+	RGA_DEVICE_RGA3,
+	RGA_DEVICE_BUTT,
+};
+
 struct rga_iommu_dma_cookie {
 	enum iommu_dma_cookie_type  type;
 
@@ -404,6 +410,7 @@ struct rga_drvdata_t {
 
 	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
+	int device_count[RGA_DEVICE_BUTT];
 	/* The scheduler_index used by default for memory mapping. */
 	int map_scheduler_index;
 	struct rga_mmu_base *mmu_base;
@@ -433,6 +440,10 @@ struct rga_irqs_data_t {
 };
 
 struct rga_match_data_t {
+	enum RGA_DEVICE_TYPE device_type;
+
+	const struct rga_backend_ops *ops;
+
 	const char * const *clks;
 	int num_clks;
 };
