@@ -1348,13 +1348,13 @@ static int rga_drv_probe(struct platform_device *pdev)
 	else
 		match = NULL;
 	if (!match) {
-		dev_err(dev, "%s missing DT entry!\n", dev_driver_string(dev));
+		dev_err(dev, "missing DT entry!\n");
 		return -EINVAL;
 	}
 
 	scheduler = devm_kzalloc(dev, sizeof(struct rga_scheduler_t), GFP_KERNEL);
 	if (scheduler == NULL) {
-		pr_err("failed to allocate scheduler. dev name = %s\n", dev_driver_string(dev));
+		dev_err(dev, "failed to allocate scheduler.\n");
 		return -ENOMEM;
 	}
 
@@ -1368,13 +1368,13 @@ static int rga_drv_probe(struct platform_device *pdev)
 	/* map the registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		pr_err("get memory resource failed.\n");
+		dev_err(dev, "get memory resource failed.\n");
 		return -ENXIO;
 	}
 
 	scheduler->rga_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!scheduler->rga_base) {
-		pr_err("ioremap failed\n");
+		dev_err(dev, "ioremap failed\n");
 		ret = -ENOENT;
 		return ret;
 	}
@@ -1383,13 +1383,11 @@ static int rga_drv_probe(struct platform_device *pdev)
 	/* there are irq names in dts */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq %s in dts\n", dev_driver_string(dev));
+		dev_err(dev, "no irq in dts\n");
 		return irq;
 	}
 
 	scheduler->irq = irq;
-
-	pr_info("%s, irq = %d, match scheduler\n", dev_driver_string(dev), irq);
 
 	ret = devm_request_threaded_irq(dev, irq,
 					rga_irq_handler,
@@ -1397,7 +1395,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 					IRQF_SHARED,
 					dev_driver_string(dev), scheduler);
 	if (ret < 0) {
-		pr_err("request irq name: %s failed: %d\n", dev_driver_string(dev), ret);
+		dev_err(dev, "request irq failed: %d\n", ret);
 		return ret;
 	}
 
@@ -1408,7 +1406,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
 		if (IS_ERR(clk)) {
-			pr_err("failed to get %s\n", match_data->clks[i]);
+			dev_err(dev, "failed to get %s\n", match_data->clks[i]);
 			return PTR_ERR(clk);
 		}
 
@@ -1422,7 +1420,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	ret = pm_runtime_get_sync(scheduler->dev);
 	if (ret < 0) {
-		pr_err("failed to get pm runtime, ret = %d\n", ret);
+		dev_err(dev, "failed to get pm runtime, ret = %d\n", ret);
 		goto pm_disable;
 	}
 
@@ -1430,7 +1428,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 		if (!IS_ERR(scheduler->clks[i])) {
 			ret = clk_prepare_enable(scheduler->clks[i]);
 			if (ret < 0) {
-				pr_err("failed to enable clk\n");
+				dev_err(dev, "failed to enable clk\n");
 				goto pm_disable;
 			}
 		}
@@ -1438,8 +1436,6 @@ static int rga_drv_probe(struct platform_device *pdev)
 #endif /* #ifndef RGA_DISABLE_PM */
 
 	scheduler->ops->get_version(scheduler);
-	pr_info("%s hardware loaded successfully, hw_version:%s.\n",
-		dev_driver_string(dev), scheduler->version.str);
 
 	/* TODO: get by hw version, Currently only supports judgment 1106. */
 	if (scheduler->core == RGA3_SCHEDULER_CORE0 ||
@@ -1480,7 +1476,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, scheduler);
 
-	pr_info("%s probe successfully\n", dev_driver_string(dev));
+	dev_info(dev, "probe successfully, irq = %d, hw_version:%s\n",
+		 scheduler->irq, scheduler->version.str);
 
 	return 0;
 
