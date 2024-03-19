@@ -5435,7 +5435,7 @@ static void rkcif_detach_sync_mode(struct rkcif_device *cif_dev)
 }
 
 void rkcif_do_stop_stream(struct rkcif_stream *stream,
-			  unsigned int mode)
+			  enum rkcif_stream_mode mode)
 {
 	struct rkcif_vdev_node *node = &stream->vnode;
 	struct rkcif_device *dev = stream->cifdev;
@@ -6792,7 +6792,7 @@ static void rkcif_attach_sync_mode(struct rkcif_device *cifdev)
 
 static void rkcif_monitor_reset_event(struct rkcif_device *dev);
 
-int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
+int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mode)
 {
 	struct rkcif_vdev_node *node = &stream->vnode;
 	struct rkcif_device *dev = stream->cifdev;
