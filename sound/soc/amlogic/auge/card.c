@@ -88,6 +88,9 @@ enum audio_hal_format {
 	TYPE_TRUE_HD_ATMOS_PROMPT_ON_ATMOS = 18,
 	TYPE_MAT_ATMOS_PROMPT_ON_ATMOS = 19,
 	TYPE_AC4_ATMOS_PROMPT_ON_ATMOS = 20,
+	TYPE_AAC  = 21,
+	TYPE_HEAAC = 22,
+	TYPE_DTSX = 23,
 };
 
 struct aml_jack {
