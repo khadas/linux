@@ -1742,6 +1742,17 @@ static void rk3576_dump_cru(void)
 	}
 }
 
+static int protect_clocks[] = {
+	ACLK_EBC,
+	HCLK_EBC,
+	DCLK_EBC,
+	ACLK_VOP,
+	HCLK_VOP,
+	DCLK_VP0,
+	DCLK_VP1,
+	DCLK_VP2,
+};
+
 static void __init rk3576_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1789,6 +1800,8 @@ static void __init rk3576_clk_init(struct device_node *np)
 
 	if (!rk_dump_cru)
 		rk_dump_cru = rk3576_dump_cru;
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3576_cru, "rockchip,rk3576-cru", rk3576_clk_init);
