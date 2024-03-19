@@ -246,6 +246,9 @@ void rkx120_debugfs_init(struct rk_serdes_chip *chip, struct dentry *dentry)
 	struct pattern_gen *pattern_gen;
 	struct dentry *dir;
 
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
 	pattern_gen = devm_kmemdup(chip->serdes->dev, &rkx120_pattern_gen,
 				   sizeof(rkx120_pattern_gen), GFP_KERNEL);
 	if (!pattern_gen)
