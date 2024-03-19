@@ -3180,6 +3180,9 @@ static int rk628_csi_probe(struct i2c_client *client,
 	csi->rk628->dual_mipi = false;
 	rk628_debugfs_create(csi->rk628);
 
+	if (csi->cec_enable)
+		csi->cec = rk628_hdmirx_cec_register(rk628);
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
 
