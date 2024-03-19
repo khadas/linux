@@ -931,7 +931,7 @@ static int rk817_resume_path_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 
-	DBG("%s : resume_path %ld\n", __func__, rk817->resume_path);
+	DBG("%s : resume_path %d\n", __func__, rk817->resume_path);
 
 	ucontrol->value.integer.value[0] = rk817->resume_path;
 
