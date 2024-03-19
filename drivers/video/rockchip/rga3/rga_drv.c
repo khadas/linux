@@ -375,19 +375,14 @@ static void rga_cancel_timer(void)
 int rga_power_enable(struct rga_scheduler_t *scheduler)
 {
 	int ret = -EINVAL;
-	int i;
 	unsigned long flags;
 
 	pm_runtime_get_sync(scheduler->dev);
 	pm_stay_awake(scheduler->dev);
 
-	for (i = 0; i < scheduler->num_clks; i++) {
-		if (!IS_ERR(scheduler->clks[i])) {
-			ret = clk_prepare_enable(scheduler->clks[i]);
-			if (ret < 0)
-				goto err_enable_clk;
-		}
-	}
+	ret = clk_bulk_prepare_enable(scheduler->num_clks, scheduler->clks);
+	if (ret < 0)
+		goto err_enable_clk;
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -400,9 +395,7 @@ int rga_power_enable(struct rga_scheduler_t *scheduler)
 	return 0;
 
 err_enable_clk:
-	for (--i; i >= 0; --i)
-		if (!IS_ERR(scheduler->clks[i]))
-			clk_disable_unprepare(scheduler->clks[i]);
+	clk_bulk_disable_unprepare(scheduler->num_clks, scheduler->clks);
 
 	pm_relax(scheduler->dev);
 	pm_runtime_put_sync_suspend(scheduler->dev);
@@ -412,7 +405,6 @@ err_enable_clk:
 
 int rga_power_disable(struct rga_scheduler_t *scheduler)
 {
-	int i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
@@ -430,9 +422,7 @@ int rga_power_disable(struct rga_scheduler_t *scheduler)
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-	for (i = scheduler->num_clks - 1; i >= 0; i--)
-		if (!IS_ERR(scheduler->clks[i]))
-			clk_disable_unprepare(scheduler->clks[i]);
+	clk_bulk_disable_unprepare(scheduler->num_clks, scheduler->clks);
 
 	pm_relax(scheduler->dev);
 	pm_runtime_put_sync_suspend(scheduler->dev);
@@ -1186,63 +1176,14 @@ static struct miscdevice rga_dev = {
 	.fops = &rga_fops,
 };
 
-static const char *const rga_clks[] = {
-	"aclk_rga",
-	"hclk_rga",
-	"clk_rga",
-};
-
-static const char *const legacy_rga2_clks[] = {
-	"aclk_rga2",
-	"hclk_rga2",
-	"clk_rga2",
-};
-
-static const char *const legacy_rga3_core_0_clks[] = {
-	"aclk_rga3_0",
-	"hclk_rga3_0",
-	"clk_rga3_0",
-};
-
-static const char *const legacy_rga3_core_1_clks[] = {
-	"aclk_rga3_1",
-	"hclk_rga3_1",
-	"clk_rga3_1",
-};
-
 static const struct rga_match_data_t rga2_match_data = {
 	.device_type = RGA_DEVICE_RGA2,
 	.ops = &rga2_ops,
-	.clks = rga_clks,
-	.num_clks = ARRAY_SIZE(rga_clks),
 };
 
 static const struct rga_match_data_t rga3_match_data = {
 	.device_type = RGA_DEVICE_RGA3,
 	.ops = &rga3_ops,
-	.clks = rga_clks,
-	.num_clks = ARRAY_SIZE(rga_clks),
-};
-
-static const struct rga_match_data_t legacy_rga2_match_data = {
-	.device_type = RGA_DEVICE_RGA2,
-	.ops = &rga2_ops,
-	.clks = legacy_rga2_clks,
-	.num_clks = ARRAY_SIZE(legacy_rga2_clks),
-};
-
-static const struct rga_match_data_t legacy_rga3_core0_match_data = {
-	.device_type = RGA_DEVICE_RGA3,
-	.ops = &rga3_ops,
-	.clks = legacy_rga3_core_0_clks,
-	.num_clks = ARRAY_SIZE(legacy_rga3_core_0_clks),
-};
-
-static const struct rga_match_data_t legacy_rga3_core1_match_data = {
-	.device_type = RGA_DEVICE_RGA3,
-	.ops = &rga3_ops,
-	.clks = legacy_rga3_core_1_clks,
-	.num_clks = ARRAY_SIZE(legacy_rga3_core_1_clks),
 };
 
 static const struct of_device_id rga3_dt_ids[] = {
@@ -1253,11 +1194,11 @@ static const struct of_device_id rga3_dt_ids[] = {
 	/* legacy */
 	{
 	 .compatible = "rockchip,rga3_core0",
-	 .data = &legacy_rga3_core0_match_data,
+	 .data = &rga3_match_data,
 	},
 	{
 	 .compatible = "rockchip,rga3_core1",
-	 .data = &legacy_rga3_core1_match_data,
+	 .data = &rga3_match_data,
 	},
 	{},
 };
@@ -1270,7 +1211,7 @@ static const struct of_device_id rga2_dt_ids[] = {
 	/* legacy */
 	{
 	 .compatible = "rockchip,rga2_core0",
-	 .data = &legacy_rga2_match_data,
+	 .data = &rga2_match_data,
 	},
 	{},
 };
@@ -1326,9 +1267,6 @@ static int init_scheduler(struct rga_scheduler_t *scheduler,
 
 static int rga_drv_probe(struct platform_device *pdev)
 {
-#ifndef RGA_DISABLE_PM
-	int i;
-#endif
 	int ret = 0;
 	int irq;
 	struct resource *res;
@@ -1402,17 +1340,12 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 #ifndef RGA_DISABLE_PM
 	/* clk init */
-	for (i = 0; i < match_data->num_clks; i++) {
-		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
-
-		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get %s\n", match_data->clks[i]);
-			return PTR_ERR(clk);
-		}
-
-		scheduler->clks[i] = clk;
+	ret = devm_clk_bulk_get_all(dev, &scheduler->clks);
+	if (ret < 1) {
+		dev_err(dev, "failed to get clk\n");
+		return ret < 0 ? ret : -EINVAL;
 	}
-	scheduler->num_clks = match_data->num_clks;
+	scheduler->num_clks = ret;
 
 	/* PM init */
 	device_init_wakeup(dev, true);
@@ -1424,14 +1357,10 @@ static int rga_drv_probe(struct platform_device *pdev)
 		goto pm_disable;
 	}
 
-	for (i = 0; i < scheduler->num_clks; i++) {
-		if (!IS_ERR(scheduler->clks[i])) {
-			ret = clk_prepare_enable(scheduler->clks[i]);
-			if (ret < 0) {
-				dev_err(dev, "failed to enable clk\n");
-				goto pm_disable;
-			}
-		}
+	ret = clk_bulk_prepare_enable(scheduler->num_clks, scheduler->clks);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clk\n");
+		goto pm_disable;
 	}
 #endif /* #ifndef RGA_DISABLE_PM */
 
@@ -1459,9 +1388,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 	data->device_count[match_data->device_type]++;
 
 #ifndef RGA_DISABLE_PM
-	for (i = scheduler->num_clks - 1; i >= 0; i--)
-		if (!IS_ERR(scheduler->clks[i]))
-			clk_disable_unprepare(scheduler->clks[i]);
+	clk_bulk_disable_unprepare(scheduler->num_clks, scheduler->clks);
 
 	pm_runtime_put_sync(dev);
 #endif /* #ifndef RGA_DISABLE_PM */
