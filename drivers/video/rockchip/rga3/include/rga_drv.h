@@ -87,7 +87,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		3
-#define DRIVER_REVISION_VERSION		2
+#define DRIVER_REVISION_VERSION		3
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -323,7 +323,7 @@ struct rga_scheduler_t {
 	void __iomem *rga_base;
 	struct rga_iommu_info *iommu_info;
 
-	struct clk *clks[RGA_MAX_BUS_CLK];
+	struct clk_bulk_data *clks;
 	int num_clks;
 
 	enum rga_scheduler_status status;
@@ -443,9 +443,6 @@ struct rga_match_data_t {
 	enum RGA_DEVICE_TYPE device_type;
 
 	const struct rga_backend_ops *ops;
-
-	const char * const *clks;
-	int num_clks;
 };
 
 static inline int rga_read(int offset, struct rga_scheduler_t *scheduler)
