@@ -2473,6 +2473,12 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 	if (ret != 0)
 		cif_dev->wait_line = 0;
 	dev_info(cif_dev->dev, "rkcif wait line %d\n", cif_dev->wait_line);
+	ret = of_property_read_u32(node,
+			     OF_CIF_FASTBOOT_RESERVED_BUFS,
+			     &cif_dev->fb_res_bufs);
+	if (ret != 0)
+		cif_dev->fb_res_bufs = 3;
+	dev_info(cif_dev->dev, "rkcif fastboot reserve bufs num %d\n", cif_dev->fb_res_bufs);
 }
 
 static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
