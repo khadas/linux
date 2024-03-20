@@ -1654,7 +1654,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
-						    GPIOD_OUT_HIGH);
+						    GPIOD_ASIS);
 	if (IS_ERR(hdmi->enable_gpio)) {
 		ret = PTR_ERR(hdmi->enable_gpio);
 		dev_err(hdmi->dev, "failed to request enable GPIO: %d\n", ret);
@@ -1934,9 +1934,9 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	if (hdmi->is_hdmi_qp) {
 		if (hdmi->link_cfg.frl_mode)
-			gpiod_set_value(hdmi->enable_gpio, 0);
+			gpiod_direction_output(hdmi->enable_gpio, 0);
 		else
-			gpiod_set_value(hdmi->enable_gpio, 1);
+			gpiod_direction_output(hdmi->enable_gpio, 1);
 	}
 
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
