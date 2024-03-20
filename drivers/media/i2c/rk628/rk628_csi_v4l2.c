@@ -105,7 +105,6 @@ struct rk628_csi {
 	u32 stream_state;
 	int hdmirx_irq;
 	int plugin_irq;
-	int avi_rdy;
 	bool nosignal;
 	bool rxphy_pwron;
 	bool txphy_pwron;
@@ -117,7 +116,6 @@ struct rk628_csi {
 	bool continues_clk;
 	bool cec_enable;
 	struct rk628_hdmirx_cec *cec;
-	bool is_dvi;
 	struct rk628_hdcp hdcp;
 	bool i2s_enable_default;
 	HAUDINFO audio_info;
@@ -722,11 +720,9 @@ static void rk628_dsi_set_scs(struct rk628_csi *csi)
 {
 	u8 video_fmt;
 	u32 val;
+	int avi_rdy;
 
-	mutex_lock(&csi->confctl_mutex);
-	csi->avi_rdy = rk628_is_avi_ready(csi->rk628, csi->avi_rcv_rdy);
-	mutex_unlock(&csi->confctl_mutex);
-
+	avi_rdy = rk628_is_avi_ready(csi->rk628, csi->avi_rcv_rdy);
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_AVI_PB, &val);
 	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
 	v4l2_info(&csi->sd, "%s PDEC_AVI_PB:%#x, video format:%d\n",
@@ -753,7 +749,7 @@ static void rk628_dsi_set_scs(struct rk628_csi *csi)
 	}
 
 	/* if avi packet is not stable, reset ctrl*/
-	if (!csi->avi_rdy) {
+	if (!avi_rdy) {
 		csi->nosignal = true;
 		schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	}
@@ -921,6 +917,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	u8 lanes = csi->csi_lanes_in_use;
 	u8 lane_num;
 	u32 wc_usrdef, val;
+	int avi_rdy;
 
 	lane_num = lanes - 1;
 	csi->rk628->dphy_lane_en = (1 << (lanes + 1)) - 1;
@@ -1077,9 +1074,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 		v4l2_dbg(1, debug, sd, "%s csi1 config done\n", __func__);
 	}
 
-	mutex_lock(&csi->confctl_mutex);
-	csi->avi_rdy = rk628_is_avi_ready(csi->rk628, csi->avi_rcv_rdy);
-	mutex_unlock(&csi->confctl_mutex);
+	avi_rdy = rk628_is_avi_ready(csi->rk628, csi->avi_rcv_rdy);
 
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_AVI_PB, &val);
 	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
@@ -1102,7 +1097,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 		rk628_post_process_csc_en(csi->rk628);
 	}
 	/* if avi packet is not stable, reset ctrl*/
-	if (!csi->avi_rdy) {
+	if (!avi_rdy) {
 		csi->nosignal = true;
 		schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	}
@@ -1243,12 +1238,8 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 				 __func__, width, height, frame_width, frame_height, status, cnt);
 
 			rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_STS, &val);
-			if (csi->rk628->version < RK628F_VERSION && (val & DVI_DET)) {
-				csi->is_dvi = true;
+			if (csi->rk628->version < RK628F_VERSION && (val & DVI_DET))
 				dev_info(csi->dev, "DVI mode detected\n");
-			} else {
-				csi->is_dvi = false;
-			}
 
 			if (!tx_5v_power_present(sd)) {
 				v4l2_info(sd, "HDMI pull out, return!\n");
@@ -2198,6 +2189,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	long ret = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
+	u32 val;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2244,10 +2236,11 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*(int *)arg = rk628_hdmirx_get_hdcp_enc_status(csi->rk628);
 		break;
 	case RK_HDMIRX_CMD_GET_INPUT_MODE:
-		*(int *)arg = csi->is_dvi;
+		rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_STS, &val);
+		*(int *)arg = val & DVI_DET;
 		break;
 	case RK_HDMIRX_CMD_GET_SIGNAL_STABLE_STATUS:
-		*(int *)arg = csi->avi_rdy;
+		*(int *)arg = !csi->nosignal;
 		break;
 	case RK_HDMIRX_CMD_GET_SCAN_MODE:
 		if (csi->timings.bt.interlaced == V4L2_DV_INTERLACED)
@@ -2262,6 +2255,9 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RK_HDMIRX_CMD_GET_COLOR_RANGE:
 		*(int *)arg = rk628_hdmirx_get_range(csi->rk628);
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+		*(int *)arg = rk628_hdmirx_get_color_space(csi->rk628);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2534,6 +2530,20 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(seq);
 		break;
 	case RK_HDMIRX_CMD_GET_COLOR_RANGE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = rk628_csi_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
+	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
 			ret = -ENOMEM;
