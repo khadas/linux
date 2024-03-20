@@ -36,6 +36,7 @@
 
 #define OF_CIF_MONITOR_PARA	"rockchip,cif-monitor"
 #define OF_CIF_WAIT_LINE	"wait-line"
+#define OF_CIF_FASTBOOT_RESERVED_BUFS	"fastboot-reserved-bufs"
 
 #define CIF_MONITOR_PARA_NUM	(5)
 
@@ -943,6 +944,7 @@ struct rkcif_device {
 	u32				intr_mask;
 	struct delayed_work		work_deal_err;
 	u32				other_intstat[RKMODULE_MULTI_DEV_NUM];
+	u32				fb_res_bufs;
 };
 
 extern struct platform_driver rkcif_plat_drv;

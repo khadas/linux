@@ -870,7 +870,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	atomic_inc(&stream->buf_cnt);
 
 	is_single_dev = rkcif_check_single_dev_stream_on(cif_dev->hw_dev);
-	if (!list_empty(&stream->rx_buf_head) &&
+	if (stream->total_buf_num > cif_dev->fb_res_bufs &&
 	    cif_dev->is_thunderboot &&
 	    ((!cif_dev->is_rtt_suspend &&
 	      !cif_dev->is_aov_reserved) ||
