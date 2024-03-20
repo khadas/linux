@@ -286,7 +286,8 @@ static int thread_capture_complete(void *data)
 	struct audio_pcm_function_t *info = data;
 	struct dsp_pcm_t *dsp_pcm = (struct dsp_pcm_t *)info->private_data;
 	struct rpc_pcm_config pconfig;
-	u32 read_size = 0, sleep_us = 0;
+	u32 read_size = 0, expected_sleep_us = 0, real_sleep_us = 0;
+	u32 sema_wait_timeout = 0;
 	char *buf = NULL;
 
 	pconfig.channels = dsp_pcm->pcm_param.channels;
@@ -294,10 +295,20 @@ static int thread_capture_complete(void *data)
 	pconfig.format = dsp_pcm->pcm_param.format;
 	pconfig.period_size = DSP_PERIOD_SIZE;
 
-	sleep_us = 1000 * 1000 * pconfig.period_size *
+	expected_sleep_us = 1000 * 1000 * pconfig.period_size *
 		DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE / pconfig.rate;
+	sema_wait_timeout = expected_sleep_us * 5;
 
-	read_size = pconfig.period_size * pconfig.channels *
+	/*
+	 * Ensure that the ringbuffer consumption
+	 * speed is greater than the production speed
+	 **/
+	if (pconfig.period_size < 1024)
+		real_sleep_us = expected_sleep_us - 300;
+	else
+		real_sleep_us = expected_sleep_us * 63 / 64;
+
+	read_size = pconfig.period_size * (pconfig.channels - LOOPBACK_CHANNELS) *
 			pcm_client_format_to_bytes(pconfig.format) *
 			DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
 
@@ -309,15 +320,15 @@ static int thread_capture_complete(void *data)
 	}
 	memset(buf, 0, read_size);
 
-	while (1) {
-		down(&dsp_pcm->sem);
+	while (dsp_pcm->run_flag && !kthread_should_stop()) {
+		if (down_timeout(&dsp_pcm->sem, usecs_to_jiffies(sema_wait_timeout)))
+			continue;
 
 		if (!no_thread_safe_ring_buffer_get(info->rb, buf, read_size)) {
-			usleep_range(sleep_us / 2, sleep_us);
-			pr_err("%s can't get data from ringbuffer\n", __func__);
+			usleep_range(expected_sleep_us / 2, expected_sleep_us);
 		} else {
 			aml_aprocess_complete(dsp_pcm->aprocess, buf, read_size);
-			usleep_range(sleep_us - 300, sleep_us - 100);
+			usleep_range(real_sleep_us - 200, real_sleep_us);
 		}
 	}
 	vfree(buf);
@@ -355,7 +366,7 @@ static int thread_capture(void *data)
 	sleep_us = 1000 * 1000 * pconfig.period_size *
 		DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE / pconfig.rate / 3;
 
-	read_size = pconfig.period_size * pconfig.channels *
+	read_size = pconfig.period_size * (pconfig.channels - LOOPBACK_CHANNELS) *
 			pcm_client_format_to_bytes(pconfig.format) *
 			DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
 	dsp_pcm->pcm_handle = audio_device_open(dsp_pcm->pcm_param.card,
@@ -505,6 +516,7 @@ static int dsp_pcm_start(struct audio_pcm_function_t *audio_pcm)
 		sched_setscheduler(dsp_pcm->aux_thread_handle, SCHED_FIFO, &param);
 	} else {
 		dsp_pcm->thread_handle = kthread_run(thread_playback, audio_pcm, "dsp_play");
+		dsp_pcm->aux_thread_handle = NULL;
 		sched_setscheduler(dsp_pcm->thread_handle, SCHED_FIFO, &param);
 	}
 
@@ -534,13 +546,13 @@ static int dsp_pcm_stop(struct audio_pcm_function_t *audio_pcm)
 
 	mutex_lock(&dsp_pcm->lock);
 	dsp_pcm->run_flag = 0;
-	if (dsp_pcm->thread_handle) {
-		kthread_stop(dsp_pcm->thread_handle);
-		dsp_pcm->thread_handle = NULL;
-	}
 	if (dsp_pcm->aux_thread_handle) {
 		kthread_stop(dsp_pcm->aux_thread_handle);
 		dsp_pcm->aux_thread_handle = NULL;
+	}
+	if (dsp_pcm->thread_handle) {
+		kthread_stop(dsp_pcm->thread_handle);
+		dsp_pcm->thread_handle = NULL;
 	}
 	pr_info("dsp %s stop!\n", find_mode_desc(audio_pcm->modeid));
 	mutex_unlock(&dsp_pcm->lock);

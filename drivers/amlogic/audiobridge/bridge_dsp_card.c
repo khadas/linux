@@ -17,7 +17,7 @@
  * support max period bytes size = 8channels * 4bytes * 2048(period size)
  * max buffer size = max period size * period count, real size much smaller than this value
  **/
-#define PRD_SIZE_MAX     (PAGE_SIZE * 2)
+#define PRD_SIZE_MAX     (PAGE_SIZE * 64)
 #define BUFF_SIZE_MAX    (PRD_SIZE_MAX * 4)
 #define SOUND_CARD_ID    (2)
 
