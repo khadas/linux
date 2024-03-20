@@ -42,6 +42,7 @@ enum hdmirx_color_space {
 	HDMIRX_ADOBE_RGB = 4,
 	HDMIRX_BT2020_YCC_CONST_LUM = 5,
 	HDMIRX_BT2020_RGB_OR_YCC = 6,
+	HDMIRX_RGB = 7,
 };
 
 /* hdmirx scan mode */

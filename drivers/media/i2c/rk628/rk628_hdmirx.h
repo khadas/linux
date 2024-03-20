@@ -255,7 +255,12 @@
 #define DVI_DET				BIT(28)
 #define HDMI_RX_PDEC_GCP_AVMUTE		(HDMI_RX_BASE + 0x0380)
 #define PKTDEC_GCP_CD_MASK		GENMASK(7, 4)
+#define HDMI_RX_PDEC_AVI_HB		(HDMI_RX_BASE + 0x03a0)
 #define HDMI_RX_PDEC_AVI_PB		(HDMI_RX_BASE + 0x03a4)
+#define VID_IDENT_CODE_VIC7		BIT(31)
+#define VID_IDENT_CODE_MASK		GENMASK(30, 24)
+#define EXT_COLORIMETRY_MASK		GENMASK(22, 20)
+#define COLORIMETRY_MASK		GENMASK(15, 14)
 #define VIDEO_FORMAT_MASK		GENMASK(6, 5)
 #define VIDEO_FORMAT(x)			UPDATE(x, 6, 5)
 #define RGB_COLORRANGE_MASK		GENMASK(19, 18)
@@ -517,6 +522,7 @@ u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);
 u8 rk628_hdmirx_get_range(struct rk628 *rk628);
+u8 rk628_hdmirx_get_color_space(struct rk628 *rk628);
 int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
