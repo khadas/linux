@@ -93,7 +93,6 @@ config EVL_NET
 	default n
 	select NET_OOB
 	select NET_SCHED
-	select NET_SCH_OOB
 	select BPF_OOB
 	select INET
 	select VLAN_8021Q

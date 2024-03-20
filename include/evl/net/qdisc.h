@@ -25,7 +25,6 @@ struct evl_net_qdisc_ops {
 
 struct evl_net_qdisc {
 	const struct evl_net_qdisc_ops *oob_ops;
-	struct evl_net_skb_queue inband_q;
 	unsigned long packet_dropped;
 };
 
