@@ -506,24 +506,24 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 			}
 			writel(val, base + backup[j].base);
 		}
-		if (dev->isp_ver == ISP_V30) {
+		if (dev->isp_ver == ISP_V32) {
 			reg = reg_buf + ISP32_MI_WR_CTRL2_SHD;
 			reg1 = reg_buf + ISP3X_MI_BP_WR_CTRL;
-			if ((*reg & ISP32_BP_EN_IN_SHD) != (*reg1 & ISP3X_BP_ENABLE)) {
-				val = *reg & ISP32_BP_EN_IN_SHD;
-				val |= *reg1 & ~ISP3X_BP_ENABLE;
+			if (!!(*reg & ISP32_BP_EN_IN_SHD) != !!(*reg1 & ISP3X_BP_ENABLE)) {
+				val = !!(*reg & ISP32_BP_EN_IN_SHD);
+				val |= (*reg1 & ~ISP3X_BP_ENABLE);
 				writel(val, base + ISP3X_MI_BP_WR_CTRL);
 			}
 			reg1 = reg_buf + ISP32_MI_MPDS_WR_CTRL;
-			if ((*reg & ISP32_MPDS_EN_IN_SHD) != (*reg1 & ISP32_DS_ENABLE)) {
-				val = *reg & ISP32_MPDS_EN_IN_SHD;
-				val |= *reg1 & ~ISP32_DS_ENABLE;
+			if (!!(*reg & ISP32_MPDS_EN_IN_SHD) != !!(*reg1 & ISP32_DS_ENABLE)) {
+				val = !!(*reg & ISP32_MPDS_EN_IN_SHD);
+				val |= (*reg1 & ~ISP32_DS_ENABLE);
 				writel(val, base + ISP32_MI_MPDS_WR_CTRL);
 			}
 			reg1 = reg_buf + ISP32_MI_BPDS_WR_CTRL;
-			if ((*reg & ISP32_BPDS_EN_IN_SHD) != (*reg1 & ISP32_DS_ENABLE)) {
-				val = *reg & ISP32_BPDS_EN_IN_SHD;
-				val |= *reg1 & ~ISP32_DS_ENABLE;
+			if (!!(*reg & ISP32_BPDS_EN_IN_SHD) != !!(*reg1 & ISP32_DS_ENABLE)) {
+				val = !!(*reg & ISP32_BPDS_EN_IN_SHD);
+				val |= (*reg1 & ~ISP32_DS_ENABLE);
 				writel(val, base + ISP32_MI_BPDS_WR_CTRL);
 			}
 		}
@@ -552,7 +552,7 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		/* config base_reg */
 		for (j = 0; j < ARRAY_SIZE(backup); j++)
 			writel(backup[j].val, base + backup[j].base);
-		if (dev->isp_ver == ISP_V30) {
+		if (dev->isp_ver == ISP_V32) {
 			reg = reg_buf + ISP3X_MI_BP_WR_CTRL;
 			writel(*reg, base + ISP3X_MI_BP_WR_CTRL);
 			reg = reg_buf + ISP32_MI_MPDS_WR_CTRL;
