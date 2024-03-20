@@ -10,6 +10,11 @@
 		#sound-dai-cells = <0>;
 	};
 
+	rkvtunnel: rkvtunnel {
+		compatible = "rockchip,video-tunnel";
+		status = "okay";
+	};
+
 	hdmiin-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
