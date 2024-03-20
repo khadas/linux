@@ -41,7 +41,6 @@ struct evl_net_qdisc *evl_net_alloc_qdisc(struct evl_net_qdisc_ops *ops) /* in-b
 		return ERR_PTR(-ENOMEM);
 
 	qdisc->oob_ops = ops;
-	evl_net_init_skb_queue(&qdisc->inband_q);
 
 	ret = ops->init(qdisc);
 	if (ret) {
@@ -55,7 +54,6 @@ EXPORT_SYMBOL_GPL(evl_net_alloc_qdisc);
 
 void evl_net_free_qdisc(struct evl_net_qdisc *qdisc) /* in-band */
 {
-	evl_net_destroy_skb_queue(&qdisc->inband_q);
 	qdisc->oob_ops->destroy(qdisc);
 	kfree(qdisc);
 }
@@ -65,12 +63,7 @@ EXPORT_SYMBOL_GPL(evl_net_free_qdisc);
  *	evl_net_sched_packet - pass an outgoing buffer to the packet
  *	scheduler.
  *
- *	Any high priority packet originating from the EVL stack
- *	(i.e. skb->oob is true) is given to the out-of-band qdisc
- *	handler attached to the device for scheduling. Otherwise, the
- *	packet is linked to the qdisc's low priority in-band queue.
- *
- *	@skb the packet to schedule for transmission. Must not be
+ *	@skb the oob packet to schedule for transmission. Must not be
  *	linked to any upstream queue.
  *
  *	@dev the device to pass the packet to.
@@ -79,14 +72,8 @@ int evl_net_sched_packet(struct net_device *dev, struct sk_buff *skb) /* oob/in-
 {
 	struct evl_net_qdisc *qdisc = dev->oob_state.estate->qdisc;
 
-	/*
-	 * Low-priority traffic sent by the sched_oob Qdisc goes to
-	 * the internal in-band queue.
-	 */
-	if (!skb->oob) {
-		evl_net_add_skb_queue(&qdisc->inband_q, skb);
-		return 0;
-	}
+	if (EVL_WARN_ON(NET, !skb->oob))
+		return -EINVAL;
 
 	return qdisc->oob_ops->enqueue(qdisc, skb);
 }

@@ -58,7 +58,7 @@ void evl_net_do_tx(void *arg)
 	struct net_device *dev = arg;
 	struct evl_netdev_state *est;
 	struct evl_net_qdisc *qdisc;
-	struct sk_buff *skb, *n;
+	struct sk_buff *skb;
 	LIST_HEAD(list);
 	int ret;
 
@@ -86,17 +86,6 @@ void evl_net_do_tx(void *arg)
 			if (skb == NULL)
 				break;
 			do_tx(qdisc, dev, skb);
-		}
-
-		/*
-		 * Lastly, we send out any pending traffic we received from the
-		 * in-band sch_oob Qdisc.
-		 */
-		if (evl_net_move_skb_queue(&qdisc->inband_q, &list)) {
-			list_for_each_entry_safe(skb, n, &list, list) {
-				list_del_init(&skb->list);
-				do_tx(qdisc, dev, skb);
-			}
 		}
 	}
 }
@@ -212,29 +201,6 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 		irq_work_queue(&oob_xmit_work);
 
 	return 0;
-}
-
-/**
- *	netif_xmit_oob - send a network packet in out-of-band mode
- *
- *	Queue the packet for transmission from the out-of-band stage
- *	as low priority traffic. This hook is called by the enqueuing
- *	handler of the "sch_oob" in-band Qdisc for any packet sent to
- * 	an oob-capable interface, so that both in-band and out-of-band
- *	traffic is injected from our out-of-band Qdisc.
- *
- *	@skb the packet to transmit. Not linked to any upstream
- *	queue. We may take for granted that @skb->dev is valid and
- *	oob-capable. There will be no further routing of @skb, we only
- *	queue the packet to the oob queuing discipline we have for the
- *	oob-capable device.
- *
- *	Returns NET_XMIT_SUCCESS if the packet was successfully queued
- *	for transmission, NET_XMIT_DROP otherwise.
- */
-int netif_xmit_oob(struct sk_buff *skb) /* in-band */
-{
-	return xmit_oob(skb->dev, skb) ? NET_XMIT_DROP : NET_XMIT_SUCCESS;
 }
 
 void __init evl_net_init_tx(void)
