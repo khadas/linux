@@ -767,8 +767,12 @@ static void rk628_dsi_set_scs(struct rk628_csi *csi)
 						SW_Y2R_EN(0) | SW_YUV2VYU_SWP(0));
 		}
 	} else {
+		u8 color_range;
+
+		color_range = rk628_hdmirx_get_range(csi->rk628);
 		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(0));
-		rk628_post_process_csc_en(csi->rk628);
+		rk628_post_process_csc_en(csi->rk628,
+					color_range == HDMIRX_LIMIT_RANGE ? false : true);
 	}
 
 	/* if avi packet is not stable, reset ctrl*/
@@ -1116,8 +1120,12 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 				SW_R2Y_EN(1) | SW_R2Y_CSC_MODE(2));
 		}
 	} else {
+		u8 color_range;
+
+		color_range = rk628_hdmirx_get_range(csi->rk628);
 		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(1));
-		rk628_post_process_csc_en(csi->rk628);
+		rk628_post_process_csc_en(csi->rk628,
+					color_range == HDMIRX_LIMIT_RANGE ? false : true);
 	}
 	/* if avi packet is not stable, reset ctrl*/
 	if (!avi_rdy) {
@@ -2336,6 +2344,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_capture_info  *capture_info;
 	u32 val;
 	u32 stream = 0;
+	bool is_full_range;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2411,6 +2420,10 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_DSI_MODE:
 		*(int *)arg = csi->dsi.vid_mode;
+		break;
+	case RK_HDMIRX_CMD_SET_OUTPUT_RANGE:
+		is_full_range = *((int *)arg);
+		rk628_post_process_csc_en(csi->rk628, is_full_range);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2497,6 +2510,7 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
 	u32 stream = 0;
+	int is_full_range = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2706,7 +2720,6 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(seq);
 		break;
-
 	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
@@ -2734,6 +2747,13 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(seq);
+		break;
+	case RK_HDMIRX_CMD_SET_OUTPUT_RANGE:
+		ret = copy_from_user(&is_full_range, up, sizeof(int));
+		if (!ret)
+			ret = rk628_csi_ioctl(sd, cmd, &is_full_range);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
