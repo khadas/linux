@@ -3580,6 +3580,8 @@ static const struct vop2_win_regs rk3576_cluster0_win_data = {
 	.axi_uv_id = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
 	.ymirror = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 21),
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 24),
+	.color_key = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x3fffffff, 0),
+	.color_key_en = VOP_REG(RK3576_CLUSTER0_COLOR_KEY_CTRL, 0x1, 31),
 };
 
 static const struct vop2_scl_regs rk3576_cluster1_win_scl = {
@@ -3632,6 +3634,8 @@ static const struct vop2_win_regs rk3576_cluster1_win_data = {
 	.axi_uv_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 5),
 	.ymirror = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 21),
 	.csc_y2r_path_sel = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 24),
+	.color_key = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x3fffffff, 0),
+	.color_key_en = VOP_REG(RK3576_CLUSTER1_COLOR_KEY_CTRL, 0x1, 31),
 };
 
 /*
