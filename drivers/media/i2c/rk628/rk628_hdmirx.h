@@ -455,11 +455,6 @@
 
 #define SCDC_CED_ERR_CNT		0xfff
 
-enum color_range {
-	CSC_LIMIT_RANGE,
-	CSC_FULL_RANGE,
-};
-
 enum bus_format {
 	BUS_FMT_RGB = 0,
 	BUS_FMT_YUV422 = 1,
