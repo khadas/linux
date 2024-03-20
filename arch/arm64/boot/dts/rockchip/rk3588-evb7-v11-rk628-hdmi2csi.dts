@@ -12,6 +12,26 @@
 	model = "Rockchip RK3588 EVB7 V11 Board + Rockchip RK628 HDMI to MIPI Extboard";
 	compatible = "rockchip,rk3588-evb7-v11", "rockchip,rk3588";
 
+	rk628_dc: rk628-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	rk628-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk628hdmiin";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+		status = "okay";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s3_2ch>;
+		};
+		dailink0_master: simple-audio-card,codec {
+			sound-dai = <&rk628_dc>;
+		};
+	};
+
 	vcc_mipicsi0: vcc-mipicsi0-regulator {
 		/delete-property/ gpio;
 		/delete-property/ pinctrl-0;
@@ -104,6 +124,11 @@
 			};
 		};
 	};
+};
+
+&i2s3_2ch {
+	rockchip,capture-only;
+	status = "okay";
 };
 
 &mipi_dcphy0 {
