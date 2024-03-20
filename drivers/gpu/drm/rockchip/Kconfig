@@ -23,6 +23,7 @@ if DRM_ROCKCHIP
 
 config ROCKCHIP_DRM_DEBUG
 	bool "Rockchip DRM debug"
+	default y if !ROCKCHIP_MINI_KERNEL
 	depends on DEBUG_FS
 	help
 	  This option add a debug node to dump buf from userspace
