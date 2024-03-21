@@ -59,11 +59,15 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	int bpp;
 	const char *ptr;
 	char file_name[100];
+	char format_name[5];
 	int width;
 	size_t size, uv_size = 0;
 	void *kvaddr, *kvaddr_origin;
 	struct file *file;
 	loff_t pos = 0;
+
+	snprintf(file_name, sizeof(file_name), "%p4cc", &dump_info->format->format);
+	strscpy(format_name, file_name, 5);
 
 	bpp = rockchip_drm_get_bpp(dump_info->format);
 	if (!bpp) {
@@ -78,16 +82,16 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 		width = dump_info->pitches * 8 / bpp;
 		flags = O_RDWR | O_CREAT | O_APPEND;
 		uv_size = (width * dump_info->height * bpp >> 3) * 2 / hsub / vsub;
-		snprintf(file_name, 100, "%s/video%d_%d_%p4cc.%s", DUMP_BUF_PATH,
-			 width, dump_info->height, &dump_info->format->format,
+		snprintf(file_name, 100, "%s/video%d_%d_%s.%s", DUMP_BUF_PATH,
+			 width, dump_info->height, format_name,
 			 "bin");
 	} else {
 		width = dump_info->pitches * 8 / bpp;
 		flags = O_RDWR | O_CREAT;
-		snprintf(file_name, 100, "%s/win%d_area%d_%dx%d_%p4cc%s%d.%s",
+		snprintf(file_name, 100, "%s/win%d_area%d_%dx%d_%s%s%d.%s",
 			 DUMP_BUF_PATH, dump_info->win_id,
 			 dump_info->area_id, width, dump_info->height,
-			 &dump_info->format->format, dump_info->AFBC_flag ?
+			 format_name, dump_info->AFBC_flag ?
 			 "_AFBC_" : "_", frame_count, "bin");
 	}
 	kvaddr = vmap(dump_info->pages, dump_info->num_pages, VM_MAP,
@@ -119,9 +123,10 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 
 static int rockchip_drm_dump_buffer_show(struct seq_file *m, void *data)
 {
-	seq_puts(m, "  echo dump    > dump to dump one frame\n");
+	seq_puts(m, "  echo enable  > Enable dump feature\n");
+	seq_puts(m, "  echo dump    > Immediately dump the current frame\n");
 	seq_puts(m, "  echo dumpon  > dump to start vop keep dumping\n");
-	seq_puts(m, "  echo dumpoff > dump to stop keep dumping\n");
+	seq_puts(m, "  echo dumpoff > Disable dump feature and stop keep dumping\n");
 	seq_puts(m, "  echo dumpn   > dump n is the number of dump times\n");
 	seq_puts(m, "  dump path is /data\n");
 
@@ -180,6 +185,8 @@ rockchip_drm_dump_buffer_write(struct file *file, const char __user *ubuf,
 			drm_modeset_unlock_all(crtc->dev);
 			rockchip_crtc->frame_count++;
 		}
+	} else if (strncmp(buf, "enable", 6) == 0) {
+		rockchip_crtc->vop_dump_status = DUMP_ENABLE;
 	} else {
 		return -EINVAL;
 	}

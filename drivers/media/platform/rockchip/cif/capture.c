@@ -749,6 +749,11 @@ static int rkcif_output_fmt_check(struct rkcif_stream *stream,
 		    output_fmt->fourcc == V4L2_PIX_FMT_SBGGR16)
 			ret = 0;
 		break;
+	case MEDIA_BUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		if (output_fmt->fourcc == V4L2_PIX_FMT_NV12)
+			ret = 0;
+		break;
 	default:
 		break;
 	}
@@ -911,7 +916,10 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input
 		return 0x12;
 	case MEDIA_BUS_FMT_SPD_2X8:
 		return 0x2f;
-
+	case MEDIA_BUS_FMT_UV8_1X8:
+		return 0x1a;//use for yuv420_8bit legacy input
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		return 0x18;//use for yuv420_8bit input
 	default:
 		return 0x2b;
 	}
@@ -3518,13 +3526,13 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 
 	channel->fmt_val = stream->cif_fmt_out->csi_fmt_val;
 
-	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
+	channel->cmd_mode_en = dev->terminal_sensor.dsi_mode;; /* default use DSI Video Mode */
 	channel->dsi_input = dev->terminal_sensor.dsi_input_en;
 
 	if (stream->crop_enable) {
 		channel->crop_en = 1;
 
-		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF)
 			channel->crop_st_x = 3 * stream->crop[CROP_SRC_ACT].left;
 		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 			channel->crop_st_x = 2 * stream->crop[CROP_SRC_ACT].left;
@@ -3580,7 +3588,8 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	if (dev->chip_id > CHIP_RK3562_CIF && stream->sw_dbg_en)
 		channel->virtual_width = (channel->virtual_width + 23) / 24 * 24;
 
-	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 || channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
+	if ((channel->fmt_val == CSI_WRDDR_TYPE_RGB888 && dev->chip_id < CHIP_RK3576_CIF) ||
+	    channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		channel->width = channel->width * fmt->bpp[0] / 8;
 	/*
 	 * rk cif don't support output yuyv fmt data
@@ -6090,6 +6099,17 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 				"%s: get terminal %s CSI/DSI sel failed, default csi input!\n",
 				__func__, terminal_sensor->sd->name);
 			terminal_sensor->dsi_input_en = 0;
+		}
+		if (terminal_sensor->dsi_input_en) {
+			if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl,
+					RKMODULE_GET_DSI_MODE, &terminal_sensor->dsi_mode)) {
+				v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+					"%s: get terminal %s DSI mode failed, set video mode!\n",
+					__func__, terminal_sensor->sd->name);
+				terminal_sensor->dsi_mode = 0;
+			}
+		} else {
+			terminal_sensor->dsi_mode = 0;
 		}
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
