@@ -1372,6 +1372,11 @@ static irqreturn_t rk3588_hdmi_hardirq(int irq, void *dev_id)
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
 
+	if (!hdmi->id)
+		intr_stat = intr_stat & RK3588_HDMI0_OHPD_INT;
+	else
+		intr_stat = intr_stat & RK3588_HDMI1_OHPD_INT;
+
 	if (intr_stat) {
 		dev_dbg(hdmi->dev, "hpd irq %#x\n", intr_stat);
 
@@ -1432,9 +1437,6 @@ static irqreturn_t rk3588_hdmi_thread(int irq, void *dev_id)
 	bool stat;
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
-
-	if (!intr_stat)
-		return IRQ_NONE;
 
 	if (!hdmi->id) {
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
