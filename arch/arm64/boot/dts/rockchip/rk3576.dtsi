@@ -3186,6 +3186,7 @@
 		#iommu-cells = <0>;
 		rockchip,disable-device-link-resume;
 		rockchip,shootdown-entire;
+		rockchip,disable-first-mmu-reset;
 		status = "disabled";
 	};
 
