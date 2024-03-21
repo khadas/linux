@@ -3946,7 +3946,7 @@ static const struct rockchip_usb2phy_cfg rk3576_phy_cfgs[] = {
 			}
 		},
 		.chg_det = {
-			.chg_mode	= { 0x0000, 8, 0, 0, 0x1d7 },
+			.chg_mode	= { 0x0000, 8, 0, 0, 0x057 },
 			.cp_det		= { 0x0080, 8, 8, 0, 1 },
 			.dcp_det	= { 0x0080, 8, 8, 0, 1 },
 			.dp_det		= { 0x0080, 9, 9, 1, 0 },
@@ -4000,7 +4000,7 @@ static const struct rockchip_usb2phy_cfg rk3576_phy_cfgs[] = {
 			}
 		},
 		.chg_det = {
-			.chg_mode	= { 0x2000, 8, 0, 0, 0x1d7 },
+			.chg_mode	= { 0x2000, 8, 0, 0, 0x057 },
 			.cp_det		= { 0x2080, 8, 8, 0, 1 },
 			.dcp_det	= { 0x2080, 8, 8, 0, 1 },
 			.dp_det		= { 0x2080, 9, 9, 1, 0 },
