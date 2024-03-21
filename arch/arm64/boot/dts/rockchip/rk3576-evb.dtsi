@@ -827,3 +827,8 @@
 &vop_mmu {
 	status = "okay";
 };
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VP2_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
