@@ -10,6 +10,7 @@
 #include <dt-bindings/power/rk3576-power.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-csu.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3576.h>
 #include <dt-bindings/thermal/thermal.h>
@@ -694,6 +695,34 @@
 		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		phys = <&mipidcphy0>;
 		phy-names = "dcphy0";
+		status = "disabled";
+	};
+
+	csu: csu {
+		compatible = "rockchip,rk3576-csu", "rockchip,rk3562-csu";
+		rockchip,clock = <CSU_VOP_ACLK 3>;
+		rockchip,bus = <0 0x01900047 0x7001>,
+			       <2 0x00a00041 0xb0ff>,
+			       <3 0x00a00041 0xb001>,
+			       <4 0x00a00047 0x7001>,
+			       <6 0x00a00045 0xb001>,
+			       <7 0x00a00045 0x7001>,
+			       <8 0x00a00041 0xb001>,
+			       <9 0x00a00045 0x7001>,
+			       <10 0x00a00041 0xb001>,
+			       <11 0x00a00045 0x7001>,
+			       <12 0x00a00041 0xb001>,
+			       <13 0x00a00043 0xb001>,
+			       <15 0x00a00045 0x7001>,
+			       <16 0x00a00043 0xb001>,
+			       <17 0x00a00043 0xb001>,
+			       <18 0x00a00043 0xb001>,
+			       <19 0x00a00043 0x7001>,
+			       <27 0x00a00045 0x7001>,
+			       <28 0x00a00045 0x7001>,
+			       <29 0x00a00045 0xb001>,
+			       <30 0x00a00045 0x7001>,
+			       <31 0x00a00045 0x7001>;
 		status = "disabled";
 	};
 
