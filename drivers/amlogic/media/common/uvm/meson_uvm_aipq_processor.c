@@ -258,7 +258,7 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	if (!context) {
 		context = create_ge2d_work_queue();
 		if (IS_ERR_OR_NULL(context)) {
-			aipq_print(PRINT_ERROR, "creat ge2d work failed\n");
+			aipq_print(PRINT_ERROR, "%s: creat ge2d work failed\n", __func__);
 			return -1;
 		}
 	}
@@ -385,6 +385,85 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		aipq_print(PRINT_ERROR,
 			      "++ge2d configing error.\n");
+		return -1;
+	}
+
+	stretchblt_noalpha(context, 0, 0, input_width, input_height,
+			   0, 0, output->width, output->height);
+
+	return 0;
+}
+
+static int convert_rgb24_to_y8_process(struct ge2d_output_t *output)
+{
+	struct config_para_ex_s ge2d_config_s;
+	struct config_para_ex_s *ge2d_config = &ge2d_config_s;
+	struct canvas_s cs, cd;
+	int input_width, input_height;
+	u32 input_canvas = get_canvas(3);
+	u32 output_canvas = get_canvas(0);
+
+	if (!context) {
+		context = create_ge2d_work_queue();
+		if (IS_ERR_OR_NULL(context)) {
+			aipq_print(PRINT_ERROR, "%s: creat ge2d work failed\n", __func__);
+			return -1;
+		}
+	}
+
+	canvas_read(input_canvas & 0xff, &cs);
+	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
+	ge2d_config->src_planes[0].addr = cs.addr;
+	ge2d_config->src_planes[0].w = cs.width;
+	ge2d_config->src_planes[0].h = cs.height;
+	ge2d_config->src_para.canvas_index = input_canvas;
+	ge2d_config->src_para.format = GE2D_FORMAT_S24_BGR | GE2D_LITTLE_ENDIAN;
+
+	input_width = output->width;
+	input_height = output->height;
+	canvas_config(output_canvas, output->addr, output->width,
+			  output->height, CANVAS_ADDR_NOWRAP,
+			  CANVAS_BLKMODE_LINEAR);
+	canvas_read(output_canvas & 0xff, &cd);
+
+	ge2d_config->dst_planes[0].addr = cd.addr;
+	ge2d_config->dst_planes[0].w = cd.width;
+	ge2d_config->dst_planes[0].h = cd.height;
+	ge2d_config->src_key.key_enable = 0;
+	ge2d_config->src_key.key_mask = 0;
+	ge2d_config->src_key.key_mode = 0;
+	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->src_para.fill_color_en = 0;
+	ge2d_config->src_para.fill_mode = 0;
+	ge2d_config->src_para.x_rev = 0;
+	ge2d_config->src_para.y_rev = 0;
+	ge2d_config->src_para.color = 0xffffffff;
+	ge2d_config->src_para.top = 0;
+	ge2d_config->src_para.left = 0;
+	ge2d_config->src_para.width = input_width;
+	ge2d_config->src_para.height = input_height;
+	ge2d_config->alu_const_color = 0;
+	ge2d_config->bitmask_en = 0;
+	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
+	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.canvas_index = output_canvas;
+
+	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config->dst_para.format = output->format | GE2D_LITTLE_ENDIAN;
+	ge2d_config->dst_para.fill_color_en = 0;
+	ge2d_config->dst_para.fill_mode = 0;
+	ge2d_config->dst_para.x_rev = 0;
+	ge2d_config->dst_para.y_rev = 0;
+	ge2d_config->dst_para.color = 0;
+	ge2d_config->dst_para.top = 0;
+	ge2d_config->dst_para.left = 0;
+	ge2d_config->dst_para.width = output->width;
+	ge2d_config->dst_para.height = output->height;
+	ge2d_config->dst_xy_swap = 0;
+
+	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
+		aipq_print(PRINT_ERROR,
+				  "++ge2d configing error.\n");
 		return -1;
 	}
 
@@ -636,7 +715,7 @@ int aipq_getinfo(void *arg, char *buf)
 		do_gettimeofday(&begin_time);
 		ret = ge2d_vf_process(vf, &output);
 		if (ret < 0) {
-			aipq_print(PRINT_ERROR, "ge2d err\n");
+			aipq_print(PRINT_ERROR, "ge2d output RGB24\n");
 			return -EINVAL;
 		}
 		aipq_info->omx_index = vf->omx_index;
@@ -653,6 +732,16 @@ int aipq_getinfo(void *arg, char *buf)
 					uvm_aipq_dump);
 				uvm_aipq_dump = 0;
 				dump_count = 0;
+			}
+		}
+		if (aipq_info->nn_do_aipq_type == NN_USE_GPU) {
+			output.format = GE2D_FORMAT_S8_Y;
+			output.addr = ((ulong)addr + aipq_info->nn_input_frame_width *
+				aipq_info->nn_input_frame_height * 3);
+			ret = convert_rgb24_to_y8_process(&output);
+			if (ret < 0) {
+				aipq_print(PRINT_ERROR, "ge2d output Y8 err\n");
+				return -EINVAL;
 			}
 		}
 	}
