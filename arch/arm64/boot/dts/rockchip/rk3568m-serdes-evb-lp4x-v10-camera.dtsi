@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  *
  */
 
@@ -37,6 +37,14 @@
 	};
 };
 
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy2_psq {
+	status = "okay";
+};
+
 /*
  * pin conflict with i2c2 for serdes-debug
  */
@@ -44,12 +52,11 @@
 	status = "disabled";
 };
 
-&combphy0_us {
-	status = "okay";
-};
-
-&combphy2_psq {
-	status = "okay";
+/*
+ * pin conflict for rkx12x dphy0 irq
+ */
+&uart1 {
+	status = "disabled";
 };
 
 &i2c0 {
@@ -70,26 +77,6 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-	clock-frequency = <100000>;
-
-	rkx120_x110: rkx120_x110@54 {
-		compatible = "rockchip,rkx120";
-		reg = <0x54>;
-		remote0-addr = <0x55>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-
-		serdes_camera: serdes-camera {
-			compatible = "rockchip,serdes-camera";
-			reg = <0>;
-			status = "okay";
-		};
-	};
-};
-
 &i2c5 {
 	status = "disabled";
 };
@@ -98,12 +85,6 @@
 	mxc6655xa {
 		mxc6655xa_irq_gpio: mxc6655xa_irq_gpio {
 			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	serdes {
-		rkx120_reset_gpio: rkx120-reset-gpio {
-			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -126,12 +107,6 @@
 
 &sdmmc2 {
 	status = "disabled";
-};
-
-&uart1 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
 };
 
 &wireless_wlan {

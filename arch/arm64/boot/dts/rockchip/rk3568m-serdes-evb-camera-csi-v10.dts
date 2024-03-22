@@ -1,25 +1,32 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  *
  */
 
+/* csi camera id define */
+#define CSI_CAMERA_NULL			0
+#define CSI_CAMERA_AR0330		1
+#define CSI_CAMERA_OS04A10		2
+
+#define CSI_CAMERA_ID			CSI_CAMERA_AR0330
+
 #include "rk3568m-serdes-evb-lp4x-v10-camera.dtsi"
+
+#if (CSI_CAMERA_ID == CSI_CAMERA_NULL)
+	#include "rk3568m-serdes-evb-rkx12x-dphy0-dummy.dtsi"
+#endif /* CSI_CAMERA_NULL */
+
+#if (CSI_CAMERA_ID == CSI_CAMERA_AR0330)
+	#include "rk3568m-serdes-evb-rkx12x-dphy0-ar0330.dtsi"
+#endif /* CSI_CAMERA_AR0330 */
+
+#if (CSI_CAMERA_ID == CSI_CAMERA_OS04A10)
+	#include "rk3568m-serdes-evb-rkx12x-dphy0-os04a10.dtsi"
+#endif /* CSI_CAMERA_OS04A10 */
+
 #include "rk3568-android.dtsi"
 
-&rkx120_x110 {
-	enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
-	reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&rkx120_reset_gpio>;
-};
-
-&serdes_camera {
-	local-port0 = <RK_SERDES_CSI_TX0>;
-	remote0-port0 = <RK_SERDES_CSI_RX0>;
-};
-
 &i2c3 {
-	status = "okay";
 	clock-frequency = <10000>;
 };
