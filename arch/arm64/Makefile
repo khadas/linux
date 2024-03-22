@@ -169,7 +169,7 @@ BOOT_TARGETS	:= Image vmlinuz.efi image.fit
 PHONY += $(BOOT_TARGETS)
 
 ifeq ($(CONFIG_EFI_ZBOOT),)
-KBUILD_IMAGE	:= $(boot)/Image.gz
+KBUILD_IMAGE	:= $(boot)/Image
 else
 KBUILD_IMAGE	:= $(boot)/vmlinuz.efi
 endif

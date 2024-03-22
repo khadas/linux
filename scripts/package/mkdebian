@@ -162,6 +162,9 @@ else
 	packagename=linux-image
 fi
 
+packagename=linux-image$LOCAL_VERSION
+kernel_headers_packagename=linux-headers$LOCAL_VERSION
+
 debarch=
 set_debarch
 
@@ -205,7 +208,7 @@ Build-Depends-Arch: bc, bison, cpio, flex,
  rsync
 Homepage: https://www.kernel.org/
 
-Package: $packagename-$version
+Package: $packagename
 Architecture: $debarch
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
@@ -228,7 +231,7 @@ EOF
 if is_enabled CONFIG_MODULES; then
 cat <<EOF >> debian/control
 
-Package: linux-headers-$version
+Package: $kernel_headers_packagename
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokernelheaders>
 Description: Linux kernel headers for $version on $debarch
@@ -242,7 +245,7 @@ fi
 if is_enabled CONFIG_DEBUG_INFO; then
 cat <<EOF >> debian/control
 
-Package: linux-image-$version-dbg
+Package: $packagename-dbg
 Section: debug
 Architecture: $debarch
 Build-Profiles: <!pkg.${sourcename}.nokerneldbg>
