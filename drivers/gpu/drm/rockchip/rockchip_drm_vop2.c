@@ -8553,6 +8553,41 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	}
 }
 
+static void vop2_crtc_setup_output_mode(struct drm_crtc *crtc)
+{
+	uint8_t out_mode;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+
+	if ((vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	     !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)) ||
+	    vcstate->output_if & VOP_OUTPUT_IF_BT656)
+		out_mode = ROCKCHIP_OUT_MODE_P888;
+	else
+		out_mode = vcstate->output_mode;
+
+	if (out_mode == ROCKCHIP_OUT_MODE_YUV420) {
+		if (vop2->version == VOP_VERSION_RK3588 && output_if_is_dp(vcstate->output_if))
+			out_mode = RK3588_DP_OUT_MODE_YUV420;
+	} else if (out_mode == ROCKCHIP_OUT_MODE_YUV422) {
+		if (vop2->version == VOP_VERSION_RK3576 && output_if_is_edp(vcstate->output_if))
+			out_mode = RK3576_EDP_OUT_MODE_YUV422;
+		else if (vop2->version == VOP_VERSION_RK3588 &&
+			 output_if_is_edp(vcstate->output_if))
+			out_mode = RK3588_EDP_OUTPUT_MODE_YUV422;
+		else if (vop2->version == VOP_VERSION_RK3576 &&
+			 output_if_is_hdmi(vcstate->output_if))
+			out_mode = RK3576_HDMI_OUT_MODE_YUV422;
+		else if (output_if_is_dp(vcstate->output_if))
+			out_mode = RK3588_DP_OUT_MODE_YUV422;
+	}
+
+	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -8988,6 +9023,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		vop3_setup_pipe_dly(vp, NULL);
 
 	vop2_crtc_csu_set_rate(crtc);
+	vop2_crtc_setup_output_mode(crtc);
+
 	vop2_cfg_done(crtc);
 
 	/*
@@ -11019,32 +11056,8 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
 	uint32_t val;
 	uint32_t r, g, b;
-	uint8_t out_mode;
 
 	spin_lock(&vop2->reg_lock);
-
-	if ((vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
-	     !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)) ||
-	    vcstate->output_if & VOP_OUTPUT_IF_BT656)
-		out_mode = ROCKCHIP_OUT_MODE_P888;
-	else
-		out_mode = vcstate->output_mode;
-
-	if (out_mode == ROCKCHIP_OUT_MODE_YUV420) {
-		if (vop2->version == VOP_VERSION_RK3588 && output_if_is_dp(vcstate->output_if))
-			out_mode = RK3588_DP_OUT_MODE_YUV420;
-	} else if (out_mode == ROCKCHIP_OUT_MODE_YUV422) {
-		if (vop2->version == VOP_VERSION_RK3576 && output_if_is_edp(vcstate->output_if))
-			out_mode = RK3576_EDP_OUT_MODE_YUV422;
-		else if (vop2->version == VOP_VERSION_RK3588 && output_if_is_edp(vcstate->output_if))
-			out_mode = RK3588_EDP_OUTPUT_MODE_YUV422;
-		else if (vop2->version == VOP_VERSION_RK3576 && output_if_is_hdmi(vcstate->output_if))
-			out_mode = RK3576_HDMI_OUT_MODE_YUV422;
-		else if (output_if_is_dp(vcstate->output_if))
-			out_mode = RK3588_DP_OUT_MODE_YUV422;
-	}
-
-	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 
 	vop2_post_color_swap(crtc);
 
@@ -11182,6 +11195,14 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 		if (current_line < vtotal >> 3)
 			vop2_wait_for_scan_timing_from_the_assigned_line(vp, current_line, vtotal >> 3);
 	}
+
+	/*
+	 * In some cases(such as seamless hdr switching) the crtc
+	 * atomic enable will not be run, but vop output mode may
+	 * also be modified. So vop2_crtc_setup_output_mode must
+	 * be call in crtc atomic flush
+	 */
+	vop2_crtc_setup_output_mode(crtc);
 
 	vop2_cfg_update(crtc, old_cstate);
 
