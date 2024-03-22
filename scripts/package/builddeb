@@ -31,6 +31,9 @@ install_linux_image () {
 	# Only some architectures with OF support have this target
 	if is_enabled CONFIG_OF_EARLY_FLATTREE && [ -d "${srctree}/arch/${SRCARCH}/boot/dts" ]; then
 		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/usr/lib/linux-image-${KERNELRELEASE}" dtbs_install
+		# Also dtbs install to /boot
+		mkdir -p ${pdir}/boot
+		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/boot/dtb-${KERNELRELEASE}" dtbs_install
 	fi
 
 	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" INSTALL_MOD_STRIP=1 modules_install
@@ -75,7 +78,7 @@ install_linux_image () {
 		mkdir -p "${pdir}/DEBIAN"
 		cat <<-EOF > "${pdir}/DEBIAN/${script}"
 
-		#!/bin/sh
+		#!/bin/bash
 
 		set -e
 
@@ -90,6 +93,80 @@ install_linux_image () {
 		EOF
 		chmod 755 "${pdir}/DEBIAN/${script}"
 	done
+
+	##
+	## Create sym link to kernel image
+	##
+	sed -e "s/exit 0//g" -i $pdir/DEBIAN/postinst
+	cat >> $pdir/DEBIAN/postinst <<-EOT
+	ln -sf $(basename $installed_image_path) /boot/zImage 2> /dev/null || mv /$installed_image_path /boot/zImage
+	touch /boot/.next
+
+	cd /boot
+	ln -sfT dtb-$KERNELRELEASE dtb 2> /dev/null || mv dtb-$KERNELRELEASE dtb
+	if [ -f /etc/fenix-release ]; then
+		source /etc/fenix-release
+		case \$BOARD in
+			VIM1)
+				DTB=meson-gxl-s905x-khadas-vim.dtb
+				;;
+			VIM2)
+				DTB=meson-gxm-khadas-vim2.dtb
+				;;
+			VIM3)
+				DTB=meson-g12b-a311d-khadas-vim3.dtb
+				;;
+			VIM3L)
+				DTB=meson-sm1-khadas-vim3l.dtb
+				;;
+			Edge)
+				DTB=rk3399-khadas-edge.dtb
+				;;
+			Edge-V)
+				DTB=rk3399-khadas-edge-v.dtb
+				;;
+			Captain)
+				DTB=rk3399-khadas-edge-captain.dtb
+				;;
+		esac
+		cp /boot/dtb/\${VENDOR,,}/\$DTB /boot/dtb.img
+		cd - > /dev/null
+	fi
+
+	exit 0
+	EOT
+
+	##
+	## FAT install workaround
+	##
+	sed -e "s/exit 0//g" -i $pdir/DEBIAN/preinst
+	cat >> $pdir/DEBIAN/preinst <<-EOT
+	# exit if we are running chroot
+	if [ "\$(stat -c %d:%i /)" != "\$(stat -c %d:%i /proc/1/root/.)" ]; then exit 0; fi
+
+	check_and_unmount (){
+		boot_device=\$(mountpoint -d /boot)
+
+		for file in /dev/* ; do
+			CURRENT_DEVICE=\$(printf "%d:%d" \$(stat --printf="0x%t 0x%T" \$file))
+			if [[ "\$CURRENT_DEVICE" = "\$boot_device" ]]; then
+				boot_partition=\$file
+				break
+			fi
+		done
+		bootfstype=\$(blkid -s TYPE -o value \$boot_partition)
+		if [ "\$bootfstype" = "vfat" ]; then
+			# we have to keep it mounted! umount /boot
+			rm -f /boot/System.map* /boot/config* /boot/vmlinuz* /boot/$image_name /boot/uImage
+		fi
+	}
+
+	# Create preinstall and post install script to remove dtb
+	rm -rf /boot/dtb-$KERNELRELEASE; rm -rf /boot/dtb
+
+	mountpoint -q /boot && check_and_unmount
+	EOT
+	echo "exit 0" >> $pdir/DEBIAN/preinst
 }
 
 install_linux_image_dbg () {
@@ -122,7 +199,7 @@ install_linux_image_dbg () {
 
 install_kernel_headers () {
 	pdir=debian/$1
-	version=${1#linux-headers-}
+	version=${KERNELRELEASE}
 
 	"${srctree}/scripts/package/install-extmod-build" "${pdir}/usr/src/linux-headers-${version}"
 
