@@ -1285,6 +1285,14 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 		}
 	}
 
+	/* Enable the xfer in the last card init stage. */
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
+		if (i2s_tdm->clk_trcm)
+			rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+		else
+			rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+	}
+
 err_pm_put:
 	pm_runtime_put(cpu_dai->dev);
 
@@ -2817,11 +2825,6 @@ static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
 	regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
 			   I2S_CKR_RSD_MASK | I2S_CKR_TSD_MASK,
 			   I2S_CKR_RSD(div_lrck) | I2S_CKR_TSD(div_lrck));
-
-	if (i2s_tdm->clk_trcm)
-		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
-	else
-		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
 
 	dev_info(i2s_tdm->dev, "CLK-ALWAYS-ON: mclk: %d, bclk: %d, fsync: %d\n",
 		 mclk_rate, bclk_rate, DEFAULT_FS);
