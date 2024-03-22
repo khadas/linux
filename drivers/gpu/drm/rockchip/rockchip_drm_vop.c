@@ -18,6 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -223,6 +224,8 @@ struct vop_win {
 struct vop {
 	struct rockchip_crtc rockchip_crtc;
 	struct device *dev;
+	struct device *genpd_dev0;
+	struct device *genpd_dev1;
 	struct drm_device *drm_dev;
 	struct dentry *debugfs;
 	struct drm_info_list *debugfs_files;
@@ -1594,10 +1597,28 @@ static void vop_power_enable(struct drm_crtc *crtc)
 		goto err_disable_dclk;
 	}
 
-	ret = pm_runtime_get_sync(vop->dev);
+	if (vop->genpd_dev0) {
+		ret = pm_runtime_resume_and_get(vop->genpd_dev0);
+		if (ret < 0) {
+			dev_err(vop->dev,
+				"failed to get pm runtime for pd0, ret = %d\n", ret);
+			goto err_disable_aclk;
+		}
+	}
+
+	if (vop->genpd_dev1) {
+		ret = pm_runtime_resume_and_get(vop->genpd_dev1);
+		if (ret < 0) {
+			dev_err(vop->dev,
+				"failed to get pm runtime for pd1, ret = %d\n", ret);
+			goto err_put_genpd_dev0;
+		}
+	}
+
+	ret = pm_runtime_resume_and_get(vop->dev);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to get pm runtime: %d\n", ret);
-		return;
+		goto err_put_genpd_dev1;
 	}
 
 	vop_regsbak(vop);
@@ -1616,6 +1637,12 @@ static void vop_power_enable(struct drm_crtc *crtc)
 
 	return;
 
+err_put_genpd_dev1:
+	pm_runtime_put_sync(vop->genpd_dev1);
+err_put_genpd_dev0:
+	pm_runtime_put_sync(vop->genpd_dev0);
+err_disable_aclk:
+	clk_disable_unprepare(vop->aclk);
 err_disable_dclk:
 	clk_disable_unprepare(vop->dclk);
 err_disable_hclk:
@@ -1724,6 +1751,13 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 
 	pm_runtime_put_sync(vop->dev);
+
+	if (vop->genpd_dev1)
+		pm_runtime_put_sync(vop->genpd_dev1);
+
+	if (vop->genpd_dev0)
+		pm_runtime_put_sync(vop->genpd_dev0);
+
 	clk_disable_unprepare(vop->dclk);
 	clk_disable_unprepare(vop->aclk);
 	clk_disable_unprepare(vop->hclk);
@@ -5218,6 +5252,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct vop *vop;
 	struct resource *res;
+	struct device *virt_dev = NULL;
 	size_t alloc_size;
 	int ret, irq, i;
 	int num_wins = 0;
@@ -5330,6 +5365,14 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	pm_runtime_enable(&pdev->dev);
 
+	if (of_count_phandle_with_args(dev->of_node, "power-domains", "#power-domain-cells") > 1) {
+		virt_dev = dev_pm_domain_attach_by_name(dev, "pd0");
+		if (!IS_ERR(virt_dev))
+			vop->genpd_dev0 = virt_dev;
+		virt_dev = dev_pm_domain_attach_by_name(dev, "pd1");
+		if (!IS_ERR(virt_dev))
+			vop->genpd_dev1 = virt_dev;
+	}
 
 	mcu = of_get_child_by_name(dev->of_node, "mcu-timing");
 	if (!mcu) {
@@ -5364,6 +5407,12 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 static void vop_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct vop *vop = dev_get_drvdata(dev);
+
+	if (vop->genpd_dev1)
+		dev_pm_domain_detach(vop->genpd_dev1, true);
+
+	if (vop->genpd_dev0)
+		dev_pm_domain_detach(vop->genpd_dev0, true);
 
 	pm_runtime_disable(dev);
 	vop_destroy_crtc(vop);
