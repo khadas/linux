@@ -1087,7 +1087,8 @@ static long sc231hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_QUICK_STREAM:
 		stream = *((u32 *)arg);
 		if (stream) {
-			gpiod_set_value_cansleep(sc231hai->pwdn_gpio, 1);
+			if (!IS_ERR(sc231hai->pwdn_gpio))
+				gpiod_set_value_cansleep(sc231hai->pwdn_gpio, 1);
 
 			// according sensor FAE: to save power to set 0x302c,0x363c,0x36e9,0x37f9
 			ret = sc231hai_write_reg(sc231hai->client, 0x302c,
@@ -1098,6 +1099,8 @@ static long sc231hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						  SC231HAI_REG_VALUE_08BIT, 0x24);
 			ret |= sc231hai_write_reg(sc231hai->client, 0x37f9,
 						  SC231HAI_REG_VALUE_08BIT, 0x24);
+			ret |= sc231hai_write_reg(sc231hai->client, 0x3018,
+						  SC231HAI_REG_VALUE_08BIT, 0x3A);
 
 			ret |= sc231hai_write_reg(sc231hai->client, SC231HAI_REG_MIPI_CTRL,
 						  SC231HAI_REG_VALUE_08BIT,
@@ -1123,8 +1126,11 @@ static long sc231hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						  SC231HAI_REG_VALUE_08BIT, 0xa4);
 			ret |= sc231hai_write_reg(sc231hai->client, 0x37f9,
 						  SC231HAI_REG_VALUE_08BIT, 0xa4);
+			ret |= sc231hai_write_reg(sc231hai->client, 0x3018,
+						  SC231HAI_REG_VALUE_08BIT, 0x3F);
 
-			gpiod_set_value_cansleep(sc231hai->pwdn_gpio, 0);
+			if (!IS_ERR(sc231hai->pwdn_gpio))
+				gpiod_set_value_cansleep(sc231hai->pwdn_gpio, 0);
 		}
 		break;
 	case RKMODULE_GET_SYNC_MODE:
