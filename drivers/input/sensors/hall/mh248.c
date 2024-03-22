@@ -5,30 +5,30 @@
  * Author: Bin Yang <yangbin@rock-chips.com>
  */
 
-
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-#include <linux/i2c.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
-#include <linux/miscdevice.h>
-#include <linux/gpio.h>
-#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <linux/delay.h>
-#include <linux/input.h>
-#include <linux/workqueue.h>
-#include <linux/freezer.h>
-#include <linux/of_gpio.h>
-#include <linux/sensor-dev.h>
+#include <linux/ebc.h>
 #include <linux/fb.h>
-#include <linux/notifier.h>
-#include <linux/rk_keys.h>
+#include <linux/freezer.h>
+#include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/miscdevice.h>
+#include <linux/notifier.h>
+#include <linux/of_gpio.h>
+#include <linux/platform_device.h>
+#include <linux/rk_keys.h>
+#include <linux/sensor-dev.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/workqueue.h>
 
 struct mh248_para {
 	struct device *dev;
 	struct notifier_block fb_notif;
+	struct notifier_block ebc_notif;
 	struct mutex ops_lock;
 	struct input_dev *hall_input;
 	int is_suspend;
@@ -36,6 +36,25 @@ struct mh248_para {
 	int irq;
 	int active_value;
 };
+
+static int hall_ebc_notifier_callback(struct notifier_block *self,
+				     unsigned long action, void *data)
+{
+	struct mh248_para *mh248;
+
+	mh248 = container_of(self, struct mh248_para, ebc_notif);
+
+	mutex_lock(&mh248->ops_lock);
+
+	if (action == EBC_FB_BLANK)
+		mh248->is_suspend = 1;
+	else if (action == EBC_FB_UNBLANK)
+		mh248->is_suspend = 0;
+
+	mutex_unlock(&mh248->ops_lock);
+
+	return NOTIFY_OK;
+}
 
 static int hall_fb_notifier_callback(struct notifier_block *self,
 				     unsigned long action, void *data)
@@ -147,6 +166,9 @@ static int hall_mh248_probe(struct platform_device *pdev)
 	enable_irq_wake(mh248->irq);
 	mh248->fb_notif.notifier_call = hall_fb_notifier_callback;
 	fb_register_client(&mh248->fb_notif);
+
+	mh248->ebc_notif.notifier_call = hall_ebc_notifier_callback;
+	ebc_register_notifier(&mh248->ebc_notif);
 	dev_info(mh248->dev, "hall_mh248_probe success.\n");
 
 	return 0;
