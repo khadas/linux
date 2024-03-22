@@ -583,7 +583,8 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 	bool ch_en = false;
 	ktime_t t = 0;
 	s64 us = 0;
-	int ret, i;
+	int ret, i, tile_num = 0;
+	bool wr_uv_swap = false;
 
 	if (rkvpss_debug >= 2) {
 		v4l2_info(&ofl->v4l2_dev,
@@ -626,11 +627,31 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		in_size = cfg->input.stride * cfg->input.height * 3 / 2;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_420SP;
 		break;
+	case V4L2_PIX_FMT_NV61:
+		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
+			cfg->input.stride = ALIGN(cfg->input.width, 16);
+		in_c_offs = cfg->input.stride * cfg->input.height;
+		in_size = cfg->input.stride * cfg->input.height * 2;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP | RKVPSS_MI_RD_UV_SWAP;
+		break;
+	case V4L2_PIX_FMT_NV21:
+		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
+			cfg->input.stride = ALIGN(cfg->input.width, 16);
+		in_c_offs = cfg->input.stride * cfg->input.height;
+		in_size = cfg->input.stride * cfg->input.height * 3 / 2;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_420SP | RKVPSS_MI_RD_UV_SWAP;
+		break;
 	case V4L2_PIX_FMT_RGB565:
 		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
 			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR565;
+		break;
+	case V4L2_PIX_FMT_RGB565X:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 2, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 2, 16);
+		in_size = cfg->input.stride * cfg->input.height;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR565 | RKVPSS_MI_RD_RB_SWAP;
 		break;
 	case V4L2_PIX_FMT_RGB24:
 		if (cfg->input.stride < ALIGN(cfg->input.width * 3, 16))
@@ -638,11 +659,39 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR888;
 		break;
+	case V4L2_PIX_FMT_BGR24:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 3, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 3, 16);
+		in_size = cfg->input.stride * cfg->input.height;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_BGR888 | RKVPSS_MI_RD_RB_SWAP;
+		break;
+	case V4L2_PIX_FMT_XRGB32:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
+		in_size = cfg->input.stride * cfg->input.height;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888 | RKVPSS_MI_RD_RB_SWAP;
+		break;
 	case V4L2_PIX_FMT_XBGR32:
 		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
 			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
 		in_size = cfg->input.stride * cfg->input.height;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888 | RKVPSS_MI_RD_RB_SWAP;
+		break;
+	case V4L2_PIX_FMT_RGBX32:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
+		in_size = cfg->input.stride * cfg->input.height;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888
+				| RKVPSS_MI_RD_RB_SWAP
+				| RKVPSS_MI_RD_ALPHA_SWAP;
+		break;
+	case V4L2_PIX_FMT_BGRX32:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 4, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 4, 16);
+		in_size = cfg->input.stride * cfg->input.height;
+		in_ctrl |= RKVPSS_MI_RD_INPUT_ABGR888
+				| RKVPSS_MI_RD_RB_SWAP
+				| RKVPSS_MI_RD_ALPHA_SWAP;
 		break;
 	case V4L2_PIX_FMT_FBC0:
 		if (cfg->input.stride < ALIGN(cfg->input.width, 16))
@@ -664,6 +713,20 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		in_c_offs = 0;
 		in_size = cfg->input.stride * cfg->input.height * 3;
 		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP | RKVPSS_MI_RD_FBCD_YUV444_EN;
+		break;
+	case V4L2_PIX_FMT_TILE420:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 6, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 6, 16);
+		in_c_offs = 0;
+		in_size = cfg->input.stride * (cfg->input.height / 4);
+		in_ctrl |= RKVPSS_MI_RD_INPUT_420SP;
+		break;
+	case V4L2_PIX_FMT_TILE422:
+		if (cfg->input.stride < ALIGN(cfg->input.width * 8, 16))
+			cfg->input.stride = ALIGN(cfg->input.width * 8, 16);
+		in_c_offs = 0;
+		in_size = cfg->input.stride * (cfg->input.height / 4);
+		in_ctrl |= RKVPSS_MI_RD_INPUT_422SP;
 		break;
 	default:
 		v4l2_err(&ofl->v4l2_dev, "dev_id:%d no support input format:%c%c%c%c\n",
@@ -687,19 +750,37 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		cfg->output[i].crop_v_offs = ALIGN(cfg->output[i].crop_v_offs, 2);
 		cfg->output[i].crop_width = ALIGN(cfg->output[i].crop_width, 2);
 		cfg->output[i].crop_height = ALIGN(cfg->output[i].crop_height, 2);
-		if (cfg->output[i].crop_width + cfg->output[i].crop_h_offs > cfg->input.width) {
-			v4l2_err(&ofl->v4l2_dev, "dev_id:%d ech%d inval crop(offs:%d w:%d) input width:%d\n",
-				 i, cfg->dev_id, cfg->output[i].crop_h_offs,
-				 cfg->output[i].crop_width, cfg->input.width);
-			cfg->output[i].crop_h_offs = 0;
-			cfg->output[i].crop_width = cfg->input.width;
-		}
-		if (cfg->output[i].crop_height + cfg->output[i].crop_v_offs > cfg->input.height) {
-			v4l2_err(&ofl->v4l2_dev, "dev_id:%d ch%d inval crop(offs:%d h:%d) input height:%d\n",
-				 cfg->dev_id, i, cfg->output[i].crop_v_offs,
-				 cfg->output[i].crop_height, cfg->input.height);
-			cfg->output[i].crop_v_offs = 0;
-			cfg->output[i].crop_height = cfg->input.height;
+
+		if (!cfg->input.rotate || cfg->input.rotate == 2) {
+			if (cfg->output[i].crop_width + cfg->output[i].crop_h_offs > cfg->input.width) {
+				v4l2_err(&ofl->v4l2_dev, "dev_id:%d ech%d inval crop(offs:%d w:%d) input width:%d\n",
+					 i, cfg->dev_id, cfg->output[i].crop_h_offs,
+					 cfg->output[i].crop_width, cfg->input.width);
+				cfg->output[i].crop_h_offs = 0;
+				cfg->output[i].crop_width = cfg->input.width;
+			}
+			if (cfg->output[i].crop_height + cfg->output[i].crop_v_offs > cfg->input.height) {
+				v4l2_err(&ofl->v4l2_dev, "dev_id:%d ch%d inval crop(offs:%d h:%d) input height:%d\n",
+					 cfg->dev_id, i, cfg->output[i].crop_v_offs,
+					 cfg->output[i].crop_height, cfg->input.height);
+				cfg->output[i].crop_v_offs = 0;
+				cfg->output[i].crop_height = cfg->input.height;
+			}
+		} else {
+			if (cfg->output[i].crop_width + cfg->output[i].crop_h_offs > cfg->input.height) {
+				v4l2_err(&ofl->v4l2_dev, "dev_id:%d ech%d rotate inval crop(offs:%d w:%d) input height:%d\n",
+					 i, cfg->dev_id, cfg->output[i].crop_h_offs,
+					 cfg->output[i].crop_width, cfg->input.height);
+				cfg->output[i].crop_h_offs = 0;
+				cfg->output[i].crop_width = cfg->input.height;
+			}
+			if (cfg->output[i].crop_height + cfg->output[i].crop_v_offs > cfg->input.width) {
+				v4l2_err(&ofl->v4l2_dev, "dev_id:%d ch%d rotate inval crop(offs:%d h:%d) input width:%d\n",
+					 cfg->dev_id, i, cfg->output[i].crop_v_offs,
+					 cfg->output[i].crop_height, cfg->input.width);
+				cfg->output[i].crop_v_offs = 0;
+				cfg->output[i].crop_height = cfg->input.width;
+			}
 		}
 
 		if (i == RKVPSS_OUTPUT_CH2 || i == RKVPSS_OUTPUT_CH3) {
@@ -730,7 +811,7 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 			switch (cfg->output[i].format) {
 			case V4L2_PIX_FMT_RGB565:
 				if (cfg->output[i].stride < ALIGN(w * 2, 16))
-					cfg->output[i].stride = ALIGN(w * 3, 16);
+					cfg->output[i].stride = ALIGN(w * 2, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB565 | RKVPSS_MI_CHN_WR_RB_SWAP;
 				break;
 			case V4L2_PIX_FMT_RGB24:
@@ -738,10 +819,26 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 					cfg->output[i].stride = ALIGN(w * 3, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB888 | RKVPSS_MI_CHN_WR_RB_SWAP;
 				break;
+			case V4L2_PIX_FMT_RGB565X:
+				if (cfg->output[i].stride < ALIGN(w * 2, 16))
+					cfg->output[i].stride = ALIGN(w * 2, 16);
+				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB565;
+				break;
+			case V4L2_PIX_FMT_BGR24:
+				if (cfg->output[i].stride < ALIGN(w * 3, 16))
+					cfg->output[i].stride = ALIGN(w * 3, 16);
+				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_RGB888;
+				break;
 			case V4L2_PIX_FMT_XBGR32:
 				if (cfg->output[i].stride < ALIGN(w * 4, 16))
 					cfg->output[i].stride = ALIGN(w * 4, 16);
 				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_ARGB888;
+				break;
+			case V4L2_PIX_FMT_XRGB32:
+				if (cfg->output[i].stride < ALIGN(w * 4, 16))
+					cfg->output[i].stride = ALIGN(w * 4, 16);
+				out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_ARGB888
+						| RKVPSS_MI_CHN_WR_RB_SWAP;
 				break;
 			default:
 				is_fmt_find = false;
@@ -779,6 +876,40 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV400;
 			out_ch[i].size = cfg->output[i].stride * h;
 			break;
+		case V4L2_PIX_FMT_VYUY:
+			if (cfg->output[i].stride < ALIGN(w * 2, 16))
+				cfg->output[i].stride = ALIGN(w * 2, 16);
+			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_422P | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
+			out_ch[i].size = cfg->output[i].stride * h;
+			break;
+		case V4L2_PIX_FMT_NV61:
+			if (cfg->output[i].stride < ALIGN(w, 16))
+				cfg->output[i].stride = ALIGN(w, 16);
+			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
+			out_ch[i].size = cfg->output[i].stride * h * 2;
+			out_ch[i].c_offs = cfg->output[i].stride * h;
+			break;
+		case V4L2_PIX_FMT_NV21:
+			if (cfg->output[i].stride < ALIGN(w, 16))
+				cfg->output[i].stride = ALIGN(w, 16);
+			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_42XSP | RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
+			out_ch[i].size = cfg->output[i].stride * h * 3 / 2;
+			out_ch[i].c_offs = cfg->output[i].stride * h;
+			break;
+		case V4L2_PIX_FMT_TILE420:
+			if (cfg->output[i].stride < ALIGN(w * 6, 16))
+				cfg->output[i].stride = ALIGN(w * 6, 16);
+			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV420;
+			out_ch[i].size = cfg->output[i].stride * (h / 4);
+			out_ch[i].c_offs = 0;
+			break;
+		case V4L2_PIX_FMT_TILE422:
+			if (cfg->output[i].stride < ALIGN(w * 8, 16))
+				cfg->output[i].stride = ALIGN(w * 8, 16);
+			out_ch[i].ctrl |= RKVPSS_MI_CHN_WR_OUTPUT_YUV422;
+			out_ch[i].size = cfg->output[i].stride * (h / 4);
+			out_ch[i].c_offs = 0;
+			break;
 		default:
 			v4l2_err(&ofl->v4l2_dev, "dev_id:%d no support output ch%d format:%c%c%c%c\n",
 				 cfg->dev_id, i,
@@ -814,6 +945,24 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		in_ctrl |= RKVPSS_MI_RD_MODE(2) | RKVPSS_MI_RD_FBCD_OPT_DIS;
 		rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_STRIDE, 0);
 	} else {
+		if (cfg->input.format == V4L2_PIX_FMT_TILE420 ||
+			cfg->input.format == V4L2_PIX_FMT_TILE422) {
+			in_ctrl |= RKVPSS_MI_RD_MODE(1);
+			switch (cfg->input.rotate) {
+			case 1:
+				in_ctrl |= RKVPSS_MI_RD_ROT_90;
+				break;
+			case 2:
+				in_ctrl |= RKVPSS_MI_RD_ROT_180;
+				break;
+			case 3:
+				in_ctrl |= RKVPSS_MI_RD_ROT_270;
+				break;
+			default:
+				in_ctrl |= RKVPSS_MI_RD_ROT_0;
+				break;
+			}
+		}
 		val = cfg->input.stride;
 		rkvpss_hw_write(hw, RKVPSS_MI_RD_Y_STRIDE, val);
 	}
@@ -871,7 +1020,12 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		val = cfg->output[i].stride;
 		rkvpss_hw_write(hw, reg + i * 0x100, val);
 		reg = RKVPSS_MI_CHN0_WR_Y_SIZE;
-		val = cfg->output[i].stride * h;
+
+		if (cfg->output[i].format == V4L2_PIX_FMT_TILE420 ||
+		    cfg->output[i].format == V4L2_PIX_FMT_TILE422)
+			val = cfg->output[i].stride * (ALIGN(h, 4) / 4);
+		else
+			val = cfg->output[i].stride * h;
 		rkvpss_hw_write(hw, reg + i * 0x100, val);
 		reg = RKVPSS_MI_CHN0_WR_CB_SIZE;
 		val = out_ch[i].size - val;
@@ -881,14 +1035,18 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		val = out_ch[i].ctrl;
 		rkvpss_hw_write(hw, reg + i * 0x100, val);
 
-		if (cfg->output[i].flip) {
+		if (cfg->output[i].flip &&
+		    !(cfg->output[i].format == V4L2_PIX_FMT_TILE420) &&
+		    !(cfg->output[i].format == V4L2_PIX_FMT_TILE422)) {
 			flip_en |= RKVPSS_MI_CHN_V_FLIP(i);
 
 			switch (cfg->output[i].format) {
 			case V4L2_PIX_FMT_RGB565:
+			case V4L2_PIX_FMT_RGB565X:
 				val = cfg->output[i].stride / 2;
 				break;
 			case V4L2_PIX_FMT_XBGR32:
+			case V4L2_PIX_FMT_XRGB32:
 				val = cfg->output[i].stride / 4;
 				break;
 			default:
@@ -903,8 +1061,57 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 	}
 	rkvpss_hw_write(hw, RKVPSS_CROP0_CTRL, crop_en);
 	rkvpss_hw_write(hw, RKVPSS_CROP0_UPDATE, RKVPSS_CROP_FORCE_UPD);
+
 	if (flip_en)
 		rkvpss_hw_set_bits(hw, RKVPSS_MI_WR_VFLIP_CTRL, mask, flip_en);
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		if (cfg->output[i].enable &&
+		    (cfg->output[i].format == V4L2_PIX_FMT_VYUY ||
+		     cfg->output[i].format == V4L2_PIX_FMT_NV21 ||
+		     cfg->output[i].format == V4L2_PIX_FMT_NV61))
+			wr_uv_swap = true;
+	}
+
+	if (wr_uv_swap) {
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			if (cfg->output[i].enable && (cfg->output[i].format == V4L2_PIX_FMT_UYVY ||
+			    cfg->output[i].format == V4L2_PIX_FMT_NV12 ||
+			    cfg->output[i].format == V4L2_PIX_FMT_NV16)) {
+				v4l2_err(&ofl->v4l2_dev,
+					 "dev_id:%d wr_uv_swap need to be consistent\n",
+					 cfg->dev_id);
+				return -EAGAIN;
+			}
+		}
+	}
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		if (cfg->output[i].format == V4L2_PIX_FMT_VYUY ||
+		    cfg->output[i].format == V4L2_PIX_FMT_NV21 ||
+		    cfg->output[i].format == V4L2_PIX_FMT_NV61) {
+			mask = RKVPSS_MI_WR_UV_SWAP;
+			val = RKVPSS_MI_WR_UV_SWAP;
+			rkvpss_hw_set_bits(hw, RKVPSS_MI_WR_CTRL, mask, val);
+			break;
+		}
+	}
+
+	for (i = 0; i < 2; i++) {
+		if (cfg->output[i].format == V4L2_PIX_FMT_TILE420 ||
+		    cfg->output[i].format == V4L2_PIX_FMT_TILE422) {
+			tile_num++;
+			if (tile_num > 1) {
+				v4l2_err(&ofl->v4l2_dev,
+					 "dev_id:%d only one ch can tile write\n", cfg->dev_id);
+				return -EINVAL;
+			}
+			mask = RKVPSS_MI_WR_TILE_SEL(3);
+			val = RKVPSS_MI_WR_TILE_SEL(i + 1);
+			rkvpss_hw_set_bits(hw, RKVPSS_MI_WR_CTRL, mask, val);
+		}
+	}
+
 	rkvpss_hw_write(hw, RKVPSS_MI_WR_INIT, mi_update);
 
 	mask = 0;

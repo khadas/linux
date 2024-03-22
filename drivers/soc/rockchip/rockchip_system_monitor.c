@@ -103,6 +103,9 @@ static DEFINE_MUTEX(early_suspend_mutex);
 static LIST_HEAD(early_suspend_list);
 static bool is_early_suspend;
 
+static bool early_suspend_debug;
+module_param(early_suspend_debug, bool, 0644);
+
 void register_early_suspend(struct early_suspend *handler)
 {
 	struct list_head *pos;
@@ -142,8 +145,21 @@ void rockchip_request_early_suspend(void)
 	if (is_early_suspend)
 		goto unlock;
 	list_for_each_entry(pos, &early_suspend_list, link) {
-		if (pos->suspend != NULL)
+		if (pos->suspend != NULL) {
+			bool debug = early_suspend_debug;
+			ktime_t calltime, rettime;
+
+			if (debug) {
+				printk(KERN_DEBUG "early_suspend: calling %pS\n", pos->suspend);
+				calltime = ktime_get();
+			}
 			pos->suspend(pos);
+			if (debug) {
+				rettime = ktime_get();
+				printk(KERN_DEBUG "early_suspend: %pS returned after %lld usecs\n",
+				       pos->suspend, ktime_us_delta(rettime, calltime));
+			}
+		}
 	}
 	is_early_suspend = true;
 unlock:
@@ -159,8 +175,21 @@ void rockchip_request_late_resume(void)
 	if (!is_early_suspend)
 		goto unlock;
 	list_for_each_entry_reverse(pos, &early_suspend_list, link) {
-		if (pos->resume != NULL)
+		if (pos->resume != NULL) {
+			bool debug = early_suspend_debug;
+			ktime_t calltime, rettime;
+
+			if (debug) {
+				printk(KERN_DEBUG "late_resume: calling %pS\n", pos->resume);
+				calltime = ktime_get();
+			}
 			pos->resume(pos);
+			if (debug) {
+				rettime = ktime_get();
+				printk(KERN_DEBUG "late_resume: %pS returned after %lld usecs\n",
+				       pos->resume, ktime_us_delta(rettime, calltime));
+			}
+		}
 	}
 	is_early_suspend = false;
 unlock:

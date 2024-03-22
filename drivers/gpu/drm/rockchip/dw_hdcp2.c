@@ -486,9 +486,8 @@ static int dw_hdcp_hld_release(struct inode *inode, struct file *f)
 static const struct file_operations dw_hdcp_hld_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = dw_hdcp_hld_ioctl,
-#else
-	.unlocked_ioctl = dw_hdcp_hld_ioctl,
 #endif
+	.unlocked_ioctl = dw_hdcp_hld_ioctl,
 	.open = dw_hdcp_hld_open,
 	.release = dw_hdcp_hld_release,
 	.owner = THIS_MODULE,

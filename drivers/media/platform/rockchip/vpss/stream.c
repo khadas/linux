@@ -62,6 +62,33 @@ static const struct capture_fmt scl_fmts[] = {
 		.swap = 0,
 		.wr_fmt = RKVPSS_MI_CHN_WR_422P,
 		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV61,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_42XSP,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV21,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_42XSP,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV420,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VYUY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_422P,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV422,
 	}
 };
 
@@ -129,6 +156,60 @@ static const struct capture_fmt scl1_fmts[] = {
 		.wr_fmt = 0,
 		.swap = 0,
 		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_ARGB888,
+	}, {
+		.fourcc = V4L2_PIX_FMT_RGB565X,
+		.fmt_type = FMT_RGB,
+		.bpp = { 16 },
+		.mplanes = 1,
+		.cplanes = 1,
+		.wr_fmt = 0,
+		.swap = 0,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_RGB565,
+	}, {
+		.fourcc = V4L2_PIX_FMT_BGR24,
+		.fmt_type = FMT_RGB,
+		.bpp = { 24 },
+		.mplanes = 1,
+		.cplanes = 1,
+		.wr_fmt = 0,
+		.swap = 0,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_RGB888,
+	}, {
+		.fourcc = V4L2_PIX_FMT_XRGB32,
+		.fmt_type = FMT_RGB,
+		.bpp = { 32 },
+		.mplanes = 1,
+		.cplanes = 1,
+		.wr_fmt = 0,
+		.swap = RKVPSS_MI_CHN_WR_RB_SWAP,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_ARGB888,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV61,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_42XSP,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV21,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_42XSP,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV420,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VYUY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.swap = 0,
+		.wr_fmt = RKVPSS_MI_CHN_WR_422P,
+		.output_fmt = RKVPSS_MI_CHN_WR_OUTPUT_YUV422,
 	}
 };
 
@@ -455,7 +536,7 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 	struct rkvpss_device *dev = stream->dev;
 	struct capture_fmt *fmt = &stream->out_cap_fmt;
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
-	u32 reg, val;
+	u32 reg, val, mask;
 
 	val = out_fmt->plane_fmt[0].bytesperline;
 	reg = stream->config->mi.stride;
@@ -463,9 +544,11 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
 		val = out_fmt->plane_fmt[0].bytesperline / 2;
 		break;
 	case V4L2_PIX_FMT_XBGR32:
+	case V4L2_PIX_FMT_XRGB32:
 		val = out_fmt->plane_fmt[0].bytesperline / 4;
 		break;
 	default:
@@ -494,6 +577,15 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 	      RKVPSS_MI_CHN_WR_EN | RKVPSS_MI_CHN_WR_AUTO_UPD;
 	reg = stream->config->mi.ctrl;
 	rkvpss_write(dev, reg, val);
+
+	switch (fmt->fourcc) {
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV61:
+	case V4L2_PIX_FMT_VYUY:
+		mask = RKVPSS_MI_WR_UV_SWAP;
+		val = RKVPSS_MI_WR_UV_SWAP;
+		rkvpss_hw_set_bits(dev->hw_dev, RKVPSS_MI_WR_CTRL, mask, val);
+	}
 
 	stream->is_mf_upd = true;
 	rkvpss_frame_end(stream);
@@ -1007,6 +1099,44 @@ static void rkvpss_stop_streaming(struct vb2_queue *queue)
 	mutex_unlock(&hw->dev_lock);
 }
 
+static int check_wr_uvswap(struct rkvpss_stream *stream)
+{
+	struct rkvpss_device *dev = stream->dev;
+	struct rkvpss_stream *check_stream;
+	struct capture_fmt *fmt;
+	bool wr_uv_swap = false;
+	int i, ret = 0;
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		check_stream = &dev->stream_vdev.stream[i];
+		if (check_stream->streaming) {
+			fmt = &check_stream->out_cap_fmt;
+			switch (fmt->fourcc) {
+			case V4L2_PIX_FMT_NV21:
+			case V4L2_PIX_FMT_NV61:
+			case V4L2_PIX_FMT_VYUY:
+				wr_uv_swap = true;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	if (wr_uv_swap) {
+		switch (stream->out_cap_fmt.fourcc) {
+		case V4L2_PIX_FMT_NV12:
+		case V4L2_PIX_FMT_NV16:
+		case V4L2_PIX_FMT_UYVY:
+			v4l2_err(&dev->v4l2_dev, "wr_uv_swap need to be consistent\n");
+			ret = -EINVAL;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
 static int rkvpss_stream_start(struct rkvpss_stream *stream)
 {
 	int ret = 0;
@@ -1016,6 +1146,9 @@ static int rkvpss_stream_start(struct rkvpss_stream *stream)
 	if (ret < 0)
 		return ret;
 	ret = rkvpss_stream_crop(stream, true, true);
+	if (ret < 0)
+		return ret;
+	ret = check_wr_uvswap(stream);
 	if (ret < 0)
 		return ret;
 

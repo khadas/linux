@@ -429,6 +429,7 @@ struct dw_dp {
 	struct reset_control *rstc;
 	struct regmap *grf;
 	struct completion complete;
+	struct completion hdcp_complete;
 	int irq;
 	int hpd_irq;
 	int id;
@@ -761,46 +762,9 @@ static int _dw_dp_hdcp_disable(struct dw_dp *dp)
 	return 0;
 }
 
-static int dw_dp_hdcp_auth_check(struct dw_dp *dp)
-{
-	u32 val;
-	int ret;
-
-	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPAPIINTSTAT, val,
-				       FIELD_GET(HDCP_ENGAGED, val), 1000, 1000000);
-	if (ret) {
-		if (val & HDCP_FAILED) {
-			dev_err(dp->dev, " HDCP authentication process failed\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_FAILED);
-		}
-
-		if (val & AUXRESPNACK7TIMES) {
-			dev_err(dp->dev, "Aux received nack response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPNACK7TIMES);
-		}
-
-		if (val & AUXRESPTIMEOUT) {
-			dev_err(dp->dev, "Aux did not receive a response and timedout\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPTIMEOUT);
-		}
-
-		if (val & AUXRESPDEFER7TIMES) {
-			dev_err(dp->dev, "Aux received defer response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPDEFER7TIMES);
-		}
-
-		dev_err(dp->dev, "HDCP authentication timeout\n");
-	} else {
-		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_ENGAGED);
-		dp->hdcp.hdcp_encrypted = true;
-		dev_info(dp->dev, "HDCP authentication succeed\n");
-	}
-
-	return ret;
-}
-
 static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 {
+	unsigned long timeout = msecs_to_jiffies(1000);
 	int ret;
 	u8 rev;
 	struct dw_dp_hdcp *hdcp = &dp->hdcp;
@@ -823,9 +787,15 @@ static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP | ENABLE_HDCP_13,
 			   ENABLE_HDCP | ENABLE_HDCP_13);
 
-	return dw_dp_hdcp_auth_check(dp);
+	ret = wait_for_completion_timeout(&dp->hdcp_complete, timeout);
+	if (!ret) {
+		dev_err(dp->dev, "HDCP authentication timeout\n");
+		return -ETIMEDOUT;
+	}
 
-	return ret;
+	hdcp->hdcp_encrypted = true;
+
+	return 0;
 }
 
 static int dw_dp_hdcp_enable(struct dw_dp *dp, u8 content_type)
@@ -988,11 +958,35 @@ static void dw_dp_handle_hdcp_event(struct dw_dp *dp)
 
 	regmap_read(dp->regmap, DPTX_HDCPAPIINTSTAT, &value);
 
-	if (value & HDCP22_GPIOINT) {
+	if (value & KSVACCESSINT)
+		dev_err(dp->dev, "Notify ksv access\n");
+
+	if (value & AUXRESPDEFER7TIMES)
+		dev_err_ratelimited(dp->dev,
+				    "Aux received defer response continuously for 7 times\n");
+
+	if (value & AUXRESPTIMEOUT)
+		dev_err(dp->dev, "Aux did not receive a response and timedout\n");
+
+	if (value & AUXRESPNACK7TIMES)
+		dev_err_ratelimited(dp->dev,
+				    "Aux received nack response continuously for 7 times\n");
+
+	if (value & KSVSHA1CALCDONEINT)
+		dev_info(dp->dev, "Notify SHA1 verification has been done\n");
+
+	if (value & HDCP22_GPIOINT)
 		dev_info(dp->dev, "A change in HDCP22 GPIO Output status\n");
-		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP22_GPIOINT);
+
+	if (value & HDCP_FAILED)
+		dev_err(dp->dev, " HDCP authentication process failed\n");
+
+	if (value & HDCP_ENGAGED) {
+		complete(&dp->hdcp_complete);
+		dev_info(dp->dev, "HDCP authentication succeed\n");
 	}
 
+	regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, value);
 	mutex_unlock(&dp->irq_lock);
 }
 
@@ -5157,6 +5151,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
 	init_completion(&dp->complete);
+	init_completion(&dp->hdcp_complete);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

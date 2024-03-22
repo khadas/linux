@@ -2173,6 +2173,65 @@ static void rk628_csi_get_module_inf(struct rk628_csi *rk628_csi,
 	strscpy(inf->base.lens, rk628_csi->len_name, sizeof(inf->base.lens));
 }
 
+static void rk628_csi_reset_streaming(struct v4l2_subdev *sd, int on)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	if (on) {
+		if (csi->plat_data->tx_mode == CSI_MODE) {
+			rk628_csi_soft_reset(sd);
+			usleep_range(5000, 5500);
+			if (csi->continues_clk) {
+				rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
+					CONT_MODE_CLK_CLR_MASK | CONT_MODE_CLK_SET_MASK |
+					NON_CONTINUOUS_MODE_MASK, CONT_MODE_CLK_CLR(0) |
+					CONT_MODE_CLK_SET(1) | NON_CONTINUOUS_MODE(0));
+				if (csi->rk628->version >= RK628F_VERSION)
+					rk628_i2c_update_bits(csi->rk628, CSITX1_SYS_CTRL3_IMD,
+						CONT_MODE_CLK_CLR_MASK | CONT_MODE_CLK_SET_MASK |
+						NON_CONTINUOUS_MODE_MASK, CONT_MODE_CLK_CLR(0) |
+						CONT_MODE_CLK_SET(1) | NON_CONTINUOUS_MODE(0));
+			} else {
+				rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
+					CONT_MODE_CLK_CLR_MASK | CONT_MODE_CLK_SET_MASK |
+					NON_CONTINUOUS_MODE_MASK, CONT_MODE_CLK_CLR(0) |
+					CONT_MODE_CLK_SET(0) | NON_CONTINUOUS_MODE(1));
+				if (csi->rk628->version >= RK628F_VERSION)
+					rk628_i2c_update_bits(csi->rk628, CSITX1_SYS_CTRL3_IMD,
+						CONT_MODE_CLK_CLR_MASK | CONT_MODE_CLK_SET_MASK |
+						NON_CONTINUOUS_MODE_MASK, CONT_MODE_CLK_CLR(0) |
+						CONT_MODE_CLK_SET(0) | NON_CONTINUOUS_MODE(1));
+			}
+
+			rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
+					DPHY_EN_MASK | CSITX_EN_MASK, DPHY_EN(1) | CSITX_EN(1));
+			rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
+			if (csi->rk628->version >= RK628F_VERSION) {
+				rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+					DPHY_EN_MASK | CSITX_EN_MASK, DPHY_EN(1) | CSITX_EN(1));
+				rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
+			}
+			rk628_csi_enable_csi_interrupts(sd, true);
+		} else {
+			enable_dsitx(sd);
+		}
+		csi->is_streaming = true;
+	} else {
+		if (csi->plat_data->tx_mode == CSI_MODE) {
+			rk628_csi_enable_csi_interrupts(sd, false);
+			msleep(20);
+			rk628_csi_disable_stream(sd);
+		} else {
+			rk628_dsi_enable_stream(sd, false);
+		}
+		csi->is_streaming = false;
+	}
+	v4l2_info(sd, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				csi->timings.bt.width,
+				csi->timings.bt.height,
+				fps_calc(&csi->timings.bt));
+}
+
 static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk628_csi *csi = to_csi(sd);
@@ -2180,6 +2239,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
 	u32 val;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2212,6 +2272,10 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			capture_info->mode = 0;
 			capture_info->multi_dev = csi->multi_dev_info;
 		}
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		stream = *((u32 *)arg);
+		rk628_csi_reset_streaming(sd, !!stream);
 		break;
 	case RKMODULE_GET_CSI_DSI_INFO:
 		if (csi->plat_data->tx_mode == DSI_MODE)
@@ -2248,6 +2312,9 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
 		*(int *)arg = rk628_hdmirx_get_color_space(csi->rk628);
+		break;
+	case RKMODULE_GET_DSI_MODE:
+		*(int *)arg = csi->dsi.vid_mode;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2331,6 +2398,7 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 	int *seq;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2406,6 +2474,13 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(capture_info);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = rk628_csi_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	case RKMODULE_GET_CSI_DSI_INFO:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
@@ -2533,7 +2608,22 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(seq);
 		break;
+
 	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = rk628_csi_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
+	case RKMODULE_GET_DSI_MODE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
 			ret = -ENOMEM;

@@ -183,9 +183,13 @@ struct rkvpss_module_sel {
  * width: width of input image, range: 32~4672
  * height: height of input image, range: 32~3504
  * stride: virtual width of input image, 16 align. auto calculate according to width and format if 0.
- * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32
+ * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32/
+ *         V4L2_PIX_FMT_NV61/V4L2_PIX_FMT_NV21/V4L2_PIX_FMT_RGB565X/V4L2_PIX_FMT_BGR24/V4L2_PIX_FMT_XRGB32/
+ *         V4L2_PIX_FMT_RGBX32/V4L2_PIX_FMT_BGRX32
  *         V4L2_PIX_FMT_FBC0/V4L2_PIX_FMT_FBC2/V4L2_PIX_FMT_FBC4 for rkfbcd
+ *         V4L2_PIX_FMT_TILE420/V4L2_PIX_FMT_TILE422 for tile
  * buf_fd: dmabuf fd of input image buf
+ * rotate: 0:rotate0 1:rotate90 2:rotate180; 3:rotate270, note:only tile input support rotate
  */
 struct rkvpss_input_cfg {
 	int width;
@@ -193,6 +197,7 @@ struct rkvpss_input_cfg {
 	int stride;
 	int format;
 	int buf_fd;
+	int rotate;
 } __attribute__ ((packed));
 
 /* struct rkvpss_output_cfg                                     __________________
@@ -206,8 +211,12 @@ struct rkvpss_input_cfg {
  * scl_width: scale width. CH0 1~8 scale range. CH1/CH2/CH3 1~32 scale range. CH2/CH3 max 1080p with scale.
  * scl_height: scale height. CH0 1~6 scale range. CH1/CH2/CH3 1~32 scale range. CH2/CH3 max 1080p with scale.
  * stride: virtual width of output image, 16 align. auto calculate according to width and format if 0.
- * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_GREY/V4L2_PIX_FMT_UYVY for all channel.
- *         V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32 only for RKVPSS_OUTPUT_CH1.
+ * format: V4L2_PIX_FMT_NV12/V4L2_PIX_FMT_NV16/V4L2_PIX_FMT_GREY/V4L2_PIX_FMT_UYVY/
+ *         V4L2_PIX_FMT_VYUY/V4L2_PIX_FMT_NV21/V4L2_PIX_FMT_NV61 for all channel.
+ *         NOTE:V,LSB is for all channel
+ *         V4L2_PIX_FMT_RGB565/V4L2_PIX_FMT_RGB24/V4L2_PIX_FMT_XBGR32/V4L2_PIX_FMT_RGB565X/V4L2_PIX_FMT_BGR24/
+ *         V4L2_PIX_FMT_XRGB32 only for RKVPSS_OUTPUT_CH1.
+ *         V4L2_PIX_FMT_TILE420/V4L2_PIX_FMT_TILE422 for tile, ch0 or ch1 support tile
  * flip: flip enable
  * buf_fd: dmabuf fd of output image buf
  * cmsc: cover and mosaic configure
