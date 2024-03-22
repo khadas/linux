@@ -382,7 +382,6 @@ struct vop2_plane_state {
 	unsigned long offset;
 	int pdaf_data_type;
 	bool async_commit;
-	struct vop_dump_list *planlist;
 
 	struct drm_property_blob *dci_data;
 };
@@ -5625,10 +5624,6 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_atomic
 	struct drm_crtc *crtc;
 	struct vop2_video_port *vp;
 
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	struct vop2_plane_state *vpstate = to_vop2_plane_state(plane->state);
-#endif
-
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE, "%s disable %s\n",
 			 win->name, current->comm);
 
@@ -5652,11 +5647,6 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_atomic
 		vop2_win_disable(win->splice_win, false);
 		vp->enabled_win_mask &= ~BIT(win->splice_win->phys_id);
 	}
-
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	kfree(vpstate->planlist);
-	vpstate->planlist = NULL;
-#endif
 
 	spin_unlock(&vop2->reg_lock);
 }
@@ -6292,29 +6282,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	struct drm_rect right_wsrc;
 	struct drm_rect right_wdst;
 
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	struct drm_rect *psrc = &vpstate->src;
-	bool AFBC_flag = false;
-	struct vop_dump_list *planlist;
-	unsigned long num_pages;
-	struct page **pages;
-	struct drm_gem_object *obj;
-	struct rockchip_gem_object *rk_obj;
-
-	num_pages = 0;
-	pages = NULL;
-	obj = fb->obj[0];
-	rk_obj = to_rockchip_obj(obj);
-	if (rk_obj) {
-		num_pages = rk_obj->num_pages;
-		pages = rk_obj->pages;
-	}
-	if (rockchip_afbc(plane, fb->modifier))
-		AFBC_flag = true;
-	else
-		AFBC_flag = false;
-#endif
-
 	/*
 	 * can't update plane when vop2 is disabled.
 	 */
@@ -6366,34 +6333,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	vop2_win_atomic_update(win, &wsrc, &wdst, pstate);
 
 	vop2->is_iommu_needed = true;
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	kfree(vpstate->planlist);
-	vpstate->planlist = NULL;
-
-	planlist = kmalloc(sizeof(*planlist), GFP_KERNEL);
-	if (planlist) {
-		planlist->dump_info.AFBC_flag = AFBC_flag;
-		planlist->dump_info.area_id = win->area_id;
-		planlist->dump_info.win_id = win->win_id;
-		planlist->dump_info.yuv_format = fb->format->is_yuv;
-		planlist->dump_info.num_pages = num_pages;
-		planlist->dump_info.pages = pages;
-		planlist->dump_info.offset = vpstate->offset;
-		planlist->dump_info.pitches = fb->pitches[0];
-		planlist->dump_info.height = drm_rect_height(psrc) >> 16;
-		planlist->dump_info.format = fb->format;
-		list_add_tail(&planlist->entry, &vp->rockchip_crtc.vop_dump_list_head);
-		vpstate->planlist = planlist;
-	} else {
-		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
-		return;
-	}
-	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
-	    vp->rockchip_crtc.vop_dump_times > 0) {
-		rockchip_drm_dump_plane_buffer(&planlist->dump_info, vp->rockchip_crtc.frame_count);
-		vp->rockchip_crtc.vop_dump_times--;
-	}
-#endif
 }
 
 static const struct drm_plane_helper_funcs vop2_plane_helper_funcs = {
@@ -7754,27 +7693,9 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	u64 line_bw_mbyte = 0;
 	int8_t cnt = 0, plane_num = 0;
 	int i = 0;
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	struct vop_dump_list *pos, *n;
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-#endif
 
 	if (!htotal || !vdisplay)
 		return 0;
-
-#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	if (!vp->rockchip_crtc.vop_dump_list_init_flag) {
-		INIT_LIST_HEAD(&vp->rockchip_crtc.vop_dump_list_head);
-		vp->rockchip_crtc.vop_dump_list_init_flag = true;
-	}
-	list_for_each_entry_safe(pos, n, &vp->rockchip_crtc.vop_dump_list_head, entry) {
-		list_del(&pos->entry);
-	}
-	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
-	    vp->rockchip_crtc.vop_dump_times > 0) {
-		vp->rockchip_crtc.frame_count++;
-	}
-#endif
 
 	for_each_new_plane_in_state(state, plane, pstate, i) {
 		if (pstate->crtc == crtc)
@@ -11769,6 +11690,14 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 	struct drm_writeback_connector *wb_conn = &wb->conn;
 	struct drm_connector_state *conn_state = wb_conn->base.state;
 	bool wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	if (vp->rockchip_crtc.vop_dump_status == DUMP_KEEP ||
+	    vp->rockchip_crtc.vop_dump_times > 0) {
+		rockchip_drm_crtc_dump_plane_buffer(crtc);
+		vp->rockchip_crtc.vop_dump_times--;
+	}
+#endif
 
 	if (conn_state && conn_state->writeback_job && conn_state->writeback_job->fb && !wb_oneframe_mode) {
 		u16 vtotal = VOP_MODULE_GET(vop2, vp, dsp_vtotal);
