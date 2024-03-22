@@ -8,6 +8,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 
@@ -24,6 +25,29 @@
 #define AFBC_SUPERBLK_ALIGNMENT		128
 
 #define to_rockchip_crtc(x) container_of(x, struct rockchip_crtc, crtc)
+
+/**
+ * struct vop_dump_info - vop dump plane info structure
+ *
+ * Store plane info used to write display data to /data/vop_buf/
+ *
+ */
+struct vop_dump_info {
+	/* @win_name human readable vop win name */
+	const char *win_name;
+	/* @fbc_enable: indicate fbc is enabled */
+	bool fbc_enable;
+	/* @yuv_format: indicate yuv format or not */
+	bool yuv_format;
+	/* @pitches: the buffer pitch size */
+	u32 pitches;
+	/* @height: the buffer pitch height */
+	u32 height;
+	/* @info: DRM format info */
+	const struct drm_format_info *format;
+	/* @fb: DRM frame buffer */
+	struct drm_framebuffer *fb;
+};
 
 static int temp_pow(int sum, int n)
 {
@@ -53,8 +77,12 @@ static int get_afbc_size(uint32_t width, uint32_t height, uint32_t bpp)
 	return size;
 }
 
-int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count)
+static int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count)
 {
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
+	struct drm_framebuffer *fb = dump_info->fb;
+	int ret;
 	int flags;
 	int bpp;
 	const char *ptr;
@@ -62,7 +90,7 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	char format_name[5];
 	int width;
 	size_t size, uv_size = 0;
-	void *kvaddr, *kvaddr_origin;
+	void *kvaddr;
 	struct file *file;
 	loff_t pos = 0;
 
@@ -88,21 +116,25 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	} else {
 		width = dump_info->pitches * 8 / bpp;
 		flags = O_RDWR | O_CREAT;
-		snprintf(file_name, 100, "%s/win%d_area%d_%dx%d_%s%s%d.%s",
-			 DUMP_BUF_PATH, dump_info->win_id,
-			 dump_info->area_id, width, dump_info->height,
-			 format_name, dump_info->AFBC_flag ?
-			 "_AFBC_" : "_", frame_count, "bin");
+		snprintf(file_name, 100, "%s/%s_%dx%d_%s%s%d.%s",
+			 DUMP_BUF_PATH, dump_info->win_name, width, dump_info->height,
+			 format_name, dump_info->fbc_enable ?
+			 "_FBC_" : "_", frame_count, "bin");
 	}
-	kvaddr = vmap(dump_info->pages, dump_info->num_pages, VM_MAP,
-		      pgprot_writecombine(PAGE_KERNEL));
-	kvaddr_origin = kvaddr;
-	if (!kvaddr)
-		DRM_ERROR("failed to vmap() buffer\n");
-	else
-		kvaddr += dump_info->offset;
 
-	if (dump_info->AFBC_flag)
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return ret;
+
+	ret = drm_gem_fb_vmap(fb, map, data);
+	if (ret) {
+		DRM_ERROR("Failed to vmap() buffer\n");
+		goto out_drm_gem_fb_end_cpu_access;
+	}
+
+	kvaddr = data[0].vaddr;
+
+	if (dump_info->fbc_enable)
 		size = get_afbc_size(width, dump_info->height, bpp);
 	else
 		size = (width * dump_info->height * bpp >> 3) + uv_size;
@@ -116,7 +148,41 @@ int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_co
 	} else {
 		DRM_INFO("open %s failed\n", ptr);
 	}
-	vunmap(kvaddr_origin);
+
+	drm_gem_fb_vunmap(fb, map);
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+
+	return 0;
+}
+
+int rockchip_drm_crtc_dump_plane_buffer(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc *rockchip_crtc = container_of(crtc, struct rockchip_crtc, crtc);
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct drm_framebuffer *fb;
+	struct drm_rect *psrc;
+	struct vop_dump_info dump_info;
+
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		pstate = plane->state;
+		psrc = &pstate->src;
+		fb = pstate->fb;
+		if (!fb)
+			continue;
+
+		dump_info.fbc_enable = rockchip_drm_is_afbc(plane, fb->modifier) ||
+			rockchip_drm_is_rfbc(plane, fb->modifier);
+		dump_info.win_name = plane->name;
+		dump_info.yuv_format = fb->format->is_yuv;
+		dump_info.fb = fb;
+		dump_info.pitches = fb->pitches[0];
+		dump_info.height = drm_rect_height(psrc) >> 16;
+		dump_info.format = fb->format;
+
+		rockchip_drm_dump_plane_buffer(&dump_info, rockchip_crtc->frame_count);
+	}
 
 	return 0;
 }
@@ -148,12 +214,8 @@ rockchip_drm_dump_buffer_write(struct file *file, const char __user *ubuf,
 	struct drm_crtc *crtc = m->private;
 	char buf[14] = {};
 	int dump_times = 0;
-	struct vop_dump_list *pos, *n;
 	int i = 0;
 	struct rockchip_crtc *rockchip_crtc = to_rockchip_crtc(crtc);
-
-	if (!rockchip_crtc->vop_dump_list_init_flag)
-		return -EPERM;
 
 	if (len > sizeof(buf) - 1)
 		return -EINVAL;
@@ -176,14 +238,9 @@ rockchip_drm_dump_buffer_write(struct file *file, const char __user *ubuf,
 			rockchip_crtc->vop_dump_times = dump_times;
 		} else {
 			drm_modeset_lock_all(crtc->dev);
-			list_for_each_entry_safe(pos, n,
-						 &rockchip_crtc->vop_dump_list_head,
-						 entry) {
-				rockchip_drm_dump_plane_buffer(&pos->dump_info,
-							       rockchip_crtc->frame_count);
-		}
-			drm_modeset_unlock_all(crtc->dev);
+			rockchip_drm_crtc_dump_plane_buffer(crtc);
 			rockchip_crtc->frame_count++;
+			drm_modeset_unlock_all(crtc->dev);
 		}
 	} else if (strncmp(buf, "enable", 6) == 0) {
 		rockchip_crtc->vop_dump_status = DUMP_ENABLE;
@@ -211,7 +268,6 @@ int rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
 
 	vop_dump_root = debugfs_create_dir("vop_dump", root);
 	rockchip_crtc->vop_dump_status = DUMP_DISABLE;
-	rockchip_crtc->vop_dump_list_init_flag = false;
 	rockchip_crtc->vop_dump_times = 0;
 	rockchip_crtc->frame_count = 0;
 	ent = debugfs_create_file("dump", 0644, vop_dump_root,
