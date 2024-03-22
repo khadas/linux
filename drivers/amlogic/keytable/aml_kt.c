@@ -235,6 +235,7 @@ static bool aml_kt_slot_reserved(u32 index)
 int aml_kt_get_status(struct aml_kt_dev *dev, u32 handle, u32 *key_sts)
 {
 	int ret = KT_SUCCESS;
+	int cnt = 0;
 	u32 kte = 0;
 	u32 reg_val = 0;
 	u32 reg_offset = 0;
@@ -275,11 +276,14 @@ int aml_kt_get_status(struct aml_kt_dev *dev, u32 handle, u32 *key_sts)
 			kte << KTE_KTE_OFFSET);
 	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
-	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
-		LOGE("pending error kte[%d]\n", kte);
-		ret = KT_ERROR;
-		goto unlock_kt;
-	}
+	do {
+		reg_ret = ioread32((char *)dev->base_addr + dev->reg.cfg_offset);
+		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
+			LOGE("Error: wait KT pending done timeout\n");
+			ret = KT_ERROR;
+			goto unlock_kt;
+		}
+	} while (reg_ret & (KT_PENDING << KTE_PENDING_OFFSET));
 
 	reg_ret = ioread32((char *)dev->base_addr + dev->reg.sts_offset);
 	if (reg_ret != KT_ERROR) {
