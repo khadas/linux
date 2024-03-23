@@ -144,6 +144,7 @@
 			clocks = <&cru CLK_SAI0_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai0_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <0>;
 			rockchip,bit-set-to-disable;
 		};
@@ -154,6 +155,7 @@
 			clocks = <&cru CLK_SAI1_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai1_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <1>;
 			rockchip,bit-set-to-disable;
 		};
@@ -164,6 +166,7 @@
 			clocks = <&cru CLK_SAI2_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai2_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <2>;
 			rockchip,bit-set-to-disable;
 		};
@@ -174,6 +177,7 @@
 			clocks = <&cru CLK_SAI3_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai3_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <3>;
 			rockchip,bit-set-to-disable;
 		};
@@ -184,6 +188,7 @@
 			clocks = <&cru CLK_SAI4_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai4_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <4>;
 			rockchip,bit-set-to-disable;
 		};
@@ -194,6 +199,7 @@
 			clocks = <&cru CLK_SAI4_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "mclk_sai4m2_to_io";
+			power-domains = <&power RK3576_PD_AUDIO>;
 			rockchip,bit-shift = <0>;
 			rockchip,bit-set-to-disable;
 		};
