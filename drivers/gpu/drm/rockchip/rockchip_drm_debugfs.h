@@ -10,16 +10,6 @@
 struct vop_dump_info;
 
 /**
- * struct vop_dump_list - store all buffer info per frame
- *
- * one frame maybe multiple buffer, all will be stored here.
- *
- */
-struct vop_dump_list {
-	struct list_head entry;
-};
-
-/**
  * @DUMP_DISABLE: Disable dump and do not record plane info into list.
  * @DUMP_ENABLE: Record plane info into list.
  * @DUMP_KEEP: Record plane info into list and keep to dump plane.

@@ -168,14 +168,10 @@ struct rockchip_crtc {
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	/**
 	 * @vop_dump_status the status of vop dump control
-	 * @vop_dump_list_head the list head of vop dump list
-	 * @vop_dump_list_init_flag init once
 	 * @vop_dump_times control the dump times
-	 * @frme_count the frame of dump buf
+	 * @vop_dump_frame_count the frame of dump buf
 	 */
 	enum vop_dump_status vop_dump_status;
-	struct list_head vop_dump_list_head;
-	bool vop_dump_list_init_flag;
 	int vop_dump_times;
 	int vop_dump_frame_count;
 #endif
