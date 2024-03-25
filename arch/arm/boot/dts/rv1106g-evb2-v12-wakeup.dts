@@ -150,6 +150,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "FKO1";
 		rockchip,camera-module-lens-name = "30IRC-F16";
+		rockchip,camera-module-stb = <0>;
 		port {
 			sc3338_out: endpoint {
 				remote-endpoint = <&csi_dphy_input0>;
@@ -172,6 +173,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2115-PC1";
 		rockchip,camera-module-lens-name = "30IRC-F16";
+		rockchip,camera-module-stb = <1>;
 		port {
 			sc200ai_out: endpoint {
 				remote-endpoint = <&csi_dphy_input1>;
