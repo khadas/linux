@@ -955,6 +955,11 @@ config VIDEO_RK_IRCUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called rk_ircut.
 
+config VIDEO_LIGHT_CTL
+	tristate "video light ctrl support"
+	help
+	  This driver supports video light ctrl.
+
 endmenu
 
 #
