@@ -191,6 +191,9 @@
 #define RKMODULE_GET_DSI_MODE       \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 42, __u32)
 
+#define RKCIS_CMD_FLASH_LIGHT_CTRL  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 43, struct rk_light_param)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -826,5 +829,18 @@ struct rkmodule_capture_info {
 		struct rkmodule_multi_combine_info multi_combine_info;
 	};
 };
+
+enum rk_light_type {
+	LIGHT_PWM,
+	LIGHT_GPIO,
+};
+
+struct rk_light_param {
+	__u8 light_type;
+	__u8 light_enable;
+	__u64 duty_cycle;
+	__u64 period;
+	__u32 polarity;
+} __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
