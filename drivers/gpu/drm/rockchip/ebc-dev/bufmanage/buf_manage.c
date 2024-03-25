@@ -66,7 +66,7 @@ static void do_dsp_buf_list(struct ebc_buf_s *dsp_buf)
 		while (temp_pos) {
 			temp_pos--;
 			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.dsp_buf_list, temp_pos);
-			if (temp_buf->needpic) {
+			if (temp_buf->dropable) {
 				continue;
 			} else {
 				buf_list_remove(ebc_buf_info.dsp_buf_list, temp_pos);
@@ -86,7 +86,7 @@ int ebc_drop_one_dsp_buf(void)
 		if (ebc_buf_info.dsp_buf_list->nb_elt > 0) {
 			temp_pos = ebc_buf_info.dsp_buf_list->nb_elt - 1;
 			temp_buf = (struct ebc_buf_s *)buf_list_get(ebc_buf_info.dsp_buf_list, temp_pos);
-			if (temp_buf->needpic == 2) {
+			if (temp_buf->dropable == 2) {
 				buf_list_remove(ebc_buf_info.dsp_buf_list, temp_pos);
 				ebc_buf_release(temp_buf);
 				mutex_unlock(&ebc_buf_info.dsp_buf_lock);

@@ -30,7 +30,7 @@ struct ebc_buf_s {
 	int win_y1;
 	int win_x2;
 	int win_y2;
-	int needpic;
+	int dropable;
 };
 
 int ebc_drop_one_dsp_buf(void);

@@ -109,7 +109,7 @@ struct ebc_buf_info {
 	int win_y2;
 	int width_mm;
 	int height_mm;
-	int needpic;	// 1: buf can not be drop by ebc, 0: buf can drop by ebc 2: regal buf, can not be drop by ebc
+	int dropable;	// 1: buf can not be drop by ebc, 0: buf can drop by ebc 2: regal buf, can not be drop by ebc
 	char tid_name[16];
 };
 
