@@ -9,6 +9,7 @@
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
 #include <linux/device.h>
+#include <linux/ebc.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -37,7 +38,6 @@
 #include <linux/earlysuspend.h>
 #endif
 
-#include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 #include "../../opp/opp.h"
 #include "../../regulator/internal.h"
 #include "../../thermal/thermal_core.h"
