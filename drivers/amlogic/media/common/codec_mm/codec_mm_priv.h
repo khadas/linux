@@ -46,6 +46,6 @@ void codec_mm_scatter_level_increase(int size);
 void codec_mm_set_min_linear_size(int min_mem_val);
 int codec_mm_get_min_linear_size(void);
 int codec_mm_get_scatter_watermark(void);
-
+bool is_2k_platform(void);
 
 #endif /**/

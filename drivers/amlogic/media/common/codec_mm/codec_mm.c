@@ -3526,6 +3526,18 @@ int codec_mm_cs_show(struct seq_file *m, struct codec_state_node *cs)
 
 CODEC_STATE_RO(codec_mm);
 
+bool is_2k_platform(void)
+{
+	int cpu_type = get_cpu_type();
+	int pack_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK);
+
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5D ||
+		(cpu_type == MESON_CPU_MAJOR_ID_S4 && pack_type == 2))
+		return true;
+
+	return false;
+}
+
 static int codec_mm_probe(struct platform_device *pdev)
 {
 	int r;

@@ -3118,7 +3118,8 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	smgt->try_alloc_in_sys_page_cnt = MAX_SYS_BLOCK_PAGE;
 	smgt->try_alloc_in_sys_page_cnt_min = MIN_SYS_BLOCK_PAGE;
 	smgt->reserved_block_mm_M = 300;
-	smgt->keep_size_PAGE = 20 * SZ_1M >> PAGE_SHIFT;
+	smgt->keep_size_PAGE = is_2k_platform() ?
+		4 * SZ_1M >> PAGE_SHIFT : 20 * SZ_1M >> PAGE_SHIFT;
 	smgt->alloc_from_cma_first = 1;
 	smgt->enable_slot_from_sys = 0;
 	smgt->expected_slot_sid[0] = MAX_SID;
