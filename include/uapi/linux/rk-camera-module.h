@@ -38,6 +38,8 @@
 #define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
 #define RKMODULE_SLAVE_MODE		"slave"
 
+#define RKMODULE_CAMERA_STANDBY_HW	"rockchip,camera-module-stb"
+
 /* BT.656 & BT.1120 multi channel
  * On which channels it can send video data
  * related with struct rkmodule_bt656_mbus_info
