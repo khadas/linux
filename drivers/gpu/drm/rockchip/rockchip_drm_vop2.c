@@ -2386,19 +2386,7 @@ static bool is_alpha_support(uint32_t format)
 
 static inline bool rockchip_afbc(struct drm_plane *plane, u64 modifier)
 {
-	int i;
-
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		return false;
-
-	if (!drm_is_afbc(modifier))
-		return false;
-
-	for (i = 0 ; i < plane->modifier_count; i++)
-		if (plane->modifiers[i] == modifier)
-			break;
-
-	return (i < plane->modifier_count) ? true : false;
+	return rockchip_drm_is_afbc(plane, modifier);
 }
 
 static inline bool rockchip_tiled(struct drm_plane *plane, u64 modifier)
@@ -2420,19 +2408,7 @@ static inline bool rockchip_tiled(struct drm_plane *plane, u64 modifier)
 
 static inline bool rockchip_rfbc(struct drm_plane *plane, u64 modifier)
 {
-	int i;
-
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		return false;
-
-	if (!IS_ROCKCHIP_RFBC_MOD(modifier))
-		return false;
-
-	for (i = 0 ; i < plane->modifier_count; i++)
-		if (plane->modifiers[i] == modifier)
-			break;
-
-	return (i < plane->modifier_count) ? true : false;
+	return rockchip_drm_is_rfbc(plane, modifier);
 }
 
 static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format, u64 modifier)

@@ -633,6 +633,8 @@ int rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid
 struct dma_buf *rockchip_drm_gem_prime_export(struct drm_gem_object *obj, int flags);
 long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long rate);
 int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
+bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
+bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,

@@ -26,6 +26,7 @@
 #include <drm/drm_displayid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -97,6 +98,42 @@ void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category
 
 	va_end(args);
 }
+
+bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier)
+{
+	int i;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	if (!drm_is_afbc(modifier))
+		return false;
+
+	for (i = 0 ; i < plane->modifier_count; i++)
+		if (plane->modifiers[i] == modifier)
+			break;
+
+	return (i < plane->modifier_count) ? true : false;
+}
+EXPORT_SYMBOL(rockchip_drm_is_afbc);
+
+bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier)
+{
+	int i;
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	if (!IS_ROCKCHIP_RFBC_MOD(modifier))
+		return false;
+
+	for (i = 0 ; i < plane->modifier_count; i++)
+		if (plane->modifiers[i] == modifier)
+			break;
+
+	return (i < plane->modifier_count) ? true : false;
+}
+EXPORT_SYMBOL(rockchip_drm_is_rfbc);
 
 /**
  * rockchip_drm_wait_vact_end

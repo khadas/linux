@@ -795,16 +795,7 @@ static bool is_alpha_support(uint32_t format)
 
 static inline bool rockchip_afbc(struct drm_plane *plane, u64 modifier)
 {
-	int i;
-
-	if (modifier == DRM_FORMAT_MOD_LINEAR)
-		return false;
-
-	for (i = 0 ; i < plane->modifier_count; i++)
-		if (plane->modifiers[i] == modifier)
-			break;
-
-	return (i < plane->modifier_count) ? true : false;
+	return rockchip_drm_is_afbc(plane, modifier);
 }
 
 static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
