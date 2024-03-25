@@ -348,6 +348,9 @@ unsigned int aml_toddr_get_addr(struct toddr *to, enum status_sel sel)
 	return addr;
 }
 
+static void aml_toddr_chsync_enable(int fifo_id,
+		int chnum_max, bool enable);
+
 void aml_toddr_enable(struct toddr *to, bool enable)
 {
 	struct aml_audio_controller *actrl = to->actrl;
@@ -375,6 +378,7 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 		/* clear ctrl1 register */
 		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
 		aml_audiobus_write(actrl, reg, 0x0);
+		aml_toddr_chsync_enable(to->fifo_id, 0, 0);
 	}
 }
 

@@ -90,7 +90,12 @@ static unsigned int iec_rate_to_csfs(unsigned int rate)
 	return csfs;
 }
 
-unsigned int iec_rate_from_csfs(unsigned int csfs)
+/* expand unsupport csfs asoundef.h */
+#define IEC958_AES3_CON_FS_128000  (11 << 0)
+#define IEC958_AES3_CON_FS_352800  (13 << 0)
+#define IEC958_AES3_CON_FS_384000  (5 << 0)
+
+unsigned int iec_rate_from_csfs(unsigned int csfs, bool h)
 {
 	unsigned int rate = 0;
 
@@ -124,6 +129,18 @@ unsigned int iec_rate_from_csfs(unsigned int csfs)
 		break;
 	case IEC958_AES3_CON_FS_192000:
 		rate = 192000;
+		break;
+	case IEC958_AES3_CON_FS_128000:
+		rate = 128000;
+		break;
+	case IEC958_AES3_CON_FS_352800:
+		if (h)
+			rate = 705600;
+		else
+			rate = 352800;
+		break;
+	case IEC958_AES3_CON_FS_384000:
+		rate = 384000;
 		break;
 	case IEC958_AES3_CON_FS_NOTID:
 		rate = 0;

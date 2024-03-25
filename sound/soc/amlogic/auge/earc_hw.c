@@ -243,7 +243,7 @@ void earcrx_dmac_init(struct regmap *top_map,
 			 (0x0 << 11) | /* earcrx_user_bit_check c_fifo_thd_pass */
 			 (0x0 << 10) | /* earcrx_user_bit_check c_u_pk_lost_int_set */
 			 (0x0 << 9)	| /* arcrx_user_bit_check c_iu_pk_end */
-			 (0x0 << 8)	| /* arcrx_biphase_decode c_chst_mute_clr */
+			 (0x1 << 8)	| /* arcrx_biphase_decode c_chst_mute_clr */
 			 (0x1 << 7)	| /* arcrx_biphase_decode c_find_papb */
 			 (0x1 << 6)	| /* arcrx_biphase_decode c_valid_change */
 			 (0x0 << 5)	| /* arcrx_biphase_decode c_find_nonpcm2pcm */
@@ -360,8 +360,8 @@ static void earcrx_mute_block_enable(struct regmap *dmac_map, bool en)
 	mmio_update_bits(dmac_map,
 			 EARCRX_SPDIFIN_CTRL1,
 			 0x7fff << 9,
-			 0x500 << 12 | /* thd */
-			 0x4 << 9      /* tick, 1ms */
+			 0x1 << 12 | /* thd */
+			 0x0 << 9      /* tick, 1ms */
 	);
 
 	/* Mute bit in CS
@@ -371,7 +371,7 @@ static void earcrx_mute_block_enable(struct regmap *dmac_map, bool en)
 	mmio_update_bits(dmac_map,
 			 EARCRX_SPDIFIN_CTRL2,
 			 0x7fff << 17,
-			 IEC_CS_MUTE_OFFSET | 0x2 << 19 | en << 17
+			 IEC_CS_MUTE_OFFSET << 24 | 0x1 << 19 | en << 17
 	);
 }
 
@@ -597,14 +597,15 @@ unsigned int earcrx_get_cs_freq(struct regmap *dmac_map,
 				enum audio_coding_types coding_type)
 {
 	unsigned int val;
-	unsigned int csfs, freq, channels;
+	unsigned int csfs, freq, channels, h_flag;
 
 	val = earcrx_get_cs_bits(dmac_map,
 				 IEC_CS_SFREQ_OFFSET,
 				 IEC_CS_SFREQ_MASK);
 
 	csfs = val & 0xf;
-	freq = iec_rate_from_csfs(csfs);
+	h_flag = !!(val & 0x80);
+	freq = iec_rate_from_csfs(csfs, h_flag);
 
 	/* Fix to really fs */
 	channels = earcrx_get_cs_channels(dmac_map, coding_type);

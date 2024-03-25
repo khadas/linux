@@ -103,7 +103,7 @@
 
 /* Sampling frequency */
 #define IEC_CS_SFREQ_OFFSET                24
-#define IEC_CS_SFREQ_MASK                  0xf
+#define IEC_CS_SFREQ_MASK                  0xff
 
 /* Word Length */
 #define IEC_CS_WLEN_OFFSET                 32

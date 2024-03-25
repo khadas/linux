@@ -148,6 +148,10 @@ void new_resample_enable(enum resample_idx id, bool enable, int channel)
 		if (get_resample_source(id) == EARCRX_DMAC &&
 		    channel > 2) {
 			chsync_enable = false;
+			if (get_resample_need_reset(id)) {
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x3, 0x3);
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x3, 0);
+			}
 		}
 		aml_resample_chsync_enable(id, chsync_enable);
 	}

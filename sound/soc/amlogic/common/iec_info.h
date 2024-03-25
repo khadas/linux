@@ -233,7 +233,7 @@ extern const struct soc_enum spdifin_sample_rate_enum[];
 bool audio_coding_is_lpcm(enum audio_coding_types coding_type);
 bool audio_coding_is_non_lpcm(enum audio_coding_types coding_type);
 int audio_multi_clk(enum audio_coding_types coding_type);
-unsigned int iec_rate_from_csfs(unsigned int csfs);
+unsigned int iec_rate_from_csfs(unsigned int csfs, bool h);
 void iec_get_cnsmr_cs_info(struct iec_cnsmr_cs *cs_info,
 			   enum audio_coding_types coding_type,
 			   unsigned int channels,

@@ -22,6 +22,7 @@ struct audioresample *get_audioresample(enum resample_idx id);
 int get_resample_version_id(enum resample_idx id);
 bool get_resample_enable(enum resample_idx id);
 bool get_resample_enable_chnum_sync(enum resample_idx id);
+bool get_resample_need_reset(enum resample_idx id);
 int get_resample_source(enum resample_idx id);
 int get_resample_version(void);
 

@@ -45,6 +45,7 @@ struct resample_chipinfo {
 
 	bool chnum_sync;
 	bool watchdog;
+	bool need_reset;
 };
 
 struct audioresample {
@@ -149,6 +150,20 @@ bool get_resample_enable_chnum_sync(enum resample_idx id)
 	}
 
 	return p_resample->chipinfo->chnum_sync;
+}
+
+bool get_resample_need_reset(enum resample_idx id)
+{
+	struct audioresample *p_resample;
+
+	p_resample = ((id == RESAMPLE_A) ? s_resample_a : s_resample_b);
+
+	if (!p_resample || !p_resample->chipinfo) {
+		pr_debug("Not init audio resample\n");
+		return false;
+	}
+
+	return p_resample->chipinfo->need_reset;
 }
 
 int get_resample_source(enum resample_idx id)
@@ -665,6 +680,16 @@ static struct resample_chipinfo tm2_revb_resample_a_chipinfo = {
 	.watchdog  = true,
 };
 
+static struct resample_chipinfo sc2_resample_a_chipinfo = {
+	.num        = 2,
+	.id         = RESAMPLE_A,
+	.dividor_fn = true,
+	.resample_version = SM1_RESAMPLE,
+	.chnum_sync = true,
+	.watchdog  = true,
+	.need_reset = true,
+};
+
 static struct resample_chipinfo tm2_revb_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
@@ -734,6 +759,10 @@ static const struct of_device_id resample_device_id[] = {
 	{
 		.compatible = "amlogic, t5-resample-b",
 		.data = &t5_resample_b_chipinfo,
+	},
+	{
+		.compatible = "amlogic, sc2-resample-a",
+		.data = &sc2_resample_a_chipinfo,
 	},
 	{}
 };
