@@ -20,6 +20,13 @@
 #define REG_LCD_TCON_MAX    0xffff
 #define TCON_INTR_MASKN_VAL    0x0  /* default mask all */
 
+struct lcd_tcon_axi_mem_cfg_s {
+	unsigned int mem_type;
+	unsigned int mem_size;
+	unsigned int axi_reg;  //ddrif reg
+	unsigned int mem_valid;
+};
+
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
 	unsigned char tcon_is_busy;
@@ -51,6 +58,9 @@ struct lcd_tcon_config_s {
 	unsigned int demura_set_size;
 	unsigned int demura_lut_size;
 	unsigned int acc_lut_size;
+
+	unsigned int axi_tbl_len;
+	struct lcd_tcon_axi_mem_cfg_s *axi_mem_cfg_tbl;
 
 	unsigned int *axi_reg;
 	void (*tcon_axi_mem_config)(void);
@@ -269,6 +279,7 @@ int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_detail_tim
 		unsigned char *core_reg_table, char *ferr_str, char *warn_str);
 
 /* common */
+void lcd_tcon_mem_sync(struct aml_lcd_drv_s *pdrv, unsigned long paddr, unsigned int mem_size);
 unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size);
 int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf);
 void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
@@ -283,13 +294,16 @@ int lcd_tcon_bin_load(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_reg_table_print(void);
 void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_multi_lut_print(void);
-void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
-				unsigned int size);
+void lcd_tcon_axi_rmem_lut_load(struct aml_lcd_drv_s *pdrv,
+		unsigned int index, unsigned char *buf, unsigned int size);
 
 void lcd_tcon_dbg_trace_clear(void);
 void lcd_tcon_dbg_trace_print(unsigned int flag);
 
 void lcd_tcon_debug_file_add(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_local_cfg_s *local_cfg);
 void lcd_tcon_debug_file_remove(struct lcd_tcon_local_cfg_s *local_cfg);
+
+int lcd_tcon_mem_od_is_valid(void);
+int lcd_tcon_mem_demura_is_valid(void);
 
 #endif

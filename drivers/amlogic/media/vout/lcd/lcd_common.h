@@ -331,4 +331,8 @@ int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv);
 int lcd_drm_add(struct device *dev);
 void lcd_drm_remove(struct device *dev);
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+unsigned long aml_free_reserved_area(void *start, void *end, int poison, const char *s);
+#endif
+
 #endif

@@ -498,7 +498,7 @@ static void lcd_tcon_reg_setting_load(struct aml_lcd_drv_s *pdrv, char *path)
 	kfree(reg_table);
 }
 
-static void lcd_tcon_axi_rmem_load(unsigned int index, char *path)
+static void lcd_tcon_axi_rmem_load(struct aml_lcd_drv_s *pdrv, unsigned int index, char *path)
 {
 	unsigned int size = 0, mem_size;
 	struct file *filp = NULL;
@@ -514,7 +514,7 @@ static void lcd_tcon_axi_rmem_load(unsigned int index, char *path)
 	}
 	if (!tcon_conf)
 		return;
-	if (index > tcon_conf->axi_bank) {
+	if (index >= tcon_conf->axi_bank) {
 		pr_info("axi_rmem index %d invalid\n", index);
 		return;
 	}
@@ -539,7 +539,7 @@ static void lcd_tcon_axi_rmem_load(unsigned int index, char *path)
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 
-	lcd_tcon_axi_rmem_lut_load(1, buf, size);
+	lcd_tcon_axi_rmem_lut_load(pdrv, 1, buf, size);
 	kfree(buf);
 
 	pr_info("load bin file path: %s finish\n", path);
@@ -878,7 +878,7 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 			ret = kstrtouint(parm[2], 10, &temp);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			lcd_tcon_axi_rmem_load(temp, parm[3]);
+			lcd_tcon_axi_rmem_load(pdrv, temp, parm[3]);
 		} else if (strcmp(parm[1], "table") == 0) {
 			lcd_tcon_reg_table_load(parm[2], table, size);
 		} else if (strcmp(parm[1], "setting") == 0) {
