@@ -1822,7 +1822,16 @@ static struct platform_driver rk_iommu_driver = {
 		   .suppress_bind_attrs = true,
 	},
 };
+
+#ifdef CONFIG_VIDEO_REVERSE_IMAGE
+static int __init rk_iommu_init(void)
+{
+	return platform_driver_register(&rk_iommu_driver);
+}
+subsys_initcall(rk_iommu_init);
+#else
 builtin_platform_driver(rk_iommu_driver);
+#endif
 
 MODULE_DESCRIPTION("IOMMU API for Rockchip");
 MODULE_AUTHOR("Simon Xue <xxm@rock-chips.com> and Daniel Kurtz <djkurtz@chromium.org>");

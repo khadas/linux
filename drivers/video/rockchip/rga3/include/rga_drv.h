@@ -87,7 +87,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		3
-#define DRIVER_REVISION_VERSION		2
+#define DRIVER_REVISION_VERSION		3
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -138,6 +138,12 @@ enum rga_job_state {
 	RGA_JOB_STATE_INTR_ERR,
 	RGA_JOB_STATE_HW_TIMEOUT,
 	RGA_JOB_STATE_ABORT,
+};
+
+enum RGA_DEVICE_TYPE {
+	RGA_DEVICE_RGA2 = 0,
+	RGA_DEVICE_RGA3,
+	RGA_DEVICE_BUTT,
 };
 
 struct rga_iommu_dma_cookie {
@@ -317,7 +323,7 @@ struct rga_scheduler_t {
 	void __iomem *rga_base;
 	struct rga_iommu_info *iommu_info;
 
-	struct clk *clks[RGA_MAX_BUS_CLK];
+	struct clk_bulk_data *clks;
 	int num_clks;
 
 	enum rga_scheduler_status status;
@@ -404,6 +410,7 @@ struct rga_drvdata_t {
 
 	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
+	int device_count[RGA_DEVICE_BUTT];
 	/* The scheduler_index used by default for memory mapping. */
 	int map_scheduler_index;
 	struct rga_mmu_base *mmu_base;
@@ -433,8 +440,9 @@ struct rga_irqs_data_t {
 };
 
 struct rga_match_data_t {
-	const char * const *clks;
-	int num_clks;
+	enum RGA_DEVICE_TYPE device_type;
+
+	const struct rga_backend_ops *ops;
 };
 
 static inline int rga_read(int offset, struct rga_scheduler_t *scheduler)

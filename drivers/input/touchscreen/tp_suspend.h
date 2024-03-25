@@ -7,13 +7,13 @@
  */
 #ifndef _RK_TP_SUSPEND_H
 #define _RK_TP_SUSPEND_H
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
+#include <linux/ebc.h>
 #include <linux/err.h>
 #include <linux/fb.h>
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/notifier.h>
-#include "../../gpu/drm/rockchip/ebc-dev/ebc_dev.h"
 
 struct  tp_device{
 	struct notifier_block fb_notif;

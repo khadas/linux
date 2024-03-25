@@ -16,6 +16,8 @@
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/display/drm_hdcp_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
@@ -481,6 +483,8 @@ struct dw_dp {
 	struct drm_dp_mst_topology_mgr mst_mgr;
 	struct dw_dp_mst_enc mst_enc[DPTX_MAX_STREAMS];
 	struct list_head mst_conn_list;
+
+	struct drm_info_list *debugfs_files;
 };
 
 struct dw_dp_state {
@@ -1282,6 +1286,70 @@ static int dw_dp_atomic_connector_set_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
+static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct dw_dp *dp = node->info_ent->data;
+	struct dw_dp_mst_conn *mst_conn;
+	struct drm_property_blob *path_blob;
+
+	if (dp->mst_mgr.cbs) {
+		drm_dp_mst_dump_topology(s, &dp->mst_mgr);
+
+		seq_puts(s, "\n*** Connector path info ***\n");
+		seq_puts(s, "connector name | connector path\n");
+		list_for_each_entry(mst_conn, &dp->mst_conn_list, head) {
+			path_blob = mst_conn->connector.path_blob_ptr;
+			if (!path_blob)
+				continue;
+
+			seq_printf(s, "%-16s %s\n", mst_conn->connector.name,
+				   (char *)path_blob->data);
+		}
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static struct drm_info_list dw_dp_debugfs_files[] = {
+	{ "dp_mst_info", dw_dp_mst_info_dump, 0, NULL },
+};
+
+static int dw_dp_connector_late_register(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_minor *minor = connector->dev->primary;
+	int i;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
+	dp->debugfs_files = kmemdup(dw_dp_debugfs_files, sizeof(dw_dp_debugfs_files), GFP_KERNEL);
+	if (!dp->debugfs_files)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(dw_dp_debugfs_files); i++)
+		dp->debugfs_files[i].data = dp;
+
+	drm_debugfs_create_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files),
+				 connector->debugfs_entry, minor);
+
+	return 0;
+}
+
+static void dw_dp_connector_early_unregister(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_minor *minor = connector->dev->primary;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
+	drm_debugfs_remove_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files), minor);
+	kfree(dp->debugfs_files);
+}
+
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
@@ -1292,6 +1360,8 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.atomic_destroy_state	= dw_dp_atomic_connector_destroy_state,
 	.atomic_get_property	= dw_dp_atomic_connector_get_property,
 	.atomic_set_property	= dw_dp_atomic_connector_set_property,
+	.late_register		= dw_dp_connector_late_register,
+	.early_unregister	= dw_dp_connector_early_unregister,
 };
 
 static int dw_dp_update_hdr_property(struct drm_connector *connector)
