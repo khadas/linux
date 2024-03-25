@@ -2757,10 +2757,10 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 			(smgt->force_cache_on &&/*on star cache*/
 			(smgt->total_page_num < smgt->force_cache_page_cnt))
 		) {/*first 500ms ,alloc double.*/
+			int once_alloc = 1024;/*once 4M*/
 			mms = codec_mm_get_next_cache_scatter(smgt, NULL, 0);
 			if (mms) {
 				int need;
-				int once_alloc = 1024;/*once 4M*/
 
 				if (smgt->force_cache_on) {
 					once_alloc = 4096;
@@ -2773,9 +2773,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 					}
 				}
 				need = mms->page_cnt + once_alloc;
-				if ((need - mms->page_cnt) > once_alloc)
-					need = mms->page_cnt + once_alloc;
-				if (need > smgt->force_cache_page_cnt)
+				if (smgt->force_cache_on && need > smgt->force_cache_page_cnt)
 					need = smgt->force_cache_page_cnt;
 				if (need > mms->page_max_cnt)
 					need = mms->page_max_cnt;
@@ -2795,12 +2793,14 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 				alloced = 0;
 			}
 			/*wake up wait.*/
-			if (alloced &&
-			    smgt->force_cache_on &&
-			    smgt->cached_pages >= smgt->force_cache_page_cnt) {
-				smgt->force_cache_on = 0;
-				smgt->delay_free_timeout_jiffies64 =
-					get_jiffies_64() + 2000 * HZ / 1000;
+			if (alloced && smgt->force_cache_on) {
+				smgt->force_cache_page_cnt -= once_alloc;
+				if (smgt->force_cache_page_cnt <= 0) {
+					pr_dbg("scatter force_cache off\n");
+					smgt->force_cache_on = 0;
+					smgt->delay_free_timeout_jiffies64 =
+						get_jiffies_64() + 2000 * HZ / 1000;
+				}
 			}
 		} else if ((smgt->cached_pages >
 			   (smgt->keep_size_PAGE + 1000)) &&
