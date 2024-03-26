@@ -2839,10 +2839,26 @@ static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted
 {
 	int min_hbp = 16;
 	int min_hsync = 9;
+	int align_hfp = 2;
+	int unalign_pixel;
+
+	/*
+	 * Here are some limits for the video timing output by dp port:
+	 * 1. the hfp should be 2 pixels align;
+	 * 2. the minimum hsync should be 9 pixel;
+	 * 3. the minimum hbp should be 16 pixel;
+	 */
 
 	if (dp->split_mode) {
 		min_hbp *= 2;
 		min_hsync *= 2;
+		align_hfp *= 2;
+	}
+
+	unalign_pixel = (adjusted_mode->hsync_start - adjusted_mode->hdisplay) % align_hfp;
+	if (unalign_pixel) {
+		adjusted_mode->hsync_start += align_hfp - unalign_pixel;
+		dev_warn(dp->dev, "hfp is not align, fixup to align hfp\n");
 	}
 
 	if (adjusted_mode->hsync_end - adjusted_mode->hsync_start < min_hsync) {
