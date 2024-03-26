@@ -148,8 +148,16 @@ $(obj)/config_data.gz: $(obj)/config_data FORCE
 
 filechk_cat = cat $<
 
+ifdef CONFIG_AMLOGIC_MEMORY_OPT
+$(obj)/cfg_less.txt: $(KCONFIG_CONFIG) FORCE
+	$(shell sed '/#/d' $(KCONFIG_CONFIG) > $(src)/cfg_less.txt)
+
+$(obj)/config_data: $(obj)/cfg_less.txt FORCE
+	$(call filechk,cat)
+else
 $(obj)/config_data: $(KCONFIG_CONFIG) FORCE
 	$(call filechk,cat)
+endif
 
 $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
 
