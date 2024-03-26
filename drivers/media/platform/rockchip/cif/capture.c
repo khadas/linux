@@ -8037,7 +8037,10 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				}
 			} else {
 				sditf_disable_immediately(dev->sditf[0]);
-				dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+				if (dev->is_thunderboot)
+					dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+				else
+					dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 				sd = get_rkisp_sd(dev->sditf[0]);
 				if (sd)
 					ret = v4l2_subdev_call(sd, core, ioctl,
