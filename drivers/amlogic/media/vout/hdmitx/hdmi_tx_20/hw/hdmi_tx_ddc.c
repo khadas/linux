@@ -241,24 +241,12 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 	/* Read complete EDID data sequentially */
 	while (byte_num < 128 * blk_no) {
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS,  byte_num & 0xff);
-		if (byte_num >= 256 && byte_num < 512 && blk_no > 2) {
-			/* Program SEGMENT/SEGPTR */
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x1);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
-		} else if ((byte_num >= 512) && (byte_num < 768) && (blk_no > 2)) {
-			/* Program SEGMENT/SEGPTR */
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x2);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
-		} else if ((byte_num >= 768) && (byte_num < 1024) && (blk_no > 2)) {
-			/* Program SEGMENT/SEGPTR */
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x3);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
-		} else {
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 2);
-		}
+		hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
+		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
+		/* Program SEGPTR */
+		if (byte_num / 256 == 0)
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, byte_num >> 8);
+
 		/* Wait until I2C done */
 		timeout = 0;
 		while (timeout < EDID_WAIT_TIMEOUT &&
