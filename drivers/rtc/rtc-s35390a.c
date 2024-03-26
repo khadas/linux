@@ -47,6 +47,7 @@
 #define S35390A_INT2_MODE_ALARM		BIT(1) /* INT2AE */
 #define S35390A_INT2_MODE_PMIN_EDG	BIT(2) /* INT2ME */
 #define S35390A_INT2_MODE_FREQ		BIT(3) /* INT2FE */
+#define S35390A_INT2_MODE_32K		BIT(4) /* 32KE */
 #define S35390A_INT2_MODE_PMIN		(BIT(3) | BIT(2)) /* INT2FE | INT2ME */
 
 static const struct i2c_device_id s35390a_id[] = {
@@ -479,6 +480,14 @@ static int s35390a_probe(struct i2c_client *client)
 			dev_err(dev, "error disabling test mode\n");
 			return err;
 		}
+	}
+
+	/* enable 32kE status register */
+	buf = S35390A_INT2_MODE_32K;
+	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &buf, sizeof(buf));
+	if (err < 0) {
+		dev_err(dev, "s35390a 32Ke enable fail");
+		return err;
 	}
 
 	device_set_wakeup_capable(dev, 1);

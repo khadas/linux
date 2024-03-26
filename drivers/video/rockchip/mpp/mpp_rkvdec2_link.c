@@ -401,6 +401,8 @@ static void rkvdec2_clear_cache(struct mpp_dev *mpp)
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE1_BASE, 1);
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE2_BASE, 1);
+	/* init max outstanding read */
+	mpp_write_relaxed(mpp, RKVDEC_REG_MAX_READS, 0x1c);
 }
 
 static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,

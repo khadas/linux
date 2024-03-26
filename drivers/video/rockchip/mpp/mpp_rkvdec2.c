@@ -505,6 +505,8 @@ static int rkvdec_vdpu383_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
 	/* clear cache */
 	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
+	/* init max outstanding read */
+	mpp_write_relaxed(mpp, RKVDEC_REG_MAX_READS, 0x1c);
 
 	/* set registers for hardware */
 	for (i = 0; i < task->w_req_cnt; i++) {
