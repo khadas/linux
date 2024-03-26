@@ -1549,6 +1549,7 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 	u32 tmds_clk, tmdsclk_cnt;
 	u64 tmp_data;
 	u8 video_fmt, vic, color_range, color_space;
+	u32 format;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 	timings->type = V4L2_DV_BT_656_1120;
@@ -1611,15 +1612,26 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 
 	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &val);
 	vic = (val & VID_IDENT_CODE_MASK) >> 24;
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_GCP_AVMUTE, &format);
+	format = (format & PKTDEC_GCP_CD_MASK) >> 4;
 	video_fmt = rk628_hdmirx_get_format(rk628);
 	color_range = rk628_hdmirx_get_range(rk628);
 	color_space = rk628_hdmirx_get_color_space(rk628);
 	if (video_fmt == BUS_FMT_YUV420) {
-		htotal *= 2;
-		hact *= 2;
-		hfp *= 2;
-		hbp *= 2;
-		hs *= 2;
+		//format:color depth, 5: 10bit, 4: 8bit
+		if (format == 5) {
+			htotal = htotal * 2 * 8 / 10;
+			hact = hact * 2 * 8 / 10;
+			hfp = hfp * 2 * 8 / 10;
+			hbp = hbp * 2 * 8 / 10;
+			hs = hs * 2 * 8 / 10;
+		} else {
+			htotal *= 2;
+			hact *= 2;
+			hfp *= 2;
+			hbp *= 2;
+			hs *= 2;
+		}
 	}
 
 	rk628_dbg(rk628, "cnt_num:%d, tmds_cnt:%d, hs_cnt:%d, vs_cnt:%d, hofs:%d\n",
@@ -1645,8 +1657,14 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 		bt->il_vsync = bt->vsync + 1;
 		bt->pixelclock /= 2;
 	}
-	if (video_fmt == BUS_FMT_YUV420)
-		bt->pixelclock *= 2;
+	if (video_fmt == BUS_FMT_YUV420) {
+		if (format == 5) {
+			bt->pixelclock = bt->pixelclock * 8 * 2;
+			do_div(bt->pixelclock, 10);
+		} else {
+			bt->pixelclock *= 2;
+		}
+	}
 
 	if (vact == 1080 && vtotal > 1500)
 		goto TIMING_ERR;
