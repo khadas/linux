@@ -2449,7 +2449,7 @@
 		rockchip,normal-rates = <600000000>, <0>, <600000000>, <600000000>;
 		assigned-clocks = <&cru ACLK_RKVDEC_ROOT>, <&cru HCLK_RKVDEC>,
 				  <&cru CLK_RKVDEC_CORE>, <&cru CLK_RKVDEC_HEVC_CA>;
-		assigned-clock-rates = <600000000>,<0>, <600000000>, <600000000>;
+		assigned-clock-rates = <600000000>,<0>, <600000000>, <1000000000>;
 		iommus = <&rkvdec_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,task-capacity = <8>;
