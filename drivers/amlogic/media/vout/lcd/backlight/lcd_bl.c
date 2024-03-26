@@ -1461,15 +1461,22 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	if (bl_header->version == 2) {
 		bconf->en_sequence_reverse = (*(p + LCD_UKEY_BL_CUST_VAL_0) |
 				((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
+
+		/* check ldim_flag */
+		BLPR("row: %d col: %d\n", *(p + LCD_UKEY_BL_LDIM_ROW), *(p + LCD_UKEY_BL_LDIM_COL));
+		if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 0) && (*(p + LCD_UKEY_BL_LDIM_COL) > 0)) {
+			bconf->ldim_flag = 1;
+			BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
+		}
+
+		/* load switch info */
+		bconf->bl_pwm_switch_port = *(p + LCD_UKEY_BL_CUST_VAL_1);
+		bconf->bl_pwm_switch_freq = (*(p + LCD_UKEY_BL_CUST_VAL_2) |
+			((*(p + LCD_UKEY_BL_CUST_VAL_2 + 1)) << 8) |
+			((*(p + LCD_UKEY_BL_CUST_VAL_2 + 2)) << 8) |
+			((*(p + LCD_UKEY_BL_CUST_VAL_2 + 3)) << 8));
 	} else {
 		bconf->en_sequence_reverse = 0;
-	}
-
-	/* check ldim_flag */
-	BLPR("row: %d col: %d\n", *(p + LCD_UKEY_BL_LDIM_ROW), *(p + LCD_UKEY_BL_LDIM_COL));
-	if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 0) && (*(p + LCD_UKEY_BL_LDIM_COL) > 0)) {
-		bconf->ldim_flag = 1;
-		BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
 	}
 
 	/* pwm: 24byte */
@@ -1615,13 +1622,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		}
 	}
 #endif
-
-	/* load switch info */
-	bconf->bl_pwm_switch_port = *(p + LCD_UKEY_BL_CUST_VAL_1);
-	bconf->bl_pwm_switch_freq = (*(p + LCD_UKEY_BL_CUST_VAL_2) |
-		((*(p + LCD_UKEY_BL_CUST_VAL_2 + 1)) << 8) |
-		((*(p + LCD_UKEY_BL_CUST_VAL_2 + 2)) << 8) |
-		((*(p + LCD_UKEY_BL_CUST_VAL_2 + 3)) << 8));
 
 	/* switch and default channel init */
 	if (bconf->bl_pwm_switch_port < BL_PWM_MAX && bconf->bl_pwm_switch_freq > 0) {
