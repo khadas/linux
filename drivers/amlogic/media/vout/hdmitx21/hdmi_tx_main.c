@@ -4923,8 +4923,12 @@ static ssize_t phy_store(struct device *dev,
 		while (hdev->tmds_phy_op) {
 			usleep_range(mute_us, mute_us + 10);
 			cnt++;
-			if (cnt > 3)
+			if (cnt > 3) {
+				pr_err("not have vsync intr, manually turn off phy\n");
+				hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, hdev->tmds_phy_op);
+				hdev->tmds_phy_op = TMDS_PHY_NONE;
 				break;
+			}
 		}
 	} else if (strncmp(buf, "1", 1) == 0) {
 		hdev->tmds_phy_op = TMDS_PHY_ENABLE;
