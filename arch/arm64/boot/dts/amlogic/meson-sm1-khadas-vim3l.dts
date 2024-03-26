@@ -96,7 +96,7 @@
 	#size-cells = <0>;
 	pinctrl-0 = <&i2c3_sda_a_pins>, <&i2c3_sck_a_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 
 	touch-controller@38 {
 		compatible = "edt,edt-ft5206";
@@ -114,7 +114,7 @@
 &mipi_dsi {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "okay";
+	status = "disabled";
 
 	assigned-clocks = <&clkc CLKID_GP0_PLL>,
 			  <&clkc CLKID_MIPI_DSI_PXCLK_SEL>,
@@ -133,7 +133,6 @@
 			       <0>;
 
 	panel@0 {
-		compatible = "khadas,ts101";
 		reset-gpios = <&gpio_expander 0 GPIO_ACTIVE_LOW>;
 		enable-gpios = <&gpio_expander 1 GPIO_ACTIVE_HIGH>;
 		power-supply = <&vcc_3v3>;
@@ -160,11 +159,11 @@
 };
 
 &mipi_analog_dphy {
-	status = "okay";
+	status = "disabled";
 };
 
 &mipi_dphy {
-	status = "okay";
+	status = "disabled";
 };
 
 /*
