@@ -3963,8 +3963,11 @@ void rkisp_save_tb_info(struct rkisp_device *isp_dev)
 				  tmp->cfg.module_ens,
 				  tmp->cfg.module_cfg_update);
 		}
-		if (param && (isp_dev->isp_state & ISP_STOP))
+		if (param && (isp_dev->isp_state & ISP_STOP)) {
+			params_vdev->ops->get_param_size(params_vdev,
+				&params_vdev->vdev_fmt.fmt.meta.buffersize);
 			params_vdev->ops->save_first_param(params_vdev, param);
+		}
 	} else if (size > isp_dev->resmem_size) {
 		v4l2_err(&isp_dev->v4l2_dev,
 			 "resmem size:%zu no enough for head:%d\n",
