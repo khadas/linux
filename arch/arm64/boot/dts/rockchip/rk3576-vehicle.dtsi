@@ -452,6 +452,13 @@
 	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn>;
 };
 
+&uart5 {
+	/delete-property/ dmas;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5m2_xfer &uart5m2_ctsn>;
+};
+
 &ufs {
 	reset-gpios = <&gpio4 RK_PD0 GPIO_ACTIVE_HIGH>;
 };
