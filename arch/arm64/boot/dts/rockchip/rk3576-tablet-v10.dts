@@ -505,6 +505,9 @@
 		shutdown_temperture_threshold = <160>;
 		hotdie_temperture_threshold = <115>;
 
+		/* PWRON_ON_TIME: 0:500mS; 1:20mS */
+		pwron-on-time-500ms;
+
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,
 		 *    forcing the state to switch to ACTIVE mode;
