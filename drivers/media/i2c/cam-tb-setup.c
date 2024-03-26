@@ -10,6 +10,7 @@ static u32 rk_cam_w;
 static u32 rk_cam_h;
 static u32 rk_cam_hdr;
 static u32 rk_cam_fps;
+static u32 rk_cam_skip_frame_interval;
 
 static int __init rk_cam_w_setup(char *str)
 {
@@ -91,7 +92,30 @@ u32 get_rk_cam_fps(void)
 }
 EXPORT_SYMBOL(get_rk_cam_fps);
 
+static int __init __maybe_unused rk_cam_skip_frame_interval_setup(char *str)
+{
+	int ret = 0;
+	unsigned long val = 0;
+
+	ret = kstrtoul(str, 0, &val);
+	if (!ret) {
+		rk_cam_skip_frame_interval = (u32)val;
+	} else {
+		rk_cam_skip_frame_interval = 0;
+		pr_err("get rk_cam_skip_frame_interval fail\n");
+	}
+
+	return 0;
+}
+
+u32 get_rk_cam_skip_frame_interval(void)
+{
+	return rk_cam_skip_frame_interval;
+}
+EXPORT_SYMBOL(get_rk_cam_skip_frame_interval);
+
 __setup("rk_cam_w=", rk_cam_w_setup);
 __setup("rk_cam_h=", rk_cam_h_setup);
 __setup("rk_cam_hdr=", rk_cam_hdr_setup);
 __setup("rk_cam_fps=", rk_cam_fps_setup);
+__setup("rk_cam_skip_frame_interval=", rk_cam_skip_frame_interval_setup);
