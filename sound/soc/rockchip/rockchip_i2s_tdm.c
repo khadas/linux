@@ -2720,8 +2720,6 @@ static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
 	else
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
 
-	pm_runtime_forbid(i2s_tdm->dev);
-
 	dev_info(i2s_tdm->dev, "CLK-ALWAYS-ON: mclk: %d, bclk: %d, fsync: %d\n",
 		 mclk_rate, bclk_rate, DEFAULT_FS);
 
@@ -3112,6 +3110,14 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_pm_disable;
 	}
+
+	/*
+	 * Should be placed after pm_runtime_enable to do
+	 * rpm_resume at the moment. otherwise, it will make sense
+	 * at the next pm_runtime_get.
+	 */
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON)
+		pm_runtime_forbid(i2s_tdm->dev);
 
 	ret = rockchip_i2s_tdm_register_platform(&pdev->dev);
 	if (ret)
