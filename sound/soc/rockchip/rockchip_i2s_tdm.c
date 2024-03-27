@@ -2929,9 +2929,18 @@ static int __maybe_unused i2s_tdm_runtime_resume(struct device *dev)
 	regcache_cache_only(i2s_tdm->regmap, false);
 	regcache_mark_dirty(i2s_tdm->regmap);
 
-	ret = regcache_sync(i2s_tdm->regmap);
-	if (ret)
+	/*
+	 * XFER must be placed after all registers sync done,
+	 * because a lots of registers depends on the XFER-Disabled.
+	 */
+	ret = 0;
+	ret |= regcache_sync_region(i2s_tdm->regmap, I2S_TXCR, I2S_INTCR);
+	ret |= regcache_sync_region(i2s_tdm->regmap, I2S_TXDR, I2S_CLKDIV);
+	ret |= regcache_sync_region(i2s_tdm->regmap, I2S_XFER, I2S_XFER);
+	if (ret) {
+		dev_err(i2s_tdm->dev, "Failed to sync registers\n");
 		goto err_regcache;
+	}
 
 	/*
 	 * should be placed after regcache sync done to back
@@ -3267,34 +3276,10 @@ static void rockchip_i2s_tdm_platform_shutdown(struct platform_device *pdev)
 	pm_runtime_put(i2s_tdm->dev);
 }
 
-static int __maybe_unused rockchip_i2s_tdm_suspend(struct device *dev)
-{
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-
-	regcache_mark_dirty(i2s_tdm->regmap);
-
-	return 0;
-}
-
-static int __maybe_unused rockchip_i2s_tdm_resume(struct device *dev)
-{
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-	int ret;
-
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0)
-		return ret;
-	ret = regcache_sync(i2s_tdm->regmap);
-	pm_runtime_put(dev);
-
-	return ret;
-}
-
 static const struct dev_pm_ops rockchip_i2s_tdm_pm_ops = {
 	SET_RUNTIME_PM_OPS(i2s_tdm_runtime_suspend, i2s_tdm_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(rockchip_i2s_tdm_suspend,
-				rockchip_i2s_tdm_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver rockchip_i2s_tdm_driver = {
