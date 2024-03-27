@@ -431,8 +431,10 @@
 };
 
 &pinctrl {
-	phydisb: phydisb {
-		rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_output_high>;
+	gmac0 {
+		phydisb: phydisb {
+			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_output_high>;
+		};
 	};
 
 	headphone {

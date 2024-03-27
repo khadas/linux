@@ -916,6 +916,10 @@
 	};
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &uart4 {
 	status = "okay";
 	pinctrl-names = "default";
