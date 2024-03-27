@@ -28,6 +28,14 @@ properties:
       of vop devices. vop definitions as defined in
       Documentation/devicetree/bindings/display/rockchip/rockchip-vop.yaml
 
+  clocks:
+    maxItems: 1
+    description: Optional clock provided by HDMI0 PLL
+
+  clock-names:
+    items:
+      - const: hdmi0_phy_pll
+
 required:
   - compatible
   - ports
