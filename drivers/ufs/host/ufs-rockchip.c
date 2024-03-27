@@ -439,6 +439,8 @@ static int ufs_rockchip_rk3576_init(struct ufs_hba *hba)
 	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 	/* Enable putting device into deep sleep */
 	hba->caps |= UFSHCD_CAP_DEEPSLEEP;
+	/* Enable devfreq of UFS */
+	hba->caps |= UFSHCD_CAP_CLK_SCALING;
 
 	ret = ufs_rockchip_common_init(hba);
 	if (ret) {
