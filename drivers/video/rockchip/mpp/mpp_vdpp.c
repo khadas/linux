@@ -420,7 +420,8 @@ static int vdpp_finish(struct mpp_dev *mpp,
 			mpp_read_req(mpp, task->reg, s, e);
 		}
 	}
-	task->reg[hw_info->int_sta_base] = task->irq_status;
+
+	task->reg[hw_info->int_sta_base / sizeof(u32)] = task->irq_status;
 
 	mpp_debug_leave();
 
@@ -463,6 +464,8 @@ static int vdpp_result(struct mpp_dev *mpp,
 			}
 		}
 	}
+
+	mpp_debug_leave();
 
 	return 0;
 }
