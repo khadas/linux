@@ -13388,10 +13388,12 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		/*TV core need run mode and the value is 2*/
 		if (is_aml_txlx_stbmode() ||
 		    is_aml_tm2_stbmode() || is_aml_t7_stbmode() ||
-		    is_aml_sc2() || is_aml_s4d() || is_aml_s5())
+		    is_aml_sc2() || is_aml_s4d() || is_aml_s5() ||
+		    is_aml_g12())
 			amdv_run_mode_delay = 0;
-		else if (is_aml_g12())
+		/*else if (is_aml_g12())
 			amdv_run_mode_delay = RUN_MODE_DELAY_G12;
+		*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		else if (is_aml_gxm())
 			amdv_run_mode_delay = RUN_MODE_DELAY_GXM;
