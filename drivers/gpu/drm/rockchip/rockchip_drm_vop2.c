@@ -11750,8 +11750,8 @@ static void vop2_wb_handler(struct vop2_video_port *vp)
 	uint8_t i;
 	bool wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
 
-	wb_en = vop2_readl(vop2, RK3568_WB_CTRL) & 0x01;
-	wb_vp_id = (vop2_readl(vop2, RK3568_LUT_PORT_SEL) >> 8) & 0x3;
+	wb_en = VOP_MODULE_GET(vop2, wb, enable);
+	wb_vp_id = VOP_MODULE_GET(vop2, wb, vp_id);
 	if (wb_vp_id != vp->id)
 		return;
 	/*
