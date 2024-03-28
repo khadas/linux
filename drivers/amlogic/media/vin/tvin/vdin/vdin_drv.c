@@ -5710,9 +5710,11 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 	struct vd_signal_info_s *vd_signal = NULL;
 	/* only for vdin1 loopback */
 	struct vdin_dev_s *devp = vdin_get_dev(1);
+#ifdef VDIN_ENALBE_NOTIFY_SECURITY
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	unsigned int i = 0;
 	struct vd_secure_info_s *vd_secure = NULL;
+#endif
 #endif
 
 	switch (cmd) {
@@ -5730,6 +5732,7 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 				__func__, devp->tx_fmt, devp->vd1_fmt);
 		break;
 	case VIDEO_SECURE_TYPE_CHANGED:
+#ifdef VDIN_ENALBE_NOTIFY_SECURITY
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 		vd_secure = (struct vd_secure_info_s *)para;
 		if (!vd_secure || !(devp->flags & VDIN_FLAG_DEC_STARTED))
@@ -5785,6 +5788,10 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 
 			vdin_set_mem_protect(devp, 0);
 		}
+#endif
+#else
+		if (vdin_dbg_en)
+			pr_info("%s VDIN_ENALBE_NOTIFY_SECURITY is not defined\n", __func__);
 #endif
 		break;
 
