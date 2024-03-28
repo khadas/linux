@@ -354,7 +354,7 @@ struct vop2_plane_state {
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
-	dma_addr_t mst_end;/* current fb last address */
+	size_t fb_size;/* fb size */
 	bool afbc_en;
 	bool hdr_in;
 	bool hdr2sdr_en;
@@ -5369,7 +5369,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		if (vpstate->tiled_en == ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0)
 			vpstate->yrgb_mst += offset;
 	}
-	vpstate->mst_end = rk_obj->dma_addr + rk_obj->size;
+	vpstate->fb_size = rk_obj->size;
 
 	if (win->feature & WIN_FEATURE_DCI) {
 		if (vpstate->dci_data)
@@ -5885,7 +5885,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_AFBC_SET(vop2, win, pld_offset_en, 1); /* use relative address by default */
 		VOP_AFBC_SET(vop2, win, pld_ptr_offset, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pld_range_en, 1);
-		VOP_AFBC_SET(vop2, win, pld_ptr_range, vpstate->mst_end);
+		VOP_AFBC_SET(vop2, win, pld_ptr_range, vpstate->fb_size);
 	} else {
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 0);
 		transform_offset = vop2_tile_transform_offset(vpstate, vpstate->tiled_en);
