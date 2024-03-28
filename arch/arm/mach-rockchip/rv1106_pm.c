@@ -264,6 +264,18 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x2e0, 0x2ec, 4, &ioc_base[3], WMSK_VAL)},
 	{ REG_REGION(0x2f4, 0x2f4, 4, &ioc_base[3], WMSK_VAL)},
 
+	/* gpio4_ioc */
+	{ REG_REGION(0x000, 0x010, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x020, 0x030, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x060, 0x064, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x070, 0x074, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x080, 0x084, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x090, 0x094, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x0a0, 0x0a4, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x0b0, 0x0b4, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x0c0, 0x0c0, 4, &ioc_base[4], WMSK_VAL)},
+	{ REG_REGION(0x200, 0x200, 4, &ioc_base[4], WMSK_VAL)},
+
 	/* gpio1~3 */
 	{ REG_REGION(0x000, 0x00c, 4, &gpio_base[1], WMSK_VAL)},
 	{ REG_REGION(0x018, 0x044, 4, &gpio_base[1], WMSK_VAL)},
@@ -285,6 +297,13 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x060, 0x064, 4, &gpio_base[3], WMSK_VAL)},
 	{ REG_REGION(0x100, 0x108, 4, &gpio_base[3], WMSK_VAL)},
 	{ REG_REGION(0x010, 0x014, 4, &gpio_base[3], WMSK_VAL)},
+
+	{ REG_REGION(0x000, 0x00c, 4, &gpio_base[4], WMSK_VAL)},
+	{ REG_REGION(0x018, 0x044, 4, &gpio_base[4], WMSK_VAL)},
+	{ REG_REGION(0x048, 0x048, 4, &gpio_base[4], 0)},
+	{ REG_REGION(0x060, 0x064, 4, &gpio_base[4], WMSK_VAL)},
+	{ REG_REGION(0x100, 0x108, 4, &gpio_base[4], WMSK_VAL)},
+	{ REG_REGION(0x010, 0x014, 4, &gpio_base[4], WMSK_VAL)},
 
 	/* NS TIMER 6 channel */
 	{ REG_REGION(0x00, 0x04, 4, &nstimer_base, 0)},
