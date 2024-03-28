@@ -361,10 +361,10 @@ PNAME(clk_aupll_ref_src_p)		= { "xin24m", "clk_aupll_ref_io" };
 
 static struct rockchip_pll_clock rk3576_pll_clks[] __initdata = {
 	[bpll] = PLL(pll_rk3588_core, PLL_BPLL, "bpll", mux_pll_p,
-		     CLK_IS_CRITICAL, RK3576_PLL_CON(0),
+		     0, RK3576_PLL_CON(0),
 		     RK3576_BPLL_MODE_CON0, 0, 15, 0, rk3576_pll_rates),
 	[lpll] = PLL(pll_rk3588_core, PLL_LPLL, "lpll", mux_pll_p,
-		     CLK_IS_CRITICAL, RK3576_LPLL_CON(16),
+		     0, RK3576_LPLL_CON(16),
 		     RK3576_LPLL_MODE_CON0, 0, 15, 0, rk3576_pll_rates),
 	[vpll] = PLL(pll_rk3588, PLL_VPLL, "vpll", mux_pll_p,
 		     0, RK3576_PLL_CON(88),
