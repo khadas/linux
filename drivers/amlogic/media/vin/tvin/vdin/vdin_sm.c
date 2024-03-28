@@ -50,7 +50,7 @@
 #define EXIT_STABLE_MAX_CNT 1
 /* Signal stable for some cycles  => back to TVAFE_STATE_STABLE */
 /* must >=500ms,for new api function */
-#define BACK_STABLE_MAX_CNT 50
+#define BACK_STABLE_MAX_CNT 3
 #define EXIT_PRESTABLE_MAX_CNT 50
 static struct tvin_sm_s sm_dev[VDIN_MAX_DEVS];
 
