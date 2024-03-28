@@ -4199,7 +4199,20 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 */
 		VOP_CTRL_SET(vop2, auto_gating_en, 0);
 
-		VOP_CTRL_SET(vop2, aclk_pre_auto_gating_en, 0);
+		/*
+		 * This is a workaround for RK3528/RK3562/RK3576:
+		 *
+		 * The aclk pre auto gating function may disable the aclk
+		 * in some unexpected cases, which detected by hardware
+		 * automatically.
+		 *
+		 * For example, if the above function is enabled, the post
+		 * scale function will be affected, resulting in abnormal
+		 * display.
+		 */
+		if (vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562 ||
+		    vop2->version == VOP_VERSION_RK3576)
+			VOP_CTRL_SET(vop2, aclk_pre_auto_gating_en, 0);
 
 		/*
 		 * Register OVERLAY_LAYER_SEL and OVERLAY_PORT_SEL should take effect immediately,
