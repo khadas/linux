@@ -342,6 +342,16 @@
 	pinctrl-0 = <&uart9m1_xfer &uart9m1_ctsn>;
 };
 
+&u2phy0 {
+	rockchip,sel-pipe-phystatus;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	rockchip,dis-u2-susphy;
+	status = "okay";
+};
+
 &u2phy1_otg {
 	phy-supply = <&vcc5v0_host>;
 };
@@ -385,6 +395,10 @@
 	dr_mode = "peripheral";
 	maximum-speed = "high-speed";
 	extcon = <&u2phy0>;
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 	status = "okay";
 };
 
