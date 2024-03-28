@@ -117,9 +117,10 @@ bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev)
 {
 	if (!hdev->repeater_tx)
 		return false;
-
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	if (!get_rx_active_sts())
 		return false;
+#endif
 	return true;
 }
 

@@ -169,13 +169,13 @@ int meson_writeback_capture_picture(struct drm_framebuffer *fb, u32 port)
 	DRM_DEBUG("%s dmabuf-%px, h&v(%d-%d), cfmt-%d, port-%d\n",
 		__func__, dmabuf, vdin_pram.h_active, vdin_pram.v_active,
 		vdin_pram.cfmt, vdin_pram.port);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	ret = vdin_capture_picture(&vdin_pram, dmabuf);
 	if (ret) {
 		DRM_ERROR("writeback capture picture fail!\n");
 		return ret;
 	}
-
+#endif
 	return ret;
 }
 
@@ -375,11 +375,20 @@ static int meson_writeback_port_property(struct drm_device *drm_dev,
 int meson_writeback_get_format(u32 *writeback_fmts)
 {
 	struct support_pixel_format pixel_format;
-	int i, ret;
+	int i;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+	int ret;
 	ret = vdin_get_support_pixel_format(&pixel_format);
 	if (ret)
 		return ret;
+#else
+	pixel_format.pixel_value[0] = TVIN_PIXEL_RGB444;
+	pixel_format.pixel_value[1] = TVIN_PIXEL_YUV422;
+	pixel_format.pixel_value[2] = TVIN_PIXEL_UYVY444;
+	pixel_format.pixel_value[3] = TVIN_PIXEL_NV12;
+	pixel_format.pixel_value[4] = TVIN_PIXEL_NV21;
+#endif
 
 	for (i = 0; i < TVIN_PIXEL_FORMAT_NUM; i++)
 		writeback_fmts[i] =

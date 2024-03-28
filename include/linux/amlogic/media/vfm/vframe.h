@@ -20,9 +20,9 @@
 #define VFRAME_H
 
 #include <linux/types.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+//#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
-#endif
+//#endif
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/atomic.h>
 #include <linux/amlogic/iomap.h>
@@ -694,11 +694,11 @@ struct vframe_s {
 	enum vframe_source_type_e source_type;
 	enum vframe_secam_phase_e phase;
 	enum vframe_source_mode_e source_mode;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+//#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	enum tvin_sig_fmt_e sig_fmt;
 	enum tvin_trans_fmt trans_fmt;
 	struct tvafe_vga_parm_s vga_parm;
-#endif
+//#endif
 	struct vframe_view_s left_eye;
 	struct vframe_view_s right_eye;
 	u32 mode_3d_enable;

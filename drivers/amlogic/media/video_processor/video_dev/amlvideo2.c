@@ -42,9 +42,9 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/kernel.h>
 #include <uapi/linux/sched/types.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+//#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
-#endif
+//#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -5295,19 +5295,19 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 	const struct vinfo_s *vinfo;
 #endif
 	int dst_w, dst_h;
-	int angle = node->qctl_regs[0];
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+	int angle = node->qctl_regs[0];
 	vinfo = amlvideo2_get_vinfo(fh->node);
 #endif
 	if (node->r_type != AML_RECEIVER_NONE)
 		goto start;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	if (amlvideo2_dbg_en) {
 		pr_info("Enter %s .\n", __func__);
 		pr_info("vinfo->w: %d, vinfo->h: %d.\n", vinfo->width, vinfo->height);
 	}
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	memset(&para, 0, sizeof(para));
 	para.port = node->porttype;
 	para.fmt = TVIN_SIG_FMT_MAX;
@@ -5614,7 +5614,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			}
 		}
 	}
-#endif
 	if (amlvideo2_dbg_en) {
 		pr_info("enter %s.\n", __func__);
 		pr_info("node->porttype = %d\n", node->porttype);
@@ -5627,6 +5626,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		pr_info("video_w=%d, video_h=%d.\n",
 			video_input_parms.width, video_input_parms.height);
 	}
+#endif
 
 	if (!node->start_vdin_flag || node->r_type != AML_RECEIVER_NONE)
 		goto start;

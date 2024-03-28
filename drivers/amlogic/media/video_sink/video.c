@@ -5229,6 +5229,8 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 		pr_info("%s:Get count failed, use default value.\n", __func__);
 		vdin_buf_count = VDIN_BUF_COUNT;
 	}
+#else
+	vdin_buf_count = VDIN_BUF_COUNT;
 #endif
 	if (di_has_vdin_vf || !do_di || di_backend_en) {
 		vdin_count = vdin_buf_count - 3 - display_path_count - 1;
