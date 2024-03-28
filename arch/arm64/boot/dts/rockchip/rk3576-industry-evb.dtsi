@@ -221,6 +221,7 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m0_xfer &uart1m0_rtsn>;
+	linux,rs485-enabled-at-boot-time;
 	status = "okay";
 };
 

@@ -1286,6 +1286,7 @@ static int dw_dp_atomic_connector_set_property(struct drm_connector *connector,
 	return -EINVAL;
 }
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_NO_GKI)
 static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
@@ -1322,9 +1323,6 @@ static int dw_dp_connector_late_register(struct drm_connector *connector)
 	struct drm_minor *minor = connector->dev->primary;
 	int i;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
-		return 0;
-
 	dp->debugfs_files = kmemdup(dw_dp_debugfs_files, sizeof(dw_dp_debugfs_files), GFP_KERNEL);
 	if (!dp->debugfs_files)
 		return -ENOMEM;
@@ -1343,12 +1341,10 @@ static void dw_dp_connector_early_unregister(struct drm_connector *connector)
 	struct dw_dp *dp = connector_to_dp(connector);
 	struct drm_minor *minor = connector->dev->primary;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
-		return;
-
 	drm_debugfs_remove_files(dp->debugfs_files, ARRAY_SIZE(dw_dp_debugfs_files), minor);
 	kfree(dp->debugfs_files);
 }
+#endif
 
 static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.detect			= dw_dp_connector_detect,
@@ -1360,8 +1356,10 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.atomic_destroy_state	= dw_dp_atomic_connector_destroy_state,
 	.atomic_get_property	= dw_dp_atomic_connector_get_property,
 	.atomic_set_property	= dw_dp_atomic_connector_set_property,
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_NO_GKI)
 	.late_register		= dw_dp_connector_late_register,
 	.early_unregister	= dw_dp_connector_early_unregister,
+#endif
 };
 
 static int dw_dp_update_hdr_property(struct drm_connector *connector)

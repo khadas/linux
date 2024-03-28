@@ -856,7 +856,6 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			return;
 		}
 
-		rk628_hdmirx_vid_enable(sd, true);
 		if (csi->plat_data->tx_mode == DSI_MODE) {
 			enable_dsitx(sd);
 		} else {
@@ -864,6 +863,7 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			/* csitx int en */
 			rk628_csi_enable_csi_interrupts(sd, true);
 		}
+		rk628_hdmirx_vid_enable(sd, true);
 		csi->is_streaming = true;
 	} else {
 		if (csi->plat_data->tx_mode == CSI_MODE) {
@@ -1499,6 +1499,7 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 	if (csi->is_streaming) {
 		v4l2_info(sd,
 			"%s: csitx is streaming, reset csitx and restart cstitx!\n", __func__);
+		rk628_hdmirx_vid_enable(sd, false);
 		rk628_csi_enable_csi_interrupts(sd, false);
 		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN, CSITX_EN_MASK, CSITX_EN(0));
 		if (csi->rk628->version >= RK628F_VERSION)
@@ -1522,6 +1523,7 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 		//clr int status
 		rk628_csi_clear_csi_interrupts(sd);
 		rk628_csi_enable_csi_interrupts(sd, true);
+		rk628_hdmirx_vid_enable(sd, true);
 	} else {
 		v4l2_info(sd,
 			"%s: csitx is not streaming\n", __func__);
@@ -2215,8 +2217,10 @@ static void rk628_csi_reset_streaming(struct v4l2_subdev *sd, int on)
 		} else {
 			enable_dsitx(sd);
 		}
+		rk628_hdmirx_vid_enable(sd, true);
 		csi->is_streaming = true;
 	} else {
+		rk628_hdmirx_vid_enable(sd, false);
 		if (csi->plat_data->tx_mode == CSI_MODE) {
 			rk628_csi_enable_csi_interrupts(sd, false);
 			msleep(20);

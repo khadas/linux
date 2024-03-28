@@ -1207,6 +1207,7 @@ static int rknpu_probe(struct platform_device *pdev)
 
 	rknpu_dev->config = config;
 	rknpu_dev->dev = dev;
+	dev_set_drvdata(dev, rknpu_dev);
 
 	rknpu_dev->iommu_en = rknpu_is_iommu_enable(dev);
 	if (rknpu_dev->iommu_en) {
@@ -1494,6 +1495,26 @@ static int rknpu_remove(struct platform_device *pdev)
 }
 
 #ifndef FPGA_PLATFORM
+#ifdef CONFIG_PM_SLEEP
+static int rknpu_suspend(struct device *dev)
+{
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+
+	rknpu_power_get(rknpu_dev);
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int rknpu_resume(struct device *dev)
+{
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
+
+	rknpu_power_put_delay(rknpu_dev);
+
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
 static int rknpu_runtime_suspend(struct device *dev)
 {
 	return rknpu_devfreq_runtime_suspend(dev);
@@ -1505,8 +1526,8 @@ static int rknpu_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rknpu_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(rknpu_suspend,
+				rknpu_resume)
 		SET_RUNTIME_PM_OPS(rknpu_runtime_suspend, rknpu_runtime_resume,
 				   NULL)
 };

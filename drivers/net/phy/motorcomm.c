@@ -11,11 +11,39 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 
+#define PHY_ID_YT8011		0x4f51eb01
 #define PHY_ID_YT8511		0x0000010a
 #define PHY_ID_YT8512		0x00000118
 #define PHY_ID_YT8512B		0x00000128
 #define PHY_ID_YT8531S		0x4f51e91a
 #define PHY_ID_YT8531		0x4f51e91b
+
+/**
+ * YT8011 IO VOLTAGE LEVELS
+ * YT8011_RGMII_DVDDIO_3V3 -> VDDIO 3V3
+ * YT8011_RGMII_DVDDIO_2V5 -> VDDIO 2V5
+ * YT8011_RGMII_DVDDIO_1V8 -> VDDIO 1V8
+ */
+#define YT8011_RGMII_DVDDIO_3V3
+/* #define YT8011_RGMII_DVDDIO_2V5 */
+/* #define YT8011_RGMII_DVDDIO_1V8 */
+
+struct yt8011_priv {
+	u8 polling_mode;
+	u8 chip_mode;
+};
+
+#define YT8011_SPEED_MODE		0xc000
+#define YT8011_DUPLEX			0x2000
+#define YT8011_SPEED_MODE_BIT		14
+#define YT8011_DUPLEX_BIT		13
+#define YT8011_LINK_STATUS_BIT		10
+
+#define REG_PHY_SPEC_STATUS		0x11
+#define REG_DEBUG_ADDR_OFFSET		0x1e
+#define REG_DEBUG_DATA			0x1f
+#define REG_MII_MMD_CTRL		0x0D  /* MMD access control register */
+#define REG_MII_MMD_DATA		0x0E  /* MMD access data register    */
 
 #define YT8511_PAGE_SELECT	0x1e
 #define YT8511_PAGE		0x1f
@@ -219,6 +247,123 @@ err_handle:
 	return ret;
 }
 
+static int __maybe_unused ytphy_write_mmd(struct phy_device *phydev, u16 device, u16 reg, u16 value)
+{
+	int ret = 0;
+
+	phy_lock_mdio_bus(phydev);
+
+	__phy_write(phydev, REG_MII_MMD_CTRL, device);
+	__phy_write(phydev, REG_MII_MMD_DATA, reg);
+	__phy_write(phydev, REG_MII_MMD_CTRL, device | 0x4000);
+	__phy_write(phydev, REG_MII_MMD_DATA, value);
+
+	phy_unlock_mdio_bus(phydev);
+
+	return ret;
+}
+
+static int yt8011_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct yt8011_priv *priv;
+	int chip_config;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	/* ext reg 0x9030 bit0
+	 * 0 = chip works in RGMII mode; 1 = chip works in SGMII mode
+	 */
+	chip_config = ytphy_read_ext(phydev, 0x9030);
+	priv->chip_mode = chip_config & 0x1;
+
+	return 0;
+}
+
+static int yt8011_config_aneg(struct phy_device *phydev)
+{
+	phydev->speed = SPEED_1000;
+
+	return 0;
+}
+
+static int yt8011_aneg_done(struct phy_device *phydev)
+{
+	int link_utp = 0;
+
+	/* UTP */
+	ytphy_write_ext(phydev, 0x9000, 0);
+	link_utp = !!(phy_read(phydev, REG_PHY_SPEC_STATUS) & (BIT(YT8011_LINK_STATUS_BIT)));
+
+	return !!(link_utp);
+}
+
+static int yt8011_automotive_adjust_status(struct phy_device *phydev, int val)
+{
+	int speed_mode;
+	int speed = SPEED_UNKNOWN;
+
+	speed_mode = (val & YT8011_SPEED_MODE) >> YT8011_SPEED_MODE_BIT;
+	switch (speed_mode) {
+	case 1:
+		speed = SPEED_100;
+		break;
+	case 2:
+		speed = SPEED_1000;
+		break;
+	default:
+		speed = SPEED_UNKNOWN;
+		break;
+	}
+
+	phydev->speed = speed;
+	phydev->duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+static int yt8011_read_status(struct phy_device *phydev)
+{
+	int ret;
+	int val;
+	int link;
+	int link_utp = 0;
+
+	/* UTP */
+	ret = ytphy_write_ext(phydev, 0x9000, 0x0);
+	if (ret < 0)
+		return ret;
+
+	val = phy_read(phydev, REG_PHY_SPEC_STATUS);
+	if (val < 0)
+		return val;
+
+	link = val & (BIT(YT8011_LINK_STATUS_BIT));
+	if (link) {
+		link_utp = 1;
+		yt8011_automotive_adjust_status(phydev, val);
+	} else {
+		link_utp = 0;
+	}
+
+	if (link_utp) {
+		if (phydev->link == 0)
+			phydev->link = 1;
+	} else {
+		if (phydev->link == 1)
+			phydev->link = 0;
+	}
+
+	if (link_utp)
+		ytphy_write_ext(phydev, 0x9000, 0x0);
+
+	return 0;
+}
+
 static int ytphy_soft_reset(struct phy_device *phydev)
 {
 	int ret = 0, val = 0;
@@ -232,6 +377,25 @@ static int ytphy_soft_reset(struct phy_device *phydev)
 		return ret;
 
 	return ret;
+}
+
+static int yt8011_soft_reset(struct phy_device *phydev)
+{
+	struct yt8011_priv *priv = phydev->priv;
+
+	/* utp */
+	ytphy_write_ext(phydev, 0x9000, 0x0);
+	ytphy_soft_reset(phydev);
+
+	if (priv->chip_mode) { /* sgmm */
+		ytphy_write_ext(phydev, 0x9000, 0x8000);
+		ytphy_soft_reset(phydev);
+
+		/* restore utp space */
+		ytphy_write_ext(phydev, 0x9000, 0x0);
+	}
+
+	return 0;
 }
 
 static int yt8512_clk_init(struct phy_device *phydev)
@@ -313,6 +477,80 @@ static int yt8512_led_init(struct phy_device *phydev)
 	ret = ytphy_write_ext(phydev, YT8512_LED1_BT_ON_EN, val);
 
 	return ret;
+}
+
+static int yt8011_config_init(struct phy_device *phydev)
+{
+	struct yt8011_priv *priv = phydev->priv;
+
+	phydev->autoneg = AUTONEG_DISABLE;
+
+	/* UTP */
+	ytphy_write_ext(phydev, 0x9000, 0x0);
+
+	ytphy_write_ext(phydev, 0x1008, 0x2119);
+	ytphy_write_ext(phydev, 0x1092, 0x712);
+	ytphy_write_ext(phydev, 0x90bc, 0x6661);
+	ytphy_write_ext(phydev, 0x90b9, 0x620b);
+	ytphy_write_ext(phydev, 0x2001, 0x6418);
+	ytphy_write_ext(phydev, 0x1019, 0x3712);
+	ytphy_write_ext(phydev, 0x101a, 0x3713);
+	ytphy_write_ext(phydev, 0x2015, 0x1012);
+	ytphy_write_ext(phydev, 0x2005, 0x810);
+	ytphy_write_ext(phydev, 0x2013, 0xff06);
+	ytphy_write_ext(phydev, 0x1000, 0x0028);
+	ytphy_write_ext(phydev, 0x1002, 0x3800);
+	ytphy_write_ext(phydev, 0x1090, 0x1012);
+	ytphy_write_ext(phydev, 0x1091, 0x1013);
+	ytphy_write_ext(phydev, 0x1100, 0x2020);
+	ytphy_write_mmd(phydev, 0x7, 0x1f42, 0x0016);
+	ytphy_write_ext(phydev, 0x1088, 0x002b);
+	ytphy_write_ext(phydev, 0x1088, 0x022b);
+	ytphy_write_ext(phydev, 0x1088, 0x020b);
+	ytphy_write_ext(phydev, 0x3008, 0x143);
+	ytphy_write_ext(phydev, 0x3009, 0x1918);
+
+	if (!(priv->chip_mode)) { /* rgmii config */
+#if defined(YT8011_RGMII_DVDDIO_3V3)
+		ytphy_write_ext(phydev, 0x9000, 0x8000);
+		ytphy_write_ext(phydev, 0x0062, 0x0000);
+		ytphy_write_ext(phydev, 0x9000, 0x0000);
+		ytphy_write_ext(phydev, 0x9031, 0xb200);
+		ytphy_write_ext(phydev, 0x903b, 0x0040);
+		ytphy_write_ext(phydev, 0x903e, 0x3b3b);
+		ytphy_write_ext(phydev, 0x903c, 0xf);
+		ytphy_write_ext(phydev, 0x903d, 0x1000);
+		ytphy_write_ext(phydev, 0x9038, 0x0000);
+#elif defined(YT8011_RGMII_DVDDIO_2V5)
+		ytphy_write_ext(phydev, 0x9000, 0x8000);
+		ytphy_write_ext(phydev, 0x0062, 0x0000);
+		ytphy_write_ext(phydev, 0x9000, 0x0000);
+		ytphy_write_ext(phydev, 0x9031, 0xb200);
+		ytphy_write_ext(phydev, 0x9111, 0x5);
+		ytphy_write_ext(phydev, 0x9114, 0x3939);
+		ytphy_write_ext(phydev, 0x9112, 0xf);
+		ytphy_write_ext(phydev, 0x9110, 0x0);
+		ytphy_write_ext(phydev, 0x9113, 0x10);
+		ytphy_write_ext(phydev, 0x903d, 0x2);
+#elif defined(YT8011_RGMII_DVDDIO_1V8)
+		ytphy_write_ext(phydev, 0x9000, 0x8000);
+		ytphy_write_ext(phydev, 0x0062, 0x0000);
+		ytphy_write_ext(phydev, 0x9000, 0x0000);
+		ytphy_write_ext(phydev, 0x9031, 0xb200);
+		ytphy_write_ext(phydev, 0x9116, 0x6);
+		ytphy_write_ext(phydev, 0x9119, 0x3939);
+		ytphy_write_ext(phydev, 0x9117, 0xf);
+		ytphy_write_ext(phydev, 0x9115, 0x0);
+		ytphy_write_ext(phydev, 0x9118, 0x20);
+		ytphy_write_ext(phydev, 0x903d, 0x3);
+#endif
+	}
+
+	ytphy_soft_reset(phydev);
+
+	netdev_info(phydev->attached_dev, "%s done, phy addr: %d\n", __func__, phydev->mdio.addr);
+
+	return 0;
 }
 
 static int yt8512_config_init(struct phy_device *phydev)
@@ -774,6 +1012,17 @@ static int yt8531_config_init(struct phy_device *phydev)
 
 static struct phy_driver motorcomm_phy_drvs[] = {
 	{
+		PHY_ID_MATCH_EXACT(PHY_ID_YT8011),
+		.name		= "YT8011 Automotive Gigabit Ethernet",
+		.features	= PHY_GBIT_FEATURES,
+		.flags		= PHY_POLL,
+		.probe		= yt8011_probe,
+		.config_aneg	= yt8011_config_aneg,
+		.aneg_done	= yt8011_aneg_done,
+		.config_init	= yt8011_config_init,
+		.read_status	= yt8011_read_status,
+		.soft_reset	= yt8011_soft_reset,
+	}, {
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8511),
 		.name		= "YT8511 Gigabit Ethernet",
 		.config_init	= yt8511_config_init,

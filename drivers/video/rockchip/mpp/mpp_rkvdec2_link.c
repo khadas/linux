@@ -260,6 +260,7 @@ struct rkvdec_link_info rkvdec_link_vdpu383_hw_info = {
 	.ip_time_base = 0x54,
 	.en_base = 0x40,
 	.ip_en_base = 0x58,
+	.ip_en_val = 0x01000000,
 };
 
 static void rkvdec2_link_free_task(struct kref *ref);
@@ -440,7 +441,7 @@ static int rkvdec2_link_enqueue(struct rkvdec_link_dev *link_dec,
 
 	/* set ip func to def val */
 	if (link_info->ip_en_base)
-		writel_relaxed(0x0, reg_base + link_info->ip_en_base);
+		writel_relaxed(link_info->ip_en_val, reg_base + link_info->ip_en_base);
 
 	/* start config before all registers are set */
 	wmb();
