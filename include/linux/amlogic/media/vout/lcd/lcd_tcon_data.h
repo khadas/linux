@@ -55,7 +55,7 @@
 /* tcon data control define */
 /* block_ctrl */
 #define LCD_TCON_DATA_CTRL_FLAG_MULTI           0x01
-#define LCD_TCON_DATA_CTRL_FLAG_DLG             0xd0
+#define LCD_TCON_DATA_CTRL_FLAG_UFR             0xd0
 /* ctrl_method */
 #define LCD_TCON_DATA_CTRL_DEFAULT              0x00
 #define LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT   0x01

@@ -32,6 +32,11 @@
 #define LCD_CUS_CTRL_TYPE_TCON_SW_PDF    0x11
 #define LCD_CUS_CTRL_TYPE_MAX            0xff
 
+#define LCD_VMODE_SWITCH_NONE   0
+#define LCD_VMODE_SWITCH_FULL   1
+#define LCD_VMODE_SWITCH_LIMIT  2
+#define LCD_VMODE_SWITCH_MIN    3
+
 struct lcd_ufr_s {
 	struct lcd_detail_timing_s timing;
 };

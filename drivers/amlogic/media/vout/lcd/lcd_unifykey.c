@@ -109,6 +109,8 @@ int lcd_unifykey_get_size(char *key_name, int *len)
 		return -1;
 	}
 	*len = key_len;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDUKEY("%s: %s size: 0x%x\n", __func__, key_name, *len);
 
 	return 0;
 }

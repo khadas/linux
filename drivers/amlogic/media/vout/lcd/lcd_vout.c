@@ -490,9 +490,9 @@ static void lcd_dlg_power_if_on(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
 		if (lcd_cus_ctrl_timing_is_valid(pdrv)) {
-			if (pdrv->config.cus_ctrl.timing_switch_flag == 1)
+			if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_FULL)
 				lcd_power_ctrl(pdrv, 1);
-			else if (pdrv->config.cus_ctrl.timing_switch_flag == 2)
+			else if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_LIMIT)
 				lcd_dlg_power_ctrl(pdrv, 1);
 		} else {
 			lcd_power_ctrl(pdrv, 1);
@@ -510,9 +510,9 @@ static void lcd_dlg_power_if_off(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		pdrv->status &= ~LCD_STATUS_IF_ON;
 		if (lcd_cus_ctrl_timing_is_valid(pdrv)) {
-			if (pdrv->config.cus_ctrl.timing_switch_flag == 1)
+			if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_FULL)
 				lcd_power_ctrl(pdrv, 0);
-			else if (pdrv->config.cus_ctrl.timing_switch_flag == 2)
+			else if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_LIMIT)
 				lcd_dlg_power_ctrl(pdrv, 0);
 		} else {
 			lcd_power_ctrl(pdrv, 0);
@@ -2518,8 +2518,8 @@ static int lcd_debug_ctrl_setup(char *str)
 	}
 
 	LCDPR("debug_ctrl: 0x%08x\n", data32);
-	debug_ctrl->debug_print_flag = data32 & 0xff;
-	debug_ctrl->debug_test_pattern = (data32 >> 8) & 0xff;
+	debug_ctrl->debug_print_flag = data32 & 0xffff;
+	debug_ctrl->debug_test_pattern = (data32 >> 16) & 0xf;
 	debug_ctrl->debug_para_source = (data32 >> 28) & 0x3;
 	debug_ctrl->debug_lcd_mode = (data32 >> 30) & 0x3;
 	return 0;

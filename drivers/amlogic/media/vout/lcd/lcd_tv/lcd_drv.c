@@ -213,21 +213,17 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
 #endif
 
-	if (pdrv->status & LCD_STATUS_ENCL_ON) {
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_vbyone_interrupt_enable(pdrv, 0);
-		}
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_interrupt_enable(pdrv, 0);
 	}
 
 	lcd_clk_change(pdrv);
 	lcd_venc_change(pdrv);
 
-	if (pdrv->status & LCD_STATUS_ENCL_ON) {
-		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_vbyone_wait_stable(pdrv);
-		}
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_wait_stable(pdrv);
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

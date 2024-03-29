@@ -194,7 +194,7 @@ static void lcd_clk_generate_axg(struct aml_lcd_drv_s *pdrv)
 			pll_fout *= xd;
 			if (pll_fout > bit_rate_max || pll_fout < bit_rate_min)
 				continue;
-			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+			if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 				LCDPR("fout=%d, xd=%d\n", cconf->fout, xd);
 
 			cconf->phy_clk = pll_fout;
@@ -251,7 +251,7 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 	enc_clk = pconf->timing.enc_clk;
 	od = od_table[cconf->pll_od1_sel];
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK) {
 		LCDPR("m=%d, n=%d, od=%d, xd=%d\n",
 			cconf->pll_m, cconf->pll_n, cconf->pll_od1_sel, cconf->xd);
 	}
@@ -259,7 +259,7 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 		LCDERR("%s: wrong enc_clk value %dHz\n", __func__, enc_clk);
 		return;
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("%s enc_clk=%d\n", __func__, enc_clk);
 
 	pll_fout = enc_clk;
@@ -269,7 +269,7 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 		LCDERR("%s: wrong pll_fout value %lldHz\n", __func__, pll_fout);
 		return;
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("%s pll_fout=%lld\n", __func__, pll_fout);
 
 	pll_fvco = pll_fout * od;
@@ -278,7 +278,7 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 		LCDERR("%s: wrong pll_fvco value %lldHz\n", __func__, pll_fvco);
 		return;
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("%s pll_fvco=%lld\n", __func__, pll_fvco);
 
 	ret = lcd_pll_get_frac(cconf, pll_fvco);
