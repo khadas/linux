@@ -7229,6 +7229,10 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		request_clock *= 2;
 
+	/* Pixel rate verify */
+	if (request_clock > vp_data->dclk_max / 1000)
+		return MODE_CLOCK_HIGH;
+
 	if ((request_clock <= VOP2_MAX_DCLK_RATE) &&
 	    (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
 	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
@@ -7243,9 +7247,6 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
-
-	if (request_clock > vp_data->dclk_max / 1000)
-		return MODE_CLOCK_HIGH;
 
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
@@ -12496,7 +12497,7 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	drm_object_attach_property(&crtc->base, vp->output_width_prop, 0);
 
 	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_DCLK",
-					 0, rockchip_drm_get_dclk_by_width(vop2->data->vp[vp->id].max_output.width) * 1000);
+					 0, vop2->data->vp[vp->id].dclk_max);
 	if (!prop) {
 		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_DCLK prop for vp%d failed\n", vp->id);
 		return -ENOMEM;

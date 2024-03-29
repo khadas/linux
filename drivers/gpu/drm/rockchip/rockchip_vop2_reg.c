@@ -1745,7 +1745,7 @@ static const struct vop2_video_port_data rk3576_vop_video_ports[] = {
 			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
-	 .dclk_max = 600000000,
+	 .dclk_max = 1200000000,
 	 .max_output = { 4096, 4096 },
 	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},
 	 .sdr2hdr_dly = 21,
@@ -2134,7 +2134,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 			VOP_FEATURE_HDR10 | VOP_FEATURE_NEXT_HDR,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
-	 .dclk_max = 600000000,
+	 .dclk_max = 2400000000,
 	 .max_output = { 7680, 4320 },
 	 /* hdr2sdr sdr2hdr hdr2hdr sdr2sdr */
 	 .pre_scan_max_dly = { 76, 65, 65, 54 },
