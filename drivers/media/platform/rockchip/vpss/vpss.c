@@ -157,6 +157,7 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 
 	sdev->frame_seq = -1;
 	sdev->frame_timestamp = 0;
+	dev->isr_cnt = 0;
 	atomic_inc(&dev->hw_dev->refcnt);
 	dev->cmsc_upd = true;
 	rkvpss_cmsc_config(dev, true);

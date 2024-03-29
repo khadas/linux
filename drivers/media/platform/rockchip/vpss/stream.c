@@ -458,6 +458,23 @@ static struct stream_config scl3_config = {
 	},
 };
 
+int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream)
+{
+	unsigned long lock_flags = 0;
+	struct rkvpss_buffer *buf, *tmp;
+	int cnt = 0;
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	list_for_each_entry_safe(buf, tmp, &stream->buf_queue, queue)
+		cnt++;
+	if (stream->curr_buf)
+		cnt++;
+	if (stream->next_buf && stream->next_buf != stream->curr_buf)
+		cnt++;
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	return cnt;
+}
+
 static void stream_frame_start(struct rkvpss_stream *stream, u32 irq)
 {
 	if (stream->is_crop_upd) {
@@ -722,6 +739,13 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 			ns = ktime_get_ns();
 		buf->vb.vb2_buf.timestamp = ns;
 		buf->vb.sequence = sdev->frame_seq;
+
+		ns = ktime_get_ns();
+		stream->dbg.frameloss += buf->vb.sequence - stream->dbg.id - 1;
+		stream->dbg.id = buf->vb.sequence;
+		stream->dbg.delay = ns - buf->vb.vb2_buf.timestamp;
+		stream->dbg.interval = ns - stream->dbg.timestamp;
+		stream->dbg.timestamp = ns;
 		rkvpss_stream_buf_done(stream, buf);
 	}
 
@@ -1156,6 +1180,7 @@ static int rkvpss_stream_start(struct rkvpss_stream *stream)
 		stream->ops->config_mi(stream);
 
 	stream->streaming = true;
+	stream->dbg.id = -1;
 	return ret;
 }
 
@@ -1899,6 +1924,7 @@ void rkvpss_isr(struct rkvpss_device *dev, u32 mis_val)
 {
 	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
 		 "isr:0x%x\n", mis_val);
+	dev->isr_cnt++;
 	if (mis_val & RKVPSS_ISP_ALL_FRM_END && dev->remote_sd)
 		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF, NULL);
 }

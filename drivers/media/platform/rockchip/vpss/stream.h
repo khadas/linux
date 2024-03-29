@@ -112,6 +112,14 @@ struct streams_ops {
 			   struct v4l2_pix_format_mplane *try_fmt);
 };
 
+struct frame_debug_info {
+	u64 timestamp;
+	u32 interval;
+	u32 delay;
+	u32 id;
+	u32 frameloss;
+};
+
 /* struct rkvpss_stream - VPSS stream video device
  * id: stream video identify
  * buf_queue: queued buffer list
@@ -145,6 +153,7 @@ struct rkvpss_stream {
 
 	struct v4l2_rect crop;
 	struct v4l2_pix_format_mplane out_fmt;
+	struct frame_debug_info dbg;
 
 	int id;
 	bool streaming;
@@ -169,4 +178,5 @@ void rkvpss_isr(struct rkvpss_device *dev, u32 mis_val);
 void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val);
 void rkvpss_unregister_stream_vdevs(struct rkvpss_device *dev);
 int rkvpss_register_stream_vdevs(struct rkvpss_device *dev);
+int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream);
 #endif
