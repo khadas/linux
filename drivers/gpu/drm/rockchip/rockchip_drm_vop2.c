@@ -1657,7 +1657,7 @@ static inline void rk3568_vop2_cfg_done(struct drm_crtc *crtc)
 	 */
 	val |= vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
 
 	vop2_writel(vop2, 0, val);
 
@@ -1684,7 +1684,7 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	if (vcstate->splice_mode)
 		val |= BIT(vp_data->splice_vp_id) | (BIT(vp_data->splice_vp_id) << 16);
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
 
 	vop2_writel(vop2, 0, val);
 }
@@ -5803,11 +5803,12 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-			 "vp%d update %s[%dx%d->%dx%d@(%d, %d)] fmt[%p4cc%s] addr[%pad] by %s\n",
-			 vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
-			 dsp_stx, dsp_sty,
-			 &fb->format->format,
-			 modifier_to_string(fb->modifier), &vpstate->yrgb_mst, current->comm);
+			 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+			 vp->id, win->name,
+			 actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
+			 dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
+			 &fb->format->format, modifier_to_string(fb->modifier),
+			 &vpstate->yrgb_mst, vpstate->fb_size, current->comm);
 
 	if (vop2->version != VOP_VERSION_RK3568)
 		rk3588_vop2_win_cfg_axi(win);
@@ -6063,13 +6064,17 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	}
 
 	if (vcstate->splice_mode) {
-		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d,%d)] fmt[%p4cc%s] addr[%pad]\n",
-			      vp->id, win->name, drm_rect_width(&vpstate->src) >> 16,
-			      drm_rect_height(&vpstate->src) >> 16,
-			      drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
-			      vpstate->dest.x1, vpstate->dest.y1,
-			      &fb->format->format,
-			      modifier_to_string(fb->modifier), &vpstate->yrgb_mst);
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
+				 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+				 vp->id, win->name,
+				 drm_rect_width(&vpstate->src) >> 16,
+				 drm_rect_height(&vpstate->src) >> 16,
+				 vpstate->src.x1 >> 16, vpstate->src.y1 >> 16,
+				 drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
+				 vpstate->dest.x1, vpstate->dest.y1, vpstate->zpos,
+				 &fb->format->format,
+				 modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
+				 vpstate->fb_size, current->comm);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
 		splice_win = win->splice_win;
