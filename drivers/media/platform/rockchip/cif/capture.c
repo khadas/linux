@@ -4489,6 +4489,12 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 	}
 	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
 
+	if (dev->terminal_sensor.hdmi_input_en) {
+		if (dev->chip_id == CHIP_RK3562_CIF ||
+		    dev->chip_id == CHIP_RK3576_CIF)
+			rkcif_write_register_and(dev, CIF_REG_GLB_CTRL, ~(u32)BIT(16));
+	}
+
 	rkcif_write_register_and(dev, CIF_REG_MIPI_LVDS_INTSTAT,
 				 ~(CSI_START_INTSTAT(channel->id) |
 				 CSI_DMA_END_INTSTAT(channel->id) |
