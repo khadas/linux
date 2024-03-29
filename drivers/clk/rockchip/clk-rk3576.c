@@ -842,8 +842,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(20), 13, GFLAGS),
 	GATE(PCLK_CSIDPHY1, "pclk_csidphy1", "pclk_bus_root", 0,
 			RK3576_CLKGATE_CON(40), 2, GFLAGS),
-	GATE(0, "clk_extref_timeout_bus", "xin24m", 0,
-			RK3576_CLKGATE_CON(20), 2, GFLAGS),
 
 	/* cci */
 	COMPOSITE(PCLK_CCI_ROOT, "pclk_cci_root", mux_24m_ccipvtpll_gpll_lpll_p, CLK_IS_CRITICAL,
@@ -978,8 +976,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(33), 11, GFLAGS),
 	GATE(TCLK_EMMC, "tclk_emmc", "xin24m", 0,
 			RK3576_CLKGATE_CON(33), 12, GFLAGS),
-	GATE(0, "clk_extref_timeout_nvm", "xin24m", 0,
-			RK3576_CLKGATE_CON(33), 13, GFLAGS),
 
 	/* usb */
 	COMPOSITE(ACLK_UFS_ROOT, "aclk_ufs_root", gpll_cpll_p, 0,
@@ -1003,8 +999,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(47), 13, GFLAGS),
 	GATE(ACLK_UFS_SYS, "aclk_ufs_sys", "aclk_ufs_root", 0,
 			RK3576_CLKGATE_CON(47), 15, GFLAGS),
-	GATE(0, "clk_extref_timeout_usb", "xin24m", 0,
-			RK3576_CLKGATE_CON(48), 3, GFLAGS),
 
 	/* vdec */
 	COMPOSITE_NODIV(HCLK_RKVDEC_ROOT, "hclk_rkvdec_root", mux_200m_100m_50m_24m_p, 0,
@@ -1186,8 +1180,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(MCLK_SPDIF_RX2, "mclk_spdif_rx2", gpll_cpll_aupll_p, 0,
 			RK3576_CLKSEL_CON(156), 13, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3576_CLKGATE_CON(65), 15, GFLAGS),
-	GATE(0, "clk_extref_timeout_vo0", "xin24m", 0,
-			RK3576_CLKGATE_CON(64), 11, GFLAGS),
 
 	/* vo1 */
 	COMPOSITE(ACLK_VO1_ROOT, "aclk_vo1_root", gpll_cpll_lpll_bpll_p, 0,
@@ -1378,8 +1370,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(37), 4, GFLAGS),
 	GATE(ACLK_SATA1, "aclk_sata1", "aclk_php_root", 0,
 			RK3576_CLKGATE_CON(37), 5, GFLAGS),
-	GATE(0, "clk_extref_timeout_php", "xin24m", 0,
-			RK3576_CLKGATE_CON(36), 2, GFLAGS),
 
 	/* audio */
 	COMPOSITE_NODIV(HCLK_AUDIO_ROOT, "hclk_audio_root", mux_200m_100m_50m_24m_p, 0,
@@ -1553,8 +1543,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(43), 12, GFLAGS),
 	GATE(ACLK_HSGPIO, "aclk_hsgpio", "aclk_sdgmac_root", 0,
 			RK3576_CLKGATE_CON(43), 13, GFLAGS),
-	GATE(0, "clk_extref_timeout_sdgmac", "xin24m", 0,
-			RK3576_CLKGATE_CON(43), 14, GFLAGS),
 
 	/* phpphy */
 	GATE(PCLK_PHPPHY_ROOT, "pclk_phpphy_root", "pclk_bus_root", CLK_IS_CRITICAL,
