@@ -2180,14 +2180,41 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 
 	i2s_tdm->tdm_mode = true;
 	i2s_tdm->bclk_fs = slots * slot_width;
+
+	pm_runtime_get_sync(dai->dev);
 	mask = TDM_SLOT_BIT_WIDTH_MSK | TDM_FRAME_WIDTH_MSK;
 	val = TDM_SLOT_BIT_WIDTH(slot_width) |
 	      TDM_FRAME_WIDTH(slots * slot_width);
-	pm_runtime_get_sync(dai->dev);
-	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR,
-			   mask, val);
-	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
-			   mask, val);
+
+	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR, mask, val);
+	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR, mask, val);
+
+	mask = I2S_TXCR_VDW_MASK | I2S_TXCR_CSR_MASK;
+	val = I2S_TXCR_VDW(slot_width);
+
+	if (!i2s_tdm->tdm_fsync_half_frame) {
+		switch (slots) {
+		case 16:
+			val |= I2S_CHN_8;
+			break;
+		case 12:
+			val |= I2S_CHN_6;
+			break;
+		case 8:
+			val |= I2S_CHN_4;
+			break;
+		case 4:
+			val |= I2S_CHN_2;
+			break;
+		default:
+			val |= I2S_CHN_2;
+			break;
+		}
+	}
+
+	regmap_update_bits(i2s_tdm->regmap, I2S_TXCR, mask, val);
+	regmap_update_bits(i2s_tdm->regmap, I2S_RXCR, mask, val);
+
 	pm_runtime_put(dai->dev);
 
 	return 0;
