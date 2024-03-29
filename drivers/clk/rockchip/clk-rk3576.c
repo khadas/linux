@@ -299,6 +299,7 @@ PNAME(gpll_spll_aupll_bpll_lpll_p)	= { "gpll", "spll", "aupll", "bpll_dummy", "l
 PNAME(gpll_spll_isppvtpll_bpll_lpll_p)	= { "gpll", "spll", "isp_pvtpll", "bpll_dummy", "lpll_dummy" };
 PNAME(gpll_cpll_spll_aupll_lpll_24m_p)	= { "gpll", "cpll", "spll", "aupll", "lpll_dummy", "xin24m" };
 PNAME(gpll_cpll_spll_vpll_bpll_lpll_p)	= { "gpll", "cpll", "spll", "vpll", "bpll_dummy", "lpll_dummy" };
+PNAME(cpll_vpll_lpll_bpll_p)		= { "cpll", "vpll", "lpll_dummy", "bpll_dummy" };
 PNAME(mux_24m_ccipvtpll_gpll_lpll_p)	= { "xin24m", "cci_pvtpll", "gpll", "lpll" };
 PNAME(mux_24m_spll_gpll_cpll_p)		= {"xin24m", "spll", "gpll", "cpll" };
 PNAME(audio_frac_int_p)			= { "xin24m", "clk_audio_frac_0", "clk_audio_frac_1", "clk_audio_frac_2",
@@ -360,10 +361,10 @@ PNAME(clk_aupll_ref_src_p)		= { "xin24m", "clk_aupll_ref_io" };
 
 static struct rockchip_pll_clock rk3576_pll_clks[] __initdata = {
 	[bpll] = PLL(pll_rk3588_core, PLL_BPLL, "bpll", mux_pll_p,
-		     CLK_IS_CRITICAL, RK3576_PLL_CON(0),
+		     0, RK3576_PLL_CON(0),
 		     RK3576_BPLL_MODE_CON0, 0, 15, 0, rk3576_pll_rates),
 	[lpll] = PLL(pll_rk3588_core, PLL_LPLL, "lpll", mux_pll_p,
-		     CLK_IS_CRITICAL, RK3576_LPLL_CON(16),
+		     0, RK3576_LPLL_CON(16),
 		     RK3576_LPLL_MODE_CON0, 0, 15, 0, rk3576_pll_rates),
 	[vpll] = PLL(pll_rk3588, PLL_VPLL, "vpll", mux_pll_p,
 		     0, RK3576_PLL_CON(88),
@@ -841,8 +842,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(20), 13, GFLAGS),
 	GATE(PCLK_CSIDPHY1, "pclk_csidphy1", "pclk_bus_root", 0,
 			RK3576_CLKGATE_CON(40), 2, GFLAGS),
-	GATE(0, "clk_extref_timeout_bus", "xin24m", 0,
-			RK3576_CLKGATE_CON(20), 2, GFLAGS),
 
 	/* cci */
 	COMPOSITE(PCLK_CCI_ROOT, "pclk_cci_root", mux_24m_ccipvtpll_gpll_lpll_p, CLK_IS_CRITICAL,
@@ -977,8 +976,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(33), 11, GFLAGS),
 	GATE(TCLK_EMMC, "tclk_emmc", "xin24m", 0,
 			RK3576_CLKGATE_CON(33), 12, GFLAGS),
-	GATE(0, "clk_extref_timeout_nvm", "xin24m", 0,
-			RK3576_CLKGATE_CON(33), 13, GFLAGS),
 
 	/* usb */
 	COMPOSITE(ACLK_UFS_ROOT, "aclk_ufs_root", gpll_cpll_p, 0,
@@ -1002,8 +999,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(47), 13, GFLAGS),
 	GATE(ACLK_UFS_SYS, "aclk_ufs_sys", "aclk_ufs_root", 0,
 			RK3576_CLKGATE_CON(47), 15, GFLAGS),
-	GATE(0, "clk_extref_timeout_usb", "xin24m", 0,
-			RK3576_CLKGATE_CON(48), 3, GFLAGS),
 
 	/* vdec */
 	COMPOSITE_NODIV(HCLK_RKVDEC_ROOT, "hclk_rkvdec_root", mux_200m_100m_50m_24m_p, 0,
@@ -1012,6 +1007,9 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(ACLK_RKVDEC_ROOT, "aclk_rkvdec_root", gpll_cpll_aupll_spll_p, 0,
 			RK3576_CLKSEL_CON(110), 7, 2, MFLAGS, 2, 5, DFLAGS,
 			RK3576_CLKGATE_CON(45), 1, GFLAGS),
+	COMPOSITE(ACLK_RKVDEC_ROOT_BAK, "aclk_rkvdec_root_bak", cpll_vpll_lpll_bpll_p, 0,
+			RK3576_CLKSEL_CON(110), 14, 2, MFLAGS, 9, 5, DFLAGS,
+			RK3576_CLKGATE_CON(45), 2, GFLAGS),
 	GATE(HCLK_RKVDEC, "hclk_rkvdec", "hclk_rkvdec_root", 0,
 			RK3576_CLKGATE_CON(45), 3, GFLAGS),
 	COMPOSITE(CLK_RKVDEC_HEVC_CA, "clk_rkvdec_hevc_ca", gpll_cpll_lpll_bpll_p, 0,
@@ -1182,8 +1180,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(MCLK_SPDIF_RX2, "mclk_spdif_rx2", gpll_cpll_aupll_p, 0,
 			RK3576_CLKSEL_CON(156), 13, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3576_CLKGATE_CON(65), 15, GFLAGS),
-	GATE(0, "clk_extref_timeout_vo0", "xin24m", 0,
-			RK3576_CLKGATE_CON(64), 11, GFLAGS),
 
 	/* vo1 */
 	COMPOSITE(ACLK_VO1_ROOT, "aclk_vo1_root", gpll_cpll_lpll_bpll_p, 0,
@@ -1294,13 +1290,13 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	MUX(0, "dclk_ebc_frac_src_p", gpll_cpll_vpll_aupll_24m_p, 0,
 			RK3576_CLKSEL_CON(123), 0, 3, MFLAGS),
 	COMPOSITE_FRAC(DCLK_EBC_FRAC_SRC, "dclk_ebc_frac_src", "dclk_ebc_frac_src_p", 0,
-			RK3576_CLKSEL_CON(122), 0,
+			RK3576_CLKSEL_CON(122), CLK_FRAC_DIVIDER_NO_LIMIT,
 			RK3576_CLKGATE_CON(50), 9, GFLAGS),
 	GATE(ACLK_EBC, "aclk_ebc", "aclk_vpu_low_root", 0,
 			RK3576_CLKGATE_CON(50), 11, GFLAGS),
 	GATE(HCLK_EBC, "hclk_ebc", "hclk_vpu_root", 0,
 			RK3576_CLKGATE_CON(50), 10, GFLAGS),
-	COMPOSITE(DCLK_EBC, "dclk_ebc", dclk_ebc_p, 0,
+	COMPOSITE(DCLK_EBC, "dclk_ebc", dclk_ebc_p, CLK_SET_RATE_NO_REPARENT,
 			RK3576_CLKSEL_CON(123), 12, 3, MFLAGS, 3, 9, DFLAGS,
 			RK3576_CLKGATE_CON(50), 12, GFLAGS),
 
@@ -1374,8 +1370,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(37), 4, GFLAGS),
 	GATE(ACLK_SATA1, "aclk_sata1", "aclk_php_root", 0,
 			RK3576_CLKGATE_CON(37), 5, GFLAGS),
-	GATE(0, "clk_extref_timeout_php", "xin24m", 0,
-			RK3576_CLKGATE_CON(36), 2, GFLAGS),
 
 	/* audio */
 	COMPOSITE_NODIV(HCLK_AUDIO_ROOT, "hclk_audio_root", mux_200m_100m_50m_24m_p, 0,
@@ -1549,8 +1543,6 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_CLKGATE_CON(43), 12, GFLAGS),
 	GATE(ACLK_HSGPIO, "aclk_hsgpio", "aclk_sdgmac_root", 0,
 			RK3576_CLKGATE_CON(43), 13, GFLAGS),
-	GATE(0, "clk_extref_timeout_sdgmac", "xin24m", 0,
-			RK3576_CLKGATE_CON(43), 14, GFLAGS),
 
 	/* phpphy */
 	GATE(PCLK_PHPPHY_ROOT, "pclk_phpphy_root", "pclk_bus_root", CLK_IS_CRITICAL,
@@ -1742,6 +1734,17 @@ static void rk3576_dump_cru(void)
 	}
 }
 
+static int protect_clocks[] = {
+	ACLK_EBC,
+	HCLK_EBC,
+	DCLK_EBC,
+	ACLK_VOP,
+	HCLK_VOP,
+	DCLK_VP0,
+	DCLK_VP1,
+	DCLK_VP2,
+};
+
 static void __init rk3576_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1789,6 +1792,8 @@ static void __init rk3576_clk_init(struct device_node *np)
 
 	if (!rk_dump_cru)
 		rk_dump_cru = rk3576_dump_cru;
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3576_cru, "rockchip,rk3576-cru", rk3576_clk_init);

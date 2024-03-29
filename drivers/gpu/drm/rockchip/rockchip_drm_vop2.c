@@ -354,7 +354,7 @@ struct vop2_plane_state {
 	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
-	dma_addr_t mst_end;/* current fb last address */
+	size_t fb_size;/* fb size */
 	bool afbc_en;
 	bool hdr_in;
 	bool hdr2sdr_en;
@@ -4199,7 +4199,20 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 */
 		VOP_CTRL_SET(vop2, auto_gating_en, 0);
 
-		VOP_CTRL_SET(vop2, aclk_pre_auto_gating_en, 0);
+		/*
+		 * This is a workaround for RK3528/RK3562/RK3576:
+		 *
+		 * The aclk pre auto gating function may disable the aclk
+		 * in some unexpected cases, which detected by hardware
+		 * automatically.
+		 *
+		 * For example, if the above function is enabled, the post
+		 * scale function will be affected, resulting in abnormal
+		 * display.
+		 */
+		if (vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562 ||
+		    vop2->version == VOP_VERSION_RK3576)
+			VOP_CTRL_SET(vop2, aclk_pre_auto_gating_en, 0);
 
 		/*
 		 * Register OVERLAY_LAYER_SEL and OVERLAY_PORT_SEL should take effect immediately,
@@ -5356,7 +5369,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		if (vpstate->tiled_en == ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0)
 			vpstate->yrgb_mst += offset;
 	}
-	vpstate->mst_end = rk_obj->dma_addr + rk_obj->size;
+	vpstate->fb_size = rk_obj->size;
 
 	if (win->feature & WIN_FEATURE_DCI) {
 		if (vpstate->dci_data)
@@ -5872,7 +5885,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_AFBC_SET(vop2, win, pld_offset_en, 1); /* use relative address by default */
 		VOP_AFBC_SET(vop2, win, pld_ptr_offset, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pld_range_en, 1);
-		VOP_AFBC_SET(vop2, win, pld_ptr_range, vpstate->mst_end);
+		VOP_AFBC_SET(vop2, win, pld_ptr_range, vpstate->fb_size);
 	} else {
 		VOP_CLUSTER_SET(vop2, win, afbc_enable, 0);
 		transform_offset = vop2_tile_transform_offset(vpstate, vpstate->tiled_en);
@@ -11737,8 +11750,8 @@ static void vop2_wb_handler(struct vop2_video_port *vp)
 	uint8_t i;
 	bool wb_oneframe_mode = VOP_MODULE_GET(vop2, wb, one_frame_mode);
 
-	wb_en = vop2_readl(vop2, RK3568_WB_CTRL) & 0x01;
-	wb_vp_id = (vop2_readl(vop2, RK3568_LUT_PORT_SEL) >> 8) & 0x3;
+	wb_en = VOP_MODULE_GET(vop2, wb, enable);
+	wb_vp_id = VOP_MODULE_GET(vop2, wb, vp_id);
 	if (wb_vp_id != vp->id)
 		return;
 	/*

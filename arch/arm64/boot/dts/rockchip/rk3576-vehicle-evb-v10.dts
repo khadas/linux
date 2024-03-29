@@ -23,54 +23,6 @@
 		io-channel-names = "gear", "turn_left", "turn_right";
 	};
 
-	vcc5v0_buck: vcc5v0-buck {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_buck";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc12v_dcin>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&vcc5v0_buck_en>;
-		startup-delay-us = <2500>;
-		off-on-delay-us = <1500>;
-		regulator-state-mem {
-			regulator-on-in-suspend;
-			regulator-suspend-microvolt = <5000000>;
-		};
-	};
-
-	vcc5v0_host_usb20: vcc5v0-host-usb20 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_host_usb20";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <2000>;
-		off-on-delay-us = <16000>;
-		vin-supply = <&vcc5v0_buck>;
-	};
-
-	vcc5v0_host_usb30: vcc5v0-host-usb30 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_host_usb30";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <2000>;
-		off-on-delay-us = <16000>;
-		vin-supply = <&vcc5v0_buck>;
-	};
-
 	lcd1_vcc12v_buck: lcd1_vcc12v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd1_vcc12v_buck";
@@ -338,20 +290,6 @@
 			regulator-suspend-microvolt = <12000000>;
 		};
 	};
-
-	vcc5v0_host_usb20: vcc5v0-host-usb20 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_host_usb20";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&vcc5v0_buck>;
-		regulator-state-mem {
-			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <5000000>;
-		};
-	};
 };
 
 &gmac1 {
@@ -360,6 +298,21 @@
 
 &hym8563 {
 	status = "disabled";
+};
+
+/*edp*/
+&i2c2_max96752 {
+	vpower-supply = <&lcd1_vcc12v_buck>;
+};
+
+/*dp*/
+&i2c5_max96752 {
+	vpower-supply = <&lcd2_vcc12v_buck>;
+};
+
+/*dsi*/
+&i2c8_max96752 {
+	vpower-supply = <&lcd3_vcc12v_buck>;
 };
 
 &pinctrl {
@@ -380,35 +333,8 @@
 		};
 	};
 
-	vcc5v0-buck {
-		vcc5v0_buck_en: vcc5v0-buck-en {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
 };
 
 &sdmmc {
 	status = "disabled";
-};
-
-&u2phy0_otg {
-	phy-supply = <&vcc5v0_host_usb20>;
-};
-
-&u2phy1_otg {
-	phy-supply = <&vcc5v0_host_usb30>;
-	status = "okay";
-};
-
-&usb_drd0_dwc3 {
-	dr_mode = "peripheral";
-	maximum-speed = "high-speed";
-	extcon = <&u2phy0>;
-	status = "okay";
-};
-
-&usb_drd1_dwc3 {
-	dr_mode = "host";
-	status = "okay";
 };

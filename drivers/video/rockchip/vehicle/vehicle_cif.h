@@ -16,6 +16,7 @@ enum vehicle_rkcif_chip_id {
 	CHIP_RK3568_VEHICLE_CIF = 0x0,
 	CHIP_RK3588_VEHICLE_CIF,
 	CHIP_RK3562_VEHICLE_CIF,
+	CHIP_RK3576_VEHICLE_CIF,
 };
 
 enum rkcif_csi_host_idx {
@@ -128,6 +129,7 @@ struct vehicle_cif {
 	const		struct vehicle_cif_reg *cif_regs;
 	struct		regmap *regmap_grf;
 	struct		regmap *regmap_dphy_grf;
+	struct		regmap *dphy_sys_grf;
 	unsigned int	frame_idx;
 	struct	vehicle_rkcif_dummy_buffer	dummy_buf;
 	struct csi2_dphy_hw	*dphy_hw;

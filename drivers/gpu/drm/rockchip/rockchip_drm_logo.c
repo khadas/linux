@@ -1197,10 +1197,12 @@ err_unlock:
 
 #ifndef MODULE
 static const char *const loader_protect_clocks[] __initconst = {
+	"hclk_ebc",
 	"hclk_vio",
 	"hclk_vop",
 	"hclk_vopb",
 	"hclk_vopl",
+	"aclk_ebc",
 	"aclk_vio",
 	"aclk_vio0",
 	"aclk_vio1",
@@ -1209,6 +1211,7 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"aclk_vopl",
 	"aclk_vo_pre",
 	"aclk_vio_pre",
+	"dclk_ebc",
 	"dclk_vop",
 	"dclk_vop0",
 	"dclk_vop1",

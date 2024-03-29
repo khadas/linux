@@ -552,6 +552,7 @@
 #define SCLK_DDR			550
 #define ACLK_CRYPTO_NS			551
 #define CLK_PKA_CRYPTO_NS		552
+#define ACLK_RKVDEC_ROOT_BAK		553
 
 /* secure clk */
 #define CLK_STIMER0_ROOT		600

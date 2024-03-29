@@ -9,7 +9,6 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
-#include <linux/can/led.h>
 #include <linux/clk.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
@@ -309,7 +308,7 @@ static int rockchip_can_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	writel(fi, rcan->base + CAN_TX_FRM_INFO);
-	can_put_echo_skb(skb, ndev, 0);
+	can_put_echo_skb(skb, ndev, 0, 0);
 
 	rockchip_can_write_cmdreg(rcan, TX_REQ);
 	netdev_dbg(ndev, "TX: can_id:0x%08x dlc: %d mode: 0x%08x data: 0x%08x 0x%08x\n",
@@ -334,7 +333,7 @@ static void rockchip_can_rx(struct net_device *ndev)
 		return;
 
 	fi = readl(rcan->base + CAN_RX_FRM_INFO);
-	cf->can_dlc = get_can_dlc(fi & CAN_DLC_MASK);
+	cf->can_dlc = can_cc_dlc2len(fi & CAN_DLC_MASK);
 	id = readl(rcan->base + CAN_RX_ID);
 	if (fi & CAN_EFF)
 		id |= CAN_EFF_FLAG;
@@ -354,8 +353,6 @@ static void rockchip_can_rx(struct net_device *ndev)
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 	netif_rx(skb);
-
-	can_led_event(ndev, CAN_LED_EVENT_RX);
 
 	netdev_dbg(ndev, "%s can_id:0x%08x fi: 0x%08x dlc: %d data: 0x%08x 0x%08x\n",
 		   __func__, cf->can_id, fi, cf->can_dlc,
@@ -508,13 +505,10 @@ static irqreturn_t rockchip_can_interrupt(int irq, void *dev_id)
 	isr = readl(rcan->base + CAN_INT);
 	if (isr & TX_FINISH) {
 		/* transmission complete interrupt */
-		stats->tx_bytes += readl(rcan->base + CAN_TX_FRM_INFO) &
-				   CAN_DLC_MASK;
-		stats->tx_packets++;
 		rockchip_can_write_cmdreg(rcan, 0);
-		can_get_echo_skb(ndev, 0);
+		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
+		stats->tx_packets++;
 		netif_wake_queue(ndev);
-		can_led_event(ndev, CAN_LED_EVENT_TX);
 	}
 
 	if (isr & RX_FINISH)
@@ -555,7 +549,6 @@ static int rockchip_can_open(struct net_device *ndev)
 		goto exit_can_start;
 	}
 
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	netif_start_queue(ndev);
 
 	netdev_dbg(ndev, "%s\n", __func__);
@@ -575,7 +568,6 @@ static int rockchip_can_close(struct net_device *ndev)
 	netif_stop_queue(ndev);
 	rockchip_can_stop(ndev);
 	close_candev(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	pm_runtime_put(rcan->dev);
 
 	netdev_dbg(ndev, "%s\n", __func__);
@@ -770,8 +762,6 @@ static int rockchip_can_probe(struct platform_device *pdev)
 			DRV_NAME, err);
 		goto err_disableclks;
 	}
-
-	devm_can_led_init(ndev);
 
 	pm_runtime_put(&pdev->dev);
 
