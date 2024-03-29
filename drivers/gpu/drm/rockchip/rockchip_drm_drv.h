@@ -599,7 +599,6 @@ int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
 void rockchip_drm_te_handle(struct drm_crtc *crtc);
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
-u32 rockchip_drm_get_dclk_by_width(int width);
 const char *rockchip_drm_get_color_encoding_name(enum drm_color_encoding encoding);
 const char *rockchip_drm_get_color_range_name(enum drm_color_range range);
 #if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
