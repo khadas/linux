@@ -219,6 +219,7 @@
 #define RK3576_WIN1_EMPTY_INT_MASK	BIT(25)
 #define RK3576_WIN0_EMPTY_INT_MASK	BIT(24)
 #define RK3576_FRM_END_INT_MASK		BIT(4)
+#define RK3576_DSP_END_INT_MASK		BIT(5)
 #define RK3576_DSP_FRM_INT_MASK		BIT(6)
 #define RK3576_LINE_FLAG_INT_MASK	BIT(7)
 
@@ -408,6 +409,15 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_write(tcon, RK3576_EBC_DSP_CTRL,
 		   RK3576_DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | RK3576_DSP_VCOM_MODE(1) |
 		   val);
+	/* unmask RK3576_DSP_END_INT_MASK */
+	tcon_update_bits(tcon, RK3576_EBC_INT_STATUS, RK3576_DSP_END_INT_MASK |
+			 RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK |
+			 RK3576_WIN2_EMPTY_INT_MASK | RK3576_WIN1_EMPTY_INT_MASK |
+			 RK3576_WIN0_EMPTY_INT_MASK, 0 |
+			 RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK |
+			 RK3576_WIN2_EMPTY_INT_MASK | RK3576_WIN1_EMPTY_INT_MASK |
+			 RK3576_WIN0_EMPTY_INT_MASK);
+
 	rk3576_tcon_cfg_done(tcon);
 
 	enable_irq(tcon->irq);
@@ -518,9 +528,6 @@ static int rk3576_tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_dat
 
 static void rk3576_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 {
-	tcon_write(tcon, RK3576_EBC_INT_STATUS, RK3576_LINE_FLAG_INT_MASK |
-		   RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK | RK3576_WIN2_EMPTY_INT_MASK |
-		   RK3576_WIN1_EMPTY_INT_MASK | RK3576_WIN0_EMPTY_INT_MASK);
 	/* always set frm start bit 0 before real frame start */
 	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL2, RK3576_DSP_FRM_TOTAL_MASK,
 			 RK3576_DSP_FRM_TOTAL(frame_total - 1));
@@ -591,6 +598,9 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_write(tcon, EBC_DSP_START, DSP_SDCE_WIDTH(panel->ldl) | SW_BURST_CTRL);
 	tcon_write(tcon, EBC_DSP_CTRL,
 				DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | DSP_VCOM_MODE(1) | DSP_SDCLK_DIV(0));
+	/* unmask DSP_END_INT_MASK */
+	tcon_update_bits(tcon, EBC_INT_STATUS, FRM_END_INT_MASK | DSP_END_INT_MASK |
+			 DSP_FRM_INT_MASK, FRM_END_INT_MASK | DSP_FRM_INT_MASK);
 	tcon_cfg_done(tcon);
 
 	enable_irq(tcon->irq);
@@ -658,7 +668,6 @@ static int tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data, int 
 
 static void tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 {
-	tcon_write(tcon, EBC_INT_STATUS, LINE_FLAG_INT_MASK | DSP_FRM_INT_MASK | FRM_END_INT_MASK);
 	/* always set frm start bit 0 before real frame start */
 	tcon_update_bits(tcon, EBC_DSP_START, DSP_FRM_TOTAL_MASK | DSP_FRM_START_MASK, DSP_FRM_TOTAL(frame_total - 1));
 	tcon_cfg_done(tcon);
@@ -673,14 +682,30 @@ static irqreturn_t tcon_irq_hanlder(int irq, void *dev_id)
 
 	intr_status = tcon_read(tcon, EBC_INT_STATUS);
 
-	if (intr_status & DSP_END_INT) {
-		tcon_update_bits(tcon, EBC_INT_STATUS, DSP_END_INT_CLR | LINE_FLAG_INT_CLR, DSP_END_INT_CLR | LINE_FLAG_INT_CLR);
 
+	if (intr_status & DSP_END_INT) {
+		tcon_update_bits(tcon, EBC_INT_STATUS, DSP_END_INT_CLR, DSP_END_INT_CLR);
 		if (tcon->dsp_end_callback)
 			tcon->dsp_end_callback();
 	}
 
+	if (intr_status & LINE_FLAG_INT) {
+		tcon_update_bits(tcon, EBC_INT_STATUS, LINE_FLAG_INT_CLR, LINE_FLAG_INT_CLR);
+		if (tcon->line_flag_callback)
+			tcon->line_flag_callback();
+	}
+
 	return IRQ_HANDLED;
+}
+
+static void tcon_set_line_flag_event(struct ebc_tcon *tcon, u32 line, bool enable)
+{
+	tcon_write(tcon, EBC_VNUM, line);
+
+	if (enable)
+		tcon_update_bits(tcon, EBC_INT_STATUS, LINE_FLAG_INT_MASK, 0);
+	else
+		tcon_update_bits(tcon, EBC_INT_STATUS, LINE_FLAG_INT_MASK, LINE_FLAG_INT_MASK);
 }
 
 static bool tcon_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -808,6 +833,7 @@ static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 		.frame_addr_set = tcon_frame_addr_set,
 		.lut_data_set = tcon_lut_data_set,
 		.frame_start = tcon_frame_start,
+		.set_line_flag_event = tcon_set_line_flag_event,
 	},
 };
 
@@ -823,6 +849,7 @@ static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 		.lut_data_set = rk3576_tcon_lut_data_set,
 		.frame_start = rk3576_tcon_frame_start,
 		.data_format_set = rk3576_tcon_data_format_set,
+		.set_line_flag_event = tcon_set_line_flag_event,
 	},
 };
 

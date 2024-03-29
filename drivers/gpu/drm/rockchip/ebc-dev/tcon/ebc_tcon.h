@@ -57,6 +57,8 @@ struct ebc_tcon {
 	void (*data_format_set)(struct ebc_tcon *tcon, enum ebc_tcon_data_format format);
 	void (*frame_start)(struct ebc_tcon *tcon, int frame_total);
 	void (*dsp_end_callback)(void);
+	void (*set_line_flag_event)(struct ebc_tcon *tcon, u32 line, bool enable);
+	void (*line_flag_callback)(void);
 };
 
 static inline int ebc_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
@@ -98,6 +100,11 @@ static inline void ebc_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 static inline void ebc_tcon_data_format_set(struct ebc_tcon *tcon, enum ebc_tcon_data_format format)
 {
 	tcon->data_format_set(tcon, format);
+}
+
+static inline void ebc_tcon_set_line_flag_event(struct ebc_tcon *tcon, u32 line, bool enable)
+{
+	tcon->set_line_flag_event(tcon, line, enable);
 }
 
 struct eink_tcon {
