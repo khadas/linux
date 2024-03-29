@@ -1499,7 +1499,7 @@ int rk628_hdmirx_get_timings(struct rk628 *rk628,
 	if (rk628->version >= RK628F_VERSION) {
 		val = DIV_ROUND_CLOSEST_ULL(1188000000, bt->pixelclock);
 		val *= bt->pixelclock;
-		if (val > 1188000000) {
+		if (bt->pixelclock > 594000000) {
 			/* set pll rate according hdmirx tmds clk */
 			rk628_clk_set_rate(rk628, CGU_CLK_CPLL, val);
 			dev_dbg(rk628->dev, "set CPLL to %d\n", val);
