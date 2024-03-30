@@ -7244,7 +7244,8 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 			else if (vop2->version == VOP_VERSION_RK3588)
 				request_clock = request_clock >> 2;
 		}
-		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
+		clock = rockchip_drm_dclk_round_rate(vop2->version,
+						     vp->dclk_parent ? vp->dclk_parent : vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
 
