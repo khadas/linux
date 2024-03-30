@@ -12422,3 +12422,20 @@ int rkcif_sditf_disconnect(struct video_device *vdev)
 	return ret;
 }
 EXPORT_SYMBOL(rkcif_sditf_disconnect);
+
+void rkcif_external_soft_reset(struct video_device *vdev)
+{
+	struct rkcif_vdev_node *vnode = NULL;
+	struct rkcif_stream *stream = NULL;
+	struct rkcif_device *cifdev = NULL;
+
+	if (!vdev)
+		return;
+
+	vnode = vdev_to_node(vdev);
+	stream = to_rkcif_stream(vnode);
+	cifdev = stream->cifdev;
+	if (cifdev && cifdev->chip_id >= CHIP_RK3588_CIF)
+		rkcif_do_soft_reset(cifdev);
+}
+EXPORT_SYMBOL(rkcif_external_soft_reset);
