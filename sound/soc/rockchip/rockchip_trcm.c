@@ -36,6 +36,7 @@ struct dmaengine_trcm {
 	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
 	struct dmaengine_dma_guard guard[SNDRV_PCM_STREAM_LAST + 1];
 	struct snd_soc_component component;
+	bool always_on;
 };
 
 struct dmaengine_trcm_runtime_data {
@@ -340,6 +341,7 @@ static int dmaengine_trcm_dma_guard_new(struct snd_soc_component *component,
 	struct dmaengine_trcm *trcm = soc_component_to_trcm(component);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct snd_pcm_substream *substream;
+	struct snd_soc_dai *dai;
 	struct dma_chan *chan;
 	struct dma_slave_config slave_config;
 	struct device *dev;
@@ -350,6 +352,8 @@ static int dmaengine_trcm_dma_guard_new(struct snd_soc_component *component,
 
 	for_each_pcm_streams(i) {
 		substream = rtd->pcm->streams[i].substream;
+		if (!substream)
+			continue;
 		dev = dmaengine_dma_dev(trcm, substream);
 		chan = trcm->chan[i];
 
@@ -370,9 +374,41 @@ static int dmaengine_trcm_dma_guard_new(struct snd_soc_component *component,
 		snd_dmaengine_pcm_set_config_from_dai_data(substream, dma_data,
 							   &slave_config);
 
+		/*
+		 * Use the max-16w to cover all 2^n cases, maybe better
+		 * per channels and fmt, at the moment, we use the simple
+		 * way.
+		 */
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			slave_config.direction = DMA_MEM_TO_DEV;
+			slave_config.dst_maxburst = 16;
+		} else {
+			slave_config.direction = DMA_DEV_TO_MEM;
+			slave_config.src_maxburst = 16;
+		}
+
 		ret = dmaengine_slave_config(chan, &slave_config);
 		if (ret)
 			return ret;
+	}
+
+	if (trcm->always_on) {
+		/* Start the first one will auto trigger bstream guard. */
+		for_each_pcm_streams(i) {
+			substream = rtd->pcm->streams[i].substream;
+			if (!substream)
+				continue;
+			dai = asoc_rtd_to_cpu(rtd, 0);
+			if (!dai)
+				continue;
+
+			dmaengine_trcm_dma_guard_ctrl(component, substream->stream, 1);
+			ret = dai->driver->ops->trigger(substream,
+							SNDRV_PCM_TRIGGER_START,
+							dai);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -491,6 +527,8 @@ static int snd_dmaengine_trcm_register(struct device *dev)
 		return -ENOMEM;
 
 	trcm->dev = dev;
+
+	trcm->always_on = device_property_read_bool(dev, "rockchip,always-on");
 
 #ifdef CONFIG_DEBUG_FS
 	trcm->component.debugfs_prefix = "dma";
