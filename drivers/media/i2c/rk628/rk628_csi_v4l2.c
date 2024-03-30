@@ -36,6 +36,9 @@
 #include <media/v4l2-fwnode.h>
 #include <video/videomode.h>
 #include <linux/rk_hdmirx_config.h>
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+#include "../../platform/rockchip/cif/rkcif-externel.h"
+#endif
 
 #include "rk628.h"
 #include "rk628_combrxphy.h"
@@ -1401,6 +1404,50 @@ static int rk628_csi_format_change(struct v4l2_subdev *sd)
 	return 0;
 }
 
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+static void rk628_get_remote_dev(struct media_entity *sensor_entity,
+				  struct video_device **video)
+{
+	struct media_graph graph;
+	struct media_device *mdev = sensor_entity->graph_obj.mdev;
+	struct media_entity *entity;
+	int ret = 0;
+
+	mutex_lock(&mdev->graph_mutex);
+	ret = media_graph_walk_init(&graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		return;
+	}
+
+	media_graph_walk_start(&graph, sensor_entity);
+	while ((entity = media_graph_walk_next(&graph))) {
+		if (strcmp(entity->name, "stream_cif_mipi_id0") == 0)
+			break;
+	}
+	mutex_unlock(&mdev->graph_mutex);
+	media_graph_walk_cleanup(&graph);
+
+	if (entity)
+		*video = media_entity_to_video_device(entity);
+	else
+		*video = NULL;
+}
+
+static void rk628_csi_reset_rkcif(struct v4l2_subdev *sd)
+{
+	struct video_device *vdev = NULL;
+
+	rk628_get_remote_dev(&sd->entity, &vdev);
+	if (vdev != NULL) {
+		rkcif_external_soft_reset(vdev);
+		v4l2_dbg(1, debug, sd, "%s, do reset rkcif\n", __func__);
+	} else {
+		v4l2_dbg(1, debug, sd, "%s, get remote rkcif failed\n", __func__);
+	}
+}
+#endif
+
 static void rk628_csi_enable_csi_interrupts(struct v4l2_subdev *sd, bool en)
 {
 	struct rk628_csi *csi = to_csi(sd);
@@ -1496,6 +1543,8 @@ static void rk628_csi_clear_csi_interrupts(struct v4l2_subdev *sd)
 static void rk628_csi_error_process(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
+	u32 val, val_csi1 = 0;
+	int i;
 
 	if (csi->is_streaming) {
 		v4l2_info(sd,
@@ -1514,6 +1563,9 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 		rk628_csi_soft_reset(sd);
 		usleep_range(5000, 5500);
 
+#if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
+		rk628_csi_reset_rkcif(sd);
+#endif
 		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN, CSITX_EN_MASK, CSITX_EN(1));
 		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
 		if (csi->rk628->version >= RK628F_VERSION) {
@@ -1521,10 +1573,31 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 						CSITX_EN_MASK, CSITX_EN(1));
 			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 		}
-		//clr int status
-		rk628_csi_clear_csi_interrupts(sd);
+
+		for (i = 0; i < 3; i++) {
+			rk628_i2c_read(csi->rk628, CSITX_CSITX_EN, &val);
+			if (csi->rk628->version >= RK628F_VERSION)
+				rk628_i2c_read(csi->rk628, CSITX1_CSITX_EN, &val_csi1);
+			v4l2_dbg(1, debug, sd, "%s, csi0_status: 0x%x, csi1_status: 0x%x, i=%d\n",
+							__func__, val, val_csi1, i);
+
+			if (csi->rk628->version >= RK628F_VERSION ?
+				((val & BIT(0)) && (val_csi1 & BIT(0))) : (val & BIT(0)))
+				break;
+
+			rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
+							CSITX_EN_MASK, CSITX_EN(1));
+			rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
+			if (csi->rk628->version >= RK628F_VERSION) {
+				rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+								CSITX_EN_MASK, CSITX_EN(1));
+				rk628_i2c_write(csi->rk628,
+						CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
+			}
+		}
 		rk628_csi_enable_csi_interrupts(sd, true);
 		rk628_hdmirx_vid_enable(sd, true);
+		v4l2_dbg(1, debug, sd, "%s, do reset successful\n", __func__);
 	} else {
 		v4l2_info(sd,
 			"%s: csitx is not streaming\n", __func__);
