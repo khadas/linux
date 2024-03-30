@@ -137,7 +137,6 @@ struct rk_i2s_tdm_dev {
 	bool tdm_mode;
 	bool tdm_fsync_half_frame;
 	bool is_dma_active[SNDRV_PCM_STREAM_LAST + 1];
-	bool dma_guard_initialized;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int mclk_root0_freq;
@@ -1035,13 +1034,11 @@ static void rockchip_i2s_tdm_xfer_trcm_start(struct rk_i2s_tdm_dev *i2s_tdm,
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
 	if (++i2s_tdm->refcount == 1) {
-		if (i2s_tdm->dma_guard_initialized) {
-			regmap_read(i2s_tdm->regmap, I2S_DMACR, &val);
-			en = I2S_DMACR_RDE(1) | I2S_DMACR_TDE(1);
-			if ((val & en) != en) {
-				dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, bstream, 1);
-				rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
-			}
+		regmap_read(i2s_tdm->regmap, I2S_DMACR, &val);
+		en = I2S_DMACR_RDE(1) | I2S_DMACR_TDE(1);
+		if ((val & en) != en) {
+			dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, bstream, 1);
+			rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
 		}
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, 0);
 	}
@@ -1056,8 +1053,7 @@ static void rockchip_i2s_tdm_xfer_trcm_stop(struct rk_i2s_tdm_dev *i2s_tdm,
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
 	if (--i2s_tdm->refcount == 0)
 		rockchip_i2s_tdm_xfer_stop(i2s_tdm, 0, false);
-	if (i2s_tdm->dma_guard_initialized)
-		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
+	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
 }
 
@@ -1286,12 +1282,8 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	/* Enable the xfer in the last card init stage. */
-	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
-		if (i2s_tdm->clk_trcm)
-			rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
-		else
-			rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
-	}
+	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON && !i2s_tdm->clk_trcm)
+		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
 
 err_pm_put:
 	pm_runtime_put(cpu_dai->dev);
@@ -1650,9 +1642,6 @@ static int rockchip_i2s_tdm_params_trcm(struct snd_pcm_substream *substream,
 	if (i2s_tdm->refcount)
 		rockchip_i2s_tdm_trcm_resume(substream, i2s_tdm);
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
-
-	if (comp && !i2s_tdm->dma_guard_initialized)
-		i2s_tdm->dma_guard_initialized = true;
 
 	return 0;
 }
