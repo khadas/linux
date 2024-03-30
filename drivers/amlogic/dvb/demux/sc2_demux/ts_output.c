@@ -132,6 +132,7 @@ struct out_elem {
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
 	__u64 newest_pts;
+	__u64 cur_pts;
 
 	/*pts/dts for aucpu*/
 	s32 aucpu_pts_handle;
@@ -1013,6 +1014,14 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	else
 		pheader->len = cur_es_bytes - last_es_bytes;
 
+	if ((cur_header[2] & 0x2) && !(cur_header[2] & 0xc)) {
+		pout->cur_pts = cur_header[3] >> 1 & 0x1;
+		pout->cur_pts <<= 32;
+		pout->cur_pts |= ((__u64)cur_header[15]) << 24
+		    | ((__u64)cur_header[14]) << 16
+		    | ((__u64)cur_header[13]) << 8
+		    | ((__u64)cur_header[12]);
+	}
 //	pr_dbg("sid:0x%0x pid:0x%0x len:%d,cur_es:0x%0x, last_es:0x%0x\n",
 //	       pout->sid, pout->es_pes->pid,
 //		   pheader->len, cur_es_bytes, last_es_bytes);
@@ -1565,6 +1574,8 @@ static int aucpu_bufferid_read_newest_pts(struct out_elem *pout,
 		if (r_offset != w_offset)
 			return aucpu_read_process(pout,
 					w_offset, pread, 16, 2);
+		else if (w_offset != pout->aucpu_pts_r_offset)
+			return -1;
 	}
 	return 0;
 }
@@ -2899,6 +2910,7 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 	pout->media_type = media_type;
 	pout->ref = 0;
 	pout->newest_pts = 0;
+	pout->cur_pts = 0;
 	pout->decoder_rp_offset = INVALID_DECODE_RP;
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -3565,7 +3577,10 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 	char newest_header[16];
 	__u64 newest_pts_tmp = 0;
 
-	*newest_pts = pout->newest_pts;
+	if (!pout || !pout->pchan1) {
+		dprint("%s line:%d parameter fail\n", __func__, __LINE__);
+		return -1;
+	}
 	memset(&newest_header, 0, sizeof(newest_header));
 	if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
 		mutex_lock(&pout->pts_mutex);
@@ -3592,7 +3607,12 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 			ret = aucpu_bufferid_read_newest_pts(pout, &pts_dts);
 		else
 			ret = SC2_bufferid_read_newest_pts(pout->pchan1, &pts_dts);
-		if (ret != 0) {
+		/*has pts, not newest*/
+		if (ret == -1) {
+			mutex_unlock(&pout->pts_mutex);
+			return -2;
+		}
+		if (ret > 0) {
 			memcpy((char *)newest_header, pts_dts, 16);
 		} else {
 			mutex_unlock(&pout->pts_mutex);
@@ -3600,15 +3620,14 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 		}
 
 		pid = (newest_header[1] & 0x1f) << 8 | newest_header[0];
-		if (pout->es_pes->pid != pid) {
-			if (pout->es_pes->pid != INVALID_PID)
-				dprint("%s pid diff req pid %d, ret pid:%d\n",
-				   __func__, pout->es_pes->pid, pid);
+		if (pout->es_pes && pout->es_pes->pid != pid) {
+//			dprint("%s pid diff req pid %d, ret pid:%d\n",
+//				   __func__, pout->es_pes->pid, pid);
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
 		}
 		if (newest_header[2] & 0xc) {
-			dprint("%s scrambled es, invalid\n", __func__);
+//			dprint("%s scrambled es, invalid\n", __func__);
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
 		}
@@ -3622,14 +3641,14 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 		newest_pts_tmp &= 0x1FFFFFFFF;
 
 		if (newest_header[2] & 0x2) {
-			pout->newest_pts = newest_pts_tmp;
-			*newest_pts = newest_pts_tmp;
-			pr_dbg("%s pts:0x%lx\n", __func__, (unsigned long)newest_pts_tmp);
+			if (newest_pts)
+				*newest_pts = newest_pts_tmp;
+			mutex_unlock(&pout->pts_mutex);
+			return 0;
 		}
-
 		mutex_unlock(&pout->pts_mutex);
 	}
-	return 0;
+	return -1;
 }
 
 int ts_output_get_mem_info(struct out_elem *pout,
@@ -3638,9 +3657,20 @@ int ts_output_get_mem_info(struct out_elem *pout,
 			   unsigned int *free_size, unsigned int *wp_offset,
 			   __u64 *newest_pts)
 {
+	__u64 tmp_pts = 0;
+	int ret = 0;
+
+	if (!pout || !pout->pchan) {
+		dprint("%s line:%d parameter error\n", __func__, __LINE__);
+		return -1;
+	}
 	*total_size = pout->pchan->mem_size;
 	*buf_phy_start = pout->pchan->mem_phy;
-	*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
+	if (pout->pchan)
+		*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
+	else
+		*wp_offset = 0;
+
 	if (pout->aucpu_start) {
 		unsigned int now_w = 0;
 		unsigned int mem_size = pout->aucpu_mem_size;
@@ -3666,8 +3696,26 @@ int ts_output_get_mem_info(struct out_elem *pout,
 				*free_size = pout->decoder_rp_offset - w;
 		}
 	}
-	if (newest_pts && pout->format == ES_FORMAT)
-		ts_output_get_newest_pts(pout, newest_pts);
+	if (newest_pts && pout->format == ES_FORMAT) {
+		ret = ts_output_get_newest_pts(pout, &tmp_pts);
+		if (ret == -3) {
+			if (pout->newest_pts != pout->cur_pts)
+				pr_dbg("e newest_pts %s pid:0x%0x pts:0x%lx\n",
+						pout->type == VIDEO_TYPE ? "video" : "audio",
+						pout->es_pes->pid, (unsigned long)pout->cur_pts);
+			pout->newest_pts = pout->cur_pts;
+			*newest_pts = pout->newest_pts;
+		} else if (ret == 0) {
+			if (pout->newest_pts != tmp_pts)
+				pr_dbg("g newest_pts %s pid:0x%0x pts:0x%lx\n",
+						pout->type == VIDEO_TYPE ? "video" : "audio",
+						pout->es_pes->pid, (unsigned long)tmp_pts);
+			pout->newest_pts = tmp_pts;
+			*newest_pts = pout->newest_pts;
+		} else {
+			*newest_pts = pout->newest_pts;
+		}
+	}
 	return 0;
 }
 
