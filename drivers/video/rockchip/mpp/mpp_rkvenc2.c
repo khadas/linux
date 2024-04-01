@@ -201,8 +201,10 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_ST_BSB		(0x402c)
 #define RKVENC2_REG_ADR_BSBT		(0x2b0)
 #define RKVENC2_REG_ADR_BSBB		(0x2b4)
-#define RKVENC2_REG_ADR_BSBR		(0x2b8)
-#define RKVENC2_REG_ADR_BSBS		(0x2bc)
+#define RKVENC2_REG_ADR_BSBS		(0x2b8)
+#define RKVENC2_REG_ADR_BSBR		(0x2bc)
+#define RKVENC580_REG_ADR_BSBR		(0x2b8)
+#define RKVENC580_REG_ADR_BSBS		(0x2bc)
 
 union rkvenc2_slice_len_info {
 	u32 val;
@@ -1488,6 +1490,43 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 		mpp_write(mpp, hw->int_clr_base, *irq_status);
 }
 
+static void rkvenc2_bs_overflow_handle(struct mpp_dev *mpp)
+{
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc_hw_info *hw = enc->hw_info;
+	struct mpp_task *mpp_task = mpp->cur_task;
+	u32 bs_rd, bs_wr, bs_top, bs_bot;
+
+	if (hw->vepu_type == RKVENC_VEPU_580) {
+		bs_rd = mpp_read(mpp, RKVENC580_REG_ADR_BSBR);
+		bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
+		bs_top = mpp_read(mpp, RKVENC2_REG_ADR_BSBT);
+		bs_bot = mpp_read(mpp, RKVENC2_REG_ADR_BSBB);
+
+		bs_wr += 128;
+		if (bs_wr >= bs_top)
+			bs_wr = bs_bot;
+		/* update write addr for enc continue */
+		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
+	} else {
+		bs_rd = mpp_read(mpp, RKVENC2_REG_ADR_BSBR);
+		bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
+		bs_top = mpp_read(mpp, RKVENC2_REG_ADR_BSBT);
+		bs_bot = mpp_read(mpp, RKVENC2_REG_ADR_BSBB);
+
+		bs_wr += 128;
+		if (bs_wr >= bs_top)
+			bs_wr = bs_bot;
+		/* update rw addr for enc continue */
+		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
+		mpp_write(mpp, RKVENC2_REG_ADR_BSBR, bs_rd | 0xc);
+	}
+
+	if (mpp_task)
+		dev_err(mpp->dev, "task %d found bitstream overflow [%#08x %#08x %#08x %#08x]\n",
+			mpp_task->task_index, bs_top, bs_bot, bs_wr, bs_rd);
+}
+
 static int rkvenc_irq(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -1537,22 +1576,8 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 
 	/* 3. process bitstream overflow */
 	if (irq_status & INT_STA_BSF_OFLW_STA) {
-		u32 bs_rd = mpp_read(mpp, RKVENC2_REG_ADR_BSBR);
-		u32 bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
-		u32 bs_top = mpp_read(mpp, RKVENC2_REG_ADR_BSBT);
-		u32 bs_bot = mpp_read(mpp, RKVENC2_REG_ADR_BSBB);
-
-		if (mpp_task)
-			dev_err(mpp->dev, "task %d found bitstream overflow [%#08x %#08x %#08x %#08x]\n",
-				mpp_task->task_index, bs_top, bs_bot, bs_wr, bs_rd);
-		bs_wr += 128;
-		if (bs_wr >= bs_top)
-			bs_wr = bs_bot;
-
-		/* update write addr for enc continue */
-		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
+		rkvenc2_bs_overflow_handle(mpp);
 		enc->bs_overflow = 1;
-
 		ret = IRQ_HANDLED;
 	}
 
