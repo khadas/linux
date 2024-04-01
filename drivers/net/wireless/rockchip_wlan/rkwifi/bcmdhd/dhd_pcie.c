@@ -72,6 +72,9 @@
 #include <bcmevent.h>
 #include <dhd_config.h>
 
+#if IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION)
+#include <rk_dhd_pcie_linux.h>
+#endif /* CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION */
 #ifdef BCM_ROUTER_DHD
 #include <bcmnvram.h>
 #define STR_END		"END\0\0"
@@ -7615,6 +7618,13 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 				dhdpcie_bus_intr_disable(bus);
 				dhdpcie_free_irq(bus);
 			}
+#if IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION)
+			if (!rk_dhd_bus_pcie_wait_for_l1ss(bus)) {
+				DHD_ERROR(("%s: wait for l1ss success\n", __FUNCTION__));
+			} else {
+				DHD_ERROR(("%s: wait for l1ss failed\n", __FUNCTION__));
+			}
+#endif
 			dhd_deinit_bus_lp_state_lock(bus);
 			dhd_deinit_bar1_switch_lock(bus);
 			dhd_deinit_backplane_access_lock(bus);
