@@ -22,12 +22,8 @@
 
 #include "aml_dvb_extern_driver.h"
 
-#define AML_DVB_EXTERN_DEVICE_NAME    "aml_dvb_extern"
-#define AML_DVB_EXTERN_DRIVER_NAME    "aml_dvb_extern"
-#define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
-#define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
-
-#define AML_DVB_EXTERN_VERSION    "V1.18"
+#define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
+#define AML_DVB_EXTERN_VERSION     "V1.19"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -86,7 +82,7 @@ static char *fe_modulation_name[] = {
 static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 {
 	if (!aml_gpio_is_valid(pin_cfg->pin)) {
-		pr_err("%s: dvb power gpio is invalid.", __func__);
+		pr_err("dvb power gpio invalid");
 
 		return;
 	}
@@ -109,14 +105,30 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 
 void aml_dvb_extern_resume_work(struct work_struct *work)
 {
-	struct tuner_ops *tops = NULL;
+	struct tuner_ops *ttops = NULL;
+	struct demod_ops *dtops = NULL;
 	struct dvb_tuner *tuner = get_dvb_tuners();
+	struct dvb_demod *demod = get_dvb_demods();
 
-	list_for_each_entry(tops, &tuner->list, list) {
-		if (tops->fe.ops.tuner_ops.resume)
-			tops->fe.ops.tuner_ops.resume(&tops->fe);
-		else if (tops->fe.ops.tuner_ops.init)
-			tops->fe.ops.tuner_ops.init(&tops->fe);
+	list_for_each_entry(ttops, &tuner->list, list) {
+		if (ttops->fe.ops.tuner_ops.resume) {
+			if (ttops->fe.ops.i2c_gate_ctrl)
+				ttops->fe.ops.i2c_gate_ctrl(&ttops->fe, 1);
+			ttops->fe.ops.tuner_ops.resume(&ttops->fe);
+			if (ttops->fe.ops.i2c_gate_ctrl)
+				ttops->fe.ops.i2c_gate_ctrl(&ttops->fe, 0);
+		} else if (ttops->fe.ops.tuner_ops.init) {
+			if (ttops->fe.ops.i2c_gate_ctrl)
+				ttops->fe.ops.i2c_gate_ctrl(&ttops->fe, 1);
+			ttops->fe.ops.tuner_ops.init(&ttops->fe);
+			if (ttops->fe.ops.i2c_gate_ctrl)
+				ttops->fe.ops.i2c_gate_ctrl(&ttops->fe, 0);
+		}
+	}
+
+	list_for_each_entry(dtops, &demod->list, list) {
+		if (dtops->fe && dtops->fe->ops.init)
+			dtops->fe->ops.init(dtops->fe);
 	}
 }
 
@@ -138,7 +150,7 @@ void aml_dvb_extern_attach_work(struct work_struct *work)
 	demod->pre_init(demod);
 
 	if (cur_id >= dvb_extern_dev->demod_num) {
-		pr_err("demod index %d error, the max is %d, use default %d.\n",
+		pr_err("demod index %d error, max %d, use default %d\n",
 				cur_id, dvb_extern_dev->demod_num - 1,
 				dvb_extern_dev->demod_cur);
 		mutex_unlock(&dvb_extern_mutex);
@@ -150,7 +162,7 @@ void aml_dvb_extern_attach_work(struct work_struct *work)
 	if (demod_ops && demod_ops->fe) {
 		dvb_extern_dev->demod_fe = demod_ops->fe;
 		demod->used = demod_ops;
-		pr_err("%s demod %d attach done.\n", __func__,
+		pr_err("%s demod %d attach done\n", __func__,
 			dvb_extern_dev->demod_cur);
 	}
 
@@ -159,11 +171,9 @@ void aml_dvb_extern_attach_work(struct work_struct *work)
 
 void aml_dvb_extern_attach(void)
 {
-	pr_err("[%s] ready to schedule work.\n", __func__);
-
 	mutex_lock(&dvb_extern_mutex);
 	if (IS_ERR_OR_NULL(dvb_extern_dev)) {
-		pr_err("[%s] error! dvb_extern_dev is null.\n", __func__);
+		pr_err("dvb_extern_dev null\n");
 		mutex_unlock(&dvb_extern_mutex);
 	} else {
 		dvb_extern_dev->attach_work.cur_id = 0;
@@ -229,11 +239,11 @@ static ssize_t tuner_debug_store(struct class *class,
 			fe->ops.info.type = FE_ANALOG;
 
 		if (val > 6) {
-			pr_err("init tuner mode value [%ld] error.\n", val);
+			pr_err("init tuner mode [%ld] error\n", val);
 			goto EXIT;
 		}
 
-		pr_err("init tuner mode [%d][%s].\n",
+		pr_err("init tuner mode [%d][%s]\n",
 				fe->ops.info.type,
 				fe_type_name[fe->ops.info.type]);
 
@@ -259,7 +269,7 @@ static ssize_t tuner_debug_store(struct class *class,
 			if (fe->ops.tuner_ops.set_analog_params)
 				fe->ops.tuner_ops.set_analog_params(fe, p);
 
-			pr_err("tune mode [%d][%s] freq[%d] std[0x%llx], audmode[0x%x].\n",
+			pr_err("tune mode [%d][%s] freq[%d] std[0x%llx], audmode[0x%x]\n",
 					fe->ops.info.type,
 					fe_type_name[fe->ops.info.type],
 					p->frequency,
@@ -306,7 +316,7 @@ static ssize_t tuner_debug_store(struct class *class,
 			if (fe->ops.tuner_ops.set_params)
 				fe->ops.tuner_ops.set_params(fe);
 
-			pr_err("tune mode [%d][%s], delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, rolloff %d, inversion %d.\n",
+			pr_err("tune mode [%d][%s], delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, rolloff %d, inversion %d\n",
 					fe->ops.info.type,
 					fe_type_name[fe->ops.info.type],
 					c->delivery_system,
@@ -322,7 +332,7 @@ static ssize_t tuner_debug_store(struct class *class,
 		else if (!strncmp(parm[1], "secam", 5))
 			p->std = V4L2_COLOR_STD_SECAM;
 		else
-			pr_err("invalid video std: %s.\n", parm[1]);
+			pr_err("invalid video std %s\n", parm[1]);
 
 		if (!strncmp(parm[2], "dk", 2))
 			p->std |= V4L2_STD_PAL_DK;
@@ -341,13 +351,13 @@ static ssize_t tuner_debug_store(struct class *class,
 		else if (!strncmp(parm[2], "n", 1))
 			p->std |= V4L2_STD_PAL_N;
 		else
-			pr_err("invalid audio std: %s.\n", parm[2]);
+			pr_err("invalid audio std %s\n", parm[2]);
 	} else if (!strncmp(parm[0], "status", 6)) {
 		pr_err("tuner numbers: %d.\n", dev->tuner_num);
 		pr_err("all tuners:\n");
 		list_for_each_entry(ops, &tuner->list, list) {
 			name = ops->fe.ops.tuner_ops.info.name;
-			pr_err("tuner%d, id %d (%s) addr 0x%x, adap 0x%p %s, %sdetected.\n",
+			pr_err("tuner%d, id %d (%s) addr 0x%x, adap 0x%p %s, %sdetected\n",
 					ops->index, ops->cfg.id,
 					name ? name : "",
 					ops->cfg.i2c_addr, ops->cfg.i2c_adap,
@@ -357,7 +367,7 @@ static ssize_t tuner_debug_store(struct class *class,
 
 		if (tuner->used) {
 			name = tuner->used->fe.ops.tuner_ops.info.name;
-			pr_err("current use tuner%d, id %d (%s), fe type %d.\n",
+			pr_err("current use tuner%d, id %d (%s), fe type %d\n",
 					tuner->used->index,
 					tuner->used->cfg.id,
 					name ? name : "",
@@ -366,20 +376,20 @@ static ssize_t tuner_debug_store(struct class *class,
 			if (tuner->used->fe.ops.tuner_ops.get_status) {
 				tuner->used->fe.ops.tuner_ops.get_status(
 						&tuner->used->fe, &status);
-				pr_err("signal status: %s.\n",
+				pr_err("signal status: %s\n",
 						status & FE_HAS_LOCK ? "Locked" : "Unlocked");
 			}
 
 			if (tuner->used->fe.ops.tuner_ops.get_strength) {
 				tuner->used->fe.ops.tuner_ops.get_strength(
 						&tuner->used->fe, &strength);
-				pr_err("strength: %d dBm.\n", strength);
+				pr_err("strength: %d dBm\n", strength);
 			}
 
 			if (tuner->used->fe.ops.tuner_ops.get_frequency) {
 				tuner->used->fe.ops.tuner_ops.get_frequency(
 						&tuner->used->fe, &frequency);
-				pr_err("frequency: %d Hz.\n", frequency);
+				pr_err("frequency: %d Hz\n", frequency);
 			}
 
 			if (tuner->used->fe.ops.tuner_ops.get_bandwidth) {
@@ -391,7 +401,7 @@ static ssize_t tuner_debug_store(struct class *class,
 			if (tuner->used->fe.ops.tuner_ops.get_if_frequency) {
 				tuner->used->fe.ops.tuner_ops.get_if_frequency(
 						&tuner->used->fe, if_frequency);
-				pr_err("if frequency: %d Hz (IF spectrum %s).\n",
+				pr_err("if frequency: %d Hz (IF spectrum %s)\n",
 						if_frequency[1],
 						if_frequency[0] ? "inverted" : "normal");
 			}
@@ -412,7 +422,7 @@ static ssize_t tuner_debug_store(struct class *class,
 			tuner_id = 0;
 
 		if (tuner_id >= dev->tuner_num) {
-			pr_err("input tuner index %d error, the max is %d, use default %d.\n",
+			pr_err("input tuner index %d error, max %d, use default %d\n",
 					tuner_id, dev->tuner_num - 1,
 					dev->tuner_cur);
 
@@ -427,10 +437,11 @@ static ssize_t tuner_debug_store(struct class *class,
 			//		sizeof(struct dvb_tuner_ops));
 			//fe->tuner_priv = ops->fe.tuner_priv;
 
-			pr_err("tuner %d attach done.\n", dev->tuner_cur);
+			pr_err("tuner %d attach done\n", dev->tuner_cur);
 		}
 	} else if (!strncmp(parm[0], "detach", 6)) {
 		tuner->attach(tuner, false);
+		dev->tuner_fe = NULL;
 	} else if (!strncmp(parm[0], "match", 5)) {
 		if (parm[1] && !kstrtoul(parm[1], 0, &val))
 			fe_type = val;
@@ -438,17 +449,17 @@ static ssize_t tuner_debug_store(struct class *class,
 			fe_type = FE_ANALOG;
 
 		if (fe_type > FE_ISDBT) {
-			pr_err("input tuner match fe type %d error.\n",
+			pr_err("input tuner match fe type %d error\n",
 					fe_type);
 
 			goto EXIT;
 		}
 
 		if (tuner->match(tuner, fe_type))
-			pr_err("tuner match fe type %d (%s) done.\n",
+			pr_err("tuner match fe type %d (%s) done\n",
 					fe_type, fe_type_name[fe_type]);
 		else
-			pr_err("tuner match fe type %d (%s) fail.\n",
+			pr_err("tuner match fe type %d (%s) fail\n",
 					fe_type, fe_type_name[fe_type]);
 
 	} else if (!strncmp(parm[0], "detect", 6)) {
@@ -456,7 +467,7 @@ static ssize_t tuner_debug_store(struct class *class,
 
 		dev->tuner_fe = NULL;
 	} else {
-		pr_err("invalid command: %s.\n", parm[0]);
+		pr_err("invalid cmd %s\n", parm[0]);
 	}
 
 EXIT:
@@ -532,13 +543,14 @@ static ssize_t tuner_debug_show(struct class *class,
 	n += sprintf(buff + n, "\tROLLOFF_25   : 2\n");
 	n += sprintf(buff + n, "\tROLLOFF_AUTO : 3\n");
 	n += sprintf(buff + n, "[uninit]\necho uninit > %s\n", path);
+
 	n += sprintf(buff + n, "\n------------------------------------------------------------\n");
 	n += sprintf(buff + n, "\nTuner Status:\n");
-	n += sprintf(buff + n, "tuner numbers: %d.\n", dev->tuner_num);
+	n += sprintf(buff + n, "tuner numbers: %d\n", dev->tuner_num);
 	n += sprintf(buff + n, "all tuners:\n");
 	list_for_each_entry(ops, &tuner->list, list) {
 		name = ops->fe.ops.tuner_ops.info.name;
-		n += sprintf(buff + n, "tuner%d, id %d (%s) addr 0x%x, adap 0x%p %s, %sdetected.\n",
+		n += sprintf(buff + n, "tuner%d, id %d (%s) addr 0x%x, adap 0x%p %s, %sdetected\n",
 				ops->index, ops->cfg.id,
 				name ? name : "",
 				ops->cfg.i2c_addr, ops->cfg.i2c_adap,
@@ -548,7 +560,7 @@ static ssize_t tuner_debug_show(struct class *class,
 
 	if (tuner->used) {
 		name = tuner->used->fe.ops.tuner_ops.info.name;
-		n += sprintf(buff + n, "current use tuner%d, id %d (%s), fe type %d.\n",
+		n += sprintf(buff + n, "current use tuner%d, id %d (%s), fe type %d\n",
 				tuner->used->index,
 				tuner->used->cfg.id,
 				name ? name : "",
@@ -557,35 +569,38 @@ static ssize_t tuner_debug_show(struct class *class,
 		if (tuner->used->fe.ops.tuner_ops.get_status) {
 			tuner->used->fe.ops.tuner_ops.get_status(
 					&tuner->used->fe, &status);
-			n += sprintf(buff + n, "signal status: %s.\n",
+			n += sprintf(buff + n, "signal status: %s\n",
 					status & FE_HAS_LOCK ? "Locked" : "Unlocked");
 		}
 
 		if (tuner->used->fe.ops.tuner_ops.get_strength) {
 			tuner->used->fe.ops.tuner_ops.get_strength(
 					&tuner->used->fe, &strength);
-			n += sprintf(buff + n, "strength: %d dBm.\n", strength);
+			n += sprintf(buff + n, "strength: %d dBm\n", strength);
 		}
 
 		if (tuner->used->fe.ops.tuner_ops.get_frequency) {
 			tuner->used->fe.ops.tuner_ops.get_frequency(
 					&tuner->used->fe, &frequency);
-			n += sprintf(buff + n, "frequency: %d Hz.\n", frequency);
+			n += sprintf(buff + n, "frequency: %d Hz\n", frequency);
 		}
 
 		if (tuner->used->fe.ops.tuner_ops.get_bandwidth) {
 			tuner->used->fe.ops.tuner_ops.get_bandwidth(
 					&tuner->used->fe, &bandwidth);
-			n += sprintf(buff + n, "bandwidth: %d Hz.\n", bandwidth);
+			n += sprintf(buff + n, "bandwidth: %d Hz\n", bandwidth);
 		}
 
 		if (tuner->used->fe.ops.tuner_ops.get_if_frequency) {
 			tuner->used->fe.ops.tuner_ops.get_if_frequency(
 					&tuner->used->fe, if_frequency);
-			n += sprintf(buff + n, "if frequency: %d Hz (IF spectrum %s).\n",
+			n += sprintf(buff + n, "if frequency: %d Hz (spectrum %s)\n",
 					if_frequency[1],
 					if_frequency[0] ? "inverted" : "normal");
 		}
+
+		if (tuner->used->fe.ops.tuner_ops.calc_regs)
+			tuner->used->fe.ops.tuner_ops.calc_regs(NULL, NULL, 0);
 	}
 
 	n += sprintf(buff + n, "\n");
@@ -645,7 +660,7 @@ static ssize_t demod_debug_store(struct class *class,
 			delsys = SYS_DTMB;
 
 		if (delsys > SYS_ANALOG) {
-			pr_err("init demod delsys value [%d] error.\n",
+			pr_err("init demod delsys [%d] error\n",
 					delsys);
 			goto EXIT;
 		}
@@ -655,7 +670,7 @@ static ssize_t demod_debug_store(struct class *class,
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 		tvp.u.data = c->delivery_system;
 
-		pr_err("init demod delsys [%d][%s].\n",
+		pr_err("init demod delsys [%d][%s]\n",
 				c->delivery_system,
 				fe_delsys_name[c->delivery_system]);
 
@@ -716,7 +731,7 @@ static ssize_t demod_debug_store(struct class *class,
 		c->modulation = modul;
 		c->rolloff = rolloff;
 
-		pr_err("tune delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, rolloff %d, inversion %d.\n",
+		pr_err("tune delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, rolloff %d, inversion %d\n",
 				c->delivery_system, c->frequency, c->symbol_rate,
 				c->bandwidth_hz, c->modulation,
 				c->rolloff, c->inversion);
@@ -727,22 +742,22 @@ static ssize_t demod_debug_store(struct class *class,
 		if (fe->ops.tune) {
 			fe->ops.tune(fe, true, 0, &delay, &s);
 
-			pr_err("tune status: [0x%x] %s.\n", s,
+			pr_err("tune status: [0x%x] %s\n", s,
 					s & FE_HAS_LOCK ?
 					"Locked" : "Unlocked");
 		} else if (fe->ops.set_frontend) {
 			ret = fe->ops.set_frontend(fe);
 
-			pr_err("tune status: [0x%x] %s.\n", ret,
+			pr_err("tune status: [0x%x] %s\n", ret,
 					!ret ? "Locked" : "Unlocked");
 		}
 
 	} else if (!strncmp(parm[0], "status", 6)) {
-		pr_err("demod numbers: %d.\n", dev->demod_num);
+		pr_err("demod numbers: %d\n", dev->demod_num);
 		pr_err("all demods:\n");
 		list_for_each_entry(ops, &demod->list, list) {
 			name = ops->fe ? ops->fe->ops.info.name : "";
-			pr_err("demod%d, id %d (%s) %s, %sregistered, %sdetected, use tuner0 %s, tuner1 %s.\n",
+			pr_err("demod%d, id %d (%s) %s, %sregistered, %sdetected, use tuner0 %s, tuner1 %s\n",
 					ops->index, ops->cfg.id,
 					name ? name : "", ops->attached ?
 					"attached" : "detached",
@@ -754,7 +769,7 @@ static ssize_t demod_debug_store(struct class *class,
 
 		if (demod->used && demod->used->fe) {
 			name = ops->fe->ops.info.name;
-			pr_err("current use demod%d, id %d (%s), fe type %d, delivery system %d.\n",
+			pr_err("current use demod%d, id %d (%s), fe type %d, delivery system %d\n",
 					demod->used->index,
 					demod->used->cfg.id,
 					name ? name : "",
@@ -765,7 +780,6 @@ static ssize_t demod_debug_store(struct class *class,
 				demod->used->cfg.id != AM_DTV_DEMOD_AMLDTV)
 				fe->ops.read_status(NULL, NULL);
 		}
-
 	} else if (!strncmp(parm[0], "uninit", 6)) {
 		memset(&tvp, 0, sizeof(tvp));
 		c->delivery_system = SYS_ANALOG;
@@ -799,17 +813,17 @@ static ssize_t demod_debug_store(struct class *class,
 			fe_type = FE_ANALOG;
 
 		if (fe_type > FE_ISDBT) {
-			pr_err("input demod match fe type %d error.\n",
+			pr_err("input demod match fe type %d error\n",
 					fe_type);
 
 			goto EXIT;
 		}
 
 		if (demod->match(demod, fe_type))
-			pr_err("demod match fe type %d (%s) done.\n",
+			pr_err("demod match fe type %d (%s) done\n",
 					fe_type, fe_type_name[fe_type]);
 		else
-			pr_err("demod match fe type %d (%s) fail.\n",
+			pr_err("demod match fe type %d (%s) fail\n",
 					fe_type, fe_type_name[fe_type]);
 
 	} else if (!strncmp(parm[0], "detect", 6)) {
@@ -832,7 +846,7 @@ static ssize_t demod_debug_store(struct class *class,
 			if (fe->ops.get_property) {
 				ret = fe->ops.get_property(fe, &tvp);
 				if (ret < 0)
-					pr_err("get_property failed.\n");
+					pr_err("get_property failed\n");
 				else
 					pr_err("ts in port: %d\n", tvp.u.data);
 			}
@@ -847,10 +861,10 @@ static ssize_t demod_debug_store(struct class *class,
 		} else if (!strncmp(parm[1], "delsys", 6)) { //prop cmd: DTV_DELIVERY_SYSTEM
 			pr_err("delsys: %s\n", fe_delsys_name[c->delivery_system]);
 		} else {
-			pr_err("invalid prop cmd: %s.\n", parm[1]);
+			pr_err("invalid prop cmd: %s\n", parm[1]);
 		}
 	} else {
-		pr_err("invalid command: %s.\n", parm[0]);
+		pr_err("invalid cmd: %s\n", parm[0]);
 	}
 
 EXIT:
@@ -937,33 +951,30 @@ static ssize_t demod_debug_show(struct class *class,
 	n += sprintf(buff + n, "[getprop]\n");
 	n += sprintf(buff + n, "echo getprop [prop_cmd] > %s\n", path);
 	n += sprintf(buff + n,
-			"\tprop_cmd: enum_delsys, ts_input, freq, mod, bw, symbol_rate, delsys\n");
+		"\tprop_cmd: enum_delsys, ts_input, freq, mod, bw, symbol_rate, delsys\n");
 
 	n += sprintf(buff + n, "\n------------------------------------------------------------\n");
 	n += sprintf(buff + n, "\nDemod Status:\n");
-	n += sprintf(buff + n, "demod numbers: %d.\n", dev->demod_num);
+	n += sprintf(buff + n, "demod numbers: %d\n", dev->demod_num);
 	n += sprintf(buff + n, "all demods:\n");
 	list_for_each_entry(ops, &demod->list, list) {
 		name = ops->fe ? ops->fe->ops.info.name : "";
-		n += sprintf(buff + n, "demod%d, id %d (%s) %s, %sregistered, %sdetected, use tuner0 %s, tuner1 %s.\n",
-				ops->index, ops->cfg.id,
-				name ? name : "", ops->attached ?
-				"attached" : "detached",
-				ops->registered ? "" : "un",
-				ops->cfg.detect ? (ops->valid ? "" : "un") : "no ",
-				ops->cfg.tuner0.name ? ops->cfg.tuner0.name : "NONE",
-				ops->cfg.tuner1.name ? ops->cfg.tuner1.name : "NONE");
+		n += sprintf(buff + n, "demod%d id %d (%s)%s, %s, %s, use tuner0 %s, tuner1 %s\n",
+			ops->index, ops->cfg.id,
+			name ? name : "", ops->attached ? "attached" : "detached",
+			ops->registered ? "registered" : "unregistered",
+			ops->cfg.detect ? (ops->valid ? "detected" : "undetected") : "no detected",
+			ops->cfg.tuner0.name ? ops->cfg.tuner0.name : "NONE",
+			ops->cfg.tuner1.name ? ops->cfg.tuner1.name : "NONE");
 	}
 
 	if (demod->used && demod->used->fe) {
 		name = demod->used->fe->ops.info.name;
 		n += sprintf(buff + n,
-				"current use demod%d, id %d (%s), fe type %d, delivery system %d.\n",
-				demod->used->index,
-				demod->used->cfg.id,
-				name ? name : "",
-				demod->used->type,
-				demod->used->fe->dtv_property_cache.delivery_system);
+			"current use demod%d, id %d (%s), fe type %d, delivery system %d\n",
+			demod->used->index, demod->used->cfg.id,
+			name ? name : "", demod->used->type,
+			demod->used->fe->dtv_property_cache.delivery_system);
 	}
 
 	n += sprintf(buff + n, "\n");
@@ -1007,10 +1018,10 @@ static ssize_t dvb_debug_store(struct class *class,
 
 			pr_err("set dvb power: %s.\n", val ? "ON" : "OFF");
 		} else {
-			pr_err("please input power status of DVB to be set: 1[ON] or 0[OFF].\n");
+			pr_err("please input power status of DVB to be set: 1[ON] or 0[OFF]\n");
 		}
 	} else {
-		pr_err("invalid command: %s.\n", parm[0]);
+		pr_err("invalid cmd %s\n", parm[0]);
 	}
 
 EXIT:
@@ -1193,7 +1204,7 @@ static int dvb_cfgdev_set_tuner(void *pcfg)
 
 	tops = dvb_tuner_ops_create();
 	if (!tops) {
-		pr_err("create dvb tuner ops fail.\n");
+		pr_err("create tuner ops fail\n");
 		return ret;
 	}
 
@@ -1204,13 +1215,13 @@ static int dvb_cfgdev_set_tuner(void *pcfg)
 	tops->dts_cfg = false;
 	tops->index = dvb_tuner_ops_get_index();
 
-	pr_err("add tuner%d, id %d, i2c_addr 0x%x.\n",
+	pr_err("add tuner%d, id %d, i2c_addr 0x%x\n",
 		tops->index, tops->cfg.id, tops->cfg.i2c_addr);
 
 	/* add to tuner */
 	ret = dvb_tuner_ops_add(tops);
 	if (ret)
-		pr_err("add tuner ops fail, ret = %d.\n", ret);
+		pr_err("add tuner ops fail %d\n", ret);
 
 	return ret;
 }
@@ -1222,23 +1233,23 @@ static long cfgdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/*check cmd's validity*/
 	if (_IOC_TYPE(cmd) != DVB_CFGDEV_IOC_MAGIC) {
-		pr_err("check ioc_type error!");
+		pr_err("check ioc_type error");
 		return -EINVAL;
 	}
 	if (_IOC_NR(cmd) > DVB_CFGDEV_IOC_MAXNR) {
-		pr_err("check ioc_nr error!");
+		pr_err("check ioc_nr error");
 		return -EINVAL;
 	}
 
 	if (cmd == DVB_CFGDEV_IOC_SET_PARAM) {
-		pr_err("set param !!");
+		pr_err("set param");
 		if (copy_from_user(&cfg_arg, (struct tuner_config *)arg,
 			sizeof(struct tuner_config))) {
 			return -EINVAL;
 		}
 		dvb_cfgdev_set_tuner(&cfg_arg);
 	} else if (cmd == COMPAT_DVB_CFGDEV_IOC_SET_PARAM) {
-		pr_err("compat set param !!");
+		pr_err("compat set param");
 		if (copy_from_user(&cpt_arg, (struct compact_tuner_config *)arg,
 			sizeof(struct compact_tuner_config))) {
 			return -EINVAL;
@@ -1265,12 +1276,11 @@ static long cfgdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		cfg_arg.reserved1  = cpt_arg.reserved1;
 		dvb_cfgdev_set_tuner(&cfg_arg);
 	} else if (cmd == DVB_CFGDEV_IOC_GET_PARAM) {
-		pr_err("get param !!");
+		pr_err("get param");
 	} else {
-		pr_err("default.\n");
 		return -EINVAL;
 	}
-	pr_err("%s --\n", __func__);
+
 	return 0;
 }
 
@@ -1356,30 +1366,30 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 
 	if (!proc_create_data("tuner_debug", 0644, dvbdev->debug_proc_dir,
 			&tuner_debug_fops, dvbdev)) {
-		pr_err("proc create tuner_debug fail.\n");
+		pr_err("proc create tuner_debug fail\n");
 		goto fail_proc_create;
 	}
 
 	if (!proc_create_data("demod_debug", 0644, dvbdev->debug_proc_dir,
 			&demod_debug_fops, dvbdev)) {
-		pr_err("proc create tuner_debug fail.\n");
+		pr_err("proc create demod_debug fail\n");
 		goto fail_proc_create;
 	}
 
 	if (class_register(&dvbdev->class)) {
-		pr_err("class register fail.\n");
+		pr_err("class register fail\n");
 		goto fail_class_register;
 	}
 
 	cdevno_maj = register_chrdev(cdevno_maj, AML_DVB_EXTERN_DEVICE_NAME, &cfg_dev_fops);
 	dvbdev->cfgdevno = MKDEV(cdevno_maj, cdevno_min);
-	pr_debug("aml_dvb_cfgdev: MAJOR Number %d, MINOR Numbe %d\n",
+	pr_debug("cfgdev: MAJOR Number %d, MINOR Numbe %d\n",
 		MAJOR(dvbdev->cfgdevno), MINOR(dvbdev->cfgdevno));
 
 	pcfgdev = device_create(&dvbdev->class, NULL, dvbdev->cfgdevno,
 		NULL, AML_DVB_EXTERN_DEVICE_NAME);
 	if (!pcfgdev) {
-		pr_err("%s device create fail.\n", AML_DVB_EXTERN_DEVICE_NAME);
+		pr_err("%s device create fail\n", AML_DVB_EXTERN_DEVICE_NAME);
 		unregister_chrdev(MAJOR(dvbdev->cfgdevno), AML_DVB_EXTERN_DEVICE_NAME);
 	} else {
 		dvbdev->cdev = *pcfgdev;
@@ -1418,9 +1428,9 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "tuner_num", &val);
 	if (ret == 0) {
 		dvbdev->tuner_num = val;
-		pr_debug("find dvb tuner numbers %d.\n", dvbdev->tuner_num);
+		pr_debug("find tuner numbers %d\n", dvbdev->tuner_num);
 	} else {
-		pr_err("can't find tuner_num.\n");
+		pr_err("can't find tuner_num\n");
 		goto PROPERTY_DEMOD;
 	}
 
@@ -1433,7 +1443,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	for (i = 0; i < dvbdev->tuner_num; ++i) {
 		tops = dvb_tuner_ops_create();
 		if (!tops) {
-			pr_err("create dvb tuner ops fail.\n");
+			pr_err("create tuner ops fail\n");
 			goto fail_tuner_create;
 		}
 
@@ -1442,16 +1452,16 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 		if (ret) {
 			dvb_tuner_ops_destroy(tops);
 
-			pr_err("can't find tuner%d.\n", i);
+			pr_err("can't find tuner%d\n", i);
 		} else {
 			tops->index = i;
 
-			pr_debug("find tuner%d, id %d, i2c_addr 0x%x.\n",
+			pr_debug("find tuner%d, id %d, i2c_addr 0x%x\n",
 				i, tops->cfg.id, tops->cfg.i2c_addr);
 
 			ret = dvb_tuner_ops_add(tops);
 			if (ret)
-				pr_err("add tuner ops fail, ret = %d.\n", ret);
+				pr_err("add tuner ops fail %d\n", ret);
 		}
 	}
 
@@ -1459,9 +1469,9 @@ PROPERTY_DEMOD:
 	ret = of_property_read_u32(pdev->dev.of_node, "fe_num", &val);
 	if (ret == 0) {
 		dvbdev->demod_num = val;
-		pr_debug("find dvb fe numbers %d.\n", dvbdev->demod_num);
+		pr_debug("find dvb fe numbers %d\n", dvbdev->demod_num);
 	} else {
-		pr_err("can't find fe_num.\n");
+		pr_err("can't find fe_num\n");
 		goto PROPERTY_DONE;
 	}
 
@@ -1474,7 +1484,7 @@ PROPERTY_DEMOD:
 	for (i = 0; i < dvbdev->demod_num; ++i) {
 		dops = dvb_demod_ops_create();
 		if (!dops) {
-			pr_err("create dvb demod ops fail.\n");
+			pr_err("create demod ops fail\n");
 			goto fail_demod_create;
 		}
 
@@ -1483,19 +1493,19 @@ PROPERTY_DEMOD:
 		if (ret) {
 			dvb_demod_ops_destroy(dops);
 
-			pr_err("can't find demod%d.\n", i);
+			pr_err("can't find demod%d\n", i);
 
 			continue;
 		}
 
 		dops->index = i;
 
-		pr_debug("find demod%d, id %d, i2c_addr 0x%x.\n",
+		pr_debug("find demod%d, id %d, i2c_addr 0x%x\n",
 				i, dops->cfg.id, dops->cfg.i2c_addr);
 
 		ret = dvb_demod_ops_add(dops);
 		if (ret) {
-			pr_err("add demod ops fail, ret = %d.\n", ret);
+			pr_err("add demod ops fail %d\n", ret);
 
 			continue;
 		}
@@ -1513,7 +1523,7 @@ PROPERTY_DEMOD:
 				memcpy(&dops->cfg.tuner0, &tops->cfg,
 						sizeof(struct tuner_config));
 
-			pr_debug("get %s %d.\n", buf, val);
+			pr_debug("get %s %d\n", buf, val);
 		}
 
 		/* S/S2 tuner */
@@ -1526,7 +1536,7 @@ PROPERTY_DEMOD:
 				memcpy(&dops->cfg.tuner1, &tops->cfg,
 						sizeof(struct tuner_config));
 
-			pr_debug("get %s %d.\n", buf, val);
+			pr_debug("get %s %d\n", buf, val);
 		}
 	}
 
@@ -1534,13 +1544,13 @@ PROPERTY_DEMOD:
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
 	mutex_init(&dvb_extern_mutex);
-	INIT_WORK(&dvbdev->work, aml_dvb_extern_resume_work);
+	INIT_WORK(&dvbdev->resume_work, aml_dvb_extern_resume_work);
 	INIT_WORK(&dvbdev->attach_work.work, aml_dvb_extern_attach_work);
 
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
 
-	pr_debug("%s: OK.\n", __func__);
+	pr_debug("%s OK\n", __func__);
 
 	return 0;
 
@@ -1556,7 +1566,7 @@ fail_proc_dir:
 	kfree(dvbdev);
 	dvbdev = NULL;
 
-	pr_info("%s: fail, ret = %d.\n", __func__, ret);
+	pr_info("%s fail %d\n", __func__, ret);
 
 	return ret;
 }
@@ -1584,7 +1594,7 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 	dvbdev = NULL;
 	dvb_extern_dev = NULL;
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s OK\n", __func__);
 
 	return 0;
 }
@@ -1592,17 +1602,24 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 static void aml_dvb_extern_shutdown(struct platform_device *pdev)
 {
 	struct dvb_extern_device *dvbdev = platform_get_drvdata(pdev);
-	struct tuner_ops *tops = NULL;
+	struct tuner_ops *ttops = NULL;
+	struct demod_ops *dtops = NULL;
 	struct dvb_tuner *tuner = get_dvb_tuners();
+	struct dvb_demod *demod = get_dvb_demods();
 
 	if (IS_ERR_OR_NULL(dvbdev))
 		return;
 
-	list_for_each_entry(tops, &tuner->list, list) {
-		if (tops->fe.ops.tuner_ops.suspend)
-			tops->fe.ops.tuner_ops.suspend(&tops->fe);
-		else if (tops->fe.ops.tuner_ops.sleep)
-			tops->fe.ops.tuner_ops.sleep(&tops->fe);
+	list_for_each_entry(ttops, &tuner->list, list) {
+		if (ttops->fe.ops.tuner_ops.suspend)
+			ttops->fe.ops.tuner_ops.suspend(&ttops->fe);
+		else if (ttops->fe.ops.tuner_ops.sleep)
+			ttops->fe.ops.tuner_ops.sleep(&ttops->fe);
+	}
+
+	list_for_each_entry(dtops, &demod->list, list) {
+		if (dtops->fe && dtops->fe->ops.sleep)
+			dtops->fe->ops.sleep(dtops->fe);
 	}
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
@@ -1612,17 +1629,24 @@ static int aml_dvb_extern_suspend(struct platform_device *pdev,
 		pm_message_t state)
 {
 	struct dvb_extern_device *dvbdev = platform_get_drvdata(pdev);
-	struct tuner_ops *tops = NULL;
+	struct tuner_ops *ttops = NULL;
+	struct demod_ops *dtops = NULL;
 	struct dvb_tuner *tuner = get_dvb_tuners();
+	struct dvb_demod *demod = get_dvb_demods();
 
 	if (IS_ERR_OR_NULL(dvbdev))
 		return -EFAULT;
 
-	list_for_each_entry(tops, &tuner->list, list) {
-		if (tops->fe.ops.tuner_ops.suspend)
-			tops->fe.ops.tuner_ops.suspend(&tops->fe);
-		else if (tops->fe.ops.tuner_ops.sleep)
-			tops->fe.ops.tuner_ops.sleep(&tops->fe);
+	list_for_each_entry(ttops, &tuner->list, list) {
+		if (ttops->fe.ops.tuner_ops.suspend)
+			ttops->fe.ops.tuner_ops.suspend(&ttops->fe);
+		else if (ttops->fe.ops.tuner_ops.sleep)
+			ttops->fe.ops.tuner_ops.sleep(&ttops->fe);
+	}
+
+	list_for_each_entry(dtops, &demod->list, list) {
+		if (dtops->fe && dtops->fe->ops.sleep)
+			dtops->fe->ops.sleep(dtops->fe);
 	}
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
@@ -1639,14 +1663,14 @@ static int aml_dvb_extern_resume(struct platform_device *pdev)
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
-	schedule_work(&dvbdev->work);
+	schedule_work(&dvbdev->resume_work);
 
 	return 0;
 }
 
 static struct platform_driver aml_dvb_extern_driver = {
 	.driver = {
-		.name = AML_DVB_EXTERN_DRIVER_NAME,
+		.name = AML_DVB_EXTERN_DEVICE_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = aml_dvb_extern_dt_match
 	},
@@ -1663,12 +1687,12 @@ static int __init aml_dvb_extern_init(void)
 
 	ret = platform_driver_register(&aml_dvb_extern_driver);
 	if (ret) {
-		pr_err("%s: failed to register driver, ret %d.\n",
+		pr_err("%s: register driver error %d\n",
 				__func__, ret);
 		return ret;
 	}
 
-	pr_info("%s: OK, version: %s.\n", __func__, AML_DVB_EXTERN_VERSION);
+	pr_info("%s: OK, version: %s\n", __func__, AML_DVB_EXTERN_VERSION);
 
 	return 0;
 }
@@ -1677,7 +1701,7 @@ static void __exit aml_dvb_extern_exit(void)
 {
 	platform_driver_unregister(&aml_dvb_extern_driver);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s OK\n", __func__);
 }
 
 module_init(aml_dvb_extern_init);

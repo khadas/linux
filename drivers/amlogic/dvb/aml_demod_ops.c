@@ -23,10 +23,10 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 			(!ops->attached && !attach)) {
 			if (attach && !ops->external)
 				dvb_tuner_attach(ops->fe);
-			pr_err("Demod: demod%d [id %d] had %s.\n",
+
+			pr_info("Demod: demod%d [id %d] had %s\n",
 					ops->index, ops->cfg.id,
 					attach ? "attached" : "detached");
-
 			continue;
 		}
 
@@ -36,15 +36,16 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 				ops->attached = true;
 				ops->fe = fe;
 
+				/*only has internal demod*/
 				if (!ops->external)
 					dvb_tuner_attach(ops->fe);
 
-				pr_err("Demod: attach demod%d [id %d] done.\n",
+				pr_info("Demod: attach demod%d [id %d] done\n",
 						ops->index, ops->cfg.id);
 			} else {
 				ops->attached = false;
 
-				pr_err("Demod: attach demod%d [id %d] fail.\n",
+				pr_info("Demod: attach demod%d [id %d] fail\n",
 						ops->index, ops->cfg.id);
 			}
 		} else {
@@ -58,7 +59,7 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 			ops->type = AML_FE_UNDEFINED;
 			ops->fe = NULL;
 
-			pr_err("Demod: detach demod%d [id %d] done.\n",
+			pr_info("Demod: detach demod%d [id %d] done\n",
 					ops->index, ops->cfg.id);
 		}
 	}
@@ -131,7 +132,7 @@ static int demod_detect(struct dvb_demod *demod)
 		if (ops->fe->ops.init) {
 			ret = ops->fe->ops.init(ops->fe);
 		} else {
-			pr_err("Demod: demod%d [id %d] init() is NULL.\n",
+			pr_info("Demod: demod%d [id %d] init NULL\n",
 					ops->index, ops->cfg.id);
 
 			continue;
@@ -144,14 +145,14 @@ static int demod_detect(struct dvb_demod *demod)
 			else
 				ops->valid = false;
 
-			pr_err("Demod: detect demod%d [id %d] %s.\n",
+			pr_info("Demod: detect demod%d [id %d] %s\n",
 					ops->index, ops->cfg.id,
 					ops->valid ? "done" : "fail");
 
 			if (ops->fe->ops.release)
 				ops->fe->ops.release(ops->fe);
 		} else {
-			pr_err("Demod: demod%d [id %d] init() error, ret %d.\n",
+			pr_info("Demod: demod%d [id %d] init() error %d\n",
 					ops->index, ops->cfg.id, ret);
 		}
 	}
@@ -173,20 +174,20 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 
 	list_for_each_entry(ops, &demod->list, list) {
 		if (!ops->attached) {
-			pr_err("Demod: demod%d [id %d] had not attached.\n",
+			pr_info("Demod: demod%d [id %d] had not attached\n",
 					ops->index, ops->cfg.id);
 			continue;
 		}
 
 		if (!ops->valid && ops->cfg.detect) {
-			pr_err("Demod: demod%d [id %d] had not detected.\n",
+			pr_info("Demod: demod%d [id %d] had not detected\n",
 					ops->index, ops->cfg.id);
 			continue;
 		}
 
 		if ((ops->registered && regist) ||
 			(!ops->registered && !regist)) {
-			pr_err("Demod: demod%d [id %d] had %sregistered.\n",
+			pr_info("Demod: demod%d [id %d] had %sregistered.\n",
 					ops->index, ops->cfg.id,
 					regist ? "" : "un");
 
@@ -195,21 +196,21 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 
 		if (regist) {
 			if (!demod->dvb_adapter) {
-				pr_err("Demod: adapter is null, call aml_dvb_get_adapter.\n");
+				pr_info("Demod: adapter null, call aml_dvb_get_adapter\n");
 				demod->dvb_adapter = aml_dvb_get_adapter
 					(aml_get_dvb_extern_dev());
 			}
 			ret = ops->module->register_frontend(
 					demod->dvb_adapter, ops->fe);
 			if (ret)
-				pr_err("Demod: demod%d [id %d] register frontend fail, ret %d.\n",
+				pr_info("Demod: demod%d [id %d] register frontend fail %d\n",
 						ops->index, ops->cfg.id, ret);
 			else
 				ops->registered = true;
 		} else {
 			ret = ops->module->unregister_frontend(ops->fe);
 			if (ret)
-				pr_err("Demod: demod%d [Id %d] unregister frontend fail, ret %d.\n",
+				pr_info("Demod: demod%d [Id %d] unregister frontend fail %d\n",
 						ops->index, ops->cfg.id, ret);
 			else
 				ops->registered = false;
@@ -372,7 +373,7 @@ int dvb_demod_ops_add(struct demod_ops *ops)
 		if (p == ops) {
 			mutex_unlock(&dvb_demods_mutex);
 
-			pr_err("Demod: demod%d [id %d] ops [0x%p] exist.\n",
+			pr_info("Demod: demod%d [id %d] ops [0x%p] exist\n",
 					ops->index, ops->cfg.id, ops);
 
 			return -EEXIST;
@@ -484,8 +485,8 @@ int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
 	if (found)
 		demod->cb_num++;
 
-	pr_err("[%s]:register type %d, mod_num %d, cb_num %d\n",
-		__func__, type, mod_num, demod->cb_num);
+	pr_info("[%s]:register type %d, current num %d, modnum %d\n",
+		__func__, type, demod->cb_num, mod_num);
 
 	if (demod->cb_num == mod_num && ext_demod_only) {
 		mutex_unlock(&dvb_demods_mutex);

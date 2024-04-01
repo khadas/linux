@@ -13,6 +13,7 @@ static int aml_tuner_match(const struct tuner_module *module, int std);
 static int aml_tuner_detect(const struct tuner_config *cfg);
 
 static const struct tuner_module tuner_modules[] = {
+#ifdef TUNER_UNUSED
 	{
 		.name = "si2176",
 		.id = AM_TUNER_SI2176,
@@ -97,6 +98,7 @@ static const struct tuner_module tuner_modules[] = {
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
 	},
+#endif //TUNER_UNUSED
 	{
 		.name = "r840",
 		.id = AM_TUNER_R840,
@@ -114,6 +116,7 @@ static const struct tuner_module tuner_modules[] = {
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
 	},
+#ifdef TUNER_UNUSED
 	{
 		.name = "si2157",
 		.id = AM_TUNER_SI2157,
@@ -131,6 +134,7 @@ static const struct tuner_module tuner_modules[] = {
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
 	},
+#endif //TUNER_UNUSED
 	{
 		.name = "si2151",
 		.id = AM_TUNER_SI2151,
@@ -448,7 +452,7 @@ static const struct tuner_module tuner_modules[] = {
 		.detach = aml_tuner_detach,
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
-	},
+	}
 };
 
 static tn_attach_cb pt[AM_TUNER_MAX];
@@ -458,16 +462,13 @@ void aml_set_tuner_attach_cb(const enum tuner_type type, tn_attach_cb funcb)
 		pt[type] = funcb;
 }
 
-static struct dvb_frontend *aml_attach_detach_tuner(
-		const enum tuner_type type,
-		struct dvb_frontend *fe,
-		const struct tuner_config *cfg,
-		int attach)
+static struct dvb_frontend *aml_attach_detach_tuner(const enum tuner_type type,
+		struct dvb_frontend *fe, const struct tuner_config *cfg, int attach)
 {
 	struct dvb_frontend *p = NULL;
 
 	if (pt[type]) {
-		pr_err("%s: cb id %d\n", __func__, type);
+		pr_info("%s: cb id %d\n", __func__, type);
 		return pt[type](fe, cfg);
 	}
 
@@ -536,7 +537,7 @@ static int aml_tuner_rw(struct i2c_adapter *i2c_adap,
 repeat:
 	ret = i2c_transfer(i2c_adap, msg, msg_num);
 	if (ret < 0) {
-		pr_err("Tuner: error write or read ret = %d.\n", ret);
+		pr_info("Tuner: write/read error %d\n", ret);
 		if (i++ < i2c_try_cnt)
 			goto repeat;
 		else
@@ -569,7 +570,6 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 	msg_r.len = 0;
 	msg_r.buf = data_r;
 
-	pr_err("Tuner: id %d %s.\n", cfg->id, cfg->name ? cfg->name : "");
 	switch (cfg->id) {
 	case AM_TUNER_ATBM2040:
 	case AM_TUNER_ATBM253:
@@ -591,7 +591,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 #define ATBM_LEOB_CHIP_ID (0xF0)
 #define ATBM_LEO_LITE_G_CHIP_ID (0x59) /* 253 */
 
-		pr_err("Tuner: atbm2040/253 data_r: 0x%x.\n", data_r[0]);
+		pr_info("Tuner: atbm2040/253 data_r: 0x%x\n", data_r[0]);
 		if ((data_r[0] == ATBM_LEOG_CHIP_ID) ||
 			(data_r[0] == ATBM_LEOF_CHIP_ID) ||
 			(data_r[0] == ATBM_LEOB_CHIP_ID) ||
@@ -618,7 +618,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 			mdelay(2);
 		}
 
-		pr_err("Tuner: si2151/si2159 data_r: 0x%x.\n",
+		pr_info("Tuner: si2151/si2159 data_r: 0x%x\n",
 				data_r[0]);
 		if (!(data_r[0] & 0x80))
 			return -ENXIO;
@@ -638,7 +638,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 			if (ret)
 				return ret;
 
-			pr_err("Tuner: si2151/si2159 data_r: 0x%x 0x%x.\n",
+			pr_info("Tuner: si2151/si2159 data_r: 0x%x 0x%x\n",
 					data_r[0], data_r[1]);
 			if (data_r[0] & 0x80)
 				break;
@@ -674,7 +674,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 			if (ret)
 				return ret;
 
-			pr_err("Tuner: si2151/si2159 data_r: 0x%x.\n",
+			pr_info("Tuner: si2151/si2159 data_r: 0x%x\n",
 					data_r[0]);
 			if (data_r[0] == 0x1D)
 				return 0;
@@ -696,7 +696,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 		if (ret)
 			return ret;
 
-		pr_err("Tuner: r840/r842 data_r: 0x%x.\n", data_r[0]);
+		pr_info("Tuner: r840/r842 data_r: 0x%x\n", data_r[0]);
 		if (data_r[0] == 0x96 || data_r[0] == 0x69 ||
 			data_r[0] == 0x97 || data_r[0] == 0xE9)
 			return 0;
@@ -720,7 +720,7 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 		if (ret)
 			return ret;
 
-		pr_err("Tuner: mxl661 data_r: 0x%x.\n", data_r[0]);
+		pr_info("Tuner: mxl661 data_r: 0x%x\n", data_r[0]);
 		if (data_r[0] == 0x3)
 			return 0;
 		else
@@ -745,7 +745,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	const char *str = NULL;
 
 	if (IS_ERR_OR_NULL(node) || IS_ERR_OR_NULL(cfg)) {
-		pr_err("Tuner: NULL or error pointer of node or cfg.\n");
+		pr_info("Tuner: NULL node/cfg\n");
 
 		return -EFAULT;
 	}
@@ -756,9 +756,9 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret) {
 		cfg->id = aml_get_tuner_type(str);
 		if (cfg->id == AM_TUNER_NONE)
-			pr_err("Tuner: can't support tuner type: %s.\n", str);
+			pr_info("Tuner: can't support tuner type: %s\n", str);
 	} else {
-		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
+		pr_info("Tuner: can't get %s ret[%d]\n", buf, ret);
 
 		cfg->id = AM_TUNER_NONE;
 
@@ -772,12 +772,12 @@ int aml_get_dts_tuner_config(struct device_node *node,
 		cfg->i2c_adap = of_find_i2c_adapter_by_node(node_i2c);
 		of_node_put(node_i2c);
 		if (IS_ERR_OR_NULL(cfg->i2c_adap)) {
-			//pr_err("Tuner: can't get i2c_get_adapter ret[NULL].\n");
+			//pr_info("Tuner: can't get i2c_get_adapter ret[NULL]\n");
 
 			/* return -1; */
 		}
 	} else {
-		//pr_err("Tuner: can't get %s ret[NULL].\n", buf);
+		//pr_info("Tuner: can't get %s ret[NULL]\n", buf);
 
 		cfg->i2c_adap = NULL;
 	}
@@ -788,7 +788,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret) {
 		cfg->i2c_addr = value;
 	} else {
-		//pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
+		//pr_info("Tuner: can't get %s ret[%d]\n", buf, ret);
 
 		cfg->i2c_addr = 0;
 	}
@@ -799,7 +799,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret) {
 		cfg->code = value;
 	} else {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->code = 0;
 	}
@@ -808,7 +808,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_xtal", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->xtal = 0;
 	} else {
@@ -819,7 +819,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_xtal_mode", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->xtal_mode = 0;
 	} else {
@@ -830,7 +830,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_xtal_cap", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->xtal_cap = 0;
 	} else {
@@ -841,7 +841,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_lt_out", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->lt_out = 0;
 	} else {
@@ -852,7 +852,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_dual_power", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->dual_power = 0;
 	} else {
@@ -863,7 +863,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_if_agc", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->if_agc = 0;
 	} else {
@@ -874,7 +874,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_if_hz", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->if_hz = 0;
 	} else {
@@ -885,7 +885,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_if_invert", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->if_invert = 0;
 	} else {
@@ -896,7 +896,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_if_amp", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->if_amp = 0;
 	} else {
@@ -907,7 +907,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_detect", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->detect = 0;
 	} else {
@@ -919,19 +919,19 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_reset_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->reset.pin = -1;
 	} else {
 		cfg->reset.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
-		//pr_err("Tuner: get %s: %d.\n", buf, cfg->reset.pin);
+		//pr_info("Tuner: get %s: %d.\n", buf, cfg->reset.pin);
 	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "tuner%d_reset_dir", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->reset.dir = 0;
 	} else {
@@ -942,7 +942,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_reset_value", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->reset.value = 0;
 	} else {
@@ -954,19 +954,19 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_power_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->power.pin = -1;
 	} else {
 		cfg->power.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
-		//pr_err("Tuner: get %s: %d.\n", buf, cfg->power.pin);
+		//pr_info("Tuner: get %s: %d.\n", buf, cfg->power.pin);
 	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "tuner%d_power_dir", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->power.dir = 0;
 	} else {
@@ -977,7 +977,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_power_value", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->power.value = 0;
 	} else {
@@ -988,7 +988,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_reserved0", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->reserved0 = 0;
 	} else {
@@ -999,7 +999,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner%d_reserved1", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		/* pr_err("Tuner: can't get %s ret[%d].\n", buf, ret); */
+		/* pr_info("Tuner: can't get %s ret[%d]\n", buf, ret); */
 
 		cfg->reserved1 = 0;
 	} else {
@@ -1015,7 +1015,7 @@ void aml_show_tuner_config(const char *title, const struct tuner_config *cfg)
 	if (IS_ERR_OR_NULL(title) || IS_ERR_OR_NULL(cfg))
 		return;
 
-	pr_err("[%s] name: %s, code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d.\n",
+	pr_err("[%s] name: %s, code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d\n",
 			title,
 			cfg->name ? cfg->name : "",
 			cfg->code,
@@ -1027,26 +1027,26 @@ void aml_show_tuner_config(const char *title, const struct tuner_config *cfg)
 			cfg->xtal_cap,
 			cfg->xtal_mode,
 			cfg->lt_out);
-	pr_err("[%s] reset pin: %d, dir: %d, value: %d.\n",
+	pr_err("[%s] reset pin: %d, dir: %d, value: %d\n",
 			title,
 			cfg->reset.pin,
 			cfg->reset.dir,
 			cfg->reset.value);
-	pr_err("[%s] power pin: %d, dir: %d, value: %d.\n",
+	pr_err("[%s] power pin: %d, dir: %d, value: %d\n",
 			title,
 			cfg->power.pin,
 			cfg->power.dir,
 			cfg->power.value);
-	pr_err("[%s] tuner0 dual_power: %d (0:3.3v, 1:1.8v and 3.3v).\n",
+	pr_err("[%s] tuner0 dual_power: %d (0:3.3v, 1:1.8v and 3.3v)\n",
 			title,
 			cfg->dual_power);
-	pr_err("[%s] if_agc: %d (0:Self, 1:External), if_hz: %d Hz, if_invert: %d (0:Normal, 1:Inverted), if_amp: %d.\n",
+	pr_err("[%s] if_agc: %d (0:Self, 1:External), if_hz: %d Hz, if_invert: %d (0:Normal, 1:Inverted), if_amp: %d\n",
 			title,
 			cfg->if_agc,
 			cfg->if_hz,
 			cfg->if_invert,
 			cfg->if_amp);
-	pr_err("[%s] detect: %d, reserved0: %d, reserved1: %d.\n",
+	pr_err("[%s] detect: %d, reserved0: %d, reserved1: %d\n",
 			title,
 			cfg->detect,
 			cfg->reserved0,
@@ -1079,7 +1079,7 @@ const struct tuner_module *aml_get_tuner_module(enum tuner_type type)
 			return &tuner_modules[i];
 	}
 
-	pr_err("Tuner: get tuner [%d] module fail.\n", type);
+	pr_info("Tuner: get [%d] module fail\n", type);
 
 	return NULL;
 }

@@ -70,7 +70,7 @@ struct dvb_extern_device {
 	int demod_cur;
 	int demod_cur_attached;
 
-	struct work_struct work;
+	struct work_struct resume_work;
 	struct aml_attach_work attach_work;
 
 	/* to set config from userspace */
