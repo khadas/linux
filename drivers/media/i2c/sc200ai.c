@@ -2090,8 +2090,9 @@ static int sc200ai_probe(struct i2c_client *client,
 				       &sc200ai->module_name);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
 				       &sc200ai->len_name);
-	ret |= of_property_read_u32(node, RKMODULE_CAMERA_STANDBY_HW,
-				       &sc200ai->standby_hw);
+	/* Compatible with non-standby mode if this attribute is not configured in dts*/
+	of_property_read_u32(node, RKMODULE_CAMERA_STANDBY_HW,
+			     &sc200ai->standby_hw);
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
