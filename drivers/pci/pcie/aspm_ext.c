@@ -11,6 +11,10 @@
 #include <linux/aspm_ext.h>
 #include <linux/errno.h>
 
+#define PCIE_RAS_DES_CAP_SD_STATUS_PM	0xB8
+#define PCIE_RAS_DES_CAP_LISS_SHIFT		13
+#define PCIE_RAS_DES_CAP_LISS_MASK		(0x7 << PCIE_RAS_DES_CAP_LISS_SHIFT)
+#define PCIE_RAS_DES_CAP_LISS			(0x5 << PCIE_RAS_DES_CAP_LISS_SHIFT)
 
 static u32 rockchip_pcie_pcie_access_cap(struct pci_dev *pdev, int cap, uint offset,
 					 bool is_ext, bool is_write, u32 writeval)
@@ -342,5 +346,20 @@ void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bo
 		rockchip_pcie_bus_aspm_enable_rc_ep(child, parent, true);
 }
 EXPORT_SYMBOL(pcie_aspm_ext_l1ss_enable);
+
+bool pcie_aspm_ext_is_in_l1sub_state(struct pci_dev *pdev)
+{
+	u32 val;
+
+	val = rockchip_pcie_pcie_access_cap(pdev, PCI_EXT_CAP_ID_VNDR,
+					    PCIE_RAS_DES_CAP_SD_STATUS_PM,
+					    true, false, 0);
+
+	if ((val & PCIE_RAS_DES_CAP_LISS_MASK) == PCIE_RAS_DES_CAP_LISS)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(pcie_aspm_ext_is_in_l1sub_state);
 
 MODULE_LICENSE("GPL");
