@@ -1169,8 +1169,6 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 	int i;
 
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
-	rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
-	rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
 
 	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
 		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
