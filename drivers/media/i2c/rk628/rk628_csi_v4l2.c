@@ -2359,10 +2359,12 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 1);
 	} else if (csi->lane_mbps == MIPI_DATARATE_MBPS_HIGH && !csi->rk628->dual_mipi) {
 		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 0);
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
+		if (csi->rk628->version >= RK628F_VERSION)
+			rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
 	} else {
 		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 0);
-		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
+		if (csi->rk628->version >= RK628F_VERSION)
+			rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
 	}
 
 	usleep_range(1500, 2000);

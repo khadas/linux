@@ -2340,6 +2340,10 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 			queue_delayed_work(cm->cm_wq, &cm->cm_monitor_work, 300);
 		cm->fc_charger_enabled = 1;
 	} else {
+		if (cm->fc_config->jeita_charge_support) {
+			cancel_delayed_work(&cm->cm_jeita_work);
+			queue_delayed_work(cm->cm_wq, &cm->cm_jeita_work, 1000);
+		}
 		val.intval = 1;
 		ret = power_supply_set_property(cm->desc->tcpm_psy,
 						POWER_SUPPLY_PROP_ONLINE,

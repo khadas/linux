@@ -496,7 +496,7 @@ static const struct dwcmshc_driver_data dwcmshc_drvdata = {
 
 static const struct dwcmshc_driver_data rk3568_drvdata = {
 	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
-	.flags = RK_PLATFROM | RK_RXCLK_NO_INVERTER,
+	.flags = RK_PLATFROM | RK_RXCLK_NO_INVERTER | RK_TAP_VALUE_SEL,
 	.hs200_tx_tap = 16,
 	.hs400_tx_tap = 8,
 	.hs400_cmd_tap = 8,
@@ -506,7 +506,7 @@ static const struct dwcmshc_driver_data rk3568_drvdata = {
 
 static const struct dwcmshc_driver_data rk3588_drvdata = {
 	.pdata = &sdhci_dwcmshc_rk35xx_pdata,
-	.flags = RK_PLATFROM | RK_DLL_CMD_OUT,
+	.flags = RK_PLATFROM | RK_DLL_CMD_OUT | RK_TAP_VALUE_SEL,
 	.hs200_tx_tap = 16,
 	.hs400_tx_tap = 9,
 	.hs400_cmd_tap = 8,

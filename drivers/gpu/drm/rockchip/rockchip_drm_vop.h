@@ -447,6 +447,11 @@ struct vop_intr {
 	struct vop_reg status;
 };
 
+struct vop_urgency {
+	u8 urgen_thl;
+	u8 urgen_thh;
+};
+
 struct vop_scl_extension {
 	struct vop_reg cbcr_vsd_mode;
 	struct vop_reg cbcr_vsu_mode;
@@ -979,6 +984,13 @@ struct vop2_video_port_regs {
 	struct vop_reg csc_offset1;
 	struct vop_reg csc_offset2;
 
+	/* axi urgency */
+	struct vop_reg axi0_port_urgency_en;
+	struct vop_reg axi1_port_urgency_en;
+	struct vop_reg post_urgency_en;
+	struct vop_reg post_urgency_thl;
+	struct vop_reg post_urgency_thh;
+
 	/* color bar */
 	struct vop_reg color_bar_en;
 	struct vop_reg color_bar_mode;
@@ -1182,6 +1194,7 @@ struct vop2_video_port_data {
 	const u8 win_dly;
 	const u8 pixel_rate;
 	const struct vop_intr *intr;
+	const struct vop_urgency *urgency;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop2_video_port_regs *regs;
 	const struct vop3_ovl_regs *ovl_regs;

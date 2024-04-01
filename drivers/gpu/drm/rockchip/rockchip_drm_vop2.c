@@ -1657,7 +1657,7 @@ static inline void rk3568_vop2_cfg_done(struct drm_crtc *crtc)
 	 */
 	val |= vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
 
 	vop2_writel(vop2, 0, val);
 
@@ -1684,7 +1684,7 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	if (vcstate->splice_mode)
 		val |= BIT(vp_data->splice_vp_id) | (BIT(vp_data->splice_vp_id) << 16);
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
 
 	vop2_writel(vop2, 0, val);
 }
@@ -5803,11 +5803,12 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-			 "vp%d update %s[%dx%d->%dx%d@(%d, %d)] fmt[%p4cc%s] addr[%pad] by %s\n",
-			 vp->id, win->name, actual_w, actual_h, dsp_w, dsp_h,
-			 dsp_stx, dsp_sty,
-			 &fb->format->format,
-			 modifier_to_string(fb->modifier), &vpstate->yrgb_mst, current->comm);
+			 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+			 vp->id, win->name,
+			 actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
+			 dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
+			 &fb->format->format, modifier_to_string(fb->modifier),
+			 &vpstate->yrgb_mst, vpstate->fb_size, current->comm);
 
 	if (vop2->version != VOP_VERSION_RK3568)
 		rk3588_vop2_win_cfg_axi(win);
@@ -6063,13 +6064,17 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	}
 
 	if (vcstate->splice_mode) {
-		DRM_DEV_DEBUG(vop2->dev, "vp%d update %s[%dx%d->%dx%d@(%d,%d)] fmt[%p4cc%s] addr[%pad]\n",
-			      vp->id, win->name, drm_rect_width(&vpstate->src) >> 16,
-			      drm_rect_height(&vpstate->src) >> 16,
-			      drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
-			      vpstate->dest.x1, vpstate->dest.y1,
-			      &fb->format->format,
-			      modifier_to_string(fb->modifier), &vpstate->yrgb_mst);
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
+				 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+				 vp->id, win->name,
+				 drm_rect_width(&vpstate->src) >> 16,
+				 drm_rect_height(&vpstate->src) >> 16,
+				 vpstate->src.x1 >> 16, vpstate->src.y1 >> 16,
+				 drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
+				 vpstate->dest.x1, vpstate->dest.y1, vpstate->zpos,
+				 &fb->format->format,
+				 modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
+				 vpstate->fb_size, current->comm);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
 		splice_win = win->splice_win;
@@ -7224,6 +7229,10 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		request_clock *= 2;
 
+	/* Pixel rate verify */
+	if (request_clock > vp_data->dclk_max / 1000)
+		return MODE_CLOCK_HIGH;
+
 	if ((request_clock <= VOP2_MAX_DCLK_RATE) &&
 	    (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
 	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
@@ -7238,9 +7247,6 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
-
-	if (request_clock > vp_data->dclk_max / 1000)
-		return MODE_CLOCK_HIGH;
 
 	/*
 	 * Hdmi or DisplayPort request a Accurate clock.
@@ -8990,6 +8996,16 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 1);
 	VOP_MODULE_SET(vop2, vp, line_flag_or_en, 1);
+	if (vop2->data->vp[vp->id].urgency) {
+		u8 urgen_thl = vop2->data->vp[vp->id].urgency->urgen_thl;
+		u8 urgen_thh = vop2->data->vp[vp->id].urgency->urgen_thh;
+
+		VOP_MODULE_SET(vop2, vp, axi0_port_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, axi1_port_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, post_urgency_en, 1);
+		VOP_MODULE_SET(vop2, vp, post_urgency_thl, urgen_thl);
+		VOP_MODULE_SET(vop2, vp, post_urgency_thh, urgen_thh);
+	}
 	if (vcstate->dsc_enable) {
 		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
 			vop2_crtc_enable_dsc(crtc, old_cstate, 0);
@@ -12491,7 +12507,7 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	drm_object_attach_property(&crtc->base, vp->output_width_prop, 0);
 
 	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_DCLK",
-					 0, rockchip_drm_get_dclk_by_width(vop2->data->vp[vp->id].max_output.width) * 1000);
+					 0, vop2->data->vp[vp->id].dclk_max);
 	if (!prop) {
 		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_DCLK prop for vp%d failed\n", vp->id);
 		return -ENOMEM;

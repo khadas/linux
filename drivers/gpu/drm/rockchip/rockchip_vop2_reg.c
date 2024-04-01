@@ -1577,6 +1577,11 @@ static const struct vop2_video_port_regs rk3576_vop_vp0_regs = {
 
 	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 20),
 	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 28),
+	.axi0_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL0_IMD, 0x1, 24),
+	.axi1_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL1_IMD, 0x1, 24),
+	.post_urgency_en = VOP_REG(RK3568_VP0_COLOR_BAR_CTRL, 0x1, 8),
+	.post_urgency_thl = VOP_REG(RK3568_VP0_COLOR_BAR_CTRL, 0xf, 16),
+	.post_urgency_thh = VOP_REG(RK3568_VP0_COLOR_BAR_CTRL, 0xf, 20),
 };
 
 static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
@@ -1652,6 +1657,11 @@ static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
 
 	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 21),
 	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 29),
+	.axi0_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL0_IMD, 0x1, 25),
+	.axi1_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL1_IMD, 0x1, 25),
+	.post_urgency_en = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0x1, 8),
+	.post_urgency_thl = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0xf, 16),
+	.post_urgency_thh = VOP_REG(RK3568_VP1_COLOR_BAR_CTRL, 0xf, 20),
 };
 
 static const struct vop2_video_port_regs rk3576_vop_vp2_regs = {
@@ -1727,12 +1737,27 @@ static const struct vop2_video_port_regs rk3576_vop_vp2_regs = {
 
 	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 22),
 	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 30),
+	.axi0_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL0_IMD, 0x1, 26),
+	.axi1_port_urgency_en = VOP_REG(RK3576_SYS_AXI_HURRY_CTRL1_IMD, 0x1, 26),
+	.post_urgency_en = VOP_REG(RK3568_VP2_COLOR_BAR_CTRL, 0x1, 8),
+	.post_urgency_thl = VOP_REG(RK3568_VP2_COLOR_BAR_CTRL, 0xf, 16),
+	.post_urgency_thh = VOP_REG(RK3568_VP2_COLOR_BAR_CTRL, 0xf, 20),
 };
 
 static const struct vop3_ovl_regs rk3576_vop_vp0_ovl_regs = {
 	 .layer_mix_regs = &rk3528_vop_vp0_layer_mix_regs,
 	 .hdr_mix_regs = &rk3528_vop_hdr_mix_regs,
 	 .extra_mix_regs = &rk3576_vop_extra_mix_regs,
+};
+
+/*
+ * RK3576 VP0 has 8 lines post linebuffer, when full post line buffer is less 4,
+ * the urgency signal will be set to 1, when full post line buffer is over 6, the
+ * urgency signal will be set to 0.
+ */
+static const struct vop_urgency rk3576_vp0_urgency = {
+	.urgen_thl = 4,
+	.urgen_thh = 6,
 };
 
 static const struct vop2_video_port_data rk3576_vop_video_ports[] = {
@@ -1745,7 +1770,7 @@ static const struct vop2_video_port_data rk3576_vop_video_ports[] = {
 			VOP_FEATURE_POST_FRC_V2 | VOP_FEATURE_POST_SHARP,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
-	 .dclk_max = 600000000,
+	 .dclk_max = 1200000000,
 	 .max_output = { 4096, 4096 },
 	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},
 	 .sdr2hdr_dly = 21,
@@ -1754,6 +1779,7 @@ static const struct vop2_video_port_data rk3576_vop_video_ports[] = {
 	 .win_dly = 10,
 	 .pixel_rate = 2,
 	 .intr = &rk3568_vp0_intr,
+	 .urgency = &rk3576_vp0_urgency,
 	 .regs = &rk3576_vop_vp0_regs,
 	 .ovl_regs = &rk3576_vop_vp0_ovl_regs,
 	},
@@ -2134,7 +2160,7 @@ static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
 			VOP_FEATURE_HDR10 | VOP_FEATURE_NEXT_HDR,
 	 .gamma_lut_len = 1024,
 	 .cubic_lut_len = 729, /* 9x9x9 */
-	 .dclk_max = 600000000,
+	 .dclk_max = 2400000000,
 	 .max_output = { 7680, 4320 },
 	 /* hdr2sdr sdr2hdr hdr2hdr sdr2sdr */
 	 .pre_scan_max_dly = { 76, 65, 65, 54 },

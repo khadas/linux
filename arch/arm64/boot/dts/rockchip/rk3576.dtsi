@@ -2190,7 +2190,8 @@
 		interrupts = <GIC_SPI 334 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_EBC>, <&cru DCLK_EBC>, <&cru HCLK_EBC>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
-		power-domains = <&power RK3576_PD_VPU>;
+		power-domains = <&power RK3576_PD_VPU>, <&power RK3576_PD_VO0>;
+		power-domain-names = "pd0", "pd1";
 		rockchip,grf = <&ioc_grf>;
 		rockchip,vo0-grf = <&vo0_grf>;
 		status = "disabled";
