@@ -892,7 +892,7 @@
 				};
 				lcd-bl-pwm {
 					pins = "MAX96745_MFP0";
-					function = "SER_TXID0_TO_DES_LINKA";
+					function = "SER_TXID4_TO_DES_LINKA";
 				};
 				tp-int {
 					pins = "MAX96745_MFP1";
@@ -1415,7 +1415,7 @@
 				};
 				lcd-bl-pwm {
 					pins = "MAX96745_MFP0";
-					function = "SER_TXID0_TO_DES_LINKA";
+					function = "SER_TXID4_TO_DES_LINKA";
 				};
 				tp-int {
 					pins = "MAX96745_MFP1";
