@@ -1265,13 +1265,14 @@ static ssize_t edid_store(struct device *dev,
 			  const char *buf, size_t count)
 {
 	unsigned int argn = 0;
-	char *p = NULL, *para = NULL, *argv[8] = {NULL};
+	char *p = NULL, *para = NULL, *temp_p = NULL, *argv[8] = {NULL};
 	unsigned int path_length = 0;
 	unsigned int index = 0, tmp = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	int ret = 0;
 
 	p = kstrdup(buf, GFP_KERNEL);
+	temp_p = p;
 	if (!p)
 		return count;
 
@@ -1380,7 +1381,7 @@ static ssize_t edid_store(struct device *dev,
 	}
 
 PROCESS_END:
-	kfree(p);
+	kfree(temp_p);
 	return count;
 }
 
