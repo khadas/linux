@@ -135,7 +135,7 @@ void atv_dmd_soft_reset(void)
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x1);
 	atv_dmd_wr_long(0x1d, 0x0, 0x1037);/* enable dac */
 
-	pr_dbg("%s done.\n", __func__);
+	pr_dbg("%s done\n", __func__);
 }
 
 void atv_dmd_input_clk_32m(void)
@@ -147,32 +147,28 @@ void read_version_register(void)
 {
 	unsigned long data, Byte1, Byte2, Word;
 
-	pr_info("ATV-DMD read version register\n");
 	Byte1 = atv_dmd_rd_byte(APB_BLOCK_ADDR_VERS_REGISTER, 0x0);
 	Byte2 = atv_dmd_rd_byte(APB_BLOCK_ADDR_VERS_REGISTER, 0x1);
 	Word = atv_dmd_rd_word(APB_BLOCK_ADDR_VERS_REGISTER, 0x2);
 	data = atv_dmd_rd_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0);
 
-	pr_info("atv demod read version register data out %lx\n", data);
-
 	if ((data != 0x516EAB13) || (((Byte1 << 24) | (Byte2 << 16) | Word)
 			!= 0x516EAB13))
-		pr_info("atv demod read version reg failed\n");
+		pr_info("read version reg failed\n");
 }
 
 void check_communication_interface(void)
 {
 	unsigned long data_tmp;
 
-	pr_dbg("ATV-DMD check communication intf\n");
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0, 0xA1B2C3D4);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_VERS_REGISTER, 0x1, 0x34);
 	atv_dmd_wr_word(APB_BLOCK_ADDR_VERS_REGISTER, 0x2, 0xBCDE);
 	data_tmp = atv_dmd_rd_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0);
-	pr_dbg("atv demod check communication intf data out %lx\n", data_tmp);
 
 	if (data_tmp != 0xa134bcde)
-		pr_info("atv demod check communication intf failed\n");
+		pr_info("check communication intf failed\n");
+
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0, 0x516EAB13);
 }
 
@@ -187,7 +183,7 @@ void atv_dmd_misc(void)
 	int tuner_id = amlatvdemod_devp->tuner_id;
 
 	if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L) {
-		pr_info("broad_std is SECAM_L, no need config misc\n");
+		pr_info("SECAM_L no need config misc\n");
 		return;
 	}
 
@@ -338,7 +334,7 @@ void atv_dmd_misc(void)
 		audio_atv_ov_flag = 0;
 	}
 
-	pr_dbg("%s done.\n", __func__);
+	pr_dbg("%s done\n", __func__);
 }
 
 void atv_dmd_ring_filter(bool on, int std)
@@ -409,7 +405,7 @@ void atv_dmd_ring_filter(bool on, int std)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x4c, 0x1);
 	}
 
-	pr_dbg("%s do ring filter %d ...\n", __func__, on);
+	pr_dbg("%s ring filter %d\n", __func__, on);
 }
 
 void atv_dmd_non_std_set(bool enable)
@@ -539,7 +535,7 @@ void atv_dmd_non_std_set(bool enable)
 
 				non_std_counter = 0;
 
-				pr_info("===> atv entry non std setting\n");
+				pr_info("entry non std\n");
 			}
 		} else if (vdagc1_diff < non_std_thld_4c_l &&
 				vdagc2_diff < non_std_thld_54_l &&
@@ -555,15 +551,15 @@ void atv_dmd_non_std_set(bool enable)
 
 			non_std_counter = 0;
 
-			pr_info("===> atv exit non std setting\n");
+			pr_info("exit non std\n");
 		}
 
 		times = 0;
 
-		pr_info("===> vdagc1_diff[0x0f4c]: %d\n", vdagc1_diff);
-		pr_info("===> vdagc2_diff[0x0f54]: %d\n", vdagc2_diff);
-		pr_info("===> vdagc1_sum1[0x0f4c]: 0x%x\n", sum1);
-		pr_info("===> vdagc2_sum2[0x0f4c]: 0x%x\n", sum2);
+		pr_info("vdagc1 diff[0x0f4c]:%d, sum1[0x0f4c]:0x%x\n",
+				vdagc1_diff, sum1);
+		pr_info("vdagc2 diff[0x0f54]:%d, sum2[0x0f4c]:0x%x\n",
+				vdagc2_diff, sum2);
 
 		vdagc1_max = 0;
 		vdagc1_min = 0xffff;
@@ -633,8 +629,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	int gd_coeff[6] = { 0 };
 	int gd_bypass = 0;
 	int tuner_id = amlatvdemod_devp->tuner_id;
-
-	pr_dbg("ATV-DMD configure receiver register\n");
 
 	if ((Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC) ||
 		(Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_J) ||
@@ -1053,7 +1047,7 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 	sif_fm_gain -= 2;	/*avoid sound overflow@guanzhong*/
 	/*FE PATH*/
-	pr_dbg("ATV-DMD configure mixer\n");
+
 	if (Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
 		tmp_int = (Tuner_IF_Frequency + 125000 / 2) / 125000;
 		if (Tuner_Input_IF_inverted == 0x0)
@@ -1066,7 +1060,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	} else {
 		/* step is 125KHz */
 		tmp_int = (Tuner_IF_Frequency + 125000 / 2) / 125000;
-		pr_dbg("ATV-DMD configure mixer 1\n");
 
 		/* the visual carrier frequency aligns at -3 MHz */
 		/* 24 = 3000000 / 125000 */
@@ -1075,12 +1068,10 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 		else
 			mixer1 = tmp_int - 24;
 
-		pr_dbg("ATV-DMD configure mixer 2\n");
 		mixer3 = 0x30;
 		mixer3_bypass = 0x1;
 	}
 
-	pr_dbg("ATV-DMD configure mixer 3\n");
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_MIXER_1, 0x0, mixer1);
 	atv_dmd_wr_word(APB_BLOCK_ADDR_MIXER_3, 0x0,
 			(((mixer3 & 0xff) << 8) | (mixer3_bypass & 0xff)));
@@ -1095,7 +1086,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	/*GP Filter*/
-	pr_dbg("ATV-DMD configure GP_filter\n");
 	if (Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
 		cv = gp_cv_g1;
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GP_VD_FLT, 0x0,
@@ -1206,7 +1196,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	/*CRVY*/
-	pr_dbg("ATV-DMD configure CRVY\n");
 	if (Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
 		crvy_reg_1 = 0xFF;
 		crvy_reg_2 = 0x00;
@@ -1216,13 +1205,9 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_CARR_RCVY, 0x29, crvy_reg_1);
-	pr_dbg("ATV-DMD configure rcvy 2\n");
-	pr_dbg("ATV-DMD configure rcvy, crvy_reg_2 = %x\n", crvy_reg_2);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_CARR_RCVY, 0x20, crvy_reg_2);
 
 	/*SOUND SUPPRESS*/
-	pr_dbg("ATV-DMD configure sound suppress\n");
-
 	if ((Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) ||
 		(sound_format == 0))
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_VD_IF, 0x02, 0x01);
@@ -1230,7 +1215,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_VD_IF, 0x02, 0x00);
 
 	/*SIF*/
-	pr_dbg("ATV-DMD configure sif\n");
 	if (!(Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV)) {
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_IC_STD, 0x03, sif_ic_bw);
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_IC_STD, 0x01, sif_fi_mx);
@@ -1274,7 +1258,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	/*VAGC*/
-	pr_dbg("ATV-DMD configure vagc\n");
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x48, 0x9B6F2C00);
 	/*bw select mode*/
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_VDAGC, 0x37, 0x1C);
@@ -1304,7 +1287,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_VDAGC, 0x12, (freq_hz_cvrt & 0xff));
 
 	/*OUTPUT STAGE*/
-	pr_dbg("ATV-DMD configure output stage\n");
 	if (Broadcast_Standard != AML_ATV_DEMOD_VIDEO_MODE_PROP_DTV) {
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_DAC_UPS, 0x0, 0x00);
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_DAC_UPS, 0x1, 0x40);
@@ -1314,7 +1296,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	/*GDE FILTER*/
-	pr_dbg("ATV-DMD configure gde filter\n");
 	if (GDE_Curve == 0) {
 		gd_coeff[0] = 0x020;	/*12'sd32;*/
 		gd_coeff[1] = 0xf5f;	/*-12'sd161;*/
@@ -1373,7 +1354,6 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	}
 
 	/*PWM*/
-	pr_dbg("ATV-DMD configure pwm\n");
 	atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x00, 0x1f40); /*4KHz*/
 	atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x04, 0xc8);
 	/*26 dB dynamic range*/
@@ -1456,7 +1436,7 @@ void retrieve_vpll_carrier_audio_power(unsigned int *power,
 		*power = carrier_power & 0xffff;
 	}
 
-	pr_dbg("%s: %d [min %d, mix %d].\n", __func__, *power, min, max);
+	pr_dbg("%s:%d [min %d, mix %d]\n", __func__, *power, min, max);
 }
 
 int retrieve_vpll_carrier_afc(void)
@@ -1472,7 +1452,7 @@ int retrieve_vpll_carrier_afc(void)
 
 	if ((pll_lock == 1) || (line_lock == 0x10)) {
 		/*if pll unlock, afc is invalid*/
-		pr_dbg("[afc invalid] pll: %d, line: %d, line_strong: %d, field: %d.\n",
+		pr_dbg("[afc invalid]pll:%d,line:%d,line_strong:%d,field:%d\n",
 				pll_lock, line_lock,
 				line_lock_strong, field_lock);
 
@@ -1572,9 +1552,9 @@ void atvdemod_mixer_tune(void)
 	mix1_freq_cur = atv_dmd_rd_byte(APB_BLOCK_ADDR_MIXER_1, 0x0);
 	delta_mix1_freq = abs(mix1_freq_cur - mix1_freq);
 	if ((lock&0x1) == 0)
-		pr_dbg("%s visual carrier lock:locked\n", __func__);
+		pr_dbg("visual carrier locked\n");
 	else
-		pr_dbg("%s visual carrier lock:unlocked\n", __func__);
+		pr_dbg("visual carrier unlocked\n");
 	/* set_pll_lpf(lock); */
 	retrieve_frequency_offset(&freq_offset);
 	/* pr_info("visual carrier offset:%d Hz\n",*/
@@ -1726,7 +1706,7 @@ void atvdemod_det_snr_series(void)
 {
 	snr_val = atvdemod_get_snr();
 
-	pr_snr("%s snr_val %d.\n", __func__, snr_val);
+	pr_snr("snr_val %d\n", snr_val);
 }
 
 int atvdemod_clk_init(void)
@@ -1790,8 +1770,8 @@ int amlfmt_aud_standard(int broad_std)
 
 		/* maybe need wait */
 		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
-		pr_dbg("%s CARRIER_MAG_REPORT: 0x%x\n",
-				__func__, (reg_value >> 16) & 0xffff);
+		pr_dbg("CARRIER_MAG_REPORT:0x%x\n",
+				(reg_value >> 16) & 0xffff);
 		if (((reg_value >> 16) & 0xffff) > audio_a2_threshold) {
 			std = AUDIO_STANDARD_A2_K;
 			if (amlatvdemod_devp->sound_mode == 0xFF)
@@ -1842,8 +1822,8 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
-				__func__, reg_value);
+		pr_dbg("NICAM_LEVEL_REPORT:0x%x\n",
+				reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_BG;
 			if (amlatvdemod_devp->sound_mode == 0xFF)
@@ -1881,8 +1861,8 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
-				__func__, reg_value);
+		pr_dbg("NICAM_LEVEL_REPORT:0x%x\n",
+				reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_DK;
 			if (amlatvdemod_devp->sound_mode == 0xFF)
@@ -1920,8 +1900,8 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
-				__func__, reg_value);
+		pr_dbg("NICAM_LEVEL_REPORT:0x%x\n",
+				reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_I;
 			if (amlatvdemod_devp->sound_mode == 0xFF)
@@ -1955,8 +1935,8 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
-				__func__, reg_value);
+		pr_dbg("NICAM_LEVEL_REPORT:0x%x\n",
+				reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_L;
 			if (amlatvdemod_devp->sound_mode == 0xFF)
@@ -1976,12 +1956,13 @@ int amlfmt_aud_standard(int broad_std)
 		aud_reinit = false;
 	} else {
 		aud_reinit = true;
-		pr_err("pll lock: 0x%x, line lock: 0x%x.\n",
+		pr_err("pll lock:0x%x,line lock:0x%x\n",
 				vpll_lock, line_lock);
 	}
 
-	pr_dbg("%s detect aud std:%d, aud_reinit:%d.\n", __func__,
+	pr_dbg("detect aud std:%d, aud_reinit:%d\n",
 			std, aud_reinit);
+
 	return std;
 }
 
@@ -2074,7 +2055,7 @@ int atvdemod_init(struct atv_demod_priv *priv)
 
 	mix1_freq = atv_dmd_rd_byte(APB_BLOCK_ADDR_MIXER_1, 0x0);
 
-	pr_dbg("%s done.\n", __func__);
+	pr_dbg("%s done\n", __func__);
 
 	return 0;
 }
@@ -2182,17 +2163,17 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 	if_freq = amlatvdemod_devp->if_freq;
 	if_inv = amlatvdemod_devp->if_inv;
 
-	pr_dbg("[%s] set broad_std %d, hz_cvrt 0x%x, offset %d.\n",
+	pr_dbg("[%s] broad_std %d, hz_cvrt 0x%x, offset %d\n",
 			__func__, broad_std, freq_hz_cvrt,
 			amlatvdemod_devp->fre_offset);
 
-	pr_dbg("[%s] set std color %s, audio type %s, cvbs %s.\n",
+	pr_dbg("[%s] std color %s, audio type %s, cvbs %s\n",
 		__func__,
 		v4l2_std_to_str((0xff000000 & std)),
 		v4l2_std_to_str((0xffffff & audmode)),
 		v4l2_std_to_str((0xffffff & std)));
 
-	pr_dbg("[%s] set if_freq %d, if_inv %d.\n", __func__, if_freq, if_inv);
+	pr_dbg("[%s] if_freq %d, if_inv %d\n", __func__, if_freq, if_inv);
 }
 
 int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
@@ -2249,7 +2230,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			if (carrier_power < AUDIO_CARRIER_POWER_MIN) {
 				broad_std =
 				AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC;
-				pr_err("%s,carrier %d too low, set L to LC.\n",
+				pr_err("%s:carrier %d too low, set L to LC\n",
 						 __func__, carrier_power);
 			} else
 				broad_std =
@@ -2261,7 +2242,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		return broad_std;
 
 	default:
-		pr_err("unsupport broadcast_standard %d !!!\n", broad_std);
+		pr_err("unsupport broad_std %d\n", broad_std);
 		return broad_std;
 	}
 
@@ -2316,7 +2297,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			p->audmode = V4L2_STD_PAL_DK;
 			break;
 		default:
-			pr_err("unsupport broadcast_standard!!!\n");
+			pr_err("unsupport broad_std\n");
 			break;
 		}
 
@@ -2359,9 +2340,9 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		if (has_audio)
 			retrieve_vpll_carrier_audio_power(&carrier_power, 100);
 		else
-			pr_err("[%s] pll and line unlock.\n", __func__);
+			pr_err("[%s]pll and line unlock\n", __func__);
 
-		pr_err("[%s] [num:%d] [broad_std:%d] [%s] audio carrier power: %d. @@@@@@@@@@\n",
+		pr_err("[%s][num:%d][broad_std:%d][%s] audio carrier power:%d\n",
 			__func__, num, broad_std, AUDIO_NAME[cur_std],
 			carrier_power);
 		carrier_power_average[cur_std] = carrier_power;
@@ -2402,7 +2383,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		if (secam_signal) {
 			broad_std =
 			AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
-			pr_err("%s,set broad_std to SECAM_L\n",
+			pr_err("%s:set broad_std to SECAM_L\n",
 					__func__);
 		}
 	}
@@ -2518,8 +2499,8 @@ void aml_audio_volume_gain_set(unsigned int audio_gain)
 	unsigned long audio_gain_data = 0, temp_data = 0;
 
 	if (audio_gain > 0xfff) {
-		pr_err("Error: atv in gain max 7.998, min 0.002! gain = value/512\n");
-		pr_err("value (0~0xfff)\n");
+		//gain = value/512.
+		pr_err("Error: gain max 7.998, min 0.002\n");
 		return;
 	}
 	audio_gain_data = audio_gain & 0xfff;
@@ -2596,7 +2577,7 @@ void aml_audio_overmodulation(int enable)
 			aml_audio_volume_gain_set(audio_ov_gain_val);
 
 			audio_atv_ov_flag = 1;
-			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0.\n",
+			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0\n",
 					tmp_v, audio_atv_ov_threshold);
 		}
 #if 0 /* No need, Enter and hold */
@@ -2614,7 +2595,7 @@ void aml_audio_overmodulation(int enable)
 			audio_source_select(1);
 
 			audio_atv_ov_flag = 0;
-			pr_info("tmp_v[0x%lx] <= 0x%x && audio_atv_ov_flag == 1.\n",
+			pr_info("tmp_v[0x%lx] <= 0x%x && audio_atv_ov_flag == 1\n",
 					tmp_v, audio_atv_ov_threshold);
 		}
 #endif
@@ -2666,7 +2647,7 @@ void atvdemod_horiz_freq_detection(void)
 
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x10, data);
 
-		pr_hor("%s [line %d], freq_hz_cvrt: 0x%lx.\n",
+		pr_hor("%s [line %d],freq_hz_cvrt:0x%lx\n",
 				__func__, line, data);
 	}
 }

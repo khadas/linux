@@ -3,10 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#define ATVDEMOD_DEVICE_NAME    "aml_atvdemod"
-#define ATVDEMOD_DRIVER_NAME    "aml_atvdemod"
-#define ATVDEMOD_MODULE_NAME    "aml_atvdemod"
-#define ATVDEMOD_CLASS_NAME     "aml_atvdemod"
+#define ATVDEMOD_DEVICE_NAME "aml_atvdemod"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -73,7 +70,8 @@
 /* 2024/02/04 --- V2.42 --- Fix get frontend. */
 /* 2024/03/06 --- V2.43 --- Fix pal bg gde filter and peaking. */
 /* 2024/03/15 --- V2.44 --- Fix afc value sync. */
-#define AMLATVDEMOD_VER "V2.44"
+/* 2024/03/28 --- V2.45 --- remove more print logs. */
+#define AMLATVDEMOD_VER "V2.45"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -89,12 +87,11 @@ static ssize_t atvdemod_debug_store(struct class *class,
 	char *parm[4] = { NULL };
 	unsigned int data_snr[128] = { 0 };
 	unsigned int data_snr_avg = 0;
-	int data_afc = 0, block_addr = 0, block_reg = 0, block_val = 0;
+	int block_addr = 0, block_reg = 0, block_val = 0;
 	int i = 0, val = 0;
 	unsigned long tmp = 0, data = 0;
 	struct aml_atvdemod_device *dev =
 			container_of(class, struct aml_atvdemod_device, cls);
-	struct atv_demod_priv *priv = dev->v4l2_fe.fe.analog_demod_priv;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
@@ -110,12 +107,6 @@ static ssize_t atvdemod_debug_store(struct class *class,
 
 	if (parm[0] == NULL)
 		goto EXIT;
-#if 0
-	if (priv->state != ATVDEMOD_STATE_WORK) {
-		pr_info("atvdemod_state not work  ....\n");
-		goto EXIT;
-	}
-#endif
 
 	if (!strncmp(parm[0], "init", 4)) {
 		int priv_cfg = AML_ATVDEMOD_INIT;
@@ -130,23 +121,17 @@ static ssize_t atvdemod_debug_store(struct class *class,
 
 		if (fe->ops.analog_ops.set_config)
 			fe->ops.analog_ops.set_config(fe, &priv_cfg);
-
-		pr_info("%s.\n", priv_cfg ? "init" : "uninit");
 	} else if (!strncmp(parm[0], "reinit", 6)) {
 		ret = atv_demod_enter_mode(&dev->v4l2_fe.fe);
-		if (ret)
-			pr_info("atv init error.\n");
 	} else if (!strncmp(parm[0], "audout_mode", 11)) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			atvauddemod_set_outputmode();
-			pr_info("atvauddemod_set_outputmode done ....\n");
 		}
 	} else if (!strncmp(parm[0], "signal_audmode", 14)) {
 		int stereo_flag = 0, sap_flag = 0;
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			update_btsc_mode(1, &stereo_flag, &sap_flag);
-			pr_info("get signal_audmode done ....\n");
 		}
 	} else if (!strncmp(parm[0], "adc_pll", 7)) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
@@ -158,7 +143,6 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		adc_set_pll_cntl(!!val, ADC_ATV_DEMOD, NULL);
 		adc_set_filter_ctrl(!!val, FILTER_ATV_DEMOD, NULL);
 #endif
-		pr_info("adc_pll %s done ....\n", val ? "ON" : "OFF");
 	} else if (!strncmp(parm[0], "vdac", 4)) {
 #ifdef CONFIG_AMLOGIC_VDAC
 		if (kstrtoul(parm[1], 16, &tmp) == 0)
@@ -168,12 +152,10 @@ static ssize_t atvdemod_debug_store(struct class *class,
 
 		vdac_enable(!!val, VDAC_MODULE_AVOUT_ATV);
 #endif
-		pr_info("vdac %s done ....\n", val ? "ON" : "OFF");
 	} else if (!strncmp(parm[0], "clock", 5)) {
 		atvdemod_clk_init();
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 			aud_demod_clk_gate(1);
-		pr_info("atvdemod_clk_init done ....\n");
 	} else if (!strncmp(parm[0], "set", 3)) {
 		if (!strncmp(parm[1], "avout_gain", 10)) {
 			if (kstrtoul(buf + strlen("avout_offset") + 1,
@@ -199,16 +181,12 @@ static ssize_t atvdemod_debug_store(struct class *class,
 	} else if (!strncmp(parm[0], "get", 3)) {
 		if (!strncmp(parm[1], "avout_gain", 10)) {
 			val = atv_dmd_rd_byte(0x0c, 0x01);
-			pr_info("avout_gain:0x%x\n", val);
 		} else if (!strncmp(parm[1], "avout_offset", 12)) {
 			val = atv_dmd_rd_byte(0x0c, 0x04);
-			pr_info("avout_offset:0x%x\n", val);
 		} else if (!strncmp(parm[1], "atv_gain", 8)) {
 			val = atv_dmd_rd_byte(0x19, 0x01);
-			pr_info("atv_gain:0x%x\n", val);
 		} else if (!strncmp(parm[1], "atv_offset", 10)) {
 			val = atv_dmd_rd_byte(0x19, 0x04);
-			pr_info("atv_offset:0x%x\n", val);
 		}
 	} else if (!strncmp(parm[0], "snr_hist", 8)) {
 		data_snr_avg = 0;
@@ -219,7 +197,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			data_snr_avg += data_snr[i];
 		}
 		data_snr_avg = data_snr_avg / 128;
-		pr_info("**********snr_hist_128avg:0x%x(%d)*********\n",
+		pr_info("snr_hist_128avg:0x%x(%d)\n",
 				data_snr_avg,
 				data_snr_avg);
 	} else if (!strncmp(parm[0], "audio_autodet", 13)) {
@@ -228,28 +206,24 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		if (kstrtoul(buf + strlen("audio_gain_set") + 1, 16, &tmp) == 0)
 			val = tmp;
 		aml_audio_volume_gain_set(val);
-		pr_info("audio_gain_set : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_get", 14)) {
 		val = aml_audio_volume_gain_get();
-		pr_info("audio_gain_get : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_shift", 16)) {
 		/* int db[] = {12, 6, 0, -6, -12, -18, -24, -30}; */
 		tmp = adec_rd_reg(0x16);
-		pr_info("audio_gain_shift : 0x%lx (%ld db).\n",
-				(tmp & 0x7), (12 - (tmp & 0x7) * 6));
+		//pr_info("audio_gain_shift : 0x%lx (%ld db).\n",
+		//(tmp & 0x7), (12 - (tmp & 0x7) * 6));
 		if (parm[1] && kstrtoul(parm[1], 0, &data) == 0) {
 			tmp = (tmp & (~0x07)) | (data & 0x7);
-			pr_info("set audio_gain_shift : 0x%lx (%ld db).\n",
-					(tmp & 0x7), (12 - (tmp & 0x7) * 6));
+			//pr_info("set audio_gain_shift : 0x%lx (%ld db).\n",
+			//(tmp & 0x7), (12 - (tmp & 0x7) * 6));
 			adec_wr_reg(0x16, tmp);
 		}
 		audio_gain_shift = (tmp & 0x7);
 	} else if (!strncmp(parm[0], "audio_gain_lpr", 14)) {
 		tmp = adec_rd_reg(0x1c);
-		pr_info("audio_gain_lpr : 0x%lx\n", tmp);
 		if (parm[1] && kstrtoul(parm[1], 0, &tmp) == 0) {
 			/*db = 20 * log(val / 0x200) */
-			pr_info("set audio_gain_lpr : 0x%lx.\n", tmp);
 			adec_wr_reg(0x1c, tmp);
 		}
 		audio_gain_lpr = tmp;
@@ -265,7 +239,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			block_reg = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
 			block_val = atv_dmd_rd_long(block_addr, block_reg);
-		pr_info("rs block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+		pr_info("rs block:0x%x,reg:0x%x,val:0x%x\n",
 				block_addr,
 				block_reg, block_val);
 	} else if (!strncmp(parm[0], "ws", 2)) {
@@ -277,11 +251,11 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			block_val = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
 			atv_dmd_wr_long(block_addr, block_reg, block_val);
-		pr_info("ws block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+		pr_info("ws block:0x%x,reg:0x%x,val:0x%x\n",
 				block_addr,
 				block_reg, block_val);
 		block_val = atv_dmd_rd_long(block_addr, block_reg);
-		pr_info("readback_val:0x%x\n", block_val);
+		pr_info("rs back val:0x%x\n", block_val);
 	} else if (!strncmp(parm[0], "tune", 4)) {
 		struct dvb_frontend *fe = NULL;
 		struct analog_parameters params;
@@ -297,7 +271,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		} else if (!strncmp(parm[1], "secam", 5)) {
 			p->std = V4L2_COLOR_STD_SECAM;
 		} else {
-			pr_err("Invalid video std, force to pal.\n");
+			pr_err("force pal\n");
 			p->std = V4L2_COLOR_STD_PAL;
 		}
 
@@ -326,7 +300,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			p->audmode = V4L2_STD_PAL_M;
 			p->std |= V4L2_STD_PAL_N;
 		} else {
-			pr_err("Invalid audio std, force to i.\n");
+			pr_err("force i\n");
 			p->audmode = V4L2_STD_PAL_I;
 			p->std |= V4L2_STD_PAL_I;
 		}
@@ -334,7 +308,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		if (parm[3] && kstrtoul(parm[3], 0, &tmp) == 0) {
 			p->frequency = tmp;
 		} else {
-			pr_err("Invalid frequency, force to 144250000 Hz.\n");
+			pr_err("force 144.25MHz\n");
 			p->frequency = 144250000;
 		}
 
@@ -348,7 +322,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		if (fe->ops.analog_ops.set_params)
 			fe->ops.analog_ops.set_params(fe, &params);
 
-		pr_info("tune std color %s, audio %s, cvbs %s, freq %d Hz.\n",
+		pr_info("tune std color %s, audio %s, cvbs %s, freq %dHz\n",
 				v4l2_std_to_str((0xff000000 & p->std)),
 				v4l2_std_to_str((0xffffff & p->audmode)),
 				v4l2_std_to_str((0xffffff & p->std)), p->frequency);
@@ -362,68 +336,21 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		adec_soft_reset();
 
 		pr_info("audio_set std %d\n", std);
-	} else if (!strncmp(parm[0], "atvdemod_status", 15)) {
-		struct v4l2_analog_parameters *p = &dev->v4l2_fe.params;
-		int vpll_lock = 0;
-		int line_lock = 0;
-		int adc_power = 0;
-		unsigned int audio_power = 0;
-
-		if (priv && priv->state == ATVDEMOD_STATE_WORK) {
-			retrieve_vpll_carrier_lock(&vpll_lock);
-			pr_info("vpp lock: %s.\n",
-				vpll_lock == 0 ? "Locked" : "Unlocked");
-
-			retrieve_vpll_carrier_line_lock(&line_lock);
-			pr_info("line lock: %s (0x%x).\n",
-				line_lock == 0 ? "Locked" : "Unlocked",
-				line_lock);
-
-			data_afc = retrieve_vpll_carrier_afc();
-			pr_info("afc: %d Khz.\n", data_afc);
-
-			data_snr_avg = atvdemod_get_snr_val();
-			pr_info("snr: %d.\n", data_snr_avg);
-
-			retrieve_vpll_carrier_audio_power(&audio_power, 1);
-			pr_info("audio_power: %d.\n", audio_power);
-
-			retrieve_adc_power(&adc_power);
-			pr_info("adc_power: %d.\n", adc_power);
-		} else {
-			pr_info("Not yet initialized.\n");
-		}
-
-		pr_info("[params] afc_range: %d\n", p->afc_range);
-		pr_info("[params] frequency: %d Hz\n", p->frequency);
-		pr_info("[params] soundsys: %d\n", p->soundsys);
-		pr_info("[params] std: 0x%x (%s, %s)\n",
-				(unsigned int) dev->std,
-				v4l2_std_to_str((0xff000000 & dev->std)),
-				v4l2_std_to_str((0xffffff & dev->std)));
-		pr_info("[params] audmode: 0x%x (%s)\n", dev->audmode,
-				v4l2_std_to_str(0xffffff & dev->audmode));
-		pr_info("[params] flag: %d\n", p->flag);
-		pr_info("[params] tuner_id: %d\n", dev->tuner_id);
-		pr_info("[params] if_freq: %d\n", dev->if_freq);
-		pr_info("[params] if_inv: %d\n", dev->if_inv);
-		pr_info("[params] fre_offset: %d\n", dev->fre_offset);
-		pr_info("version: %s.\n", AMLATVDEMOD_VER);
 	} else if (!strncmp(parm[0], "attach", 6)) {
 		if (!dev->analog_attached) {
 			ret = aml_atvdemod_attach_demod(dev);
 			if (ret < 0)
-				pr_err("attach_demod error ret %d.\n", ret);
+				pr_err("attach_demod error %d\n", ret);
 		} else {
-			pr_err("attach_demod already done.\n");
+			pr_err("attach_demod already done\n");
 		}
 
 		if (!dev->tuner_attached) {
 			ret = aml_atvdemod_attach_tuner(dev);
 			if (ret < 0)
-				pr_err("attach_tuner error ret %d.\n", ret);
+				pr_err("attach_tuner error %d\n", ret);
 		} else {
-			pr_err("attach_tuner already done.\n");
+			pr_err("attach_tuner already done\n");
 		}
 	} else if (!strncmp(parm[0], "dump_demod", 10)) {
 		int blk = 0, reg = 0;
@@ -445,7 +372,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			}
 		}
 	} else {
-		pr_info("invalid command\n");
+		pr_info("invalid cmd\n");
 	}
 
 EXIT:
@@ -483,50 +410,50 @@ static ssize_t atvdemod_debug_show(struct class *class,
 	len += sprintf(buff + len, "ATV Demod Status:\n");
 	if (priv && priv->state == ATVDEMOD_STATE_WORK) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
-		len += sprintf(buff + len, "atv_demod: vpp lock: %s.\n",
+		len += sprintf(buff + len, "vpp:%s\n",
 			vpll_lock == 0 ? "Locked" : "Unlocked");
 
 		retrieve_vpll_carrier_line_lock(&line_lock);
-		len += sprintf(buff + len, "atv_demod: line lock: %s(0x%x).\n",
+		len += sprintf(buff + len, "line:%s(0x%x)\n",
 			line_lock == 0 ? "Locked" : "Unlocked", line_lock);
 
 		data = retrieve_vpll_carrier_afc();
-		len += sprintf(buff + len, "atv_demod: afc: %d Khz.\n", data);
+		len += sprintf(buff + len, "afc:%dKHz\n", data);
 
 		data = atvdemod_get_snr_val();
-		len += sprintf(buff + len, "atv_demod: snr: %d.\n", data);
+		len += sprintf(buff + len, "snr:%d\n", data);
 
 		retrieve_vpll_carrier_audio_power(&audio_power, 1);
-		len += sprintf(buff + len, "atv_demod: audio_power: %d.\n", audio_power);
+		len += sprintf(buff + len, "audio_power:%d\n", audio_power);
 
 		retrieve_adc_power(&adc_power);
-		len += sprintf(buff + len, "atv_demod: adc_power: %d.\n", adc_power);
+		len += sprintf(buff + len, "adc_power:%d\n", adc_power);
 	} else {
-		len += sprintf(buff + len, "atv_demod: Not yet initialized.\n");
+		len += sprintf(buff + len, "Not init\n");
 	}
 
-	len += sprintf(buff + len, "atv_demod: [params] afc_range: %d\n",
+	len += sprintf(buff + len, "afc_range:%d\n",
 			p->afc_range);
-	len += sprintf(buff + len, "atv_demod: [params] frequency: %d Hz\n",
+	len += sprintf(buff + len, "frequency:%dHz\n",
 			p->frequency);
-	len += sprintf(buff + len, "atv_demod: [params] soundsys: %d\n",
+	len += sprintf(buff + len, "soundsys:%d\n",
 			p->soundsys);
-	len += sprintf(buff + len, "atv_demod: [params] std: 0x%x (%s, %s)\n",
+	len += sprintf(buff + len, "std:0x%x(%s, %s)\n",
 			(unsigned int) dev->std,
 			v4l2_std_to_str((0xff000000 & dev->std)),
 			v4l2_std_to_str((0xffffff & dev->std)));
-	len += sprintf(buff + len, "atv_demod: [params] audmode: 0x%x (%s)\n",
+	len += sprintf(buff + len, "audmode:0x%x(%s)\n",
 			dev->audmode, v4l2_std_to_str(0xffffff & dev->audmode));
-	len += sprintf(buff + len, "atv_demod: [params] flag: %d\n", p->flag);
-	len += sprintf(buff + len, "atv_demod: [params] tuner_id: %d\n",
+	len += sprintf(buff + len, "flag:%d\n", p->flag);
+	len += sprintf(buff + len, "tuner_id:%d\n",
 			dev->tuner_id);
-	len += sprintf(buff + len, "atv_demod: [params] if_freq: %d\n",
+	len += sprintf(buff + len, "if_freq:%d\n",
 			dev->if_freq);
-	len += sprintf(buff + len, "atv_demod: [params] if_inv: %d\n",
+	len += sprintf(buff + len, "if_inv:%d\n",
 			dev->if_inv);
-	len += sprintf(buff + len, "atv_demod: [params] fre_offset: %d\n",
+	len += sprintf(buff + len, "fre_offset:%d\n",
 			dev->fre_offset);
-	len += sprintf(buff + len, "atv_demod: version: %s.\n",
+	len += sprintf(buff + len, "version:%s\n",
 			AMLATVDEMOD_VER);
 
 	return len;
@@ -549,7 +476,7 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 
 	node = pdev->dev->of_node;
 	if (node == NULL) {
-		pr_err("atv demod node == NULL.\n");
+		pr_err("node NULL\n");
 		return;
 	}
 
@@ -564,17 +491,13 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 
 	/* agc pin mux */
 	ret = of_property_read_string(node, "pinctrl-names", &pdev->pin_name);
-	if (ret) {
+	if (ret)
 		pdev->agc_pin = NULL;
-		pr_err("can't find agc pinmux.\n");
-	} else {
-		pr_err("atvdemod agc pinmux name: %s\n", pdev->pin_name);
-	}
+	else
+		pr_err("agc pinmux:%s\n", pdev->pin_name);
 
 	ret = of_property_read_u32(node, "btsc_sap_mode", &val);
-	if (ret)
-		pr_err("can't find btsc_sap_mode.\n");
-	else
+	if (!ret)
 		pdev->btsc_sap_mode = val;
 }
 
@@ -588,7 +511,7 @@ int aml_atvdemod_attach_demod(struct aml_atvdemod_device *dev)
 	if (p) {
 		dev->analog_attached = true;
 	} else {
-		pr_err("%s: attach demod error.\n", __func__);
+		pr_err("attach demod error\n");
 		return -1;
 	}
 
@@ -614,12 +537,13 @@ int aml_atvdemod_attach_tuner(struct aml_atvdemod_device *dev)
 			dev->tuner_id = AM_TUNER_NONE;
 			priv->atvdemod_param.tuner_id = AM_TUNER_NONE;
 
-			pr_err("%s: get tuner type error.\n", __func__);
+			pr_err("get tuner type error\n");
 
 			return -1;
 		}
 	} else {
-		pr_err("%s: attach tuner error.\n", __func__);
+		pr_err("attach tuner error\n");
+
 		return -1;
 	}
 
@@ -659,7 +583,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	ret = class_register(&dev->cls);
 	if (ret) {
-		pr_err("class register fail.\n");
 		goto fail_class_register;
 	}
 
@@ -675,7 +598,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENXIO;
-		pr_err("no demod memory resource.\n");
 		goto fail_get_resource;
 	}
 
@@ -684,7 +606,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 			res->start, size_io_reg);
 	if (!dev->demod_reg_base) {
 		ret = -ENXIO;
-		pr_err("demod ioremap failed.\n");
 		goto fail_get_resource;
 	}
 
@@ -694,7 +615,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		pr_err("no hiu memory resource.\n");
 		dev->hiu_reg_base = NULL;
 	} else {
 		size_io_reg = resource_size(res);
@@ -702,7 +622,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 				&pdev->dev, res->start, size_io_reg);
 		if (!dev->hiu_reg_base) {
 			ret = -ENXIO;
-			pr_err("hiu ioremap failed.\n");
+			pr_err("hiu ioremap failed\n");
 			goto fail_get_resource;
 		}
 
@@ -713,7 +633,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (!res) {
-		pr_err("no periphs memory resource.\n");
 		dev->periphs_reg_base = NULL;
 	} else {
 		size_io_reg = resource_size(res);
@@ -721,7 +640,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 				&pdev->dev, res->start, size_io_reg);
 		if (!dev->periphs_reg_base) {
 			/* ret = -ENXIO; */
-			pr_err("periphs ioremap failed.\n");
+			/* pr_err("periphs ioremap failed.\n"); */
 			/* goto fail_get_resource; */
 		}
 
@@ -732,7 +651,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (!res) {
-		pr_err("no audio demod memory resource.\n");
 		dev->audiodemod_reg_base = NULL;
 	} else {
 		size_io_reg = resource_size(res);
@@ -740,7 +658,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 				&pdev->dev, res->start, size_io_reg);
 		if (!dev->audiodemod_reg_base) {
 			ret = -ENXIO;
-			pr_err("audiodemod ioremap failed.\n");
+			pr_err("audiodemod ioremap failed\n");
 			goto fail_get_resource;
 		}
 
@@ -749,7 +667,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		//			dev->audiodemod_reg_base);
 	}
 
-	/* add for audio system control */
+	/* atv audio source: ATV mono or ADEC, audio select input control */
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		dev->audio_reg_base = ioremap(round_down(0xffd0d340, 0x3), 4);
@@ -778,14 +696,12 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	dev->v4l2_fe.dev = dev->dev;
 
 	ret = v4l2_resister_frontend(&dev->v4l2_fe);
-	if (ret < 0) {
-		pr_err("resister v4l2 fail.\n");
+	if (ret < 0)
 		goto fail_register_v4l2;
-	}
 
 	platform_set_drvdata(pdev, dev);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 
@@ -796,7 +712,7 @@ fail_class_register:
 	kfree(dev);
 	amlatvdemod_devp = NULL;
 
-	pr_info("%s: fail.\n", __func__);
+	pr_err("%s:fail %d\n", __func__, ret);
 
 	return ret;
 }
@@ -817,7 +733,7 @@ static int aml_atvdemod_remove(struct platform_device *pdev)
 
 	kfree(dev);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 }
@@ -828,7 +744,7 @@ static void aml_atvdemod_shutdown(struct platform_device *pdev)
 
 	v4l2_frontend_shutdown(&dev->v4l2_fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 }
 
 static int aml_atvdemod_suspend(struct platform_device *pdev,
@@ -838,7 +754,7 @@ static int aml_atvdemod_suspend(struct platform_device *pdev,
 
 	v4l2_frontend_suspend(&dev->v4l2_fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 }
@@ -849,7 +765,7 @@ int aml_atvdemod_resume(struct platform_device *pdev)
 
 	v4l2_frontend_resume(&dev->v4l2_fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 }
@@ -864,7 +780,7 @@ static const struct of_device_id aml_atvdemod_dt_match[] = {
 
 static struct platform_driver aml_atvdemod_driver = {
 	.driver = {
-		.name = ATVDEMOD_DRIVER_NAME,
+		.name = ATVDEMOD_DEVICE_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = aml_atvdemod_dt_match,
 	},
@@ -879,22 +795,20 @@ int __init aml_atvdemod_init(void)
 {
 	int ret = 0;
 
-	ret = aml_atvdemod_create_debugfs(ATVDEMOD_DRIVER_NAME);
+	ret = aml_atvdemod_create_debugfs(ATVDEMOD_DEVICE_NAME);
 	if (ret) {
-		pr_err("%s: failed to create debugfs, ret %d.\n",
-				__func__, ret);
+		pr_err("%s:create debugfs error %d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = platform_driver_register(&aml_atvdemod_driver);
 	if (ret) {
-		pr_err("%s: failed to register driver, ret %d.\n",
-				__func__, ret);
+		pr_err("%s:register driver error %d.\n", __func__, ret);
 		aml_atvdemod_remove_debugfs();
 		return ret;
 	}
 
-	pr_info("%s: OK, atv demod version: %s.\n", __func__, AMLATVDEMOD_VER);
+	pr_info("%s:OK, version:%s\n", __func__, AMLATVDEMOD_VER);
 
 	return 0;
 }
@@ -904,7 +818,7 @@ void __exit aml_atvdemod_exit(void)
 	platform_driver_unregister(&aml_atvdemod_driver);
 	aml_atvdemod_remove_debugfs();
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 }
 
 //#ifndef MODULE

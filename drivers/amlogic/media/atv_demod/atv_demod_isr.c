@@ -35,24 +35,16 @@ static irqreturn_t atv_demod_isr_handler(int irq, void *dev)
 {
 	int status = atv_demod_get_irq_status();
 
-	pr_isr("irq status: 0x%x.\n", status);
-	pr_isr("line_unlock:        %s.\n",
-			(status & 0x80) ? "unlocked" : "locked");
-	pr_isr("line_strong_unlock: %s.\n",
-			(status & 0x40) ? "unlocked" : "locked");
-	pr_isr("field_unlock:       %s.\n",
-			(status & 0x20) ? "unlocked" : "locked");
-	pr_isr("pll_unlock:         %s.\n",
-			(status & 0x10) ? "unlocked" : "locked");
+	pr_isr("irq status:0x%x\n", status);
+	pr_isr("line: %d\n", status & 0x80);
+	pr_isr("line_strong:%d\n", status & 0x40);
+	pr_isr("field:%d\n", status & 0x20);
+	pr_isr("pll:%d\n", status & 0x10);
 
-	pr_isr("line_lock:          %s.\n",
-			(status & 0x08) ? "locked" : "unlocked");
-	pr_isr("line_strong_lock:   %s.\n",
-			(status & 0x04) ? "locked" : "unlocked");
-	pr_isr("field_lock:         %s.\n",
-			(status & 0x02) ? "locked" : "unlocked");
-	pr_isr("pll_lock:           %s.\n\n",
-			(status & 0x01) ? "locked" : "unlocked");
+	pr_isr("line:%d\n", status & 0x08);
+	pr_isr("line_strong:%d\n", status & 0x04);
+	pr_isr("field:%d\n", status & 0x02);
+	pr_isr("pll:%d\n\n", status & 0x01);
 
 	atv_demod_reset_irq();
 
@@ -71,7 +63,7 @@ static void atv_demod_isr_disable(struct atv_demod_isr *isr)
 
 	mutex_unlock(&isr->mtx);
 
-	pr_isr("%s: state: %d.\n", __func__, isr->state);
+	pr_isr("%s:state %d\n", __func__, isr->state);
 }
 
 static void atv_demod_isr_enable(struct atv_demod_isr *isr)
@@ -87,7 +79,7 @@ static void atv_demod_isr_enable(struct atv_demod_isr *isr)
 
 	mutex_unlock(&isr->mtx);
 
-	pr_isr("%s: state: %d.\n", __func__, isr->state);
+	pr_isr("%s:state %d\n", __func__, isr->state);
 }
 
 void atv_demod_isr_init(struct atv_demod_isr *isr)
@@ -107,7 +99,7 @@ void atv_demod_isr_init(struct atv_demod_isr *isr)
 			"atv_demod_irq", (void *) isr);
 	if (ret != 0) {
 		isr->init = false;
-		pr_err("atv_demod_isr request irq error: %d.\n", ret);
+		pr_err("request irq error %d\n", ret);
 	} else {
 		isr->init = true;
 		disable_irq_nosync(isr->irq);

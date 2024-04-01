@@ -44,7 +44,7 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct v4l2_fe_events *events = &fepriv->events;
 
-	pr_dbg("%s.\n", __func__);
+	pr_dbg("%s\n", __func__);
 
 	if (events->overflow) {
 		events->overflow = 0;
@@ -66,7 +66,7 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 			return -ERESTARTSYS;
 
 		if (ret < 0) {
-			pr_err("ret = %d.\n", ret);
+			pr_err("ret %d\n", ret);
 			return ret;
 		}
 	}
@@ -87,7 +87,7 @@ static void v4l2_frontend_add_event(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_frontend_event *e = NULL;
 	int wp;
 
-	pr_dbg("%s.\n", __func__);
+	pr_dbg("%s\n", __func__);
 
 	if (v4l2_frontend_check_mode(v4l2_fe, __func__))
 		return;
@@ -168,7 +168,7 @@ static int v4l2_frontend_thread(void *data)
 	enum v4l2_status s = V4L2_TIMEDOUT;
 	unsigned long timeout = 0;
 
-	pr_info("%s: thread start.\n", __func__);
+	pr_dbg("%s\n", __func__);
 
 	fepriv->delay = 3 * HZ;
 	fepriv->status = 0;
@@ -196,9 +196,9 @@ restart:
 		if (down_interruptible(&fepriv->sem))
 			break;
 
-		/* pr_dbg("%s: state = %d.\n", __func__, fepriv->state); */
+		/* pr_dbg("%s:state %d\n", __func__, fepriv->state); */
 		if (fepriv->state & V4L2FE_STATE_RETUNE) {
-			pr_dbg("%s: Retune requested, V4L2FE_STATE_RETUNE.\n",
+			pr_dbg("%s:Retune requested, V4L2FE_STATE_RETUNE\n",
 					__func__);
 			fepriv->state = V4L2FE_STATE_TUNED;
 		}
@@ -255,7 +255,7 @@ restart:
 
 	v4l2_frontend_wakeup(v4l2_fe);
 
-	pr_dbg("%s: thread exit state = %d.\n", __func__, fepriv->state);
+	pr_dbg("%s:exit state %d\n", __func__, fepriv->state);
 
 	return 0;
 }
@@ -264,7 +264,7 @@ static void v4l2_frontend_stop(struct v4l2_frontend *v4l2_fe)
 {
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 
-	pr_dbg("%s.\n", __func__);
+	pr_dbg("%s\n", __func__);
 
 	fepriv->exit = V4L2_FE_NORMAL_EXIT;
 
@@ -281,7 +281,7 @@ static void v4l2_frontend_stop(struct v4l2_frontend *v4l2_fe)
 
 	/* paranoia check in case a signal arrived */
 	if (fepriv->thread)
-		pr_info("%s: warning: thread %p won't exit\n",
+		pr_info("%s:warning: thread %p won't exit\n",
 				__func__, fepriv->thread);
 }
 
@@ -291,7 +291,7 @@ static int v4l2_frontend_start(struct v4l2_frontend *v4l2_fe)
 	struct task_struct *thread = NULL;
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 
-	pr_dbg("%s.\n", __func__);
+	pr_dbg("%s\n", __func__);
 
 	if (fepriv->thread) {
 		if (fepriv->exit == V4L2_FE_NO_EXIT)
@@ -318,7 +318,7 @@ static int v4l2_frontend_start(struct v4l2_frontend *v4l2_fe)
 			"v4l2_frontend_thread");
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
-		pr_err("%s: failed to start kthread (%d)\n", __func__, ret);
+		pr_err("%s:failed to start kthread (%d)\n", __func__, ret);
 		up(&fepriv->sem);
 		return ret;
 	}
@@ -343,7 +343,7 @@ static int v4l2_frontend_check_mode(struct v4l2_frontend *v4l2_fe,
 		const char *caller)
 {
 	if (v4l2_fe->mode != V4L2_TUNER_ANALOG_TV) {
-		pr_dbg("%s: (caller %s) not in analog TV mode [%d].\n",
+		pr_dbg("%s:(caller %s) not in analog TV mode %d\n",
 				__func__, caller, v4l2_fe->mode);
 		return -EINVAL;
 	}
@@ -365,13 +365,13 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	freq_max = fe->ops.tuner_ops.info.frequency_max_hz;
 
 	if (freq_min == 0 || freq_max == 0)
-		pr_info("%s: demod or tuner frequency limits undefined.\n",
+		pr_info("%s:demod or tuner frequency limits undefined\n",
 				__func__);
 
 	/* range check: frequency */
 	if ((freq_min && params->frequency < freq_min) ||
 			(freq_max && params->frequency > freq_max)) {
-		pr_err("%s: frequency %u out of range (%u..%u).\n",
+		pr_err("%s:frequency %u out of range (%u..%u)\n",
 				__func__, params->frequency,
 				freq_min, freq_max);
 		return -EINVAL;
@@ -393,7 +393,7 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	v4l2_fe->params.afc_range = params->afc_range;
 	v4l2_fe->params.reserved = params->reserved;
 
-	pr_dbg("%s: params->flag 0x%x.\n", __func__, params->flag);
+	pr_dbg("%s:flag 0x%x\n", __func__, params->flag);
 
 	/* Request the search algorithm to search */
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
@@ -448,7 +448,7 @@ static int v4l2_frontend_set_mode(struct v4l2_frontend *v4l2_fe,
 	struct analog_demod_ops *analog_ops = NULL;
 	int priv_cfg = 0;
 
-	pr_dbg("%s: params = %d.\n", __func__, params);
+	pr_dbg("%s:params %d\n", __func__, params);
 
 	fepriv->state = V4L2FE_STATE_IDLE;
 	fepriv->tune_needexit = 0;
@@ -495,8 +495,6 @@ static int v4l2_frontend_detect_tune(struct v4l2_frontend *v4l2_fe,
 {
 	int ret = 0;
 
-	pr_dbg("%s.\n", __func__);
-
 	if (!status)
 		return -1;
 
@@ -510,8 +508,6 @@ static int v4l2_frontend_detect_standard(struct v4l2_frontend *v4l2_fe)
 {
 	int ret = 0;
 
-	pr_dbg("%s.\n", __func__);
-
 	if (v4l2_fe->ops.detect)
 		ret = v4l2_fe->ops.detect(v4l2_fe);
 
@@ -520,20 +516,17 @@ static int v4l2_frontend_detect_standard(struct v4l2_frontend *v4l2_fe)
 
 static void v4l2_frontend_vdev_release(struct video_device *dev)
 {
-	pr_dbg("%s.\n", __func__);
 }
 
 static ssize_t v4l2_frontend_read(struct file *filp, char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static ssize_t v4l2_frontend_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
@@ -546,7 +539,7 @@ static unsigned int v4l2_frontend_poll(struct file *filp,
 	poll_wait(filp, &fepriv->events.wait_queue, pts);
 
 	if (fepriv->events.eventw != fepriv->events.eventr) {
-		pr_dbg("%s: POLLIN | POLLRDNORM | POLLPRI.\n", __func__);
+		pr_dbg("%s:POLLIN | POLLRDNORM | POLLPRI\n", __func__);
 		return (POLLIN | POLLRDNORM | POLLPRI);
 	}
 
@@ -556,31 +549,30 @@ static unsigned int v4l2_frontend_poll(struct file *filp,
 static void v4l2_property_dump(struct v4l2_frontend *v4l2_fe,
 		bool is_set, struct v4l2_property *tvp)
 {
-
 	/*int i = 0;*/
 
 	if (tvp->cmd <= 0 || tvp->cmd > V4L2_MAX_COMMAND) {
-		pr_warn("%s: %s tvp.cmd = 0x%08x undefined\n",
+		pr_warn("%s:%s tvp.cmd = 0x%08x undefined\n",
 				__func__,
 				is_set ? "SET" : "GET",
 				tvp->cmd);
 		return;
 	}
 #if 0
-	pr_dbg("%s: %s tvp.cmd    = 0x%08x (%s)\n", __func__,
+	pr_dbg("%s:%s tvp.cmd    = 0x%08x (%s)\n", __func__,
 		is_set ? "SET" : "GET",
 		tvp->cmd,
 		v4l2_cmds[tvp->cmd].name);
 
 	if (v4l2_cmds[tvp->cmd].buffer) {
-		pr_dbg("%s: tvp.u.buffer.len = 0x%02x\n",
+		pr_dbg("%s:tvp.u.buffer.len = 0x%02x\n",
 			__func__, tvp->u.buffer.len);
 
 		for (i = 0; i < tvp->u.buffer.len; i++)
 			pr_dbg("%s: tvp.u.buffer.data[0x%02x] = 0x%02x\n",
 					__func__, i, tvp->u.buffer.data[i]);
 	} else {
-		pr_dbg("%s: tvp.u.data = 0x%08x\n", __func__,
+		pr_dbg("%s:tvp.u.data = 0x%08x\n", __func__,
 				tvp->u.data);
 	}
 #endif
@@ -634,7 +626,7 @@ static int v4l2_property_process_set(struct v4l2_frontend *v4l2_fe,
 		}
 
 		if (aml_atvdemod_attach_tuner(amlatvdemod_devp) < 0) {
-			pr_err("%s: attach tuner %d error.\n",
+			pr_err("%s:attach tuner %d error\n",
 					__func__, amlatvdemod_devp->tuner_id);
 			return -EINVAL;
 		}
@@ -692,8 +684,7 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 	case V4L2_AFC_STATE:
 		break;
 	default:
-		pr_dbg("%s: V4L2 property %d doesn't exist\n",
-				__func__, tvp->cmd);
+		pr_dbg("property %d doesn't exist\n", tvp->cmd);
 		return -EINVAL;
 	}
 
@@ -719,11 +710,10 @@ static long v4l2_frontend_ioctl_properties(struct file *filp,
 	struct v4l2_property *tvp = NULL;
 	int i = 0;
 
-	pr_dbg("%s: cmd = 0x%x.\n", __func__, cmd);
+	pr_dbg("%s:cmd 0x%x\n", __func__, cmd);
 
 	if (cmd == V4L2_SET_PROPERTY) {
-		pr_dbg("%s: properties.num = %d\n", __func__, tvps->num);
-		pr_dbg("%s: properties.props = %p\n", __func__, tvps->props);
+		pr_dbg("set properties num %d props %p\n", tvps->num, tvps->props);
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once
@@ -742,8 +732,7 @@ static long v4l2_frontend_ioctl_properties(struct file *filp,
 			(tvp + i)->result = err;
 		}
 	} else if (cmd == V4L2_GET_PROPERTY) {
-		pr_dbg("%s: properties.num = %d\n", __func__, tvps->num);
-		pr_dbg("%s: properties.props = %p\n", __func__, tvps->props);
+		pr_dbg("get properties num %d props %p\n", tvps->num, tvps->props);
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once
@@ -799,7 +788,8 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 	struct v4l2_frontend *v4l2_fe = video_get_drvdata(video_devdata(filp));
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 
-	pr_dbg("%s: cmd = 0x%x.\n", __func__, cmd);
+	pr_dbg("%s:cmd 0x%x\n", __func__, cmd);
+
 	if (fepriv->exit != V4L2_FE_NO_EXIT)
 		return -ENODEV;
 
@@ -878,7 +868,7 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 		break;
 
 	default:
-		pr_warn("%s: Unsupport cmd = 0x%x.\n", __func__, cmd);
+		pr_warn("Unsupport cmd 0x%x\n", cmd);
 		break;
 	}
 
@@ -898,8 +888,7 @@ static int v4l2_frontend_open(struct file *filp)
 	if (!amlatvdemod_devp->analog_attached) {
 		ret = aml_atvdemod_attach_demod(amlatvdemod_devp);
 		if (ret < 0) {
-			pr_err("%s: line %d, error ret %d.\n",
-					__func__, __LINE__, ret);
+			pr_err("%s:error %d\n", __func__, ret);
 			return -EBUSY;
 		}
 	}
@@ -907,8 +896,7 @@ static int v4l2_frontend_open(struct file *filp)
 	if (!amlatvdemod_devp->tuner_attached) {
 		ret = aml_atvdemod_attach_tuner(amlatvdemod_devp);
 		if (ret < 0) {
-			pr_err("%s: line %d, error ret %d.\n",
-					__func__, __LINE__, ret);
+			pr_err("%s:error %d\n", __func__, ret);
 			return -EBUSY;
 		}
 	}
@@ -917,14 +905,14 @@ static int v4l2_frontend_open(struct file *filp)
 
 	fepriv->events.eventr = fepriv->events.eventw = 0;
 
-	pr_info("%s: %s OK.\n", __func__, fepriv->v4l2dev->name);
+	pr_info("%s:%s OK\n", __func__, fepriv->v4l2dev->name);
 
 	return ret;
 }
 
 static int v4l2_frontend_release(struct file *filp)
 {
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 }
@@ -942,77 +930,66 @@ static const struct v4l2_file_operations v4l2_fe_fops = {
 static int v4l2_frontend_vidioc_g_audio(struct file *file, void *fh,
 		struct v4l2_audio *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_s_audio(struct file *filp, void *fh,
 		const struct v4l2_audio *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_g_tuner(struct file *filp, void *fh,
 				struct v4l2_tuner *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_s_tuner(struct file *filp, void *fh,
 		const struct v4l2_tuner *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_g_frequency(struct file *filp, void *fh,
 		struct v4l2_frequency *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_s_frequency(struct file *filp, void *fh,
 		const struct v4l2_frequency *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_enum_freq_bands(struct file *filp, void *fh,
 		struct v4l2_frequency_band *band)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_g_modulator(struct file *filp, void *fh,
 		struct v4l2_modulator *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 static int v4l2_frontend_vidioc_s_modulator(struct file *filp, void *fh,
 		const struct v4l2_modulator *a)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 int v4l2_frontend_vidioc_streamon(struct file *filp, void *fh,
 		enum v4l2_buf_type i)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
 int v4l2_frontend_vidioc_streamoff(struct file *filp, void *fh,
 		enum v4l2_buf_type i)
 {
-	pr_dbg("%s.\n", __func__);
 	return 0;
 }
 
@@ -1048,7 +1025,7 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 	struct v4l2_atvdemod_device *v4l2dev = NULL;
 
 	if (!v4l2_fe) {
-		pr_err("v4l2_fe NULL pointer.\n");
+		pr_err("v4l2_fe NULL\n");
 		return -1;
 	}
 
@@ -1059,7 +1036,6 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 			GFP_KERNEL);
 	if (!v4l2_fe->frontend_priv) {
 		mutex_unlock(&v4l2_fe_mutex);
-		pr_err("kzalloc fail.\n");
 		return -ENOMEM;
 	}
 
@@ -1081,7 +1057,7 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 
 	ret = v4l2_device_register(v4l2dev->dev, &v4l2dev->v4l2_dev);
 	if (ret) {
-		pr_err("register v4l2_device fail, ret = %d.\n", ret);
+		pr_err("register v4l2_device fail %d\n", ret);
 		goto v4l2_fail;
 	}
 
@@ -1094,7 +1070,7 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 	ret = video_register_device(v4l2dev->video_dev,
 			v4l2dev->video_dev->vfl_type, 36);/* -1 --> 36 */
 	if (ret) {
-		pr_err("register video device fail, ret = %d.\n", ret);
+		pr_err("register video device fail %d\n", ret);
 		goto vdev_fail;
 	}
 
@@ -1107,7 +1083,7 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 
 	mutex_unlock(&v4l2_fe_mutex);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 
@@ -1118,7 +1094,7 @@ malloc_fail:
 	kfree(v4l2_fe->frontend_priv);
 v4l2_fail:
 	mutex_unlock(&v4l2_fe_mutex);
-	pr_info("%s: Fail.\n", __func__);
+	pr_info("%s:Fail\n", __func__);
 
 	return ret;
 }
@@ -1136,7 +1112,7 @@ int v4l2_unregister_frontend(struct v4l2_frontend *v4l2_fe)
 
 	mutex_unlock(&v4l2_fe_mutex);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return 0;
 }
@@ -1164,7 +1140,7 @@ int v4l2_frontend_shutdown(struct v4l2_frontend *v4l2_fe)
 	if (tuner_ops.suspend)
 		tuner_ops.suspend(fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return ret;
 }
@@ -1182,7 +1158,7 @@ int v4l2_frontend_suspend(struct v4l2_frontend *v4l2_fe)
 	if (tuner_ops.suspend)
 		tuner_ops.suspend(fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return ret;
 }
@@ -1207,7 +1183,7 @@ int v4l2_frontend_resume(struct v4l2_frontend *v4l2_fe)
 	fepriv->state = V4L2FE_STATE_RETUNE;
 	v4l2_frontend_wakeup(v4l2_fe);
 
-	pr_info("%s: OK.\n", __func__);
+	pr_info("%s:OK\n", __func__);
 
 	return ret;
 }

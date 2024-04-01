@@ -36,7 +36,7 @@ void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
 
 	mutex_unlock(&aml_fe_hook_mutex);
 
-	pr_info("%s: %s OK.\n", __func__, atv_mode != NULL ? "set" : "reset");
+	pr_info("%s:%s OK\n", __func__, atv_mode ? "set" : "reset");
 }
 EXPORT_SYMBOL_GPL(aml_fe_hook_cvd);
 
