@@ -553,6 +553,10 @@
 #define ACLK_CRYPTO_NS			551
 #define CLK_PKA_CRYPTO_NS		552
 #define ACLK_RKVDEC_ROOT_BAK		553
+#define CLK_AUDIO_FRAC_0_SRC		554
+#define CLK_AUDIO_FRAC_1_SRC		555
+#define CLK_AUDIO_FRAC_2_SRC		556
+#define CLK_AUDIO_FRAC_3_SRC		557
 
 /* secure clk */
 #define CLK_STIMER0_ROOT		600
