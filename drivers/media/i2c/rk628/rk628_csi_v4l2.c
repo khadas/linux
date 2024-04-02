@@ -826,7 +826,7 @@ static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
 				DPHY_EN(0) | CSITX_EN(0));
 	rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD, CONT_MODE_CLK_CLR_MASK,
 			csi->continues_clk ? CONT_MODE_CLK_CLR(1) : CONT_MODE_CLK_CLR(0));
-	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE);
+	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
 
 	if (csi->rk628->version >= RK628F_VERSION) {
 		rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
@@ -834,7 +834,7 @@ static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
 					DPHY_EN(0) | CSITX_EN(0));
 		rk628_i2c_update_bits(csi->rk628, CSITX1_SYS_CTRL3_IMD, CONT_MODE_CLK_CLR_MASK,
 				csi->continues_clk ? CONT_MODE_CLK_CLR(1) : CONT_MODE_CLK_CLR(0));
-		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE);
+		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 	}
 }
 
@@ -1546,9 +1546,9 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 		if (csi->rk628->version >= RK628F_VERSION)
 			rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
 						CSITX_EN_MASK, CSITX_EN(0));
-		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE);
+		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
 		if (csi->rk628->version >= RK628F_VERSION)
-			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE);
+			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 
 		usleep_range(5000, 5500);
 		rk628_csi_soft_reset(sd);
