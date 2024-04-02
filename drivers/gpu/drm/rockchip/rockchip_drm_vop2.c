@@ -11054,7 +11054,8 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_object_attach_property(&win->base.base, win->output_width_prop, 0);
 	drm_object_attach_property(&win->base.base, win->output_height_prop, 0);
 	drm_object_attach_property(&win->base.base, win->scale_prop, 0);
-	drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
+	if (win->regs->color_key.mask)
+		drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
 
 	return 0;
 }
