@@ -12701,12 +12701,14 @@ static int amvecm_drv_suspend(struct platform_device *pdev,
 	if (probe_ok == 1)
 		probe_ok = 0;
 
-	if (!suspend_drv_status_get()) {
-		suspend_drv_status_set(true);
-		suspend_cm();
-		suspend_sr();
-		suspend_lc();
-		suspend_ve();
+	if (chip_type_id == chip_t5w) {
+		if (!suspend_drv_status_get()) {
+			suspend_drv_status_set(true);
+			suspend_cm();
+			suspend_sr();
+			suspend_lc();
+			suspend_ve();
+		}
 	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
@@ -12724,9 +12726,11 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
 
-	if (suspend_drv_status_get()) {
-		vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
-		resume_mtx_flag_set(true);
+	if (chip_type_id == chip_t5w) {
+		if (suspend_drv_status_get()) {
+			vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
+			resume_mtx_flag_set(true);
+		}
 	}
 	pr_info("amvecm: resume module\n");
 	return 0;
