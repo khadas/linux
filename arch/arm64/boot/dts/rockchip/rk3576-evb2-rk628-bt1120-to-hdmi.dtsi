@@ -40,42 +40,10 @@
 		pinctrl-0 = <&rk628d_reset &ref_clk0_out>;
 		rk628-bt1120-in;
 		rk628-hdmi-out;
+		bt1120-yc-swap;
 		mode-sync-pol = <0>;
 		status = "okay";
 
-		display-timings {
-			src-timing {
-				clock-frequency = <148500000>;
-				hactive = <1920>;
-				vactive = <1080>;
-				hback-porch = <148>;
-				hfront-porch = <88>;
-				hsync-len = <44>;
-				vback-porch = <36>;
-				vfront-porch = <4>;
-				vsync-len = <5>;
-				hsync-active = <1>;
-				vsync-active = <1>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-
-			dst-timing {
-				clock-frequency = <148500000>;
-				hactive = <1920>;
-				vactive = <1080>;
-				hback-porch = <148>;
-				hfront-porch = <88>;
-				hsync-len = <44>;
-				vback-porch = <36>;
-				vfront-porch = <4>;
-				vsync-len = <5>;
-				hsync-active = <1>;
-				vsync-active = <1>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
 
 		port {
 			rk628_in_rgb: endpoint {

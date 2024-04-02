@@ -316,6 +316,7 @@
 };
 
 &hdmi {
+	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

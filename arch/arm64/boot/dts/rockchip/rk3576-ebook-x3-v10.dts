@@ -399,15 +399,9 @@
 		vbus-supply = <&vbus5v0_typec>;
 		status = "okay";
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				usbc0_role_sw: endpoint@0 {
-					remote-endpoint = <&usb_drd0_role_switch>;
-				};
+		port {
+			usbc0_role_sw: endpoint {
+				remote-endpoint = <&usb_drd0_role_switch>;
 			};
 		};
 
@@ -893,10 +887,7 @@
 	dr_mode = "otg";
 	usb-role-switch;
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		usb_drd0_role_switch: endpoint@0 {
-			reg = <0>;
+		usb_drd0_role_switch: endpoint {
 			remote-endpoint = <&usbc0_role_sw>;
 		};
 	};

@@ -570,6 +570,44 @@ end:
 	rkvpss_hw_write(hw, reg_base + 0x4, val);
 }
 
+static void add_cfginfo(struct rkvpss_offline_dev *ofl, struct rkvpss_frame_cfg *cfg)
+{
+	struct rkvpss_ofl_cfginfo *cfginfo = NULL, *new_cfg = NULL, *first_cfg = NULL;
+	int i, count = 0;
+
+	new_cfg = kzalloc(sizeof(struct rkvpss_ofl_cfginfo), GFP_KERNEL);
+	new_cfg->dev_id = cfg->dev_id;
+	new_cfg->sequence = cfg->sequence;
+	new_cfg->input.buf_fd = cfg->input.buf_fd;
+	new_cfg->input.format = cfg->input.format;
+	new_cfg->input.width = cfg->input.width;
+	new_cfg->input.height = cfg->input.height;
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		new_cfg->output[i].enable = cfg->output[i].enable;
+		new_cfg->output[i].buf_fd = cfg->output[i].buf_fd;
+		new_cfg->output[i].format = cfg->output[i].format;
+		new_cfg->output[i].crop_v_offs = cfg->output[i].crop_v_offs;
+		new_cfg->output[i].crop_h_offs = cfg->output[i].crop_h_offs;
+		new_cfg->output[i].crop_width = cfg->output[i].crop_width;
+		new_cfg->output[i].crop_height = cfg->output[i].crop_height;
+		new_cfg->output[i].scl_width = cfg->output[i].scl_width;
+		new_cfg->output[i].scl_height = cfg->output[i].scl_height;
+	}
+
+	mutex_lock(&ofl->ofl_lock);
+	list_for_each_entry(cfginfo, &ofl->cfginfo_list, list) {
+		count++;
+	}
+	if (count >= 5) {
+		first_cfg = list_first_entry(&ofl->cfginfo_list, struct rkvpss_ofl_cfginfo, list);
+		list_del_init(&first_cfg->list);
+		list_add_tail(&new_cfg->list, &ofl->cfginfo_list);
+	} else {
+		list_add_tail(&new_cfg->list, &ofl->cfginfo_list);
+	}
+	mutex_unlock(&ofl->ofl_lock);
+}
 static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 {
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
@@ -585,6 +623,7 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 	s64 us = 0;
 	int ret, i, tile_num = 0;
 	bool wr_uv_swap = false;
+	u64 ns;
 
 	if (rkvpss_debug >= 2) {
 		v4l2_info(&ofl->v4l2_dev,
@@ -607,6 +646,13 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		}
 		t = ktime_get();
 	}
+
+	add_cfginfo(ofl, cfg);
+
+	ns = ktime_get_ns();
+	ofl->dev_rate[cfg->dev_id].in_rate = ns - ofl->dev_rate[cfg->dev_id].in_timestamp;
+	ofl->dev_rate[cfg->dev_id].in_timestamp = ns;
+
 	init_completion(&ofl->cmpl);
 	ofl->mode_sel_en = false;
 
@@ -1154,6 +1200,13 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 			  "%s end, time:%lldus\n", __func__, us);
 	}
 
+	ns = ktime_get_ns();
+	ofl->dev_rate[cfg->dev_id].out_rate = ns - ofl->dev_rate[cfg->dev_id].out_timestamp;
+	ofl->dev_rate[cfg->dev_id].out_timestamp = ns;
+	ofl->dev_rate[cfg->dev_id].sequence = cfg->sequence;
+	ofl->dev_rate[cfg->dev_id].delay = ofl->dev_rate[cfg->dev_id].out_timestamp -
+					   ofl->dev_rate[cfg->dev_id].in_timestamp;
+
 	return ret;
 free_buf:
 	for (i -= 1; i >= 0; i--) {
@@ -1351,6 +1404,9 @@ int rkvpss_register_offline(struct rkvpss_hw_dev *hw)
 	}
 	video_set_drvdata(vfd, ofl);
 	INIT_LIST_HEAD(&ofl->list);
+	INIT_LIST_HEAD(&ofl->cfginfo_list);
+	mutex_init(&ofl->ofl_lock);
+	rkvpss_offline_proc_init(ofl);
 	return 0;
 unreg_v4l2:
 	mutex_destroy(&ofl->apilock);
@@ -1363,4 +1419,6 @@ void rkvpss_unregister_offline(struct rkvpss_hw_dev *hw)
 	mutex_destroy(&hw->ofl_dev.apilock);
 	video_unregister_device(&hw->ofl_dev.vfd);
 	v4l2_device_unregister(&hw->ofl_dev.v4l2_dev);
+	mutex_destroy(&hw->ofl_dev.ofl_lock);
+	rkvpss_offline_proc_cleanup(&hw->ofl_dev);
 }

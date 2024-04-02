@@ -1136,7 +1136,7 @@ static const struct rockchip_combphy_grfcfg rk3576_combphy_grfcfgs = {
 	/* php-grf */
 	.pipe_con0_for_sata	= { 0x001C, 2, 0, 0x00, 0x2 },
 	.pipe_con1_for_sata	= { 0x0020, 2, 0, 0x00, 0x2 },
-	.u3otg1_port_en		= { 0x0038, 15, 0, 0x0181, 0x1100 },
+	.u3otg1_port_en		= { 0x0038, 15, 0, 0x0189, 0x1100 },
 };
 
 static const struct clk_bulk_data rk3576_clks[] = {

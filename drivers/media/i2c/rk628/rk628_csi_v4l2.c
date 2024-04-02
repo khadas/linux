@@ -465,6 +465,7 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
 	rk628_hdmirx_controller_reset(csi->rk628);
+	rk628_clk_set_rate(csi->rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 }
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
