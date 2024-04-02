@@ -47,6 +47,14 @@
 		})
 #endif
 
+#ifndef MAX
+#define MAX(a, b) ({ \
+			const typeof(a) _a = a; \
+			const typeof(b) _b = b; \
+			_a > _b ? _a : _b; \
+		})
+#endif
+
 #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 
 u32 scatter_align_pages_size = 128;
@@ -1030,7 +1038,7 @@ static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
 }
 
 static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
-					 phy_addr_type *pages, int num)
+					 phy_addr_type *pages, int num, int is_cache)
 {
 #define INSTR1 "alloc default cma size fail,try %d pages\n"
 	struct codec_mm_slot *slot = NULL;
@@ -1053,8 +1061,18 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 		if (smgt->total_page_num <= 0 ||	/*no codec mm. */
 			smgt->alloced_page_num == smgt->total_page_num ||
 			list_empty(&smgt->free_list)) {
+			u32 alloc_pages = 0;
+			int alloc_unit_pages = scatter_get_unit_pages();
+
+			if (is_cache && !smgt->force_cache_on) {
+				// min slot size as 4M
+				alloc_unit_pages = MAX(alloc_unit_pages, 4 * SZ_1M >> PAGE_SHIFT);
+				alloc_pages = ALIGN(neednum, alloc_unit_pages);
+				pr_dbg("alloc pages is %d cache_pages is %d keep_size_page is %d\n",
+					alloc_pages, smgt->cached_pages, smgt->keep_size_PAGE);
+			}
 			/*codec_mm_scatter_info_dump(NULL, 0);*/
-			slot = codec_mm_slot_alloc(smgt, 0, 0);
+			slot = codec_mm_slot_alloc(smgt, alloc_pages * PAGE_SIZE, 0);
 			if (!slot) {
 				u32 alloc_pages =
 					 smgt->try_alloc_in_cma_page_cnt / 4;
@@ -1292,7 +1310,7 @@ static int codec_mm_page_alloc_all_locked(struct codec_mm_scatter_mgt *smgt,
 				       MMU_ALLOC_from_slot);
 			new_alloc = codec_mm_page_alloc_from_slot(smgt,
 								  pages +
-							alloced, num - alloced);
+							alloced, num - alloced, iscache);
 			ATRACE_COUNTER("mmu alloc", MMU_ALLOC_from_slot_end);
 			if (new_alloc <= 0)
 				can_from_slot = 0;
