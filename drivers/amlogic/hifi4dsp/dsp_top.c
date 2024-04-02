@@ -26,6 +26,7 @@
 #include "hifi4dsp_priv.h"
 #include "hifi4dsp_firmware.h"
 #include "hifi4dsp_dsp.h"
+#include "dsp_top.h"
 
 /*HIU*/
 #define REG_CLKTREE_DSPA_CLK_CTRL0		(0x0c << 2)
@@ -72,21 +73,27 @@ static inline void __iomem *get_dsp_addr(int dsp_id)
 		return g_regbases.dspa_addr;
 }
 
-unsigned long init_dsp_psci_smc(u32 id, u32 addr, u32 cfg0)
+unsigned long init_dsp_psci_smc(u32 dsp_id, u32 addr, u32 cfg0)
 {
 	struct arm_smccc_res res = {0};
+	u32 id = 0;
 
-	if (id == DSPA && bootlocation == 2 && hifi4dsp_p[DSPA]->dsp->optimize_longcall) {
+	if (dsp_id == DSPA && bootlocation == 2 && hifi4dsp_p[DSPA]->dsp->optimize_longcall) {
 		addr = hifi4dsp_p[DSPA]->dsp->sram_remap_addr[0];
-		arm_smccc_smc(0x82000096, id, addr,
-			hifi4dsp_p[id]->dsp->sram_remap_addr[1], 2, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_REMAP, dsp_id);
+		arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr,
+			      hifi4dsp_p[dsp_id]->dsp->sram_remap_addr[1], 2, 0, 0, 0, &res);
 	}
-	if (id == DSPB && bootlocation_b == DDR_SRAM && hifi4dsp_p[DSPB]->dsp->optimize_longcall) {
+	if (dsp_id == DSPB && bootlocation_b == DDR_SRAM &&
+					hifi4dsp_p[DSPB]->dsp->optimize_longcall) {
 		addr = hifi4dsp_p[DSPB]->dsp->sram_remap_addr[0];
-		arm_smccc_smc(0x82000096, id, addr,
-			hifi4dsp_p[id]->dsp->sram_remap_addr[1], 2, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_REMAP, dsp_id);
+		arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr,
+			      hifi4dsp_p[dsp_id]->dsp->sram_remap_addr[1], 2, 0, 0, 0, &res);
 	}
-	arm_smccc_smc(0x82000090, id, addr, cfg0,
+
+	id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_BOOT, dsp_id);
+	arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr, cfg0,
 		      0, 0, 0, 0, &res);
 	return res.a0;
 }
