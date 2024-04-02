@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	rkx12x_dvp_osc: rkx12x-dvp-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <24000000>;
+		clock-output-names = "rkx12x-dvp-osc";
+	};
+
+	rkx12x_dvp_poc_regulator: rkx12x-dvp-poc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "rkx12x_dvp_poc";
+	};
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	port {
+		/* Parallel bus endpoint */
+		dvp_in_bcam_rkx12x: endpoint {
+			remote-endpoint = <&rkx12x_dvp_out>;
+			bus-width = <8>;
+			vsync-active = <0>;
+			hsync-active = <1>;
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	rkx12x_dvp: rkx121@54 {
+		compatible = "rockchip,des,rkx121";
+		status = "okay";
+		reg = <0x54>;
+		clock-names = "xvclk";
+		clocks = <&rkx12x_dvp_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk &cif_dvp_clk &cif_dvp_bus16>, <&rkx12x_dvp_enable>, <&rkx12x_dvp_reset>, <&rkx12x_dvp_irq>;
+		enable-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		rockchip,camera-module-sensor-name = "gc2145";
+
+		port {
+			rkx12x_dvp_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam_rkx12x>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
+			sensor-width = <800>;
+			sensor-height = <600>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <160000>;
+			bpp = <8>;
+			link-freq-idx = <4>;
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			stream-port = <0>; /* port: 0 or 1 */
+			stream-interface = <1>; /* interface: 0 = csi, 1 = dvp */
+			serdes-dclk-hz = <200000000>; // serdes dclk freq
+
+			/* rklink lane config start */
+			link-rate = <0>; /* 2GBPS_83MBPS */
+			link-line = <0>; /* 0: common, 1: short, 2: long */
+			lane-engine-id = <0>;
+			lane-engine-delay = <8192>;
+			lane-remote-ser = <&rkx12x_dvp_ser0>; // remote serializer
+			lane-remote-cam = <&rkx12x_dvp_cam0>; // remote camera
+			/* rklink lane config end */
+
+			/* dvptx config start */
+			dvptx-pclk = <200000000>; // dvptx pclk freq
+			dvptx-clock-invert = <1>;
+			/* dvptx config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				/*
+				 * rkx12x register init sequence
+				 *   reg_addr: 32bits
+				 *     reg_addr = FFFFFFFF: register end
+				 *     reg_addr = FFFFFFFE: delay (unit: us)
+				 *   reg_val: 32bits
+				 *   val_mask: 32bits
+				 */
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				// Note: Serializer node defined before camera node
+				rkx12x_dvp_ser0: rkx111@57 {
+					compatible = "rockchip,ser,rkx111";
+					reg = <0x57>;
+
+					stream-interface = <1>; // 0: MIPI, 1: DVP, 2: LVDS
+					serdes-dclk-hz = <200000000>; // serdes dclk freq
+					camera-mclk-hz = <24000000>; // camera mclk freq
+					camera-mclk-id = <1>; // camera mclk id: 0 or 1
+
+					vicap-dvp {
+						input-mode = <0>;
+						raw-width = <2>;
+						yuv-order = <0>;
+						clock-invert = <0>;
+					};
+
+					linktx {
+						lane-config-0 {
+							lane-id = <0>; // Lane ID: 0/1
+							dsource-id = <0>;
+						};
+					};
+
+					/* serializer init sequence start */
+					ser-init-sequence {
+						status = "okay";
+
+						/*
+						 * rkx11x register init sequence
+						 *   reg_addr: 32bits
+						 *     reg_addr = FFFFFFFF: register end
+						 *     reg_addr = FFFFFFFE: delay (unit: us)
+						 *   reg_val: 32bits
+						 *   val_mask: 32bits
+						 */
+						init-sequence = [
+							/* camera gpio: reset, pwren, pwdn */
+							00010008 0E000000 00000000 // iomux: GPIO0_B3
+							00010004 01C70000 00000000 // iomux: GPIO0_A5 and GPIO0_A7
+							00040008 08A008A0 00000000 // output direction: GPIO0_A5 GPIO0_A7 and GPIO0_B3
+							00040000 00200000 00000000 // RESET (GPIO0_A5): active level = 0: output 0
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+							00040000 08000800 00000000 // PWREN (GPIO0_B3): active level = 1: output 1
+							FFFFFFFE 00002710 00000000 // delay: 10000us
+							00040000 00800000 00000000 // PWDN (GPIO0_A7) active level = 1: output 0
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+							00040000 00200020 00000000 // RESET (GPIO0_A5): deactive level = 1: output 1
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+						];
+					};
+					/* serializer init sequence end */
+				};
+
+				rkx12x_dvp_cam0: gc2145@3c {
+					compatible = "rockchip,galaxycore,gc2145";
+					reg = <0x3c>;
+
+					cam-remote-ser = <&rkx12x_dvp_ser0>; // remote serializer
+
+					poc-supply = <&rkx12x_dvp_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "CameraKing";
+					rockchip,camera-module-lens-name = "Largan";
+
+					/* port config start */
+					port {
+						rkx12x_dvp_cam0_out: endpoint {
+						};
+					};
+					/* port config end */
+				};
+			};
+		};
+		/* i2c-mux end */
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	rkx12x-dvp {
+		rkx12x_dvp_enable: rkx12x-dvp-enable {
+			rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rkx12x_dvp_reset: rkx12x-dvp-reset {
+			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rkx12x_dvp_irq: rkx12x-dvp-irq {
+			rockchip,pins = <4 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
