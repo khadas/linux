@@ -1772,13 +1772,16 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
+			<&cru CLK_AUDIO_FRAC_1_SRC>,
 			<&cru PLL_GPLL>, <&cru PLL_CPLL>,
 			<&cru PLL_AUPLL>, <&cru CLK_UART_FRAC_0>,
 			<&cru CLK_UART_FRAC_1>, <&cru CLK_UART_FRAC_2>,
 			<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
 			<&cru CLK_CPLL_DIV2>, <&cru CLK_CPLL_DIV4>,
 			<&cru CLK_CPLL_DIV10>, <&cru FCLK_DDR_CM0_CORE>;
+		assigned-clock-parents = <&cru PLL_AUPLL>;
 		assigned-clock-rates =
+			<0>,
 			<1188000000>, <1000000000>,
 			<786432000>, <18432000>,
 			<96000000>, <128000000>,
