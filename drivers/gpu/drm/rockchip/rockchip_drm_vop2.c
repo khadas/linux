@@ -2213,11 +2213,6 @@ static void vop2_set_system_status(struct vop2 *vop2)
 		rockchip_set_system_status(SYS_STATUS_DUALVIEW);
 	else
 		rockchip_clear_system_status(SYS_STATUS_DUALVIEW);
-
-	if (hweight8(vop2->active_vp_mask))
-		rockchip_request_late_resume();
-	else
-		rockchip_request_early_suspend();
 }
 
 static bool vop2_win_rb_swap(uint32_t format)
@@ -4920,6 +4915,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2_unlock(vop2);
 
 	vop2_set_system_status(vop2);
+	if (!vop2->active_vp_mask)
+		rockchip_request_early_suspend();
 
 out:
 	if (crtc->state->event && !crtc->state->active) {
@@ -8627,6 +8624,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	vop2->active_vp_mask |= BIT(vp->id);
 	vop2_set_system_status(vop2);
+	rockchip_request_late_resume();
 
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x, flag:0x%x) for vp%d dclk: %llu\n",
