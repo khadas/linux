@@ -714,15 +714,24 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long e
 	return 0;
 }
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
+static void gt1x_resume_workfn(struct work_struct *work);
+static DECLARE_WORK(gt1x_resume_work, gt1x_resume_workfn);
+
+static void gt1x_resume_workfn(struct work_struct *work)
+{
+	gt1x_resume();
+}
+
 /* earlysuspend module the suspend/resume procedure */
 static void gt1x_ts_early_suspend(struct early_suspend *h)
 {
+	flush_work(&gt1x_resume_work);
 	gt1x_suspend();
 }
 
 static void gt1x_ts_late_resume(struct early_suspend *h)
 {
-	gt1x_resume();
+	queue_work(gt1x_wq, &gt1x_resume_work);
 }
 
 static struct early_suspend gt1x_early_suspend = {

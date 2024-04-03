@@ -7244,7 +7244,8 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 			else if (vop2->version == VOP_VERSION_RK3588)
 				request_clock = request_clock >> 2;
 		}
-		clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
+		clock = rockchip_drm_dclk_round_rate(vop2->version,
+						     vp->dclk_parent ? vp->dclk_parent : vp->dclk,
 						     request_clock * 1000) / 1000;
 	}
 
@@ -10667,7 +10668,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 			sort(vop2_zpos_splice, splice_nr_layers, sizeof(vop2_zpos_splice[0]),
 			     vop2_zpos_cmp, NULL);
 
-			vop2_setup_port_mux(splice_vp);
+			vop2_setup_port_mux(vp);
 			if (!vp->hdr10_at_splice_mode)
 				vop2_setup_layer_mixer_for_vp(splice_vp, vop2_zpos_splice);
 			vop2_setup_hdr10(splice_vp, vop2_zpos_splice[0].win_phys_id);
