@@ -155,21 +155,17 @@ EXPORT_SYMBOL(hdmitx_ext_get_audio_status);
 
 int register_earcrx_callback(pf_callback callback)
 {
+	/* when eARC driver try to register_earcrx_callback,
+	 * HDMI Tx driver probe/init is not finish, that just
+	 * register_earcrx_callback, and later probe and plugin will
+	 * notify eARC HDMI Tx cable plug in/out.
+	 * so don't check hdmitx init
+	 */
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
-		hdmitx_earc_hpdst(callback);
+	hdmitx_earc_hpdst(callback);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	/* ARC IN audio capture not working due to init
-	 * sequence issue of eARC driver and HDMI Tx driver.
-	 * when eARC driver try to register_earcrx_callback,
-	 * HDMI Tx driver probe/init is not finish, that lead
-	 * register_earcrx_callback fail and eARC driver
-	 * doesn't know if HDMI Tx cable plug in/out.
-	 * so don't check hdmitx21 init or not
-	 */
-	/*if (get_hdmitx21_init() == 1)*/
-		hdmitx21_earc_hpdst(callback);
+	hdmitx21_earc_hpdst(callback);
 #endif
 	return 0;
 }
