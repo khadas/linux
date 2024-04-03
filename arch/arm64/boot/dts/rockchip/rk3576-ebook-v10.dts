@@ -744,7 +744,7 @@
 
 	hall {
 		mh248_irq_gpio: mh248-irq-gpio {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
