@@ -76,4 +76,7 @@ int rockchip_gem_prime_end_cpu_access(struct drm_gem_object *obj,
 				      enum dma_data_direction dir);
 
 void rockchip_gem_get_ddr_info(void);
+
+extern const struct drm_gem_object_funcs rockchip_gem_object_funcs;
+
 #endif /* _ROCKCHIP_DRM_GEM_H */

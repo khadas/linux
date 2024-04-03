@@ -144,6 +144,7 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 	fb->flags |= ROCKCHIP_DRM_MODE_LOGO_FB;
 	rockchip_logo_fb->logo = logo;
 	rockchip_logo_fb->fb.obj[0] = &rockchip_logo_fb->rk_obj.base;
+	rockchip_logo_fb->fb.obj[0]->funcs = &rockchip_gem_object_funcs;
 	drm_gem_object_init(dev, rockchip_logo_fb->fb.obj[0], PAGE_ALIGN(logo->size));
 	rockchip_logo_fb->rk_obj.dma_addr = logo->dma_addr;
 	rockchip_logo_fb->rk_obj.kvaddr = logo->kvaddr;
