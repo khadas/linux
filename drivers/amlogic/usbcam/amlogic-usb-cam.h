@@ -124,6 +124,11 @@ enum aml_usbcam_device_status {
 	DEVICE_STATUS_DISCONNECT = 2
 };
 
+enum aml_usbcam_device_state {
+	DEVICE_CONNECT = 0,
+	DEVICE_DISCONNECT = 1
+};
+
 enum aml_write_open {
 	WRITE_OPEN = 0,
 	WRITE_CLOSE = 1
@@ -177,6 +182,8 @@ struct aml_usbcam {
 	struct aml_usbcam_info usbcam_module_info;//usbcam interface message
 
 	struct aml_usbcam_module_capabilities usbcam_module_capabilities;//usbcam capabilities
+
+	enum aml_usbcam_device_state device_state;
 
 	unsigned char intf_reg;//
 	unsigned int open_ref;//
