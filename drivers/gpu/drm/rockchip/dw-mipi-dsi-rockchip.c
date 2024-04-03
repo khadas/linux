@@ -929,26 +929,43 @@ static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 	return 0;
 }
 
+static int dw_mipi_dsi_rockchip_match_by_id(struct device *dev,
+					    const void *data)
+{
+	unsigned int *id = (unsigned int *)data;
+	struct dw_mipi_dsi_rockchip *dsi;
+
+	dsi = dev_get_drvdata(dev);
+	if (!dsi)
+		return 0;
+
+	return dsi->id == *id;
+}
+
+static struct dw_mipi_dsi_rockchip
+*dw_mipi_dsi_rockchip_find_by_id(struct device_driver *drv, unsigned int id)
+{
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, &id,
+				 dw_mipi_dsi_rockchip_match_by_id);
+	if (!dev)
+		return NULL;
+
+	return dev_get_drvdata(dev);
+}
+
 static struct device
 *dw_mipi_dsi_rockchip_find_second(struct dw_mipi_dsi_rockchip *dsi)
 {
-	struct device_node *node = NULL;
-	struct platform_device *pdev;
-	struct dw_mipi_dsi_rockchip *dsi2;
+	struct dw_mipi_dsi_rockchip *slave;
 
-	node = of_parse_phandle(dsi->dev->of_node, "rockchip,dual-channel", 0);
-	if (node) {
-		pdev = of_find_device_by_node(node);
-		if (!pdev)
+	if (of_property_read_bool(dsi->dev->of_node, "rockchip,dual-channel")) {
+		slave = dw_mipi_dsi_rockchip_find_by_id(dsi->dev->driver, 1);
+		if (!slave)
 			return ERR_PTR(-EPROBE_DEFER);
 
-		dsi2 = platform_get_drvdata(pdev);
-		if (!dsi2) {
-			platform_device_put(pdev);
-			return ERR_PTR(-EPROBE_DEFER);
-		}
-
-		return &pdev->dev;
+		return slave->dev;
 	}
 
 	return NULL;
