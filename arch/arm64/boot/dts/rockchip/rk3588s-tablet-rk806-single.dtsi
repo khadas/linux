@@ -261,7 +261,7 @@
  */
 &dsi0 {
 	status = "okay";
-	rockchip,dual-channel = <&dsi1>;
+	rockchip,dual-channel;
 	//rockchip,lane-rate = <1000>;
 	dsi0_panel: panel@0 {
 		status = "okay";
