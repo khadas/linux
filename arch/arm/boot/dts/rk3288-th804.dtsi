@@ -559,7 +559,7 @@
 };
 
 &dsi0 {
-	rockchip,dual-channel = <&dsi1>;
+	rockchip,dual-channel;
 	rockchip,lane-rate = <1000>;
 	status = "okay";
 
