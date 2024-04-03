@@ -3340,7 +3340,6 @@ void aisr_sr1_nn_enable_sync(u32 enable)
 
 	if (!cur_dev->aisr_support)
 		return;
-	pr_info("%s, enable=%d\n", __func__, enable);
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return aisr_sr1_nn_enable_sync_s5(enable);
 	sr = &sr_info;

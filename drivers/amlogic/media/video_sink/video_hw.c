@@ -13099,7 +13099,7 @@ static int _video_hw_init(void)
 	}
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
-		aisr_sr1_nn_enable(0);
+		aisr_sr1_nn_enable_sync(0);
 
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
