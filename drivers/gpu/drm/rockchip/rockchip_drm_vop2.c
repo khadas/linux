@@ -10668,7 +10668,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 			sort(vop2_zpos_splice, splice_nr_layers, sizeof(vop2_zpos_splice[0]),
 			     vop2_zpos_cmp, NULL);
 
-			vop2_setup_port_mux(splice_vp);
+			vop2_setup_port_mux(vp);
 			if (!vp->hdr10_at_splice_mode)
 				vop2_setup_layer_mixer_for_vp(splice_vp, vop2_zpos_splice);
 			vop2_setup_hdr10(splice_vp, vop2_zpos_splice[0].win_phys_id);
