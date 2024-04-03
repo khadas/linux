@@ -86,13 +86,33 @@
 		default-brightness-level = <200>;
 	};
 
-	dp_sound: dp-sound {
+	dp0_sound: dp0-sound {
 		status = "disabled";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <512>;
-		rockchip,card-name = "rockchip-dp";
+		rockchip,card-name = "rockchip-dp0";
 		rockchip,cpu = <&spdif_tx3>;
-		rockchip,codec = <&dp 1>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
+	dp1_sound: dp1-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <512>;
+		rockchip,card-name = "rockchip-dp1";
+		rockchip,cpu = <&spdif_tx3>;
+		rockchip,codec = <&dp1 1>;
+		rockchip,jack-det;
+	};
+
+	dp2_sound: dp2-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <512>;
+		rockchip,card-name = "rockchip-dp2";
+		rockchip,cpu = <&spdif_tx3>;
+		rockchip,codec = <&dp2 1>;
 		rockchip,jack-det;
 	};
 

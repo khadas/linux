@@ -251,11 +251,10 @@
 &dp {
 	pinctrl-0 = <&dpm0_pins>;
 	pinctrl-names = "default";
-	#sound-dai-cells = <1>;
 	status = "okay";
 };
 
-&dp_sound {
+&dp0_sound {
 	status = "okay";
 };
 
