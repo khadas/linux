@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * IMX464 driver
+ * imx464 driver
  *
  * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
  *
@@ -153,20 +153,20 @@
 
 #define IMX464_NAME			"imx464"
 
-static const char * const IMX464_supply_names[] = {
+static const char * const imx464_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
 	"dvdd",		/* Digital core power */
 };
 
-#define IMX464_NUM_SUPPLIES ARRAY_SIZE(IMX464_supply_names)
+#define IMX464_NUM_SUPPLIES ARRAY_SIZE(imx464_supply_names)
 
 struct regval {
 	u16 addr;
 	u8 val;
 };
 
-struct IMX464_mode {
+struct imx464_mode {
 	u32 bus_fmt;
 	u32 width;
 	u32 height;
@@ -182,7 +182,7 @@ struct IMX464_mode {
 	u32 vc[PAD_MAX];
 };
 
-struct IMX464 {
+struct imx464 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
 	struct gpio_desc	*reset_gpio;
@@ -208,8 +208,8 @@ struct IMX464 {
 	bool			streaming;
 	bool			power_on;
 	bool			has_init_exp;
-	const struct IMX464_mode *support_modes;
-	const struct IMX464_mode *cur_mode;
+	const struct imx464_mode *support_modes;
+	const struct imx464_mode *cur_mode;
 	u32			module_index;
 	u32			cfg_num;
 	u32			cur_vts;
@@ -220,18 +220,19 @@ struct IMX464 {
 	enum rkmodule_sync_mode	sync_mode;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	bool			isHCG;
+	struct v4l2_fract	cur_fps;
 };
 
-#define to_IMX464(sd) container_of(sd, struct IMX464, subdev)
+#define to_imx464(sd) container_of(sd, struct imx464, subdev)
 
 /*
  * Xclk 37.125Mhz
  */
-static const struct regval IMX464_global_regs[] = {
+static const struct regval imx464_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_linear_10bit_2688x1520_2lane_37m_regs[] = {
+static __maybe_unused const struct regval imx464_linear_10bit_2688x1520_2lane_37m_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x5B},
@@ -340,7 +341,7 @@ static __maybe_unused const struct regval IMX464_linear_10bit_2688x1520_2lane_37
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_hdr_2x_10bit_2688x1520_2lane_37m_regs[] = {
+static __maybe_unused const struct regval imx464_hdr_2x_10bit_2688x1520_2lane_37m_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x5B},
@@ -458,7 +459,7 @@ static __maybe_unused const struct regval IMX464_hdr_2x_10bit_2688x1520_2lane_37
 	{REG_NULL, 0x00},
 };
 
-static const struct regval IMX464_linear_10bit_2688x1520_2lane_regs[] = {
+static const struct regval imx464_linear_10bit_2688x1520_2lane_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x3b},
@@ -578,7 +579,7 @@ static const struct regval IMX464_linear_10bit_2688x1520_2lane_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval IMX464_hdr_2x_10bit_2688x1520_2lane_regs[] = {
+static const struct regval imx464_hdr_2x_10bit_2688x1520_2lane_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x3B},
@@ -698,7 +699,7 @@ static const struct regval IMX464_hdr_2x_10bit_2688x1520_2lane_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval IMX464_linear_10bit_2688x1520_regs[] = {
+static const struct regval imx464_linear_10bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x5B},
@@ -821,7 +822,7 @@ static const struct regval IMX464_linear_10bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval IMX464_hdr_2x_10bit_2688x1520_regs[] = {
+static const struct regval imx464_hdr_2x_10bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x5B},
@@ -944,7 +945,7 @@ static const struct regval IMX464_hdr_2x_10bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval IMX464_hdr_3x_10bit_2688x1520_regs[] = {
+static const struct regval imx464_hdr_3x_10bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x01},
 	{0x300C, 0x5B},
@@ -1073,7 +1074,7 @@ static const struct regval IMX464_hdr_3x_10bit_2688x1520_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_linear_12bit_2688x1520_regs[] = {
+static __maybe_unused const struct regval imx464_linear_12bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x00},
 	{0x300C, 0x3B},
@@ -1191,7 +1192,7 @@ static __maybe_unused const struct regval IMX464_linear_12bit_2688x1520_regs[] =
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_hdr_2x_12bit_2688x1520_regs[] = {
+static __maybe_unused const struct regval imx464_hdr_2x_12bit_2688x1520_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x00},
 	{0x300C, 0x3B},
@@ -1309,28 +1310,28 @@ static __maybe_unused const struct regval IMX464_hdr_2x_12bit_2688x1520_regs[] =
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_interal_sync_master_start_regs[] = {
+static __maybe_unused const struct regval imx464_interal_sync_master_start_regs[] = {
 	{0x3010, 0x07},
 	{0x31a1, 0x00},
 	{REG_NULL, 0x00},
 };
-static __maybe_unused const struct regval IMX464_interal_sync_master_stop_regs[] = {
+static __maybe_unused const struct regval imx464_interal_sync_master_stop_regs[] = {
 	{0x31a1, 0x0f},
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_external_sync_master_start_regs[] = {
+static __maybe_unused const struct regval imx464_external_sync_master_start_regs[] = {
 	{0x3010, 0x05},
 	{0x31a1, 0x03},
 	{0x31d9, 0x01},
 	{REG_NULL, 0x00},
 };
-static __maybe_unused const struct regval IMX464_external_sync_master_stop_regs[] = {
+static __maybe_unused const struct regval imx464_external_sync_master_stop_regs[] = {
 	{0x31a1, 0x0f},
 	{REG_NULL, 0x00},
 };
 
-static __maybe_unused const struct regval IMX464_slave_start_regs[] = {
+static __maybe_unused const struct regval imx464_slave_start_regs[] = {
 	{0x3010, 0x05},
 	{0x31a1, 0x0f},
 	{REG_NULL, 0x00},
@@ -1348,7 +1349,7 @@ static __maybe_unused const struct regval IMX464_slave_start_regs[] = {
  *	.get_selection
  * }
  */
-static const struct IMX464_mode supported_modes[] = {
+static const struct imx464_mode supported_modes[] = {
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 2712,
@@ -1363,7 +1364,7 @@ static const struct IMX464_mode supported_modes[] = {
 		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.mclk = 37125000,
-		.reg_list = IMX464_linear_10bit_2688x1520_regs,
+		.reg_list = imx464_linear_10bit_2688x1520_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -1381,7 +1382,7 @@ static const struct IMX464_mode supported_modes[] = {
 		.mipi_freq_idx = 1,
 		.bpp = 10,
 		.mclk = 37125000,
-		.reg_list = IMX464_hdr_2x_10bit_2688x1520_regs,
+		.reg_list = imx464_hdr_2x_10bit_2688x1520_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
@@ -1410,7 +1411,7 @@ static const struct IMX464_mode supported_modes[] = {
 		.mipi_freq_idx = 1,
 		.bpp = 10,
 		.mclk = 37125000,
-		.reg_list = IMX464_hdr_3x_10bit_2688x1520_regs,
+		.reg_list = imx464_hdr_3x_10bit_2688x1520_regs,
 		.hdr_mode = HDR_X3,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_2,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr0
@@ -1419,7 +1420,7 @@ static const struct IMX464_mode supported_modes[] = {
 	},
 };
 
-static const struct IMX464_mode supported_modes_2lane[] = {
+static const struct imx464_mode supported_modes_2lane[] = {
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 2712,
@@ -1434,7 +1435,7 @@ static const struct IMX464_mode supported_modes_2lane[] = {
 		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.mclk = 24000000,
-		.reg_list = IMX464_linear_10bit_2688x1520_2lane_regs,
+		.reg_list = imx464_linear_10bit_2688x1520_2lane_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -1452,13 +1453,17 @@ static const struct IMX464_mode supported_modes_2lane[] = {
 		.mipi_freq_idx = 0,
 		.bpp = 10,
 		.mclk = 24000000,
-		.reg_list = IMX464_hdr_2x_10bit_2688x1520_2lane_regs,
+		.reg_list = imx464_hdr_2x_10bit_2688x1520_2lane_regs,
 		.hdr_mode = HDR_X2,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -1495,7 +1500,7 @@ static int imx464_write_reg(struct i2c_client *client, u16 reg,
 	return 0;
 }
 
-static int IMX464_write_array(struct i2c_client *client,
+static int imx464_write_array(struct i2c_client *client,
 			      const struct regval *regs)
 {
 	u32 i;
@@ -1509,7 +1514,7 @@ static int IMX464_write_array(struct i2c_client *client,
 }
 
 /* Read registers up to 4 at a time */
-static int IMX464_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
+static int imx464_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 			   u32 *val)
 {
 	struct i2c_msg msgs[2];
@@ -1543,15 +1548,15 @@ static int IMX464_read_reg(struct i2c_client *client, u16 reg, unsigned int len,
 	return 0;
 }
 
-static int IMX464_get_reso_dist(const struct IMX464_mode *mode,
+static int imx464_get_reso_dist(const struct imx464_mode *mode,
 				struct v4l2_mbus_framefmt *framefmt)
 {
 	return abs(mode->width - framefmt->width) +
 	       abs(mode->height - framefmt->height);
 }
 
-static const struct IMX464_mode *
-IMX464_find_best_fit(struct IMX464 *IMX464, struct v4l2_subdev_format *fmt)
+static const struct imx464_mode *
+imx464_find_best_fit(struct imx464 *imx464, struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
 	int dist;
@@ -1559,30 +1564,30 @@ IMX464_find_best_fit(struct IMX464 *IMX464, struct v4l2_subdev_format *fmt)
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
-	for (i = 0; i < IMX464->cfg_num; i++) {
-		dist = IMX464_get_reso_dist(&IMX464->support_modes[i], framefmt);
+	for (i = 0; i < imx464->cfg_num; i++) {
+		dist = imx464_get_reso_dist(&imx464->support_modes[i], framefmt);
 		if ((cur_best_fit_dist == -1 || dist <= cur_best_fit_dist) &&
-			IMX464->support_modes[i].bus_fmt == framefmt->code) {
+			imx464->support_modes[i].bus_fmt == framefmt->code) {
 			cur_best_fit_dist = dist;
 			cur_best_fit = i;
 		}
 	}
 
-	return &IMX464->support_modes[cur_best_fit];
+	return &imx464->support_modes[cur_best_fit];
 }
 
-static int IMX464_set_fmt(struct v4l2_subdev *sd,
+static int imx464_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	const struct IMX464_mode *mode;
+	struct imx464 *imx464 = to_imx464(sd);
+	const struct imx464_mode *mode;
 	s64 h_blank, vblank_def;
 	u64 pixel_rate = 0;
 
-	mutex_lock(&IMX464->mutex);
+	mutex_lock(&imx464->mutex);
 
-	mode = IMX464_find_best_fit(IMX464, fmt);
+	mode = imx464_find_best_fit(imx464, fmt);
 	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
@@ -1591,45 +1596,46 @@ static int IMX464_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
 #else
-		mutex_unlock(&IMX464->mutex);
+		mutex_unlock(&imx464->mutex);
 		return -ENOTTY;
 #endif
 	} else {
-		IMX464->cur_mode = mode;
+		imx464->cur_mode = mode;
 		h_blank = mode->hts_def - mode->width;
-		__v4l2_ctrl_modify_range(IMX464->hblank, h_blank,
+		__v4l2_ctrl_modify_range(imx464->hblank, h_blank,
 					 h_blank, 1, h_blank);
 		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(IMX464->vblank, vblank_def,
+		__v4l2_ctrl_modify_range(imx464->vblank, vblank_def,
 					 IMX464_VTS_MAX - mode->height,
 					 1, vblank_def);
-		IMX464->cur_vts = IMX464->cur_mode->vts_def;
+		imx464->cur_vts = imx464->cur_mode->vts_def;
 		pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] / mode->bpp * 2 *
-			     IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes;
-		__v4l2_ctrl_s_ctrl_int64(IMX464->pixel_rate,
+			     imx464->bus_cfg.bus.mipi_csi2.num_data_lanes;
+		__v4l2_ctrl_s_ctrl_int64(imx464->pixel_rate,
 					 pixel_rate);
-		__v4l2_ctrl_s_ctrl(IMX464->link_freq,
+		__v4l2_ctrl_s_ctrl(imx464->link_freq,
 				   mode->mipi_freq_idx);
+		imx464->cur_fps = mode->max_fps;
 	}
 
-	mutex_unlock(&IMX464->mutex);
+	mutex_unlock(&imx464->mutex);
 
 	return 0;
 }
 
-static int IMX464_get_fmt(struct v4l2_subdev *sd,
+static int imx464_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	const struct IMX464_mode *mode = IMX464->cur_mode;
+	struct imx464 *imx464 = to_imx464(sd);
+	const struct imx464_mode *mode = imx464->cur_mode;
 
-	mutex_lock(&IMX464->mutex);
+	mutex_lock(&imx464->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 #else
-		mutex_unlock(&IMX464->mutex);
+		mutex_unlock(&imx464->mutex);
 		return -ENOTTY;
 #endif
 	} else {
@@ -1642,62 +1648,133 @@ static int IMX464_get_fmt(struct v4l2_subdev *sd,
 		else
 			fmt->reserved[0] = mode->vc[PAD0];
 	}
-	mutex_unlock(&IMX464->mutex);
+	mutex_unlock(&imx464->mutex);
 
 	return 0;
 }
 
-static int IMX464_enum_mbus_code(struct v4l2_subdev *sd,
+static int imx464_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = IMX464->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
 
-static int IMX464_enum_frame_sizes(struct v4l2_subdev *sd,
+static int imx464_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
-	if (fse->index >= IMX464->cfg_num)
+	if (fse->index >= imx464->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != IMX464->support_modes[fse->index].bus_fmt)
+	if (fse->code != imx464->support_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
-	fse->min_width  = IMX464->support_modes[fse->index].width;
-	fse->max_width  = IMX464->support_modes[fse->index].width;
-	fse->max_height = IMX464->support_modes[fse->index].height;
-	fse->min_height = IMX464->support_modes[fse->index].height;
+	fse->min_width  = imx464->support_modes[fse->index].width;
+	fse->max_width  = imx464->support_modes[fse->index].width;
+	fse->max_height = imx464->support_modes[fse->index].height;
+	fse->min_height = imx464->support_modes[fse->index].height;
 
 	return 0;
 }
 
-static int IMX464_g_frame_interval(struct v4l2_subdev *sd,
+static int imx464_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	const struct IMX464_mode *mode = IMX464->cur_mode;
+	struct imx464 *imx464 = to_imx464(sd);
+	const struct imx464_mode *mode = imx464->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (imx464->streaming)
+		fi->interval = imx464->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
 
-static int IMX464_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+static const struct imx464_mode *imx464_find_mode(struct imx464 *imx464, int fps)
+{
+	const struct imx464_mode *mode = NULL;
+	const struct imx464_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < imx464->cfg_num; i++) {
+		mode = &imx464->support_modes[i];
+		if (mode->width == imx464->cur_mode->width &&
+		    mode->height == imx464->cur_mode->height &&
+		    mode->bus_fmt == imx464->cur_mode->bus_fmt &&
+		    mode->hdr_mode == imx464->cur_mode->hdr_mode) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int imx464_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx464 *imx464 = to_imx464(sd);
+	const struct imx464_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = imx464->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int fps;
+
+	if (imx464->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = imx464_find_mode(imx464, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	imx464->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(imx464->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(imx464->vblank, vblank_def,
+				 IMX464_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(imx464->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(imx464->link_freq,
+			   mode->mipi_freq_idx);
+	imx464->cur_fps = mode->max_fps;
+	return 0;
+}
+
+static int imx464_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	const struct IMX464_mode *mode = IMX464->cur_mode;
+	struct imx464 *imx464 = to_imx464(sd);
+	const struct imx464_mode *mode = imx464->cur_mode;
 	u32 val = 0;
-	u32 lane_num = IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	u32 lane_num = imx464->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	if (mode->hdr_mode == NO_HDR) {
 		val = 1 << (lane_num - 1) |
@@ -1722,20 +1799,20 @@ static int IMX464_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	return 0;
 }
 
-static void IMX464_get_module_inf(struct IMX464 *IMX464,
+static void imx464_get_module_inf(struct imx464 *imx464,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
 	strscpy(inf->base.sensor, IMX464_NAME, sizeof(inf->base.sensor));
-	strscpy(inf->base.module, IMX464->module_name,
+	strscpy(inf->base.module, imx464->module_name,
 		sizeof(inf->base.module));
-	strscpy(inf->base.lens, IMX464->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx464->len_name, sizeof(inf->base.lens));
 }
 
-static int IMX464_set_hdrae(struct IMX464 *IMX464,
+static int imx464_set_hdrae(struct imx464 *imx464,
 			    struct preisp_hdrae_exp_s *ae)
 {
-	struct i2c_client *client = IMX464->client;
+	struct i2c_client *client = imx464->client;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	u32 gain_switch = 0;
@@ -1746,13 +1823,13 @@ static int IMX464_set_hdrae(struct IMX464 *IMX464,
 	static int rhs1_old = IMX464_RHS1_DEFAULT;
 	int rhs1_change_limit;
 	int ret = 0;
-	u32 fsc = IMX464->cur_vts;
+	u32 fsc = imx464->cur_vts;
 	u8 cg_mode = 0;
 
-	if (!IMX464->has_init_exp && !IMX464->streaming) {
-		IMX464->init_hdrae_exp = *ae;
-		IMX464->has_init_exp = true;
-		dev_dbg(&IMX464->client->dev, "IMX464 don't stream, record exp for hdr!\n");
+	if (!imx464->has_init_exp && !imx464->streaming) {
+		imx464->init_hdrae_exp = *ae;
+		imx464->has_init_exp = true;
+		dev_dbg(&imx464->client->dev, "imx464 don't stream, record exp for hdr!\n");
 		return ret;
 	}
 	l_exp_time = ae->long_exp_reg;
@@ -1766,18 +1843,18 @@ static int IMX464_set_hdrae(struct IMX464 *IMX464,
 		l_exp_time, m_exp_time, s_exp_time,
 		l_a_gain, m_a_gain, s_a_gain);
 
-	if (IMX464->cur_mode->hdr_mode == HDR_X2) {
+	if (imx464->cur_mode->hdr_mode == HDR_X2) {
 		//2 stagger
 		l_a_gain = m_a_gain;
 		l_exp_time = m_exp_time;
 		cg_mode = ae->middle_cg_mode;
 	}
-	if (!IMX464->isHCG && cg_mode == GAIN_MODE_HCG) {
+	if (!imx464->isHCG && cg_mode == GAIN_MODE_HCG) {
 		gain_switch = 0x01 | 0x100;
-		IMX464->isHCG = true;
-	} else if (IMX464->isHCG && cg_mode == GAIN_MODE_LCG) {
+		imx464->isHCG = true;
+	} else if (imx464->isHCG && cg_mode == GAIN_MODE_LCG) {
 		gain_switch = 0x00 | 0x100;
-		IMX464->isHCG = false;
+		imx464->isHCG = false;
 	}
 	ret = imx464_write_reg(client,
 		IMX464_GROUP_HOLD_REG,
@@ -1925,10 +2002,10 @@ static int IMX464_set_hdrae(struct IMX464 *IMX464,
 	return ret;
 }
 
-static int IMX464_set_hdrae_3frame(struct IMX464 *IMX464,
+static int imx464_set_hdrae_3frame(struct imx464 *imx464,
 				   struct preisp_hdrae_exp_s *ae)
 {
-	struct i2c_client *client = IMX464->client;
+	struct i2c_client *client = imx464->client;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	int shr2, shr1, shr0, rhs2, rhs1 = 0;
@@ -1942,10 +2019,10 @@ static int IMX464_set_hdrae_3frame(struct IMX464 *IMX464,
 	int rhs1_max = 0;
 	int shr2_min = 0;
 
-	if (!IMX464->has_init_exp && !IMX464->streaming) {
-		IMX464->init_hdrae_exp = *ae;
-		IMX464->has_init_exp = true;
-		dev_dbg(&IMX464->client->dev, "IMX464 is not streaming, save hdr ae!\n");
+	if (!imx464->has_init_exp && !imx464->streaming) {
+		imx464->init_hdrae_exp = *ae;
+		imx464->has_init_exp = true;
+		dev_dbg(&imx464->client->dev, "imx464 is not streaming, save hdr ae!\n");
 		return ret;
 	}
 	l_exp_time = ae->long_exp_reg;
@@ -1955,16 +2032,16 @@ static int IMX464_set_hdrae_3frame(struct IMX464 *IMX464,
 	m_a_gain = ae->middle_gain_reg;
 	s_a_gain = ae->short_gain_reg;
 
-	if (IMX464->cur_mode->hdr_mode == HDR_X3) {
+	if (imx464->cur_mode->hdr_mode == HDR_X3) {
 		//3 stagger
 		cg_mode = ae->long_cg_mode;
 	}
-	if (!IMX464->isHCG && cg_mode == GAIN_MODE_HCG) {
+	if (!imx464->isHCG && cg_mode == GAIN_MODE_HCG) {
 		gain_switch = 0x01 | 0x100;
-		IMX464->isHCG = true;
-	} else if (IMX464->isHCG && cg_mode == GAIN_MODE_LCG) {
+		imx464->isHCG = true;
+	} else if (imx464->isHCG && cg_mode == GAIN_MODE_LCG) {
 		gain_switch = 0x00 | 0x100;
-		IMX464->isHCG = false;
+		imx464->isHCG = false;
 	}
 
 	dev_dbg(&client->dev,
@@ -2025,7 +2102,7 @@ static int IMX464_set_hdrae_3frame(struct IMX464 *IMX464,
 	 */
 
 	/* The HDR mode vts is double by default to workaround T-line */
-	fsc = IMX464->cur_vts;
+	fsc = imx464->cur_vts;
 	shr0 = fsc - l_exp_time;
 	dev_dbg(&client->dev,
 		"line(%d) shr0 %d, l_exp_time %d, fsc %d\n",
@@ -2194,19 +2271,19 @@ static int IMX464_set_hdrae_3frame(struct IMX464 *IMX464,
 	return ret;
 }
 
-static int IMX464_set_conversion_gain(struct IMX464 *IMX464, u32 *cg)
+static int imx464_set_conversion_gain(struct imx464 *imx464, u32 *cg)
 {
 	int ret = 0;
-	struct i2c_client *client = IMX464->client;
+	struct i2c_client *client = imx464->client;
 	int cur_cg = *cg;
 	u32 gain_switch = 0;
 
-	if (IMX464->isHCG && cur_cg == GAIN_MODE_LCG) {
+	if (imx464->isHCG && cur_cg == GAIN_MODE_LCG) {
 		gain_switch = 0x00 | 0x100;
-		IMX464->isHCG = false;
-	} else if (!IMX464->isHCG && cur_cg == GAIN_MODE_HCG) {
+		imx464->isHCG = false;
+	} else if (!imx464->isHCG && cur_cg == GAIN_MODE_HCG) {
 		gain_switch = 0x01 | 0x100;
-		IMX464->isHCG = true;
+		imx464->isHCG = true;
 	}
 	ret = imx464_write_reg(client,
 			IMX464_GROUP_HOLD_REG,
@@ -2233,13 +2310,13 @@ static ssize_t set_conversion_gain_status(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 	int status = 0;
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &status);
 	if (!ret && status >= 0 && status < 2)
-		IMX464_set_conversion_gain(IMX464, &status);
+		imx464_set_conversion_gain(imx464, &status);
 	else
 		dev_err(dev, "input 0 for LCG, 1 for HCG, cur %d\n", status);
 	return count;
@@ -2274,20 +2351,20 @@ static int remove_sysfs_interfaces(struct device *dev)
 }
 #endif
 
-static int IMX464_get_channel_info(struct IMX464 *IMX464, struct rkmodule_channel_info *ch_info)
+static int imx464_get_channel_info(struct imx464 *imx464, struct rkmodule_channel_info *ch_info)
 {
 	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
 		return -EINVAL;
-	ch_info->vc = IMX464->cur_mode->vc[ch_info->index];
-	ch_info->width = IMX464->cur_mode->width;
-	ch_info->height = IMX464->cur_mode->height;
-	ch_info->bus_fmt = IMX464->cur_mode->bus_fmt;
+	ch_info->vc = imx464->cur_mode->vc[ch_info->index];
+	ch_info->width = imx464->cur_mode->width;
+	ch_info->height = imx464->cur_mode->height;
+	ch_info->bus_fmt = imx464->cur_mode->bus_fmt;
 	return 0;
 }
 
-static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+static long imx464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_channel_info *ch_info;
 	u32 i, h, w, stream;
@@ -2297,78 +2374,80 @@ static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
-		if (IMX464->cur_mode->hdr_mode == HDR_X2)
-			ret = IMX464_set_hdrae(IMX464, arg);
-		else if (IMX464->cur_mode->hdr_mode == HDR_X3)
-			ret = IMX464_set_hdrae_3frame(IMX464, arg);
+		if (imx464->cur_mode->hdr_mode == HDR_X2)
+			ret = imx464_set_hdrae(imx464, arg);
+		else if (imx464->cur_mode->hdr_mode == HDR_X3)
+			ret = imx464_set_hdrae_3frame(imx464, arg);
 		break;
 	case RKMODULE_GET_MODULE_INFO:
-		IMX464_get_module_inf(IMX464, (struct rkmodule_inf *)arg);
+		imx464_get_module_inf(imx464, (struct rkmodule_inf *)arg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
 		hdr->esp.mode = HDR_NORMAL_VC;
-		hdr->hdr_mode = IMX464->cur_mode->hdr_mode;
+		hdr->hdr_mode = imx464->cur_mode->hdr_mode;
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
-		w = IMX464->cur_mode->width;
-		h = IMX464->cur_mode->height;
-		for (i = 0; i < IMX464->cfg_num; i++) {
-			if (w == IMX464->support_modes[i].width &&
-			    h == IMX464->support_modes[i].height &&
-			    IMX464->support_modes[i].hdr_mode == hdr->hdr_mode) {
-				IMX464->cur_mode = &IMX464->support_modes[i];
+		w = imx464->cur_mode->width;
+		h = imx464->cur_mode->height;
+		for (i = 0; i < imx464->cfg_num; i++) {
+			if (w == imx464->support_modes[i].width &&
+			    h == imx464->support_modes[i].height &&
+			    imx464->support_modes[i].bus_fmt == imx464->cur_mode->bus_fmt &&
+			    imx464->support_modes[i].hdr_mode == hdr->hdr_mode) {
+				imx464->cur_mode = &imx464->support_modes[i];
 				break;
 			}
 		}
-		if (i == IMX464->cfg_num) {
-			dev_err(&IMX464->client->dev,
+		if (i == imx464->cfg_num) {
+			dev_err(&imx464->client->dev,
 				"not find hdr mode:%d %dx%d config\n",
 				hdr->hdr_mode, w, h);
 			ret = -EINVAL;
 		} else {
-			w = IMX464->cur_mode->hts_def - IMX464->cur_mode->width;
-			h = IMX464->cur_mode->vts_def - IMX464->cur_mode->height;
-			__v4l2_ctrl_modify_range(IMX464->hblank, w, w, 1, w);
-			__v4l2_ctrl_modify_range(IMX464->vblank, h,
-				IMX464_VTS_MAX - IMX464->cur_mode->height,
+			w = imx464->cur_mode->hts_def - imx464->cur_mode->width;
+			h = imx464->cur_mode->vts_def - imx464->cur_mode->height;
+			__v4l2_ctrl_modify_range(imx464->hblank, w, w, 1, w);
+			__v4l2_ctrl_modify_range(imx464->vblank, h,
+				IMX464_VTS_MAX - imx464->cur_mode->height,
 				1, h);
-			IMX464->cur_vts = IMX464->cur_mode->vts_def;
-			pixel_rate = (u32)link_freq_menu_items[IMX464->cur_mode->mipi_freq_idx] / IMX464->cur_mode->bpp * 2 *
-				     IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes;
-			__v4l2_ctrl_s_ctrl_int64(IMX464->pixel_rate,
+			imx464->cur_vts = imx464->cur_mode->vts_def;
+			pixel_rate = (u32)link_freq_menu_items[imx464->cur_mode->mipi_freq_idx] / imx464->cur_mode->bpp * 2 *
+				     imx464->bus_cfg.bus.mipi_csi2.num_data_lanes;
+			__v4l2_ctrl_s_ctrl_int64(imx464->pixel_rate,
 						 pixel_rate);
-			__v4l2_ctrl_s_ctrl(IMX464->link_freq,
-					   IMX464->cur_mode->mipi_freq_idx);
+			__v4l2_ctrl_s_ctrl(imx464->link_freq,
+					   imx464->cur_mode->mipi_freq_idx);
+			imx464->cur_fps = imx464->cur_mode->max_fps;
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
-		ret = IMX464_set_conversion_gain(IMX464, (u32 *)arg);
+		ret = imx464_set_conversion_gain(imx464, (u32 *)arg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 
 		stream = *((u32 *)arg);
 
 		if (stream)
-			ret = imx464_write_reg(IMX464->client, IMX464_REG_CTRL_MODE,
+			ret = imx464_write_reg(imx464->client, IMX464_REG_CTRL_MODE,
 				IMX464_REG_VALUE_08BIT, IMX464_MODE_STREAMING);
 		else
-			ret = imx464_write_reg(IMX464->client, IMX464_REG_CTRL_MODE,
+			ret = imx464_write_reg(imx464->client, IMX464_REG_CTRL_MODE,
 				IMX464_REG_VALUE_08BIT, IMX464_MODE_SW_STANDBY);
 
 		break;
 	case RKMODULE_GET_CHANNEL_INFO:
 		ch_info = (struct rkmodule_channel_info *)arg;
-		ret = IMX464_get_channel_info(IMX464, ch_info);
+		ret = imx464_get_channel_info(imx464, ch_info);
 		break;
 	case RKMODULE_GET_SYNC_MODE:
 		sync_mode = (u32 *)arg;
-		*sync_mode = IMX464->sync_mode;
+		*sync_mode = imx464->sync_mode;
 		break;
 	case RKMODULE_SET_SYNC_MODE:
 		sync_mode = (u32 *)arg;
-		IMX464->sync_mode = *sync_mode;
+		imx464->sync_mode = *sync_mode;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2379,7 +2458,7 @@ static long IMX464_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
+static long imx464_compat_ioctl32(struct v4l2_subdev *sd,
 				  unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
@@ -2401,7 +2480,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = IMX464_ioctl(sd, cmd, inf);
+		ret = imx464_ioctl(sd, cmd, inf);
 		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
 			if (ret)
@@ -2418,7 +2497,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, cfg);
+			ret = imx464_ioctl(sd, cmd, cfg);
 		else
 			ret = -EFAULT;
 		kfree(cfg);
@@ -2430,7 +2509,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = IMX464_ioctl(sd, cmd, hdr);
+		ret = imx464_ioctl(sd, cmd, hdr);
 		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
 			if (ret)
@@ -2447,7 +2526,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, hdr);
+			ret = imx464_ioctl(sd, cmd, hdr);
 		else
 			ret = -EFAULT;
 		kfree(hdr);
@@ -2461,7 +2540,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, hdrae);
+			ret = imx464_ioctl(sd, cmd, hdrae);
 		else
 			ret = -EFAULT;
 		kfree(hdrae);
@@ -2469,14 +2548,14 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, &cg);
+			ret = imx464_ioctl(sd, cmd, &cg);
 		else
 			ret = -EFAULT;
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, &stream);
+			ret = imx464_ioctl(sd, cmd, &stream);
 		else
 			ret = -EFAULT;
 
@@ -2488,7 +2567,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = IMX464_ioctl(sd, cmd, ch_info);
+		ret = imx464_ioctl(sd, cmd, ch_info);
 		if (!ret) {
 			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
 			if (ret)
@@ -2497,7 +2576,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 		kfree(ch_info);
 		break;
 	case RKMODULE_GET_SYNC_MODE:
-		ret = IMX464_ioctl(sd, cmd, &sync_mode);
+		ret = imx464_ioctl(sd, cmd, &sync_mode);
 		if (!ret) {
 			ret = copy_to_user(up, &sync_mode, sizeof(u32));
 			if (ret)
@@ -2507,7 +2586,7 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKMODULE_SET_SYNC_MODE:
 		ret = copy_from_user(&sync_mode, up, sizeof(u32));
 		if (!ret)
-			ret = IMX464_ioctl(sd, cmd, &sync_mode);
+			ret = imx464_ioctl(sd, cmd, &sync_mode);
 		else
 			ret = -EFAULT;
 		break;
@@ -2520,9 +2599,9 @@ static long IMX464_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-static int IMX464_init_conversion_gain(struct IMX464 *IMX464, bool isHCG)
+static int imx464_init_conversion_gain(struct imx464 *imx464, bool isHCG)
 {
-	struct i2c_client *client = IMX464->client;
+	struct i2c_client *client = imx464->client;
 	int ret = 0;
 	u32 val = 0;
 
@@ -2537,77 +2616,77 @@ static int IMX464_init_conversion_gain(struct IMX464 *IMX464, bool isHCG)
 	return ret;
 }
 
-static int __IMX464_start_stream(struct IMX464 *IMX464)
+static int __imx464_start_stream(struct imx464 *imx464)
 {
 	int ret;
 
-	ret = IMX464_write_array(IMX464->client, IMX464->cur_mode->reg_list);
+	ret = imx464_write_array(imx464->client, imx464->cur_mode->reg_list);
 	if (ret)
 		return ret;
-	ret = IMX464_init_conversion_gain(IMX464, IMX464->isHCG);
+	ret = imx464_init_conversion_gain(imx464, imx464->isHCG);
 	if (ret)
 		return ret;
 	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&IMX464->ctrl_handler);
+	ret = __v4l2_ctrl_handler_setup(&imx464->ctrl_handler);
 	if (ret)
 		return ret;
-	if (IMX464->has_init_exp && IMX464->cur_mode->hdr_mode != NO_HDR) {
-		ret = IMX464_ioctl(&IMX464->subdev, PREISP_CMD_SET_HDRAE_EXP,
-			&IMX464->init_hdrae_exp);
+	if (imx464->has_init_exp && imx464->cur_mode->hdr_mode != NO_HDR) {
+		ret = imx464_ioctl(&imx464->subdev, PREISP_CMD_SET_HDRAE_EXP,
+			&imx464->init_hdrae_exp);
 		if (ret) {
-			dev_err(&IMX464->client->dev,
+			dev_err(&imx464->client->dev,
 				"init exp fail in hdr mode\n");
 			return ret;
 		}
 	}
 
-	if (IMX464->sync_mode == EXTERNAL_MASTER_MODE) {
-		ret |= IMX464_write_array(IMX464->client, IMX464_external_sync_master_start_regs);
-		v4l2_err(&IMX464->subdev, "cur externam master mode\n");
-	} else if (IMX464->sync_mode == INTERNAL_MASTER_MODE) {
-		ret |= IMX464_write_array(IMX464->client, IMX464_interal_sync_master_start_regs);
-		v4l2_err(&IMX464->subdev, "cur intertal master\n");
-	} else if (IMX464->sync_mode == SLAVE_MODE) {
-		ret |= IMX464_write_array(IMX464->client, IMX464_slave_start_regs);
-		v4l2_err(&IMX464->subdev, "cur slave mode\n");
+	if (imx464->sync_mode == EXTERNAL_MASTER_MODE) {
+		ret |= imx464_write_array(imx464->client, imx464_external_sync_master_start_regs);
+		v4l2_err(&imx464->subdev, "cur externam master mode\n");
+	} else if (imx464->sync_mode == INTERNAL_MASTER_MODE) {
+		ret |= imx464_write_array(imx464->client, imx464_interal_sync_master_start_regs);
+		v4l2_err(&imx464->subdev, "cur intertal master\n");
+	} else if (imx464->sync_mode == SLAVE_MODE) {
+		ret |= imx464_write_array(imx464->client, imx464_slave_start_regs);
+		v4l2_err(&imx464->subdev, "cur slave mode\n");
 	}
-	if (IMX464->sync_mode == NO_SYNC_MODE) {
-		ret = imx464_write_reg(IMX464->client, IMX464_REG_CTRL_MODE,
+	if (imx464->sync_mode == NO_SYNC_MODE) {
+		ret = imx464_write_reg(imx464->client, IMX464_REG_CTRL_MODE,
 					IMX464_REG_VALUE_08BIT, IMX464_MODE_STREAMING);
 		usleep_range(30000, 40000);
-		ret |= imx464_write_reg(IMX464->client, IMX464_REG_MARSTER_MODE,
+		ret |= imx464_write_reg(imx464->client, IMX464_REG_MARSTER_MODE,
 					IMX464_REG_VALUE_08BIT, 0);
 	} else {
-		ret |= imx464_write_reg(IMX464->client, IMX464_REG_MARSTER_MODE,
+		ret |= imx464_write_reg(imx464->client, IMX464_REG_MARSTER_MODE,
 					IMX464_REG_VALUE_08BIT, 0);
 	}
 	return ret;
 }
 
-static int __IMX464_stop_stream(struct IMX464 *IMX464)
+static int __imx464_stop_stream(struct imx464 *imx464)
 {
 	int ret = 0;
 
-	IMX464->has_init_exp = false;
-	ret = imx464_write_reg(IMX464->client, IMX464_REG_CTRL_MODE,
+	imx464->has_init_exp = false;
+	ret = imx464_write_reg(imx464->client, IMX464_REG_CTRL_MODE,
 			IMX464_REG_VALUE_08BIT, IMX464_MODE_SW_STANDBY);
 
-	if (IMX464->sync_mode == EXTERNAL_MASTER_MODE)
-		ret |= IMX464_write_array(IMX464->client, IMX464_external_sync_master_stop_regs);
-	else if (IMX464->sync_mode == INTERNAL_MASTER_MODE)
-		ret |= IMX464_write_array(IMX464->client, IMX464_interal_sync_master_stop_regs);
+	if (imx464->sync_mode == EXTERNAL_MASTER_MODE)
+		ret |= imx464_write_array(imx464->client, imx464_external_sync_master_stop_regs);
+	else if (imx464->sync_mode == INTERNAL_MASTER_MODE)
+		ret |= imx464_write_array(imx464->client, imx464_interal_sync_master_stop_regs);
 	return ret;
 }
 
-static int IMX464_s_stream(struct v4l2_subdev *sd, int on)
+static int imx464_s_stream(struct v4l2_subdev *sd, int on)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	struct i2c_client *client = IMX464->client;
+	struct imx464 *imx464 = to_imx464(sd);
+	struct i2c_client *client = imx464->client;
 	int ret = 0;
 
-	mutex_lock(&IMX464->mutex);
+	mutex_lock(&imx464->mutex);
 	on = !!on;
-	if (on == IMX464->streaming)
+	if (on == imx464->streaming)
 		goto unlock_and_return;
 
 	if (on) {
@@ -2617,35 +2696,35 @@ static int IMX464_s_stream(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = __IMX464_start_stream(IMX464);
+		ret = __imx464_start_stream(imx464);
 		if (ret) {
 			v4l2_err(sd, "start stream failed while write regs\n");
 			pm_runtime_put(&client->dev);
 			goto unlock_and_return;
 		}
 	} else {
-		__IMX464_stop_stream(IMX464);
+		__imx464_stop_stream(imx464);
 		pm_runtime_put(&client->dev);
 	}
 
-	IMX464->streaming = on;
+	imx464->streaming = on;
 
 unlock_and_return:
-	mutex_unlock(&IMX464->mutex);
+	mutex_unlock(&imx464->mutex);
 
 	return ret;
 }
 
-static int IMX464_s_power(struct v4l2_subdev *sd, int on)
+static int imx464_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
-	struct i2c_client *client = IMX464->client;
+	struct imx464 *imx464 = to_imx464(sd);
+	struct i2c_client *client = imx464->client;
 	int ret = 0;
 
-	mutex_lock(&IMX464->mutex);
+	mutex_lock(&imx464->mutex);
 
 	/* If the power state is not modified - no work to do. */
-	if (IMX464->power_on == !!on)
+	if (imx464->power_on == !!on)
 		goto unlock_and_return;
 
 	if (on) {
@@ -2655,160 +2734,160 @@ static int IMX464_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = IMX464_write_array(IMX464->client, IMX464_global_regs);
+		ret = imx464_write_array(imx464->client, imx464_global_regs);
 		if (ret) {
 			v4l2_err(sd, "could not set init registers\n");
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
 
-		IMX464->power_on = true;
+		imx464->power_on = true;
 	} else {
 		pm_runtime_put(&client->dev);
-		IMX464->power_on = false;
+		imx464->power_on = false;
 	}
 
 unlock_and_return:
-	mutex_unlock(&IMX464->mutex);
+	mutex_unlock(&imx464->mutex);
 
 	return ret;
 }
 
 /* Calculate the delay in us by clock rate and clock cycles */
-static inline u32 IMX464_cal_delay(u32 cycles)
+static inline u32 imx464_cal_delay(u32 cycles)
 {
 	return DIV_ROUND_UP(cycles, IMX464_XVCLK_FREQ_37M / 1000 / 1000);
 }
 
-static int __IMX464_power_on(struct IMX464 *IMX464)
+static int __imx464_power_on(struct imx464 *imx464)
 {
 	int ret;
 	u32 delay_us;
-	struct device *dev = &IMX464->client->dev;
+	struct device *dev = &imx464->client->dev;
 
-	if (!IS_ERR_OR_NULL(IMX464->pins_default)) {
-		ret = pinctrl_select_state(IMX464->pinctrl,
-					   IMX464->pins_default);
+	if (!IS_ERR_OR_NULL(imx464->pins_default)) {
+		ret = pinctrl_select_state(imx464->pinctrl,
+					   imx464->pins_default);
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
 
-	ret = clk_set_rate(IMX464->xvclk, IMX464->cur_mode->mclk);
+	ret = clk_set_rate(imx464->xvclk, imx464->cur_mode->mclk);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate\n");
-	if (clk_get_rate(IMX464->xvclk) != IMX464->cur_mode->mclk)
-		dev_warn(dev, "xvclk mismatched, %lu\n", clk_get_rate(IMX464->xvclk));
+	if (clk_get_rate(imx464->xvclk) != imx464->cur_mode->mclk)
+		dev_warn(dev, "xvclk mismatched, %lu\n", clk_get_rate(imx464->xvclk));
 	else
-		IMX464->cur_mclk = IMX464->cur_mode->mclk;
-	ret = clk_prepare_enable(IMX464->xvclk);
+		imx464->cur_mclk = imx464->cur_mode->mclk;
+	ret = clk_prepare_enable(imx464->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-	if (!IS_ERR(IMX464->reset_gpio))
-		gpiod_set_value_cansleep(IMX464->reset_gpio, 0);
+	if (!IS_ERR(imx464->reset_gpio))
+		gpiod_set_value_cansleep(imx464->reset_gpio, 0);
 
-	ret = regulator_bulk_enable(IMX464_NUM_SUPPLIES, IMX464->supplies);
+	ret = regulator_bulk_enable(IMX464_NUM_SUPPLIES, imx464->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
 	usleep_range(15000, 16000);
-	if (!IS_ERR(IMX464->reset_gpio))
-		gpiod_set_value_cansleep(IMX464->reset_gpio, 1);
+	if (!IS_ERR(imx464->reset_gpio))
+		gpiod_set_value_cansleep(imx464->reset_gpio, 1);
 
 	usleep_range(500, 1000);
-	if (!IS_ERR(IMX464->pwdn_gpio))
-		gpiod_set_value_cansleep(IMX464->pwdn_gpio, 1);
+	if (!IS_ERR(imx464->pwdn_gpio))
+		gpiod_set_value_cansleep(imx464->pwdn_gpio, 1);
 
 	/* 8192 cycles prior to first SCCB transaction */
-	delay_us = IMX464_cal_delay(8192);
+	delay_us = imx464_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
 
 	return 0;
 
 disable_clk:
-	clk_disable_unprepare(IMX464->xvclk);
+	clk_disable_unprepare(imx464->xvclk);
 
 	return ret;
 }
 
-static void __IMX464_power_off(struct IMX464 *IMX464)
+static void __imx464_power_off(struct imx464 *imx464)
 {
 	int ret;
-	struct device *dev = &IMX464->client->dev;
+	struct device *dev = &imx464->client->dev;
 
-	if (!IS_ERR(IMX464->pwdn_gpio))
-		gpiod_set_value_cansleep(IMX464->pwdn_gpio, 0);
-	clk_disable_unprepare(IMX464->xvclk);
-	if (!IS_ERR(IMX464->reset_gpio))
-		gpiod_set_value_cansleep(IMX464->reset_gpio, 0);
-	if (!IS_ERR_OR_NULL(IMX464->pins_sleep)) {
-		ret = pinctrl_select_state(IMX464->pinctrl,
-					   IMX464->pins_sleep);
+	if (!IS_ERR(imx464->pwdn_gpio))
+		gpiod_set_value_cansleep(imx464->pwdn_gpio, 0);
+	clk_disable_unprepare(imx464->xvclk);
+	if (!IS_ERR(imx464->reset_gpio))
+		gpiod_set_value_cansleep(imx464->reset_gpio, 0);
+	if (!IS_ERR_OR_NULL(imx464->pins_sleep)) {
+		ret = pinctrl_select_state(imx464->pinctrl,
+					   imx464->pins_sleep);
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-	regulator_bulk_disable(IMX464_NUM_SUPPLIES, IMX464->supplies);
+	regulator_bulk_disable(IMX464_NUM_SUPPLIES, imx464->supplies);
 	usleep_range(15000, 16000);
 }
 
-static int IMX464_runtime_resume(struct device *dev)
+static int imx464_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
-	return __IMX464_power_on(IMX464);
+	return __imx464_power_on(imx464);
 }
 
-static int IMX464_runtime_suspend(struct device *dev)
+static int imx464_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
-	__IMX464_power_off(IMX464);
+	__imx464_power_off(imx464);
 
 	return 0;
 }
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-static int IMX464_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int imx464_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
 				v4l2_subdev_get_try_format(sd, fh->pad, 0);
-	const struct IMX464_mode *def_mode = &IMX464->support_modes[0];
+	const struct imx464_mode *def_mode = &imx464->support_modes[0];
 
-	mutex_lock(&IMX464->mutex);
+	mutex_lock(&imx464->mutex);
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
 	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
-	mutex_unlock(&IMX464->mutex);
+	mutex_unlock(&imx464->mutex);
 	/* No crop or compose */
 
 	return 0;
 }
 #endif
 
-static int IMX464_enum_frame_interval(struct v4l2_subdev *sd,
+static int imx464_enum_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
-	if (fie->index >= IMX464->cfg_num)
+	if (fie->index >= imx464->cfg_num)
 		return -EINVAL;
 
-	fie->code = IMX464->support_modes[fie->index].bus_fmt;
-	fie->width = IMX464->support_modes[fie->index].width;
-	fie->height = IMX464->support_modes[fie->index].height;
-	fie->interval = IMX464->support_modes[fie->index].max_fps;
-	fie->reserved[0] = IMX464->support_modes[fie->index].hdr_mode;
+	fie->code = imx464->support_modes[fie->index].bus_fmt;
+	fie->width = imx464->support_modes[fie->index].width;
+	fie->height = imx464->support_modes[fie->index].height;
+	fie->interval = imx464->support_modes[fie->index].max_fps;
+	fie->reserved[0] = imx464->support_modes[fie->index].hdr_mode;
 	return 0;
 }
 
@@ -2825,68 +2904,77 @@ static int IMX464_enum_frame_interval(struct v4l2_subdev *sd,
  * otherwise it will crop out strange resolution according
  * to the alignment rules.
  */
-static int IMX464_get_selection(struct v4l2_subdev *sd,
+static int imx464_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_selection *sel)
 {
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
-		sel->r.left = CROP_START(IMX464->cur_mode->width, DST_WIDTH);
+		sel->r.left = CROP_START(imx464->cur_mode->width, DST_WIDTH);
 		sel->r.width = DST_WIDTH;
-		sel->r.top = CROP_START(IMX464->cur_mode->height, DST_HEIGHT);
+		sel->r.top = CROP_START(imx464->cur_mode->height, DST_HEIGHT);
 		sel->r.height = DST_HEIGHT;
 		return 0;
 	}
 	return -EINVAL;
 }
 
-static const struct dev_pm_ops IMX464_pm_ops = {
-	SET_RUNTIME_PM_OPS(IMX464_runtime_suspend,
-			   IMX464_runtime_resume, NULL)
+static const struct dev_pm_ops imx464_pm_ops = {
+	SET_RUNTIME_PM_OPS(imx464_runtime_suspend,
+			   imx464_runtime_resume, NULL)
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-static const struct v4l2_subdev_internal_ops IMX464_internal_ops = {
-	.open = IMX464_open,
+static const struct v4l2_subdev_internal_ops imx464_internal_ops = {
+	.open = imx464_open,
 };
 #endif
 
-static const struct v4l2_subdev_core_ops IMX464_core_ops = {
-	.s_power = IMX464_s_power,
-	.ioctl = IMX464_ioctl,
+static const struct v4l2_subdev_core_ops imx464_core_ops = {
+	.s_power = imx464_s_power,
+	.ioctl = imx464_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl32 = IMX464_compat_ioctl32,
+	.compat_ioctl32 = imx464_compat_ioctl32,
 #endif
 };
 
-static const struct v4l2_subdev_video_ops IMX464_video_ops = {
-	.s_stream = IMX464_s_stream,
-	.g_frame_interval = IMX464_g_frame_interval,
+static const struct v4l2_subdev_video_ops imx464_video_ops = {
+	.s_stream = imx464_s_stream,
+	.g_frame_interval = imx464_g_frame_interval,
+	.s_frame_interval = imx464_s_frame_interval,
 };
 
-static const struct v4l2_subdev_pad_ops IMX464_pad_ops = {
-	.enum_mbus_code = IMX464_enum_mbus_code,
-	.enum_frame_size = IMX464_enum_frame_sizes,
-	.enum_frame_interval = IMX464_enum_frame_interval,
-	.get_fmt = IMX464_get_fmt,
-	.set_fmt = IMX464_set_fmt,
-	.get_selection = IMX464_get_selection,
-	.get_mbus_config = IMX464_g_mbus_config,
+static const struct v4l2_subdev_pad_ops imx464_pad_ops = {
+	.enum_mbus_code = imx464_enum_mbus_code,
+	.enum_frame_size = imx464_enum_frame_sizes,
+	.enum_frame_interval = imx464_enum_frame_interval,
+	.get_fmt = imx464_get_fmt,
+	.set_fmt = imx464_set_fmt,
+	.get_selection = imx464_get_selection,
+	.get_mbus_config = imx464_g_mbus_config,
 };
 
-static const struct v4l2_subdev_ops IMX464_subdev_ops = {
-	.core	= &IMX464_core_ops,
-	.video	= &IMX464_video_ops,
-	.pad	= &IMX464_pad_ops,
+static const struct v4l2_subdev_ops imx464_subdev_ops = {
+	.core	= &imx464_core_ops,
+	.video	= &imx464_video_ops,
+	.pad	= &imx464_pad_ops,
 };
 
-static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
+static void imx464_modify_fps_info(struct imx464 *imx464)
 {
-	struct IMX464 *IMX464 = container_of(ctrl->handler,
-					     struct IMX464, ctrl_handler);
-	struct i2c_client *client = IMX464->client;
-	const struct IMX464_mode *mode = IMX464->cur_mode;
+	const struct imx464_mode *mode = imx464->cur_mode;
+
+	imx464->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      imx464->cur_vts;
+}
+
+static int imx464_set_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct imx464 *imx464 = container_of(ctrl->handler,
+					     struct imx464, ctrl_handler);
+	struct i2c_client *client = imx464->client;
+	const struct imx464_mode *mode = imx464->cur_mode;
 	s64 max;
 	u32 vts = 0;
 	int ret = 0;
@@ -2898,11 +2986,11 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
 		if (mode->hdr_mode == NO_HDR) {
-			max = IMX464->cur_mode->height + ctrl->val - 3;
-			__v4l2_ctrl_modify_range(IMX464->exposure,
-						 IMX464->exposure->minimum, max,
-						 IMX464->exposure->step,
-						 IMX464->exposure->default_value);
+			max = imx464->cur_mode->height + ctrl->val - 3;
+			__v4l2_ctrl_modify_range(imx464->exposure,
+						 imx464->exposure->minimum, max,
+						 imx464->exposure->step,
+						 imx464->exposure->default_value);
 		}
 		break;
 	}
@@ -2913,14 +3001,14 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (mode->hdr_mode == NO_HDR) {
-			shr0 = IMX464->cur_vts - ctrl->val;
-			ret = imx464_write_reg(IMX464->client, IMX464_LF_EXPO_REG_L,
+			shr0 = imx464->cur_vts - ctrl->val;
+			ret = imx464_write_reg(imx464->client, IMX464_LF_EXPO_REG_L,
 					IMX464_REG_VALUE_08BIT,
 					IMX464_FETCH_EXP_L(shr0));
-			ret |= imx464_write_reg(IMX464->client, IMX464_LF_EXPO_REG_M,
+			ret |= imx464_write_reg(imx464->client, IMX464_LF_EXPO_REG_M,
 					IMX464_REG_VALUE_08BIT,
 					IMX464_FETCH_EXP_M(shr0));
-			ret |= imx464_write_reg(IMX464->client, IMX464_LF_EXPO_REG_H,
+			ret |= imx464_write_reg(imx464->client, IMX464_LF_EXPO_REG_H,
 					IMX464_REG_VALUE_08BIT,
 					IMX464_FETCH_EXP_H(shr0));
 			dev_err(&client->dev, "set exposure 0x%x\n",
@@ -2929,10 +3017,10 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (mode->hdr_mode == NO_HDR) {
-			ret = imx464_write_reg(IMX464->client, IMX464_LF_GAIN_REG_H,
+			ret = imx464_write_reg(imx464->client, IMX464_LF_GAIN_REG_H,
 					IMX464_REG_VALUE_08BIT,
 					IMX464_FETCH_GAIN_H(ctrl->val));
-			ret |= imx464_write_reg(IMX464->client, IMX464_LF_GAIN_REG_L,
+			ret |= imx464_write_reg(imx464->client, IMX464_LF_GAIN_REG_L,
 					IMX464_REG_VALUE_08BIT,
 					IMX464_FETCH_GAIN_L(ctrl->val));
 			dev_err(&client->dev, "set analog gain 0x%x\n",
@@ -2940,29 +3028,29 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 	case V4L2_CID_VBLANK:
-		vts = ctrl->val + IMX464->cur_mode->height;
+		vts = ctrl->val + imx464->cur_mode->height;
 
 		if (mode->hdr_mode == HDR_X2) {
 			vts = (vts + 3) / 4 * 4;
-			IMX464->cur_vts = vts;
+			imx464->cur_vts = vts;
 			vts /= 2;
 		} else if (mode->hdr_mode == HDR_X3) {
 			vts = (vts + 5) / 6 * 6;
-			IMX464->cur_vts = vts;
+			imx464->cur_vts = vts;
 			vts /= 4;
 		} else {
-			IMX464->cur_vts = vts;
+			imx464->cur_vts = vts;
 		}
-		ret = imx464_write_reg(IMX464->client, IMX464_VTS_REG_L,
+		ret = imx464_write_reg(imx464->client, IMX464_VTS_REG_L,
 				       IMX464_REG_VALUE_08BIT,
 				       IMX464_FETCH_VTS_L(vts));
-		ret |= imx464_write_reg(IMX464->client, IMX464_VTS_REG_M,
+		ret |= imx464_write_reg(imx464->client, IMX464_VTS_REG_M,
 				       IMX464_REG_VALUE_08BIT,
 				       IMX464_FETCH_VTS_M(vts));
-		ret |= imx464_write_reg(IMX464->client, IMX464_VTS_REG_H,
+		ret |= imx464_write_reg(imx464->client, IMX464_VTS_REG_H,
 				       IMX464_REG_VALUE_08BIT,
 				       IMX464_FETCH_VTS_H(vts));
-
+		imx464_modify_fps_info(imx464);
 		dev_err(&client->dev, "set vts 0x%x\n",
 			vts);
 		break;
@@ -2971,7 +3059,7 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 				       IMX464_GROUP_HOLD_REG,
 				       IMX464_REG_VALUE_08BIT,
 				       IMX464_GROUP_HOLD_START);
-		ret |= imx464_write_reg(IMX464->client, IMX464_HREVERSE_REG,
+		ret |= imx464_write_reg(imx464->client, IMX464_HREVERSE_REG,
 				       IMX464_REG_VALUE_08BIT, !!ctrl->val);
 		ret |= imx464_write_reg(client,
 					IMX464_GROUP_HOLD_REG,
@@ -2984,41 +3072,41 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 				       IMX464_GROUP_HOLD_REG,
 				       IMX464_REG_VALUE_08BIT,
 				       IMX464_GROUP_HOLD_START);
-		ret |= imx464_write_reg(IMX464->client, IMX464_VREVERSE_REG,
+		ret |= imx464_write_reg(imx464->client, IMX464_VREVERSE_REG,
 				IMX464_REG_VALUE_08BIT, !!flip);
 		if (flip) {
-			ret |= imx464_write_reg(IMX464->client, 0x3074,
+			ret |= imx464_write_reg(imx464->client, 0x3074,
 				IMX464_REG_VALUE_08BIT, 0x40);
-			ret |= imx464_write_reg(IMX464->client, 0x3075,
+			ret |= imx464_write_reg(imx464->client, 0x3075,
 				IMX464_REG_VALUE_08BIT, 0x06);
-			ret |= imx464_write_reg(IMX464->client, 0x3080,
+			ret |= imx464_write_reg(imx464->client, 0x3080,
 				IMX464_REG_VALUE_08BIT, 0xff);
-			ret |= imx464_write_reg(IMX464->client, 0x30ad,
+			ret |= imx464_write_reg(imx464->client, 0x30ad,
 				IMX464_REG_VALUE_08BIT, 0x7e);
-			ret |= imx464_write_reg(IMX464->client, 0x30b6,
+			ret |= imx464_write_reg(imx464->client, 0x30b6,
 				IMX464_REG_VALUE_08BIT, 0xff);
-			ret |= imx464_write_reg(IMX464->client, 0x30b7,
+			ret |= imx464_write_reg(imx464->client, 0x30b7,
 				IMX464_REG_VALUE_08BIT, 0x01);
-			ret |= imx464_write_reg(IMX464->client, 0x30d8,
+			ret |= imx464_write_reg(imx464->client, 0x30d8,
 				IMX464_REG_VALUE_08BIT, 0x45);
-			ret |= imx464_write_reg(IMX464->client, 0x3114,
+			ret |= imx464_write_reg(imx464->client, 0x3114,
 				IMX464_REG_VALUE_08BIT, 0x01);
 		} else {
-			ret |= imx464_write_reg(IMX464->client, 0x3074,
+			ret |= imx464_write_reg(imx464->client, 0x3074,
 				IMX464_REG_VALUE_08BIT, 0x3c);
-			ret |= imx464_write_reg(IMX464->client, 0x3075,
+			ret |= imx464_write_reg(imx464->client, 0x3075,
 				IMX464_REG_VALUE_08BIT, 0x00);
-			ret |= imx464_write_reg(IMX464->client, 0x3080,
+			ret |= imx464_write_reg(imx464->client, 0x3080,
 				IMX464_REG_VALUE_08BIT, 0x01);
-			ret |= imx464_write_reg(IMX464->client, 0x30ad,
+			ret |= imx464_write_reg(imx464->client, 0x30ad,
 				IMX464_REG_VALUE_08BIT, 0x02);
-			ret |= imx464_write_reg(IMX464->client, 0x30b6,
+			ret |= imx464_write_reg(imx464->client, 0x30b6,
 				IMX464_REG_VALUE_08BIT, 0x00);
-			ret |= imx464_write_reg(IMX464->client, 0x30b7,
+			ret |= imx464_write_reg(imx464->client, 0x30b7,
 				IMX464_REG_VALUE_08BIT, 0x00);
-			ret |= imx464_write_reg(IMX464->client, 0x30d8,
+			ret |= imx464_write_reg(imx464->client, 0x30d8,
 				IMX464_REG_VALUE_08BIT, 0x44);
-			ret |= imx464_write_reg(IMX464->client, 0x3114,
+			ret |= imx464_write_reg(imx464->client, 0x3114,
 				IMX464_REG_VALUE_08BIT, 0x02);
 		}
 		ret |= imx464_write_reg(client,
@@ -3037,73 +3125,73 @@ static int IMX464_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops IMX464_ctrl_ops = {
-	.s_ctrl = IMX464_set_ctrl,
+static const struct v4l2_ctrl_ops imx464_ctrl_ops = {
+	.s_ctrl = imx464_set_ctrl,
 };
 
-static int IMX464_initialize_controls(struct IMX464 *IMX464)
+static int imx464_initialize_controls(struct imx464 *imx464)
 {
-	const struct IMX464_mode *mode;
+	const struct imx464_mode *mode;
 	struct v4l2_ctrl_handler *handler;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	u64 pixel_rate = 0;
 	int ret;
 
-	handler = &IMX464->ctrl_handler;
-	mode = IMX464->cur_mode;
+	handler = &imx464->ctrl_handler;
+	mode = imx464->cur_mode;
 	ret = v4l2_ctrl_handler_init(handler, 8);
 	if (ret)
 		return ret;
-	handler->lock = &IMX464->mutex;
+	handler->lock = &imx464->mutex;
 
-	IMX464->link_freq = v4l2_ctrl_new_int_menu(handler,
+	imx464->link_freq = v4l2_ctrl_new_int_menu(handler,
 				NULL, V4L2_CID_LINK_FREQ,
 				1, 0, link_freq_menu_items);
-	__v4l2_ctrl_s_ctrl(IMX464->link_freq,
-			 IMX464->cur_mode->mipi_freq_idx);
+	__v4l2_ctrl_s_ctrl(imx464->link_freq,
+			 imx464->cur_mode->mipi_freq_idx);
 	pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] / mode->bpp * 2 *
-		     IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes;
-	IMX464->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
+		     imx464->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	imx464->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 		V4L2_CID_PIXEL_RATE, 0, IMX464_10BIT_HDR2_PIXEL_RATE,
 		1, pixel_rate);
 
 	h_blank = mode->hts_def - mode->width;
-	IMX464->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
+	imx464->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
 				h_blank, h_blank, 1, h_blank);
-	if (IMX464->hblank)
-		IMX464->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (imx464->hblank)
+		imx464->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	vblank_def = mode->vts_def - mode->height;
-	IMX464->vblank = v4l2_ctrl_new_std(handler, &IMX464_ctrl_ops,
+	imx464->vblank = v4l2_ctrl_new_std(handler, &imx464_ctrl_ops,
 				V4L2_CID_VBLANK, vblank_def,
 				IMX464_VTS_MAX - mode->height,
 				1, vblank_def);
-	IMX464->cur_vts = mode->vts_def;
+	imx464->cur_vts = mode->vts_def;
 
 	exposure_max = mode->vts_def - 3;
-	IMX464->exposure = v4l2_ctrl_new_std(handler, &IMX464_ctrl_ops,
+	imx464->exposure = v4l2_ctrl_new_std(handler, &imx464_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX464_EXPOSURE_MIN,
 				exposure_max, IMX464_EXPOSURE_STEP,
 				mode->exp_def);
 
-	IMX464->anal_a_gain = v4l2_ctrl_new_std(handler, &IMX464_ctrl_ops,
+	imx464->anal_a_gain = v4l2_ctrl_new_std(handler, &imx464_ctrl_ops,
 				V4L2_CID_ANALOGUE_GAIN, IMX464_GAIN_MIN,
 				IMX464_GAIN_MAX, IMX464_GAIN_STEP,
 				IMX464_GAIN_DEFAULT);
-	v4l2_ctrl_new_std(handler, &IMX464_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(handler, &IMX464_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(handler, &imx464_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(handler, &imx464_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
-		dev_err(&IMX464->client->dev,
+		dev_err(&imx464->client->dev,
 			"Failed to init controls(%d)\n", ret);
 		goto err_free_handler;
 	}
 
-	IMX464->subdev.ctrl_handler = handler;
-	IMX464->has_init_exp = false;
-	IMX464->isHCG = false;
+	imx464->subdev.ctrl_handler = handler;
+	imx464->has_init_exp = false;
+	imx464->isHCG = false;
 
 	return 0;
 
@@ -3113,43 +3201,43 @@ err_free_handler:
 	return ret;
 }
 
-static int IMX464_check_sensor_id(struct IMX464 *IMX464,
+static int imx464_check_sensor_id(struct imx464 *imx464,
 				  struct i2c_client *client)
 {
-	struct device *dev = &IMX464->client->dev;
+	struct device *dev = &imx464->client->dev;
 	u32 id = 0;
 	int ret;
 
-	ret = IMX464_read_reg(client, IMX464_REG_CHIP_ID,
+	ret = imx464_read_reg(client, IMX464_REG_CHIP_ID,
 			      IMX464_REG_VALUE_08BIT, &id);
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected IMX464 id %06x\n", CHIP_ID);
+	dev_info(dev, "Detected imx464 id %06x\n", CHIP_ID);
 
 	return 0;
 }
 
-static int IMX464_configure_regulators(struct IMX464 *IMX464)
+static int imx464_configure_regulators(struct imx464 *imx464)
 {
 	unsigned int i;
 
 	for (i = 0; i < IMX464_NUM_SUPPLIES; i++)
-		IMX464->supplies[i].supply = IMX464_supply_names[i];
+		imx464->supplies[i].supply = imx464_supply_names[i];
 
-	return devm_regulator_bulk_get(&IMX464->client->dev,
+	return devm_regulator_bulk_get(&imx464->client->dev,
 				       IMX464_NUM_SUPPLIES,
-				       IMX464->supplies);
+				       imx464->supplies);
 }
 
-static int IMX464_probe(struct i2c_client *client,
+static int imx464_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
-	struct IMX464 *IMX464;
+	struct imx464 *imx464;
 	struct v4l2_subdev *sd;
 	struct device_node *endpoint;
 	char facing[2];
@@ -3163,18 +3251,18 @@ static int IMX464_probe(struct i2c_client *client,
 		(DRIVER_VERSION & 0xff00) >> 8,
 		DRIVER_VERSION & 0x00ff);
 
-	IMX464 = devm_kzalloc(dev, sizeof(*IMX464), GFP_KERNEL);
-	if (!IMX464)
+	imx464 = devm_kzalloc(dev, sizeof(*imx464), GFP_KERNEL);
+	if (!imx464)
 		return -ENOMEM;
 
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
-				   &IMX464->module_index);
+				   &imx464->module_index);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
-				       &IMX464->module_facing);
+				       &imx464->module_facing);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
-				       &IMX464->module_name);
+				       &imx464->module_name);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
-				       &IMX464->len_name);
+				       &imx464->len_name);
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
@@ -3183,15 +3271,15 @@ static int IMX464_probe(struct i2c_client *client,
 	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE,
 				      &sync_mode_name);
 	if (ret) {
-		IMX464->sync_mode = NO_SYNC_MODE;
+		imx464->sync_mode = NO_SYNC_MODE;
 		dev_err(dev, "could not get sync mode!\n");
 	} else {
 		if (strcmp(sync_mode_name, RKMODULE_EXTERNAL_MASTER_MODE) == 0)
-			IMX464->sync_mode = EXTERNAL_MASTER_MODE;
+			imx464->sync_mode = EXTERNAL_MASTER_MODE;
 		else if (strcmp(sync_mode_name, RKMODULE_INTERNAL_MASTER_MODE) == 0)
-			IMX464->sync_mode = INTERNAL_MASTER_MODE;
+			imx464->sync_mode = INTERNAL_MASTER_MODE;
 		else if (strcmp(sync_mode_name, RKMODULE_SLAVE_MODE) == 0)
-			IMX464->sync_mode = SLAVE_MODE;
+			imx464->sync_mode = SLAVE_MODE;
 	}
 
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE,
@@ -3200,107 +3288,107 @@ static int IMX464_probe(struct i2c_client *client,
 		hdr_mode = NO_HDR;
 		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
 	}
-	IMX464->client = client;
+	imx464->client = client;
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint) {
 		dev_err(dev, "Failed to get endpoint\n");
 		return -EINVAL;
 	}
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
-		&IMX464->bus_cfg);
+		&imx464->bus_cfg);
 	if (ret) {
 		dev_err(dev, "Failed to get bus cfg\n");
 		return ret;
 	}
-	if (IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
-		IMX464->support_modes = supported_modes;
-		IMX464->cfg_num = ARRAY_SIZE(supported_modes);
+	if (imx464->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
+		imx464->support_modes = supported_modes;
+		imx464->cfg_num = ARRAY_SIZE(supported_modes);
 	} else {
-		IMX464->support_modes = supported_modes_2lane;
-		IMX464->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+		imx464->support_modes = supported_modes_2lane;
+		imx464->cfg_num = ARRAY_SIZE(supported_modes_2lane);
 	}
 
-	for (i = 0; i < IMX464->cfg_num; i++) {
-		if (hdr_mode == IMX464->support_modes[i].hdr_mode) {
-			IMX464->cur_mode = &IMX464->support_modes[i];
+	for (i = 0; i < imx464->cfg_num; i++) {
+		if (hdr_mode == imx464->support_modes[i].hdr_mode) {
+			imx464->cur_mode = &imx464->support_modes[i];
 			break;
 		}
 	}
-	IMX464->cur_mode = &IMX464->support_modes[0];
-	IMX464->xvclk = devm_clk_get(dev, "xvclk");
-	if (IS_ERR(IMX464->xvclk)) {
+	imx464->cur_mode = &imx464->support_modes[0];
+	imx464->xvclk = devm_clk_get(dev, "xvclk");
+	if (IS_ERR(imx464->xvclk)) {
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
 
-	IMX464->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(IMX464->reset_gpio))
+	imx464->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(imx464->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	IMX464->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(IMX464->pwdn_gpio))
+	imx464->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	if (IS_ERR(imx464->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
-	IMX464->pinctrl = devm_pinctrl_get(dev);
-	if (!IS_ERR(IMX464->pinctrl)) {
-		IMX464->pins_default =
-			pinctrl_lookup_state(IMX464->pinctrl,
+	imx464->pinctrl = devm_pinctrl_get(dev);
+	if (!IS_ERR(imx464->pinctrl)) {
+		imx464->pins_default =
+			pinctrl_lookup_state(imx464->pinctrl,
 					     OF_CAMERA_PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(IMX464->pins_default))
+		if (IS_ERR(imx464->pins_default))
 			dev_err(dev, "could not get default pinstate\n");
 
-		IMX464->pins_sleep =
-			pinctrl_lookup_state(IMX464->pinctrl,
+		imx464->pins_sleep =
+			pinctrl_lookup_state(imx464->pinctrl,
 					     OF_CAMERA_PINCTRL_STATE_SLEEP);
-		if (IS_ERR(IMX464->pins_sleep))
+		if (IS_ERR(imx464->pins_sleep))
 			dev_err(dev, "could not get sleep pinstate\n");
 	} else {
 		dev_err(dev, "no pinctrl\n");
 	}
 
-	ret = IMX464_configure_regulators(IMX464);
+	ret = imx464_configure_regulators(imx464);
 	if (ret) {
 		dev_err(dev, "Failed to get power regulators\n");
 		return ret;
 	}
 
-	mutex_init(&IMX464->mutex);
+	mutex_init(&imx464->mutex);
 
-	sd = &IMX464->subdev;
-	v4l2_i2c_subdev_init(sd, client, &IMX464_subdev_ops);
-	ret = IMX464_initialize_controls(IMX464);
+	sd = &imx464->subdev;
+	v4l2_i2c_subdev_init(sd, client, &imx464_subdev_ops);
+	ret = imx464_initialize_controls(imx464);
 	if (ret)
 		goto err_destroy_mutex;
 
-	ret = __IMX464_power_on(IMX464);
+	ret = __imx464_power_on(imx464);
 	if (ret)
 		goto err_free_handler;
 
-	ret = IMX464_check_sensor_id(IMX464, client);
+	ret = imx464_check_sensor_id(imx464, client);
 	if (ret)
 		goto err_power_off;
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-	sd->internal_ops = &IMX464_internal_ops;
+	sd->internal_ops = &imx464_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	IMX464->pad.flags = MEDIA_PAD_FL_SOURCE;
+	imx464->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	ret = media_entity_pads_init(&sd->entity, 1, &IMX464->pad);
+	ret = media_entity_pads_init(&sd->entity, 1, &imx464->pad);
 	if (ret < 0)
 		goto err_power_off;
 #endif
 
 	memset(facing, 0, sizeof(facing));
-	if (strcmp(IMX464->module_facing, "back") == 0)
+	if (strcmp(imx464->module_facing, "back") == 0)
 		facing[0] = 'b';
 	else
 		facing[0] = 'f';
 
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 IMX464->module_index, facing,
+		 imx464->module_index, facing,
 		 IMX464_NAME, dev_name(sd->dev));
 	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
@@ -3322,30 +3410,30 @@ err_clean_entity:
 	media_entity_cleanup(&sd->entity);
 #endif
 err_power_off:
-	__IMX464_power_off(IMX464);
+	__imx464_power_off(imx464);
 err_free_handler:
-	v4l2_ctrl_handler_free(&IMX464->ctrl_handler);
+	v4l2_ctrl_handler_free(&imx464->ctrl_handler);
 err_destroy_mutex:
-	mutex_destroy(&IMX464->mutex);
+	mutex_destroy(&imx464->mutex);
 
 	return ret;
 }
 
-static int IMX464_remove(struct i2c_client *client)
+static int imx464_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct IMX464 *IMX464 = to_IMX464(sd);
+	struct imx464 *imx464 = to_imx464(sd);
 
 	v4l2_async_unregister_subdev(sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
 #endif
-	v4l2_ctrl_handler_free(&IMX464->ctrl_handler);
-	mutex_destroy(&IMX464->mutex);
+	v4l2_ctrl_handler_free(&imx464->ctrl_handler);
+	mutex_destroy(&imx464->mutex);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
-		__IMX464_power_off(IMX464);
+		__imx464_power_off(imx464);
 	pm_runtime_set_suspended(&client->dev);
 #ifdef USED_SYS_DEBUG
 	remove_sysfs_interfaces(&client->dev);
@@ -3354,41 +3442,41 @@ static int IMX464_remove(struct i2c_client *client)
 }
 
 #if IS_ENABLED(CONFIG_OF)
-static const struct of_device_id IMX464_of_match[] = {
+static const struct of_device_id imx464_of_match[] = {
 	{ .compatible = "sony,imx464" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, IMX464_of_match);
+MODULE_DEVICE_TABLE(of, imx464_of_match);
 #endif
 
-static const struct i2c_device_id IMX464_match_id[] = {
+static const struct i2c_device_id imx464_match_id[] = {
 	{ "sony,imx464", 0 },
 	{ },
 };
 
-static struct i2c_driver IMX464_i2c_driver = {
+static struct i2c_driver imx464_i2c_driver = {
 	.driver = {
 		.name = IMX464_NAME,
-		.pm = &IMX464_pm_ops,
-		.of_match_table = of_match_ptr(IMX464_of_match),
+		.pm = &imx464_pm_ops,
+		.of_match_table = of_match_ptr(imx464_of_match),
 	},
-	.probe		= &IMX464_probe,
-	.remove		= &IMX464_remove,
-	.id_table	= IMX464_match_id,
+	.probe		= &imx464_probe,
+	.remove		= &imx464_remove,
+	.id_table	= imx464_match_id,
 };
 
 static int __init sensor_mod_init(void)
 {
-	return i2c_add_driver(&IMX464_i2c_driver);
+	return i2c_add_driver(&imx464_i2c_driver);
 }
 
 static void __exit sensor_mod_exit(void)
 {
-	i2c_del_driver(&IMX464_i2c_driver);
+	i2c_del_driver(&imx464_i2c_driver);
 }
 
 device_initcall_sync(sensor_mod_init);
 module_exit(sensor_mod_exit);
 
-MODULE_DESCRIPTION("Sony IMX464 sensor driver");
+MODULE_DESCRIPTION("Sony imx464 sensor driver");
 MODULE_LICENSE("GPL v2");

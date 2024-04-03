@@ -162,6 +162,8 @@ struct og02b10_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct og02b10 {
@@ -202,6 +204,8 @@ struct og02b10 {
 	const char		*len_name;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_og02b10(sd) container_of(sd, struct og02b10, subdev)
@@ -470,7 +474,13 @@ static const struct og02b10_mode supported_modes[] = {
 		.reg_list = og02b10_linear10bit_1600x1200_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -628,6 +638,7 @@ static int og02b10_set_fmt(struct v4l2_subdev *sd,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(og02b10->link_freq,
 				   dst_link_freq);
+		og02b10->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&og02b10->mutex);
@@ -674,11 +685,9 @@ static int og02b10_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct og02b10 *og02b10 = to_og02b10(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = og02b10->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -709,8 +718,81 @@ static int og02b10_g_frame_interval(struct v4l2_subdev *sd,
 	struct og02b10 *og02b10 = to_og02b10(sd);
 	const struct og02b10_mode *mode = og02b10->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (og02b10->streaming)
+		fi->interval = og02b10->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct og02b10_mode *og02b10_find_mode(struct og02b10 *og02b10, int fps)
+{
+	const struct og02b10_mode *mode = NULL;
+	const struct og02b10_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == og02b10->cur_mode->width &&
+		    mode->height == og02b10->cur_mode->height &&
+		    mode->hdr_mode == og02b10->cur_mode->hdr_mode &&
+		    mode->bus_fmt == og02b10->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int og02b10_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct og02b10 *og02b10 = to_og02b10(sd);
+	const struct og02b10_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OG02B10_LANES;
+	int fps;
+
+	if (og02b10->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = og02b10_find_mode(og02b10, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	og02b10->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(og02b10->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(og02b10->vblank, vblank_def,
+				 OG02B10_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(og02b10->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(og02b10->link_freq,
+			   mode->link_freq_idx);
+	og02b10->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1140,6 +1222,7 @@ static const struct v4l2_subdev_core_ops og02b10_core_ops = {
 static const struct v4l2_subdev_video_ops og02b10_video_ops = {
 	.s_stream = og02b10_s_stream,
 	.g_frame_interval = og02b10_g_frame_interval,
+	.s_frame_interval = og02b10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops og02b10_pad_ops = {
@@ -1156,6 +1239,14 @@ static const struct v4l2_subdev_ops og02b10_subdev_ops = {
 	.video = &og02b10_video_ops,
 	.pad = &og02b10_pad_ops,
 };
+
+static void og02b10_modify_fps_info(struct og02b10 *og02b10)
+{
+	const struct og02b10_mode *mode = og02b10->cur_mode;
+
+	og02b10->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      og02b10->cur_vts;
+}
 
 static int og02b10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1285,6 +1376,8 @@ static int og02b10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 OG02B10_REG_GROUP_HOLD, OG02B10_GROUP0_HOLD_END);
 		ret |= og02b10_write_reg(og02b10->client,
 					 OG02B10_REG_GROUP_HOLD, OG02B10_GROUP_LAUNCH);
+		og02b10->cur_vts = ctrl->val + og02b10->cur_mode->height;
+		og02b10_modify_fps_info(og02b10);
 		dev_dbg(&client->dev, "set vblank %#x\n", vts_val);
 		break;
 	case V4L2_CID_TEST_PATTERN:

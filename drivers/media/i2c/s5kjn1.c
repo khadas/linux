@@ -178,6 +178,8 @@ struct s5kjn1 {
 	bool			is_first_streamoff;
 	struct otp_info		*otp;
 	u32			spd_id;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_s5kjn1(sd) container_of(sd, struct s5kjn1, subdev)
@@ -1101,7 +1103,7 @@ static int s5kjn1_set_fmt(struct v4l2_subdev *sd,
 					 pixel_rate);
 		__v4l2_ctrl_s_ctrl(s5kjn1->link_freq,
 				   mode->mipi_freq_idx);
-
+		s5kjn1->cur_fps = mode->max_fps;
 		if (mode->width == 8128)
 			__v4l2_ctrl_modify_range(s5kjn1->anal_gain, S5KJN1_GAIN_MIN,
 						 S5KJN1_FULL_SIZE_GAIN_MAX,
@@ -1199,8 +1201,80 @@ static int s5kjn1_g_frame_interval(struct v4l2_subdev *sd,
 	struct s5kjn1 *s5kjn1 = to_s5kjn1(sd);
 	const struct s5kjn1_mode *mode = s5kjn1->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (s5kjn1->streaming)
+		fi->interval = s5kjn1->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct s5kjn1_mode *s5kjn1_find_mode(struct s5kjn1 *s5kjn1, int fps)
+{
+	const struct s5kjn1_mode *mode = NULL;
+	const struct s5kjn1_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < s5kjn1->cfg_num; i++) {
+		mode = &s5kjn1->support_modes[i];
+		if (mode->width == s5kjn1->cur_mode->width &&
+		    mode->height == s5kjn1->cur_mode->height &&
+		    mode->hdr_mode == s5kjn1->cur_mode->hdr_mode) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int s5kjn1_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct s5kjn1 *s5kjn1 = to_s5kjn1(sd);
+	const struct s5kjn1_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = s5kjn1->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int fps;
+
+	if (s5kjn1->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = s5kjn1_find_mode(s5kjn1, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	s5kjn1->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(s5kjn1->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(s5kjn1->vblank, vblank_def,
+				 S5KJN1_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(s5kjn1->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(s5kjn1->link_freq,
+			   mode->mipi_freq_idx);
+	s5kjn1->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1372,6 +1446,7 @@ static long s5kjn1_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(s5kjn1->vblank, h,
 				S5KJN1_VTS_MAX - s5kjn1->cur_mode->height,
 				1, h);
+			s5kjn1->cur_fps = s5kjn1->cur_mode->max_fps;
 			dev_info(&s5kjn1->client->dev,
 				"sensor mode: %d\n",
 				s5kjn1->cur_mode->hdr_mode);
@@ -1871,6 +1946,7 @@ static const struct v4l2_subdev_core_ops s5kjn1_core_ops = {
 static const struct v4l2_subdev_video_ops s5kjn1_video_ops = {
 	.s_stream = s5kjn1_s_stream,
 	.g_frame_interval = s5kjn1_g_frame_interval,
+	.s_frame_interval = s5kjn1_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops s5kjn1_pad_ops = {
@@ -1888,6 +1964,14 @@ static const struct v4l2_subdev_ops s5kjn1_subdev_ops = {
 	.video	= &s5kjn1_video_ops,
 	.pad	= &s5kjn1_pad_ops,
 };
+
+static void s5kjn1_modify_fps_info(struct s5kjn1 *s5kjn1)
+{
+	const struct s5kjn1_mode *mode = s5kjn1->cur_mode;
+
+	s5kjn1->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      s5kjn1->cur_vts;
+}
 
 static int s5kjn1_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1933,6 +2017,8 @@ static int s5kjn1_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = s5kjn1_write_reg(s5kjn1->client, S5KJN1_REG_VTS,
 					S5KJN1_REG_VALUE_16BIT,
 					ctrl->val + s5kjn1->cur_mode->height);
+		s5kjn1->cur_vts = ctrl->val + s5kjn1->cur_mode->height;
+		s5kjn1_modify_fps_info(s5kjn1);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

@@ -150,7 +150,7 @@ struct imx307_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	struct rkmodule_lvds_cfg lvds_cfg;
-	u32 freq_idx;
+	u32 link_freq_idx;
 	u32 lanes;
 	u32 bpp;
 };
@@ -185,7 +185,7 @@ struct imx307 {
 	bool			streaming;
 	bool			power_on;
 	const struct imx307_mode *support_modes;
-	u32			support_modes_num;
+	u32			cfg_num;
 	const struct imx307_mode *cur_mode;
 	u32			module_index;
 	const char		*module_facing;
@@ -196,6 +196,7 @@ struct imx307 {
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	u8			flip;
+	struct v4l2_fract	cur_fps;
 };
 
 #define to_imx307(sd) container_of(sd, struct imx307, subdev)
@@ -656,7 +657,7 @@ static const struct imx307_mode lvds_2lane_supported_modes[] = {
 		.reg_list = imx307_linear_1920x1080_30fps_lvds_2lane_regs,
 		.hdr_mode = NO_HDR,
 		.lanes = 2,
-		.freq_idx = 0,
+		.link_freq_idx = 0,
 		.bpp = 10,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
@@ -688,7 +689,7 @@ static const struct imx307_mode lvds_2lane_supported_modes[] = {
 		.reg_list = imx307_hdr2_1920x1080_lvds_2lane_regs,
 		.hdr_mode = HDR_X2,
 		.lanes = 2,
-		.freq_idx = 1,
+		.link_freq_idx = 1,
 		.bpp = 10,
 		.lvds_cfg = {
 			.mode  = SONY_DOL_HDR_1,
@@ -755,7 +756,7 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.reg_list = imx307_linear_1920x1080_60fps_lvds_regs,
 		.hdr_mode = NO_HDR,
 		.lanes = 4,
-		.freq_idx = 0,
+		.link_freq_idx = 0,
 		.bpp = 10,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
@@ -786,7 +787,7 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.reg_list = imx307_linear_1920x1080_30fps_lvds_regs,
 		.hdr_mode = NO_HDR,
 		.lanes = 4,
-		.freq_idx = 0,
+		.link_freq_idx = 0,
 		.bpp = 10,
 		.lvds_cfg = {
 			.mode = LS_FIRST,
@@ -818,7 +819,7 @@ static const struct imx307_mode lvds_supported_modes[] = {
 		.reg_list = imx307_hdr2_1920x1080_lvds_regs,
 		.hdr_mode = HDR_X2,
 		.lanes = 4,
-		.freq_idx = 1,
+		.link_freq_idx = 1,
 		.bpp = 10,
 		.lvds_cfg = {
 			.mode  = SONY_DOL_HDR_1,
@@ -885,7 +886,7 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.reg_list = imx307_linear_1920x1080_mipi_regs,
 		.hdr_mode = NO_HDR,
 		.lanes = 4,
-		.freq_idx = 0,
+		.link_freq_idx = 0,
 		.bpp = 10,
 	}, {
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
@@ -901,12 +902,16 @@ static const struct imx307_mode mipi_supported_modes[] = {
 		.reg_list = imx307_hdr2_1920x1080_mipi_regs,
 		.hdr_mode = HDR_X2,
 		.lanes = 4,
-		.freq_idx = 1,
+		.link_freq_idx = 1,
 		.bpp = 10,
 	},
 };
 
-static const s64 link_freq_menu_items[] = {
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+};
+
+static const s64 link_freq_items[] = {
 	IMX307_LINK_FREQ_111M,
 	IMX307_LINK_FREQ_222M
 };
@@ -1028,7 +1033,7 @@ imx307_find_best_fit(struct imx307 *imx307, struct v4l2_subdev_format *fmt)
 	int cur_best_fit_dist = -1;
 	unsigned int i;
 
-	for (i = 0; i < imx307->support_modes_num; i++) {
+	for (i = 0; i < imx307->cfg_num; i++) {
 		dist = imx307_get_reso_dist(&imx307->support_modes[i], framefmt);
 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
 			cur_best_fit_dist = dist;
@@ -1071,13 +1076,14 @@ static int imx307_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx307->vblank, vblank_def,
 					 IMX307_VTS_MAX - mode->height,
 					 1, vblank_def);
-		dst_link_freq = mode->freq_idx;
-		dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
+		dst_link_freq = mode->link_freq_idx;
+		dst_pixel_rate = (u32)link_freq_items[mode->link_freq_idx] / mode->bpp * 2 * mode->lanes;
 		__v4l2_ctrl_s_ctrl_int64(imx307->pixel_rate,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(imx307->link_freq,
 				   dst_link_freq);
 		imx307->cur_vts = mode->vts_def;
+		imx307->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&imx307->mutex);
@@ -1114,12 +1120,9 @@ static int imx307_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct imx307 *imx307 = to_imx307(sd);
-	const struct imx307_mode *mode = imx307->cur_mode;
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1130,7 +1133,7 @@ static int imx307_enum_frame_sizes(struct v4l2_subdev *sd,
 {
 	struct imx307 *imx307 = to_imx307(sd);
 
-	if (fse->index >= imx307->support_modes_num)
+	if (fse->index >= imx307->cfg_num)
 		return -EINVAL;
 
 	if (fse->code != imx307->support_modes[fse->index].bus_fmt)
@@ -1187,7 +1190,81 @@ static int imx307_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx307 *imx307 = to_imx307(sd);
 	const struct imx307_mode *mode = imx307->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (imx307->streaming)
+		fi->interval = imx307->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct imx307_mode *imx307_find_mode(struct imx307 *imx307, int fps)
+{
+	const struct imx307_mode *mode = NULL;
+	const struct imx307_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < imx307->cfg_num; i++) {
+		mode = &imx307->support_modes[i];
+		if (mode->width == imx307->cur_mode->width &&
+		    mode->height == imx307->cur_mode->height &&
+		    mode->bus_fmt == imx307->cur_mode->bus_fmt &&
+		    mode->hdr_mode == imx307->cur_mode->hdr_mode) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int imx307_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx307 *imx307 = to_imx307(sd);
+	const struct imx307_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = imx307->cur_mode->lanes;
+	int fps;
+
+	if (imx307->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = imx307_find_mode(imx307, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	imx307->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(imx307->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(imx307->vblank, vblank_def,
+				 IMX307_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(imx307->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(imx307->link_freq,
+			   mode->link_freq_idx);
+	imx307->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1429,13 +1506,14 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_HDR_CFG:
 		hdr = (struct rkmodule_hdr_cfg *)arg;
-		for (i = 0; i < imx307->support_modes_num; i++) {
-			if (imx307->support_modes[i].hdr_mode == hdr->hdr_mode) {
+		for (i = 0; i < imx307->cfg_num; i++) {
+			if (imx307->support_modes[i].hdr_mode == hdr->hdr_mode &&
+			    imx307->support_modes[i].bus_fmt == imx307->cur_mode->bus_fmt) {
 				imx307->cur_mode = &imx307->support_modes[i];
 				break;
 			}
 		}
-		if (i == imx307->support_modes_num) {
+		if (i == imx307->cfg_num) {
 			dev_err(&imx307->client->dev,
 				"not find hdr mode:%d config\n",
 				hdr->hdr_mode);
@@ -1448,13 +1526,14 @@ static long imx307_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(imx307->vblank, h,
 				IMX307_VTS_MAX - mode->height,
 				1, h);
-			dst_link_freq = mode->freq_idx;
-			dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
+			dst_link_freq = mode->link_freq_idx;
+			dst_pixel_rate = (u32)link_freq_items[mode->link_freq_idx] / mode->bpp * 2 * mode->lanes;
 			__v4l2_ctrl_s_ctrl_int64(imx307->pixel_rate,
 						 dst_pixel_rate);
 			__v4l2_ctrl_s_ctrl(imx307->link_freq,
 					   dst_link_freq);
 			imx307->cur_vts = mode->vts_def;
+			imx307->cur_fps = mode->max_fps;
 		}
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
@@ -1843,7 +1922,7 @@ static int imx307_enum_frame_interval(struct v4l2_subdev *sd,
 {
 	struct imx307 *imx307 = to_imx307(sd);
 
-	if (fie->index >= imx307->support_modes_num)
+	if (fie->index >= imx307->cfg_num)
 		return -EINVAL;
 
 	fie->code = imx307->support_modes[fie->index].bus_fmt;
@@ -1913,6 +1992,7 @@ static const struct v4l2_subdev_core_ops imx307_core_ops = {
 static const struct v4l2_subdev_video_ops imx307_video_ops = {
 	.s_stream = imx307_s_stream,
 	.g_frame_interval = imx307_g_frame_interval,
+	.s_frame_interval = imx307_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx307_pad_ops = {
@@ -1930,6 +2010,14 @@ static const struct v4l2_subdev_ops imx307_subdev_ops = {
 	.video	= &imx307_video_ops,
 	.pad	= &imx307_pad_ops,
 };
+
+static void imx307_modify_fps_info(struct imx307 *imx307)
+{
+	const struct imx307_mode *mode = imx307->cur_mode;
+
+	imx307->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      imx307->cur_vts;
+}
 
 static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -2004,6 +2092,7 @@ static int imx307_set_ctrl(struct v4l2_ctrl *ctrl)
 			IMX307_REG_VTS_L,
 			IMX307_REG_VALUE_08BIT,
 			IMX307_FETCH_LOW_BYTE_VTS(vts));
+		imx307_modify_fps_info(imx307);
 		dev_dbg(&client->dev, "set vts 0x%x\n",
 			vts);
 		break;
@@ -2077,10 +2166,10 @@ static int imx307_initialize_controls(struct imx307 *imx307)
 	handler->lock = &imx307->mutex;
 
 	imx307->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      1, 0, link_freq_menu_items);
+				      1, 0, link_freq_items);
 
-	dst_link_freq = mode->freq_idx;
-	dst_pixel_rate = (u32)link_freq_menu_items[mode->freq_idx] / mode->bpp * 2 * mode->lanes;
+	dst_link_freq = mode->link_freq_idx;
+	dst_pixel_rate = (u32)link_freq_items[mode->link_freq_idx] / mode->bpp * 2 * mode->lanes;
 	__v4l2_ctrl_s_ctrl(imx307->link_freq,
 			   dst_link_freq);
 	imx307->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
@@ -2216,16 +2305,16 @@ static int imx307_probe(struct i2c_client *client,
 	if (imx307->bus_cfg.bus_type == V4L2_MBUS_CCP2) {
 		if (imx307->bus_cfg.bus.mipi_csi1.data_lane == 2) {
 			imx307->support_modes = lvds_2lane_supported_modes;
-			imx307->support_modes_num = ARRAY_SIZE(lvds_2lane_supported_modes);
+			imx307->cfg_num = ARRAY_SIZE(lvds_2lane_supported_modes);
 		} else if (imx307->bus_cfg.bus.mipi_csi1.data_lane  == 4) {
 			imx307->support_modes = lvds_supported_modes;
-			imx307->support_modes_num = ARRAY_SIZE(lvds_supported_modes);
+			imx307->cfg_num = ARRAY_SIZE(lvds_supported_modes);
 		} else {
 			dev_err(dev, "lvds lanes err!\n");
 		}
 	} else {
 		imx307->support_modes = mipi_supported_modes;
-		imx307->support_modes_num = ARRAY_SIZE(mipi_supported_modes);
+		imx307->cfg_num = ARRAY_SIZE(mipi_supported_modes);
 	}
 	imx307->client = client;
 	imx307->cur_mode = &imx307->support_modes[0];

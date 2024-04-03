@@ -81,7 +81,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define IMX214_NAME			"imx214"
-#define IMX214_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
 
 /* OTP MACRO */
 #define	MODULE_BKX		0X01
@@ -108,6 +107,7 @@ struct regval {
 };
 
 struct imx214_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -157,6 +157,8 @@ struct imx214 {
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
 	struct rkmodule_lsc_cfg	lsc_cfg;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_imx214(sd) container_of(sd, struct imx214, subdev)
@@ -569,6 +571,7 @@ static const struct regval imx214_4208x3120_30fps_regs_4lane[] = {
 
 static const struct imx214_mode supported_modes_2lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 4208,
 		.height = 3120,
 		.max_fps = {
@@ -583,6 +586,7 @@ static const struct imx214_mode supported_modes_2lane[] = {
 		.link_freq_idx = 0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2104,
 		.height = 1560,
 		.max_fps = {
@@ -600,6 +604,7 @@ static const struct imx214_mode supported_modes_2lane[] = {
 
 static const struct imx214_mode supported_modes_4lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 4208,
 		.height = 3120,
 		.max_fps = {
@@ -614,6 +619,7 @@ static const struct imx214_mode supported_modes_4lane[] = {
 		.link_freq_idx = 0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2104,
 		.height = 1560,
 		.max_fps = {
@@ -627,6 +633,10 @@ static const struct imx214_mode supported_modes_4lane[] = {
 		.reg_list = imx214_2104x1560_30fps_regs_4lane,
 		.link_freq_idx = 0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_items[] = {
@@ -761,7 +771,7 @@ static int imx214_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx214->mutex);
 
 	mode = imx214_find_best_fit(imx214, fmt);
-	fmt->format.code = IMX214_MEDIA_BUS_FMT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -787,6 +797,7 @@ static int imx214_set_fmt(struct v4l2_subdev *sd,
 					 pixel_rate);
 		__v4l2_ctrl_s_ctrl(imx214->link_freq,
 				   mode->link_freq_idx);
+		imx214->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&imx214->mutex);
@@ -812,7 +823,7 @@ static int imx214_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = IMX214_MEDIA_BUS_FMT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&imx214->mutex);
@@ -824,9 +835,9 @@ static int imx214_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = IMX214_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -840,7 +851,7 @@ static int imx214_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= imx214->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != IMX214_MEDIA_BUS_FMT)
+	if (fse->code != imx214->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = imx214->support_modes[fse->index].width;
@@ -872,7 +883,79 @@ static int imx214_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx214 *imx214 = to_imx214(sd);
 	const struct imx214_mode *mode = imx214->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (imx214->streaming)
+		fi->interval = imx214->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct imx214_mode *imx214_find_mode(struct imx214 *imx214, int fps)
+{
+	const struct imx214_mode *mode = NULL;
+	const struct imx214_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < imx214->cfg_num; i++) {
+		mode = &imx214->support_modes[i];
+		if (mode->width == imx214->cur_mode->width &&
+		    mode->height == imx214->cur_mode->height) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int imx214_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx214 *imx214 = to_imx214(sd);
+	const struct imx214_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = imx214->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int fps;
+
+	if (imx214->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = imx214_find_mode(imx214, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	imx214->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(imx214->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(imx214->vblank, vblank_def,
+				 IMX214_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(imx214->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(imx214->link_freq,
+			   mode->link_freq_idx);
+	imx214->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1424,7 +1507,7 @@ static int imx214_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = IMX214_MEDIA_BUS_FMT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&imx214->mutex);
@@ -1443,7 +1526,7 @@ static int imx214_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= imx214->cfg_num)
 		return -EINVAL;
 
-	fie->code = IMX214_MEDIA_BUS_FMT;
+	fie->code = imx214->support_modes[fie->index].bus_fmt;
 	fie->width = imx214->support_modes[fie->index].width;
 	fie->height = imx214->support_modes[fie->index].height;
 	fie->interval = imx214->support_modes[fie->index].max_fps;
@@ -1520,6 +1603,7 @@ static const struct v4l2_subdev_core_ops imx214_core_ops = {
 static const struct v4l2_subdev_video_ops imx214_video_ops = {
 	.s_stream = imx214_s_stream,
 	.g_frame_interval = imx214_g_frame_interval,
+	.s_frame_interval = imx214_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx214_pad_ops = {
@@ -1556,6 +1640,14 @@ static int imx214_set_gain_reg(struct imx214 *imx214, u32 a_gain)
 		IMX214_REG_VALUE_08BIT,
 		(gain_reg & 0xff));
 	return ret;
+}
+
+static void imx214_modify_fps_info(struct imx214 *imx214)
+{
+	const struct imx214_mode *mode = imx214->cur_mode;
+
+	imx214->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      imx214->cur_vts;
 }
 
 static int imx214_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -1597,6 +1689,8 @@ static int imx214_set_ctrl(struct v4l2_ctrl *ctrl)
 			IMX214_REG_VTS,
 			IMX214_REG_VALUE_16BIT,
 			ctrl->val + imx214->cur_mode->height);
+		imx214->cur_vts = ctrl->val + imx214->cur_mode->height;
+		imx214_modify_fps_info(imx214);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = imx214_enable_test_pattern(imx214, ctrl->val);

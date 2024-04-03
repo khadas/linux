@@ -99,6 +99,7 @@ struct regval {
 };
 
 struct ov5695_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -132,6 +133,8 @@ struct ov5695 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_ov5695(sd) container_of(sd, struct ov5695, subdev)
@@ -507,6 +510,7 @@ static const struct regval ov5695_640x480_regs[] = {
 
 static const struct ov5695_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2592,
 		.height = 1944,
 		.max_fps = {
@@ -519,6 +523,7 @@ static const struct ov5695_mode supported_modes[] = {
 		.reg_list = ov5695_2592x1944_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -531,6 +536,7 @@ static const struct ov5695_mode supported_modes[] = {
 		.reg_list = ov5695_1920x1080_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1296,
 		.height = 972,
 		.max_fps = {
@@ -543,6 +549,7 @@ static const struct ov5695_mode supported_modes[] = {
 		.reg_list = ov5695_1296x972_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1280,
 		.height = 720,
 		.max_fps = {
@@ -555,6 +562,7 @@ static const struct ov5695_mode supported_modes[] = {
 		.reg_list = ov5695_1280x720_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 640,
 		.height = 480,
 		.max_fps = {
@@ -566,6 +574,10 @@ static const struct ov5695_mode supported_modes[] = {
 		.vts_def = 0x022e,
 		.reg_list = ov5695_640x480_regs,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 #define OV5695_LINK_FREQ_420MHZ		420000000
@@ -740,7 +752,7 @@ static int ov5695_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov5695->mutex);
 
 	mode = ov5695_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -760,6 +772,7 @@ static int ov5695_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(ov5695->vblank, vblank_def,
 					 OV5695_VTS_MAX - mode->height,
 					 1, vblank_def);
+		ov5695->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&ov5695->mutex);
@@ -785,7 +798,7 @@ static int ov5695_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&ov5695->mutex);
@@ -797,9 +810,9 @@ static int ov5695_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -811,7 +824,7 @@ static int ov5695_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -841,8 +854,72 @@ static int ov5695_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov5695 *ov5695 = to_ov5695(sd);
 	const struct ov5695_mode *mode = ov5695->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (ov5695->streaming)
+		fi->interval = ov5695->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct ov5695_mode *ov5695_find_mode(struct ov5695 *ov5695, int fps)
+{
+	const struct ov5695_mode *mode = NULL;
+	const struct ov5695_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == ov5695->cur_mode->width &&
+		    mode->height == ov5695->cur_mode->height &&
+		    mode->bus_fmt == ov5695->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int ov5695_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov5695 *ov5695 = to_ov5695(sd);
+	const struct ov5695_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (ov5695->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = ov5695_find_mode(ov5695, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	ov5695->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(ov5695->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(ov5695->vblank, vblank_def,
+				 OV5695_VTS_MAX - mode->height,
+				 1, vblank_def);
+	ov5695->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1135,7 +1212,7 @@ static int ov5695_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&ov5695->mutex);
@@ -1152,7 +1229,7 @@ static int ov5695_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1195,6 +1272,7 @@ static const struct v4l2_subdev_core_ops ov5695_core_ops = {
 static const struct v4l2_subdev_video_ops ov5695_video_ops = {
 	.s_stream = ov5695_s_stream,
 	.g_frame_interval = ov5695_g_frame_interval,
+	.s_frame_interval = ov5695_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov5695_pad_ops = {
@@ -1211,6 +1289,14 @@ static const struct v4l2_subdev_ops ov5695_subdev_ops = {
 	.video	= &ov5695_video_ops,
 	.pad	= &ov5695_pad_ops,
 };
+
+static void ov5695_modify_fps_info(struct ov5695 *ov5695)
+{
+	const struct ov5695_mode *mode = ov5695->cur_mode;
+
+	ov5695->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      ov5695->cur_vts;
+}
 
 static int ov5695_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1257,6 +1343,8 @@ static int ov5695_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov5695_write_reg(ov5695->client, OV5695_REG_VTS,
 				       OV5695_REG_VALUE_16BIT,
 				       ctrl->val + ov5695->cur_mode->height);
+		ov5695->cur_vts = ctrl->val + ov5695->cur_mode->height;
+		ov5695_modify_fps_info(ov5695);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov5695_enable_test_pattern(ov5695, ctrl->val);

@@ -543,6 +543,10 @@ static const struct sc231hai_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	SC231HAI_LINK_FREQ_371
 };
@@ -852,14 +856,36 @@ sc231hai_find_best_fit(struct v4l2_subdev_format *fmt)
 	return &supported_modes[cur_best_fit];
 }
 
+static int sc231hai_set_rates(struct sc231hai *sc231hai)
+{
+	const struct sc231hai_mode *mode = sc231hai->cur_mode;
+	s64 h_blank, vblank_def;
+	int ret = 0;
+	u64 pixel_rate = 0;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc231hai->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc231hai->vblank, vblank_def,
+				 SC231HAI_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] /
+		      mode->bpp * 2 * SC231HAI_LANES;
+	__v4l2_ctrl_s_ctrl_int64(sc231hai->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(sc231hai->link_freq,
+			   mode->mipi_freq_idx);
+
+	return ret;
+}
+
 static int sc231hai_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct sc231hai *sc231hai = to_sc231hai(sd);
 	const struct sc231hai_mode *mode;
-	s64 h_blank, vblank_def;
-	u64 pixel_rate = 0;
 
 	mutex_lock(&sc231hai->mutex);
 
@@ -877,18 +903,7 @@ static int sc231hai_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		sc231hai->cur_mode = mode;
-		h_blank = mode->hts_def - mode->width;
-		__v4l2_ctrl_modify_range(sc231hai->hblank, h_blank,
-					 h_blank, 1, h_blank);
-		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(sc231hai->vblank, vblank_def,
-					 SC231HAI_VTS_MAX - mode->height,
-					 1, vblank_def);
-
-		__v4l2_ctrl_s_ctrl(sc231hai->link_freq, mode->mipi_freq_idx);
-		pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] /
-			     mode->bpp * 2 * SC231HAI_LANES;
-		__v4l2_ctrl_s_ctrl_int64(sc231hai->pixel_rate, pixel_rate);
+		sc231hai_set_rates(sc231hai);
 		sc231hai->cur_fps = mode->max_fps;
 	}
 
@@ -932,11 +947,9 @@ static int sc231hai_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc231hai *sc231hai = to_sc231hai(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc231hai->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -990,6 +1003,61 @@ static int sc231hai_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const struct sc231hai_mode *sc231hai_find_mode(struct sc231hai *sc231hai, int fps)
+{
+	const struct sc231hai_mode *mode = NULL;
+	const struct sc231hai_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc231hai->cur_mode->width &&
+		    mode->height == sc231hai->cur_mode->height &&
+		    mode->hdr_mode == sc231hai->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc231hai->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc231hai_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc231hai *sc231hai = to_sc231hai(sd);
+	const struct sc231hai_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	int fps;
+
+	if (sc231hai->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc231hai_find_mode(sc231hai, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc231hai->cur_mode = mode;
+
+	sc231hai_set_rates(sc231hai);
+
+	return 0;
+}
+
 static int sc231hai_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *config)
 {
@@ -1037,7 +1105,7 @@ static long sc231hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct sc231hai *sc231hai = to_sc231hai(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_channel_info *ch_info;
-	u32 i, h, w;
+	u32 i, w, h;
 	long ret = 0;
 	u32 stream = 0;
 	u32 *sync_mode = NULL;
@@ -1069,12 +1137,7 @@ static long sc231hai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				hdr->hdr_mode, w, h);
 			ret = -EINVAL;
 		} else {
-			w = sc231hai->cur_mode->hts_def - sc231hai->cur_mode->width;
-			h = sc231hai->cur_mode->vts_def - sc231hai->cur_mode->height;
-			__v4l2_ctrl_modify_range(sc231hai->hblank, w, w, 1, w);
-			__v4l2_ctrl_modify_range(sc231hai->vblank, h,
-						 SC231HAI_VTS_MAX - sc231hai->cur_mode->height,
-						 1, h);
+			sc231hai_set_rates(sc231hai);
 			sc231hai->cur_fps = sc231hai->cur_mode->max_fps;
 		}
 		break;
@@ -1618,6 +1681,7 @@ static const struct v4l2_subdev_core_ops sc231hai_core_ops = {
 static const struct v4l2_subdev_video_ops sc231hai_video_ops = {
 	.s_stream = sc231hai_s_stream,
 	.g_frame_interval = sc231hai_g_frame_interval,
+	.s_frame_interval = sc231hai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc231hai_pad_ops = {

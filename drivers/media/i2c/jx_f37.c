@@ -94,6 +94,7 @@ struct regval {
 };
 
 struct jx_f37_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -130,6 +131,8 @@ struct jx_f37 {
 
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_jx_f37(sd) container_of(sd, struct jx_f37, subdev)
@@ -367,6 +370,7 @@ static const struct regval jx_f37_1080p_hdr_1lane_15fps[] = {
 
 static const struct jx_f37_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -381,6 +385,7 @@ static const struct jx_f37_mode supported_modes[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -397,6 +402,10 @@ static const struct jx_f37_mode supported_modes[] = {
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 #define JX_F37_LINK_FREQ_432MHZ		(432000000)
@@ -500,6 +509,7 @@ static void jx_f37_update_cur_mode_locked(struct jx_f37 *jx_f37,
 	__v4l2_ctrl_modify_range(jx_f37->vblank, vblank_def,
 				 JX_F37_VTS_MAX - mode->height,
 				 1, vblank_def);
+	jx_f37->cur_fps = mode->max_fps;
 }
 
 static int jx_f37_set_hdr_mode_locked(struct jx_f37 *jx_f37, u32 hdr_mode)
@@ -618,7 +628,7 @@ static int jx_f37_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&jx_f37->mutex);
 
 	mode = jx_f37_find_best_fit(jx_f37, fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -656,7 +666,7 @@ static int jx_f37_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 		if (fmt->pad < PAD_MAX && mode->hdr_mode != NO_HDR)
 			fmt->reserved[0] = mode->vc[fmt->pad];
@@ -672,9 +682,9 @@ static int jx_f37_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -683,10 +693,12 @@ static int jx_f37_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct jx_f37 *jx_f37 = to_jx_f37(sd);
+
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != jx_f37->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -925,14 +937,78 @@ static int jx_f37_g_frame_interval(struct v4l2_subdev *sd,
 	struct jx_f37 *jx_f37 = to_jx_f37(sd);
 	const struct jx_f37_mode *mode = jx_f37->cur_mode;
 
-	mutex_lock(&jx_f37->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&jx_f37->mutex);
+	if (jx_f37->streaming)
+		fi->interval = jx_f37->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
 
-static int jx_f37_g_mbus_config(struct v4l2_subdev *sd,
+static const struct jx_f37_mode *jx_f37_find_mode(struct jx_f37 *jx_f37, int fps)
+{
+	const struct jx_f37_mode *mode = NULL;
+	const struct jx_f37_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == jx_f37->cur_mode->width &&
+		    mode->height == jx_f37->cur_mode->height &&
+		    mode->hdr_mode == jx_f37->cur_mode->hdr_mode &&
+		    mode->bus_fmt == jx_f37->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int jx_f37_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct jx_f37 *jx_f37 = to_jx_f37(sd);
+	const struct jx_f37_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (jx_f37->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = jx_f37_find_mode(jx_f37, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	jx_f37->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(jx_f37->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(jx_f37->vblank, vblank_def,
+				 JX_F37_VTS_MAX - mode->height,
+				 1, vblank_def);
+	jx_f37->cur_fps = mode->max_fps;
+
+	return 0;
+}
+
+static int jx_f37_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
 	struct jx_f37 *jx_f37 = to_jx_f37(sd);
@@ -949,7 +1025,7 @@ static int jx_f37_g_mbus_config(struct v4l2_subdev *sd,
 		      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		      V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1165,7 +1241,7 @@ static int jx_f37_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&jx_f37->mutex);
@@ -1182,7 +1258,7 @@ static int jx_f37_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1213,7 +1289,7 @@ static const struct v4l2_subdev_core_ops jx_f37_core_ops = {
 static const struct v4l2_subdev_video_ops jx_f37_video_ops = {
 	.s_stream = jx_f37_s_stream,
 	.g_frame_interval = jx_f37_g_frame_interval,
-	.g_mbus_config = jx_f37_g_mbus_config,
+	.s_frame_interval = jx_f37_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_f37_pad_ops = {
@@ -1222,6 +1298,7 @@ static const struct v4l2_subdev_pad_ops jx_f37_pad_ops = {
 	.enum_frame_interval = jx_f37_enum_frame_interval,
 	.get_fmt = jx_f37_get_fmt,
 	.set_fmt = jx_f37_set_fmt,
+	.get_mbus_config = jx_f37_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops jx_f37_subdev_ops = {
@@ -1229,6 +1306,14 @@ static const struct v4l2_subdev_ops jx_f37_subdev_ops = {
 	.video	= &jx_f37_video_ops,
 	.pad	= &jx_f37_pad_ops,
 };
+
+static void jx_f37_modify_fps_info(struct jx_f37 *jx_f37)
+{
+	const struct jx_f37_mode *mode = jx_f37->cur_mode;
+
+	jx_f37->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      jx_f37->cur_vts;
+}
 
 static int jx_f37_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1298,6 +1383,8 @@ static int jx_f37_set_ctrl(struct v4l2_ctrl *ctrl)
 			JX_F37_FETCH_HIGH_BYTE_VTS((ctrl->val + jx_f37->cur_mode->height)));
 		ret |= jx_f37_write_reg(jx_f37->client, JX_F37_REG_LOW_VTS,
 			JX_F37_FETCH_LOW_BYTE_VTS((ctrl->val + jx_f37->cur_mode->height)));
+		jx_f37->cur_vts = ctrl->val + jx_f37->cur_mode->height;
+		jx_f37_modify_fps_info(jx_f37);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",

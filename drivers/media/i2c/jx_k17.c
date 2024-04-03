@@ -142,6 +142,7 @@ struct jx_k17 {
 	const char		*module_name;
 	const char		*len_name;
 	u32			cur_vts;
+	struct v4l2_fract	cur_fps;
 };
 
 #define to_jx_k17(sd) container_of(sd, struct jx_k17, subdev)
@@ -293,6 +294,10 @@ static const struct jx_k17_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	JX_K17_LINK_FREQ
 };
@@ -442,6 +447,7 @@ static int jx_k17_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(jx_k17->vblank, vblank_def,
 					 JX_K17_VTS_MAX - mode->height,
 					 1, vblank_def);
+		jx_k17->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&jx_k17->mutex);
@@ -483,11 +489,9 @@ static int jx_k17_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct jx_k17 *jx_k17 = to_jx_k17(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = jx_k17->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -529,9 +533,71 @@ static int jx_k17_g_frame_interval(struct v4l2_subdev *sd,
 	struct jx_k17 *jx_k17 = to_jx_k17(sd);
 	const struct jx_k17_mode *mode = jx_k17->cur_mode;
 
-	mutex_lock(&jx_k17->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&jx_k17->mutex);
+	if (jx_k17->streaming)
+		fi->interval = jx_k17->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct jx_k17_mode *jx_k17_find_mode(struct jx_k17 *jx_k17, int fps)
+{
+	const struct jx_k17_mode *mode = NULL;
+	const struct jx_k17_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == jx_k17->cur_mode->width &&
+		    mode->height == jx_k17->cur_mode->height) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int jx_k17_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct jx_k17 *jx_k17 = to_jx_k17(sd);
+	const struct jx_k17_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (jx_k17->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = jx_k17_find_mode(jx_k17, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	jx_k17->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(jx_k17->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(jx_k17->vblank, vblank_def,
+				 JX_K17_VTS_MAX - mode->height,
+				 1, vblank_def);
+	jx_k17->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -593,7 +659,8 @@ static long jx_k17_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == jx_k17->cur_mode->bus_fmt) {
 				jx_k17->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -609,6 +676,7 @@ static long jx_k17_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(jx_k17->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(jx_k17->vblank, h,
 						 JX_K17_VTS_MAX - jx_k17->cur_mode->height, 1, h);
+			jx_k17->cur_fps = jx_k17->cur_mode->max_fps;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -984,6 +1052,7 @@ static const struct v4l2_subdev_core_ops jx_k17_core_ops = {
 static const struct v4l2_subdev_video_ops jx_k17_video_ops = {
 	.s_stream = jx_k17_s_stream,
 	.g_frame_interval = jx_k17_g_frame_interval,
+	.s_frame_interval = jx_k17_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_k17_pad_ops = {
@@ -1000,6 +1069,14 @@ static const struct v4l2_subdev_ops jx_k17_subdev_ops = {
 	.video	= &jx_k17_video_ops,
 	.pad	= &jx_k17_pad_ops,
 };
+
+static void jx_k17_modify_fps_info(struct jx_k17 *jx_k17)
+{
+	const struct jx_k17_mode *mode = jx_k17->cur_mode;
+
+	jx_k17->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      jx_k17->cur_vts;
+}
 
 static int jx_k17_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1046,6 +1123,8 @@ static int jx_k17_set_ctrl(struct v4l2_ctrl *ctrl)
 			JX_K17_FETCH_HIGH_BYTE_VTS((ctrl->val + jx_k17->cur_mode->height)));
 		ret |= jx_k17_write_reg(jx_k17->client, JX_K17_REG_LOW_VTS,
 			JX_K17_FETCH_LOW_BYTE_VTS((ctrl->val + jx_k17->cur_mode->height)));
+		jx_k17->cur_vts = ctrl->val + jx_k17->cur_mode->height;
+		jx_k17_modify_fps_info(jx_k17);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = jx_k17_enable_test_pattern(jx_k17, ctrl->val);

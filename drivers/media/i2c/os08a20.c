@@ -95,7 +95,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define OS08A20_NAME			"os08a20"
-#define OS08A20_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
 
 struct os08a20_otp_info {
 	int flag; // bit[7]: info, bit[6]:wb
@@ -122,6 +121,7 @@ struct regval {
 };
 
 struct os08a20_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -130,6 +130,8 @@ struct os08a20_mode {
 	u32 exp_def;
 	const struct regval *reg_list;
 	u8 hdr_mode;
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct os08a20 {
@@ -153,19 +155,22 @@ struct os08a20 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
 	const struct os08a20_mode *cur_mode;
 	unsigned int lane_num;
 	unsigned int cfg_num;
-	unsigned int pixel_rate;
 	u32			module_index;
 	struct os08a20_otp_info *otp;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
 	struct rkmodule_awb_cfg	awb_cfg;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_os08a20(sd) container_of(sd, struct os08a20, subdev)
@@ -391,6 +396,7 @@ static const struct regval os08a20_3840x2160_regs_4lane[] = {
 
 static const struct os08a20_mode supported_modes_4lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
@@ -402,7 +408,13 @@ static const struct os08a20_mode supported_modes_4lane[] = {
 		.vts_def = 0x08c6,
 		.reg_list = os08a20_3840x2160_regs_4lane,
 		.hdr_mode = NO_HDR,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const struct os08a20_mode *supported_modes;
@@ -580,7 +592,7 @@ static int os08a20_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&os08a20->mutex);
 
 	mode = os08a20_find_best_fit(os08a20, fmt);
-	fmt->format.code = OS08A20_MEDIA_BUS_FMT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -600,6 +612,7 @@ static int os08a20_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(os08a20->vblank, vblank_def,
 					 OS08A20_VTS_MAX - mode->height,
 					 1, vblank_def);
+		os08a20->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&os08a20->mutex);
@@ -625,7 +638,7 @@ static int os08a20_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = OS08A20_MEDIA_BUS_FMT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&os08a20->mutex);
@@ -637,9 +650,9 @@ static int os08a20_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = OS08A20_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -653,7 +666,7 @@ static int os08a20_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= os08a20->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != OS08A20_MEDIA_BUS_FMT)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -684,8 +697,81 @@ static int os08a20_g_frame_interval(struct v4l2_subdev *sd,
 	struct os08a20 *os08a20 = to_os08a20(sd);
 	const struct os08a20_mode *mode = os08a20->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (os08a20->streaming)
+		fi->interval = os08a20->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct os08a20_mode *os08a20_find_mode(struct os08a20 *os08a20, int fps)
+{
+	const struct os08a20_mode *mode = NULL;
+	const struct os08a20_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < os08a20->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == os08a20->cur_mode->width &&
+		    mode->height == os08a20->cur_mode->height &&
+		    mode->hdr_mode == os08a20->cur_mode->hdr_mode &&
+		    mode->bus_fmt == os08a20->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int os08a20_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct os08a20 *os08a20 = to_os08a20(sd);
+	const struct os08a20_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OS08A20_LANES;
+	int fps;
+
+	if (os08a20->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = os08a20_find_mode(os08a20, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	os08a20->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(os08a20->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os08a20->vblank, vblank_def,
+				 OS08A20_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(os08a20->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(os08a20->link_freq,
+			   mode->link_freq_idx);
+	os08a20->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1086,7 +1172,7 @@ static int os08a20_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = OS08A20_MEDIA_BUS_FMT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&os08a20->mutex);
@@ -1105,7 +1191,7 @@ static int os08a20_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= os08a20->cfg_num)
 		return -EINVAL;
 
-	fie->code = OS08A20_MEDIA_BUS_FMT;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1150,6 +1236,7 @@ static const struct v4l2_subdev_core_ops os08a20_core_ops = {
 static const struct v4l2_subdev_video_ops os08a20_video_ops = {
 	.s_stream = os08a20_s_stream,
 	.g_frame_interval = os08a20_g_frame_interval,
+	.s_frame_interval = os08a20_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os08a20_pad_ops = {
@@ -1256,10 +1343,10 @@ static int os08a20_initialize_controls(struct os08a20 *os08a20)
 {
 	const struct os08a20_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
+	u32 pixel_rate;
 
 	handler = &os08a20->ctrl_handler;
 	mode = os08a20->cur_mode;
@@ -1268,13 +1355,14 @@ static int os08a20_initialize_controls(struct os08a20 *os08a20)
 		return ret;
 	handler->lock = &os08a20->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+	os08a20->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
 				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (os08a20->link_freq)
+		os08a20->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, os08a20->pixel_rate, 1, os08a20->pixel_rate);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * os08a20->lane_num;
+	os08a20->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+			  0, pixel_rate, 1, pixel_rate);
 
 	h_blank = mode->hts_def - mode->width;
 	os08a20->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
@@ -1382,11 +1470,6 @@ static int os08a20_parse_of(struct os08a20 *os08a20)
 		os08a20->cur_mode = &supported_modes_4lane[0];
 		supported_modes = supported_modes_4lane;
 		os08a20->cfg_num = ARRAY_SIZE(supported_modes_4lane);
-
-		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-		os08a20->pixel_rate = MIPI_FREQ * 2U * os08a20->lane_num / 8U;
-		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
-			 os08a20->lane_num, os08a20->pixel_rate);
 	} else {
 		dev_err(dev, "unsupported lane_num(%d)\n", os08a20->lane_num);
 		return -1;

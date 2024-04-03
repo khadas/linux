@@ -122,6 +122,8 @@ struct os05a20_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct os05a20 {
@@ -163,6 +165,8 @@ struct os05a20 {
 	bool			is_thunderboot;
 	bool			is_thunderboot_ng;
 	bool			is_first_streamoff;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_os05a20(sd) container_of(sd, struct os05a20, subdev)
@@ -657,6 +661,8 @@ static const struct os05a20_mode supported_modes[] = {
 		.reg_list = os05a20_linear12bit_2688x1944_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 12,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR12_1X12,
@@ -675,7 +681,13 @@ static const struct os05a20_mode supported_modes[] = {
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
+		.link_freq_idx = 0,
+		.bpp = 12,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR12_1X12,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -830,6 +842,7 @@ static int os05a20_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(os05a20->vblank, vblank_def,
 					 OS05A20_VTS_MAX - mode->height,
 					 1, vblank_def);
+		os05a20->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&os05a20->mutex);
@@ -871,11 +884,9 @@ static int os05a20_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct os05a20 *os05a20 = to_os05a20(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = os05a20->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -920,7 +931,81 @@ static int os05a20_g_frame_interval(struct v4l2_subdev *sd,
 	struct os05a20 *os05a20 = to_os05a20(sd);
 	const struct os05a20_mode *mode = os05a20->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (os05a20->streaming)
+		fi->interval = os05a20->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct os05a20_mode *os05a20_find_mode(struct os05a20 *os05a20, int fps)
+{
+	const struct os05a20_mode *mode = NULL;
+	const struct os05a20_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == os05a20->cur_mode->width &&
+		    mode->height == os05a20->cur_mode->height &&
+		    mode->hdr_mode == os05a20->cur_mode->hdr_mode &&
+		    mode->bus_fmt == os05a20->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int os05a20_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct os05a20 *os05a20 = to_os05a20(sd);
+	const struct os05a20_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OS05A20_LANES;
+	int fps;
+
+	if (os05a20->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = os05a20_find_mode(os05a20, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	os05a20->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(os05a20->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os05a20->vblank, vblank_def,
+				 OS05A20_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(os05a20->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(os05a20->link_freq,
+			   mode->link_freq_idx);
+	os05a20->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1061,8 +1146,9 @@ static long os05a20_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = os05a20->cur_mode->height;
 		for (i = 0; i < os05a20->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
-			h == supported_modes[i].height &&
-			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			    h == supported_modes[i].height &&
+			    supported_modes[i].hdr_mode == hdr_cfg->hdr_mode &&
+			    supported_modes[i].bus_fmt == os05a20->cur_mode->bus_fmt) {
 				os05a20->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1079,6 +1165,7 @@ static long os05a20_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(os05a20->vblank, h,
 				OS05A20_VTS_MAX - os05a20->cur_mode->height,
 				1, h);
+			os05a20->cur_fps = os05a20->cur_mode->max_fps;
 			dev_info(&os05a20->client->dev,
 				"sensor mode: %d\n",
 				os05a20->cur_mode->hdr_mode);
@@ -1516,6 +1603,7 @@ static const struct v4l2_subdev_core_ops os05a20_core_ops = {
 static const struct v4l2_subdev_video_ops os05a20_video_ops = {
 	.s_stream = os05a20_s_stream,
 	.g_frame_interval = os05a20_g_frame_interval,
+	.s_frame_interval = os05a20_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os05a20_pad_ops = {
@@ -1532,6 +1620,14 @@ static const struct v4l2_subdev_ops os05a20_subdev_ops = {
 	.video	= &os05a20_video_ops,
 	.pad	= &os05a20_pad_ops,
 };
+
+static void os05a20_modify_fps_info(struct os05a20 *os05a20)
+{
+	const struct os05a20_mode *mode = os05a20->cur_mode;
+
+	os05a20->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      os05a20->cur_vts;
+}
 
 static int os05a20_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1596,6 +1692,8 @@ static int os05a20_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = os05a20_write_reg(os05a20->client, OS05A20_REG_VTS,
 					OS05A20_REG_VALUE_16BIT,
 					ctrl->val + os05a20->cur_mode->height);
+		os05a20->cur_vts = ctrl->val + os05a20->cur_mode->height;
+		os05a20_modify_fps_info(os05a20);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

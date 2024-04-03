@@ -117,6 +117,8 @@ struct os02g10_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct os02g10 {
@@ -150,6 +152,8 @@ struct os02g10 {
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	u8			flip;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_os02g10(sd) container_of(sd, struct os02g10, subdev)
@@ -297,6 +301,10 @@ static const struct os02g10_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -449,6 +457,7 @@ static int os02g10_set_fmt(struct v4l2_subdev *sd,
 		                         dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(os02g10->link_freq,
 		                   dst_link_freq);
+		os02g10->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&os02g10->mutex);
@@ -490,11 +499,9 @@ static int os02g10_enum_mbus_code(struct v4l2_subdev *sd,
                                   struct v4l2_subdev_pad_config *cfg,
                                   struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct os02g10 *os02g10 = to_os02g10(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = os02g10->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -525,8 +532,81 @@ static int os02g10_g_frame_interval(struct v4l2_subdev *sd,
 	struct os02g10 *os02g10 = to_os02g10(sd);
 	const struct os02g10_mode *mode = os02g10->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (os02g10->streaming)
+		fi->interval = os02g10->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct os02g10_mode *os02g10_find_mode(struct os02g10 *os02g10, int fps)
+{
+	const struct os02g10_mode *mode = NULL;
+	const struct os02g10_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == os02g10->cur_mode->width &&
+		    mode->height == os02g10->cur_mode->height &&
+		    mode->hdr_mode == os02g10->cur_mode->hdr_mode &&
+		    mode->bus_fmt == os02g10->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int os02g10_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct os02g10 *os02g10 = to_os02g10(sd);
+	const struct os02g10_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OS02G10_LANES;
+	int fps;
+
+	if (os02g10->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = os02g10_find_mode(os02g10, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	os02g10->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(os02g10->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os02g10->vblank, vblank_def,
+				 OS02G10_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(os02g10->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(os02g10->link_freq,
+			   mode->link_freq_idx);
+	os02g10->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -932,6 +1012,7 @@ static const struct v4l2_subdev_core_ops os02g10_core_ops = {
 static const struct v4l2_subdev_video_ops os02g10_video_ops = {
 	.s_stream = os02g10_s_stream,
 	.g_frame_interval = os02g10_g_frame_interval,
+	.s_frame_interval = os02g10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os02g10_pad_ops = {
@@ -982,6 +1063,14 @@ static void os02g10_get_gain_reg(u32 total_gain, u32* again, u32* dgain)
 		*again = 0xff;
 		*dgain = (0x400 + step) > 0x7ff ? 0x7ff : (0x400 + step);
 	}
+}
+
+static void os02g10_modify_fps_info(struct os02g10 *os02g10)
+{
+	const struct os02g10_mode *mode = os02g10->cur_mode;
+
+	os02g10->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      os02g10->cur_vts;
 }
 
 static int os02g10_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -1046,6 +1135,8 @@ static int os02g10_set_ctrl(struct v4l2_ctrl *ctrl)
 		                         OS02G10_REG_VBLANK_L, ctrl->val & 0xFF);
 		ret |= os02g10_write_reg(os02g10->client,
 		                         OS02G10_REG_RESTART, 0x01);
+		os02g10->cur_vts = ctrl->val + os02g10->cur_mode->height;
+		os02g10_modify_fps_info(os02g10);
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_TEST_PATTERN:

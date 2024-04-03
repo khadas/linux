@@ -98,7 +98,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define GC8034_NAME			"gc8034"
-#define GC8034_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
 
 /* use RK_OTP or old mode */
 #define RK_OTP
@@ -166,6 +165,7 @@ struct regval {
 };
 
 struct gc8034_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -216,6 +216,8 @@ struct gc8034 {
 #endif
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_gc8034(sd) container_of(sd, struct gc8034, subdev)
@@ -1146,6 +1148,7 @@ static const struct regval gc8034_3264x2448_regs_4lane[] = {
 static const struct gc8034_mode supported_modes_2lane[] = {
 #ifdef GC8034_2LANE_30FPS
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3264,
 		.height = 2448,
 		.max_fps = {
@@ -1162,6 +1165,7 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 	},
 #else
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3264,
 		.height = 2448,
 		.max_fps = {
@@ -1177,6 +1181,7 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1632,
 		.height = 1224,
 		.max_fps = {
@@ -1196,6 +1201,7 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 
 static const struct gc8034_mode supported_modes_4lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3264,
 		.height = 2448,
 		.max_fps = {
@@ -1210,6 +1216,10 @@ static const struct gc8034_mode supported_modes_4lane[] = {
 		.reg_list = gc8034_3264x2448_regs_4lane,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 static const struct gc8034_mode *supported_modes;
@@ -1326,7 +1336,7 @@ static int gc8034_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&gc8034->mutex);
 
 	mode = gc8034_find_best_fit(gc8034, fmt);
-	fmt->format.code = GC8034_MEDIA_BUS_FMT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -1348,6 +1358,7 @@ static int gc8034_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 		__v4l2_ctrl_s_ctrl(gc8034->vblank, vblank_def);
 		__v4l2_ctrl_s_ctrl(gc8034->link_freq, mode->mipi_freq_idx);
+		gc8034->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc8034->mutex);
@@ -1373,7 +1384,7 @@ static int gc8034_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = GC8034_MEDIA_BUS_FMT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&gc8034->mutex);
@@ -1385,9 +1396,9 @@ static int gc8034_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = GC8034_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1401,7 +1412,7 @@ static int gc8034_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= gc8034->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != GC8034_MEDIA_BUS_FMT)
+	if (fse->code != gc8034->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -1418,7 +1429,73 @@ static int gc8034_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc8034 *gc8034 = to_gc8034(sd);
 	const struct gc8034_mode *mode = gc8034->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc8034->streaming)
+		fi->interval = gc8034->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc8034_mode *gc8034_find_mode(struct gc8034 *gc8034, int fps)
+{
+	const struct gc8034_mode *mode = NULL;
+	const struct gc8034_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < gc8034->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc8034->cur_mode->width &&
+		    mode->height == gc8034->cur_mode->height &&
+		    mode->bus_fmt == gc8034->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc8034_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc8034 *gc8034 = to_gc8034(sd);
+	const struct gc8034_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc8034->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc8034_find_mode(gc8034, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc8034->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc8034->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc8034->vblank, vblank_def,
+				 GC8034_VTS_MAX - mode->height,
+				 1, vblank_def);
+	__v4l2_ctrl_s_ctrl(gc8034->link_freq, mode->mipi_freq_idx);
+	gc8034->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -2052,7 +2129,7 @@ static int gc8034_get_channel_info(struct gc8034 *gc8034, struct rkmodule_channe
 	ch_info->vc = gc8034->cur_mode->vc[ch_info->index];
 	ch_info->width = gc8034->cur_mode->width;
 	ch_info->height = gc8034->cur_mode->height;
-	ch_info->bus_fmt = GC8034_MEDIA_BUS_FMT;
+	ch_info->bus_fmt = gc8034->cur_mode->bus_fmt;
 	return 0;
 }
 
@@ -2644,7 +2721,7 @@ static int gc8034_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = GC8034_MEDIA_BUS_FMT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&gc8034->mutex);
@@ -2663,7 +2740,7 @@ static int gc8034_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= gc8034->cfg_num)
 		return -EINVAL;
 
-	fie->code = GC8034_MEDIA_BUS_FMT;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -2717,6 +2794,7 @@ static const struct v4l2_subdev_core_ops gc8034_core_ops = {
 static const struct v4l2_subdev_video_ops gc8034_video_ops = {
 	.s_stream = gc8034_s_stream,
 	.g_frame_interval = gc8034_g_frame_interval,
+	.s_frame_interval = gc8034_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc8034_pad_ops = {
@@ -2847,6 +2925,14 @@ static int gc8034_set_gain_reg(struct gc8034 *gc8034, u32 a_gain)
 	return ret;
 }
 
+static void gc8034_modify_fps_info(struct gc8034 *gc8034)
+{
+	const struct gc8034_mode *mode = gc8034->cur_mode;
+
+	gc8034->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc8034->cur_vts;
+}
+
 static int gc8034_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc8034 *gc8034 = container_of(ctrl->handler,
@@ -2894,6 +2980,8 @@ static int gc8034_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc8034_write_reg(gc8034->client,
 					GC8034_REG_VTS_L,
 					temp & 0xff);
+		gc8034->cur_vts = ctrl->val + gc8034->cur_mode->height;
+		gc8034_modify_fps_info(gc8034);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",

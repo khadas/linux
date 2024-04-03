@@ -94,6 +94,7 @@ struct regval {
 };
 
 struct jx_h65_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -126,6 +127,8 @@ struct jx_h65 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_jx_h65(sd) container_of(sd, struct jx_h65, subdev)
@@ -338,6 +341,7 @@ static const struct regval jx_h65_1280x960_regs[] = {
 
 static const struct jx_h65_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1280,
 		.height = 960,
 		.max_fps = {
@@ -350,6 +354,7 @@ static const struct jx_h65_mode supported_modes[] = {
 		.reg_list = jx_h65_1280x960_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 1280,
 		.height = 720,
 		.max_fps = {
@@ -361,6 +366,10 @@ static const struct jx_h65_mode supported_modes[] = {
 		.vts_def = 0x03e8,
 		.reg_list = jx_h65_1280x720_regs,
 	}
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 #define JX_H65_LINK_FREQ_420MHZ		216000000
@@ -494,7 +503,7 @@ static int jx_h65_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&jx_h65->mutex);
 
 	mode = jx_h65_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -514,6 +523,7 @@ static int jx_h65_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(jx_h65->vblank, vblank_def,
 					 JX_H65_VTS_MAX - mode->height,
 					 1, vblank_def);
+		jx_h65->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&jx_h65->mutex);
@@ -539,7 +549,7 @@ static int jx_h65_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&jx_h65->mutex);
@@ -551,9 +561,9 @@ static int jx_h65_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -562,10 +572,12 @@ static int jx_h65_enum_frame_sizes(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct jx_h65 *jx_h65 = to_jx_h65(sd);
+
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != jx_h65->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -682,9 +694,71 @@ static int jx_h65_g_frame_interval(struct v4l2_subdev *sd,
 	struct jx_h65 *jx_h65 = to_jx_h65(sd);
 	const struct jx_h65_mode *mode = jx_h65->cur_mode;
 
-	mutex_lock(&jx_h65->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&jx_h65->mutex);
+	if (jx_h65->streaming)
+		fi->interval = jx_h65->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+	return 0;
+}
+
+static const struct jx_h65_mode *jx_h65_find_mode(struct jx_h65 *jx_h65, int fps)
+{
+	const struct jx_h65_mode *mode = NULL;
+	const struct jx_h65_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == jx_h65->cur_mode->width &&
+		    mode->height == jx_h65->cur_mode->height &&
+		    mode->bus_fmt == jx_h65->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int jx_h65_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct jx_h65 *jx_h65 = to_jx_h65(sd);
+	const struct jx_h65_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (jx_h65->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = jx_h65_find_mode(jx_h65, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	jx_h65->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(jx_h65->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(jx_h65->vblank, vblank_def,
+				 JX_H65_VTS_MAX - mode->height,
+				 1, vblank_def);
+	jx_h65->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -878,7 +952,7 @@ static int jx_h65_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&jx_h65->mutex);
@@ -895,15 +969,14 @@ static int jx_h65_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SBGGR10_1X10;
-
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
 	return 0;
 }
 
-static int jx_h65_g_mbus_config(struct v4l2_subdev *sd,
+static int jx_h65_g_mbus_config(struct v4l2_subdev *sd,  unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -911,7 +984,7 @@ static int jx_h65_g_mbus_config(struct v4l2_subdev *sd,
 	val = 1 << (JX_H65_LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -939,7 +1012,7 @@ static const struct v4l2_subdev_core_ops jx_h65_core_ops = {
 static const struct v4l2_subdev_video_ops jx_h65_video_ops = {
 	.s_stream = jx_h65_s_stream,
 	.g_frame_interval = jx_h65_g_frame_interval,
-	.g_mbus_config = jx_h65_g_mbus_config,
+	.s_frame_interval = jx_h65_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops jx_h65_pad_ops = {
@@ -948,6 +1021,7 @@ static const struct v4l2_subdev_pad_ops jx_h65_pad_ops = {
 	.enum_frame_interval = jx_h65_enum_frame_interval,
 	.get_fmt = jx_h65_get_fmt,
 	.set_fmt = jx_h65_set_fmt,
+	.get_mbus_config = jx_h65_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops jx_h65_subdev_ops = {
@@ -955,6 +1029,14 @@ static const struct v4l2_subdev_ops jx_h65_subdev_ops = {
 	.video	= &jx_h65_video_ops,
 	.pad	= &jx_h65_pad_ops,
 };
+
+static void jx_h65_modify_fps_info(struct jx_h65 *jx_h65)
+{
+	const struct jx_h65_mode *mode = jx_h65->cur_mode;
+
+	jx_h65->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      jx_h65->cur_vts;
+}
 
 static int jx_h65_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1003,6 +1085,8 @@ static int jx_h65_set_ctrl(struct v4l2_ctrl *ctrl)
 			JX_H65_FETCH_HIGH_BYTE_VTS((ctrl->val + jx_h65->cur_mode->height)));
 		ret |= jx_h65_write_reg(jx_h65->client, JX_H65_REG_LOW_VTS,
 			JX_H65_FETCH_LOW_BYTE_VTS((ctrl->val + jx_h65->cur_mode->height)));
+		jx_h65->cur_vts = ctrl->val + jx_h65->cur_mode->height;
+		jx_h65_modify_fps_info(jx_h65);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = jx_h65_enable_test_pattern(jx_h65, ctrl->val);

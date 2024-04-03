@@ -151,6 +151,7 @@ struct gc4023 {
 	const char		*module_name;
 	const char		*len_name;
 	bool			has_init_exp;
+	struct v4l2_fract	cur_fps;
 };
 
 #define to_gc4023(sd) container_of(sd, struct gc4023, subdev)
@@ -387,6 +388,10 @@ static const struct gc4023_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	GC4023_LINK_FREQ_LINEAR,
 };
@@ -547,6 +552,7 @@ static int gc4023_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(gc4023->link_freq,
 				   gc4023->cur_link_freq);
 		gc4023->cur_vts = mode->vts_def;
+		gc4023->cur_fps = mode->max_fps;
 	}
 	mutex_unlock(&gc4023->mutex);
 
@@ -583,11 +589,9 @@ static int gc4023_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct gc4023 *gc4023 = to_gc4023(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = gc4023->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -720,7 +724,73 @@ static int gc4023_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc4023 *gc4023 = to_gc4023(sd);
 	const struct gc4023_mode *mode = gc4023->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc4023->streaming)
+		fi->interval = gc4023->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc4023_mode *gc4023_find_mode(struct gc4023 *gc4023, int fps)
+{
+	const struct gc4023_mode *mode = NULL;
+	const struct gc4023_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < gc4023->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc4023->cur_mode->width &&
+		    mode->height == gc4023->cur_mode->height &&
+		    mode->hdr_mode == gc4023->cur_mode->hdr_mode &&
+		    mode->bus_fmt == gc4023->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc4023_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc4023 *gc4023 = to_gc4023(sd);
+	const struct gc4023_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc4023->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc4023_find_mode(gc4023, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc4023->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc4023->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc4023->vblank, vblank_def,
+				 GC4023_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc4023->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -794,7 +864,8 @@ static long gc4023_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < gc4023->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == gc4023->cur_mode->bus_fmt) {
 				gc4023->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1239,6 +1310,7 @@ static const struct v4l2_subdev_core_ops gc4023_core_ops = {
 static const struct v4l2_subdev_video_ops gc4023_video_ops = {
 	.s_stream = gc4023_s_stream,
 	.g_frame_interval = gc4023_g_frame_interval,
+	.s_frame_interval = gc4023_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc4023_pad_ops = {
@@ -1256,6 +1328,14 @@ static const struct v4l2_subdev_ops gc4023_subdev_ops = {
 	.video	= &gc4023_video_ops,
 	.pad	= &gc4023_pad_ops,
 };
+
+static void gc4023_modify_fps_info(struct gc4023 *gc4023)
+{
+	const struct gc4023_mode *mode = gc4023->cur_mode;
+
+	gc4023->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc4023->cur_vts;
+}
 
 static int gc4023_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1304,6 +1384,7 @@ static int gc4023_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc4023_write_reg(gc4023->client, GC4023_REG_VTS_L,
 					GC4023_REG_VALUE_08BIT,
 					gc4023->cur_vts & 0xff);
+		gc4023_modify_fps_info(gc4023);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = gc4023_enable_test_pattern(gc4023, ctrl->val);

@@ -285,6 +285,10 @@ static const struct sc1346_mode supported_modes[] = {
 	}
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	SC1346_LINK_FREQ_375
 };
@@ -545,11 +549,9 @@ static int sc1346_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc1346 *sc1346 = to_sc1346(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc1346->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -600,6 +602,68 @@ static int sc1346_g_frame_interval(struct v4l2_subdev *sd,
 	else
 		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct sc1346_mode *sc1346_find_mode(struct sc1346 *sc1346, int fps)
+{
+	const struct sc1346_mode *mode = NULL;
+	const struct sc1346_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc1346->cur_mode->width &&
+		    mode->height == sc1346->cur_mode->height &&
+		    mode->hdr_mode == sc1346->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc1346->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc1346_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc1346 *sc1346 = to_sc1346(sd);
+	const struct sc1346_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (sc1346->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc1346_find_mode(sc1346, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc1346->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc1346->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc1346->vblank, vblank_def,
+				 SC1346_VTS_MAX - mode->height,
+				 1, vblank_def);
+	sc1346->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -658,7 +722,8 @@ static long sc1346_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == sc1346->cur_mode->bus_fmt) {
 				sc1346->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1064,6 +1129,7 @@ static const struct v4l2_subdev_core_ops sc1346_core_ops = {
 static const struct v4l2_subdev_video_ops sc1346_video_ops = {
 	.s_stream = sc1346_s_stream,
 	.g_frame_interval = sc1346_g_frame_interval,
+	.s_frame_interval = sc1346_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc1346_pad_ops = {

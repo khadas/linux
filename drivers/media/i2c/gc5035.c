@@ -147,6 +147,7 @@ struct regval {
 };
 
 struct gc5035_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -191,6 +192,8 @@ struct gc5035 {
 	struct gc5035_otp_info *otp;
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_gc5035(sd) container_of(sd, struct gc5035, subdev)
@@ -392,6 +395,7 @@ static const struct regval gc5035_2592x1944_regs[] = {
 
 static const struct gc5035_mode supported_modes_2lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 2592,
 		.height = 1944,
 		.max_fps = {
@@ -403,6 +407,10 @@ static const struct gc5035_mode supported_modes_2lane[] = {
 		.vts_def = 0x07D0,
 		.reg_list = gc5035_2592x1944_regs,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 static const struct gc5035_mode *supported_modes;
@@ -519,7 +527,7 @@ static int gc5035_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&gc5035->mutex);
 
 	mode = gc5035_find_best_fit(gc5035, fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -539,6 +547,7 @@ static int gc5035_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc5035->vblank, vblank_def,
 			GC5035_VTS_MAX - mode->height,
 			1, vblank_def);
+		gc5035->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc5035->mutex);
@@ -564,7 +573,7 @@ static int gc5035_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&gc5035->mutex);
@@ -576,9 +585,9 @@ static int gc5035_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -592,7 +601,7 @@ static int gc5035_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= gc5035->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
+	if (fse->code != gc5035->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -609,7 +618,72 @@ static int gc5035_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc5035 *gc5035 = to_gc5035(sd);
 	const struct gc5035_mode *mode = gc5035->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc5035->streaming)
+		fi->interval = gc5035->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc5035_mode *gc5035_find_mode(struct gc5035 *gc5035, int fps)
+{
+	const struct gc5035_mode *mode = NULL;
+	const struct gc5035_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < gc5035->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc5035->cur_mode->width &&
+		    mode->height == gc5035->cur_mode->height &&
+		    mode->bus_fmt == gc5035->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc5035_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc5035 *gc5035 = to_gc5035(sd);
+	const struct gc5035_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc5035->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc5035_find_mode(gc5035, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc5035->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc5035->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc5035->vblank, vblank_def,
+				 GC5035_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc5035->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -952,7 +1026,7 @@ static int gc5035_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&gc5035->mutex);
@@ -991,8 +1065,7 @@ static int gc5035_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= gc5035->cfg_num)
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SRGGB10_1X10;
-
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1021,6 +1094,7 @@ static const struct v4l2_subdev_core_ops gc5035_core_ops = {
 static const struct v4l2_subdev_video_ops gc5035_video_ops = {
 	.s_stream = gc5035_s_stream,
 	.g_frame_interval = gc5035_g_frame_interval,
+	.s_frame_interval = gc5035_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc5035_pad_ops = {
@@ -1134,6 +1208,14 @@ static int gc5035_set_gain_reg(struct gc5035 *gc5035, u32 a_gain)
 	return ret;
 }
 
+static void gc5035_modify_fps_info(struct gc5035 *gc5035)
+{
+	const struct gc5035_mode *mode = gc5035->cur_mode;
+
+	gc5035->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc5035->cur_vts;
+}
+
 static int gc5035_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc5035 *gc5035 = container_of(ctrl->handler,
@@ -1175,6 +1257,8 @@ static int gc5035_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc5035_write_reg(gc5035->client,
 			GC5035_REG_VTS_L,
 			(ctrl->val + gc5035->cur_mode->height) & 0xff);
+		gc5035->cur_vts = ctrl->val + gc5035->cur_mode->height;
+		gc5035_modify_fps_info(gc5035);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = gc5035_set_test_pattern(gc5035, ctrl->val);

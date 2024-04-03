@@ -245,6 +245,7 @@ struct imx415 {
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	struct cam_sw_info *cam_sw_inf;
+	struct v4l2_fract	cur_fps;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -1339,6 +1340,15 @@ static const struct imx415_mode supported_modes_2lane[] = {
 	},
 };
 
+static const u32 bus_code_2lane[] = {
+	MEDIA_BUS_FMT_SGBRG12_1X12,
+};
+
+static const u32 bus_code_4lane[] = {
+	MEDIA_BUS_FMT_SGBRG10_1X10,
+	MEDIA_BUS_FMT_SGBRG12_1X12,
+};
+
 static const s64 link_freq_items[] = {
 	MIPI_FREQ_297M,
 	MIPI_FREQ_446M,
@@ -1518,6 +1528,7 @@ static int imx415_set_fmt(struct v4l2_subdev *sd,
 			mode->bpp * 2 * lanes;
 		__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 					 pixel_rate);
+		imx415->cur_fps = mode->max_fps;
 	}
 	dev_info(&imx415->client->dev, "%s: mode->mipi_freq_idx(%d)",
 		 __func__, mode->mipi_freq_idx);
@@ -1562,11 +1573,17 @@ static int imx415_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx415 *imx415 = to_imx415(sd);
+	u8 lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
-	if (code->index >= imx415->cfg_num)
-		return -EINVAL;
-
-	code->code = imx415->supported_modes[code->index].bus_fmt;
+	if (lanes == 2) {
+		if (code->index >= ARRAY_SIZE(bus_code_2lane))
+			return -EINVAL;
+		code->code = bus_code_2lane[code->index];
+	} else {
+		if (code->index >= ARRAY_SIZE(bus_code_4lane))
+			return -EINVAL;
+		code->code = bus_code_4lane[code->index];
+	}
 
 	return 0;
 }
@@ -1597,7 +1614,81 @@ static int imx415_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx415 *imx415 = to_imx415(sd);
 	const struct imx415_mode *mode = imx415->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (imx415->streaming)
+		fi->interval = imx415->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct imx415_mode *imx415_find_mode(struct imx415 *imx415, int fps)
+{
+	const struct imx415_mode *mode = NULL;
+	const struct imx415_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < imx415->cfg_num; i++) {
+		mode = &imx415->supported_modes[i];
+		if (mode->width == imx415->cur_mode->width &&
+		    mode->height == imx415->cur_mode->height &&
+		    mode->bus_fmt == imx415->cur_mode->bus_fmt &&
+		    mode->hdr_mode == imx415->cur_mode->hdr_mode) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int imx415_s_frame_interval(struct v4l2_subdev *sd,
+					 struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx415 *imx415 = to_imx415(sd);
+	const struct imx415_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int fps;
+
+	if (imx415->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = imx415_find_mode(imx415, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	imx415->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(imx415->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(imx415->vblank, vblank_def,
+				 IMX415_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(imx415->link_freq,
+			   mode->mipi_freq_idx);
+	imx415->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -2093,6 +2184,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < imx415->cfg_num; i++) {
 			if (w == imx415->supported_modes[i].width &&
 			    h == imx415->supported_modes[i].height &&
+			    imx415->supported_modes[i].bus_fmt == imx415->cur_mode->bus_fmt &&
 			    imx415->supported_modes[i].hdr_mode == hdr->hdr_mode) {
 				dev_info(&imx415->client->dev, "set hdr cfg, set mode to %d\n", i);
 				imx415_change_mode(imx415, &imx415->supported_modes[i]);
@@ -2129,6 +2221,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				mode->bpp * 2 * lanes;
 			__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 						 pixel_rate);
+			imx415->cur_fps = mode->max_fps;
 			mutex_unlock(&imx415->mutex);
 		}
 		break;
@@ -2687,6 +2780,7 @@ static const struct v4l2_subdev_core_ops imx415_core_ops = {
 static const struct v4l2_subdev_video_ops imx415_video_ops = {
 	.s_stream = imx415_s_stream,
 	.g_frame_interval = imx415_g_frame_interval,
+	.s_frame_interval = imx415_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx415_pad_ops = {
@@ -2704,6 +2798,14 @@ static const struct v4l2_subdev_ops imx415_subdev_ops = {
 	.video	= &imx415_video_ops,
 	.pad	= &imx415_pad_ops,
 };
+
+static void imx415_modify_fps_info(struct imx415 *imx415)
+{
+	const struct imx415_mode *mode = imx415->cur_mode;
+
+	imx415->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      imx415->cur_vts;
+}
 
 static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -2787,6 +2889,7 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx415_write_reg(imx415->client, IMX415_VTS_REG_H,
 				       IMX415_REG_VALUE_08BIT,
 				       IMX415_FETCH_VTS_H(vts));
+		imx415_modify_fps_info(imx415);
 		dev_dbg(&client->dev, "set vblank 0x%x vts %d\n",
 			ctrl->val, vts);
 		break;

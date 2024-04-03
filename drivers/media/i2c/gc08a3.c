@@ -106,6 +106,7 @@ struct regval {
 };
 
 struct gc08a3_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -151,6 +152,8 @@ struct gc08a3 {
 	const char		*len_name;
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_gc08a3(sd) container_of(sd, struct gc08a3, subdev)
@@ -1049,6 +1052,7 @@ static const struct regval gc08a3_1280x800_regs_4lane[] = {
 
 static const struct gc08a3_mode supported_modes_4lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3264,
 		.height = 2448,
 		.max_fps = {
@@ -1064,6 +1068,7 @@ static const struct gc08a3_mode supported_modes_4lane[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1280,
 		.height = 800,
 		.max_fps = {
@@ -1079,6 +1084,7 @@ static const struct gc08a3_mode supported_modes_4lane[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1280,
 		.height = 720,
 		.max_fps = {
@@ -1093,6 +1099,10 @@ static const struct gc08a3_mode supported_modes_4lane[] = {
 		.mipi_freq_idx = 0,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -1231,6 +1241,7 @@ static int gc08a3_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 		__v4l2_ctrl_s_ctrl(gc08a3->link_freq,
 				   mode->mipi_freq_idx);
+		gc08a3->cur_fps = mode->max_fps;
 	}
 	dev_info(&gc08a3->client->dev, "%s: mode->mipi_freq_idx(%d)",
 		 __func__, mode->mipi_freq_idx);
@@ -1270,9 +1281,9 @@ static int gc08a3_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = GC08A3_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1303,7 +1314,72 @@ static int gc08a3_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc08a3 *gc08a3 = to_gc08a3(sd);
 	const struct gc08a3_mode *mode = gc08a3->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc08a3->streaming)
+		fi->interval = gc08a3->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc08a3_mode *gc08a3_find_mode(struct gc08a3 *gc08a3, int fps)
+{
+	const struct gc08a3_mode *mode = NULL;
+	const struct gc08a3_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < gc08a3->cfg_num; i++) {
+		mode = &gc08a3->support_modes[i];
+		if (mode->width == gc08a3->cur_mode->width &&
+		    mode->height == gc08a3->cur_mode->height &&
+		    mode->bus_fmt == gc08a3->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc08a3_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc08a3 *gc08a3 = to_gc08a3(sd);
+	const struct gc08a3_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc08a3->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc08a3_find_mode(gc08a3, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc08a3->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc08a3->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc08a3->vblank, vblank_def,
+				 GC08A3_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc08a3->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1752,6 +1828,7 @@ static const struct v4l2_subdev_core_ops gc08a3_core_ops = {
 static const struct v4l2_subdev_video_ops gc08a3_video_ops = {
 	.s_stream = gc08a3_s_stream,
 	.g_frame_interval = gc08a3_g_frame_interval,
+	.s_frame_interval = gc08a3_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc08a3_pad_ops = {
@@ -1809,6 +1886,14 @@ static int gc08a3_set_gain_reg(struct gc08a3 *gc08a3, u32 a_gain)
 	return ret;
 }
 
+static void gc08a3_modify_fps_info(struct gc08a3 *gc08a3)
+{
+	const struct gc08a3_mode *mode = gc08a3->cur_mode;
+
+	gc08a3->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc08a3->cur_vts;
+}
+
 static int gc08a3_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc08a3 *gc08a3 = container_of(ctrl->handler,
@@ -1852,6 +1937,8 @@ static int gc08a3_set_ctrl(struct v4l2_ctrl *ctrl)
 					GC08A3_REG_VTS_L,
 					(ctrl->val + gc08a3->cur_mode->height)
 					& 0xff);
+		gc08a3->cur_vts = ctrl->val + gc08a3->cur_mode->height;
+		gc08a3_modify_fps_info(gc08a3);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
