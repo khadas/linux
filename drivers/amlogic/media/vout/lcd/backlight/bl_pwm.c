@@ -620,6 +620,12 @@ static unsigned int bl_pwm_set_mapping_cus(struct bl_pwm_config_s *bl_pwm, unsig
 			levelout = bl_do_div((levelin * (p4 - p0)), tp_ui) + p0;
 	}
 
+	if (levelout > p4) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("levelout %d is over p4 %d", levelout, p4);
+		levelout = p4;
+	}
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
 		BLPR("cus curve: %d %d %d %d %d, tp=%d_%d, levelin=%d, levelout=%d, en=%d",
 			p0, p1, p2, p3, p4, tp, tp_ui, level, levelout, en);
