@@ -824,7 +824,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	struct rkcif_stream *stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
-	unsigned long flags, buffree_flags;
+	unsigned long flags, buffree_flags, hdr_lock_flags;
 	u32 diff_time = 1000000;
 	u32 early_time = 0;
 	bool is_free = false;
@@ -899,9 +899,16 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			if (!stream->dma_en) {
 				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(stream, true);
-				cif_dev->sensor_work.on = 1;
-				rkcif_dphy_quick_stream(stream->cifdev, cif_dev->sensor_work.on);
-				schedule_work(&cif_dev->sensor_work.work);
+				spin_lock_irqsave(&cif_dev->hdr_lock, hdr_lock_flags);
+				if (cif_dev->is_sensor_off) {
+					cif_dev->is_sensor_off = false;
+					spin_unlock_irqrestore(&cif_dev->hdr_lock, hdr_lock_flags);
+					cif_dev->sensor_work.on = 1;
+					rkcif_dphy_quick_stream(stream->cifdev, cif_dev->sensor_work.on);
+					schedule_work(&cif_dev->sensor_work.work);
+				} else {
+					spin_unlock_irqrestore(&cif_dev->hdr_lock, hdr_lock_flags);
+				}
 			}
 		}
 		if (cif_dev->rdbk_debug) {

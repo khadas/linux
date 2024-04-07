@@ -930,6 +930,7 @@ struct rkcif_device {
 	bool				is_toisp_reset;
 	bool				use_hw_interlace;
 	bool				is_stop_skip;
+	bool				is_sensor_off;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;

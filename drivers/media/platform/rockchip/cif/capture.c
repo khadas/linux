@@ -4451,6 +4451,7 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 	unsigned long flags;
 	int frame_phase = 0;
 	bool is_dual_update_buf = false;
+	int on = 1;
 
 	if (stream->state != RKCIF_STATE_STREAMING ||
 	    rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT ||
@@ -4612,8 +4613,19 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 			  __func__, __LINE__, stream->state, stream->curr_buf, stream->next_buf);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
-	if (stream->to_en_dma)
+	if (stream->to_en_dma) {
 		rkcif_enable_dma_capture(stream, true);
+		spin_lock_irqsave(&dev->hdr_lock, flags);
+		if (dev->is_sensor_off) {
+			dev->is_sensor_off = false;
+			spin_unlock_irqrestore(&dev->hdr_lock, flags);
+			rkcif_dphy_quick_stream(dev, on);
+			v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+					 RKMODULE_SET_QUICK_STREAM, &on);
+		} else {
+			spin_unlock_irqrestore(&dev->hdr_lock, flags);
+		}
+	}
 }
 
 /*
@@ -10582,6 +10594,9 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				stream->cifdev->sensor_work.on = 0;
 				schedule_work(&stream->cifdev->sensor_work.work);
 				stream->is_single_cap = false;
+				spin_lock_irqsave(&stream->cifdev->hdr_lock, flags);
+				stream->cifdev->is_sensor_off = true;
+				spin_unlock_irqrestore(&stream->cifdev->hdr_lock, flags);
 			}
 			if (stream->cur_skip_frame &&
 			    (stream->cifdev->hdr.hdr_mode == NO_HDR ||
@@ -11742,8 +11757,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					 stream->dma_en);
 				rkcif_update_stream_rockit(cif_dev, stream, mipi_id);
 			}
-			if ((stream->is_single_cap || stream->lack_buf_cnt == 2) &&
-			    !stream->cur_skip_frame) {
+			if (stream->is_single_cap && !stream->cur_skip_frame) {
 				if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
 					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
 				else if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
@@ -11758,7 +11772,18 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					rkcif_dphy_quick_stream(stream->cifdev, on);
 					cif_dev->sensor_work.on = 0;
 					schedule_work(&cif_dev->sensor_work.work);
+					spin_lock_irqsave(&cif_dev->hdr_lock, flags);
+					cif_dev->is_sensor_off = true;
+					spin_unlock_irqrestore(&cif_dev->hdr_lock, flags);
 				}
+			} else if (stream->lack_buf_cnt == 2 && !stream->cur_skip_frame) {
+				if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+				else if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+					stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+				else if (stream->dma_en & RKCIF_DMAEN_BY_ROCKIT)
+					stream->to_stop_dma = RKCIF_DMAEN_BY_ROCKIT;
+				rkcif_stop_dma_capture(stream);
 			}
 
 			if (cif_dev->chip_id >= CHIP_RV1106_CIF)
