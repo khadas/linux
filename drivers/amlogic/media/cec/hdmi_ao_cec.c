@@ -2363,8 +2363,8 @@ static void cec_func_init(unsigned int cec_func_config)
 
 	if (!(cec_func_config & CEC_FUNC_CFG_CEC_ON))
 		cec_func &= ~(CEC_FUNC_CFG_CEC_ON);
-	if (!(cec_func_config & CEC_FUNC_CFG_AUTO_POWER_ON))
-		cec_func &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
+//	if (!(cec_func_config & CEC_FUNC_CFG_AUTO_POWER_ON))
+//		cec_func &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
 	cec_config(cec_func, 1);
 }
 
