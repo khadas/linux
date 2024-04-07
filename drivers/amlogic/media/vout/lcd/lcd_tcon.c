@@ -1110,6 +1110,20 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+int lcd_tcon_top_init(struct aml_lcd_drv_s *pdrv)
+{
+	int ret = lcd_tcon_valid_check();
+
+	if (ret)
+		return ret;
+
+	ret = -1;
+	if (lcd_tcon_conf->tcon_top_init)
+		ret = lcd_tcon_conf->tcon_top_init(pdrv);
+
+	return ret;
+}
+
 void lcd_tcon_dbg_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming)
 {
 	int ret;
@@ -3328,6 +3342,7 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_tl1,
 	.tcon_init_table_pre_proc = NULL,
 	.tcon_global_reset = NULL,
+	.tcon_top_init = lcd_tcon_top_set_tl1,
 	.tcon_enable = lcd_tcon_enable_tl1,
 	.tcon_disable = lcd_tcon_disable_tl1,
 	.tcon_reload = NULL,
@@ -3377,6 +3392,7 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
+	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
@@ -3422,6 +3438,7 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
+	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
@@ -3471,6 +3488,7 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
+	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = lcd_tcon_reload_t3,
@@ -3520,6 +3538,7 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
+	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = lcd_tcon_reload_t3,

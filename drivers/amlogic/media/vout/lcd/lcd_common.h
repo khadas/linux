@@ -230,6 +230,7 @@ int lcd_tcon_od_set(struct aml_lcd_drv_s *pdrv, int flag);
 int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
+int lcd_tcon_top_init(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);

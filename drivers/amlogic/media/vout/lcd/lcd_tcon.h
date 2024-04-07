@@ -69,6 +69,7 @@ struct lcd_tcon_config_s {
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_reload_pre)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_reload)(struct aml_lcd_drv_s *pdrv);
+	int (*tcon_top_init)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_check)(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
@@ -270,6 +271,8 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_top_set_tl1(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv);
 
 int lcd_tcon_init_setting_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
 		unsigned char *core_reg_table);

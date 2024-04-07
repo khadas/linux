@@ -125,12 +125,14 @@ int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv)
 		lcd_vbyone_power_on_wait_stable(pdrv);
 		break;
 	case LCD_MLVDS:
+		lcd_tcon_top_init(pdrv);
 		lcd_mlvds_dphy_set(pdrv, 1);
 		lcd_tcon_enable(pdrv);
 		lcd_mlvds_pinmux_set(pdrv, 1);
 		lcd_phy_set(pdrv, LCD_PHY_ON);
 		break;
 	case LCD_P2P:
+		lcd_tcon_top_init(pdrv);
 		lcd_p2p_pinmux_set(pdrv, 1);
 		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_p2p_dphy_set(pdrv, 1);
