@@ -45,6 +45,7 @@
 #endif
 
 #include <soc/rockchip/rockchip_dmc.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/linux/videodev2.h>
 #include "../drm_crtc_internal.h"
@@ -1701,6 +1702,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 	int sys_status = drm_crtc_index(crtc) ?
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
+	unsigned long status;
 
 	WARN_ON(vop->event);
 
@@ -1764,6 +1766,9 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop_unlock(vop);
 
 	rockchip_clear_system_status(sys_status);
+	status = rockchip_get_system_status();
+	if (!(status & SYS_STATUS_LCDC0) && !(status & SYS_STATUS_LCDC1))
+		rockchip_request_early_suspend();
 
 out:
 	if (crtc->state->event && !crtc->state->active) {
@@ -3549,6 +3554,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	rockchip_set_system_status(sys_status);
+	rockchip_request_late_resume();
 	vop_lock(vop);
 	DRM_DEV_INFO(vop->dev, "Update mode to %dx%d%s%d, type: %d\n",
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
