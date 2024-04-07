@@ -5117,7 +5117,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 		props.max_brightness = 255;
 
 		panel->base.backlight =
-			devm_backlight_device_register(dev, "dcs-backlight",
+			devm_backlight_device_register(dev, dev_name(dev),
 						       dev, panel, &dcs_bl_ops,
 						       &props);
 		if (IS_ERR(panel->base.backlight)) {
