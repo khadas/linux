@@ -4901,23 +4901,31 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		if (!vpstate->afbc_en &&
 		    (fb->format->format == DRM_FORMAT_XRGB2101010 ||
 		     fb->format->format == DRM_FORMAT_XBGR2101010)) {
-			DRM_ERROR("RK3588 unsupported linear XRGB2101010 at %s\n", win->name);
+			DRM_ERROR("Unsupported linear XRGB2101010 at %s\n", win->name);
+			return -EINVAL;
+		}
+
+		if (vop2_cluster_window(win) && !vpstate->afbc_en && fb->format->is_yuv) {
+			DRM_ERROR("Unsupported linear yuv format at %s\n", win->name);
 			return -EINVAL;
 		}
 	}
 
-	if (vp->vop2->version > VOP_VERSION_RK3568) {
-		if (vop2_cluster_window(win) && !vpstate->afbc_en && fb->format->is_yuv && !is_vop3(vop2)) {
-			DRM_ERROR("Unsupported linear yuv format at %s\n", win->name);
-			return -EINVAL;
-		}
+	/* Cluster can't support xmirror/rotate90/rotate270 when it isn't fbc format. */
+	if (vop2_cluster_window(win) && !vpstate->afbc_en &&
+	    (state->rotation & (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270))) {
+		DRM_ERROR("Unsupported linear rotation(0x%x) format at %s\n",
+			  state->rotation, win->name);
+		return -EINVAL;
+	}
 
-		if (vop2_cluster_window(win) && !vpstate->afbc_en &&
-		    (win->supported_rotations & state->rotation)) {
-			DRM_ERROR("Unsupported linear rotation(%d) format at %s\n",
-				  state->rotation, win->name);
-			return -EINVAL;
-		}
+	/* Cluster can't support xmirror/ymirror/rotate90/rotate270 when it is tiled format. */
+	if (vop2_cluster_window(win) && vpstate->tiled_en &&
+	    (state->rotation & (DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y |
+				DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_270))) {
+		DRM_ERROR("Unsupported x/y mirror or rotation(%d) tiled format at %s\n",
+			  state->rotation, win->name);
+		return -EINVAL;
 	}
 
 	if (win->feature & WIN_FEATURE_CLUSTER_SUB) {
