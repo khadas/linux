@@ -13035,7 +13035,6 @@ static int _video_hw_init(void)
 
 	WRITE_VCBUS_REG(VPP_PREBLEND_VD1_H_START_END, 4096);
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
-
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		/* fifo max size on txl :128*3=384[0x180]  */
@@ -13647,8 +13646,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 void video_resume_hw_recovery(void)
 {
-	_video_hw_init();
-	vpp_probe_en_set(1);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		_video_hw_init();
+		vpp_probe_en_set(1);
+	}
 	vd_layer[0].property_changed = true;
 	vd_layer[1].property_changed = true;
 	vd_layer[2].property_changed = true;
