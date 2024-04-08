@@ -296,15 +296,11 @@
 	status = "okay";
 };
 
-&dp0_in_vp2 {
+&dp0 {
 	status = "okay";
 };
 
-&dp1_in_vp2 {
-	status = "okay";
-};
-
-&dp2_in_vp2 {
+&dp0_in_vp0 {
 	status = "okay";
 };
 
@@ -430,20 +426,8 @@
 
 };
 
-&dsi_in_vp0 {
-	status = "disabled";
-};
-
 &dsi_in_vp1 {
 	status = "okay";
-};
-
-&dsi_in_vp2 {
-	status = "disabled";
-};
-
-&dsi_in_vopl {
-	status = "disabled";
 };
 
 &gpu {
