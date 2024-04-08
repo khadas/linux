@@ -5208,6 +5208,9 @@ static int dw_dp_get_port_node(struct dw_dp *dp)
 		dp->mst_enc[i].port_node = port_node;
 	}
 
+	if (!of_device_is_available(dp->mst_enc[0].port_node))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -5267,6 +5270,9 @@ static int dw_dp_audio_init(struct dw_dp *dp)
 	dp->mst_enc[0].audio = audio;
 
 	for (i = 1; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
+
 		audio = devm_kzalloc(dp->dev, sizeof(*audio), GFP_KERNEL);
 		if (!audio)
 			return -ENOMEM;
