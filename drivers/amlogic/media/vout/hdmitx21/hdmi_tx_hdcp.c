@@ -70,6 +70,7 @@ unsigned long vid_mute_ms = 30;
 
 static bool hdcp_schedule_work(struct hdcp_work *work, u32 delay_ms, u32 period_ms);
 static bool hdcp_stop_work(struct hdcp_work *work);
+static bool hdcp_stop_work_sync(struct hdcp_work *work);
 static void hdcptx_update_failures(struct hdcp_t *p_hdcp, enum hdcp_fail_types_t types);
 static bool hdcp1x_ds_ksv_fifo_ready(struct hdcp_t *p_hdcp, u8 int_reg[]);
 static void hdcp2x_auth_stop(struct hdcp_t *p_hdcp);
@@ -205,6 +206,52 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 	mutex_unlock(&hdcp_mutex);
 }
 
+/* use hdcp_stop_work_sync outside of hdcp auth whandlers */
+static void hdcp_cancel_works(struct hdcp_t *p_hdcp)
+{
+	u8 stop_work_max = 3;
+	bool hdcp_work_scheduling = false;
+
+	if (!p_hdcp)
+		return;
+	/* two note points:
+	 * 1.wait hdcp work stop finish in case there's asynchronous problem:
+	 * for example: hdcp work stop is called, and then hdcp HW is disabled
+	 * if the hdcp work is not canceled is sync mode, it may be queued again
+	 * after hdcp HW is disabled, and HDCP HW may be enabled again and
+	 * cause some abnormal DDC issue.
+	 * 2.one hdcp work may queue another work, such as hdcp_auth_fail_retry
+	 * work will queue hdcp_rcv_auth and ddc_check_nak again, and hdcp_rcv_auth
+	 * or ddc_check_nak may queue hdcp_auth_fail_retry work again. so need
+	 * to double confirm all hdcp related work is disabled
+	 */
+	do {
+		hdcp_work_scheduling = false;
+		/* if work is pending in the queue, it means that it can be canceled
+		 * cleanly and won't schedule other works, otherwise there may be
+		 * two cases: 1. work is now under scheduling, 2.work is not queued
+		 * but there's no kernel API to get whether it's case 1 or 2
+		 * for case 1, it may schedule other new hdcp works, and need to cancel
+		 * new works again. As delay works need time to schedule, so we assume
+		 * that the new queued works can be canceled by twice stop work action.
+		 */
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_hdcp_start))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_hdcp_rcv_auth))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_hdcp_rpt_auth))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_hdcp_auth_fail_retry))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_bksv_poll_done))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_ddc_check_nak))
+			hdcp_work_scheduling = true;
+		if (!hdcp_stop_work_sync(&p_hdcp->timer_update_csm))
+			hdcp_work_scheduling = true;
+	} while (--stop_work_max > 0 && hdcp_work_scheduling);
+}
+
 /* when disable signal, should also disable hdcp
  * there're below cases need to disable hdcp:
  * 1.suspend, 2.before switch mode, 3.plug out
@@ -218,6 +265,7 @@ void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)
 	cancel_delayed_work(&hdev->work_up_hdcp_timeout);
 	cancel_delayed_work(&hdev->work_start_hdcp);
 	if (hdev->hdcp_mode != 0) {
+		hdcp_cancel_works(hdev->am_hdcp);
 		hdev->hdcp_mode = 0;
 		hdcp_mode_set(0);
 		mdelay(10);
@@ -1603,11 +1651,27 @@ static bool hdcp_schedule_work(struct hdcp_work *work, u32 delay_ms, u32 period_
 		return queue_delayed_work(p_hdcp->hdcp_wq, &work->dwork, period_ms);
 }
 
+/* return true if work was pending and canceled, false otherwise
+ * can't use cancel_delayed_work_sync in hdcptx_reset, as it may
+ * lead to dead wait, for example: hdcp_check_update_whandler will
+ * call hdcptx_reset(and then will call hdcp_stop_work), as a result
+ * hdcp_check_update_whandler will never exit
+ */
 static bool hdcp_stop_work(struct hdcp_work *work)
 {
-	cancel_delayed_work(&work->dwork);
+	bool ret = cancel_delayed_work(&work->dwork);
+
 	pr_hdcp_info(L_2, "hdcptx: stop %s\n", work->name);
-	return 0;
+	return ret;
+}
+
+/* return true if work was pending, false otherwise */
+static bool hdcp_stop_work_sync(struct hdcp_work *work)
+{
+	bool ret = cancel_delayed_work_sync(&work->dwork);
+
+	pr_hdcp_info(L_2, "hdcptx: stop %s in sync\n", work->name);
+	return ret;
 }
 
 static void hdcptx_auth_start(struct hdcp_t *p_hdcp)
