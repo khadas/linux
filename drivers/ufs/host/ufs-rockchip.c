@@ -306,6 +306,12 @@ static int ufs_rockchip_rk3576_phy_init(struct ufs_hba *hba)
 	ufs_sys_writel(host->mphy_base, 0x18, 0x1B0);
 	ufs_sys_writel(host->mphy_base, 0x18, 0x2F0);
 
+	ufs_sys_writel(host->mphy_base, 0x03, 0x128);
+	ufs_sys_writel(host->mphy_base, 0x03, 0x268);
+
+	ufs_sys_writel(host->mphy_base, 0x20, 0x12C);
+	ufs_sys_writel(host->mphy_base, 0x20, 0x26C);
+
 	ufs_sys_writel(host->mphy_base, 0xC0, 0x120);
 	ufs_sys_writel(host->mphy_base, 0xC0, 0x260);
 
