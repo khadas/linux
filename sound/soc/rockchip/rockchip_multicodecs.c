@@ -309,21 +309,12 @@ static int mc_spk_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget mc_dapm_widgets[] = {
-
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_HP("Headphone", mc_hp_event),
+	SND_SOC_DAPM_SPK("Speaker", mc_spk_event),
 	SND_SOC_DAPM_MIC("Main Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SUPPLY("Speaker Power",
-			    SND_SOC_NOPM, 0, 0,
-			    mc_spk_event,
-			    SND_SOC_DAPM_POST_PMU |
-			    SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_SUPPLY("Headphone Power",
-			    SND_SOC_NOPM, 0, 0,
-			    mc_hp_event,
-			    SND_SOC_DAPM_POST_PMU |
-			    SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Headphone Power", SND_SOC_NOPM, 0, 0, NULL, 0),
 };
 
 static int mc_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
