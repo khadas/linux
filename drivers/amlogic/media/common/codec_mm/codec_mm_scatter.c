@@ -508,7 +508,7 @@ static int codec_mm_set_slot_in_hash(struct codec_mm_scatter_mgt *smgt,
 {
 	page_sid_type sid = SLOT_TO_SID(slot);
 
-	if (sid > MAX_SID) {
+	if (sid >= MAX_SID) {
 		ERR_LOG("ERROR sid %d", sid);
 		return -1;
 	}
