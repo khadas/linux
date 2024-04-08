@@ -55,5 +55,6 @@
 #define DMC_WAIT_MODE_VOP_LINE	(0x1 << 2)
 #define DMC_WAIT_MODE_VOP_AUTO	(0x1 << 3)
 #define DMC_WAIT_MODE_ISP_VBANK	(0x1 << 4)
+#define DMC_WAIT_MODE_EBC_VBANK	(0x1 << 5)
 
 #endif

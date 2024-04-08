@@ -8,9 +8,11 @@
 #if IS_REACHABLE(CONFIG_PCIEASPM_EXT)
 bool pcie_aspm_ext_is_rc_ep_l1ss_capable(struct pci_dev *child, struct pci_dev *parent);
 void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bool enable);
+bool pcie_aspm_ext_is_in_l1sub_state(struct pci_dev *pdev);
 #else
 static inline bool pcie_aspm_ext_is_rc_ep_l1ss_capable(struct pci_dev *child, struct pci_dev *parent) { return false; }
 static inline void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bool enable) {}
+static inline bool pcie_aspm_ext_is_in_l1sub_state(struct pci_dev *pdev) { return false; }
 #endif
 
 #endif

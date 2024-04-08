@@ -10055,10 +10055,9 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	}
 
 #ifdef BCMPCIE
-#if defined(CUSTOMER_HW_ROCKCHIP)
-	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
-		rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
-#endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */
+#if IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION)
+	rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
+#endif /* CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION */
 #endif /* BCMPCIE */
 
 #if defined(BCMPCIE)
