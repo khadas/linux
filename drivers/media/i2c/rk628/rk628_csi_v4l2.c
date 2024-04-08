@@ -660,19 +660,29 @@ static void rk628_csi1_cru_reset(struct v4l2_subdev *sd)
 	rk628_control_deassert(csi->rk628, RGU_CSI1);
 }
 
+static void rk628_mipi_txdata_reset(struct v4l2_subdev *sd)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	rk628_control_assert(csi->rk628, RGU_TXDATA);
+	rk628_control_assert(csi->rk628, RGU_TXBYTEHS);
+	usleep_range(1000, 1100);
+	rk628_control_deassert(csi->rk628, RGU_TXDATA);
+	rk628_control_deassert(csi->rk628, RGU_TXBYTEHS);
+}
+
 static void rk628_csi_soft_reset(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
 	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL0_IMD, 0x1);
-	usleep_range(1000, 1100);
-	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL0_IMD, 0x0);
-
-	if (csi->rk628->version >= RK628F_VERSION) {
+	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL0_IMD, 0x1);
-		usleep_range(1000, 1100);
+
+	rk628_mipi_txdata_reset(sd);
+	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL0_IMD, 0x0);
+	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_i2c_write(csi->rk628, CSITX1_SYS_CTRL0_IMD, 0x0);
-	}
 }
 
 static void enable_csitx(struct v4l2_subdev *sd)
