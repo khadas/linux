@@ -489,6 +489,7 @@ static struct clk_regmap t5d_gp0_pll_dco = {
 		.table = t5d_gp0_pll_table,
 		.init_regs = t5d_gp0_init_regs,
 		.init_count = ARRAY_SIZE(t5d_gp0_init_regs),
+		.flags = CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
