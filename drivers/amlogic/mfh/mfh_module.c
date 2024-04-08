@@ -114,16 +114,14 @@ static int __init mfh_reserve_res_setup(struct reserved_mem *rmem)
 RESERVEDMEM_OF_DECLARE(mfh_reserved, "amlogic, aml_mfh_reserve_mem",
 	mfh_reserve_res_setup);
 
-static void mfh_power_reset(int cpuid, bool power_off)
+static void mfh_power_reset(int cpuid)
 {
 	struct arm_smccc_res res = {0};
+	u32 id;
 
-	if (power_off)
-		arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, 0,
-			0, PWR_STOP, 0, 0, 0, &res);
-	else
-		arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, 0,
-			0, PWR_RESET, 0, 0, 0, &res);
+	id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V2_RESET, cpuid);
+	arm_smccc_smc(AMLOGIC_MFH_BOOTUP, id, 0,
+			0, 0, 0, 0, 0, &res);
 }
 
 static int mfh_load_firmware(struct mfh_struct *mfh_struct,
@@ -199,6 +197,7 @@ static int mfh_startup(struct mfh_struct *mfh_struct,
 	unsigned long clk_rate = 300 * 1000 * 1000;
 	phys_addr_t phy_addr = mfh_struct->base;
 	int cpuid = mfh_info->cpuid;
+	u32 id;
 	struct device *pd_dev = mfh_struct->deva;
 	int ret = 0;
 
@@ -225,11 +224,13 @@ static int mfh_startup(struct mfh_struct *mfh_struct,
 		ret = pm_runtime_get_sync(pd_dev);
 
 	if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO) {
-		arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, phy_addr,
-			AMLOGIC_M4_BANK, PWR_START, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V2_BOOT, cpuid);
+		arm_smccc_smc(AMLOGIC_MFH_BOOTUP, id, phy_addr,
+			AMLOGIC_M4_BANK, 0, 0, 0, 0, &res);
 	} else {
-		arm_smccc_smc(AMLOGIC_MFH_BOOTUP, mfh_struct->base,
-		mfh_struct->size, 0, 0, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V1_BOOT, cpuid);
+		arm_smccc_smc(AMLOGIC_MFH_BOOTUP, id, mfh_struct->base,
+		mfh_struct->size, 0, 0, 0, 0, &res);
 		devm_kfree(mfh_struct->p_dev, mfh_struct->vaddr);
 	}
 	return ret;
@@ -242,11 +243,13 @@ static int mfh_stop(struct mfh_struct *mfh_struct,
 	struct arm_smccc_res res = {0};
 	int cpuid;
 	int ret = 0;
+	u32 id;
 	struct device *pd_dev;
 
 	cpuid = mfh_info->cpuid;
-	arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid,
-			0, 0, PWR_STOP, 0, 0, 0, &res);
+	id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V2_RESET, cpuid);
+	arm_smccc_smc(AMLOGIC_MFH_BOOTUP, id,
+			0, 0, 0, 0, 0, 0, &res);
 	clk_disable_unprepare(clkm4);
 	/*disable power domain*/
 	pd_dev = cpuid == 0 ? mfh_struct->deva : mfh_struct->devb;
@@ -266,6 +269,7 @@ static long mfh_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	struct mfh_struct *mfh_struct = fp->private_data;
 	struct mfh_info mfh_info;
 	int ret = 0;
+	u32 id;
 	int cpuid = -1;
 
 	ret = copy_from_user((void *)&mfh_info,
@@ -281,7 +285,7 @@ static long mfh_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	switch (cmd) {
 	case MFH_FIRMWARE_START:
 		if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO) {
-			mfh_power_reset(cpuid, PWR_START);
+			mfh_power_reset(cpuid);
 			ret = mfh_load_firmware(mfh_struct, &mfh_info);
 			if (ret) {
 				pr_err("load firmware error\n");
@@ -292,13 +296,14 @@ static long mfh_miscdev_ioctl(struct file *fp, unsigned int cmd,
 			struct arm_smccc_res res = {0};
 
 			mfh_load_firmware(mfh_struct, &mfh_info);
-			arm_smccc_smc(AMLOGIC_MFH_BOOTUP, mfh_struct->base,
-			      mfh_struct->size, 0, 0, 0, 0, 0, &res);
+			id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V1_BOOT, cpuid);
+			arm_smccc_smc(AMLOGIC_MFH_BOOTUP, id, mfh_struct->base,
+			      mfh_struct->size, 0, 0, 0, 0, &res);
 			devm_kfree(mfh_struct->p_dev, mfh_struct->vaddr);
 		}
 	break;
 	case MFH_FIRMWARE_STOP:
-		mfh_power_reset(cpuid, PWR_STOP);
+		mfh_power_reset(cpuid);
 		mfh_stop(mfh_struct, &mfh_info);
 	break;
 	default:
@@ -576,7 +581,7 @@ void mfh_poweron(struct device *dev, int cpuid, bool poweron)
 		else
 			strncpy(mfh_info.name, "m4a.bin", 30);
 		if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO)
-			mfh_power_reset(cpuid, poweron);
+			mfh_power_reset(cpuid);
 		mfh_load_firmware(mfh_struct, &mfh_info);
 		mfh_startup(mfh_struct, &mfh_info);
 
@@ -584,7 +589,7 @@ void mfh_poweron(struct device *dev, int cpuid, bool poweron)
 		if (mfh_struct->health_reg[cpuid] && !mfh_struct->health_monitor_task)
 			create_health_monitor_task(mfh_struct);
 	} else {
-		mfh_power_reset(cpuid, poweron);
+		mfh_power_reset(cpuid);
 		mfh_stop(mfh_struct, &mfh_info);
 
 		clear_bit(cpuid, &mfh_struct->online);

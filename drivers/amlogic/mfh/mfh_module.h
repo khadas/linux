@@ -7,6 +7,13 @@
 #define __MFH_MODULE_H__
 
 void mfh_poweron(struct device *dev, int cpuid, bool poweron);
+/*soc:g12a/sm1*/
+#define SMC_SUBID_MFH_V1_BOOT	0x20
+/*soc:p1*/
+#define SMC_SUBID_MFH_V2_BOOT	0x21
+#define SMC_SUBID_MFH_V2_RESET	0x22
+#define SMC_SUBID_SHIFT		0x8
+#define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
 
 enum m4_index {
 	M4A = 0,
