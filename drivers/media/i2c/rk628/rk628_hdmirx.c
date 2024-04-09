@@ -71,7 +71,7 @@ static const char *bus_color_range_str[3] = {
 
 static const char *bus_color_space_str[8] = {
 	"xvYCC601", "xvYCC709", "sYCC601", "Adobe_YCC601",
-	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB_OR_YCbCr"
+	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB_OR_YCbCr", "RGB"
 };
 
 #define HDMIRX_GET_TMDSCLK_TIME		21
@@ -1540,9 +1540,11 @@ u8 rk628_hdmirx_get_color_space(struct rk628 *rk628)
 	C1_C0 = (val & COLORIMETRY_MASK) >> 14;
 	fmt = (val & VIDEO_FORMAT_MASK) >> 5;
 	if (fmt == HDMIRX_RGB888) {
-		(C1_C0 == 0) ?
-		(color_space = HDMIRX_RGB) :
-		(color_space = EC2_0);
+		if (EC2_0 == HDMIRX_ADOBE_RGB ||
+		    EC2_0 == HDMIRX_BT2020_RGB_OR_YCC)
+			color_space = EC2_0;
+		else
+			color_space = HDMIRX_RGB;
 	} else {
 		switch (C1_C0) {
 		case 0:
