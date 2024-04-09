@@ -74,6 +74,7 @@ static int sy7636a_thermal_probe(struct platform_device *pdev)
 
 static const struct platform_device_id sy7636a_thermal_id_table[] = {
 	{ "sy7636a-thermal", },
+	{ },
 };
 MODULE_DEVICE_TABLE(platform, sy7636a_thermal_id_table);
 
