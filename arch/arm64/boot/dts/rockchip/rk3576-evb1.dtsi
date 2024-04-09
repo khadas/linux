@@ -214,6 +214,10 @@
 	status = "okay";
 };
 
+&dp0_sound {
+	status = "okay";
+};
+
 /*
  * mipidcphy0 needs to be enabled
  * when dsi is enabled
@@ -531,6 +535,10 @@
 };
 
 &sdmmc {
+	status = "okay";
+};
+
+&spdif_tx3 {
 	status = "okay";
 };
 
