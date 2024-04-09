@@ -114,10 +114,15 @@ int evl_init_user_element(struct evl_element *e,
 
 void evl_destroy_element(struct evl_element *e);
 
+static inline bool __evl_get_element(struct evl_element *e)
+{
+	return refcount_inc_not_zero(&e->refs);
+}
+
 static inline void evl_get_element(struct evl_element *e)
 {
-	bool ret = refcount_inc_not_zero(&e->refs);
-	EVL_WARN_ON(CORE, !ret);
+	bool ret = !__evl_get_element(e);
+	EVL_WARN_ON(CORE, ret);
 }
 
 struct evl_element *
