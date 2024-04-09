@@ -742,6 +742,15 @@ static const struct dev_pm_ops amlogic_pcie_pm_ops = {
 				      amlogic_pcie_resume_noirq)
 };
 
+static void amlogic_pcie_shutdown(struct platform_device *pdev)
+{
+	struct amlogic_pcie *amlogic = platform_get_drvdata(pdev);
+
+	amlogic_pcie_deinit_phys(amlogic);
+
+	amlogic_pcie_disable_clocks(amlogic);
+}
+
 static const struct of_device_id amlogic_pcie_of_match[] = {
 	{ .compatible = "amlogic, amlogic-pcie-v3", },
 	{ .compatible = "amlogic,amlogic-pcie-v3", },
@@ -756,7 +765,9 @@ static struct platform_driver amlogic_pcie_driver = {
 		.pm = &amlogic_pcie_pm_ops,
 	},
 	.probe = amlogic_pcie_rc_probe,
+	.shutdown = amlogic_pcie_shutdown,
 };
+
 builtin_platform_driver(amlogic_pcie_driver);
 
 MODULE_AUTHOR("Amlogic Inc");
