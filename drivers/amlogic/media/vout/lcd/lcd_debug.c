@@ -548,8 +548,8 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	len += snprintf((buf + len), n,
 		"[%d]: driver version: %s\n"
 		"config_check_glb: %d, config_check_para: 0x%x, config_check_en: %d\n"
-		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
-		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
+		"panel_type: %s, chip: %d, mode: %s, status: 0x%x\n"
+		"viu_sel: %d, isr_cnt: %d, resume_type: %d\n"
 		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
 		"mute_state: %d, test_flag: 0x%x\n"
@@ -558,8 +558,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
 		pconf->propname, pdrv->data->chip_type,
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
-		pdrv->viu_sel, pdrv->vsync_cnt,
-		pdrv->resume_type, pdrv->resume_flag,
+		pdrv->viu_sel, pdrv->vsync_cnt, pdrv->resume_type,
 		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
 		pconf->timing.act_timing.frame_rate,
 		pdrv->fr_auto_policy, pconf->fr_auto_cus, pconf->custom_pinmux,
@@ -2161,23 +2160,6 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv)
 	lcd_vout_notify_mode_change(pdrv);
 }
 
-static void lcd_power_interface_ctrl(struct aml_lcd_drv_s *pdrv, int state)
-{
-	mutex_lock(&lcd_power_mutex);
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, state);
-	if (state) {
-		if (pdrv->status & LCD_STATUS_ENCL_ON) {
-			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
-			lcd_if_enable_retry(pdrv);
-		} else {
-			LCDERR("%s: can't power on when controller is off\n", __func__);
-		}
-	} else {
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
-	}
-	mutex_unlock(&lcd_power_mutex);
-}
-
 static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
@@ -2451,15 +2433,6 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		lcd_optical_info_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		kfree(print_buf);
-		break;
-	case 'p': /* power */
-		ret = sscanf(buf, "power %d", &temp);
-		if (ret == 1) {
-			lcd_power_interface_ctrl(pdrv, temp);
-		} else {
-			LCDERR("invalid data\n");
-			return -EINVAL;
-		}
 		break;
 	case 'v':
 		ret = sscanf(buf, "vout %d", &temp);
@@ -2843,12 +2816,14 @@ static ssize_t lcd_debug_enable_store(struct device *dev, struct device_attribut
 	}
 	if (temp) {
 		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
+		pdrv->status |= (LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 		mutex_unlock(&lcd_power_mutex);
 	} else {
 		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
+		pdrv->status &= ~(LCD_STATUS_PREPARE | LCD_STATUS_POWER);
+		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	}
 
@@ -2910,16 +2885,22 @@ static ssize_t lcd_debug_power_store(struct device *dev, struct device_attribute
 		LCDERR("invalid data\n");
 		return -EINVAL;
 	}
+
+	mutex_lock(&lcd_power_mutex);
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
 	if (temp) {
-		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-		mutex_unlock(&lcd_power_mutex);
+		if (pdrv->status & LCD_STATUS_ENCL_ON) {
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+			lcd_if_enable_retry(pdrv);
+			pdrv->status |= LCD_STATUS_POWER;
+		} else {
+			LCDERR("%s: can't power on when driver disable\n", __func__);
+		}
 	} else {
-		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
-		mutex_unlock(&lcd_power_mutex);
+		pdrv->status &= ~LCD_STATUS_POWER;
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	}
+	mutex_unlock(&lcd_power_mutex);
 
 	return count;
 }

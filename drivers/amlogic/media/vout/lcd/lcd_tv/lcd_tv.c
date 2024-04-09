@@ -532,60 +532,78 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[3];
 	int ret;
 
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: timing_switch_flag: %d, lcd_status: 0x%x\n",
+			__func__, pdrv->config.cus_ctrl.timing_switch_flag,
+			pdrv->status);
+	}
+
 	local_time[0] = sched_clock();
 	if (pdrv->vmode_switch == 0)
 		return;
 
 	if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_MIN) {
 		//step 1: switch off
-		//mute
-		lcd_screen_black(pdrv);
-		reinit_completion(&pdrv->vsync_done);
-		spin_lock_irqsave(&pdrv->isr_lock, flags);
-		if (pdrv->mute_count_test)
-			pdrv->mute_count = pdrv->mute_count_test;
-		else
-			pdrv->mute_count = 3;
-		pdrv->mute_flag = 1;
-		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-		//wait for mute apply
-		ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
-		if (!ret)
-			LCDPR("wait_for_completion_timeout\n");
-		if (pdrv->config.basic.lcd_type == LCD_P2P)
-			lcd_tcon_reload_pre(pdrv);
+		if (pdrv->status & LCD_STATUS_POWER) {
+			//mute
+			lcd_screen_black(pdrv);
+			reinit_completion(&pdrv->vsync_done);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			if (pdrv->mute_count_test)
+				pdrv->mute_count = pdrv->mute_count_test;
+			else
+				pdrv->mute_count = 3;
+			pdrv->mute_flag = 1;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+			//wait for mute apply
+			ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
+			if (!ret)
+				LCDPR("wait_for_completion_timeout\n");
+			if (pdrv->config.basic.lcd_type == LCD_P2P)
+				lcd_tcon_reload_pre(pdrv);
+		}
 		local_time[1] = sched_clock();
 		pdrv->config.cus_ctrl.mute_time = local_time[1] - local_time[0];
 
 		//step 2: driver change
-		mutex_lock(&lcd_vout_mutex);
-		lcd_tv_driver_change(pdrv);
-		mutex_unlock(&lcd_vout_mutex);
+		if (pdrv->status & LCD_STATUS_PREPARE) {
+			mutex_lock(&lcd_vout_mutex);
+			lcd_tv_driver_change(pdrv);
+			mutex_unlock(&lcd_vout_mutex);
+		}
 
 		//step 3: switch on
-		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_SWITCH_MODE, (void *)pdrv);
-		lcd_queue_work(&pdrv->screen_restore_work);
-		local_time[1] = sched_clock();
+		if (pdrv->status & LCD_STATUS_POWER) {
+			aml_lcd_notifier_call_chain(LCD_EVENT_DLG_SWITCH_MODE, (void *)pdrv);
+			lcd_queue_work(&pdrv->screen_restore_work);
+		}
 
+		local_time[1] = sched_clock();
 		pdrv->config.cus_ctrl.switch_time = local_time[1] - local_time[0];
 		return;
 	}
 
 	//step 1: switch off
-	/* include lcd_vout_mutex */
-	aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_OFF, (void *)pdrv);
+	if (pdrv->status & LCD_STATUS_POWER) {
+		/* include lcd_vout_mutex */
+		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_OFF, (void *)pdrv);
+	}
 	local_time[1] = sched_clock();
 	pdrv->config.cus_ctrl.power_off_time = local_time[1] - local_time[0];
 
 	//step 2: driver change
-	mutex_lock(&lcd_vout_mutex);
-	lcd_tv_driver_change(pdrv);
-	mutex_unlock(&lcd_vout_mutex);
+	if (pdrv->status & LCD_STATUS_PREPARE) {
+		mutex_lock(&lcd_vout_mutex);
+		lcd_tv_driver_change(pdrv);
+		mutex_unlock(&lcd_vout_mutex);
+	}
 
 	//step 3: switch on
-	/* include lcd_vout_mutex */
-	aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_ON, (void *)pdrv);
-	lcd_if_enable_retry(pdrv);
+	if (pdrv->status & LCD_STATUS_POWER) {
+		/* include lcd_vout_mutex */
+		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_ON, (void *)pdrv);
+		lcd_if_enable_retry(pdrv);
+	}
 	local_time[1] = sched_clock();
 	pdrv->config.cus_ctrl.switch_time = local_time[1] - local_time[0];
 }
@@ -650,8 +668,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	} else if (lcd_init_on_flag == 0) {
 		lcd_init_on_flag = 1;
 		if (pdrv->key_valid == 0 && (pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
-			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+			aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 			lcd_if_enable_retry(pdrv);
+			pdrv->status |= (LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 		} else {
 			if (pdrv->vmode_switch) {
 				lcd_vmode_switch(pdrv);
@@ -664,7 +683,8 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	} else if (lcd_init_on_flag == 1) {
 		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 			//workaround for drm resume
-			aml_lcd_notifier_call_chain(LCD_EVENT_ENCL_ON, (void *)pdrv);
+			aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
+			pdrv->status |= LCD_STATUS_PREPARE;
 		} else {
 			if (pdrv->vmode_switch) {
 				lcd_vmode_switch(pdrv);
@@ -1012,8 +1032,8 @@ static int lcd_suspend(void *data)
 
 	mutex_lock(&lcd_power_mutex);
 	lcd_init_on_flag = 1; //align lcd_init flag
-	pdrv->resume_flag &= ~LCD_RESUME_ENABLE;
-	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
+	pdrv->status &= ~LCD_STATUS_POWER;
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
@@ -1029,7 +1049,7 @@ static int lcd_resume(void *data)
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->resume_flag & LCD_RESUME_ENABLE)
+	if (pdrv->status & LCD_STATUS_POWER)
 		return 0;
 
 	if (pdrv->resume_type) {
@@ -1037,9 +1057,9 @@ static int lcd_resume(void *data)
 	} else {
 		mutex_lock(&lcd_power_mutex);
 		LCDPR("[%d]: directly late_resume\n", pdrv->index);
-		pdrv->resume_flag |= LCD_RESUME_ENABLE;
-		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
+		pdrv->status |= LCD_STATUS_POWER;
 		LCDPR("[%d]: late_resume finished\n", pdrv->index);
 		mutex_unlock(&lcd_power_mutex);
 	}

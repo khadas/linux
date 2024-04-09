@@ -3328,9 +3328,9 @@ void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv)
 			break;
 		LCDPR("[%d]: retry enable...%d\n",
 		      pdrv->index, pdrv->config.retry_enable_cnt);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 		msleep(1000);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 	}
 	pdrv->config.retry_enable_cnt = 0;
 }

@@ -107,8 +107,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	if (mode & VMODE_INIT_BIT_MASK) {
 		lcd_clk_gate_switch(pdrv, 1);
 	} else {
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
+		pdrv->status |= (LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 	}
 
 	pdrv->vmode_switch = 0;
@@ -128,8 +129,8 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 	mutex_lock(&lcd_power_mutex);
 	lcd_vrr_dev_unregister(pdrv);
 
-	pdrv->status &= ~LCD_STATUS_VMODE_ACTIVE;
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
+	pdrv->status &= ~(LCD_STATUS_VMODE_ACTIVE | LCD_STATUS_PREPARE | LCD_STATUS_POWER);
+	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 	LCDPR("%s finished\n", __func__);
 	mutex_unlock(&lcd_power_mutex);
 
@@ -380,8 +381,8 @@ static int lcd_suspend(void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
-	pdrv->resume_flag &= ~LCD_RESUME_ENABLE;
-	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
+	pdrv->status &= ~LCD_STATUS_POWER;
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
@@ -397,7 +398,7 @@ static int lcd_resume(void *data)
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->resume_flag & LCD_RESUME_ENABLE)
+	if (pdrv->status & LCD_STATUS_POWER)
 		return 0;
 
 	if (pdrv->resume_type) {
@@ -405,9 +406,9 @@ static int lcd_resume(void *data)
 	} else {
 		mutex_lock(&lcd_power_mutex);
 		LCDPR("[%d]: directly lcd late_resume\n", pdrv->index);
-		pdrv->resume_flag |= LCD_RESUME_ENABLE;
-		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
+		pdrv->status |= LCD_STATUS_POWER;
 		LCDPR("[%d]: late_resume finished\n", pdrv->index);
 		mutex_unlock(&lcd_power_mutex);
 	}

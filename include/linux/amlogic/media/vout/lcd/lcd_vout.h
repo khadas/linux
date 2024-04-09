@@ -657,17 +657,15 @@ struct lcd_reg_map_s {
 	char flag;
 };
 
-#define LCD_RESUME_PREPARE       BIT(0)
-#define LCD_RESUME_ENABLE        BIT(1)
-
-#define LCD_STATUS_IF_ON         BIT(0)
-#define LCD_STATUS_ENCL_ON       BIT(1)
-#define LCD_STATUS_VMODE_ACTIVE  BIT(2)
+#define LCD_STATUS_IF_ON         BIT(0) //real status
+#define LCD_STATUS_ENCL_ON       BIT(1) //real status
 #define LCD_STATUS_ON         (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
+#define LCD_STATUS_POWER         BIT(4) //control status
+#define LCD_STATUS_PREPARE       BIT(5) //control status
+#define LCD_STATUS_VMODE_ACTIVE  BIT(6) //control status
 
 #define LCD_VIU_SEL_NONE         0
-#define EXTERN_MUL_MAX	         10
-#define LCD_VSYNC_COMPLETE	BIT(7)
+
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -678,7 +676,6 @@ struct aml_lcd_drv_s {
 	unsigned char clk_path; /* 0=hpll, 1=gp0_pll */
 	unsigned char config_load;
 	unsigned char resume_type; /* 0=directly, 1=workqueue */
-	unsigned char resume_flag;
 	unsigned char init_flag; /* 0=none, 1=power on request */
 	unsigned char auto_test;
 	unsigned char test_state;
