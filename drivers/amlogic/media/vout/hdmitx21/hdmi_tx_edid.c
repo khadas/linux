@@ -371,8 +371,6 @@ static void set_vsdb_phy_addr(struct hdmitx_dev *hdev,
 		   ((vsdb->c & 0xf) <<  4) |
 		   ((vsdb->d & 0xf) << 0);
 	hdev->physical_addr = phy_addr;
-	if (hdev->tv_usage == 0)
-		hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &phy_addr);
 }
 
 static void set_vsdb_dc_cap(struct rx_cap *prxcap)

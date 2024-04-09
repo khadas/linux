@@ -6733,6 +6733,8 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		pr_info("clear dv_info/hdr_info\n");
 	}
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+	if (hdev->tv_usage == 0)
+		hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &hdev->physical_addr);
 	hdmitx21_edid_buf_compare_print(hdev);
 	mutex_unlock(&getedid_mutex);
 }
