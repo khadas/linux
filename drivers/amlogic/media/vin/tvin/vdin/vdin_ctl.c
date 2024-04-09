@@ -5714,11 +5714,11 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 			(struct provider_aux_req_s *)data;
 		unsigned char index;
 
-		if (!req->vf || !(devp->flags & VDIN_FLAG_ISR_EN)) {
+		if (!req->vf) {
 			req->aux_size = 0;
 			req->low_latency = 0;
 			if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
-				pr_err("%s:req->vf is NULL! or isr disable\n", __func__);
+				pr_err("%s:req->vf is NULL!\n", __func__);
 			return -1;
 		}
 		spin_lock_irqsave(&p->dv_lock, flags);
