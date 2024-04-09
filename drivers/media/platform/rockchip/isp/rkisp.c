@@ -2159,6 +2159,7 @@ end:
 /* Mess register operations to start isp */
 static int rkisp_isp_start(struct rkisp_device *dev)
 {
+	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_sensor_info *sensor = dev->active_sensor;
 	void __iomem *base = dev->base_addr;
 	bool is_direct = true;
@@ -2166,8 +2167,7 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s refcnt:%d link_num:%d\n", __func__,
-		 atomic_read(&dev->hw_dev->refcnt),
-		 dev->hw_dev->dev_link_num);
+		 atomic_read(&hw->refcnt), hw->dev_link_num);
 
 	dev->cap_dev.is_done_early = false;
 	if (dev->cap_dev.wait_line >= dev->isp_sdev.out_crop.height)
@@ -2211,8 +2211,10 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	       CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_CFG_UPD_PERMANENT;
 	if (dev->isp_ver == ISP_V20)
 		val |= NOC_HURRY_PRIORITY(2) | NOC_HURRY_W_MODE(2) | NOC_HURRY_R_MODE(1);
-	if (atomic_read(&dev->hw_dev->refcnt) > 1)
+	if (atomic_read(&hw->refcnt) > 1)
 		is_direct = false;
+	else
+		hw->cur_dev_id = dev->dev_id;
 	rkisp_unite_write(dev, CIF_ISP_CTRL, val, is_direct);
 	rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, CIF_ISP_CTRL_ISP_CFG_UPD);
 
@@ -2221,21 +2223,14 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	dev->irq_ends_mask |= ISP_FRAME_END;
 	dev->irq_ends = 0;
 
-	/* XXX: Is the 1000us too long?
-	 * CIF spec says to wait for sufficient time after enabling
-	 * the MIPI interface and before starting the sensor output.
-	 */
-	if (dev->hw_dev->is_single)
-		usleep_range(1000, 1200);
-
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s MI_CTRL 0x%08x ISP_CTRL 0x%08x\n", __func__,
 		 readl(base + CIF_MI_CTRL), readl(base + CIF_ISP_CTRL));
 
-	if (dev->hw_dev->monitor.is_en && atomic_read(&dev->hw_dev->refcnt) < 2) {
-		dev->hw_dev->monitor.retry = 0;
-		dev->hw_dev->monitor.state = ISP_FRAME_END;
-		schedule_work(&dev->hw_dev->monitor.work);
+	if (hw->monitor.is_en && atomic_read(&hw->refcnt) < 2) {
+		hw->monitor.retry = 0;
+		hw->monitor.state = ISP_FRAME_END;
+		schedule_work(&hw->monitor.work);
 	}
 	return 0;
 }
