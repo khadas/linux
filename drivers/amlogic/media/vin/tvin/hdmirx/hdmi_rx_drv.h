@@ -832,6 +832,7 @@ void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt);
 
 /* reg */
+extern int def_trim_value;
 
 /* packets */
 extern unsigned int packet_fifo_cfg;

@@ -891,7 +891,7 @@ void aml_phy_get_trim_val_t7(void)
 
 	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
 	if (dts_debug_flag == 0) {
-		data32 = hdmirx_rd_amlphy(T7_HHI_RX_PHY_MISC_CNTL1);
+		data32 = def_trim_value;
 		rterm_trim_val_t7 = (data32 >> 12) & 0xf;
 		rterm_trim_flag_t7 = data32 & 0x1;
 	} else {

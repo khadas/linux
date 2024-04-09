@@ -109,6 +109,7 @@ static unsigned int  hdmirx_log_wr_pos;
 static unsigned int  hdmirx_log_rd_pos;
 static unsigned int  hdmirx_log_buf_size;
 unsigned int pwr_sts;
+int def_trim_value;
 struct tvin_latency_s latency_info;
 struct tasklet_struct rx_tasklet;
 u32 *pd_fifo_buf;
@@ -3769,6 +3770,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("warning: no rev cmd mem\n");
 	rx_emp_resource_allocate(&pdev->dev);
 	rx.port = rx.arc_port;
+	def_trim_value = aml_phy_get_def_trim_value();
 	aml_phy_get_trim_val();
 	edid_auto_mode_init();
 	hdmirx_hw_probe();
