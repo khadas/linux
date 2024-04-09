@@ -33,6 +33,10 @@
 	};
 };
 
+&display_subsystem {
+	status = "disabled";
+};
+
 &dmc {
 	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
 };

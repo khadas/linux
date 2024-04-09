@@ -900,12 +900,3 @@
 &vdpp {
 	status = "okay";
 };
-
-&vop {
-	status = "okay";
-	/* vop-supply = <&vdd_logic_s0>; */
-};
-
-&vop_mmu {
-	status = "okay";
-};
