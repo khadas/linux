@@ -1341,6 +1341,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		return;
 	}
 
+	mutex_unlock(&rport->mutex);
+
 	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached) {
 		extcon_set_state_sync(rphy->edev,
 					cable, rport->vbus_attached);
@@ -1369,8 +1371,6 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	}
 	if (sch_work)
 		schedule_delayed_work(&rport->otg_sm_work, delay);
-
-	mutex_unlock(&rport->mutex);
 }
 
 static const char *chg_to_string(enum power_supply_type chg_type)
