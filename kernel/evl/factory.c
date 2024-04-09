@@ -153,20 +153,10 @@ static struct evl_element *unbind_file_from_element(struct file *filp)
 }
 
 /*
- * Multiple files may reference a single element on open().
- *
- * e->refs tracks the outstanding references to the element, saturates
- * to zero in evl_open_element(), which might race with
- * evl_put_element() for the same element. If the refcount is zero on
- * entry, evl_open_element() knows that __evl_put_element() is
- * scheduling a deletion of @e, returning -ESTALE if so.
- *
- * evl_open_element() is protected against referencing stale memory
- * enclosing all potentially unsafe references to @e into a read-side
- * RCU section. Meanwhile we wait for all read-sides to complete after
- * calling cdev_del().  Once cdev_del() returns, the device cannot be
- * opened anymore, which does not affect the files that might still be
- * active on this device though.
+ * evl_open_element() might race with __do_put_element() for the same
+ * element before the backing device is removed. If the refcount is
+ * zero on entry, evl_open_element() knows that __evl_put_element() is
+ * about to delete @e, returns -ESTALE if so.
  */
 int evl_open_element(struct inode *inode, struct file *filp)
 {
@@ -174,18 +164,8 @@ int evl_open_element(struct inode *inode, struct file *filp)
 	int ret = 0;
 
 	e = container_of(inode->i_cdev, struct evl_element, cdev);
-
-	rcu_read_lock();
-
-	if (!refcount_read(&e->refs))
-		ret = -ESTALE;
-	else
-		evl_get_element(e);
-
-	rcu_read_unlock();
-
-	if (ret)
-		return ret;
+	if (!__evl_get_element(e))
+		return -ESTALE;
 
 	ret = bind_file_to_element(filp, e);
 	if (ret) {
@@ -206,30 +186,21 @@ static void __do_put_element(struct evl_element *e)
 	 * We might get there device-less if create_element_device()
 	 * failed installing a file descriptor for a private
 	 * element. Go to disposal immediately if so.
-	 */
-	if (unlikely(!e->dev))
-		goto dispose;
-
-	/*
-	 * e->minor won't be free for use until evl_destroy_element()
-	 * is called from the disposal handler, so there is no risk of
-	 * reusing it too early.
-	 */
-	evl_remove_element_device(e);
-
-	/*
-	 * Serialize with evl_open_element().
-	 */
-	synchronize_rcu();
-
-	/*
+	 *
 	 * CAUTION: the disposal handler should delay the release of
-	 * e's container at the next rcu idle period via kfree_rcu(),
+	 * @e's container at the next rcu idle period via kfree_rcu(),
 	 * because the embedded e->cdev is still needed ahead for
 	 * completing the file release process of public elements (see
 	 * __fput()).
 	 */
-dispose:
+	if (likely(e->dev))
+		evl_remove_element_device(e);
+
+	/*
+	 * e->minor is not reusable until evl_destroy_element() is
+	 * called from the disposal handler, so there is no risk of
+	 * reusing it too early.
+	 */
 	fac->dispose(e);
 }
 
