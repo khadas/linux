@@ -23,19 +23,16 @@
 		status = "okay";
 	};
 
-	hdmiin-sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,hdmiin";
-		simple-audio-card,bitclock-master = <&dailink0_master>;
-		simple-audio-card,frame-master = <&dailink0_master>;
+	hdmiin_sound: hdmiin-sound {
 		status = "okay";
-		simple-audio-card,cpu {
-			sound-dai = <&sai4>;
-		};
-		dailink0_master: simple-audio-card,codec {
-			sound-dai = <&rk628_dc>;
-		};
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip,rk628hdmiin";
+		rockchip,cpu = <&sai4>;
+		rockchip,codec = <&rk628_csi>;
+		rockchip,bitclock-master = <&rk628_csi>;
+		rockchip,frame-master = <&rk628_csi>;
+		rockchip,jack-det;
 	};
 };
 
@@ -96,6 +93,7 @@
 		plugin-det-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 		continues-clk = <1>;
 		cec-enable;
+		#sound-dai-cells = <0>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
@@ -174,6 +172,7 @@
 	 pinctrl-0 = <&sai4m2_lrck
 		      &sai4m2_sclk
 		      &sai4m2_sdi>;
+	rockchip,sai-rx-wait-time-ms = <50>;
 	status = "okay";
 };
 
