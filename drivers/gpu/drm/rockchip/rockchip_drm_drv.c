@@ -176,11 +176,22 @@ void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
 	hbp = mode->htotal - mode->hsync_end;
 
 	mode->clock *= 2;
-	mode->crtc_clock *= 2;
 	mode->hdisplay = hactive * 2;
 	mode->hsync_start = mode->hdisplay + hfp * 2;
 	mode->hsync_end = mode->hsync_start + hsync * 2;
 	mode->htotal = mode->hsync_end + hbp * 2;
+
+	hactive = mode->crtc_hdisplay;
+	hfp = mode->crtc_hsync_start - mode->crtc_hdisplay;
+	hsync = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hbp = mode->crtc_htotal - mode->crtc_hsync_end;
+
+	mode->crtc_clock *= 2;
+	mode->crtc_hdisplay = hactive * 2;
+	mode->crtc_hsync_start = mode->crtc_hdisplay + hfp * 2;
+	mode->crtc_hsync_end = mode->crtc_hsync_start + hsync * 2;
+	mode->crtc_htotal = mode->crtc_hsync_end + hbp * 2;
+
 	drm_mode_set_name(mode);
 }
 EXPORT_SYMBOL(drm_mode_convert_to_split_mode);
@@ -195,11 +206,21 @@ void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode)
 	hbp = mode->htotal - mode->hsync_end;
 
 	mode->clock /= 2;
-	mode->crtc_clock /= 2;
 	mode->hdisplay = hactive / 2;
 	mode->hsync_start = mode->hdisplay + hfp / 2;
 	mode->hsync_end = mode->hsync_start + hsync / 2;
 	mode->htotal = mode->hsync_end + hbp / 2;
+
+	hactive = mode->crtc_hdisplay;
+	hfp = mode->crtc_hsync_start - mode->crtc_hdisplay;
+	hsync = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hbp = mode->crtc_htotal - mode->crtc_hsync_end;
+
+	mode->crtc_clock /= 2;
+	mode->crtc_hdisplay = hactive / 2;
+	mode->crtc_hsync_start = mode->crtc_hdisplay + hfp / 2;
+	mode->crtc_hsync_end = mode->crtc_hsync_start + hsync / 2;
+	mode->crtc_htotal = mode->crtc_hsync_end + hbp / 2;
 }
 EXPORT_SYMBOL(drm_mode_convert_to_origin_mode);
 
