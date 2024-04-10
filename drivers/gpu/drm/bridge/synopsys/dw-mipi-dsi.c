@@ -736,9 +736,9 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
 {
 	u32 htotal, hsa, hbp, lbcc;
 
-	htotal = mode->htotal;
-	hsa = mode->hsync_end - mode->hsync_start;
-	hbp = mode->htotal - mode->hsync_end;
+	htotal = mode->crtc_htotal;
+	hsa = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hbp = mode->crtc_htotal - mode->crtc_hsync_end;
 
 	/*
 	 * TODO dw drv improvements
