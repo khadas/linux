@@ -794,6 +794,8 @@ static int rockchip_usb2phy_init(struct phy *phy)
 	int ret = 0;
 	unsigned int ul, ul_mask;
 
+	dev_dbg(&rport->phy->dev, "port init\n");
+
 	mutex_lock(&rport->mutex);
 
 	if (rport->sel_pipe_phystatus)
@@ -962,6 +964,8 @@ unlock:
 static int rockchip_usb2phy_exit(struct phy *phy)
 {
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
+
+	dev_dbg(&rport->phy->dev, "port exit\n");
 
 	if (rport->port_id == USB2PHY_PORT_HOST)
 		cancel_delayed_work_sync(&rport->sm_work);
@@ -1344,6 +1348,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	mutex_unlock(&rport->mutex);
 
 	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached) {
+		dev_dbg(&rport->phy->dev, "extcon set cable(%d) as %d", cable, rport->vbus_attached);
 		extcon_set_state_sync(rphy->edev,
 					cable, rport->vbus_attached);
 
@@ -1357,6 +1362,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		 * in high, so the rport->vbus_attached may not be
 		 * changed. We need to set cable state here.
 		 */
+		dev_dbg(&rport->phy->dev, "extcon set cable(%d) as %d", cable, false);
 		extcon_set_state_sync(rphy->edev, cable, false);
 		cable = EXTCON_NONE;
 	}
@@ -1364,6 +1370,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	if (rphy->edev_self &&
 	    (extcon_get_state(rphy->edev, EXTCON_USB) !=
 	     rport->perip_connected)) {
+		dev_dbg(&rport->phy->dev, "extcon set cable(%d) as %d", EXTCON_USB, rport->perip_connected);
 		extcon_set_state_sync(rphy->edev,
 					EXTCON_USB,
 					rport->perip_connected);
@@ -1737,6 +1744,8 @@ static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 	if (!property_enabled(rphy->grf, &rport->port_cfg->bvalid_det_st))
 		return IRQ_NONE;
 
+	dev_dbg(&rport->phy->dev, "bvalid interrupt\n");
+
 	mutex_lock(&rport->mutex);
 
 	/* clear bvalid detect irq pending status */
@@ -1764,6 +1773,8 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (!property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st) &&
 	    !property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st))
 		return IRQ_NONE;
+
+	dev_dbg(&rport->phy->dev, "id interrupt\n");
 
 	mutex_lock(&rport->mutex);
 
