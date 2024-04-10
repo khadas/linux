@@ -510,6 +510,7 @@ int  rk628_hdmirx_audio_fs(HAUDINFO info);
 void rk628_hdmirx_audio_i2s_ctrl(HAUDINFO info, bool enable);
 bool rk628_hdmirx_get_arc_enable(HAUDINFO info);
 int rk628_hdmirx_set_arc_enable(HAUDINFO info, bool enabled);
+void rk628_hdmirx_audio_handle_plugged_change(HAUDINFO info, bool plugged);
 
 /* for audio isr process */
 bool rk628_audio_fifoints_enabled(HAUDINFO info);
