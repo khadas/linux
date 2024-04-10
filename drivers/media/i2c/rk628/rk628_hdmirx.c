@@ -39,6 +39,7 @@ struct rk628_audioinfo {
 	bool i2s_enabled_default;
 	bool i2s_enabled;
 	int debug;
+	bool sample_flat;
 	bool fifo_ints_en;
 	bool ctsn_ints_en;
 	bool audio_present;
@@ -466,14 +467,16 @@ static void rk628_csi_delayed_work_audio_v2(struct work_struct *work)
 		}
 	}
 	audio_state->pre_state = fifo_status;
-
-	rk628_i2c_read(rk628, HDMI_RX_AUD_SPARE, &sample_flat);
-	sample_flat = sample_flat & AUDS_MAS_SAMPLE_FLAT;
-	if (!sample_flat)
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
-	else
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(1));
-
+	if (aif->i2s_enabled) {
+		rk628_i2c_read(rk628, HDMI_RX_AUD_SPARE, &sample_flat);
+		sample_flat = !!(sample_flat & AUDS_MAS_SAMPLE_FLAT);
+		if (sample_flat != aif->sample_flat) {
+			dev_info(rk628->dev, "audio sample flat change to %d\n", sample_flat);
+			rk628_i2c_write(aif->rk628, HDMI_RX_AUD_SAO_CTRL, I2S_LPCM_BPCUV(0) | I2S_32_16(1) |
+					(sample_flat ? I2S_DATA_ENABLE_BITS(0xf) : I2S_DATA_ENABLE_BITS(0)));
+			aif->sample_flat = sample_flat;
+		}
+	}
 exit:
 	schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(delay));
 }
@@ -666,17 +669,16 @@ void rk628_hdmirx_audio_i2s_ctrl(HAUDINFO info, bool enable)
 {
 	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
 
-	if (enable == aif->i2s_enabled)
+	if (enable == aif->i2s_enabled || aif->i2s_enabled_default)
 		return;
-	if (enable) {
+	if (enable && !aif->sample_flat) {
 		rk628_i2c_write(aif->rk628, HDMI_RX_AUD_SAO_CTRL,
-				I2S_LPCM_BPCUV(0) |
-				I2S_32_16(1));
+				I2S_LPCM_BPCUV(0) | I2S_32_16(1) |
+				I2S_DATA_ENABLE_BITS(0));
 	} else {
 		rk628_i2c_write(aif->rk628, HDMI_RX_AUD_SAO_CTRL,
-				I2S_LPCM_BPCUV(0) |
-				I2S_32_16(1) |
-				I2S_ENABLE_BITS(0x3f));
+				I2S_LPCM_BPCUV(0) | I2S_32_16(1) |
+				I2S_DATA_ENABLE_BITS(0xf));
 	}
 	aif->i2s_enabled = enable;
 }
@@ -697,6 +699,7 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 	aif->audio_state.init_state = INIT_FIFO_STATE*4;
 	aif->audio_state.fifo_int = false;
 	aif->audio_state.audio_enable = false;
+	aif->sample_flat = false;
 	aif->fifo_ints_en = false;
 	aif->ctsn_ints_en = false;
 	aif->i2s_enabled = false;
@@ -732,8 +735,8 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 			AFIF_SUBPACKETS(1));
 	rk628_i2c_write(aif->rk628, HDMI_RX_AUD_SAO_CTRL,
 			I2S_LPCM_BPCUV(0) |
-			I2S_32_16(1)|
-			(aif->i2s_enabled_default ? 0 : I2S_ENABLE_BITS(0x3f)));
+			I2S_32_16(1) |
+			(aif->i2s_enabled_default ? 0 : I2S_DATA_ENABLE_BITS(0xf)));
 	aif->i2s_enabled = aif->i2s_enabled_default;
 	rk628_i2c_write(aif->rk628, HDMI_RX_AUD_MUTE_CTRL,
 			APPLY_INT_MUTE(0)	|
