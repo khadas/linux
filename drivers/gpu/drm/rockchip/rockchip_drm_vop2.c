@@ -7826,36 +7826,34 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct drm_crtc_state *new_crtc_state = container_of(mode, struct drm_crtc_state, mode);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(new_crtc_state);
 
+	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 	/*
 	 * For RK3568 and RK3588, the hactive of video timing must
 	 * be 4-pixel aligned.
 	 */
 	if (vop2->version == VOP_VERSION_RK3568 || vop2->version == VOP_VERSION_RK3588) {
-		if (adj_mode->hdisplay % 4) {
-			u16 old_hdisplay = adj_mode->hdisplay;
+		if (adj_mode->crtc_hdisplay % 4) {
+			u16 old_hdisplay = adj_mode->crtc_hdisplay;
 			u16 align;
 
-			align = 4 - (adj_mode->hdisplay % 4);
-			adj_mode->hdisplay += align;
-			adj_mode->hsync_start += align;
-			adj_mode->hsync_end += align;
-			adj_mode->htotal += align;
+			align = 4 - (adj_mode->crtc_hdisplay % 4);
+			adj_mode->crtc_hdisplay += align;
+			adj_mode->crtc_hsync_start += align;
+			adj_mode->crtc_hsync_end += align;
+			adj_mode->crtc_htotal += align;
 
 			DRM_WARN("VP%d: hactive need to be aligned with 4-pixel, %d -> %d\n",
-				 vp->id, old_hdisplay, adj_mode->hdisplay);
+				 vp->id, old_hdisplay, adj_mode->crtc_hdisplay);
 		}
 	}
-
 	/*
 	 * For RK3576 YUV420 output, hden signal introduce one cycle delay,
 	 * so we need to adjust hfp and hbp to compatible with this design.
 	 */
 	if (vop2->version == VOP_VERSION_RK3576 && vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420) {
-		adj_mode->hsync_start += 2;
-		adj_mode->hsync_end += 2;
+		adj_mode->crtc_hsync_start += 2;
+		adj_mode->crtc_hsync_end += 2;
 	}
-
-	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 2;
