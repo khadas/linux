@@ -74,6 +74,8 @@ typedef struct maxim_remote_ser {
 
 	struct mutex mutex;
 
+	u32 chip_id;
+
 	u8 ser_i2c_addr_def;
 	u8 ser_i2c_addr_map;
 

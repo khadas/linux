@@ -12,11 +12,12 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/compat.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x02, 0x00)
 
 #define MAX96715_NAME			"maxim-max96715"
 
@@ -367,13 +368,15 @@ static int max96715_check_chipid(maxim_remote_ser_t *max96715)
 		max96715_i2c_addr_def(max96715);
 	}
 
-	if (chip_id != MAX96715_CHIP_ID) {
-		dev_err(dev, "Unexpected chip id = %02x\n", chip_id);
-		return -ENODEV;
+	if (chip_id == max96715->chip_id) {
+		if (chip_id == MAX96715_CHIP_ID) {
+			dev_info(dev, "MAX96715 is Detected\n");
+			return 0;
+		}
 	}
-	dev_info(dev, "Detected MAX96715 chip id: 0x%02x\n", chip_id);
 
-	return 0;
+	dev_err(dev, "Unexpected MAX96715 chipid = %02x\n", chip_id);
+	return -ENODEV;
 }
 
 /*
@@ -507,9 +510,18 @@ static int max96715_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	maxim_remote_ser_t *max96715 = NULL;
+	u32 chip_id;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x", DRIVER_VERSION >> 16,
 		(DRIVER_VERSION & 0xff00) >> 8, DRIVER_VERSION & 0x00ff);
+
+	chip_id = (uintptr_t)of_device_get_match_data(dev);
+	if (chip_id == MAX96715_CHIP_ID) {
+		dev_info(dev, "driver for max96715\n");
+	} else {
+		dev_err(dev, "driver unknown chip\n");
+		return -EINVAL;
+	}
 
 	max96715 = devm_kzalloc(dev, sizeof(*max96715), GFP_KERNEL);
 	if (!max96715) {
@@ -518,6 +530,7 @@ static int max96715_probe(struct i2c_client *client,
 	}
 
 	max96715->client = client;
+	max96715->chip_id = chip_id;
 	max96715->ser_i2c_addr_map = client->addr;
 	max96715->ser_ops = &max96715_ser_ops;
 	max96715->ser_state = MAXIM_REMOTE_SER_DEINIT;
@@ -551,7 +564,10 @@ static void max96715_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id max96715_of_match[] = {
-	{ .compatible = "maxim,ser,max96715" },
+	{
+		.compatible = "maxim,ser,max96715",
+		.data = (const void *)MAX96715_CHIP_ID
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, max96715_of_match);

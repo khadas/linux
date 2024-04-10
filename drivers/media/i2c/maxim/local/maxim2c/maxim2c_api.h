@@ -21,8 +21,6 @@
 #include "maxim2c_pattern.h"
 #include "maxim2c_drv.h"
 
-#define MAXIM2C_NAME			"maxim2c"
-
 /* Maxim Deserializer Test Pattern */
 #define MAXIM2C_TEST_PATTERN		0
 

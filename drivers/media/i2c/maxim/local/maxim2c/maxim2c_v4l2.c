@@ -307,7 +307,7 @@ static void maxim2c_get_module_inf(maxim2c_t *maxim2c,
 					struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strscpy(inf->base.sensor, MAXIM2C_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.sensor, maxim2c->sensor_name, sizeof(inf->base.sensor));
 	strscpy(inf->base.module, maxim2c->module_name,
 		sizeof(inf->base.module));
 	strscpy(inf->base.lens, maxim2c->len_name, sizeof(inf->base.lens));
@@ -1082,7 +1082,7 @@ int maxim2c_v4l2_subdev_init(maxim2c_t *maxim2c)
 		facing[0] = 'f';
 
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 maxim2c->module_index, facing, MAXIM2C_NAME,
+		 maxim2c->module_index, facing, maxim2c->sensor_name,
 		 dev_name(sd->dev));
 
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE

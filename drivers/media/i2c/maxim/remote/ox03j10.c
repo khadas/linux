@@ -99,7 +99,7 @@ struct ox03j10 {
 	struct maxim_remote_ser *remote_ser;
 };
 
-static const struct i2c_regval ox03j10_1920x1080_regs[] = {
+static const struct i2c_regval ox03j10_1920x1280_regs[] = {
 	{ REG_NULL, 0x00 },
 };
 
@@ -118,15 +118,15 @@ static const struct i2c_regval ox03j10_1920x1080_regs[] = {
 static const struct ox03j10_mode supported_modes[] = {
 	{
 		.width = 1920,
-		.height = 1080,
+		.height = 1280,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
 		.link_freq_idx = 0,
-		.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
+		.bus_fmt = MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp = 16,
-		.reg_list = ox03j10_1920x1080_regs,
+		.reg_list = ox03j10_1920x1280_regs,
 	}
 };
 

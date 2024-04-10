@@ -99,6 +99,7 @@ typedef struct maxim4c {
 	const char *module_facing;
 	const char *module_name;
 	const char *len_name;
+	const char *sensor_name;
 
 	maxim4c_gmsl_link_t gmsl_link;
 	maxim4c_video_pipe_t video_pipe;

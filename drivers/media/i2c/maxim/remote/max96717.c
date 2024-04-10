@@ -12,17 +12,19 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/compat.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x02, 0x00)
 
 #define MAX96717_NAME			"maxim-max96717"
 
 #define MAX96717_I2C_ADDR_DEF		0x40
 
 #define MAX96717_CHIP_ID		0xBF
+#define MAX96717F_CHIP_ID		0xC8
 #define MAX96717_REG_CHIP_ID		0x0D
 
 /* register address: 16bit */
@@ -334,13 +336,20 @@ static int max96717_check_chipid(maxim_remote_ser_t *max96717)
 		max96717_i2c_addr_def(max96717);
 	}
 
-	if (chip_id != MAX96717_CHIP_ID) {
-		dev_err(dev, "Unexpected chip id = %02x\n", chip_id);
-		return -ENODEV;
-	}
-	dev_info(dev, "Detected MAX96717 chip id: 0x%02x\n", chip_id);
+	if (chip_id == max96717->chip_id) {
+		if (chip_id == MAX96717_CHIP_ID) {
+			dev_info(dev, "MAX96717 is Detected\n");
+			return 0;
+		}
 
-	return 0;
+		if (chip_id == MAX96717F_CHIP_ID) {
+			dev_info(dev, "MAX96717F is Detected\n");
+			return 0;
+		}
+	}
+
+	dev_err(dev, "Unexpected MAX96717 chipid = %02x\n", chip_id);
+	return -ENODEV;
 }
 
 /*
@@ -456,9 +465,20 @@ static int max96717_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	maxim_remote_ser_t *max96717 = NULL;
+	u32 chip_id;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x", DRIVER_VERSION >> 16,
 		(DRIVER_VERSION & 0xff00) >> 8, DRIVER_VERSION & 0x00ff);
+
+	chip_id = (uintptr_t)of_device_get_match_data(dev);
+	if (chip_id == MAX96717_CHIP_ID) {
+		dev_info(dev, "driver for max96717\n");
+	} else if (chip_id == MAX96717F_CHIP_ID) {
+		dev_info(dev, "driver for max96717f\n");
+	} else {
+		dev_err(dev, "driver unknown chip\n");
+		return -EINVAL;
+	}
 
 	max96717 = devm_kzalloc(dev, sizeof(*max96717), GFP_KERNEL);
 	if (!max96717) {
@@ -467,6 +487,7 @@ static int max96717_probe(struct i2c_client *client,
 	}
 
 	max96717->client = client;
+	max96717->chip_id = chip_id;
 	max96717->ser_i2c_addr_map = client->addr;
 	max96717->ser_ops = &max96717_ser_ops;
 	max96717->ser_state = MAXIM_REMOTE_SER_DEINIT;
@@ -500,7 +521,14 @@ static void max96717_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id max96717_of_match[] = {
-	{ .compatible = "maxim,ser,max96717" },
+	{
+		.compatible = "maxim,ser,max96717",
+		.data = (const void *)MAX96717_CHIP_ID
+	},
+	{
+		.compatible = "maxim,ser,max96717f",
+		.data = (const void *)MAX96717F_CHIP_ID
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, max96717_of_match);
