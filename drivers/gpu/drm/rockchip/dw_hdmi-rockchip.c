@@ -2287,11 +2287,9 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	int output_eotf;
 
 	drm_mode_copy(&mode, &crtc_state->mode);
-	pixclock = mode.crtc_clock;
-	if (hdmi->plat_data->split_mode) {
+	if (hdmi->plat_data->split_mode)
 		drm_mode_convert_to_origin_mode(&mode);
-		pixclock /= 2;
-	}
+	pixclock = mode.crtc_clock;
 
 	vic = drm_match_cea_mode(&mode);
 

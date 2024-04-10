@@ -2167,8 +2167,6 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	hdmi->hdmi_data.video_mode.mdataenablepolarity = true;
 
 	vmode->previous_pixelclock = vmode->mpixelclock;
-	if (hdmi->plat_data->split_mode)
-		mode->crtc_clock /= 2;
 	vmode->mpixelclock = mode->crtc_clock * 1000;
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
 		vmode->mpixelclock *= 2;
@@ -2839,10 +2837,9 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->hdmi_data.enc_out_bus_format =
 				hdmi->plat_data->get_output_bus_format(data);
 
-		if (hdmi->plat_data->split_mode) {
+		if (hdmi->plat_data->split_mode)
 			hdmi->plat_data->convert_to_origin_mode(&mode);
-			mode.crtc_clock /= 2;
-		}
+
 		drm_mode_copy(&hdmi->previous_mode, &mode);
 		vmode->mpixelclock = mode.crtc_clock * 1000;
 		vmode->previous_pixelclock = mode.clock;
