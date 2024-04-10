@@ -753,14 +753,14 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
 		return;
 
-	vact = mode->vdisplay;
-	vsa = mode->vsync_end - mode->vsync_start;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vbp = mode->vtotal - mode->vsync_end;
-	hact = mode->hdisplay;
-	hsa = mode->hsync_end - mode->hsync_start;
-	hbp = mode->htotal - mode->hsync_end;
-	hline = mode->htotal;
+	vact = mode->crtc_vdisplay;
+	vsa = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vfp = mode->crtc_vsync_start - mode->crtc_vdisplay;
+	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
+	hact = mode->crtc_hdisplay;
+	hsa = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hbp = mode->crtc_htotal - mode->crtc_hsync_end;
+	hline = mode->crtc_htotal;
 
 	pixel_clk = mode->crtc_clock * MSEC_PER_SEC;
 
