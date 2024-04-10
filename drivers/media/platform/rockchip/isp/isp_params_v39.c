@@ -3346,7 +3346,10 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		value = priv_val->buf_3dnr_iir.dma_addr + value * id;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_WR_BASE, id);
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_RD_BASE, id);
-		isp3_param_write(params_vdev, value, ISP39_AIISP_RD_BASE, id);
+		if (priv_val->buf_aiisp.mem_priv) {
+			value = priv_val->buf_aiisp.dma_addr + value * id;
+			isp3_param_write(params_vdev, value, ISP39_AIISP_RD_BASE, id);
+		}
 		if (priv_val->buf_gain.mem_priv) {
 			value = priv_val->gain_size;
 			isp3_param_write(params_vdev, value, ISP3X_MI_GAIN_WR_SIZE, id);
@@ -4177,6 +4180,22 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 			}
 		}
 
+		is_alloc = dev->is_aiisp_en ? true : false;
+		if (priv_val->buf_aiisp.mem_priv) {
+			if (val > priv_val->buf_aiisp.size)
+				rkisp_free_buffer(dev, &priv_val->buf_aiisp);
+			else
+				is_alloc = false;
+		}
+		if (is_alloc) {
+			priv_val->buf_aiisp.size = val;
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_aiisp);
+			if (ret) {
+				dev_err(dev->dev, "alloc aiisp buf fail:%d\n", ret);
+				goto free_3dnr_iir;
+			}
+		}
+
 		val = ALIGN(w * h / 4, 16);
 		priv_val->gain_size = val;
 		if (dev->unite_div > ISP_UNITE_DIV1)
@@ -4193,7 +4212,7 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 			ret = rkisp_alloc_buffer(dev, &priv_val->buf_gain);
 			if (ret) {
 				dev_err(dev->dev, "alloc gain buf fail:%d\n", ret);
-				goto free_3dnr_iir;
+				goto free_aiisp;
 			}
 		}
 	}
@@ -4260,6 +4279,8 @@ free_3dnr_cur:
 	rkisp_free_buffer(dev, &priv_val->buf_3dnr_cur);
 free_gain:
 	rkisp_free_buffer(dev, &priv_val->buf_gain);
+free_aiisp:
+	rkisp_free_buffer(dev, &priv_val->buf_aiisp);
 free_3dnr_iir:
 	rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
 err_3dnr_iir:
@@ -4821,6 +4842,12 @@ rkisp_params_get_bay3d_buffd_v39(struct rkisp_isp_params_vdev *params_vdev,
 		return;
 	bay3dbuf->u.v39.gain_fd = buf->dma_fd;
 	bay3dbuf->u.v39.gain_size = buf->size;
+
+	buf = &priv_val->buf_aiisp;
+	if (rkisp_buf_get_fd(params_vdev->dev, buf, true) < 0)
+		return;
+	bay3dbuf->u.v39.aiisp_fd = buf->dma_fd;
+	bay3dbuf->u.v39.aiisp_size = buf->size;
 }
 
 static void
@@ -4833,6 +4860,7 @@ rkisp_params_stream_stop_v39(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val = (struct rkisp_isp_params_val_v39 *)params_vdev->priv_val;
 	rkisp_free_buffer(ispdev, &priv_val->buf_frm);
 	rkisp_free_buffer(ispdev, &priv_val->buf_gain);
+	rkisp_free_buffer(ispdev, &priv_val->buf_aiisp);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur);
 	for (i = 0; i < ISP39_LSC_LUT_BUF_NUM; i++)

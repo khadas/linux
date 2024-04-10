@@ -12895,6 +12895,11 @@ static int vop2_create_crtc(struct vop2 *vop2, uint8_t enabled_vp_mask)
 		registered_num_crtcs++;
 	}
 
+	if (registered_num_crtcs == 0) {
+		DRM_DEV_ERROR(vop2->dev, "No crtc register, please check dts config\n");
+		return -ENODEV;
+	}
+
 	/*
 	 * change the unused primary window to overlay window
 	 */
