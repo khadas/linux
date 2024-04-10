@@ -545,7 +545,7 @@ static void rk3288_lvds_enable(struct rockchip_lvds *lvds)
 	      RK3288_LVDS_CON_SELECT(lvds->format);
 
 	if (lvds->dual_channel) {
-		u32 h_bp = mode->htotal - mode->hsync_start;
+		u32 h_bp = mode->crtc_htotal - mode->crtc_hsync_start;
 
 		val |= RK3288_LVDS_CON_ENABLE_2(1) |
 		       RK3288_LVDS_CON_ENABLE_1(1) |
