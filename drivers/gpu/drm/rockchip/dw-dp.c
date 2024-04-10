@@ -4150,9 +4150,6 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
-	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
-		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
-
 	ret = dw_dp_video_enable(dp, &dp->video, 0);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
@@ -4160,6 +4157,8 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, true);
+	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
 
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
