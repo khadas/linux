@@ -1171,7 +1171,7 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 {
 	char *mode, *init_mode;
 	enum vmode_e vmode;
-	unsigned int duration_index, frac;
+	unsigned int frac;
 
 	init_mode = get_vout_mode_uboot();
 	mode = kstrdup(init_mode, GFP_KERNEL);
@@ -1182,24 +1182,8 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s: mode: %s\n", pdrv->index, __func__, mode);
 	frac = lcd_parse_vout_init_name(mode);
 	vmode = lcd_validate_vmode(mode, frac, (void *)pdrv);
-	if (vmode == VMODE_LCD) {
-		if (pdrv->vmode_mgr.next_vmode_info) {
-			pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
-			pdrv->vmode_mgr.next_vmode_info = NULL;
-		}
-		pdrv->std_duration = pdrv->vmode_mgr.cur_vmode_info->duration;
-		duration_index = pdrv->vmode_mgr.cur_vmode_info->duration_index;
-
-		pdrv->config.timing.act_timing.sync_duration_num =
-			pdrv->std_duration[duration_index].duration_num;
-		pdrv->config.timing.act_timing.sync_duration_den =
-			pdrv->std_duration[duration_index].duration_den;
-		pdrv->config.timing.act_timing.frac =
-			pdrv->std_duration[duration_index].frac;
-		pdrv->config.timing.act_timing.frame_rate =
-			pdrv->std_duration[duration_index].frame_rate;
-		lcd_frame_rate_change(pdrv);
-	}
+	if (vmode == VMODE_LCD)
+		lcd_vmode_update(pdrv);
 
 	lcd_vmode_vinfo_update(pdrv);
 	kfree(mode);

@@ -818,6 +818,17 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+void lcd_act_timing_dbg_print(struct aml_lcd_drv_s *pdrv)
+{
+	if ((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) == 0)
+		return;
+
+	LCDPR("[%d]: act_timing: %dx%dp%dhz\n",
+		pdrv->index, pdrv->config.timing.act_timing.h_active,
+		pdrv->config.timing.act_timing.v_active,
+		pdrv->config.timing.act_timing.frame_rate);
+}
+
 //ret: bit[0]:hfp: fatal error, block driver
 //     bit[1]:hfp: warning, only print warning message
 //     bit[2]:hswbp: fatal error, block driver
@@ -3023,15 +3034,15 @@ void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
 	pconf->timing.vs_ve_addr = vs_end;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: hs_hs_addr=%d, hs_he_addr=%d\n"
-		      "hs_vs_addr=%d, hs_ve_addr=%d\n"
-		      "vs_hs_addr=%d, vs_he_addr=%d\n"
-		      "vs_vs_addr=%d, vs_ve_addr=%d\n",
-		      pdrv->index,
-		      pconf->timing.hs_hs_addr, pconf->timing.hs_he_addr,
-		      pconf->timing.hs_vs_addr, pconf->timing.hs_ve_addr,
-		      pconf->timing.vs_hs_addr, pconf->timing.vs_he_addr,
-		      pconf->timing.vs_vs_addr, pconf->timing.vs_ve_addr);
+		LCDPR("[%d]: %s: act_timing: %dx%dp%dhz\n"
+			"hs: hs=%d, he=%d, vs=%d, ve=%d\n"
+			"vs: hs=%d, he=%d, vs=%d, ve=%d\n",
+			pdrv->index, __func__,
+			ptiming->h_active, ptiming->v_active, ptiming->frame_rate,
+			pconf->timing.hs_hs_addr, pconf->timing.hs_he_addr,
+			pconf->timing.hs_vs_addr, pconf->timing.hs_ve_addr,
+			pconf->timing.vs_hs_addr, pconf->timing.vs_he_addr,
+			pconf->timing.vs_vs_addr, pconf->timing.vs_ve_addr);
 	}
 }
 
@@ -3318,6 +3329,8 @@ void lcd_frame_rate_change(struct aml_lcd_drv_s *pdrv)
 	info->video_clk = pdrv->config.timing.enc_clk;
 	info->htotal = pdrv->config.timing.act_timing.h_period;
 	info->vtotal = pdrv->config.timing.act_timing.v_period;
+
+	lcd_act_timing_dbg_print(pdrv);
 }
 
 void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv)

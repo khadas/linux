@@ -137,6 +137,7 @@ void lcd_mlvds_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_p2p_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_edp_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 
+void lcd_act_timing_dbg_print(struct aml_lcd_drv_s *pdrv);
 int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
