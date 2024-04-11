@@ -433,6 +433,16 @@
 		};
 	};
 
+	rga2: rga@ff610000 {
+		compatible = "rockchip,rga2";
+		reg = <0xff610000 0x1000>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rga2_irq";
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_CORE_RGA>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		status = "disabled";
+	};
+
 	ioc1: syscon@ff660000 {
 		compatible = "rockchip,rk3506-ioc1", "syscon";
 		reg = <0xff660000 0x10000>;
