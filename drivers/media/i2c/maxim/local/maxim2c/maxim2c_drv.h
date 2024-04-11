@@ -55,6 +55,7 @@ struct maxim2c_mode {
 	u32 bpp;
 	const struct regval *reg_list;
 	u32 vc[PAD_MAX];
+	struct v4l2_rect crop_rect;
 };
 
 typedef struct maxim2c {
