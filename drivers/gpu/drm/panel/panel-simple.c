@@ -29,7 +29,6 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
@@ -218,8 +217,6 @@ struct panel_simple {
 
 	struct drm_dsc_picture_parameter_set *pps;
 	enum drm_panel_orientation orientation;
-
-	bool loader_protect;
 };
 
 static inline void panel_simple_msleep(unsigned int msecs)
@@ -486,20 +483,6 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel,
 	return num;
 }
 
-static void panel_simple_wait(ktime_t start_ktime, unsigned int min_ms)
-{
-	ktime_t now_ktime, min_ktime;
-
-	if (!min_ms)
-		return;
-
-	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
-	now_ktime = ktime_get_boottime();
-
-	if (ktime_before(now_ktime, min_ktime))
-		panel_simple_msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
-}
-
 static int panel_simple_regulator_enable(struct panel_simple *p)
 {
 	int err;
@@ -538,11 +521,9 @@ int panel_simple_loader_protect(struct drm_panel *panel)
 	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
-	p->loader_protect = true;
-
-	err = pm_runtime_get_sync(panel->dev);
+	err = panel_simple_regulator_enable(p);
 	if (err < 0) {
-		pm_runtime_put_autosuspend(panel->dev);
+		dev_err(panel->dev, "failed to enable supply: %d\n", err);
 		return err;
 	}
 
@@ -568,10 +549,13 @@ static int panel_simple_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int panel_simple_suspend(struct device *dev)
+static int panel_simple_unprepare(struct drm_panel *panel)
 {
-	struct panel_simple *p = dev_get_drvdata(dev);
-	struct drm_panel *panel = &p->base;
+	struct panel_simple *p = to_panel_simple(panel);
+
+	/* Unpreparing when already unprepared is a no-op */
+	if (!p->prepared)
+		return 0;
 
 	if (p->desc->exit_seq) {
 		if (p->desc->cmd_type == CMD_TYPE_SPI) {
@@ -590,43 +574,26 @@ static int panel_simple_suspend(struct device *dev)
 
 	panel_simple_regulator_disable(p);
 
-	p->unprepared_time = ktime_get_boottime();
+	if (p->desc->delay.unprepare)
+		panel_simple_msleep(p->desc->delay.unprepare);
 
-	kfree(p->edid);
-	p->edid = NULL;
-
-	return 0;
-}
-
-static int panel_simple_unprepare(struct drm_panel *panel)
-{
-	struct panel_simple *p = to_panel_simple(panel);
-	int ret;
-
-	/* Unpreparing when already unprepared is a no-op */
-	if (!p->prepared)
-		return 0;
-
-	pm_runtime_mark_last_busy(panel->dev);
-	ret = pm_runtime_put_autosuspend(panel->dev);
-	if (ret < 0)
-		return ret;
 	p->prepared = false;
 
 	return 0;
 }
 
-static int panel_simple_resume(struct device *dev)
+static int panel_simple_prepare(struct drm_panel *panel)
 {
-	struct panel_simple *p = dev_get_drvdata(dev);
-	struct drm_panel *panel = &p->base;
+	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
-	panel_simple_wait(p->unprepared_time, p->desc->delay.unprepare);
+	/* Preparing when already prepared is a no-op */
+	if (p->prepared)
+		return 0;
 
 	err = panel_simple_regulator_enable(p);
 	if (err < 0) {
-		dev_err(dev, "failed to enable supply: %d\n", err);
+		dev_err(panel->dev, "failed to enable supply: %d\n", err);
 		return err;
 	}
 
@@ -634,13 +601,6 @@ static int panel_simple_resume(struct device *dev)
 
 	if (p->desc->delay.prepare)
 		panel_simple_msleep(p->desc->delay.prepare);
-
-	p->prepared_time = ktime_get_boottime();
-
-	if (p->loader_protect) {
-		p->loader_protect = false;
-		return 0;
-	}
 
 	gpiod_direction_output(p->reset_gpio, 1);
 
@@ -662,24 +622,6 @@ static int panel_simple_resume(struct device *dev)
 			if (p->dsi)
 				panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
 		}
-	}
-
-	return 0;
-}
-
-static int panel_simple_prepare(struct drm_panel *panel)
-{
-	struct panel_simple *p = to_panel_simple(panel);
-	int ret;
-
-	/* Preparing when already prepared is a no-op */
-	if (p->prepared)
-		return 0;
-
-	ret = pm_runtime_get_sync(panel->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(panel->dev);
-		return ret;
 	}
 
 	p->prepared = true;
@@ -710,16 +652,11 @@ static int panel_simple_get_modes(struct drm_panel *panel,
 
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
-		pm_runtime_get_sync(panel->dev);
-
 		if (!p->edid)
 			p->edid = drm_get_edid(connector, p->ddc);
 
 		if (p->edid)
 			num += drm_add_edid_modes(connector, p->edid);
-
-		pm_runtime_mark_last_busy(panel->dev);
-		pm_runtime_put_autosuspend(panel->dev);
 	}
 
 	/* add hard-coded panel modes */
@@ -1036,31 +973,18 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	dev_set_drvdata(dev, panel);
 
-	/*
-	 * We use runtime PM for prepare / unprepare since those power the panel
-	 * on and off and those can be very slow operations. This is important
-	 * to optimize powering the panel on briefly to read the EDID before
-	 * fully enabling the panel.
-	 */
-	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, 1000);
-	pm_runtime_use_autosuspend(dev);
-
 	drm_panel_init(&panel->base, dev, &panel_simple_funcs, connector_type);
 
 	err = drm_panel_of_backlight(&panel->base);
 	if (err) {
 		dev_err_probe(dev, err, "Could not find backlight\n");
-		goto disable_pm_runtime;
+		goto free_ddc;
 	}
 
 	drm_panel_add(&panel->base);
 
 	return 0;
 
-disable_pm_runtime:
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
 free_ddc:
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
@@ -1076,8 +1000,6 @@ static void panel_simple_remove(struct device *dev)
 	drm_panel_disable(&panel->base);
 	drm_panel_unprepare(&panel->base);
 
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
 }
@@ -4846,17 +4768,10 @@ static void panel_simple_platform_shutdown(struct platform_device *pdev)
 	panel_simple_shutdown(&pdev->dev);
 }
 
-static const struct dev_pm_ops panel_simple_pm_ops = {
-	SET_RUNTIME_PM_OPS(panel_simple_suspend, panel_simple_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-};
-
 static struct platform_driver panel_simple_platform_driver = {
 	.driver = {
 		.name = "panel-simple",
 		.of_match_table = platform_of_match,
-		.pm = &panel_simple_pm_ops,
 	},
 	.probe = panel_simple_platform_probe,
 	.remove = panel_simple_platform_remove,
@@ -5213,7 +5128,6 @@ static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
 		.of_match_table = dsi_of_match,
-		.pm = &panel_simple_pm_ops,
 	},
 	.probe = panel_simple_dsi_probe,
 	.remove = panel_simple_dsi_remove,

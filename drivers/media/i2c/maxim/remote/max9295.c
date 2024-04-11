@@ -12,11 +12,12 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/compat.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x02, 0x00)
 
 #define MAX9295_NAME			"maxim-max9295"
 
@@ -334,13 +335,15 @@ static int max9295_check_chipid(maxim_remote_ser_t *max9295)
 		max9295_i2c_addr_def(max9295);
 	}
 
-	if (chip_id != MAX9295_CHIP_ID) {
-		dev_err(dev, "Unexpected chip id = %02x\n", chip_id);
-		return -ENODEV;
+	if (chip_id == max9295->chip_id) {
+		if (chip_id == MAX9295_CHIP_ID) {
+			dev_info(dev, "MAX9295 is Detected\n");
+			return 0;
+		}
 	}
-	dev_info(dev, "Detected MAX9295 chip id: 0x%02x\n", chip_id);
 
-	return 0;
+	dev_err(dev, "Unexpected MAX9295 chipid = %02x\n", chip_id);
+	return -ENODEV;
 }
 
 /*
@@ -506,9 +509,18 @@ static int max9295_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	maxim_remote_ser_t *max9295 = NULL;
+	u32 chip_id;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x", DRIVER_VERSION >> 16,
 		(DRIVER_VERSION & 0xff00) >> 8, DRIVER_VERSION & 0x00ff);
+
+	chip_id = (uintptr_t)of_device_get_match_data(dev);
+	if (chip_id == MAX9295_CHIP_ID) {
+		dev_info(dev, "driver for max9295\n");
+	} else {
+		dev_err(dev, "driver unknown chip\n");
+		return -EINVAL;
+	}
 
 	max9295 = devm_kzalloc(dev, sizeof(*max9295), GFP_KERNEL);
 	if (!max9295) {
@@ -517,6 +529,7 @@ static int max9295_probe(struct i2c_client *client,
 	}
 
 	max9295->client = client;
+	max9295->chip_id = chip_id;
 	max9295->ser_i2c_addr_map = client->addr;
 	max9295->ser_ops = &max9295_ser_ops;
 	max9295->ser_state = MAXIM_REMOTE_SER_DEINIT;
@@ -550,7 +563,10 @@ static void max9295_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id max9295_of_match[] = {
-	{ .compatible = "maxim,ser,max9295" },
+	{
+		.compatible = "maxim,ser,max9295",
+		.data = (const void *)MAX9295_CHIP_ID
+	},
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, max9295_of_match);

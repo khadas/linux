@@ -77,6 +77,13 @@ static const struct maxim4c_mode maxim4c_def_mode = {
 	.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
 	.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
 #endif /* LINUX_VERSION_CODE */
+	/* crop rect */
+	.crop_rect = {
+		.left = 0,
+		.width = 1920,
+		.top = 0,
+		.height = 1080,
+	},
 };
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
@@ -95,7 +102,7 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 	struct device *dev = &maxim4c->client->dev;
 	struct device_node *node = NULL;
 	struct maxim4c_mode *mode = NULL;
-	u32 value = 0, vc_array[PAD_MAX];
+	u32 value = 0, vc_array[PAD_MAX], crop_array[4];
 	int ret = 0, i = 0, array_size = 0;
 
 	dev_info(dev, "=== maxim4c support mode init ===\n");
@@ -210,6 +217,28 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 	for (i = 0; i < PAD_MAX; i++)
 		dev_info(dev, "support mode: vc[%d] = 0x%x\n", i, mode->vc[i]);
 
+	/* crop rect */
+	array_size = of_property_read_variable_u32_array(node,
+				"crop-rect", crop_array, 1, 4);
+	if (array_size == 4) {
+		/* [left, top, width, height] */
+		for (i = 0; i < array_size; i++)
+			dev_info(dev, "crop-rect[%d] property: %d\n", i, crop_array[i]);
+
+		mode->crop_rect.left = crop_array[0];
+		mode->crop_rect.top = crop_array[1];
+		mode->crop_rect.width = crop_array[2];
+		mode->crop_rect.height = crop_array[3];
+	} else {
+		mode->crop_rect.left = 0;
+		mode->crop_rect.width = mode->width;
+		mode->crop_rect.top = 0;
+		mode->crop_rect.height = mode->height;
+	}
+	dev_info(dev, "support mode crop rect: [ left = %d, top = %d, width = %d, height = %d ]\n",
+						mode->crop_rect.left, mode->crop_rect.top,
+						mode->crop_rect.width, mode->crop_rect.height);
+
 	of_node_put(node);
 
 	return 0;
@@ -278,7 +307,7 @@ static void maxim4c_get_module_inf(maxim4c_t *maxim4c,
 					struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strscpy(inf->base.sensor, MAXIM4C_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.sensor, maxim4c->sensor_name, sizeof(inf->base.sensor));
 	strscpy(inf->base.module, maxim4c->module_name,
 		sizeof(inf->base.module));
 	strscpy(inf->base.lens, maxim4c->len_name, sizeof(inf->base.lens));
@@ -835,10 +864,10 @@ static int maxim4c_get_selection(struct v4l2_subdev *sd,
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
-		sel->r.left = 0;
-		sel->r.width = maxim4c->cur_mode->width;
-		sel->r.top = 0;
-		sel->r.height = maxim4c->cur_mode->height;
+		sel->r.left = maxim4c->cur_mode->crop_rect.left;
+		sel->r.width = maxim4c->cur_mode->crop_rect.width;
+		sel->r.top = maxim4c->cur_mode->crop_rect.top;
+		sel->r.height = maxim4c->cur_mode->crop_rect.height;
 		return 0;
 	}
 
@@ -1053,7 +1082,7 @@ int maxim4c_v4l2_subdev_init(maxim4c_t *maxim4c)
 		facing[0] = 'f';
 
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 maxim4c->module_index, facing, MAXIM4C_NAME,
+		 maxim4c->module_index, facing, maxim4c->sensor_name,
 		 dev_name(sd->dev));
 
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE

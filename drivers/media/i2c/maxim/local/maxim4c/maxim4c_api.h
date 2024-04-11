@@ -21,8 +21,6 @@
 #include "maxim4c_pattern.h"
 #include "maxim4c_drv.h"
 
-#define MAXIM4C_NAME			"maxim4c"
-
 /* Maxim Deserializer Test Pattern */
 #define MAXIM4C_TEST_PATTERN		0
 

@@ -1201,19 +1201,42 @@ static const struct drm_connector_funcs dw_mipi_dsi2_atomic_connector_funcs = {
 	.atomic_get_property = dw_mipi_dsi2_atomic_connector_get_property,
 };
 
+static int dw_mipi_dsi2_match_by_id(struct device *dev, const void *data)
+{
+	unsigned int *id = (unsigned int *)data;
+	struct dw_mipi_dsi2 *dsi2;
+
+	dsi2 = dev_get_drvdata(dev);
+	if (!dsi2)
+		return 0;
+
+	return dsi2->id == *id;
+}
+
+static struct dw_mipi_dsi2 *dw_mipi_dsi2_find_by_id(struct device_driver *drv,
+						    unsigned int id)
+{
+	struct device *dev;
+	struct dw_mipi_dsi2 *dsi2;
+
+	dev = driver_find_device(drv, NULL, &id, dw_mipi_dsi2_match_by_id);
+	if (!dev)
+		return NULL;
+
+	dsi2 = dev_get_drvdata(dev);
+
+	put_device(dev);
+
+	return dsi2;
+}
+
 static int dw_mipi_dsi2_dual_channel_probe(struct dw_mipi_dsi2 *dsi2)
 {
-	struct device_node *np;
-	struct platform_device *secondary;
-
-	np = of_parse_phandle(dsi2->dev->of_node, "rockchip,dual-channel", 0);
-	if (np) {
+	if (of_property_read_bool(dsi2->dev->of_node, "rockchip,dual-channel")) {
 		dsi2->data_swap = of_property_read_bool(dsi2->dev->of_node,
-						       "rockchip,data-swap");
-		secondary = of_find_device_by_node(np);
-		dsi2->slave = platform_get_drvdata(secondary);
-		of_node_put(np);
+							"rockchip,data-swap");
 
+		dsi2->slave = dw_mipi_dsi2_find_by_id(dsi2->dev->driver, 1);
 		if (!dsi2->slave)
 			return -EPROBE_DEFER;
 

@@ -51,6 +51,12 @@
  *     1. fixed remote camera s_stream and s_power api return error.
  *     2. compatible with kernel v4.19/v5.10/v6.1
  *
+ * V3.02.00
+ *     1. support remote dummy sensor
+ *     2. record the status of the serializer
+ *     3. remote serializer support more chip id
+ *     4. support mode add crop rect dts config
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -78,7 +84,9 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x02, 0x00)
+
+#define MAXIM4C_NAME			"maxim4c"
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
@@ -675,6 +683,8 @@ static int maxim4c_probe(struct i2c_client *client,
 
 	maxim4c->client = client;
 	maxim4c->chipid = chip_id;
+
+	maxim4c->sensor_name = MAXIM4C_NAME;
 
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &maxim4c->module_index);

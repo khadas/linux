@@ -4984,25 +4984,22 @@ static const struct hdmi_codec_ops dw_dp_audio_codec_ops = {
 
 static int dw_dp_register_audio_driver(struct dw_dp *dp, struct dw_dp_audio *audio)
 {
-	struct hdmi_codec_pdata codec_data;
-	struct platform_device_info pdevinfo;
-
-	codec_data.ops = &dw_dp_audio_codec_ops,
-	codec_data.spdif = 1,
-	codec_data.i2s = 1,
-	codec_data.max_i2s_channels = 8,
-	codec_data.data = audio,
-
-	pdevinfo.parent = dp->dev,
-	pdevinfo.fwnode = dp->support_mst ? of_fwnode_handle(dp->mst_enc[audio->id].port_node) :
-			  of_fwnode_handle(dp->dev->of_node),
-	pdevinfo.name = HDMI_CODEC_DRV_NAME,
-	pdevinfo.id = PLATFORM_DEVID_AUTO,
-	pdevinfo.res = NULL,
-	pdevinfo.num_res = 0,
-	pdevinfo.data = &codec_data,
-	pdevinfo.size_data = sizeof(codec_data),
-	pdevinfo.dma_mask = 0,
+	struct hdmi_codec_pdata codec_data = {
+		.ops = &dw_dp_audio_codec_ops,
+		.spdif = 1,
+		.i2s = 1,
+		.max_i2s_channels = 8,
+		.data = audio,
+	};
+	struct platform_device_info pdevinfo = {
+		.parent = dp->dev,
+		.fwnode = dp->support_mst ? of_fwnode_handle(dp->mst_enc[audio->id].port_node) :
+			  NULL,
+		.name = HDMI_CODEC_DRV_NAME,
+		.id = PLATFORM_DEVID_AUTO,
+		.data = &codec_data,
+		.size_data = sizeof(codec_data),
+	};
 
 	audio->format = AFMT_UNUSED;
 	audio->pdev = platform_device_register_full(&pdevinfo);
@@ -5211,6 +5208,9 @@ static int dw_dp_get_port_node(struct dw_dp *dp)
 		dp->mst_enc[i].port_node = port_node;
 	}
 
+	if (!of_device_is_available(dp->mst_enc[0].port_node))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -5270,6 +5270,9 @@ static int dw_dp_audio_init(struct dw_dp *dp)
 	dp->mst_enc[0].audio = audio;
 
 	for (i = 1; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
+
 		audio = devm_kzalloc(dp->dev, sizeof(*audio), GFP_KERNEL);
 		if (!audio)
 			return -ENOMEM;
