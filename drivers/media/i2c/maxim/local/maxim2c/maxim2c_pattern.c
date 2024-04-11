@@ -41,6 +41,13 @@ static const struct maxim2c_mode maxim2c_pattern_mode = {
 #else
 	.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 #endif
+	/* crop rect */
+	.crop_rect = {
+		.left = 0,
+		.width = PATTERN_WIDTH,
+		.top = 0,
+		.height = PATTERN_HEIGHT,
+	},
 };
 
 int maxim2c_pattern_enable(maxim2c_t *maxim2c, bool enable)
