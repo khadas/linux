@@ -990,6 +990,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb1-v10.dtb \
 	rv1106g-evb1-v11.dtb \
 	rv1106g-evb1-v11-4k.dtb \
+	rv1106g-evb1-v11-aiisp.dtb \
 	rv1106g-evb1-v11-cvr.dtb \
 	rv1106g-evb1-v11-cvr-dual-cam.dtb \
 	rv1106g-evb1-v11-spi-nand-cvr.dtb \
