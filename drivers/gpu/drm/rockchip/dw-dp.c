@@ -5532,7 +5532,7 @@ static int dw_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused dw_dp_runtime_suspend(struct device *dev)
+static int dw_dp_runtime_suspend(struct device *dev)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
 
@@ -5543,7 +5543,7 @@ static int __maybe_unused dw_dp_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused dw_dp_runtime_resume(struct device *dev)
+static int dw_dp_runtime_resume(struct device *dev)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
 
@@ -5556,10 +5556,61 @@ static int __maybe_unused dw_dp_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int dw_dp_suspend_noirq(struct device *dev)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+
+	pm_runtime_force_suspend(dev);
+	if (dp->is_mst)
+		phy_power_off(dp->phy);
+
+	return 0;
+}
+
+static int dw_dp_resume_noirq(struct device *dev)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+
+	pm_runtime_force_resume(dev);
+	if (dp->is_mst)
+		phy_power_on(dp->phy);
+
+	return 0;
+}
+
+static int dw_dp_suspend(struct device *dev)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+
+	if (dp->is_mst)
+		drm_dp_mst_topology_mgr_suspend(&dp->mst_mgr);
+
+	return 0;
+}
+
+static int dw_dp_resume(struct device *dev)
+{
+	struct dw_dp *dp = dev_get_drvdata(dev);
+	int ret;
+
+	if (!dp->support_mst)
+		return 0;
+
+	ret = drm_dp_mst_topology_mgr_resume(&dp->mst_mgr, true);
+	if (ret) {
+		if (dp->is_mst)
+			phy_power_off(dp->phy);
+		dp->is_mst = false;
+		drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, false);
+	}
+
+	return 0;
+}
+
 static const struct dev_pm_ops dw_dp_pm_ops = {
 	SET_RUNTIME_PM_OPS(dw_dp_runtime_suspend, dw_dp_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				      pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dw_dp_suspend_noirq, dw_dp_resume_noirq)
+	SET_SYSTEM_SLEEP_PM_OPS(dw_dp_suspend, dw_dp_resume)
 };
 
 static const struct dw_dp_chip_data rk3588_dp[] = {
