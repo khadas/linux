@@ -1206,6 +1206,11 @@ static int rkvpss_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto free_buf_queue;
 	}
 
+	if (hw->is_ofl_ch[stream->id]) {
+		v4l2_err(&dev->v4l2_dev, "channel[%d] already assigned to offline", stream->id);
+		goto free_buf_queue;
+	}
+
 	rkvpss_pipeline_open(dev);
 
 	ret = rkvpss_stream_start(stream);
