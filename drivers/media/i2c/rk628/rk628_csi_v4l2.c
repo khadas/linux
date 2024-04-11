@@ -1846,6 +1846,8 @@ static int rk628_csi_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
 	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	case RK_HDMIRX_V4L2_EVENT_AUDIOINFO:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
@@ -2940,6 +2942,17 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void rk628_csi_audio_info_cb(struct rk628 *rk628, bool on)
+{
+	struct i2c_client *client = to_i2c_client(rk628->dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	const struct v4l2_event evt_audio_info = {
+		.type = RK_HDMIRX_V4L2_EVENT_AUDIOINFO,
+	};
+	v4l2_event_queue(sd->devnode, &evt_audio_info);
+}
+
 static int rk628_csi_power_on(struct rk628_csi *csi)
 {
 	clk_prepare_enable(csi->soc_24M);
@@ -3462,7 +3475,8 @@ static int rk628_csi_probe(struct i2c_client *client,
 	csi->audio_info = rk628_hdmirx_audioinfo_alloc(dev,
 						       &csi->confctl_mutex,
 						       rk628,
-						       csi->i2s_enable_default);
+						       csi->i2s_enable_default,
+						       rk628_csi_audio_info_cb);
 	if (!csi->audio_info) {
 		err = -ENOMEM;
 		v4l2_err(sd, "request audio info fail\n");

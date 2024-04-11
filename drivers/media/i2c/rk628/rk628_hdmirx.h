@@ -497,10 +497,12 @@ void rk628_hdmirx_set_hdcp(struct rk628 *rk628, struct rk628_hdcp *hdcp, bool en
 void rk628_hdmirx_controller_setup(struct rk628 *rk628);
 
 typedef void *HAUDINFO;
+typedef void (*rk628_audio_info_cb)(struct rk628 *rk628, bool on);
 HAUDINFO rk628_hdmirx_audioinfo_alloc(struct device *dev,
 				      struct mutex *confctl_mutex,
 				      struct rk628 *rk628,
-				      bool en);
+				      bool en,
+				      rk628_audio_info_cb info_cb);
 void rk628_hdmirx_audio_destroy(HAUDINFO info);
 void rk628_hdmirx_audio_setup(HAUDINFO info);
 void rk628_hdmirx_audio_cancel_work_audio(HAUDINFO info, bool sync);

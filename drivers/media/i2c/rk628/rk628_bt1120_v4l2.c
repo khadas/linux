@@ -2035,7 +2035,8 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 	bt1120->audio_info = rk628_hdmirx_audioinfo_alloc(dev,
 							  &bt1120->confctl_mutex,
 							  rk628,
-							  bt1120->i2s_enable_default);
+							  bt1120->i2s_enable_default,
+							  NULL);
 	if (!bt1120->audio_info) {
 		v4l2_err(sd, "request audio info fail\n");
 		goto err_work_queues;
