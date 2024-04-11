@@ -2847,6 +2847,7 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt2_read_status(fe, status, &is_signal);
+	dvbt2_info(demod, NULL);
 
 	return 0;
 }
@@ -7222,6 +7223,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 
 typedef int (*dvbtx_set_frontend)(struct dvb_frontend *fe);
 typedef int (*dvbtx_read_status)(struct dvb_frontend *fe, enum fe_status *status, int *is_signal);
+typedef void (*dvbtx_info)(struct aml_dtvdemod *demod, struct seq_file *seq);
 static int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
@@ -7230,6 +7232,7 @@ static int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 	static unsigned int cur_system, chk_times;
 	dvbtx_set_frontend set_frontend = NULL;
 	dvbtx_read_status read_status = NULL;
+	dvbtx_info show_info = NULL;
 	int is_signal = 0; //0:Wait; 1:Yes; -1:No
 	int check_times = dvbtx_auto_check_times > 0 ? dvbtx_auto_check_times : 3;
 
@@ -7257,6 +7260,8 @@ static int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 
 	read_status = cur_system == SYS_DVBT ? dvbt_read_status : dvbt2_read_status;
 	read_status(fe, status, &is_signal);
+	show_info = cur_system == SYS_DVBT ? dvbt_info : dvbt2_info;
+	show_info(demod, NULL);
 
 	if (*status == FE_TIMEDOUT && is_signal == -1) {
 		if (chk_times > 0) {

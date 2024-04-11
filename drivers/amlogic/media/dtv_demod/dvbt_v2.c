@@ -1678,56 +1678,34 @@ void dtvdemod_set_plpid(char id)
 	PR_INFO("dtvdemod_set_plpid : %d\n", id);
 }
 
-static int m_calcul_carrier_offset(int crl_in, enum channel_bw_e bw)
+static int calcul_carrier_offset(struct aml_dtvdemod *demod)
 {
-	int crl = 0;
-	unsigned int freq = 0;
+	int cfo = dvbt_t2_rdb(0x28cc) + (dvbt_t2_rdb(0x28cd) << 8);
 
-	switch (bw) {
-	case 1:
-		freq = (131 * 1000000) / 71;
+	if (cfo & 0x8000)
+		cfo = -(cfo ^ 0xFFFF) - 1;
+
+	switch (demod->bw) {
+	case BANDWIDTH_1_712_MHZ:
+		cfo = cfo * 171 / 100;
 		break;
-
-	case 5:
-		freq = (40 * 1000000) / 7;
+	case BANDWIDTH_5_MHZ:
+		cfo *= 5;
 		break;
-
-	case 6:
-		freq = (48 * 1000000) / 7;
+	case BANDWIDTH_6_MHZ:
+		cfo *= 6;
 		break;
-
-	case 7:
-		freq = 8 * 1000000;
+	case BANDWIDTH_7_MHZ:
+		cfo *= 7;
 		break;
-
-	case 8:
+	case BANDWIDTH_8_MHZ:
 	default:
-		freq = (64 * 1000000) / 7;
+		cfo *= 8;
 		break;
 	}
+	cfo = cfo * 125 / 28672;
 
-	crl = ((int)crl_in * freq) / 262144;
-
-	return crl;
-}
-
-static int m_get_carrier_offset(void)
-{
-	int crl_freq_status;
-	int carrier_offset;
-	unsigned int crl_freq_stat;
-	int bw_value = dvbt_t2_rdb(0x1c) & 0xf;
-
-	crl_freq_stat = dvbt_t2_rdb(0x28cc) + (dvbt_t2_rdb(0x28cd) << 8);
-
-	if (crl_freq_stat & 0x8000)
-		crl_freq_status = -(crl_freq_stat ^ 0xFFFF) - 1;
-	else
-		crl_freq_status = crl_freq_stat;
-
-	carrier_offset = m_calcul_carrier_offset(crl_freq_status, bw_value);
-
-	return carrier_offset;
+	return cfo;
 }
 
 static int get_per_val(void)
@@ -1776,7 +1754,7 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	unsigned int gi_echo = (gi_st0 >> 4) & 0x1;
 	unsigned int giq = gi_st1 >> 4;
 	unsigned int gi = gi_st1 & 0xf;
-	unsigned int cfo = (dvbt_t2_rdb(0x28CD) << 8) + dvbt_t2_rdb(0x28CC);
+	int cfo = calcul_carrier_offset(demod);
 	unsigned int snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
 	unsigned int csnr = snr * 30 / 64; //dBx10.
 	unsigned int ber = dvbt_t2_rdb(0x53b);
@@ -1784,20 +1762,6 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	unsigned int p1_dlok = dvbt_t2_rdb(0x53e);
 	unsigned int punc = dvbt_t2_rdb(0x53a) & 0x1f;
 	char *str_sm_st, *str_sm_cst, *str_gi, *str_giq, *str_punc;
-
-	switch (demod->bw) {
-	case BANDWIDTH_6_MHZ:
-		cfo = ((cfo * 3000) / 7) >> 14;
-		break;
-	case BANDWIDTH_7_MHZ:
-		cfo = (cfo * 1000) >> 15;
-		break;
-	case BANDWIDTH_8_MHZ:
-		cfo = ((cfo * 1000) / 7) >> 12;
-		break;
-	default:
-		break;
-	}
 
 	switch (sm_st) {
 	case 0:
@@ -1944,7 +1908,7 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	}
 }
 
-void dvbt2_info(struct seq_file *seq)
+void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 {
 	/* SNR */
 	unsigned int c_snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
@@ -1967,7 +1931,7 @@ void dvbt2_info(struct seq_file *seq)
 	unsigned int pp_mode = (dvbt_t2_rdb(0x876) >> 2) & 0xf;
 
 	/* CFO */
-	unsigned int cfo = m_get_carrier_offset();
+	int cfo = calcul_carrier_offset(demod);
 
 	/* ldpc status */
 	unsigned int ldpc_it = dvbt_t2_rdb(0xa50);

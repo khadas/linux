@@ -131,6 +131,8 @@
 /*  V2.2.021 fix dvbt overflow when 6M 1/4 and other param */
 /*  V2.2.022 Calibrate DVBC signal strength read from R842 */
 /*  V2.2.023 rebuild dtmb driver */
+/*  V2.2.024 fix the first locking a 8VSB with offset signal failure */
+/*  V2.2.025 fix incorrect cfo calculation results and add info */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -147,8 +149,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.023"
-#define DTVDEMOD_VER	"2024/03/04: rebuild dtmb driver"
+#define AMLDTVDEMOD_VER "V2.2.025"
+#define DTVDEMOD_VER	"2024/04/11: fix incorrect cfo calculation results and add info"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

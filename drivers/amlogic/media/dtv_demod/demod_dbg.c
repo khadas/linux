@@ -280,7 +280,7 @@ static void seq_dump_status(struct seq_file *seq)
 			polling_en = devp->demod_thread;
 			devp->demod_thread = 0;
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-			dvbt2_info(seq);
+			dvbt2_info(demod, seq);
 
 			if (demod_is_t5d_cpu(devp))
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
@@ -994,7 +994,7 @@ static void info_show(void)
 			aml_demod_debug |= DBG_DVBT;
 			devp->demod_thread = 0;
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-			dvbt2_info(NULL);
+			dvbt2_info(demod, NULL);
 			if (demod_is_t5d_cpu(devp))
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 

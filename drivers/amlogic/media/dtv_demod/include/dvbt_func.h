@@ -508,6 +508,6 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe);
 void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbt2_reset(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
-void dvbt2_info(struct seq_file *seq);
+void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq);
 void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq);
 #endif
