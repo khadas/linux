@@ -412,7 +412,7 @@
 		rockchip,pvtm-volt = <850000>;
 		rockchip,pvtm-ref-temp = <35>;
 		rockchip,pvtm-temp-prop = <890 890>;
-		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,pvtm-thermal-zone = "little-core-thermal";
 
 		rockchip,grf = <&litcore_grf>;
 		rockchip,cci-grf = <&cci_grf>;
@@ -424,6 +424,10 @@
 		>;
 		intermediate-threshold-freq = <816000>;
 		rockchip,reboot-freq = <1416000>;
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -527,7 +531,7 @@
 		rockchip,pvtm-volt = <850000>;
 		rockchip,pvtm-ref-temp = <35>;
 		rockchip,pvtm-temp-prop = <920 920>;
-		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,pvtm-thermal-zone = "bigcore-thermal";
 
 		rockchip,grf = <&bigcore_grf>;
 		volt-mem-read-margin = <
@@ -538,6 +542,10 @@
 		>;
 		intermediate-threshold-freq = <816000>;
 		rockchip,reboot-freq = <1608000>;
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -775,6 +783,10 @@
 
 		nvmem-cells = <&log_leakage>;
 		nvmem-cell-names = "leakage";
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-528000000 {
 			opp-hz = /bits/ 64 <528000000>;
@@ -1273,7 +1285,7 @@
 	rockchip_system_monitor: rockchip-system-monitor {
 		compatible = "rockchip,system-monitor";
 
-		rockchip,thermal-zone = "soc-thermal";
+		rockchip,thermal-zone = "little-core-thermal";
 	};
 
 	thermal_zones: thermal-zones {
@@ -1991,6 +2003,10 @@
 				      <&cru HCLK_RKNN_CBUF>,
 				      <&cru PCLK_NPUTOP_ROOT>;
 
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
+
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <675000 675000 850000>;
@@ -2119,6 +2135,10 @@
 		>;
 		intermediate-threshold-freq = <300000>;
 		rockchip,opp-clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_ROOT>;
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
