@@ -2763,7 +2763,9 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 				hdev->tx_max_frl_rate == FRL_NONE))
 				return 0;
 		break;
+	case HDMI_6_720x480i60_4x3:
 	case HDMI_7_720x480i60_16x9:
+	case HDMI_21_720x576i50_4x3:
 	case HDMI_22_720x576i50_16x9:
 		if (para->cs == HDMI_COLORSPACE_YUV422)
 			return 0;
