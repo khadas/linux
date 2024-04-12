@@ -3178,6 +3178,9 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 		}
 	}
 
+	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data)
+		is_input_yuv = true;
+
 	if (is_input_yuv && !is_output_yuv) {
 		vpstate->y2r_en = 1;
 		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range, csc_y2r_bit_depth);
@@ -5592,6 +5595,7 @@ static const char *modifier_to_string(uint64_t modifier)
 
 static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpstate)
 {
+	struct drm_plane_state *pstate = &vpstate->base;
 	struct vop2 *vop2 = win->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
@@ -5606,6 +5610,7 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	u32 blk_size_fix;
 	u32 blk_size_hor_half, blk_size_ver_half;
 	u8 dw, dh;
+	enum vop_csc_format plane_csc_mode;
 
 	if (!vpstate->dci_data || !vpstate->dci_data->data) {
 		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
@@ -5679,8 +5684,11 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 	VOP_CLUSTER_SET(vop2, win, sat_adj_k, dci_data->adj1 & 0xffff);
 	VOP_CLUSTER_SET(vop2, win, sat_w, (dci_data->adj1 >> 16) & 0x7f);
 
+	plane_csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range,
+					       CSC_10BIT_DEPTH);
+
 	VOP_CLUSTER_SET(vop2, win, uv_adjust_en, dci_data->uv_adj);
-	VOP_CLUSTER_SET(vop2, win, csc_range, vop2_is_full_range_csc_mode(vpstate->csc_mode));
+	VOP_CLUSTER_SET(vop2, win, csc_range, vop2_is_full_range_csc_mode(plane_csc_mode));
 	VOP_CLUSTER_SET(vop2, win, dci_en, 1);
 
 	VOP_CTRL_SET(vop2, lut_dma_en, 1);
@@ -5956,9 +5964,19 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		}
 		format = VOP2_FMT_RGB888_YUV444;
 	}
+
+	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data)
+		y2r_path_sel = true;
+
 	VOP_WIN_SET(vop2, win, rb_swap, rb_swap);
 	VOP_WIN_SET(vop2, win, rg_swap, rg_swap);
 	VOP_WIN_SET(vop2, win, uv_swap, uv_swap);
+	/*
+	 * csc path and csc function are different. The choice of csc path is
+	 * determined by the actual color of the csc input. If input color is
+	 * in yuv format, y2r path must be selected. Whether actual r2y/y2r
+	 * function is enabled depends on the input and output of the csc.
+	 */
 	VOP_WIN_SET(vop2, win, csc_y2r_path_sel, y2r_path_sel);
 	VOP_WIN_SET(vop2, win, format, format);
 	VOP_WIN_SET(vop2, win, format_argb1555, is_argb1555_format(fb->format->format));
