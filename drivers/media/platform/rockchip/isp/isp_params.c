@@ -275,6 +275,10 @@ static int rkisp_params_fh_open(struct file *filp)
 
 	if (!params->dev->is_probe_end)
 		return -EINVAL;
+	ret = rkisp_cond_poll_timeout(!params->dev->is_thunderboot,
+				      5000, 1000 * USEC_PER_MSEC);
+	if (ret)
+		return ret;
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
