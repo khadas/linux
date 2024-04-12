@@ -553,6 +553,8 @@ static void gc2053_modify_fps_info(struct gc2053 *gc2053)
 				      gc2053->cur_vts;
 }
 
+static int gc2053_set_flip(struct gc2053 *gc2053, u8 mode);
+
 static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc2053 *gc2053 = container_of(ctrl->handler,
@@ -604,12 +606,16 @@ static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 			gc2053->flip |= GC_MIRROR_BIT_MASK;
 		else
 			gc2053->flip &= ~GC_MIRROR_BIT_MASK;
+
+		gc2053_set_flip(gc2053, gc2053->flip);
 		break;
 	case V4L2_CID_VFLIP:
 		if (ctrl->val)
 			gc2053->flip |= GC_FLIP_BIT_MASK;
 		else
 			gc2053->flip &= ~GC_FLIP_BIT_MASK;
+
+		gc2053_set_flip(gc2053, gc2053->flip);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
