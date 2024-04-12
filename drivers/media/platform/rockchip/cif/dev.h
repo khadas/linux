@@ -948,6 +948,7 @@ struct rkcif_device {
 	bool				is_sensor_off;
 	bool				is_alloc_buf_user;
 	bool				is_camera_over_bridge;
+	bool				is_thunderboot_start;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;

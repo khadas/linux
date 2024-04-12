@@ -20,6 +20,7 @@
 #include <soc/rockchip/rockchip-system-status.h>
 #include <soc/rockchip/rockchip_iommu.h>
 #include <linux/rk-isp32-config.h>
+#include <linux/mm.h>
 
 #include "dev.h"
 #include "mipi-csi2.h"
@@ -7157,6 +7158,16 @@ static int rkcif_fh_open(struct file *filp)
 	if (ret)
 		return ret;
 
+	if (cifdev->is_thunderboot) {
+		ret = rkisp_cond_poll_timeout(cifdev->is_thunderboot_start,
+					      2000, 5000 * USEC_PER_MSEC);
+		if (ret) {
+			mutex_lock(&cifdev->stream_lock);
+			cifdev->is_thunderboot = false;
+			mutex_unlock(&cifdev->stream_lock);
+			return -EINVAL;
+		}
+	}
 	/* Make sure active sensor is valid before .set_fmt() */
 	ret = rkcif_update_sensor_info(stream);
 	if (ret < 0) {

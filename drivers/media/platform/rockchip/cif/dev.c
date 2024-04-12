@@ -2456,6 +2456,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->is_stop_skip = false;
 	cif_dev->is_sensor_off = false;
 	cif_dev->exp_dbg = 0;
+	cif_dev->is_thunderboot_start = false;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
