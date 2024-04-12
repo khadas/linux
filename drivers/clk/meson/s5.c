@@ -2083,7 +2083,7 @@ static struct clk_regmap s5_hifi_pll_dco = {
 		.range = &s5_hifi_pll_m,
 		.init_regs = s5_hifi_init_regs,
 		.init_count = ARRAY_SIZE(s5_hifi_init_regs),
-		//.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
