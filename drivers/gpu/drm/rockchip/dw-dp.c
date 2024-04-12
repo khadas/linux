@@ -4153,7 +4153,7 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
-	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, true);
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, true);
 
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
@@ -4170,7 +4170,7 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (dp->panel)
 		drm_panel_disable(dp->panel);
 
-	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, false);
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, dp->id, false);
 	dw_dp_hdcp_disable(dp);
 	dw_dp_video_disable(dp, 0);
 	dw_dp_link_disable(dp);

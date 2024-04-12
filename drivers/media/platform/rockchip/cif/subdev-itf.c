@@ -29,6 +29,54 @@ static inline struct sditf_priv *to_sditf_priv(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct sditf_priv, sd);
 }
 
+void sditf_event_inc_sof(struct sditf_priv *priv)
+{
+	if (priv) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence =
+				atomic_inc_return(&priv->frm_sync_seq) - 1,
+		};
+		v4l2_event_queue(priv->sd.devnode, &event);
+		if (priv->cif_dev->exp_dbg)
+			dev_info(priv->dev, "sof %d\n", atomic_read(&priv->frm_sync_seq) - 1);
+	}
+}
+
+void sditf_event_exposure_notifier(struct sditf_priv *priv,
+					   struct sditf_effect_exp *effect_exp)
+{
+	if (priv) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_EXPOSURE,
+		};
+		v4l2_event_queue(priv->sd.devnode, &event);
+	}
+}
+
+u32 sditf_get_sof(struct sditf_priv *priv)
+{
+	if (priv)
+		return atomic_read(&priv->frm_sync_seq) - 1;
+
+	return 0;
+}
+
+void sditf_set_sof(struct sditf_priv *priv, u32 seq)
+{
+	if (priv)
+		atomic_set(&priv->frm_sync_seq, seq);
+}
+
+static int sditf_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+					     struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_FRAME_SYNC || sub->type == V4L2_EVENT_EXPOSURE)
+		return v4l2_event_subscribe(fh, sub, RKCIF_V4L2_EVENT_ELEMS, NULL);
+	else
+		return -EINVAL;
+}
+
 static void sditf_buffree_work(struct work_struct *work)
 {
 	struct sditf_work_struct *buffree_work = container_of(work,
@@ -330,9 +378,15 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct v4l2_subdev_format fmt;
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev *sensor_sd;
+	struct rkcif_exp *exp;
+	struct rkcif_effect_exp *effect_exposure;
+	struct sditf_time *time;
+	struct sditf_gain *gain;
+	struct sditf_effect_exp *effect_exp;
 	int *pbuf_num = NULL;
 	int ret = 0;
 	int *on = NULL;
+	int *connect_id = NULL;
 
 	switch (cmd) {
 	case RKISP_VICAP_CMD_MODE:
@@ -384,6 +438,53 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			return 0;
 		}
 		break;
+	case RKCIF_CMD_SET_EXPOSURE:
+		exp = (struct rkcif_exp *)arg;
+		time = kzalloc(sizeof(*time), GFP_KERNEL);
+		if (!time) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		gain = kzalloc(sizeof(*gain), GFP_KERNEL);
+		if (!gain) {
+			ret = -ENOMEM;
+			kfree(time);
+			return ret;
+		}
+		time->time = exp->time;
+		gain->gain = exp->gain;
+		mutex_lock(&priv->mutex);
+		list_add_tail(&time->list, &priv->time_head);
+		list_add_tail(&gain->list, &priv->gain_head);
+		mutex_unlock(&priv->mutex);
+		if (cif_dev->exp_dbg)
+			dev_info(priv->dev, "RKCIF_CMD_SET_EXPOSURE %d\n", ret);
+		return ret;
+	case RKCIF_CMD_GET_EFFECT_EXPOSURE:
+		if (!list_empty(&priv->effect_exp_head)) {
+			effect_exp = list_first_entry(&priv->effect_exp_head,
+						      struct sditf_effect_exp,
+						      list);
+			if (effect_exp) {
+				effect_exposure = (struct rkcif_effect_exp *)arg;
+				mutex_lock(&priv->mutex);
+				list_del(&effect_exp->list);
+				mutex_unlock(&priv->mutex);
+				*effect_exposure = effect_exp->exp;
+				kfree(effect_exp);
+				effect_exp = NULL;
+				if (cif_dev->exp_dbg)
+					dev_info(priv->dev, "RKCIF_CMD_GET_EFFECT_EXPOSURE seq %d, time 0x%x, gain 0x%x\n",
+						 effect_exposure->sequence, effect_exposure->time, effect_exposure->gain);
+			}
+		} else {
+			ret = -EINVAL;
+		}
+		return ret;
+	case RKCIF_CMD_GET_CONNECT_ID:
+		connect_id = (int *)arg;
+		*connect_id = priv->connect_id;
+		return ret;
 	default:
 		break;
 	}
@@ -401,9 +502,12 @@ static long sditf_compat_ioctl32(struct v4l2_subdev *sd,
 	struct v4l2_subdev *sensor_sd;
 	struct rkisp_vicap_mode *mode;
 	struct rkmodule_hdr_cfg	*hdr_cfg;
+	struct rkcif_exp *exp;
+	struct rkcif_effect_exp *effect_expsure;
 	int buf_num;
 	int ret = 0;
 	int on;
+	int connect_id = 0;
 
 	switch (cmd) {
 	case RKISP_VICAP_CMD_MODE:
@@ -430,11 +534,48 @@ static long sditf_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -ENOMEM;
 			return ret;
 		}
-		if (copy_from_user(hdr_cfg, up, sizeof(*hdr_cfg))) {
-			kfree(hdr_cfg);
+		ret = sditf_ioctl(sd, cmd, hdr_cfg);
+		if (!ret) {
+			ret = copy_to_user(up, hdr_cfg, sizeof(*hdr_cfg));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(hdr_cfg);
+		return ret;
+	case RKCIF_CMD_SET_EXPOSURE:
+		exp = kzalloc(sizeof(*exp), GFP_KERNEL);
+		if (!exp) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		if (copy_from_user(exp, up, sizeof(*exp))) {
+			kfree(exp);
 			return -EFAULT;
 		}
-		ret = sditf_ioctl(sd, cmd, hdr_cfg);
+		ret = sditf_ioctl(sd, cmd, exp);
+		kfree(exp);
+		return ret;
+	case RKCIF_CMD_GET_EFFECT_EXPOSURE:
+		effect_expsure = kzalloc(sizeof(*effect_expsure), GFP_KERNEL);
+		if (!effect_expsure) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = sditf_ioctl(sd, cmd, effect_expsure);
+		if (!ret) {
+			ret = copy_to_user(up, effect_expsure, sizeof(*effect_expsure));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(effect_expsure);
+		return ret;
+	case RKCIF_CMD_GET_CONNECT_ID:
+		ret = sditf_ioctl(sd, cmd, &connect_id);
+		if (!ret) {
+			ret = copy_to_user(up, &connect_id, sizeof(int));
+			if (ret)
+				ret = -EFAULT;
+		}
 		return ret;
 	case RKISP_VICAP_CMD_QUICK_STREAM:
 		if (copy_from_user(&on, up, sizeof(int)))
@@ -839,7 +980,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	struct rkcif_stream *stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
-	unsigned long flags, buffree_flags;
+	unsigned long flags, buffree_flags, hdr_lock_flags;
 	u32 diff_time = 1000000;
 	u32 early_time = 0;
 	bool is_free = false;
@@ -877,6 +1018,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (!stream)
 		return -EINVAL;
 
+	if (dbufs->sequence == 0) {
+		spin_lock_irqsave(&stream->vbq_lock, flags);
+		cif_dev->is_stop_skip = true;
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+	}
+
 	rx_buf = to_cif_rx_buf(dbufs);
 	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "buf back to vicap 0x%x\n",
 		 (u32)rx_buf->dummy.dma_addr);
@@ -885,7 +1032,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	atomic_inc(&stream->buf_cnt);
 
 	is_single_dev = rkcif_check_single_dev_stream_on(cif_dev->hw_dev);
-	if (!list_empty(&stream->rx_buf_head) &&
+	if (stream->total_buf_num > cif_dev->fb_res_bufs &&
 	    cif_dev->is_thunderboot &&
 	    ((!cif_dev->is_rtt_suspend &&
 	      !cif_dev->is_aov_reserved) ||
@@ -903,13 +1050,21 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 
 	if (!is_free && (!dbufs->is_switch)) {
 		list_add_tail(&rx_buf->list, &stream->rx_buf_head);
+		rkcif_assign_check_buffer_update_toisp(stream);
 		if (cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME) {
-			rkcif_assign_check_buffer_update_toisp(stream);
 			if (!stream->dma_en) {
 				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(stream, true);
-				cif_dev->sensor_work.on = 1;
-				schedule_work(&cif_dev->sensor_work.work);
+				spin_lock_irqsave(&cif_dev->hdr_lock, hdr_lock_flags);
+				if (cif_dev->is_sensor_off) {
+					cif_dev->is_sensor_off = false;
+					spin_unlock_irqrestore(&cif_dev->hdr_lock, hdr_lock_flags);
+					cif_dev->sensor_work.on = 1;
+					rkcif_dphy_quick_stream(stream->cifdev, cif_dev->sensor_work.on);
+					schedule_work(&cif_dev->sensor_work.work);
+				} else {
+					spin_unlock_irqrestore(&cif_dev->hdr_lock, hdr_lock_flags);
+				}
 			}
 		}
 		if (cif_dev->rdbk_debug) {
@@ -1004,6 +1159,8 @@ static const struct v4l2_subdev_video_ops sditf_video_ops = {
 };
 
 static const struct v4l2_subdev_core_ops sditf_core_ops = {
+	.subscribe_event = sditf_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.ioctl = sditf_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = sditf_compat_ioctl32,
@@ -1044,6 +1201,7 @@ static int rkcif_sditf_attach_cifdev(struct sditf_priv *sditf)
 
 	cif_dev->sditf[cif_dev->sditf_cnt] = sditf;
 	sditf->cif_dev = cif_dev;
+	sditf->connect_id = cif_dev->sditf_cnt;
 	cif_dev->sditf_cnt++;
 
 	return 0;
@@ -1115,6 +1273,32 @@ static int rkcif_sditf_get_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops rkcif_sditf_ctrl_ops = {
 	.g_volatile_ctrl = rkcif_sditf_get_ctrl,
 };
+
+void sditf_get_default_exp(struct sditf_priv *sditf)
+{
+	struct v4l2_ctrl *ctrl = NULL;
+	struct rkcif_device *dev = sditf->cif_dev;
+
+	if (dev->terminal_sensor.sd == NULL)
+		return;
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_EXPOSURE);
+	if (ctrl)
+		sditf->cur_time = ctrl->default_value;
+	else
+		sditf->cur_time = 16;
+
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_ANALOGUE_GAIN);
+	if (ctrl)
+		sditf->cur_gain = ctrl->default_value;
+	else
+		sditf->cur_gain = 16;
+
+	if (dev->exp_dbg)
+		dev_info(sditf->dev, "get default time 0x%x gain 0x%x\n",
+			 sditf->cur_time, sditf->cur_gain);
+}
 
 static int sditf_notifier_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
@@ -1200,6 +1384,19 @@ static int sditf_subdev_notifier(struct sditf_priv *sditf)
 	return v4l2_async_register_subdev(&sditf->sd);
 }
 
+static int sditf_count_port_nodes(struct device_node *root_node)
+{
+	int count = 0;
+	struct device_node *node = NULL;
+
+	for_each_child_of_node(root_node, node) {
+		if (of_node_cmp(node->name, "port") == 0)
+			count++;
+		count += sditf_count_port_nodes(node);
+	}
+	return count;
+}
+
 static int rkcif_subdev_media_init(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
@@ -1208,7 +1405,8 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	int ret;
 	int pad_num = 0;
 
-	if (priv->is_combine_mode) {
+	priv->port_count = sditf_count_port_nodes(priv->dev->of_node);
+	if (priv->port_count > 1) {
 		priv->pads[0].flags = MEDIA_PAD_FL_SINK;
 		priv->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		pad_num = 2;
@@ -1244,12 +1442,18 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
 	priv->toisp_inf.ch_info[2].is_valid = false;
-	if (priv->is_combine_mode)
+	if (priv->port_count > 1)
 		sditf_subdev_notifier(priv);
 	atomic_set(&priv->power_cnt, 0);
 	atomic_set(&priv->stream_cnt, 0);
 	INIT_WORK(&priv->buffree_work.work, sditf_buffree_work);
 	INIT_LIST_HEAD(&priv->buf_free_list);
+	INIT_LIST_HEAD(&priv->time_head);
+	INIT_LIST_HEAD(&priv->gain_head);
+	INIT_LIST_HEAD(&priv->effect_exp_head);
+	priv->frame_idx.cur_frame_idx = 0;
+	atomic_set(&priv->frm_sync_seq, 0);
+	mutex_init(&priv->mutex);
 	return 0;
 }
 
@@ -1268,7 +1472,8 @@ static int rkcif_subdev_probe(struct platform_device *pdev)
 
 	sd = &priv->sd;
 	v4l2_subdev_init(sd, &sditf_subdev_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->owner = THIS_MODULE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	snprintf(sd->name, sizeof(sd->name), "rockchip-cif-sditf");
 	sd->dev = dev;
 

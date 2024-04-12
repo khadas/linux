@@ -491,6 +491,7 @@ struct rk806_platform_data {
 	int force_shutdown_enable;
 	int shutdown_temperture_threshold;
 	int hotdie_temperture_threshold;
+	int vdc_wakeup_enable;
 };
 
 struct rk806_pin_info {

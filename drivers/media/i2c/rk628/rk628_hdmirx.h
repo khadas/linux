@@ -455,11 +455,6 @@
 
 #define SCDC_CED_ERR_CNT		0xfff
 
-enum color_range {
-	CSC_LIMIT_RANGE,
-	CSC_FULL_RANGE,
-};
-
 enum bus_format {
 	BUS_FMT_RGB = 0,
 	BUS_FMT_YUV422 = 1,
@@ -529,7 +524,7 @@ u8 rk628_hdmirx_get_color_space(struct rk628 *rk628);
 int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
-bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628);
+bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pdec_ints);
 
 void rk628_hdmirx_cec_irq(struct rk628 *rk628, struct rk628_hdmirx_cec *cec);
 struct rk628_hdmirx_cec *rk628_hdmirx_cec_register(struct rk628 *rk628);
