@@ -44,7 +44,8 @@
 #define MIS4001_REG_CHIP_ID		0x3000
 
 #define MIS4001_REG_CTRL_MODE		0x3006
-#define MIS4001_MODE_SW_STANDBY		0x3
+#define MIS4001_MODE_SW_STANDBY_RESET	0x3
+#define MIS4001_MODE_SW_STANDBY		0x2
 #define MIS4001_MODE_STREAMING		0x0
 
 #define MIS4001_REG_EXPOSURE_H		0x3100
@@ -902,7 +903,7 @@ static long mis4001_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				 MIS4001_REG_VALUE_08BIT, MIS4001_MODE_STREAMING);
 		else
 			ret = mis4001_write_reg(mis4001->client, MIS4001_REG_CTRL_MODE,
-				 MIS4001_REG_VALUE_08BIT, MIS4001_MODE_SW_STANDBY);
+				 MIS4001_REG_VALUE_08BIT, MIS4001_MODE_SW_STANDBY);//only stop mipi
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1016,7 +1017,7 @@ static int __mis4001_start_stream(struct mis4001 *mis4001)
 static int __mis4001_stop_stream(struct mis4001 *mis4001)
 {
 	return mis4001_write_reg(mis4001->client, MIS4001_REG_CTRL_MODE,
-				 MIS4001_REG_VALUE_08BIT, MIS4001_MODE_SW_STANDBY);
+				 MIS4001_REG_VALUE_08BIT, MIS4001_MODE_SW_STANDBY_RESET);
 }
 
 static int mis4001_s_stream(struct v4l2_subdev *sd, int on)
