@@ -2009,7 +2009,7 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&csi->confctl_mutex);
 	format->format.code = csi->mbus_fmt_code;
-	format->format.width = csi->timings.bt.width;
+	format->format.width = ALIGN_DOWN(csi->timings.bt.width, 8);
 	format->format.height = csi->timings.bt.height;
 	format->format.field = csi->timings.bt.interlaced ?
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
