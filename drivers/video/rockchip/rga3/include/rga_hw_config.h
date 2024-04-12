@@ -76,6 +76,7 @@ struct rga_hw_data {
 extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
 extern const struct rga_hw_data rga2e_1106_data;
+extern const struct rga_hw_data rga2e_3506_data;
 extern const struct rga_hw_data rga2e_iommu_data;
 extern const struct rga_hw_data rga2p_iommu_data;
 extern const struct rga_hw_data rga2p_lite_1103b_data;

@@ -159,6 +159,7 @@ enum {
 	RGA_OSD				= 0x1 << 11,
 	RGA_PRE_INTR			= 0x1 << 12,
 	RGA_FULL_CSC			= 0x1 << 13,
+	RGA_GAUSS			= 0x1 << 14,
 };
 
 enum rga_surf_format {

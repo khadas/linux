@@ -1371,6 +1371,8 @@ static int rga_drv_probe(struct platform_device *pdev)
 		} else if (!strcmp(scheduler->version.str, "3.6.92812") ||
 			 !strcmp(scheduler->version.str, "3.7.93215")) {
 			scheduler->data = &rga2e_iommu_data;
+		} else if (!strcmp(scheduler->version.str, "3.a.07135")) {
+			scheduler->data = &rga2e_3506_data;
 		} else if (!strcmp(scheduler->version.str, "3.e.19357")) {
 			scheduler->data = &rga2p_iommu_data;
 			rga_hw_set_issue_mask(scheduler, RGA_HW_ISSUE_DIS_AUTO_RST);

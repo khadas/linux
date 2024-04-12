@@ -399,6 +399,41 @@ const struct rga_win_data rga2e_win_data[] = {
 	},
 };
 
+const struct rga_win_data rga2e_3506_win_data[] = {
+	{
+		.name = "rga2e-src0",
+		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2e_input_raster_format),
+		.supported_rotations = RGA_MODE_ROTATE_MASK,
+		.scale_up_mode = RGA_SCALE_UP_BIC,
+		.scale_down_mode = RGA_SCALE_DOWN_AVG,
+		.rd_mode = RGA_RASTER_MODE,
+
+	},
+
+	{
+		.name = "rga2e-src1",
+		.formats[RGA_RASTER_INDEX] = rga2p_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2p_input_raster_format),
+		.supported_rotations = RGA_MODE_ROTATE_MASK,
+		.scale_up_mode = RGA_SCALE_UP_BIC,
+		.scale_down_mode = RGA_SCALE_DOWN_AVG,
+		.rd_mode = RGA_RASTER_MODE,
+
+	},
+
+	{
+		.name = "rga2-dst",
+		.formats[RGA_RASTER_INDEX] = rga2e_output_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2e_output_raster_format),
+		.supported_rotations = 0,
+		.scale_up_mode = RGA_SCALE_UP_NONE,
+		.scale_down_mode = RGA_SCALE_DOWN_NONE,
+		.rd_mode = RGA_RASTER_MODE,
+
+	},
+};
+
 const struct rga_win_data rga2p_win_data[] = {
 	{
 		.name = "rga2p-src0",
@@ -530,6 +565,30 @@ const struct rga_hw_data rga2e_1106_data = {
 		   RGA_NN_QUANTIZE | RGA_DITHER | RGA_MOSAIC |
 		   RGA_YIN_YOUT | RGA_YUV_HDS | RGA_YUV_VDS |
 		   RGA_OSD | RGA_PRE_INTR | RGA_FULL_CSC,
+	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.mmu = RGA_NONE_MMU,
+};
+
+const struct rga_hw_data rga2e_3506_data = {
+	.version = 0,
+	.input_range = {{2, 2}, {1280, 1280}},
+	.output_range = {{2, 2}, {1280, 1280}},
+
+	.win = rga2e_3506_win_data,
+	.win_size = ARRAY_SIZE(rga2e_3506_win_data),
+	/* 1 << factor mean real factor */
+	.max_upscale_factor = 4,
+	.max_downscale_factor = 4,
+
+	.byte_stride_align = 4,
+	.max_byte_stride = WORD_TO_BYTE(8192),
+
+	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
+		   RGA_COLOR_KEY | RGA_YIN_YOUT | RGA_YUV_HDS | RGA_YUV_VDS |
+		   RGA_PRE_INTR | RGA_FULL_CSC | RGA_GAUSS,
 	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
 			RGA_MODE_CSC_BT709,
 	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
