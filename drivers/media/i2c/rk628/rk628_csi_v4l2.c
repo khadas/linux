@@ -2891,6 +2891,11 @@ static int rk628_csi_get_custom_ctrl(struct v4l2_ctrl *ctrl)
 	if (ctrl->id == RK_V4L2_CID_AUDIO_SAMPLING_RATE) {
 		ret = get_audio_sampling_rate(sd);
 		*ctrl->p_new.p_s32 = ret;
+	} else if (ctrl->id == RK_V4L2_CID_AUDIO_PRESENT) {
+		ret = tx_5v_power_present(sd) ? rk628_hdmirx_audio_present(csi->audio_info) : 0;
+		*ctrl->p_new.p_s32 = ret;
+	} else {
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -2913,6 +2918,7 @@ static const struct v4l2_ctrl_config rk628_csi_ctrl_audio_sampling_rate = {
 };
 
 static const struct v4l2_ctrl_config rk628_csi_ctrl_audio_present = {
+	.ops = &rk628_csi_custom_ctrl_ops,
 	.id = RK_V4L2_CID_AUDIO_PRESENT,
 	.name = "Audio present",
 	.type = V4L2_CTRL_TYPE_BOOLEAN,
@@ -3410,8 +3416,12 @@ static int rk628_csi_probe(struct i2c_client *client,
 	/* custom controls */
 	csi->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(&csi->hdl,
 			&rk628_csi_ctrl_audio_sampling_rate, NULL);
+	if (csi->audio_sampling_rate_ctrl)
+		csi->audio_sampling_rate_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	csi->audio_present_ctrl = v4l2_ctrl_new_custom(&csi->hdl,
 			&rk628_csi_ctrl_audio_present, NULL);
+	if (csi->audio_present_ctrl)
+		csi->audio_present_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	sd->ctrl_handler = &csi->hdl;
 	if (csi->hdl.error) {
