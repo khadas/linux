@@ -1653,6 +1653,22 @@ static const struct snd_dlp_config dconfig = {
 	.get_fifo_count = rockchip_sai_get_fifo_count,
 };
 
+static int rockchip_sai_wait_time_init(struct rk_sai_dev *sai)
+{
+	unsigned int wait_time;
+
+	if (!device_property_read_u32(sai->dev, "rockchip,sai-tx-wait-time-ms", &wait_time)) {
+		dev_info(sai->dev, "Init TX wait-time-ms: %d\n", wait_time);
+		sai->wait_time[SNDRV_PCM_STREAM_PLAYBACK] = wait_time;
+	}
+
+	if (!device_property_read_u32(sai->dev, "rockchip,sai-rx-wait-time-ms", &wait_time)) {
+		dev_info(sai->dev, "Init RX wait-time-ms: %d\n", wait_time);
+		sai->wait_time[SNDRV_PCM_STREAM_CAPTURE] = wait_time;
+	}
+	return 0;
+}
+
 static int rockchip_sai_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1671,6 +1687,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	/* match to register default */
 	sai->is_master_mode = true;
 	dev_set_drvdata(&pdev->dev, sai);
+
+	rockchip_sai_wait_time_init(sai);
 
 	sai->rst_h = devm_reset_control_get_optional_exclusive(&pdev->dev, "h");
 	if (IS_ERR(sai->rst_h))
