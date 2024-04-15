@@ -4154,6 +4154,8 @@ EXPORT_SYMBOL_GPL(dw_hdmi_qp_suspend);
 
 void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 {
+	enum drm_connector_status result;
+
 	if (!hdmi) {
 		dev_warn(dev, "Hdmi has not been initialized\n");
 		return;
@@ -4181,6 +4183,13 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 		enable_irq(hdmi->earc_irq);
 
 	mutex_unlock(&hdmi->mutex);
+
+	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	if (result == connector_status_connected) {
+		mutex_lock(&hdmi->connector.dev->mode_config.mutex);
+		dw_hdmi_connector_get_modes(&hdmi->connector);
+		mutex_unlock(&hdmi->connector.dev->mode_config.mutex);
+	}
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_resume);
 
