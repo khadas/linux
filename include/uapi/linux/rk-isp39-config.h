@@ -177,6 +177,39 @@
 #define ISP39_BNR2AEBIG_SEL_EN		0x10
 #define ISP39_BNR2AE0_SEL_EN		0x20
 
+struct isp39_gic_cfg {
+	/* CONTROL */
+	__u8 bypass_en;
+	/* DIFF_PARA1 */
+	__u16 regmingradthrdark2;
+	__u16 regmingradthrdark1;
+	__u16 regminbusythre;
+	/* DIFF_PARA2 */
+	__u16 regdarkthre;
+	__u16 regmaxcorvboth;
+	__u16 regdarktthrehi;
+	/* DIFF_PARA3 */
+	__u8 regkgrad2dark;
+	__u8 regkgrad1dark;
+	__u8 regstrengthglobal_fix;
+	__u8 regdarkthrestep;
+	__u8 regkgrad2;
+	__u8 regkgrad1;
+	__u8 reggbthre;
+	/* DIFF_PARA4 */
+	__u16 regmaxcorv;
+	__u16 regmingradthr2;
+	__u16 regmingradthr1;
+	/* NOISE_PARA1 */
+	__u8 gr_ratio;
+	__u8 noise_scale;
+	__u16 noise_base;
+	/* NOISE_PARA2 */
+	__u16 diff_clip;
+	/* SIGMA */
+	__u16 sigma_y[ISP39_GIC_SIGMA_Y_NUM];
+} __attribute__ ((packed));
+
 struct isp39_dpcc_cfg {
 	/* MODE */
 	__u8 stage1_enable;
@@ -1585,7 +1618,7 @@ struct isp39_isp_other_cfg {
 	struct isp39_dpcc_cfg dpcc_cfg;
 	struct isp3x_lsc_cfg lsc_cfg;
 	struct isp32_awb_gain_cfg awb_gain_cfg;
-	struct isp21_gic_cfg gic_cfg;
+	struct isp39_gic_cfg gic_cfg;
 	struct isp39_debayer_cfg debayer_cfg;
 	struct isp39_ccm_cfg ccm_cfg;
 	struct isp3x_gammaout_cfg gammaout_cfg;

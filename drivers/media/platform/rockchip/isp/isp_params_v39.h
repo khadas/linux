@@ -92,7 +92,7 @@ struct rkisp_isp_params_ops_v39 {
 	void (*hdrmge_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			      bool en, u32 id);
 	void (*gic_config)(struct rkisp_isp_params_vdev *params_vdev,
-			   const struct isp21_gic_cfg *arg, u32 id);
+			   const struct isp39_gic_cfg *arg, u32 id);
 	void (*gic_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			   bool en, u32 id);
 	void (*dhaz_config)(struct rkisp_isp_params_vdev *params_vdev,

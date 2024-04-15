@@ -1036,6 +1036,10 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	var = ISP_PACK_2SHORT(arg->v_fv_limit, arg->v_fv_slope);
 	isp3_param_write(params_vdev, var, ISP32L_RAWAF_CORING_V, id);
 
+	if (!arg->hiir_en || !arg->viir_en || !arg->aehgl_en)
+		dev_err(params_vdev->dev->dev,
+			"af hiir:%d viir:%d aehgl:%d no enable together\n",
+			arg->hiir_en, arg->viir_en, arg->aehgl_en);
 	viir_en = arg->viir_en;
 	gaus_en = arg->gaus_en;
 
@@ -2187,13 +2191,18 @@ isp_hdrdrc_config(struct rkisp_isp_params_vdev *params_vdev,
 		  const struct isp39_drc_cfg *arg,
 		  enum rkisp_params_type type, u32 id)
 {
-	u32 i, value;
+	u32 i, value, ctrl;
 
-	value = isp3_param_read(params_vdev, ISP3X_DRC_CTRL0, id);
-	value &= ISP39_MODULE_EN;
-	value |= !!arg->raw_dly_dis << 29 | !!arg->gainx32_en << 3 |
-		 !!arg->cmps_byp_en << 2 | !!arg->bypass_en << 1;
-	isp3_param_write(params_vdev, value, ISP3X_DRC_CTRL0, id);
+	ctrl = isp3_param_read(params_vdev, ISP3X_DRC_CTRL0, id);
+	ctrl &= ISP39_MODULE_EN;
+	ctrl |= !!arg->gainx32_en << 3 |
+		!!arg->cmps_byp_en << 2 | !!arg->bypass_en << 1;
+	isp3_param_write(params_vdev, ctrl, ISP3X_DRC_CTRL0, id);
+	if (ctrl & BIT(29))
+		dev_warn(params_vdev->dev->dev, "drc raw_dly_dis=1\n");
+	value = isp3_param_read_cache(params_vdev, ISP3X_HDRMGE_CTRL, id);
+	if (ctrl & BIT(2) && (value & ISP39_MODULE_EN))
+		dev_warn(params_vdev->dev->dev, "drc cmps_byp_en=1 but hdr\n");
 
 	if (type == RKISP_PARAMS_IMD)
 		return;
@@ -2283,10 +2292,15 @@ isp_hdrdrc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 
 static void
 isp_gic_config(struct rkisp_isp_params_vdev *params_vdev,
-	       const struct isp21_gic_cfg *arg, u32 id)
+	       const struct isp39_gic_cfg *arg, u32 id)
 {
 	u32 value;
 	s32 i;
+
+	value = isp3_param_read(params_vdev, ISP3X_GIC_CONTROL, id);
+	value &= ISP39_MODULE_EN;
+	value |= arg->bypass_en << 1;
+	isp3_param_write(params_vdev, value, ISP3X_GIC_CONTROL, id);
 
 	value = (arg->regmingradthrdark2 & 0x03FF) << 20 |
 		(arg->regmingradthrdark1 & 0x03FF) << 10 |
@@ -2333,8 +2347,11 @@ isp_gic_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
 	u32 value = 0;
 
+	value = isp3_param_read(params_vdev, ISP3X_GIC_CONTROL, id);
 	if (en)
 		value |= ISP39_MODULE_EN;
+	else
+		value &= ~ISP39_MODULE_EN;
 	isp3_param_write(params_vdev, value, ISP3X_GIC_CONTROL, id);
 }
 
@@ -3101,6 +3118,10 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	ctrl |= !!arg->bypass_en << 1 | !!arg->iirsparse_en << 2;
 	isp3_param_write(params_vdev, ctrl, ISP3X_BAY3D_CTRL, id);
+
+	value = isp3_param_read_cache(params_vdev, ISP3X_HDRMGE_CTRL, id);
+	if (arg->transf_bypass_en && (value & ISP39_MODULE_EN))
+		dev_err(params_vdev->dev->dev, "bay3d transf_bypass_en=1 but hdr\n");
 
 	value = !!arg->noisebal_mode << 23 |
 		!!arg->curdbg_out_en << 22 |
@@ -3929,11 +3950,15 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
 	u64 module_en_update = new_params->module_en_update;
 	u64 module_ens = new_params->module_ens;
+	u64 mask;
 	u32 gain_ctrl, cnr_ctrl, val;
 
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
+	mask = ISP39_MODULE_YNR | ISP39_MODULE_CNR | ISP39_MODULE_SHARP;
+	if  ((module_ens & mask) && ((module_ens & mask) != mask))
+		dev_err(params_vdev->dev->dev, "ynr cnr sharp no enable together\n");
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_en_update:0x%llx module_ens:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_en_update, module_ens);
