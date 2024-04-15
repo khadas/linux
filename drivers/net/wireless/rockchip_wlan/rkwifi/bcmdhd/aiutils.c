@@ -1238,8 +1238,8 @@ ai_core_disable(const si_t *sih, uint32 bits)
  * bits - core specific bits that are set during and after reset sequence
  * resetbits - core specific bits that are set only during reset sequence
  */
-static void
-BCMPOSTTRAPFN(_ai_core_reset)(const si_t *sih, uint32 bits, uint32 resetbits)
+static bool
+_ai_core_reset(const si_t *sih, uint32 bits, uint32 resetbits)
 {
 	const si_info_t *sii = SI_INFO(sih);
 	aidmp_t *ai;
@@ -1249,6 +1249,12 @@ BCMPOSTTRAPFN(_ai_core_reset)(const si_t *sih, uint32 bits, uint32 resetbits)
 	ASSERT(GOODREGS(sii->curwrap));
 	ai = sii->curwrap;
 
+	if (R_REG(sii->osh, &ai->resetstatus) == 0xffffffff &&
+		R_REG(sii->osh, &ai->ioctrl) == 0xffffffff &&
+		R_REG(sii->osh, &ai->resetctrl) == 0xffffffff) {
+		SI_ERROR(("%s: fail, resetstatus&ioctrl&resetctrl is 0xffffffff\n", __func__));
+		return FALSE;
+	}
 	/* ensure there are no pending backplane operations */
 	SPINWAIT(((dummy = R_REG(sii->osh, &ai->resetstatus)) != 0), 300);
 
@@ -1257,6 +1263,12 @@ BCMPOSTTRAPFN(_ai_core_reset)(const si_t *sih, uint32 bits, uint32 resetbits)
 		SI_ERROR(("_ai_core_reset: WARN1: resetstatus=0x%0x\n", dummy));
 	}
 #endif /* BCMDBG_ERR */
+
+	SI_ERROR(("%s: &ai->ioctrl = 0x%x, &ai->resetctrl = 0x%x, &ai->resetstatus = 0x%x\n",
+			__func__,
+			R_REG(sii->osh, &ai->ioctrl),
+			R_REG(sii->osh, &ai->resetctrl),
+			R_REG(sii->osh, &ai->resetstatus)));
 
 	/* put core into reset state */
 	W_REG(sii->osh, &ai->resetctrl, AIRC_RESET);
@@ -1322,28 +1334,31 @@ BCMPOSTTRAPFN(_ai_core_reset)(const si_t *sih, uint32 bits, uint32 resetbits)
 	}
 #endif /* UCM_CORRUPTION_WAR */
 	OSL_DELAY(1);
+	return TRUE;
 }
 
-void
-BCMPOSTTRAPFN(ai_core_reset)(si_t *sih, uint32 bits, uint32 resetbits)
+bool
+ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 {
 	si_info_t *sii = SI_INFO(sih);
 	const si_cores_info_t *cores_info = (const si_cores_info_t *)sii->cores_info;
 	uint idx = sii->curidx;
+	bool ret = TRUE;
 
 	if (cores_info->wrapba3[idx] != 0) {
 		ai_setcoreidx_3rdwrap(sih, idx);
-		_ai_core_reset(sih, bits, resetbits);
+		ret = _ai_core_reset(sih, bits, resetbits);
 		ai_setcoreidx(sih, idx);
 	}
 
 	if (cores_info->wrapba2[idx] != 0) {
 		ai_setcoreidx_2ndwrap(sih, idx);
-		_ai_core_reset(sih, bits, resetbits);
+		ret = _ai_core_reset(sih, bits, resetbits);
 		ai_setcoreidx(sih, idx);
 	}
 
-	_ai_core_reset(sih, bits, resetbits);
+	ret = _ai_core_reset(sih, bits, resetbits);
+	return ret;
 }
 
 #ifdef BOOKER_NIC400_INF

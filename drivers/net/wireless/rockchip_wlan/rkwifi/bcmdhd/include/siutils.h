@@ -386,7 +386,7 @@ extern uint32 si_addrspace(const si_t *sih, uint spidx, uint baidx);
 extern uint32 si_addrspacesize(const si_t *sih, uint spidx, uint baidx);
 extern void si_coreaddrspaceX(const si_t *sih, uint asidx, uint32 *addr, uint32 *size);
 extern int si_corebist(const si_t *sih);
-extern void si_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
+extern bool si_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 extern void si_core_disable(const si_t *sih, uint32 bits);
 extern uint32 si_clock_rate(uint32 pll_type, uint32 n, uint32 m);
 extern uint si_chip_hostif(const si_t *sih);

@@ -33,6 +33,9 @@
 #include <dhd_pktlog.h>
 #include <dhd_wlfc.h>
 #include <dhd_debug.h>
+#ifdef LINUX
+#include <linux/vmalloc.h>
+#endif /* LINUX */
 
 #ifdef DHD_COMPACT_PKT_LOG
 #include <bcmip.h>

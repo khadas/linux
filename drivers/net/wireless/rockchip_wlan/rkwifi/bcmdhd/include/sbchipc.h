@@ -4237,6 +4237,7 @@ typedef volatile struct {
 #define CR4_43751_RAM_BASE                   (0x170000)
 #define CR4_43752_RAM_BASE                   (0x170000)
 #define CR4_43756_RAM_BASE                   (0x170000)
+#define CR4_43711_RAM_BASE                   (0x170000)
 #define CR4_4376_RAM_BASE                    (0x352000)
 #define CR4_4378_RAM_BASE                    (0x352000)
 #define CR4_4381_RAM_BASE                    (0x740000)

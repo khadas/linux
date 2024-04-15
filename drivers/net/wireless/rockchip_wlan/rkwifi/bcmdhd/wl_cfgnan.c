@@ -5743,7 +5743,12 @@ wl_cfgnan_sd_params_handler(struct net_device *ndev,
 		}
 	}
 
-	if (cmd_data->sde_control_flag & NAN_SDE_CF_SECURITY_REQUIRED) {
+	/* When autoresponse is enabled, publish relies on the
+	 * NAN_ATTRIBUTE_SDE_CONTROL_SECURITY to hold that information
+	 * according to halutil implementation
+	 */
+	if ((cmd_data->sde_control_flag & NAN_SDE_CF_SECURITY_REQUIRED) ||
+		cmd_data->ndp_cfg.security_cfg) {
 		if ((cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) ||
 				(cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PASSPHRASE)) {
 			if (cmd_data->key.data && cmd_data->key.dlen) {
@@ -10204,7 +10209,7 @@ wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg)
 	wdev->wiphy = bcmcfg_to_wiphy(cfg);
 	wdev->iftype = NL80211_IFTYPE_STATION;
 
-	ret = register_netdev(ndev);
+	ret = dhd_register_net(ndev, true);
 	if (ret) {
 		WL_ERR((" NMI register_netdevice failed (%d)\n", ret));
 		goto fail;
@@ -10216,7 +10221,7 @@ wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg)
 	cfg->nmi_wdev = wdev;
 	cfg->nmi_ndev = ndev;
 
-	WL_INFORM_MEM(("%s: NMI Interface Registered\n", ndev->name));
+	WL_MSG(ndev->name, "NMI Interface Registered\n");
 	return ret;
 fail:
 	free_netdev(ndev);
@@ -10238,8 +10243,14 @@ wl_cfgnan_unregister_nmi_ndev(struct bcm_cfg80211 *cfg)
 		goto free_wdev;
 	}
 
-	unregister_netdev(cfg->nmi_ndev);
-	free_netdev(cfg->nmi_ndev);
+	/* in unregister_netdev case, the interface gets freed by net->destructor
+         * (which is set to free_netdev)
+         */
+        if (cfg->nmi_ndev->reg_state == NETREG_UNINITIALIZED) {
+		free_netdev(cfg->nmi_ndev);
+	} else {
+		dhd_unregister_net(cfg->nmi_ndev, true);
+	}
 
 	cfg->nmi_ndev = NULL;
 

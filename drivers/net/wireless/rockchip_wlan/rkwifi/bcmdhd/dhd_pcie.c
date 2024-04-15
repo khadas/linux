@@ -187,6 +187,7 @@ extern int host_edl_support;
 extern int qt_dngl_timeout;
 #endif /* BCMQT_HW */
 
+#define CONS_ADDR_SIGNATURE	0xac0ffee
 /* This can be overwritten by module parameter(dma_ring_indices) defined in dhd_linux.c */
 uint dma_ring_indices = 0;
 /* This can be overwritten by module parameter(h2d_phase) defined in dhd_linux.c */
@@ -317,7 +318,8 @@ int dbushost_initvars_flash(si_t *sih, osl_t *osh, char **base, uint len);
 static void dhdpci_bus_rte_log_time_sync_poll(dhd_bus_t *bus);
 #endif /* DHD_H2D_LOG_TIME_SYNC */
 
-#define     PCI_VENDOR_ID_BROADCOM          0x14e4
+#define PCI_VENDOR_ID_BROADCOM          0x14e4
+#define PCI_VENDOR_ID_SYNAPTICS         0x1e01
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 #define MAX_D3_ACK_TIMEOUT	100
@@ -362,6 +364,9 @@ extern void concate_custom_board_revision(char *nv_path);
 /* IOVar table */
 enum {
 	IOV_INTR = 1,
+#ifdef DHD_BUS_MEM_ACCESS
+	IOV_MEMBYTES,
+#endif /* DHD_BUS_MEM_ACCESS */
 	IOV_MEMSIZE,
 	IOV_SET_DOWNLOAD_STATE,
 	IOV_SET_DOWNLOAD_INFO,
@@ -375,6 +380,15 @@ enum {
 	IOV_SLEEP_ALLOWED,
 	IOV_PCIE_DMAXFER,
 	IOV_PCIE_SUSPEND,
+#ifdef DHD_PCIE_REG_ACCESS
+	IOV_PCIEREG,
+	IOV_PCIECFGREG,
+	IOV_PCIECOREREG,
+	IOV_PCIESERDESREG,
+	IOV_PCIEASPM,
+	IOV_BAR0_SECWIN_REG,
+	IOV_SBREG,
+#endif /* DHD_PCIE_REG_ACCESS */
 	IOV_DONGLEISOLATION,
 	IOV_LTRSLEEPON_UNLOOAD,
 	IOV_METADATA_DBG,
@@ -439,6 +453,9 @@ enum {
 	IOV_MINIDUMP_OVERRIDE,
 #endif /* D2H_MINIDUMP */
 	IOV_HSCBSIZE, /* get HSCB buffer size */
+#ifdef DHD_BUS_MEM_ACCESS
+	IOV_HSCBBYTES, /* copy HSCB buffer */
+#endif
 	IOV_HP2P_ENABLE,
 	IOV_HP2P_PKT_THRESHOLD,
 	IOV_HP2P_TIME_THRESHOLD,
@@ -466,6 +483,9 @@ enum {
 
 const bcm_iovar_t dhdpcie_iovars[] = {
 	{"intr",	IOV_INTR,	0, 	0, IOVT_BOOL,	0 },
+#ifdef DHD_BUS_MEM_ACCESS
+	{"membytes",	IOV_MEMBYTES,	0, 	0, IOVT_BUFFER,	2 * sizeof(int) },
+#endif /* DHD_BUS_MEM_ACCESS */
 	{"memsize",	IOV_MEMSIZE,	0, 	0, IOVT_UINT32,	0 },
 	{"dwnldstate",	IOV_SET_DOWNLOAD_STATE,	0, 	0, IOVT_BOOL,	0 },
 	{"dwnldinfo",	IOV_SET_DOWNLOAD_INFO,	0, 	0, IOVT_BUFFER,
@@ -477,6 +497,14 @@ const bcm_iovar_t dhdpcie_iovars[] = {
 	{"cc_nvmshadow", IOV_CC_NVMSHADOW, 0,	0, IOVT_BUFFER, 0 },
 	{"ramsize",	IOV_RAMSIZE,	0, 	0, IOVT_UINT32,	0 },
 	{"ramstart",	IOV_RAMSTART,	0, 	0, IOVT_UINT32,	0 },
+#ifdef DHD_PCIE_REG_ACCESS
+	{"pciereg",	IOV_PCIEREG,	0, 	0, IOVT_BUFFER,	2 * sizeof(int32) },
+	{"pciecfgreg",	IOV_PCIECFGREG,	DHD_IOVF_PWRREQ_BYPASS,	0, IOVT_BUFFER,	2 * sizeof(int32) },
+	{"pciecorereg",	IOV_PCIECOREREG,	0, 	0, IOVT_BUFFER,	2 * sizeof(int32) },
+	{"pcieserdesreg",	IOV_PCIESERDESREG,	0, 	0, IOVT_BUFFER,	3 * sizeof(int32) },
+	{"bar0secwinreg",	IOV_BAR0_SECWIN_REG,	0, 	0, IOVT_BUFFER,	sizeof(sdreg_t) },
+	{"sbreg",	IOV_SBREG,	0,	0, IOVT_BUFFER,	sizeof(uint8) },
+#endif /* DHD_PCIE_REG_ACCESS */
 	{"pcie_dmaxfer", IOV_PCIE_DMAXFER, 0, 0, IOVT_BUFFER, sizeof(dma_xfer_info_t)},
 	{"lpbk_dmaxfer_data_pattern", IOV_PCIE_DMAXFER_PTRN, 0, 0, IOVT_UINT32, 0},
 	{"pcie_suspend", IOV_PCIE_SUSPEND,	DHD_IOVF_PWRREQ_BYPASS,	0, IOVT_UINT32,	0 },
@@ -500,6 +528,9 @@ const bcm_iovar_t dhdpcie_iovars[] = {
 	{"tx_cpl_bound",     IOV_TX_CPL_BOUND,    0, 0,	IOVT_UINT32,    0 },
 	{"ctrl_cpl_post_bound",     IOV_CTRL_CPL_POST_BOUND,    0, 0,	IOVT_UINT32,    0 },
 	{"tx_post_bound",     IOV_TX_POST_BOUND,    0, 0,	IOVT_UINT32,    0 },
+#ifdef DHD_PCIE_REG_ACCESS
+	{"aspm", IOV_PCIEASPM, 0, 0, IOVT_INT32, 0 },
+#endif /* DHD_PCIE_REG_ACCESS */
 	{"fw_hang_report", IOV_HANGREPORT,	0, 0,	IOVT_BOOL,	0 },
 	{"h2d_mb_data",     IOV_H2D_MAILBOXDATA,    0, 0,      IOVT_UINT32,    0 },
 	{"inforings",   IOV_INFORINGS,    0, 0,      IOVT_UINT32,    0 },
@@ -546,6 +577,9 @@ const bcm_iovar_t dhdpcie_iovars[] = {
 	{"minidump_override", IOV_MINIDUMP_OVERRIDE, 0, 0, IOVT_UINT32, 0 },
 #endif /* D2H_MINIDUMP */
 	{"hscbsize",	IOV_HSCBSIZE,	0,	0,	IOVT_UINT32,	0 },
+#ifdef DHD_BUS_MEM_ACCESS
+	{"hscbbytes",	IOV_HSCBBYTES,	0,	0,	IOVT_BUFFER,	2 * sizeof(int32) },
+#endif
 
 	{"extdtxs_in_txcpl", IOV_EXTDTXS_IN_TXCPL,	0,	0, IOVT_UINT32,	0 },
 	{"hostrdy_after_init", IOV_HOSTRDY_AFTER_INIT,	0,	0, IOVT_UINT32,	0 },
@@ -1304,10 +1338,12 @@ dhdpcie_cto_recovery_handler(dhd_pub_t *dhd)
 		}
 #endif /* DHD_FW_COREDUMP */
 	}
+#ifdef OEM_ANDROID
 	bus->is_linkdown = TRUE;
 	bus->dhd->hang_reason = HANG_REASON_PCIE_CTO_DETECT;
 	/* Send HANG event */
 	dhd_os_send_hang_message(bus->dhd);
+#endif /* OEM_ANDROID */
 }
 
 void
@@ -1396,8 +1432,10 @@ dhdpcie_bus_isr(dhd_bus_t *bus)
 				bus->is_linkdown = 1;
 				dhdpcie_disable_irq_nosync(bus);
 				dhd_pcie_debug_info_dump(bus->dhd);
+#ifdef OEM_ANDROID
 				bus->dhd->hang_reason = HANG_REASON_PCIE_LINK_DOWN_EP_DETECT;
 				dhd_os_send_hang_message(bus->dhd);
+#endif /* OEM_ANDROID */
 				break;
 			}
 
@@ -1491,18 +1529,17 @@ skip_intstatus_read:
 		}
 #endif /* DHD_FLOW_RING_STATUS_TRACE */
 #if defined(PCIE_ISR_THREAD)
-
 		DHD_TRACE(("Calling dhd_bus_dpc() from %s\n", __FUNCTION__));
 		DHD_OS_WAKE_LOCK(bus->dhd);
 		while (dhd_bus_dpc(bus));
 		DHD_OS_WAKE_UNLOCK(bus->dhd);
-#else
+#else // defined(PCIE_ISR_THREAD)
 		bus->dpc_sched = TRUE;
 		bus->isr_sched_dpc_time = OSL_LOCALTIME_NS();
 #ifndef NDIS
 		dhd_sched_dpc(bus->dhd);     /* queue DPC now!! */
 #endif /* !NDIS */
-#endif /* defined(SDIO_ISR_THREAD) */
+#endif /* defined(PCIE_ISR_THREAD) */
 
 		DHD_INTR(("%s: Exit Success DPC Queued\n", __FUNCTION__));
 		return TRUE;
@@ -1577,7 +1614,7 @@ dhdpcie_config_check(dhd_bus_t *bus)
 
 	for (i = 0; i < DHDPCIE_CONFIG_CHECK_RETRY_COUNT; i++) {
 		val = OSL_PCI_READ_CONFIG(bus->osh, PCI_CFG_VID, sizeof(uint32));
-		if ((val & 0xFFFF) == VENDOR_BROADCOM) {
+		if (((val & 0xFFFF) == VENDOR_BROADCOM) || ((val & 0xFFFF) == VENDOR_SYNAPTICS)) {
 			ret = BCME_OK;
 			break;
 		}
@@ -2118,7 +2155,7 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 
 	/* Checking PCIe bus status with reading configuration space */
 	val = OSL_PCI_READ_CONFIG(osh, PCI_CFG_VID, sizeof(uint32));
-	if ((val & 0xFFFF) != VENDOR_BROADCOM) {
+	if (((val & 0xFFFF) != VENDOR_BROADCOM) && ((val & 0xFFFF) != VENDOR_SYNAPTICS)) {
 		DHD_ERROR(("%s : failed to read PCI configuration space!\n", __FUNCTION__));
 		goto fail;
 	}
@@ -2347,6 +2384,7 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 			break;
 		case BCM4358_CHIP_ID:
 		case BCM4354_CHIP_ID:
+		case BCM4356_CHIP_ID:
 		case BCM43567_CHIP_ID:
 		case BCM43569_CHIP_ID:
 		case BCM4350_CHIP_ID:
@@ -2386,6 +2424,9 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 			break;
 		case BCM43756_CHIP_ID:
 			bus->dongle_ram_base = CR4_43756_RAM_BASE;
+			break;
+		case BCM43711_CHIP_ID:
+			bus->dongle_ram_base = CR4_43711_RAM_BASE;
 			break;
 		case BCM4376_CHIP_GRPID:
 			bus->dongle_ram_base = CR4_4376_RAM_BASE;
@@ -2774,6 +2815,21 @@ dhdpcie_bus_remove_prep(dhd_bus_t *bus)
 		dhd_bus_pcie_pwr_req_reload_war(bus);
 
 		/* Skip below WARs for Android as insmod fails after rmmod in Brix Android */
+#if !defined(OEM_ANDROID)
+		/* HW4347-909, Set PCIE TRefUp time to 100us for 4347/4377 */
+		if ((bus->sih->buscorerev == 19) || (bus->sih->buscorerev == 23)) {
+			pcie_set_trefup_time_100us(bus->sih);
+		}
+
+		/* disable fast lpo from 4347/4377 */
+		/* Do not disable fast lpo for 4378/4387/4389/4381/4382.
+		 * Because we always enable fast lpo. it causes insmod/rmmod reload failure.
+		 */
+		if ((PMUREV(bus->sih->pmurev) > 31) &&
+			!(PCIE_FASTLPO_ENABLED(bus->sih->buscorerev))) {
+			si_pmu_fast_lpo_disable(bus->sih);
+		}
+#endif /* !OEM_ANDROID */
 
 		/* if the pcie link is down, watchdog reset
 		* should not be done, as it may hang
@@ -4228,6 +4284,78 @@ dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
 			break;
 		}
 	}
+#if defined(DHD_DEBUG) && defined(DHD_FW_MEM_CORRUPTION)
+	/* Upload and compare the downloaded code */
+	{
+		unsigned char *ulblock = NULL;
+		unsigned int uploded_len;
+		read_len = 0;
+		uploded_len = 0;
+		bcmerror = BCME_ERROR;
+		ulblock = MALLOC(bus->dhd->osh, MEMBLOCK);
+		if (ulblock == NULL)
+			goto upload_err;
+		/* Close and re-open the image file to reset the file pointer.
+		*/
+		dhd_os_close_image1(bus->dhd, imgbuf);
+		imgbuf = dhd_os_open_image1(bus->dhd, pfw_path);
+		if (imgbuf == NULL) {
+			goto upload_err;
+		}
+		/* Upload image to verify downloaded contents. */
+		offset = bus->dongle_ram_base;
+		offset_end = offset + bus->ramsize;
+		/* Upload image with MEMBLOCK size */
+		while ((len = dhd_os_get_image_block((char*)memptr, MEMBLOCK, imgbuf))) {
+			if (len < 0) {
+				DHD_ERROR(("%s: dhd_os_get_image_block failed (%d)\n", __FUNCTION__, len));
+				bcmerror = BCME_ERROR;
+				goto upload_err;
+			}
+
+			read_len += len;
+			if (read_len > file_size) {
+				DHD_ERROR(("%s: WARNING! reading beyond EOF, len=%d; read_len=%u;"
+					" file_size=%u truncating len to %d \n", __FUNCTION__,
+					len, read_len, file_size, (len - (read_len - file_size))));
+				len -= (read_len - file_size);
+			}
+			memset(ulblock, 0xaa, MEMBLOCK);
+			bcmerror = dhdpcie_bus_membytes(bus, FALSE, offset,
+				(uint8 *)ulblock, len);
+			if (bcmerror) {
+				DHD_ERROR(("%s: error %d on reading %d membytes at 0x%08x\n",
+					__FUNCTION__, bcmerror, len, offset));
+				goto upload_err;
+			}
+			if (memcmp(memptr, ulblock, len)) {
+				DHD_ERROR(("%s: Downloaded image is corrupted! \n",
+					__FUNCTION__));
+				bcmerror = BCME_ERROR;
+				goto upload_err;
+			}
+
+			uploded_len += len;
+			offset += MEMBLOCK;
+
+			if (offset >= offset_end) {
+				DHD_ERROR(("%s: invalid address access to %x (offset end: %x)\n",
+					__FUNCTION__, offset, offset_end));
+				bcmerror = BCME_ERROR;
+				goto upload_err;
+			}
+
+			if (read_len >= file_size) {
+				break;
+			}
+		}
+		DHD_ERROR(("%s: Download, Upload and compare succeeded.\n", __FUNCTION__));
+
+upload_err:
+		if (ulblock)
+			MFREE(bus->dhd->osh, ulblock, MEMBLOCK);
+	}
+#endif /* DHD_DEBUG && DHD_FW_MEM_CORRUPTION */
 err:
 	if (memblock) {
 		MFREE(bus->dhd->osh, memblock, MEMBLOCK + DHD_SDALIGN);
@@ -4949,6 +5077,26 @@ exit:
 	return;
 }
 
+static void dhdpcie_force_console_dump(dhd_bus_t *bus)
+{
+	uint32 cons_sign = 0;
+	uint32 cons_addr = 0;
+	uint32 val = 0;
+
+	cons_sign = bus->dongle_ram_base + bus->ramsize - 12;
+
+	val = LTOH32(dhdpcie_bus_rtcm32(bus, cons_sign));
+
+	if (val == CONS_ADDR_SIGNATURE) {
+		cons_addr = bus->dongle_ram_base + bus->ramsize - 8;
+		val = LTOH32(dhdpcie_bus_rtcm32(bus, cons_addr));
+		bus->console_addr = val;
+		dhd_msg_level |= DHD_FWLOG_VAL;
+		dhdpcie_bus_readconsole(bus);
+	}
+	return;
+}
+
 static void
 dhdpcie_schedule_log_dump(dhd_bus_t *bus)
 {
@@ -5045,9 +5193,11 @@ dhd_validate_pcie_link_cbp_wlbp(dhd_bus_t *bus)
 		dhd_bus_dump_dar_registers(bus);
 #if defined(DHD_FW_COREDUMP)
 #ifdef DHD_SSSR_DUMP
+#ifdef OEM_ANDROID
 			DHD_ERROR(("%s : Set collect_sssr and fis_enab as TRUE\n", __FUNCTION__));
 			bus->dhd->collect_sssr = TRUE;
 			fis_enab = TRUE;
+#endif /* OEM_ANDROID */
 #endif /* DHD_SSSR_DUMP */
 			/* save core dump or write to a file */
 			if (bus->dhd->memdump_enabled) {
@@ -5207,11 +5357,13 @@ dhdpcie_checkdied(dhd_bus_t *bus, char *data, uint size)
 		dhd_prot_debug_info_print(bus->dhd);
 
 #ifdef DHD_FW_COREDUMP
+#ifdef OEM_ANDROID
 		if (bus->dhd->up == 0) {
 			DHD_ERROR(("%s: socram will be collected in dhd_net_bus_devreset failure\n",
 				__FUNCTION__));
 			bus->dhd->dongle_trap_during_wifi_onoff = 1;
 		} else
+#endif /* OEM_ANDROID */
 		{
 			/* save core dump or write to a file */
 			if (bus->dhd->memdump_enabled) {
@@ -5276,10 +5428,12 @@ dhdpcie_checkdied(dhd_bus_t *bus, char *data, uint size)
 			__FUNCTION__, bus->pcie_sh->flags));
 		bus->dhd->dongle_trap_occured = TRUE;
 #ifdef DHD_FW_COREDUMP
+#ifdef OEM_ANDROID
 		if (bus->dhd->up == 0) {
 			DHD_ERROR(("%s: socram will be collected in dhd_net_bus_devreset failure\n",
 				__FUNCTION__));
 		} else
+#endif /* OEM_ANDROID */
 		{
 			/* save core dump or write to a file */
 			if (bus->dhd->memdump_enabled) {
@@ -7186,6 +7340,39 @@ done:
 
 #define PCIE_GEN2(sih) ((BUSTYPE((sih)->bustype) == PCI_BUS) &&	\
 	((sih)->buscoretype == PCIE2_CORE_ID))
+#ifdef DHD_PCIE_REG_ACCESS
+static bool
+pcie2_mdiosetblock(dhd_bus_t *bus, uint blk)
+{
+	uint mdiodata, mdioctrl, i = 0;
+	uint pcie_serdes_spinwait = 200;
+
+	mdioctrl = MDIOCTL2_DIVISOR_VAL | (0x1F << MDIOCTL2_REGADDR_SHF);
+	mdiodata = (blk << MDIODATA2_DEVADDR_SHF) | MDIODATA2_DONE;
+
+	si_corereg(bus->sih, bus->sih->buscoreidx, PCIE2_MDIO_CONTROL, ~0, mdioctrl);
+	si_corereg(bus->sih, bus->sih->buscoreidx, PCIE2_MDIO_WR_DATA, ~0, mdiodata);
+
+	OSL_DELAY(10);
+	/* retry till the transaction is complete */
+	while (i < pcie_serdes_spinwait) {
+		uint mdioctrl_read = si_corereg(bus->sih, bus->sih->buscoreidx, PCIE2_MDIO_WR_DATA,
+			0, 0);
+		if (!(mdioctrl_read & MDIODATA2_DONE)) {
+			break;
+		}
+		OSL_DELAY(1000);
+		i++;
+	}
+
+	if (i >= pcie_serdes_spinwait) {
+		DHD_ERROR(("pcie_mdiosetblock: timed out\n"));
+		return FALSE;
+	}
+
+	return TRUE;
+}
+#endif /* DHD_PCIE_REG_ACCESS */
 
 static void
 dhdpcie_enum_reg_init(dhd_bus_t *bus)
@@ -7624,7 +7811,7 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			} else {
 				DHD_ERROR(("%s: wait for l1ss failed\n", __FUNCTION__));
 			}
-#endif
+#endif /* CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION */
 			dhd_deinit_bus_lp_state_lock(bus);
 			dhd_deinit_bar1_switch_lock(bus);
 			dhd_deinit_backplane_access_lock(bus);
@@ -7898,6 +8085,53 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 }
 #endif /* LINUX || linux */
 
+#ifdef DHD_PCIE_REG_ACCESS
+static int
+pcie2_mdioop(dhd_bus_t *bus, uint physmedia, uint regaddr, bool write, uint *val,
+	bool slave_bypass)
+{
+	uint pcie_serdes_spinwait = 200, i = 0, mdio_ctrl;
+	uint32 reg32;
+
+	pcie2_mdiosetblock(bus, physmedia);
+
+	/* enable mdio access to SERDES */
+	mdio_ctrl = MDIOCTL2_DIVISOR_VAL;
+	mdio_ctrl |= (regaddr << MDIOCTL2_REGADDR_SHF);
+
+	if (slave_bypass)
+		mdio_ctrl |= MDIOCTL2_SLAVE_BYPASS;
+
+	if (!write)
+		mdio_ctrl |= MDIOCTL2_READ;
+
+	si_corereg(bus->sih, bus->sih->buscoreidx, PCIE2_MDIO_CONTROL, ~0, mdio_ctrl);
+
+	if (write) {
+		reg32 =  PCIE2_MDIO_WR_DATA;
+		si_corereg(bus->sih, bus->sih->buscoreidx, PCIE2_MDIO_WR_DATA, ~0,
+			*val | MDIODATA2_DONE);
+	} else
+		reg32 =  PCIE2_MDIO_RD_DATA;
+
+	/* retry till the transaction is complete */
+	while (i < pcie_serdes_spinwait) {
+		uint done_val =  si_corereg(bus->sih, bus->sih->buscoreidx, reg32, 0, 0);
+		if (!(done_val & MDIODATA2_DONE)) {
+			if (!write) {
+				*val = si_corereg(bus->sih, bus->sih->buscoreidx,
+					PCIE2_MDIO_RD_DATA, 0, 0);
+				*val = *val & MDIODATA2_MASK;
+			}
+			return 0;
+		}
+		OSL_DELAY(1000);
+		i++;
+	}
+	return -1;
+}
+#endif /* DHD_PCIE_REG_ACCESS */
+
 static int
 dhdpcie_get_dma_ring_indices(dhd_pub_t *dhd)
 {
@@ -8074,6 +8308,148 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 	case IOV_SVAL(IOV_VARS):
 		bcmerror = dhdpcie_downloadvars(bus, arg, len);
 		break;
+#ifdef DHD_PCIE_REG_ACCESS
+	case IOV_SVAL(IOV_PCIEREG):
+		/* XXX: validate int_val ??? */
+		si_corereg(bus->sih, bus->sih->buscoreidx, OFFSETOF(sbpcieregs_t, configaddr), ~0,
+			int_val);
+		si_corereg(bus->sih, bus->sih->buscoreidx, OFFSETOF(sbpcieregs_t, configdata), ~0,
+			int_val2);
+		break;
+
+	case IOV_GVAL(IOV_PCIEREG):
+		/* XXX: validate int_val ??? */
+		si_corereg(bus->sih, bus->sih->buscoreidx, OFFSETOF(sbpcieregs_t, configaddr), ~0,
+			int_val);
+		int_val = si_corereg(bus->sih, bus->sih->buscoreidx,
+			OFFSETOF(sbpcieregs_t, configdata), 0, 0);
+		bcopy(&int_val, arg, sizeof(int_val));
+		break;
+
+	case IOV_SVAL(IOV_PCIECOREREG):
+		/* XXX: validate int_val ??? */
+		si_corereg(bus->sih, bus->sih->buscoreidx, int_val, ~0, int_val2);
+		break;
+	case IOV_GVAL(IOV_BAR0_SECWIN_REG):
+	{
+		sdreg_t sdreg;
+		uint32 addr, size;
+
+		bcopy(params, &sdreg, sizeof(sdreg));
+
+		addr = sdreg.offset;
+		size = sdreg.func;
+
+		if (serialized_backplane_access(bus, addr, size, (uint *)&int_val, TRUE) != BCME_OK)
+		{
+			DHD_ERROR(("Invalid size/addr combination \n"));
+			bcmerror = BCME_ERROR;
+			break;
+		}
+		bcopy(&int_val, arg, sizeof(int32));
+		break;
+	}
+
+	case IOV_SVAL(IOV_BAR0_SECWIN_REG):
+	{
+		sdreg_t sdreg;
+		uint32 addr, size;
+
+		bcopy(params, &sdreg, sizeof(sdreg));
+
+		addr = sdreg.offset;
+		size = sdreg.func;
+		if (serialized_backplane_access(bus, addr, size,
+			(uint *)(&sdreg.value), FALSE) != BCME_OK) {
+			DHD_ERROR(("Invalid size/addr combination \n"));
+			bcmerror = BCME_ERROR;
+		}
+		break;
+	}
+
+	case IOV_GVAL(IOV_SBREG):
+	{
+		sdreg_t sdreg;
+		uint32 addr, size;
+
+		bcopy(params, &sdreg, sizeof(sdreg));
+
+		addr = sdreg.offset | SI_ENUM_BASE(bus->sih);
+		size = sdreg.func;
+
+		if (serialized_backplane_access(bus, addr, size, (uint *)&int_val, TRUE) != BCME_OK)
+		{
+			DHD_ERROR(("Invalid size/addr combination \n"));
+			bcmerror = BCME_ERROR;
+			break;
+		}
+		bcopy(&int_val, arg, size);
+		break;
+	}
+
+	case IOV_SVAL(IOV_SBREG):
+	{
+		sdreg_t sdreg;
+		uint32 addr, size;
+
+		bcopy(params, &sdreg, sizeof(sdreg));
+
+		addr = sdreg.offset | SI_ENUM_BASE(bus->sih);
+		size = sdreg.func;
+		if (serialized_backplane_access(bus, addr, size,
+			(uint *)(&sdreg.value), FALSE) != BCME_OK) {
+			DHD_ERROR(("Invalid size/addr combination \n"));
+			bcmerror = BCME_ERROR;
+		}
+		break;
+	}
+
+	case IOV_GVAL(IOV_PCIESERDESREG):
+	{
+		uint val;
+		if (!PCIE_GEN2(bus->sih)) {
+			DHD_ERROR(("supported only in pcie gen2\n"));
+			bcmerror = BCME_ERROR;
+			break;
+		}
+
+		if (!pcie2_mdioop(bus, int_val, int_val2, FALSE, &val, FALSE)) {
+			bcopy(&val, arg, sizeof(int32));
+		} else {
+			DHD_ERROR(("pcie2_mdioop failed.\n"));
+			bcmerror = BCME_ERROR;
+		}
+		break;
+	}
+
+	case IOV_SVAL(IOV_PCIESERDESREG):
+		if (!PCIE_GEN2(bus->sih)) {
+			DHD_ERROR(("supported only in pcie gen2\n"));
+			bcmerror = BCME_ERROR;
+			break;
+		}
+		if (pcie2_mdioop(bus, int_val, int_val2, TRUE, (uint *)&int_val3, FALSE)) {
+			DHD_ERROR(("pcie2_mdioop failed.\n"));
+			bcmerror = BCME_ERROR;
+		}
+		break;
+	case IOV_GVAL(IOV_PCIECOREREG):
+		/* XXX: validate int_val ??? */
+		int_val = si_corereg(bus->sih, bus->sih->buscoreidx, int_val, 0, 0);
+		bcopy(&int_val, arg, sizeof(int_val));
+		break;
+
+	case IOV_SVAL(IOV_PCIECFGREG):
+		/* XXX: validate int_val ??? */
+		OSL_PCI_WRITE_CONFIG(bus->osh, int_val, 4, int_val2);
+		break;
+
+	case IOV_GVAL(IOV_PCIECFGREG):
+		/* XXX: validate int_val ??? */
+		int_val = OSL_PCI_READ_CONFIG(bus->osh, int_val, 4);
+		bcopy(&int_val, arg, sizeof(int_val));
+		break;
+#endif /* DHD_PCIE_REG_ACCESS */
 	case IOV_SVAL(IOV_PCIE_LPBK):
 		bcmerror = dhdpcie_bus_lpback_req(bus, int_val);
 		break;
@@ -8278,6 +8654,53 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 		int_val = (int32)bus->ramsize;
 		bcopy(&int_val, arg, val_size);
 		break;
+#ifdef DHD_BUS_MEM_ACCESS
+	case IOV_SVAL(IOV_MEMBYTES):
+	case IOV_GVAL(IOV_MEMBYTES):
+	{
+		uint32 address;		/* absolute backplane address */
+		uint size, dsize;
+		uint8 *data;
+
+		bool set = (actionid == IOV_SVAL(IOV_MEMBYTES));
+
+		ASSERT(plen >= 2*sizeof(int));
+
+		address = (uint32)int_val;
+		bcopy((char *)params + sizeof(int_val), &int_val, sizeof(int_val));
+		size = (uint)int_val;
+
+		/* Do some validation */
+		dsize = set ? plen - (2 * sizeof(int)) : len;
+		if (dsize < size) {
+			DHD_ERROR(("%s: error on %s membytes, addr 0x%08x size %d dsize %d\n",
+			           __FUNCTION__, (set ? "set" : "get"), address, size, dsize));
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		DHD_INFO(("%s: Request to %s %d bytes at address 0x%08x\n dsize %d ", __FUNCTION__,
+		          (set ? "write" : "read"), size, address, dsize));
+
+		/* check if CR4 */
+		if (si_setcore(bus->sih, ARMCR4_CORE_ID, 0) ||
+		    si_setcore(bus->sih, ARMCA7_CORE_ID, 0) ||
+		    si_setcore(bus->sih, SYSMEM_CORE_ID, 0)) {
+			/* if address is 0, store the reset instruction to be written in 0 */
+			if (set && address == bus->dongle_ram_base) {
+				bus->resetinstr = *(((uint32*)params) + 2);
+			}
+		}
+
+		/* Generate the actual data pointer */
+		data = set ? (uint8*)params + 2 * sizeof(int): (uint8*)arg;
+
+		/* Call to do the transfer */
+		bcmerror = dhdpcie_bus_membytes(bus, set, address, data, size);
+
+		break;
+	}
+#endif /* DHD_BUS_MEM_ACCESS */
 
 	/* Debug related. Dumps core registers or one of the dongle memory */
 	case IOV_GVAL(IOV_DUMP_DONGLE):
@@ -8865,6 +9288,36 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 		break;
 	}
 
+#ifdef DHD_PCIE_REG_ACCESS
+	case IOV_GVAL(IOV_PCIEASPM): {
+		uint8 clkreq = 0;
+		uint32 aspm = 0;
+
+		/* this command is to hide the details, but match the lcreg
+		#define PCIE_CLKREQ_ENAB		0x100
+		#define PCIE_ASPM_L1_ENAB        	2
+		#define PCIE_ASPM_L0s_ENAB       	1
+		*/
+
+		clkreq = dhdpcie_clkreq(bus->dhd->osh, 0, 0);
+		aspm = dhdpcie_lcreg(bus->dhd->osh, 0, 0);
+
+		int_val = ((clkreq & 0x1) << 8) | (aspm & PCIE_ASPM_ENAB);
+		bcopy(&int_val, arg, val_size);
+		break;
+	}
+
+	case IOV_SVAL(IOV_PCIEASPM): {
+		uint32 tmp;
+
+		tmp = dhdpcie_lcreg(bus->dhd->osh, 0, 0);
+		dhdpcie_lcreg(bus->dhd->osh, PCIE_ASPM_ENAB,
+			(tmp & ~PCIE_ASPM_ENAB) | (int_val & PCIE_ASPM_ENAB));
+
+		dhdpcie_clkreq(bus->dhd->osh, 1, ((int_val & 0x100) >> 8));
+		break;
+	}
+#endif /* DHD_PCIE_REG_ACCESS */
 	case IOV_SVAL(IOV_HANGREPORT):
 		bus->dhd->hang_report = bool_val;
 		DHD_ERROR(("%s: Set hang_report as %d\n",
@@ -8948,6 +9401,11 @@ dhdpcie_bus_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, cons
 	case IOV_GVAL(IOV_HSCBSIZE):
 		bcmerror = dhd_get_hscb_info(bus->dhd, NULL, (uint32 *)arg);
 		break;
+#ifdef DHD_BUS_MEM_ACCESS
+	case IOV_GVAL(IOV_HSCBBYTES):
+		bcmerror = dhd_get_hscb_buff(bus->dhd, int_val, int_val2, (void*)arg);
+		break;
+#endif
 #ifdef D2H_MINIDUMP
 	case IOV_GVAL(IOV_MINIDUMP_OVERRIDE):
 		int_val = bus->d2h_minidump_override;
@@ -9364,8 +9822,10 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 	}
 
 	if (state) {
+#ifdef OEM_ANDROID
 		int idle_retry = 0;
 		int active;
+#endif /* OEM_ANDROID */
 
 		if (bus->is_linkdown) {
 			DHD_ERROR(("%s: PCIe link was down, state=%d\n",
@@ -9497,6 +9957,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 		DHD_OS_WAKE_LOCK_RESTORE(bus->dhd);
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
+#ifdef OEM_ANDROID
 		/* To allow threads that got pre-empted to complete.
 		 */
 		while ((active = dhd_os_check_wakelock_all(bus->dhd)) &&
@@ -9504,10 +9965,12 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 			OSL_SLEEP(1);
 			idle_retry++;
 		}
+#endif /* OEM_ANDROID */
 
 		if (bus->wait_for_d3_ack) {
 			DHD_RPM(("%s: Got D3 Ack \n", __FUNCTION__));
 			/* Got D3 Ack. Suspend the bus */
+#ifdef OEM_ANDROID
 			if (active) {
 				DHD_ERROR(("%s():Suspend failed because of wakelock "
 					"restoring Dongle to D0\n", __FUNCTION__));
@@ -9574,6 +10037,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 				rc = BCME_ERROR;
 			} else {
 				/* Actual Suspend after no wakelock */
+#endif /* OEM_ANDROID */
 				/* At this time bus->bus_low_power_state will be
 				 * made to DHD_BUS_D3_ACK_RECIEVED after receiving D3_ACK
 				 * in dhd_bus_handle_d3_ack()
@@ -9676,7 +10140,9 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 					bus->lpm_keep_in_reset = FALSE;
 					DHD_ERROR(("FLR done\n"));
 				}
+#ifdef OEM_ANDROID
 			}
+#endif /* OEM_ANDROID */
 		} else if (timeleft == 0) { /* D3 ACK Timeout */
 #ifdef DHD_FW_COREDUMP
 			uint32 cur_memdump_mode = bus->dhd->memdump_enabled;
@@ -9732,11 +10198,15 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 			if (bus->link_state != DHD_PCIE_ALL_GOOD) {
 				DHD_ERROR(("%s: bus->link_state:%d\n",
 					__FUNCTION__, bus->link_state));
+#ifdef OEM_ANDROID
 				dhd_os_check_hang(bus->dhd, 0, -ETIMEDOUT);
+#endif /* OEM_ANDROID */
 			}
 
 			if (bus->dhd->dongle_trap_occured) {
+#ifdef OEM_ANDROID
 				dhd_os_check_hang(bus->dhd, 0, -EREMOTEIO);
+#endif /* OEM_ANDROID */
 			} else if (!bus->is_linkdown &&
 				!bus->cto_triggered && (bus->link_state == DHD_PCIE_ALL_GOOD)) {
 				uint32 intstatus = 0;
@@ -9766,9 +10236,11 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 				 */
 				dhd_bus_check_died(bus);
 #endif
+#ifdef OEM_ANDROID
 				DHD_ERROR(("%s: Event HANG send up due to D3_ACK timeout\n",
 					__FUNCTION__));
 				dhd_os_check_hang(bus->dhd, 0, -ETIMEDOUT);
+#endif /* OEM_ANDROID */
 			}
 			rc = -ETIMEDOUT;
 		}
@@ -9791,7 +10263,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 		 * PCIE2_BAR0_CORE2_WIN with right window.
 		 */
 		si_invalidate_second_bar0win(bus->sih);
-#if defined(linux)
+#if defined(linux) && defined(OEM_ANDROID)
 #if defined(BCMPCIE_OOB_HOST_WAKE)
 		DHD_OS_OOB_IRQ_WAKE_UNLOCK(bus->dhd);
 #endif /* BCMPCIE_OOB_HOST_WAKE */
@@ -9960,7 +10432,8 @@ dhd_apply_d11_war_length(struct  dhd_bus *bus, uint32 len, uint32 d11_lpbk)
 		chipid == BCM4377_CHIP_ID ||
 		chipid == BCM43751_CHIP_ID ||
 		chipid == BCM43752_CHIP_ID ||
-		chipid == BCM43756_CHIP_ID) &&
+		chipid == BCM43756_CHIP_ID ||
+		chipid == BCM43711_CHIP_ID) &&
 		(d11_lpbk != M2M_DMA_LPBK && d11_lpbk != M2M_NON_DMA_LPBK)) {
 			len += 8;
 	}
@@ -12104,8 +12577,10 @@ dhd_update_txflowrings(dhd_pub_t *dhd)
 
 		if (count > bus->max_tx_flowrings) {
 			DHD_ERROR(("%s : overflow max flowrings\n", __FUNCTION__));
+#ifdef OEM_ANDROID
 			dhd->hang_reason = HANG_REASON_UNKNOWN;
 			dhd_os_send_hang_message(dhd);
+#endif /* OEM_ANDROID */
 			more = FALSE;
 			break;
 		}
@@ -12928,10 +13403,16 @@ dhd_bus_handle_mb_data(dhd_bus_t *bus, uint32 d2h_mb_data)
 #ifdef BCM_ROUTER_DHD
 			dhdpcie_handle_dongle_trap(bus);
 #endif
+#ifdef OEM_ANDROID
 			dhd_os_check_hang(bus->dhd, 0, -EREMOTEIO);
+#endif /* OEM_ANDROID */
 		}
 		if (bus->dhd->db7_trap.fw_db7w_trap_inprogress) {
 			bus->dhd->db7_trap.fw_db7w_trap_inprogress = FALSE;
+#if !defined(OEM_ANDROID)
+			/* Fix for UTF issue */
+			bus->dhd->dongle_trap_occured = TRUE;
+#endif
 		}
 		goto exit;
 	}
@@ -13596,9 +14077,11 @@ dhdpcie_readshared(dhd_bus_t *bus)
 		} else {
 #if defined(DHD_FW_COREDUMP)
 #ifdef DHD_SSSR_DUMP
+#ifdef OEM_ANDROID
 			DHD_ERROR(("%s : Set collect_sssr and fis_enab as TRUE\n", __FUNCTION__));
 			bus->dhd->collect_sssr = TRUE;
 			fis_enab = TRUE;
+#endif /* OEM_ANDROID */
 #endif /* DHD_SSSR_DUMP */
 			/* save core dump or write to a file */
 			if (bus->dhd->memdump_enabled) {
@@ -13633,6 +14116,22 @@ dhdpcie_readshared(dhd_bus_t *bus)
 		DHD_ERROR(("%s: address (0x%08x) of pciedev_shared invalid\n",
 			__FUNCTION__, addr));
 		DHD_ERROR(("%s: Waited %u usec, dongle is not ready\n", __FUNCTION__, elapsed));
+#ifndef OEM_ANDROID
+		if (addr != (uint32)-1) {	/* skip further PCIE reads if read this addr */
+#ifdef DHD_SSSR_DUMP
+			if (!bus->dhd->sssr_inited) {
+				bus->dhd->force_sssr_init = TRUE;
+				/* Hard code sssr_reg_info for 4389 */
+				DHD_SSSR_DUMP_INIT(bus->dhd);
+			}
+			bus->dhd->collect_sssr = TRUE;
+#endif /* DHD_SSSR_DUMP */
+			if (bus->dhd->memdump_enabled) {
+				bus->dhd->memdump_type = DUMP_TYPE_DONGLE_INIT_FAILURE;
+				dhdpcie_mem_dump(bus);
+			}
+		}
+#endif /* !OEM_ANDROID */
 #if defined(NDIS)
 		/* This is a very common code path to catch f/w init failures.
 		   Capture a socram dump.
@@ -14156,6 +14655,7 @@ int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	ret = dhdpcie_readshared(bus);
 	if (ret < 0) {
 		DHD_ERROR(("%s :Shared area read failed \n", __FUNCTION__));
+		dhdpcie_force_console_dump(bus);
 		goto exit;
 	}
 
@@ -14173,8 +14673,10 @@ int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 		goto exit;
 	}
 
+#if defined(OEM_ANDROID) || defined(LINUX)
 	if (!dhd_download_fw_on_driverload)
 		dhd_dpc_enable(bus->dhd);
+#endif /* OEM_ANDROID || LINUX */
 	/* Enable the interrupt after device is up */
 	dhdpcie_bus_intr_enable(bus);
 
@@ -14231,7 +14733,7 @@ dhdpcie_init_shared_addr(dhd_bus_t *bus)
 bool
 dhdpcie_chipmatch(uint16 vendor, uint16 device)
 {
-	if (vendor != PCI_VENDOR_ID_BROADCOM) {
+	if ((vendor != PCI_VENDOR_ID_BROADCOM) && (vendor != PCI_VENDOR_ID_SYNAPTICS))  {
 		DHD_ERROR(("%s: Unsupported vendor %x device %x\n", __FUNCTION__,
 			vendor, device));
 		return (-ENODEV);
@@ -14351,6 +14853,13 @@ dhdpcie_chipmatch(uint16 vendor, uint16 device)
 		case BCM43752_CHIP_ID:
 		case BCM43756_D11AX_ID:
 		case BCM43756_CHIP_ID:
+		case BCM43756E_D11AX6E_ID:
+		case BCM43756E_D11AC_ID:
+		case BCM43756E_D11AX_ID:
+		case BCM43711_CHIP_ID:
+		case BCM43711_D11AX6E_ID:
+		case BCM43711_D11AC_ID:
+		case BCM43711_D11AX_ID:
 		case BCM4381_CHIP_ID:
 		case BCM4381_D11AX_ID:
 		case BCM4382_CHIP_ID:
@@ -16834,6 +17343,7 @@ dhdpcie_fis_trigger(dhd_pub_t *dhd)
 		DAR_FIS_CTRL(dhd->bus->sih->buscorerev), ~0, DAR_FIS_START_MASK);
 	OSL_DELAY(100 * 1000);
 
+#ifdef OEM_ANDROID
 	/*
 	 * For android built-in platforms need to perform REG ON/OFF
 	 * to restore pcie link.
@@ -16848,6 +17358,7 @@ dhdpcie_fis_trigger(dhd_pub_t *dhd)
 		/* Restore inited pcie cfg from pci_load_saved_state */
 		dhdpcie_bus_enable_device(dhd->bus);
 	}
+#endif /* OEM_ANDROID */
 
 	cfg_status_cmd = dhd_pcie_config_read(dhd->bus, PCIECFGREG_STATUS_CMD, sizeof(uint32));
 	cfg_pmcsr = dhd_pcie_config_read(dhd->bus, PCIE_CFG_PMCSR, sizeof(uint32));
@@ -17391,6 +17902,12 @@ dhd_pcie_dma_info_dump(dhd_pub_t *dhd)
 		si_corereg(dhd->bus->sih, dhd->bus->sih->buscoreidx, 0x274, 0, 0)));
 
 	return 0;
+}
+
+bool
+dhd_pcie_check_lps_d3_acked(dhd_pub_t *dhd)
+{
+	return DHD_CHK_BUS_LPS_D3_ACKED(dhd->bus);
 }
 
 bool

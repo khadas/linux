@@ -378,6 +378,28 @@ typedef struct {
 } wifi_iface_stat;
 
 #ifdef CONFIG_COMPAT
+typedef struct {
+	wifi_radio radio;
+	uint32 on_time;
+	uint32 tx_time;
+	uint32 num_tx_levels;
+	compat_uptr_t tx_time_per_levels;
+	uint32 rx_time;
+	uint32 on_time_scan;
+	uint32 on_time_nbd;
+	uint32 on_time_gscan;
+	uint32 on_time_roam_scan;
+	uint32 on_time_pno_scan;
+	uint32 on_time_hs20;
+	uint32 num_channels;
+} compat_wifi_radio_stat_h_v2;
+
+/* radio statistics */
+typedef struct {
+	compat_wifi_radio_stat_h_v2 radio_stats;
+	wifi_channel_stat channels[];  // channel statistics
+} compat_wifi_radio_stat;
+
 /* interface statistics */
 typedef struct {
 	compat_uptr_t iface;          /* wifi interface */

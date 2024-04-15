@@ -133,6 +133,7 @@
 #define BCM4349_CHIP_ID		0x4349		/* 4349 chipcommon chipid */
 #define BCM4355_CHIP_ID		0x4355		/* 4355 chipcommon chipid */
 #define BCM4359_CHIP_ID		0x4359		/* 4359 chipcommon chipid */
+#define BCM43598_CHIP_ID	0x4359		/* 43598 chipcommon chipid */
 #define BCM4355_CHIP(chipid)	(CHIPID(chipid) == BCM4355_CHIP_ID)
 #define BCM4349_CHIP(chipid)	((CHIPID(chipid) == BCM4349_CHIP_ID) || \
 				(CHIPID(chipid) == BCM4355_CHIP_ID) || \

@@ -83,7 +83,9 @@
 #include <wl_cfgnan.h>
 #endif /* WL_NAN */
 
+#ifdef OEM_ANDROID
 #include <wl_android.h>
+#endif /* OEM_ANDROID */
 
 #include <wl_cfgvendor.h>
 #ifdef PROP_TXSTATUS
@@ -502,33 +504,6 @@ wl_cfgvendor_set_nodfs_flag(struct wiphy *wiphy,
 }
 #endif /* CUSTOM_FORCE_NODFS_FLAG */
 
-#ifdef WL_AUTO_COUNTRY
-static int
-wl_config_autocountry(struct bcm_cfg80211 *cfg,
-		struct net_device *ndev, char *country_code)
-{
-	bool val = FALSE;
-	s32 err;
-
-	if (!country_code) {
-		return -EINVAL;
-	}
-
-	if ((country_code[0] == '0') && (country_code[1] == '0')) {
-		/* Enable auto country for world domain (00) */
-		val = TRUE;
-	}
-
-	err = wldev_iovar_setint(ndev, "autocountry", val);
-	if (err) {
-		WL_ERR(("Failed to config auto country (%d) ret:%d\n", val, err));
-		return err;
-	}
-
-	return err;
-}
-#endif /* WL_AUTO_COUNTRY */
-
 static int
 wl_cfgvendor_set_country(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void *data, int len)
@@ -556,19 +531,13 @@ wl_cfgvendor_set_country(struct wiphy *wiphy,
 		}
 	}
 
-#ifdef WL_AUTO_COUNTRY
-	err = wl_config_autocountry(cfg, primary_ndev, country_code);
-	if (err) {
-		return err;
-	}
-#endif /* WL_AUTO_COUNTRY */
-
 	/* country code is unique for dongle..hence using primary interface. */
 	err = wl_cfg80211_set_country_code(primary_ndev, country_code, true, true, 0);
 	if (err < 0) {
 		WL_ERR(("Set country failed ret:%d\n", err));
 		goto exit;
 	}
+#ifdef OEM_ANDROID
 #ifdef FCC_PWR_LIMIT_2G
 	err = wldev_iovar_setint(primary_ndev, "fccpwrlimit2g", FALSE);
 	if (err < 0) {
@@ -578,6 +547,7 @@ wl_cfgvendor_set_country(struct wiphy *wiphy,
 		WL_ERR(("fccpwrlimit2g is deactivated\n"));
 	}
 #endif /* FCC_PWR_LIMIT_2G */
+#endif /* OEM_ANDROID */
 exit:
 	return err;
 }
@@ -1868,6 +1838,9 @@ wl_cfgvendor_set_latency_mode(struct wiphy *wiphy,
 #ifdef SUPPORT_LATENCY_CRITICAL_DATA
 	bool enable;
 #endif /* SUPPORT_LATENCY_CRITICAL_DATA */
+#if defined(WL_AUTO_QOS) && defined(DHD_QOS_ON_SOCK_FLOW)
+	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(wdev->netdev);
+#endif /* WL_AUTO_QOS && DHD_QOS_ON_SOCK_FLOW */
 
 	nla_for_each_attr(iter, data, len, rem) {
 		type = nla_type(iter);
@@ -1876,6 +1849,10 @@ wl_cfgvendor_set_latency_mode(struct wiphy *wiphy,
 				latency_mode = nla_get_u32(iter);
 				WL_DBG(("%s,Setting latency mode %u\n", __FUNCTION__,
 					latency_mode));
+#if defined(WL_AUTO_QOS) && defined(DHD_QOS_ON_SOCK_FLOW)
+				/* Enable/Disable qos monitoring */
+				dhd_wl_sock_qos_set_status(dhdp, latency_mode);
+#endif /* WL_AUTO_QOS && DHD_QOS_ON_SOCK_FLOW */
 #ifdef SUPPORT_LATENCY_CRITICAL_DATA
 				enable = latency_mode ? true : false;
 				err = wldev_iovar_setint(wdev->netdev,
@@ -2035,7 +2012,7 @@ wl_cfgvendor_rtt_evt(void *ctx, void *rtt_data)
 		}
 		list_for_each_entry(rtt_result, &rtt_header->result_list, list) {
 #ifdef WL_RTT_LCI
-			WL_DBG(("rtt_result report len=%d(%lu)\n",
+			WL_DBG(("rtt_result report len=%d(%zd)\n",
 				rtt_result->report_len, RTT_REPORT_SIZE));
 			if (rtt_result->report_len > RTT_REPORT_SIZE) {
 				struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
@@ -3117,6 +3094,7 @@ wl_cfgvendor_priv_string_handler(struct wiphy *wiphy,
 	int maxmsglen = PAGE_SIZE - 0x100;
 	struct sk_buff *reply;
 
+#if defined(OEM_ANDROID)
 	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(wdev->netdev);
 
 	/* send to dongle only if we are not waiting for reload already */
@@ -3126,6 +3104,7 @@ wl_cfgvendor_priv_string_handler(struct wiphy *wiphy,
 		DHD_OS_WAKE_UNLOCK(dhdp);
 		return OSL_ERROR(BCME_DONGLE_DOWN);
 	}
+#endif /* (OEM_ANDROID) */
 
 	if (!data) {
 		WL_ERR(("data is not available\n"));
@@ -3444,6 +3423,16 @@ wl_cfgvendor_set_td_policy(struct wiphy *wiphy,
 				sizeof(td_policy), WL_WSEC_INFO_BSS_TD_POLICY);
 			if (unlikely(ret)) {
 				WL_ERR(("set wsec_info for td_policy failed, error %d\n", ret));
+
+				/* If chip has no wsec_info/WL_WSEC_INFO_BSS_TD_POLICY support.
+				 * Don't disassoc, just skip and return OK.
+				 */
+				if (ret == BCME_UNSUPPORTED) {
+					WL_INFORM_MEM(("Skip: chip has no wsec_info/td_policy\n"));
+					ret = BCME_OK;
+					break;
+				}
+
 				/* Trigger disassoc, going ahead with connection is
 				 * violation of TD policy
 				 */
@@ -3482,7 +3471,8 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 	struct net_device *net = NULL;
 	unsigned long int cmd_out = 0;
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) || defined(WL_PRIV_CMD_OVER_NL80211)
+#if (defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)) || \
+	defined(WL_PRIV_CMD_OVER_NL80211)
 	u32 cmd_buf_len = WL_DRIVER_PRIV_CMD_LEN;
 	char cmd_prefix[ANDROID_PRIV_CMD_IF_PREFIX_LEN + 1] = {0};
 	char *cmd_buf = NULL;
@@ -3507,7 +3497,8 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 			goto exit;
 		}
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) || defined(WL_PRIV_CMD_OVER_NL80211)
+#if (defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)) || \
+	defined(WL_PRIV_CMD_OVER_NL80211)
 		if (type == BRCM_ATTR_DRIVER_CMD) {
 			if ((cmd_len >= WL_DRIVER_PRIV_CMD_LEN) ||
 				(cmd_len < ANDROID_PRIV_CMD_IF_PREFIX_LEN)) {
@@ -3563,6 +3554,7 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 			cmd_buf[WL_DRIVER_PRIV_CMD_LEN - 1] = '\0';
 
 			WL_DBG(("vendor_command: %s len: %u \n", cmd_buf, cmd_buf_len));
+#ifdef OEM_ANDROID
 			bytes_written = wl_handle_private_cmd(net, cmd_buf, cmd_buf_len);
 			WL_DBG(("bytes_written: %d \n", bytes_written));
 			if (bytes_written == 0) {
@@ -3581,6 +3573,10 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 				err = bytes_written;
 				goto exit;
 			}
+#else // OEM_ANDROID
+			err = bytes_written = -ENODEV;
+			goto exit;
+#endif // OEM_ANDROID
 			if ((data_len > 0) && (data_len < (cmd_buf_len - 1)) && cmd_buf) {
 				err =  wl_cfgvendor_send_cmd_reply(wiphy, cmd_buf, data_len);
 				if (unlikely(err)) {
@@ -3601,7 +3597,8 @@ wl_cfgvendor_priv_bcm_handler(struct wiphy *wiphy,
 
 exit:
 
-#if defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) || defined(WL_PRIV_CMD_OVER_NL80211)
+#if (defined(WL_ANDROID_PRIV_CMD_OVER_NL80211) && defined(OEM_ANDROID)) || \
+	defined(WL_PRIV_CMD_OVER_NL80211)
 	if (cmd_buf) {
 		MFREE(cfg->osh, cmd_buf, cmd_buf_len);
 	}
@@ -7528,6 +7525,245 @@ static void fill_chanspec_to_channel_info(chanspec_t cur_chanspec,
 	}
 }
 
+#ifdef CONFIG_COMPAT
+static s32
+wl_cfgvendor_get_radio_stats_compat(struct bcm_cfg80211 *cfg, struct net_device *ndev,
+	wifi_channel_stat *chan_stats, int num_channels, char **output, uint *total_len)
+{
+	s32 err = 0;
+	uint radio_stats_size = 0, chan_stats_size = 0, avail_radio_stat_len = 0;
+	char *radio_stat_ptr = NULL, *out_radio_stat = NULL;
+	compat_wifi_radio_stat_h_v2 radio_h_v2;
+	wifi_radio_stat_h radio_h;
+	wifi_radio_stat_v1_t *radio_v1;
+	wifi_radio_stat_v2_t radio_req_v2;
+	wifi_radio_stat_v2_t *radio_v2;
+	static char iovar_buf[WLC_IOCTL_MAXLEN];
+	int i = 0;
+
+	chan_stats_size = sizeof(wifi_channel_stat) * num_channels;
+	/* Radio stat field */
+	radio_stats_size = cfg->num_radios*(offsetof(compat_wifi_radio_stat, channels)) +
+			chan_stats_size;
+	radio_stat_ptr = (char *)MALLOCZ(cfg->osh, radio_stats_size);
+	if (radio_stat_ptr == NULL) {
+		WL_ERR(("radio_stat_ptr alloc failed\n"));
+		err = BCME_NOMEM;
+		goto exit;
+	}
+	bzero(radio_stat_ptr, radio_stats_size);
+	avail_radio_stat_len = radio_stats_size;
+
+	bzero(&radio_h, sizeof(radio_h));
+	bzero(&radio_h_v2, sizeof(radio_h_v2));
+
+	out_radio_stat = radio_stat_ptr;
+
+	for (i = 0; i < cfg->num_radios; i++) {
+		/* Try the VERSION_2 first */
+		radio_req_v2.version = WIFI_RADIO_STAT_VERSION_2;
+		radio_req_v2.length = sizeof(radio_req_v2);
+		radio_req_v2.radio = i;
+
+		err = wldev_iovar_getbuf(ndev, "radiostat", &radio_req_v2,
+			sizeof(radio_req_v2), iovar_buf, sizeof(iovar_buf), NULL);
+		if (err != BCME_OK && err != BCME_UNSUPPORTED && err != BCME_VERSION) {
+			WL_ERR(("error (%d) - size = %zu\n",
+				err, sizeof(wifi_radio_stat_v2_t)));
+			goto exit;
+		}
+
+		radio_v2 = (wifi_radio_stat_v2_t *)iovar_buf;
+		if ((err == BCME_OK) &&
+			(dtoh16(radio_v2->version) == WIFI_RADIO_STAT_VERSION_2)) {
+			if (i != radio_v2->radio) {
+				WL_ERR(("Fw version is unsupported\n"));
+				err = BCME_UNSUPPORTED;
+				goto exit;
+			}
+#if ANDROID_VERSION >= 13
+			radio_h_v2.radio = radio_v2->radio;
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h_v2.on_time = radio_v2->on_time;
+			} else {
+				radio_h_v2.on_time = 0;
+			}
+			radio_h_v2.tx_time = radio_v2->tx_time;
+			radio_h_v2.num_tx_levels = 0;
+			radio_h_v2.tx_time_per_levels = (compat_uptr_t)0;
+#ifdef LINKSTAT_EXT_SUPPORT
+			radio_h_v2.rx_time = radio_v2->myrx_time;
+#else
+			radio_h_v2.rx_time = radio_v2->rx_time;
+#endif /* LINKSTAT_EXT_SUPPORT  */
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h_v2.on_time_scan = (uint32)(radio_v2->on_time_scan / 1000);
+			} else {
+				radio_h_v2.on_time_scan = 0;
+			}
+			radio_h_v2.on_time_nbd = (uint32)(radio_v2->on_time_nbd / 1000);
+			radio_h_v2.on_time_gscan = (uint32)(radio_v2->on_time_gscan / 1000);
+			radio_h_v2.on_time_roam_scan = radio_v2->on_time_roam_scan;
+			radio_h_v2.on_time_pno_scan = (uint32)(radio_v2->on_time_pno_scan / 1000);
+			radio_h_v2.on_time_hs20 = radio_v2->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h_v2.num_channels = num_channels;
+			} else {
+				radio_h_v2.num_channels = 0;
+			}
+
+			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+					&radio_h_v2, offsetof(compat_wifi_radio_stat, channels));
+			if (err) {
+				WL_ERR(("failed to copy radio_stat_h : %d\n", err));
+				goto exit;
+			}
+			out_radio_stat += offsetof(compat_wifi_radio_stat, channels);
+			avail_radio_stat_len -= offsetof(compat_wifi_radio_stat, channels);
+#else
+			radio_h.radio = radio_v2->radio;
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time = radio_v2->on_time;
+			} else {
+				radio_h.on_time = 0;
+			}
+			radio_h.tx_time = radio_v2->tx_time;
+#ifdef LINKSTAT_EXT_SUPPORT
+			radio_h.rx_time = radio_v2->myrx_time;
+#else
+			radio_h.rx_time = radio_v2->rx_time;
+#endif /* LINKSTAT_EXT_SUPPORT  */
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time_scan = (uint32)(radio_v2->on_time_scan / 1000);
+			} else {
+				radio_h.on_time_scan = 0;
+			}
+			radio_h.on_time_nbd = (uint32)(radio_v2->on_time_nbd / 1000);
+			radio_h.on_time_gscan = (uint32)(radio_v2->on_time_gscan / 1000);
+			radio_h.on_time_roam_scan = radio_v2->on_time_roam_scan;
+			radio_h.on_time_pno_scan = (uint32)(radio_v2->on_time_pno_scan / 1000);
+			radio_h.on_time_hs20 = radio_v2->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h.num_channels = num_channels;
+			} else {
+				radio_h.num_channels = 0;
+			}
+
+			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+					&radio_h, sizeof(wifi_radio_stat_h));
+			if (err) {
+				WL_ERR(("failed to copy VERSION_1 radio_stat_h : %d\n", err));
+				goto exit;
+			}
+			out_radio_stat += sizeof(wifi_radio_stat_h);
+			avail_radio_stat_len -= sizeof(wifi_radio_stat_h);
+#endif
+		} else {
+			/* Retry the VERSION_1 */
+			err = wldev_iovar_getbuf(ndev, "radiostat", NULL, 0,
+					iovar_buf, sizeof(iovar_buf), NULL);
+
+			if (err != BCME_OK && err != BCME_UNSUPPORTED) {
+				WL_ERR(("error (%d) - size = %zu\n",
+					err, sizeof(wifi_radio_stat_v1_t)));
+				goto exit;
+			}
+			radio_v1 = (wifi_radio_stat_v1_t *)iovar_buf;
+#if ANDROID_VERSION >= 13
+			radio_h_v2.radio = radio_v1->radio;
+			if (radio_v1->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h_v2.on_time = radio_v1->on_time;
+			} else {
+				radio_h_v2.on_time = 0;
+			}
+			radio_h_v2.tx_time = radio_v1->tx_time;
+			radio_h_v2.num_tx_levels = 0;
+			radio_h_v2.tx_time_per_levels = (compat_uptr_t)0;
+			radio_h_v2.rx_time = radio_v1->rx_time;
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h_v2.on_time_scan = (uint32)(radio_v1->on_time_scan / 1000);
+			} else {
+				radio_h_v2.on_time_scan = 0;
+			}
+			radio_h_v2.on_time_nbd = (uint32)(radio_v1->on_time_nbd / 1000);
+			radio_h_v2.on_time_gscan = (uint32)(radio_v1->on_time_gscan / 1000);
+			radio_h_v2.on_time_roam_scan = radio_v1->on_time_roam_scan;
+			radio_h_v2.on_time_pno_scan = (uint32)(radio_v1->on_time_pno_scan / 1000);
+			radio_h_v2.on_time_hs20 = radio_v1->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h_v2.num_channels = num_channels;
+			} else {
+				radio_h_v2.num_channels = 0;
+			}
+
+			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+					&radio_h_v2, offsetof(compat_wifi_radio_stat, channels));
+			if (err) {
+				WL_ERR(("failed to copy radio_stat_h : %d\n", err));
+				goto exit;
+			}
+			out_radio_stat += offsetof(compat_wifi_radio_stat, channels);
+			avail_radio_stat_len -= offsetof(compat_wifi_radio_stat, channels);
+#else
+			radio_h.radio = radio_v1->radio;
+			if (radio_v1->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time = radio_v1->on_time;
+			} else {
+				radio_h.on_time = 0;
+			}
+			radio_h.tx_time = radio_v1->tx_time;
+			radio_h.rx_time = radio_v1->rx_time;
+			if (radio_v1->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time_scan = (uint32)(radio_v1->on_time_scan / 1000);
+			} else {
+				radio_h.on_time_scan = 0;
+			}
+			radio_h.on_time_nbd = (uint32)(radio_v1->on_time_nbd / 1000);
+			radio_h.on_time_gscan = (uint32)(radio_v1->on_time_gscan / 1000);
+			radio_h.on_time_roam_scan = radio_v1->on_time_roam_scan;
+			radio_h.on_time_pno_scan = (uint32)(radio_v1->on_time_pno_scan / 1000);
+			radio_h.on_time_hs20 = radio_v1->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h.num_channels = num_channels;
+			} else {
+				radio_h.num_channels = 0;
+			}
+			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+					&radio_h, sizeof(wifi_radio_stat_h));
+			if (err) {
+				WL_ERR(("failed to copy VERSION_1 radio_stat_h : %d\n", err));
+				goto exit;
+			}
+			out_radio_stat += sizeof(wifi_radio_stat_h);
+			avail_radio_stat_len -= sizeof(wifi_radio_stat_h);
+#endif
+		}
+	}
+	/* Update all channels */
+	err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+		chan_stats, chan_stats_size);
+	if (err) {
+		WL_ERR(("failed to copy all channel_stat: %d\n", err));
+		goto exit;
+	}
+	out_radio_stat += chan_stats_size;
+	avail_radio_stat_len -= chan_stats_size;
+
+	err = memcpy_s(*output, WLC_IOCTL_MAXLEN, radio_stat_ptr, radio_stats_size);
+	if (err) {
+		WL_ERR(("Failed to copy wifi_radio_stat_h: %d\n", err));
+		goto exit;
+	}
+	*output += radio_stats_size;
+	*total_len += radio_stats_size;
+exit:
+	if (radio_stat_ptr) {
+		MFREE(cfg->osh, radio_stat_ptr, radio_stats_size);
+	}
+	return err;
+}
+#endif
+
 static s32
 wl_cfgvendor_get_radio_stats(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	wifi_channel_stat *chan_stats, int num_channels, char **output, uint *total_len)
@@ -7535,13 +7771,22 @@ wl_cfgvendor_get_radio_stats(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	s32 err = 0;
 	uint radio_stats_size = 0, chan_stats_size = 0, avail_radio_stat_len = 0;
 	char *radio_stat_ptr = NULL, *out_radio_stat = NULL;
-	wifi_radio_stat_h_v2 radio_h_v2[WL_RADIOSTAT_SLICE_INDEX_MAX];
+	wifi_radio_stat_h_v2 radio_h_v2;
 	wifi_radio_stat_h radio_h;
 	wifi_radio_stat_v1_t *radio_v1;
 	wifi_radio_stat_v2_t radio_req_v2;
 	wifi_radio_stat_v2_t *radio_v2;
 	static char iovar_buf[WLC_IOCTL_MAXLEN];
 	int i = 0;
+
+#ifdef CONFIG_COMPAT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
+	if (in_compat_syscall())
+#else
+	if (is_compat_task())
+#endif /* LINUX_VER >= 4.6 */
+		return wl_cfgvendor_get_radio_stats_compat(cfg, ndev, chan_stats, num_channels, output, total_len);
+#endif /* CONFIG_COMPAT */
 
 	chan_stats_size = sizeof(wifi_channel_stat) * num_channels;
 	/* Radio stat field */
@@ -7583,48 +7828,82 @@ wl_cfgvendor_get_radio_stats(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 				err = BCME_UNSUPPORTED;
 				goto exit;
 			}
-			radio_h_v2[i].radio = radio_v2->radio;
+#if ANDROID_VERSION >= 13
+			radio_h_v2.radio = radio_v2->radio;
 			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
-				radio_h_v2[i].on_time = radio_v2->on_time;
+				radio_h_v2.on_time = radio_v2->on_time;
 			} else {
-				radio_h_v2[i].on_time = 0;
+				radio_h_v2.on_time = 0;
 			}
-			radio_h_v2[i].tx_time = radio_v2->tx_time;
-			radio_h_v2[i].num_tx_levels = 0;
-			radio_h_v2[i].tx_time_per_levels = NULL;
+			radio_h_v2.tx_time = radio_v2->tx_time;
+			radio_h_v2.num_tx_levels = 0;
+			radio_h_v2.tx_time_per_levels = NULL;
 #ifdef LINKSTAT_EXT_SUPPORT
-			radio_h_v2[i].rx_time = radio_v2->myrx_time;
+			radio_h_v2.rx_time = radio_v2->myrx_time;
 #else
-			radio_h_v2[i].rx_time = radio_v2->rx_time;
+			radio_h_v2.rx_time = radio_v2->rx_time;
 #endif /* LINKSTAT_EXT_SUPPORT  */
 			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
-				radio_h_v2[i].on_time_scan =
-					(uint32)(radio_v2->on_time_scan / 1000);
+				radio_h_v2.on_time_scan = (uint32)(radio_v2->on_time_scan / 1000);
 			} else {
-				radio_h_v2[i].on_time_scan = 0;
+				radio_h_v2.on_time_scan = 0;
 			}
-			radio_h_v2[i].on_time_nbd = (uint32)(radio_v2->on_time_nbd / 1000);
-			radio_h_v2[i].on_time_gscan = (uint32)(radio_v2->on_time_gscan / 1000);
-			radio_h_v2[i].on_time_roam_scan = radio_v2->on_time_roam_scan;
-			radio_h_v2[i].on_time_pno_scan =
-				(uint32)(radio_v2->on_time_pno_scan / 1000);
-			radio_h_v2[i].on_time_hs20 = radio_v2->on_time_hs20;
-			if (i == WL_RADIOSTAT_SLICE_INDEX_MAIN) {
-				radio_h_v2[i].num_channels = 0;
-			} else if (i == WL_RADIOSTAT_SLICE_INDEX_AUX) {
-				radio_h_v2[i].num_channels = 0;
+			radio_h_v2.on_time_nbd = (uint32)(radio_v2->on_time_nbd / 1000);
+			radio_h_v2.on_time_gscan = (uint32)(radio_v2->on_time_gscan / 1000);
+			radio_h_v2.on_time_roam_scan = radio_v2->on_time_roam_scan;
+			radio_h_v2.on_time_pno_scan = (uint32)(radio_v2->on_time_pno_scan / 1000);
+			radio_h_v2.on_time_hs20 = radio_v2->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h_v2.num_channels = num_channels;
 			} else {
-				radio_h_v2[i].num_channels = num_channels;
+				radio_h_v2.num_channels = 0;
 			}
 
 			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
-					&radio_h_v2[i], offsetof(wifi_radio_stat, channels));
+					&radio_h_v2, offsetof(wifi_radio_stat, channels));
 			if (err) {
 				WL_ERR(("failed to copy radio_stat_h : %d\n", err));
 				goto exit;
 			}
 			out_radio_stat += offsetof(wifi_radio_stat, channels);
 			avail_radio_stat_len -= offsetof(wifi_radio_stat, channels);
+#else
+			radio_h.radio = radio_v2->radio;
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time = radio_v2->on_time;
+			} else {
+				radio_h.on_time = 0;
+			}
+			radio_h.tx_time = radio_v2->tx_time;
+#ifdef LINKSTAT_EXT_SUPPORT
+			radio_h.rx_time = radio_v2->myrx_time;
+#else
+			radio_h.rx_time = radio_v2->rx_time;
+#endif /* LINKSTAT_EXT_SUPPORT  */
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h.on_time_scan = (uint32)(radio_v2->on_time_scan / 1000);
+			} else {
+				radio_h.on_time_scan = 0;
+			}
+			radio_h.on_time_nbd = (uint32)(radio_v2->on_time_nbd / 1000);
+			radio_h.on_time_gscan = (uint32)(radio_v2->on_time_gscan / 1000);
+			radio_h.on_time_roam_scan = radio_v2->on_time_roam_scan;
+			radio_h.on_time_pno_scan = (uint32)(radio_v2->on_time_pno_scan / 1000);
+			radio_h.on_time_hs20 = radio_v2->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h.num_channels = num_channels;
+			} else {
+				radio_h.num_channels = 0;
+			}
+			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
+					&radio_h, sizeof(wifi_radio_stat_h));
+			if (err) {
+				WL_ERR(("failed to copy radio_stat_h : %d\n", err));
+				goto exit;
+			}
+			out_radio_stat += sizeof(wifi_radio_stat_h);
+			avail_radio_stat_len -= sizeof(wifi_radio_stat_h);
+#endif
 		} else {
 			/* Retry the VERSION_1 */
 			err = wldev_iovar_getbuf(ndev, "radiostat", NULL, 0,
@@ -7637,32 +7916,34 @@ wl_cfgvendor_get_radio_stats(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			}
 			radio_v1 = (wifi_radio_stat_v1_t *)iovar_buf;
 #if ANDROID_VERSION >= 13
-			radio_h_v2[i].radio = radio_v1->radio;
+			radio_h_v2.radio = radio_v1->radio;
 			if (radio_v1->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
-				radio_h_v2[i].on_time = radio_v1->on_time;
+				radio_h_v2.on_time = radio_v1->on_time;
 			} else {
-				radio_h_v2[i].on_time = 0;
+				radio_h_v2.on_time = 0;
 			}
-			radio_h_v2[i].tx_time = radio_v1->tx_time;
-			radio_h_v2[i].num_tx_levels = 0;
-			radio_h_v2[i].tx_time_per_levels = NULL;
-			radio_h_v2[i].rx_time = radio_v1->rx_time;
-			radio_h_v2[i].on_time_scan = 0;
-			radio_h_v2[i].on_time_nbd = radio_v1->on_time_nbd;
-			radio_h_v2[i].on_time_gscan = radio_v1->on_time_gscan;
-			radio_h_v2[i].on_time_roam_scan = radio_v1->on_time_roam_scan;
-			radio_h_v2[i].on_time_pno_scan = radio_v1->on_time_pno_scan;
-			radio_h_v2[i].on_time_hs20 = radio_v1->on_time_hs20;
-			if (i == WL_RADIOSTAT_SLICE_INDEX_MAIN) {
-				radio_h_v2[i].num_channels = 0;
-			} else if (i == WL_RADIOSTAT_SLICE_INDEX_AUX) {
-				radio_h_v2[i].num_channels = 0;
+			radio_h_v2.tx_time = radio_v1->tx_time;
+			radio_h_v2.num_tx_levels = 0;
+			radio_h_v2.tx_time_per_levels = NULL;
+			radio_h_v2.rx_time = radio_v1->rx_time;
+			if (radio_v2->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
+				radio_h_v2.on_time_scan = (uint32)(radio_v1->on_time_scan / 1000);
 			} else {
-				radio_h_v2[i].num_channels = num_channels;
+				radio_h_v2.on_time_scan = 0;
+			}
+			radio_h_v2.on_time_nbd = (uint32)(radio_v1->on_time_nbd / 1000);
+			radio_h_v2.on_time_gscan = (uint32)(radio_v1->on_time_gscan / 1000);
+			radio_h_v2.on_time_roam_scan = radio_v1->on_time_roam_scan;
+			radio_h_v2.on_time_pno_scan = (uint32)(radio_v1->on_time_pno_scan / 1000);
+			radio_h_v2.on_time_hs20 = radio_v1->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h_v2.num_channels = num_channels;
+			} else {
+				radio_h_v2.num_channels = 0;
 			}
 
 			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
-					&radio_h_v2[i], offsetof(wifi_radio_stat, channels));
+					&radio_h_v2, offsetof(wifi_radio_stat, channels));
 			if (err) {
 				WL_ERR(("failed to copy radio_stat_h : %d\n", err));
 				goto exit;
@@ -7670,16 +7951,24 @@ wl_cfgvendor_get_radio_stats(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			out_radio_stat += offsetof(wifi_radio_stat, channels);
 			avail_radio_stat_len -= offsetof(wifi_radio_stat, channels);
 #else
-			radio_h.rx_time = radio_v1->rx_time;
+			radio_h.radio = radio_v1->radio;
 			if (radio_v1->radio != WL_RADIOSTAT_SLICE_INDEX_SCAN) {
-				radio_h.on_time = radio_v1->on_time;
+				radio_h.on_time = (uint32)(radio_v1->on_time_scan / 1000);
 			} else {
 				radio_h.on_time = 0;
 			}
 			radio_h.tx_time = radio_v1->tx_time;
-			radio_h.on_time_nbd = radio_v1->on_time_nbd;
-			radio_h.on_time_gscan = radio_v1->on_time_gscan;
+			radio_h.rx_time = radio_v1->rx_time;
+			radio_h.on_time_nbd = (uint32)(radio_v1->on_time_nbd / 1000);
+			radio_h.on_time_gscan = (uint32)(radio_v1->on_time_gscan / 1000);
+			radio_h.on_time_roam_scan = radio_v1->on_time_roam_scan;
+			radio_h.on_time_pno_scan = (uint32)(radio_v1->on_time_pno_scan / 1000);
 			radio_h.on_time_hs20 = radio_v1->on_time_hs20;
+			if (i == (cfg->num_radios - 1)) {
+				radio_h_v2.num_channels = num_channels;
+			} else {
+				radio_h_v2.num_channels = 0;
+			}
 			err = memcpy_s(out_radio_stat, avail_radio_stat_len,
 					&radio_h, sizeof(wifi_radio_stat_h));
 			if (err) {
@@ -7713,6 +8002,31 @@ exit:
 		MFREE(cfg->osh, radio_stat_ptr, radio_stats_size);
 	}
 	return err;
+}
+
+static int wl_cfgvendor_lstats_get_bcn_mbss(char *buf, uint32 *rxbeaconmbss)
+{
+	wl_cnt_info_t *cbuf = (wl_cnt_info_t *)buf;
+	const void *cnt;
+
+	if ((cnt = (const void *)bcm_get_data_from_xtlv_buf(cbuf->data, cbuf->datalen,
+			WL_CNT_XTLV_CNTV_LE10_UCODE, NULL, BCM_XTLV_OPTION_ALIGN32)) != NULL) {
+		*rxbeaconmbss = ((const wl_cnt_v_le10_mcst_t *)cnt)->rxbeaconmbss;
+	} else if ((cnt = (const void *)bcm_get_data_from_xtlv_buf(cbuf->data, cbuf->datalen,
+			WL_CNT_XTLV_LT40_UCODE_V1, NULL, BCM_XTLV_OPTION_ALIGN32)) != NULL) {
+		*rxbeaconmbss = ((const wl_cnt_lt40mcst_v1_t *)cnt)->rxbeaconmbss;
+	} else if ((cnt = (const void *)bcm_get_data_from_xtlv_buf(cbuf->data, cbuf->datalen,
+			WL_CNT_XTLV_GE40_UCODE_V1, NULL, BCM_XTLV_OPTION_ALIGN32)) != NULL) {
+		*rxbeaconmbss = ((const wl_cnt_ge40mcst_v1_t *)cnt)->rxbeaconmbss;
+	} else if ((cnt = (const void *)bcm_get_data_from_xtlv_buf(cbuf->data, cbuf->datalen,
+			WL_CNT_XTLV_GE80_UCODE_V1, NULL, BCM_XTLV_OPTION_ALIGN32)) != NULL) {
+		*rxbeaconmbss = ((const wl_cnt_ge80mcst_v1_t *)cnt)->rxbeaconmbss;
+	} else {
+		*rxbeaconmbss = 0;
+		return BCME_NOTFOUND;
+	}
+
+	return BCME_OK;
 }
 
 static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
@@ -7751,11 +8065,11 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	wifi_rate_stat *p_wifi_rate_stat = NULL;
 	uint total_len = 0;
 	uint32 rxbeaconmbss = 0;
-	wlc_rev_info_t revinfo;
+	wlc_rev_info_t *revinfo;
+	uint revinfo_size = sizeof(wlc_rev_info_t);
 	wl_if_stats_t *if_stats = NULL;
 	wl_if_infra_enh_stats_v2_t *if_infra_enh_stats = NULL;
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
-	wifi_channel_stat cur_channel_stat;
 	cca_congest_channel_req_t *cca_result;
 	cca_congest_channel_req_t *cca_req = NULL;
 	uint cca_req_size = sizeof(cca_congest_channel_req_t);
@@ -7765,7 +8079,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 
 	COMPAT_STRUCT_IFACE(wifi_iface_stat, iface);
 
-	WL_TRACE(("%s: Enter \n", __func__));
+	WL_TRACE(("Enter \n"));
 	RETURN_EIO_IF_NOT_UP(cfg);
 
 	BCM_REFERENCE(if_stats);
@@ -7778,10 +8092,15 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		WL_ERR(("link stats query requested on non primary interface\n"));
 		return BCME_UNSUPPORTED;
 	}
+
 	/* Get the device rev info */
-	bzero(&revinfo, sizeof(revinfo));
-	err = wldev_ioctl_get(bcmcfg_to_prmry_ndev(cfg), WLC_GET_REVINFO, &revinfo,
-			sizeof(revinfo));
+	revinfo = (void *)MALLOCZ(cfg->osh, revinfo_size);
+	if (revinfo == NULL) {
+		WL_ERR(("revinfo alloc failed\n"));
+		return BCME_NOMEM;
+	}
+	err = wldev_ioctl_get(bcmcfg_to_prmry_ndev(cfg), WLC_GET_REVINFO, revinfo,
+			revinfo_size);
 	if (err != BCME_OK) {
 		goto exit;
 	}
@@ -7789,8 +8108,9 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	iovar_buf = cfg->ioctl_buf;
 	outdata = (void *)MALLOCZ(cfg->osh, WLC_IOCTL_MAXLEN);
 	if (outdata == NULL) {
+		err = BCME_NOMEM;
 		WL_ERR(("outdata alloc failed\n"));
-		return BCME_NOMEM;
+		goto exit;
 	}
 
 	bzero(&scbval, sizeof(scb_val_t));
@@ -7812,15 +8132,6 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		goto exit;
 	}
 
-	fill_chanspec_to_channel_info(cur_chanspec, &cur_channel_stat.channel, &cur_band);
-	WL_TRACE(("chanspec : %x, BW : %d, Cur Band : %x, freq : %d, freq0 :%d, freq1 : %d\n",
-		cur_chanspec,
-		cur_channel_stat.channel.width,
-		cur_band,
-		cur_channel_stat.channel.center_freq,
-		cur_channel_stat.channel.center_freq0,
-		cur_channel_stat.channel.center_freq1));
-
 #ifdef LINKSTAT_EXT_SUPPORT
 	/* Option to get all channel statistics */
 	all_chan_req = (void *)MALLOCZ(cfg->osh, all_chan_req_size);
@@ -7833,13 +8144,23 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	all_chan_req->ver = WL_CCA_EXT_REQ_VER_V3;
 	err = wldev_iovar_getbuf(inet_ndev, "cca_get_stats_ext",
 		all_chan_req, all_chan_req_size, iovar_buf, WLC_IOCTL_MAXLEN, NULL);
+	all_chan_results = (cca_congest_ext_channel_req_v3_t *) iovar_buf;
 
 	if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 		WL_ERR(("cca_get_stats_ext iovar err = %d\n", err));
 		goto exit;
+	} else if ((err != BCME_OK) ||
+			(dtoh16(all_chan_results->ver) != WL_CCA_EXT_REQ_VER_V3)) {
+		chan_stats_size = sizeof(wifi_channel_stat);
+		chan_stats = (void *)MALLOCZ(cfg->osh, chan_stats_size);
+		if (chan_stats == NULL) {
+			err = BCME_NOMEM;
+			WL_ERR(("chan_stats alloc failed\n"));
+			goto exit;
+		}
+		fill_chanspec_to_channel_info(cur_chanspec, &chan_stats->channel, &cur_band);
 	}
 
-	all_chan_results = (cca_congest_ext_channel_req_v3_t *) iovar_buf;
 	if ((err == BCME_OK) &&
 			(dtoh16(all_chan_results->ver) == WL_CCA_EXT_REQ_VER_V3)) {
 		int i = 0;
@@ -7892,7 +8213,13 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	}
 #else
 	chan_stats_size = sizeof(wifi_channel_stat);
-	chan_stats = &cur_channel_stat;
+	chan_stats = (void *)MALLOCZ(cfg->osh, chan_stats_size);
+	if (chan_stats == NULL) {
+		err = BCME_NOMEM;
+		WL_ERR(("chan_stats alloc failed\n"));
+		goto exit;
+	}
+	fill_chanspec_to_channel_info(cur_chanspec, &chan_stats->channel, &cur_band);
 
 	cca_v3_req = (void *)MALLOCZ(cfg->osh, cca_v3_req_size);
 	if (cca_v3_req == NULL) {
@@ -7923,11 +8250,11 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 			((cca_congest_ext_channel_req_v3_t *)iovar_buf)->per_chan_stats;
 
 		/* the accumulated time for the current channel */
-		cur_channel_stat.on_time = dtoh32(cca_v2_results->secs[0].radio_on_time);
-		cur_channel_stat.cca_busy_time = dtoh32(cca_v2_results->secs[0].cca_busy_time);
+		chan_stats->on_time = dtoh32(cca_v2_results->secs[0].radio_on_time);
+		chan_stats->cca_busy_time = dtoh32(cca_v2_results->secs[0].cca_busy_time);
 
 		WL_TRACE(("wifi chan statics ver.3 - on_time : %u, cca_busy_time : %u\n",
-			cur_channel_stat.on_time, cur_channel_stat.cca_busy_time));
+			chan_stats->on_time, chan_stats->cca_busy_time));
 	} else if ((err == BCME_OK) &&
 			(dtoh16(cca_ver) == WL_CCA_EXT_REQ_VER_V2)) {
 
@@ -7951,11 +8278,11 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		cca_v2_results = (cca_congest_ext_channel_req_v2_t *) iovar_buf;
 
 		/* the accumulated time for the current channel */
-		cur_channel_stat.on_time = dtoh32(cca_v2_results->secs[0].radio_on_time);
-		cur_channel_stat.cca_busy_time = dtoh32(cca_v2_results->secs[0].cca_busy_time);
+		chan_stats->on_time = dtoh32(cca_v2_results->secs[0].radio_on_time);
+		chan_stats->cca_busy_time = dtoh32(cca_v2_results->secs[0].cca_busy_time);
 
 		WL_TRACE(("wifi chan statics ver.2 - on_time : %u, cca_busy_time : %u\n",
-			cur_channel_stat.on_time, cur_channel_stat.cca_busy_time));
+			chan_stats->on_time, chan_stats->cca_busy_time));
 	}
 #endif /* LINKSTAT_EXT_SUPPORT  */
 	else {
@@ -7977,7 +8304,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		cca_req->chanspec = wl_chspec_host_to_driver(cur_chanspec);
 
 		err = wldev_iovar_getbuf(inet_ndev, "cca_get_stats", cca_req,
-			sizeof(cca_req), iovar_buf, WLC_IOCTL_MAXLEN, NULL);
+			cca_req_size, iovar_buf, WLC_IOCTL_MAXLEN, NULL);
 
 		if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 			WL_ERR(("error (%d) - size = %zu\n",
@@ -7985,7 +8312,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 			goto exit;
 		}
 
-		cur_channel_stat.on_time = radio_h.on_time;
+		chan_stats->on_time = radio_h.on_time;
 
 		if (err == BCME_OK) {
 			cca_result = (cca_congest_channel_req_t *) iovar_buf;
@@ -7993,7 +8320,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 				dtoh32(cca_result->secs[0].congest_obss) +
 				dtoh32(cca_result->secs[0].interference);
 
-			WL_TRACE(("wifi stats : %u, %u, %u, %u, %u\n", cur_channel_stat.on_time,
+			WL_TRACE(("wifi stats : %u, %u, %u, %u, %u\n", chan_stats->on_time,
 				cca_busy_time,
 				dtoh32(cca_result->secs[0].congest_ibss),
 				dtoh32(cca_result->secs[0].congest_obss),
@@ -8003,8 +8330,15 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		}
 
 		/* If cca_get_stats is unsupported, cca_busy_time has zero value as initial value */
-		cur_channel_stat.cca_busy_time = cca_busy_time;
+		chan_stats->cca_busy_time = cca_busy_time;
 	}
+	WL_TRACE(("chanspec : %x, BW : %d, Cur Band : %x, freq : %d, freq0 :%d, freq1 : %d\n",
+		cur_chanspec,
+		chan_stats->channel.width,
+		cur_band,
+		chan_stats->channel.center_freq,
+		chan_stats->channel.center_freq0,
+		chan_stats->channel.center_freq1));
 
 	err = wl_cfgvendor_get_radio_stats(cfg, inet_ndev, chan_stats,
 			num_channels, &output, &total_len);
@@ -8041,7 +8375,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	/* traditional(ver<=10)counters will use WL_CNT_XTLV_CNTV_LE10_UCODE.
 	 * Other cases will use its xtlv type accroding to corerev
 	 */
-	err = wl_cntbuf_to_xtlv_format(NULL, iovar_buf, WLC_IOCTL_MAXLEN, revinfo.corerev);
+	err = wl_cntbuf_to_xtlv_format(NULL, iovar_buf, WLC_IOCTL_MAXLEN, revinfo->corerev);
 	if (err != BCME_OK) {
 		WL_ERR(("wl_cntbuf_to_xtlv_format ERR %d\n", err));
 		goto exit;
@@ -8074,6 +8408,12 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 				if_infra_enh_stats);
 		if (!err) {
 			rxbeaconmbss =	if_infra_enh_stats->rxbeaconmbss;
+		}
+	} else {
+		err = wl_cfgvendor_lstats_get_bcn_mbss(iovar_buf, &rxbeaconmbss);
+		if (unlikely(err)) {
+			WL_ERR(("get_bcn_mbss error (%d)\n", err));
+			goto exit;
 		}
 	}
 
@@ -8129,7 +8469,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		COMPAT_ASSIGN_VALUE(iface, peer_info->bssload.sta_count, bssload->sta_count);
 		COMPAT_ASSIGN_VALUE(iface, peer_info->bssload.chan_util, bssload->chan_util);
 	} else if (err == BCME_UNSUPPORTED) {
-		WL_ERR(("bssload_report is unsupported \n"));
+		WL_INFORM(("bssload_report is unsupported \n"));
 	} else if (err == BCME_NOTASSOCIATED) {
 		WL_ERR(("bssload_report IOVAR failed. STA is not associated.\n"));
 	} else {
@@ -8226,14 +8566,17 @@ exit:
 	}
 #endif /* !DISABLE_IF_COUNTERS */
 
-#ifdef LINKSTAT_EXT_SUPPORT
 	if (chan_stats) {
 		MFREE(cfg->osh, chan_stats, chan_stats_size);
 	}
+#ifdef LINKSTAT_EXT_SUPPORT
 	if (per_chspec_stats) {
 		MFREE(cfg->osh, per_chspec_stats, per_chspec_stats_size);
 	}
 #endif /* LINKSTAT_EXT_SUPPORT */
+	if (revinfo) {
+		MFREE(cfg->osh, revinfo, revinfo_size);
+	}
 
 #ifdef RPM_FAST_TRIGGER
 	WL_INFORM(("Trgger RPM Fast\n"));
@@ -10085,6 +10428,36 @@ fail:
 }
 #endif /* APF */
 
+static int wl_cfgvendor_configure_indoor_state(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
+	const struct nlattr *iter;
+	int ret = BCME_OK, rem, type;
+	u8 enable = 0;
+
+	nla_for_each_attr(iter, data, len, rem) {
+		type = nla_type(iter);
+		switch (type) {
+			case ANDR_WIFI_ATTRIBUTE_INDOOR_STATE:
+				enable = nla_get_u8(iter);
+				break;
+			default:
+				WL_ERR(("Unknown type: %d\n", type));
+				ret = BCME_BADARG;
+				goto exit;
+		}
+	}
+
+	ret = dhd_dev_indoor_cfg(bcmcfg_to_prmry_ndev(cfg), enable);
+	if (ret < 0) {
+		WL_ERR(("dhd_dev_ndo_cfg() failed: %d\n", ret));
+	}
+
+exit:
+	return ret;
+}
+
 #ifdef NDO_CONFIG_SUPPORT
 static int wl_cfgvendor_configure_nd_offload(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void  *data, int len)
@@ -10152,7 +10525,9 @@ static int wl_cfgvendor_set_pmk(struct wiphy *wiphy,
 	wl_cfg80211_set_okc_pmkinfo(cfg, ndev, pmk, TRUE);
 
 	ret = wldev_ioctl_set(ndev, WLC_SET_WSEC_PMK, &pmk, sizeof(pmk));
-	WL_INFORM_MEM(("IOVAR set_pmk ret:%d", ret));
+	if (ret) {
+		WL_INFORM_MEM(("IOVAR set_pmk ret:%d", ret));
+	}
 exit:
 	return ret;
 }
@@ -10422,6 +10797,19 @@ wl_cfgvendor_tx_power_scenario(struct wiphy *wiphy,
 		}
 	}
 	WL_DBG_MEM(("SAR: sar_mode %d airplane_mode %d\n", sar_tx_power_val, airplane_mode));
+#ifdef SYNA_SAR_CUSTOMER_PARAMETER
+	if (sar_tx_power_val) {
+		struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
+		dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+		err = dhd_sar_set_parameter(dhd, sar_tx_power_val);
+		if (unlikely(err)) {
+			WL_ERR(("SAR: Failed to set sar_params - error (%d)\n", err));
+			goto exit;
+		}
+		/* as already set sar_params for sar_enable 1 */
+		sar_tx_power_val = 1;
+	}
+#endif /* SYNA_SAR_CUSTOMER_PARAMETER */
 	err = wldev_iovar_setint(wdev_to_ndev(wdev), "fccpwrlimit2g", airplane_mode);
 	if (unlikely(err)) {
 		WL_ERR(("SAR: Failed to set airplane_mode - error (%d)\n", err));
@@ -11809,6 +12197,7 @@ exit:
 }
 #endif /* SUPPORT_OTA_UPDATE */
 
+#ifdef OEM_ANDROID
 static int
 wl_cfgvendor_set_dtim_config(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void  *data, int len)
@@ -11842,6 +12231,7 @@ wl_cfgvendor_set_dtim_config(struct wiphy *wiphy,
 	return err;
 
 }
+#endif /* OEM_ANDROID */
 
 #ifdef WL_USABLE_CHAN
 static int wl_cfgvendor_get_usable_channels(struct wiphy *wiphy,
@@ -11920,7 +12310,8 @@ static int wl_cfgvendor_get_usable_channels(struct wiphy *wiphy,
 	}
 
 	for (i = 0; i < u_info.size; i++) {
-		memcpy_s(uchan_data + off, uchan_data_len, &u_info.channels[i], uchan_item_size);
+		memcpy_s(uchan_data + off, uchan_data_len - off,
+			&u_info.channels[i], uchan_item_size);
 		off += uchan_item_size;
 	}
 
@@ -12041,7 +12432,7 @@ wl_cfgvendor_get_radio_combo_matrix(struct wiphy *wiphy,
 	wifi_radio_combination_matrix *rc = NULL;
 
 	if (sizeof(buf) < MAX_RADIO_MATRIX_SIZE) {
-		WL_ERR(("Buff too short: %zu, exp max_radio matrix size: %zu\n",
+		WL_ERR(("Buff too short: %zd, exp max_radio matrix size: %zd\n",
 			sizeof(buf), MAX_RADIO_MATRIX_SIZE));
 		err = BCME_BUFTOOSHORT;
 		goto fail;
@@ -12145,6 +12536,7 @@ const struct nla_policy andr_wifi_attr_policy[ANDR_WIFI_ATTRIBUTE_MAX] = {
 	[ANDR_WIFI_ATTRIBUTE_THERMAL_COMPLETION_WINDOW] = { .type = NLA_U32 },
 	[ANDR_WIFI_ATTRIBUTE_VOIP_MODE] = { .type = NLA_U32, .len = sizeof(uint32) },
 	[ANDR_WIFI_ATTRIBUTE_DTIM_MULTIPLIER] = { .type = NLA_U32, .len = sizeof(uint32) },
+	[ANDR_WIFI_ATTRIBUTE_INDOOR_STATE] = { .type = NLA_U8 },
 };
 
 const struct nla_policy dump_buf_policy[DUMP_BUF_ATTR_MAX] = {
@@ -13615,6 +14007,18 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.maxattr = MULTISTA_ATTRIBUTE_MAX
 #endif /* LINUX_VERSION >= 5.3 */
 	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = WIFI_SUBCMD_CONFIG_INDOOR_STATE
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_configure_indoor_state,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_wifi_attr_policy,
+		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
 #if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
 	{
 		{
@@ -13727,6 +14131,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 #endif /* LINUX_VERSION >= 5.3 */
 	},
 #endif /* SUPPORT_OTA_UPDATE */
+#ifdef OEM_ANDROID
 	{
 		{
 			.vendor_id = OUI_GOOGLE,
@@ -13739,6 +14144,7 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 		.maxattr = ANDR_WIFI_ATTRIBUTE_MAX
 #endif /* LINUX_VERSION >= 5.3 */
 	},
+#endif /* OEM_ANDROID */
 #ifdef WL_USABLE_CHAN
 	{
 		{
@@ -13911,6 +14317,231 @@ int wl_cfgvendor_detach(struct wiphy *wiphy)
 	return 0;
 }
 #endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
+
+#ifdef WL_CFGVENDOR_SEND_HANG_EVENT
+void
+wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason, char *string, int hang_info_cnt)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	struct wiphy *wiphy;
+	char *hang_info;
+	int len = 0;
+	int bytes_written;
+	uint32 dummy_data = 0;
+	int reason_hang_info = 0;
+	int cnt = 0;
+	dhd_pub_t *dhd;
+	int hang_reason_mismatch = FALSE;
+
+	if (!cfg || !cfg->wdev) {
+		WL_ERR(("cfg=%p wdev=%p\n", cfg, (cfg ? cfg->wdev : NULL)));
+		return;
+	}
+
+	wiphy = cfg->wdev->wiphy;
+
+	if (!wiphy) {
+		WL_ERR(("wiphy is NULL\n"));
+		return;
+	}
+
+	hang_info = MALLOCZ(cfg->osh, VENDOR_SEND_HANG_EXT_INFO_LEN);
+	if (hang_info == NULL) {
+		WL_ERR(("alloc hang_info failed\n"));
+		return;
+	}
+
+	dhd = (dhd_pub_t *)(cfg->pub);
+
+#ifdef WL_BCNRECV
+	/* check fakeapscan in progress then stop scan */
+	if (cfg->bcnrecv_info.bcnrecv_state == BEACON_RECV_STARTED) {
+		wl_android_bcnrecv_stop(dev, WL_BCNRECV_HANG);
+	}
+#endif /* WL_BCNRECV */
+	sscanf(string, "%d", &reason_hang_info);
+	bytes_written = 0;
+	len = VENDOR_SEND_HANG_EXT_INFO_LEN - bytes_written;
+	if (strlen(string) == 0 || (reason_hang_info != reason)) {
+		WL_ERR(("hang reason mismatch: string len %d reason_hang_info %d\n",
+			(int)strlen(string), reason_hang_info));
+		hang_reason_mismatch = TRUE;
+		if (dhd) {
+			get_debug_dump_time(dhd->debug_dump_time_hang_str);
+			copy_debug_dump_time(dhd->debug_dump_time_str,
+					dhd->debug_dump_time_hang_str);
+		}
+		/* Fill bigdata key with */
+		bytes_written += scnprintf(&hang_info[bytes_written], len,
+				"%d %d %s %08x %08x %08x %08x %08x %08x %08x",
+				reason, VENDOR_SEND_HANG_EXT_INFO_VER,
+				dhd->debug_dump_time_hang_str,
+				0, 0, 0, 0, 0, 0, 0);
+		if (dhd) {
+			clear_debug_dump_time(dhd->debug_dump_time_hang_str);
+		}
+	} else {
+		bytes_written += scnprintf(&hang_info[bytes_written], len, "%s", string);
+	}
+
+	WL_ERR(("hang reason: %d info cnt: %d\n", reason, hang_info_cnt));
+
+	if (hang_reason_mismatch == FALSE) {
+		cnt = hang_info_cnt;
+	} else {
+		cnt = HANG_FIELD_MISMATCH_CNT;
+	}
+
+	while (cnt < HANG_FIELD_CNT_MAX) {
+		len = VENDOR_SEND_HANG_EXT_INFO_LEN - bytes_written;
+		if (len <= 0) {
+			break;
+		}
+		bytes_written += scnprintf(&hang_info[bytes_written], len,
+				"%c%08x", HANG_RAW_DEL, dummy_data);
+		cnt++;
+	}
+
+	WL_ERR(("hang info cnt: %d len: %d\n", cnt, (int)strlen(hang_info)));
+	WL_ERR(("hang info data: %s\n", hang_info));
+
+	wl_cfgvendor_send_async_event(wiphy,
+			bcmcfg_to_prmry_ndev(cfg), BRCM_VENDOR_EVENT_HANGED,
+			hang_info, (int)strlen(hang_info));
+
+	memset(string, 0, VENDOR_SEND_HANG_EXT_INFO_LEN);
+
+	if (hang_info) {
+		MFREE(cfg->osh, hang_info, VENDOR_SEND_HANG_EXT_INFO_LEN);
+	}
+
+#ifdef DHD_LOG_DUMP
+	dhd_logdump_cookie_save(dhd, dhd->debug_dump_time_hang_str, "HANG");
+#endif /*  DHD_LOG_DUMP */
+
+	if (dhd) {
+		clear_debug_dump_time(dhd->debug_dump_time_str);
+	}
+}
+
+void
+wl_cfgvendor_simple_hang_event(struct net_device *dev, u16 reason)
+{
+	struct bcm_cfg80211 *cfg;
+	struct wiphy *wiphy;
+	struct sk_buff *msg;
+	gfp_t kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
+	int hang_event_len = 0;
+#ifdef DHD_COREDUMP
+	dhd_pub_t *dhd;
+#endif
+	WL_ERR(("0x%x\n", reason));
+
+	cfg = wl_cfg80211_get_bcmcfg();
+	if (!cfg || !cfg->wdev) {
+		WL_ERR(("fw dump evt invalid arg\n"));
+		return;
+	}
+
+	wiphy = bcmcfg_to_wiphy(cfg);
+	if (!wiphy) {
+		WL_ERR(("wiphy is NULL\n"));
+		return;
+	}
+
+#ifdef DHD_COREDUMP
+	hang_event_len = DHD_MEMDUMP_LONGSTR_LEN;
+#endif
+
+	/* Allocate the skb for vendor event */
+	msg = CFG80211_VENDOR_EVENT_ALLOC(wiphy, ndev_to_wdev(dev),
+			hang_event_len, BRCM_VENDOR_EVENT_HANGED, kflags);
+	if (!msg) {
+		WL_ERR(("%s: fail to allocate skb for vendor event\n", __FUNCTION__));
+		return;
+	}
+
+#ifdef DHD_COREDUMP
+	dhd = (dhd_pub_t *)(cfg->pub);
+
+	WL_ERR(("hang reason: %s\n", dhd->memdump_str));
+	nla_put(msg, DEBUG_ATTRIBUTE_HANG_REASON, DHD_MEMDUMP_LONGSTR_LEN, dhd->memdump_str);
+#endif
+
+	CFG80211_VENDOR_EVENT(msg, kflags);
+	return;
+}
+
+void
+wl_copy_hang_info_if_falure(struct net_device *dev, u16 reason, s32 ret)
+{
+	struct bcm_cfg80211 *cfg = NULL;
+	dhd_pub_t *dhd;
+	s32 err = 0;
+	char ioctl_buf[WLC_IOCTL_SMLEN];
+	memuse_info_t mu;
+	int bytes_written = 0;
+	int remain_len = 0;
+
+	if (!dev) {
+		WL_ERR(("dev is null\n"));
+		return;
+
+	}
+
+	cfg = wl_get_cfg(dev);
+	if (!cfg) {
+		WL_ERR(("dev=%p cfg=%p\n", dev, cfg));
+		return;
+	}
+
+	dhd = (dhd_pub_t *)(cfg->pub);
+
+	if (!dhd || !dhd->hang_info) {
+		WL_ERR(("%s dhd=%p hang_info=%p\n", __FUNCTION__,
+			dhd, (dhd ? dhd->hang_info : NULL)));
+		return;
+	}
+
+	err = wldev_iovar_getbuf_bsscfg(dev, "memuse",
+			NULL, 0, ioctl_buf, WLC_IOCTL_SMLEN, 0, NULL);
+	if (unlikely(err)) {
+		WL_ERR(("error (%d)\n", err));
+		return;
+	}
+
+	memcpy(&mu, ioctl_buf, sizeof(memuse_info_t));
+
+	if (mu.len >= sizeof(memuse_info_t)) {
+		WL_ERR(("Heap Total: %d(%dK)\n", mu.arena_size, KB(mu.arena_size)));
+		WL_ERR(("Free: %d(%dK), LWM: %d(%dK)\n",
+			mu.arena_free, KB(mu.arena_free),
+			mu.free_lwm, KB(mu.free_lwm)));
+		WL_ERR(("In use: %d(%dK), HWM: %d(%dK)\n",
+			mu.inuse_size, KB(mu.inuse_size),
+			mu.inuse_hwm, KB(mu.inuse_hwm)));
+		WL_ERR(("Malloc failure count: %d\n", mu.mf_count));
+	}
+
+	memset(dhd->hang_info, 0, VENDOR_SEND_HANG_EXT_INFO_LEN);
+	remain_len = VENDOR_SEND_HANG_EXT_INFO_LEN - bytes_written;
+
+	get_debug_dump_time(dhd->debug_dump_time_hang_str);
+	copy_debug_dump_time(dhd->debug_dump_time_str, dhd->debug_dump_time_hang_str);
+
+	bytes_written += scnprintf(&dhd->hang_info[bytes_written], remain_len,
+			"%d %d %s %d %d %d %d %d %08x %08x",
+			reason, VENDOR_SEND_HANG_EXT_INFO_VER,
+			dhd->debug_dump_time_hang_str,
+			ret, mu.arena_size, mu.arena_free, mu.inuse_size, mu.mf_count, 0, 0);
+
+	dhd->hang_info_cnt = HANG_FIELD_IF_FAILURE_CNT;
+
+	clear_debug_dump_time(dhd->debug_dump_time_hang_str);
+
+	return;
+}
+#endif /* WL_CFGVENDOR_SEND_HANG_EVENT */
 
 #ifdef WL_CFGVENDOR_SEND_ALERT_EVENT
 void

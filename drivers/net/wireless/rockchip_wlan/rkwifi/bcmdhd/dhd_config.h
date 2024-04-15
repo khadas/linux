@@ -67,12 +67,6 @@ typedef struct wl_chip_nv_path_list_ctrl {
 	struct wl_chip_nv_path *m_chip_nv_path_head;
 } wl_chip_nv_path_list_ctrl_t;
 
-#define MAX_CTRL_CHANSPECS 256
-typedef struct wl_channel_list {
-	uint32 count;
-	uint32 channel[MAX_CTRL_CHANSPECS];
-} wl_channel_list_t;
-
 typedef struct wmes_param {
 	int aifsn[AC_COUNT];
 	int ecwmin[AC_COUNT];
@@ -100,6 +94,13 @@ typedef struct country_list {
 	struct country_list *next;
 	wl_country_t cspec;
 } country_list_t;
+
+typedef struct wl_ccode_all {
+	wl_country_t cspec;
+	int32 ww_2g_chan_only;
+	int32 disable_5g_band;
+	int32 disable_6g_band;
+} wl_ccode_all_t;
 
 /* mchan_params */
 #define MCHAN_MAX_NUM 4
@@ -220,11 +221,12 @@ typedef struct dhd_conf {
 #endif
 	wl_chip_nv_path_list_ctrl_t nv_by_chip;
 	country_list_t *country_head;
+	char *ccode_all_list;
+	wl_ccode_all_t ccode_all;
 	int ioctl_ver;
 	int band;
 	int bw_cap[2];
 	wl_country_t cspec;
-	wl_channel_list_t channels;
 	uint roam_off;
 	uint roam_off_suspend;
 	int roam_trigger[2];
@@ -243,6 +245,8 @@ typedef struct dhd_conf {
 	conf_pkt_filter_add_t pkt_filter_add;
 	conf_pkt_filter_del_t pkt_filter_del;
 	char *magic_pkt_filter_add;
+	int magic_pkt_hdr_len;
+	int pkt_filter_cnt_default;
 #endif
 	int srl;
 	int lrl;
@@ -373,6 +377,9 @@ typedef struct dhd_conf {
 #ifdef BCMSDIO
 	int32 doflow_tput_thresh;
 #endif
+#ifdef BCMPCIE
+	int32 napi_tput_thresh;
+#endif
 #endif
 #ifdef SCAN_SUPPRESS
 	uint scan_intput;
@@ -418,12 +425,13 @@ void dhd_conf_set_path_params(dhd_pub_t *dhd, char *fw_path, char *nv_path);
 int dhd_conf_set_intiovar(dhd_pub_t *dhd, int ifidx, uint cmd, char *name,
 	int val, int def, bool down);
 int dhd_conf_get_band(dhd_pub_t *dhd);
+bool dhd_conf_same_country(dhd_pub_t *dhd, char *buf);
 int dhd_conf_country(dhd_pub_t *dhd, char *cmd, char *buf);
 int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
 #ifdef CCODE_LIST
+int dhd_ccode_map_country_all(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_ccode_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec);
 #endif
-bool dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel);
 void dhd_conf_set_wme(dhd_pub_t *dhd, int ifidx, int mode);
 void dhd_conf_set_mchan_bw(dhd_pub_t *dhd, int go, int source);
 void dhd_conf_add_pkt_filter(dhd_pub_t *dhd);

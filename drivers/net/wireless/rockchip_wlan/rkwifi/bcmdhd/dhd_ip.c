@@ -976,9 +976,8 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 	ip_hdr = ether_hdr + ETHER_HDR_LEN;
 	cur_framelen -= ETHER_HDR_LEN;
 
-	ASSERT(cur_framelen >= IPV4_MIN_HEADER_LEN);
 	if (cur_framelen < IPV4_MIN_HEADER_LEN) {
-		DHD_TRACE(("%s %d: cur_framelen(%d) < IPV4_MIN_HEADER_LEN\n", __FUNCTION__,
+		DHD_ERROR(("%s %d: cur_framelen(%d) < IPV4_MIN_HEADER_LEN\n", __FUNCTION__,
 			__LINE__, cur_framelen));
 		goto exit;
 	}
