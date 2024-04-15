@@ -2254,6 +2254,8 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	list_for_each_entry(r, &dep->started_list, list) {
 		if (r == req) {
+			struct dwc3_request *t;
+
 			/* wait until it is processed */
 			dwc3_stop_active_transfer(dep, true, true);
 
@@ -2261,7 +2263,10 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 			 * Remove any started request if the transfer is
 			 * cancelled.
 			 */
-			dwc3_gadget_move_cancelled_request(r, DWC3_REQUEST_STATUS_DEQUEUED);
+			list_for_each_entry_safe(r, t, &dep->started_list, list) {
+				dwc3_gadget_move_cancelled_request(r,
+						DWC3_REQUEST_STATUS_DEQUEUED);
+			}
 
 			dep->flags &= ~DWC3_EP_WAIT_TRANSFER_COMPLETE;
 
