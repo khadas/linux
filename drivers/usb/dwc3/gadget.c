@@ -2244,12 +2244,10 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 			 * occur during dwc3_ep0_stall_and_restart().  EP0
 			 * requests are never added to started_list.
 			 */
-			if (dep->number > 1) {
-				dwc3_gadget_ep_skip_trbs(dep, req);
+			if (dep->number > 1)
 				dwc3_gadget_giveback(dep, req, -ECONNRESET);
-			} else {
+			else
 				dwc3_ep0_reset_state(dwc);
-			}
 			goto out;
 		}
 	}
