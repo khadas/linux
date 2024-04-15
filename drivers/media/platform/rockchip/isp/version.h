@@ -504,6 +504,22 @@
  * 17.add ioctl to get bay3d buf
  * 18.fix isp32 lite frame buffer data read
  * 19.support 8k for isp32 lite
+ *
+ * v2.6.0 (AIQ v6.6.1)
+ * 1.add isp39
+ * 2.aiisp for isp39
+ * 3.isp39 support unite mode
+ * 4.add rk3576 config
+ * 5.fix isp39 params config
+ * 6.fix isp39 output error
+ * 7.fix waiting for isp end
+ * 8.fix isp39
+ * 9.dpcc border for isp39
+ * 10.aiisp two buf
+ * 11.default readback mode for multi sensor
+ * 12.skip s_stream of sensor while connect to vicap sditf
+ * 13.fix isp39 unite mode
+ * 14.update gic and check params for isp39
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
