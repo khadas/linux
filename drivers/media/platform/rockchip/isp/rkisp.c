@@ -2666,7 +2666,8 @@ static void rkisp_isp_sd_try_crop(struct v4l2_subdev *sd,
 				size = CIF_ISP_INPUT_W_MAX_V32_L * CIF_ISP_INPUT_H_MAX_V32_L;
 				break;
 			case ISP_V39:
-				size = CIF_ISP_INPUT_W_MAX_V39 * CIF_ISP_INPUT_H_MAX_V39;
+				size = CIF_ISP_INPUT_W_MAX_V39_UNITE * CIF_ISP_INPUT_H_MAX_V39_UNITE;
+				size /= 2;
 				break;
 			default:
 				return;
