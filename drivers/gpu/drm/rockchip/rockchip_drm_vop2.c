@@ -12231,6 +12231,11 @@ static int vop2_of_get_gamma_lut(struct vop2 *vop2, struct device_node *dsp_lut_
 			return -EINVAL;
 		}
 
+		/*
+		 * In order to achieve the same gamma correction effect in different
+		 * platforms, the following conversion helps to translate from 8bit
+		 * gamma table with 256 parameters to 10bit gamma with 1024 parameters.
+		 */
 		for (i = 0; i < lut_len; i++) {
 			j = i * length / lut_len;
 			r = lut[j] / length / length * lut_len / length;
