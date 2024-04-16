@@ -421,6 +421,13 @@ static void dwc3_drd_update(struct dwc3 *dwc)
 		if (id < 0)
 			id = 0;
 
+		if ((id > 0) && dwc->dr_mode == USB_DR_MODE_OTG &&
+		    (of_device_is_compatible(dwc->dev->parent->of_node,
+					    "rockchip,rk3399-dwc3") ||
+		     of_device_is_compatible(dwc->dev->of_node,
+					    "rockchip,rk3576-dwc3")))
+			return;
+
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 		if (extcon_get_state(dwc->edev, EXTCON_USB))
 			dwc->desired_role_sw_mode = USB_DR_MODE_PERIPHERAL;
