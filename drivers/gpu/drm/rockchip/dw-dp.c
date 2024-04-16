@@ -2915,6 +2915,12 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = dp->eotf_type;
+
+	if (video->color_format == DRM_COLOR_FORMAT_RGB444)
+		s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	else
+		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+
 	if (dw_dp_is_hdr_eotf(s->eotf))
 		s->color_encoding = DRM_COLOR_YCBCR_BT2020;
 	else
