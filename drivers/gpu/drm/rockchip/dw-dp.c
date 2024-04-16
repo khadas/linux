@@ -2488,9 +2488,9 @@ static int dw_dp_video_ts_calculate(struct dw_dp *dp, struct dw_dp_video *video,
 	u32 peak_stream_bandwidth, link_bandwidth;
 	u32 ts_calc;
 	u32 t1 = 0, t2 = 0, t3 = 0;
-	u32 hblank = mode->htotal - mode->hdisplay;
+	u32 hblank = mode->crtc_htotal - mode->crtc_hdisplay;
 
-	peak_stream_bandwidth = mode->clock * bpp / 8;
+	peak_stream_bandwidth = mode->crtc_clock * bpp / 8;
 	link_bandwidth = (link->rate / 1000) * link->lanes;
 	ts_calc = peak_stream_bandwidth * 64 / link_bandwidth;
 	ts->average_bytes_per_tu = ts_calc / 1000;
@@ -2547,9 +2547,9 @@ static int dw_dp_video_ts_calculate(struct dw_dp *dp, struct dw_dp_video *video,
 		}
 
 		if (color_format == DRM_COLOR_FORMAT_YCBCR420)
-			t2 = (link->rate / 4) * 1000 / (mode->clock / 2);
+			t2 = (link->rate / 4) * 1000 / (mode->crtc_clock / 2);
 		else
-			t2 = (link->rate / 4) * 1000 / mode->clock;
+			t2 = (link->rate / 4) * 1000 / mode->crtc_clock;
 
 		if (ts->average_bytes_per_tu_frac)
 			t3 = ts->average_bytes_per_tu + 1;
@@ -2576,7 +2576,7 @@ static int dw_dp_video_mst_ts_calculate(struct dw_dp *dp, struct dw_dp_video *vi
 	u32 num_lanes_divisor = 0;
 	u32 slot_count_adjust = 0;
 
-	peak_stream_bandwidth = mode->clock * video->bpp / 8;
+	peak_stream_bandwidth = mode->crtc_clock * video->bpp / 8;
 	link_bandwidth = (link->rate / 1000) * link->lanes;
 	ts_calc = peak_stream_bandwidth * 64 / link_bandwidth;
 	ts->average_bytes_per_tu = ts_calc / 1000;
@@ -2617,9 +2617,9 @@ static int dw_dp_video_mst_ts_calculate(struct dw_dp *dp, struct dw_dp_video *vi
 	}
 
 	if (color_format == DRM_COLOR_FORMAT_YCBCR420)
-		t2 = (link->rate / 4) * 1000 / (mode->clock / 2);
+		t2 = (link->rate / 4) * 1000 / (mode->crtc_clock / 2);
 	else
-		t2 = (link->rate / 4) * 1000 / mode->clock;
+		t2 = (link->rate / 4) * 1000 / mode->crtc_clock;
 
 	if (ts->average_bytes_per_tu_frac)
 		slot_count = ts->average_bytes_per_tu + 1;
@@ -2654,8 +2654,8 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	u8 vic;
 	u32 hactive, hblank, h_sync_width, h_front_porch;
 	u32 vactive, vblank, v_sync_width, v_front_porch;
-	u32 vstart = mode->vtotal - mode->vsync_start;
-	u32 hstart = mode->htotal - mode->hsync_start;
+	u32 vstart = mode->crtc_vtotal - mode->crtc_vsync_start;
+	u32 hstart = mode->crtc_htotal - mode->crtc_hsync_start;
 	u32 hblank_interval;
 	u32 value;
 	int ret;
@@ -2680,8 +2680,8 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	regmap_write(dp->regmap, DPTX_VINPUT_POLARITY_CTRL_N(stream_id), value);
 
 	/* Configure DPTX_VIDEO_CONFIG1 register */
-	hactive = mode->hdisplay;
-	hblank = mode->htotal - mode->hdisplay;
+	hactive = mode->crtc_hdisplay;
+	hblank = mode->crtc_htotal - mode->crtc_hdisplay;
 	value = FIELD_PREP(HACTIVE, hactive) | FIELD_PREP(HBLANK, hblank);
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		value |= FIELD_PREP(I_P, 1);
@@ -2697,21 +2697,21 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG1_N(stream_id), value);
 
 	/* Configure DPTX_VIDEO_CONFIG2 register */
-	vblank = mode->vtotal - mode->vdisplay;
-	vactive = mode->vdisplay;
+	vblank = mode->crtc_vtotal - mode->crtc_vdisplay;
+	vactive = mode->crtc_vdisplay;
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG2_N(stream_id),
 		     FIELD_PREP(VBLANK, vblank) | FIELD_PREP(VACTIVE, vactive));
 
 	/* Configure DPTX_VIDEO_CONFIG3 register */
-	h_sync_width = mode->hsync_end - mode->hsync_start;
-	h_front_porch = mode->hsync_start - mode->hdisplay;
+	h_sync_width = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	h_front_porch = mode->crtc_hsync_start - mode->crtc_hdisplay;
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG3_N(stream_id),
 		     FIELD_PREP(H_SYNC_WIDTH, h_sync_width) |
 		     FIELD_PREP(H_FRONT_PORCH, h_front_porch));
 
 	/* Configure DPTX_VIDEO_CONFIG4 register */
-	v_sync_width = mode->vsync_end - mode->vsync_start;
-	v_front_porch = mode->vsync_start - mode->vdisplay;
+	v_sync_width = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	v_front_porch = mode->crtc_vsync_start - mode->crtc_vdisplay;
 	regmap_write(dp->regmap, DPTX_VIDEO_CONFIG4_N(stream_id),
 		     FIELD_PREP(V_SYNC_WIDTH, v_sync_width) |
 		     FIELD_PREP(V_FRONT_PORCH, v_front_porch));
@@ -2741,9 +2741,9 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	/* Configure DPTX_VIDEO_HBLANK_INTERVAL register */
 	if (dp->is_mst)
 		hblank_interval = hblank * ts.average_bytes_per_tu * (link->rate / 4) / 16 /
-				  mode->clock;
+				  mode->crtc_clock;
 	else
-		hblank_interval = hblank * (link->rate / 4) / mode->clock;
+		hblank_interval = hblank * (link->rate / 4) / mode->crtc_clock;
 	regmap_write(dp->regmap, DPTX_VIDEO_HBLANK_INTERVAL_N(stream_id),
 		     FIELD_PREP(HBLANK_INTERVAL_EN, 1) |
 		     FIELD_PREP(HBLANK_INTERVAL, hblank_interval));
