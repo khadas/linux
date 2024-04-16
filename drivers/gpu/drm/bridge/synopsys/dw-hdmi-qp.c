@@ -50,6 +50,7 @@
 
 #define HDMI_EDID_LEN		512
 #define VENDOR_INFO_LEN		10
+#define HDMI_EDID_BLOCK_LEN	128
 
 /* DW-HDMI Controller >= 0x200a are at least compliant with SCDC version 1 */
 #define SCDC_MIN_SOURCE_VERSION	0x1
@@ -1013,7 +1014,8 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 			    unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_qp_i2c *i2c = hdmi->i2c;
-	int stat;
+	int stat, retry;
+	bool read_edid = false;
 
 	if (!i2c->is_regaddr) {
 		dev_dbg(hdmi->dev, "set read register address to 0\n");
@@ -1021,36 +1023,86 @@ static int dw_hdmi_i2c_read(struct dw_hdmi_qp *hdmi,
 		i2c->is_regaddr = true;
 	}
 
-	while (length--) {
-		reinit_completion(&i2c->cmp);
+	/* edid reads are in 128 bytes. scdc reads are in 1 byte */
+	if (length == HDMI_EDID_BLOCK_LEN)
+		read_edid = true;
 
-		hdmi_modb(hdmi, i2c->slave_reg++ << 12, I2CM_ADDR,
+	while (length > 0) {
+		retry = 100;
+		hdmi_modb(hdmi, i2c->slave_reg << 12, I2CM_ADDR,
 			  I2CM_INTERFACE_CONTROL0);
 
-		if (i2c->is_segment)
-			hdmi_modb(hdmi, I2CM_EXT_READ, I2CM_WR_MASK,
+		if (read_edid) {
+			hdmi_modb(hdmi, I2CM_16BYTES, I2CM_NBYTES_MASK,
 				  I2CM_INTERFACE_CONTROL0);
-		else
-			hdmi_modb(hdmi, I2CM_FM_READ, I2CM_WR_MASK,
+			i2c->slave_reg += 16;
+			length -= 16;
+		} else {
+			hdmi_modb(hdmi, I2CM_1BYTES, I2CM_NBYTES_MASK,
 				  I2CM_INTERFACE_CONTROL0);
-
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
-		if (!stat) {
-			dev_err(hdmi->dev, "i2c read time out!\n");
-			hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
-			return -EAGAIN;
+			i2c->slave_reg++;
+			length--;
 		}
 
-		/* Check for error condition on the bus */
-		if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-			dev_err(hdmi->dev, "i2c read err!\n");
-			hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+		while (retry > 0) {
+			if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) !=
+			    connector_status_connected) {
+				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc read\n");
+				return -EPERM;
+			}
+
+			reinit_completion(&i2c->cmp);
+
+			if (i2c->is_segment)
+				hdmi_modb(hdmi, I2CM_EXT_READ, I2CM_WR_MASK,
+					  I2CM_INTERFACE_CONTROL0);
+			else
+				hdmi_modb(hdmi, I2CM_FM_READ, I2CM_WR_MASK,
+					  I2CM_INTERFACE_CONTROL0);
+
+			stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
+			if (!stat) {
+				dev_err(hdmi->dev, "i2c read time out!\n");
+				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+				retry -= 10;
+				continue;
+			}
+
+			/* Check for error condition on the bus */
+			if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
+				dev_err(hdmi->dev, "i2c read err!\n");
+				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+				retry--;
+				usleep_range(10000, 11000);
+				continue;
+			}
+			/* read success */
+			break;
+		}
+
+		if (retry <= 0) {
+			dev_err(hdmi->dev, "ddc read failed offset:0x%x\n", i2c->slave_reg);
 			return -EIO;
 		}
 
-		*buf++ = hdmi_readl(hdmi, I2CM_INTERFACE_RDDATA_0_3) & 0xff;
-		dev_dbg(hdmi->dev, "i2c read done! i2c->stat:%02x 0x%02x\n",
-			i2c->stat, hdmi_readl(hdmi, I2CM_INTERFACE_RDDATA_0_3));
+		if (read_edid) {
+			u8 reg_offset, val_offset, i;
+			u32 val;
+
+			for (i = 0; i < 16; i++) {
+				reg_offset = i / 4;
+				val_offset = (i % 4) * 8;
+				val = hdmi_readl(hdmi, I2CM_INTERFACE_RDDATA_0_3 + 4 * reg_offset);
+				*buf++ = (val & (0xff << val_offset)) >> val_offset;
+				dev_dbg(hdmi->dev, "i2c read done! i2c->stat:%02x 0x%02x\n",
+					i2c->stat, (val & (0xff << val_offset)) >> val_offset);
+			}
+		} else {
+			*buf++ = hdmi_readl(hdmi, I2CM_INTERFACE_RDDATA_0_3) & 0xff;
+			dev_dbg(hdmi->dev, "i2c read done! i2c->stat:%02x 0x%02x\n",
+				i2c->stat, hdmi_readl(hdmi, I2CM_INTERFACE_RDDATA_0_3));
+		}
+
 		hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
 	}
 	i2c->is_segment = false;
@@ -1062,7 +1114,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 			     unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_qp_i2c *i2c = hdmi->i2c;
-	int stat;
+	int stat, retry;
 
 	if (!i2c->is_regaddr) {
 		/* Use the first write byte as register address */
@@ -1073,28 +1125,48 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 	}
 
 	while (length--) {
-		reinit_completion(&i2c->cmp);
+		retry = 100;
 
-		hdmi_writel(hdmi, *buf++, I2CM_INTERFACE_WRDATA_0_3);
-		hdmi_modb(hdmi, i2c->slave_reg++ << 12, I2CM_ADDR,
-			  I2CM_INTERFACE_CONTROL0);
-		hdmi_modb(hdmi, I2CM_FM_WRITE, I2CM_WR_MASK,
-			  I2CM_INTERFACE_CONTROL0);
+		while (retry > 0) {
+			if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) !=
+			    connector_status_connected) {
+				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc write\n");
+				return -EPERM;
+			}
 
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
-		if (!stat) {
-			dev_err(hdmi->dev, "i2c write time out!\n");
-			hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
-			return -EAGAIN;
-		}
+			reinit_completion(&i2c->cmp);
 
-		/* Check for error condition on the bus */
-		if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-			dev_err(hdmi->dev, "i2c write nack!\n");
-			hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
-			return -EIO;
+			hdmi_writel(hdmi, *buf++, I2CM_INTERFACE_WRDATA_0_3);
+			hdmi_modb(hdmi, i2c->slave_reg++ << 12, I2CM_ADDR,
+				I2CM_INTERFACE_CONTROL0);
+			hdmi_modb(hdmi, I2CM_FM_WRITE, I2CM_WR_MASK,
+				I2CM_INTERFACE_CONTROL0);
+
+			stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
+			if (!stat) {
+				dev_err(hdmi->dev, "i2c write time out!\n");
+				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+				retry -= 10;
+				continue;
+			}
+
+			/* Check for error condition on the bus */
+			if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
+				dev_err(hdmi->dev, "i2c write nack!\n");
+				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
+				retry--;
+				usleep_range(10000, 11000);
+				continue;
+			}
+			/* write success */
+			break;
 		}
 		hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
+
+		if (retry <= 0) {
+			dev_err(hdmi->dev, "ddc write failed\n");
+			return -EIO;
+		}
 	}
 	dev_dbg(hdmi->dev, "i2c write done!\n");
 	return 0;
