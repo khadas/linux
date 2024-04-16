@@ -1692,6 +1692,9 @@ static int dwc3_probe(struct platform_device *pdev)
 #endif
 		pm_runtime_allow(dev);
 		pm_runtime_put_sync_suspend(dev);
+
+		if (dwc->edev && extcon_get_state(dwc->edev, EXTCON_USB_HOST))
+			dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
 	} else {
 		pm_runtime_put(dev);
 	}
