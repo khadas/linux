@@ -304,6 +304,8 @@ struct ca_pid {
 #define CA_GET_MSG        _IOR('o', 132, struct ca_msg)
 #define CA_SEND_MSG       _IOW('o', 133, struct ca_msg)
 #define CA_SET_DESCR      _IOW('o', 134, struct ca_descr)
+#define CA_SET_START      _IO('o', 137)
+#define CA_GET_START      _IOR('o', 138, uint8_t)
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define CA_SET_PID        _IOW('o', 135, struct ca_pid)
 #define CA_SET_DESCR_EX   _IOW('o', 200, struct ca_descr_ex)
