@@ -964,7 +964,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_sync(cif_dev->dev);
 			priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 		}
-		v4l2_info(&node->vdev, "s_power %d, entity use_count %d\n",
+		v4l2_dbg(1, rkcif_debug, &node->vdev, "s_power %d, entity use_count %d\n",
 			  on, node->vdev.entity.use_count);
 		mutex_unlock(&cif_dev->stream_lock);
 	}

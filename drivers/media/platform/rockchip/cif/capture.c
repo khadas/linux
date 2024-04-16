@@ -7124,12 +7124,11 @@ static int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 {
 	struct rkcif_device *cif_dev = stream->cifdev;
 	struct sditf_priv *priv = cif_dev->sditf[0];
-	int ret = 0;
 	int i = 0;
 
 	if (cif_dev->terminal_sensor.sd)
-		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
-				       core, s_power, on);
+		v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				 core, s_power, on);
 	if (priv && cif_dev->sditf_cnt > 1) {
 		if (priv->is_combine_mode) {
 			for (i = 0; i < cif_dev->sditf_cnt; i++) {
@@ -7138,11 +7137,12 @@ static int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 							 s_power, on);
 			}
 		} else if (cif_dev->is_camera_over_bridge) {
-			v4l2_subdev_call(cif_dev->sditf[stream->id]->sensor_sd, core,
-					 s_power, on);
+			if (stream->id < cif_dev->sditf_cnt)
+				v4l2_subdev_call(cif_dev->sditf[stream->id]->sensor_sd, core,
+						 s_power, on);
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -7189,8 +7189,8 @@ static int rkcif_fh_open(struct file *filp)
 	if (!ret) {
 		mutex_lock(&cifdev->stream_lock);
 		ret = v4l2_pipeline_pm_get(&vnode->vdev.entity);
-		v4l2_info(vdev, "open video, entity use_countt %d\n",
-			  vnode->vdev.entity.use_count);
+		v4l2_dbg(1, rkcif_debug, vdev, "open video, entity use_count %d\n",
+			 vnode->vdev.entity.use_count);
 		mutex_unlock(&cifdev->stream_lock);
 		if (ret < 0)
 			vb2_fop_release(filp);
@@ -7212,8 +7212,8 @@ static int rkcif_fh_release(struct file *filp)
 	if (!ret) {
 		mutex_lock(&cifdev->stream_lock);
 		v4l2_pipeline_pm_put(&vnode->vdev.entity);
-		v4l2_info(vdev, "close video, entity use_count %d\n",
-			  vnode->vdev.entity.use_count);
+		v4l2_dbg(1, rkcif_debug, vdev, "close video, entity use_count %d\n",
+			 vnode->vdev.entity.use_count);
 		mutex_unlock(&cifdev->stream_lock);
 	}
 
