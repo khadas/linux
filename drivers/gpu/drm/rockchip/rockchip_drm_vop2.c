@@ -7136,6 +7136,10 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    mode->hsync_end, mode->htotal);
 	DEBUG_PRINT("\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
 		    mode->vsync_end, mode->vtotal);
+	DEBUG_PRINT("\tFixed H: %d %d %d %d\n", mode->crtc_hdisplay, mode->crtc_hsync_start,
+		    mode->crtc_hsync_end, mode->crtc_htotal);
+	DEBUG_PRINT("\tFixed V: %d %d %d %d\n", mode->crtc_vdisplay, mode->crtc_vsync_start,
+		    mode->crtc_vsync_end, mode->crtc_vtotal);
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		vop2_plane_info_dump(s, plane);
