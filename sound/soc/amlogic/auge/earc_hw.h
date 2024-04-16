@@ -243,7 +243,7 @@ enum pll_rst_src {
 };
 
 void aml_earc_auto_gain_enable(struct regmap *dmac_map, int value);
-void earctx_dmac_mute(struct regmap *dmac_map, bool start, bool is_mute);
+void earctx_dmac_mute(struct regmap *dmac_map, bool is_mute);
 int earctx_get_dmac_mute(struct regmap *dmac_map);
 void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
