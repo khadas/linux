@@ -2847,7 +2847,8 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt2_read_status(fe, status, &is_signal);
-	dvbt2_info(demod, NULL);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
+		dvbt2_info(demod, NULL);
 
 	return 0;
 }
@@ -7260,8 +7261,10 @@ static int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 
 	read_status = cur_system == SYS_DVBT ? dvbt_read_status : dvbt2_read_status;
 	read_status(fe, status, &is_signal);
-	show_info = cur_system == SYS_DVBT ? dvbt_info : dvbt2_info;
-	show_info(demod, NULL);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+		show_info = cur_system == SYS_DVBT ? dvbt_info : dvbt2_info;
+		show_info(demod, NULL);
+	}
 
 	if (*status == FE_TIMEDOUT && is_signal == -1) {
 		if (chk_times > 0) {
