@@ -284,6 +284,7 @@ struct dw_dp_hdcp {
 	u8 hdcp_content_type;
 	bool hdcp2_encrypted;
 	bool hdcp_encrypted;
+	bool is_repeater;
 };
 
 struct drm_dp_link_caps {
@@ -738,6 +739,7 @@ static int _dw_dp_hdcp2_enable(struct dw_dp *dp)
 
 static bool dw_dp_hdcp_capable(struct dw_dp *dp)
 {
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
 	int ret;
 	u8 bcaps;
 
@@ -746,6 +748,7 @@ static bool dw_dp_hdcp_capable(struct dw_dp *dp)
 		dev_err(dp->dev, "get hdcp capable failed:%d\n", ret);
 		return false;
 	}
+	hdcp->is_repeater = (bcaps & DP_BCAPS_REPEATER_PRESENT) ? true : false;
 
 	return bcaps & DP_BCAPS_HDCP_CAPABLE;
 }
@@ -765,11 +768,12 @@ static int _dw_dp_hdcp_disable(struct dw_dp *dp)
 
 static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 {
-	unsigned long timeout = msecs_to_jiffies(1000);
+	unsigned long timeout;
 	int ret;
 	u8 rev;
 	struct dw_dp_hdcp *hdcp = &dp->hdcp;
 
+	timeout = msecs_to_jiffies(hdcp->is_repeater ? 5200 : 1000);
 	hdcp->status = HDCP_TX_1;
 
 	dw_dp_hdcp_rng_init(dp);
