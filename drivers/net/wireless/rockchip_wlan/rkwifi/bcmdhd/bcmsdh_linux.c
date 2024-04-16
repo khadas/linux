@@ -308,8 +308,11 @@ bcmsdh_register(bcmsdh_driver_t *driver)
 	drvinfo = *driver;
 	SDLX_MSG(("%s: register client driver\n", __FUNCTION__));
 	error = bcmsdh_register_client_driver();
-	if (error)
-		SDLX_ERR(("%s: failed %d\n", __FUNCTION__, error));
+	if (error) {
+		SDLX_MSG(("%s: failed %d\n", __FUNCTION__, error));
+		bcmsdh_unregister_client_driver();
+		memset(&drvinfo, 0, sizeof(drvinfo));
+	}
 
 	return error;
 }

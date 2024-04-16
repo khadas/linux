@@ -578,4 +578,8 @@ extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
 #endif /* #if defined(PNO_SUPPORT) */
 #endif /* #if defined(NDIS) */
+
+#define FW_MAJOR_VER_PNO_CHSPEC_BACK_PORTED(ver) \
+    ((ver.wlc_ver_major >= 12) && (ver.wlc_ver_minor >= 3))
+
 #endif /* __DHD_PNO_H__ */

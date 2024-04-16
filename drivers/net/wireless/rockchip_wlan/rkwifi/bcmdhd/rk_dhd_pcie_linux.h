@@ -53,6 +53,7 @@ rk_dhd_bus_pcie_wait_for_l1ss(dhd_bus_t *bus)
 			return 0;
 		msleep(20);
 	}
+	pr_err("%s failed\n", __FUNCTION__);
 
 	return -1;
 }

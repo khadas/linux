@@ -63,8 +63,8 @@ static int serdes_set_i2c_address(struct serdes *serdes, u32 reg_hw, u32 reg_use
 	struct serdes *serdes_split = serdes->g_serdes_bridge_split;
 
 	if (!serdes_split) {
-		pr_info("%s: serdes_split is null\n", __func__);
-		return -1;
+		dev_info(serdes->dev, "%s serdes_split is null\n", __func__);
+		return -EPROBE_DEFER;
 	}
 
 	client_split = to_i2c_client(serdes->regmap->dev);
@@ -406,7 +406,10 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	if (serdes->reg_hw) {
 		SERDES_DBG_MFD("%s: %s start change i2c address from 0x%x to 0x%x\n",
 			       __func__, dev->of_node->name, serdes->reg_hw, serdes->reg_use);
-		serdes_set_i2c_address(serdes, serdes->reg_hw, serdes->reg_use, serdes->link_use);
+		ret = serdes_set_i2c_address(serdes, serdes->reg_hw,
+					     serdes->reg_use, serdes->link_use);
+		if (ret != 0)
+			return ret;
 	}
 
 	serdes->use_delay_work = of_property_read_bool(dev->of_node, "use-delay-work");

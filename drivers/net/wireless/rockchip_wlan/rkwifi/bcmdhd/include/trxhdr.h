@@ -59,7 +59,7 @@ struct trx_header {
 #ifndef BCMTRXV2
 	uint32 offsets[TRX_MAX_OFFSET];	/* Offsets of partitions from start of header */
 #else
-	uint32 offsets[1];	/* Offsets of partitions from start of header */
+	uint32 offsets[];	/* Offsets of partitions from start of header */
 #endif
 };
 
@@ -73,7 +73,7 @@ struct trx_header {
  */
 #define TRX_V2_MAX_OFFSETS	5
 #define SIZEOF_TRXHDR_V1	(sizeof(struct trx_header)+(TRX_V1_MAX_OFFSETS-1)*sizeof(uint32))
-#define SIZEOF_TRXHDR_V2	(sizeof(struct trx_header)+(TRX_V2_MAX_OFFSETS-1)*sizeof(uint32))
+#define SIZEOF_TRXHDR_V2	(sizeof(struct trx_header)+(TRX_V2_MAX_OFFSETS)*sizeof(uint32))
 #ifdef IL_BIGENDIAN
 #define TRX_VER(trx)		(ltoh32((trx)->flag_version>>16))
 #else

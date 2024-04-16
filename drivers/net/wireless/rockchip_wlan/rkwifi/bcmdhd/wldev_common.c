@@ -32,6 +32,8 @@
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
 #include <wl_cfgscan.h>
+#else
+#define WL_DBG_PRINT_SYSTEM_TIME
 #endif /* WL_CFG80211 */
 #include <dhd_config.h>
 
@@ -195,12 +197,20 @@ s32 wldev_iovar_setbuf(
 	if (buf_sync) {
 		mutex_lock(buf_sync);
 	}
+	/* initialize buffer */
+	if (buf && (buflen > 0)) {
+		bzero(buf, buflen);
+	} else {
+		ret = BCME_BADARG;
+		goto exit;
+	}
 	iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
 	if (iovar_len > 0)
 		ret = wldev_ioctl_set(dev, WLC_SET_VAR, buf, iovar_len);
 	else
 		ret = BCME_BUFTOOSHORT;
 
+exit:
 	if (buf_sync)
 		mutex_unlock(buf_sync);
 	return ret;

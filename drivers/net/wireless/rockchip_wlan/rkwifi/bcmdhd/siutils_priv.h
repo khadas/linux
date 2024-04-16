@@ -375,7 +375,7 @@ extern void ai_core_cflags_wo(const si_t *sih, uint32 mask, uint32 val);
 extern uint32 ai_core_sflags(const si_t *sih, uint32 mask, uint32 val);
 extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
 extern uint ai_corereg_writeonly(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
-extern void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
+extern bool ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 extern void ai_d11rsdb_core_reset(si_t *sih, uint32 bits,
 	uint32 resetbits, void *p, volatile void *s);
 extern void ai_core_disable(const si_t *sih, uint32 bits);

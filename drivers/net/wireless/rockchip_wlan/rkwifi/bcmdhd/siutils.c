@@ -4301,19 +4301,21 @@ si_core_disable(const si_t *sih, uint32 bits)
 		ub_core_disable(sih, bits);
 }
 
-void
-BCMPOSTTRAPFN(si_core_reset)(si_t *sih, uint32 bits, uint32 resetbits)
+bool
+si_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 {
+	bool ret = TRUE;
 	if (CHIPTYPE(sih->socitype) == SOCI_SB)
 		sb_core_reset(sih, bits, resetbits);
 	else if ((CHIPTYPE(sih->socitype) == SOCI_AI) ||
 		(CHIPTYPE(sih->socitype) == SOCI_DVTBUS) ||
 		(CHIPTYPE(sih->socitype) == SOCI_NAI))
-		ai_core_reset(sih, bits, resetbits);
+		ret = ai_core_reset(sih, bits, resetbits);
 	else if (CHIPTYPE(sih->socitype) == SOCI_NCI)
 		nci_core_reset(sih, bits, resetbits);
 	else if (CHIPTYPE(sih->socitype) == SOCI_UBUS)
 		ub_core_reset(sih, bits, resetbits);
+	return ret;
 }
 
 /** Run bist on current core. Caller needs to take care of core-specific bist hazards */
@@ -7270,6 +7272,7 @@ si_tcm_size(si_t *sih)
 	volatile uint32 *arm_cap_reg;
 	volatile uint32 *arm_bidx;
 	volatile uint32 *arm_binfo;
+	bool ret = TRUE;
 
 	SI_MSG_DBG_REG(("%s: Enter\n", __FUNCTION__));
 	/* Block ints and save current core */
@@ -7283,8 +7286,13 @@ si_tcm_size(si_t *sih)
 	/* Get info for determining size. If in reset, come out of reset,
 	 * but remain in halt
 	 */
-	if (!(wasup = si_iscoreup(sih)))
-		si_core_reset(sih, SICF_CPUHALT, SICF_CPUHALT);
+	if (!(wasup = si_iscoreup(sih))) {
+		ret = si_core_reset(sih, SICF_CPUHALT, SICF_CPUHALT);
+		if (!ret) {
+			goto done;
+		}
+	} else
+		SI_ERROR(("si_iscoreup!!\n"));
 
 	arm_cap_reg = (volatile uint32 *)(regs + SI_CR4_CAP);
 	corecap = R_REG(sii->osh, arm_cap_reg);

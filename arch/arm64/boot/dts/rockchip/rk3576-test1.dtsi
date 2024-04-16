@@ -478,6 +478,10 @@
 	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn>;
 };
 
+&ufs {
+	status = "okay";
+};
+
 &usbdp_phy {
 	orientation-switch;
 	svid = <0xff01>;

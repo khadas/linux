@@ -3045,12 +3045,15 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 	if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
 		cfg->input_format == CIF_INPUT_FORMAT_NTSC) {
 		VEHICLE_INFO("CVBS IN PAL or NTSC config.");
-		channel->virtual_width *= 2;
 		cif->interlaced_enable = true;
-		cif->interlaced_offset = channel->width;
-		cif->interlaced_counts = 0;
-		cif->interlaced_buffer = 0;
-		channel->height /= 2;
+		if (!cif->use_hw_interlace) {
+			channel->virtual_width *= 2;
+			cif->interlaced_offset = channel->width;
+			cif->interlaced_counts = 0;
+			cif->interlaced_buffer = 0;
+			channel->height /= 2;
+		}
+
 		VEHICLE_INFO("do denterlaced.\n");
 	}
 
@@ -3572,9 +3575,13 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 			if (!infmt) {
 				VEHICLE_INFO("Input fmt is invalid, use default!\n");
 				val |= CSI_YUV_INPUT_ORDER_UYVY;
+			} else if (cif->interlaced_enable) {
+				val |= (infmt->csi_yuv_order >> 4) |
+						((infmt->csi_fmt_val + 1) << 4);
 			} else {
 				val |= (infmt->csi_yuv_order >> 4) | (infmt->csi_fmt_val << 4);
 			}
+
 			if (cfg->output_format == CIF_OUTPUT_FORMAT_420) {
 				if (find_output_fmt(V4L2_PIX_FMT_NV12))
 					val |= CSI_WRDDR_TYPE_YUV420SP_RK3588 << 3 |
@@ -4304,7 +4311,7 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 
 	spin_lock(&cif->vbq_lock);
 
-	if (!cif->interlaced_enable) {
+	if (!cif->interlaced_enable || cif->use_hw_interlace) {
 		temp_y_addr = vehicle_flinger_request_cif_buffer();
 		if (temp_y_addr == 0) {
 			VEHICLE_INFO("%s,warnning request buffer failed\n", __func__);
@@ -4327,7 +4334,7 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 		y_addr = temp_y_addr;
 		uv_addr = temp_uv_addr;
 		commit_buf = 0;
-	} else {
+	} else if (cif->interlaced_enable && !cif->use_hw_interlace) {
 		if ((frame_id != 0 && (frame_id & 0xffff) % 2 == 0) ||
 		    (frame_id == 0 && (cif->interlaced_counts % 2 == 0))) {
 			temp_y_addr = vehicle_flinger_request_cif_buffer();
@@ -5625,6 +5632,12 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		}
 		mutex_init(&dphy_hw->mutex);
 	}
+
+	if (cif->inf_id == RKCIF_MIPI_LVDS && cif->chip_id <= CHIP_RK3562_VEHICLE_CIF)
+		cif->use_hw_interlace = false;
+	else
+		cif->use_hw_interlace = true;
+
 	/* 9. init waitqueue */
 	atomic_set(&cif->reset_status, 0);
 	init_waitqueue_head(&cif->wq_stopped);

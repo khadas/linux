@@ -149,6 +149,7 @@ struct vehicle_cif {
 	struct mutex	stream_lock;
 	enum rkcif_state	state;
 	struct vehicle_csi2_err_state_work err_state;
+	bool		use_hw_interlace;
 };
 
 int vehicle_cif_init_mclk(struct vehicle_cif *cif);

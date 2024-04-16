@@ -207,14 +207,13 @@ typedef struct ccode_list_map_t {
 	const char *ccode_ww;
 } ccode_list_map_t;
 
-extern const char ccode_43438[];
-extern const char ccode_43455c0[];
-extern const char ccode_4356a2[];
-extern const char ccode_4359c0[];
-extern const char ccode_4358u[];
-
 const ccode_list_map_t ccode_list_map[] = {
 	/* ChipID		Chiprev		ccode  */
+#if defined(BCMSDIO) || defined(BCMPCIE)
+	{BCM4354_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4356_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
+	{BCM4359_CHIP_ID,	9,	ccode_4359c0,	"XZ/11"},
+#endif
 #ifdef BCMSDIO
 	{BCM43430_CHIP_ID,	0,	ccode_43438,	""},
 	{BCM43430_CHIP_ID,	1,	ccode_43438,	""},
@@ -223,26 +222,58 @@ const ccode_list_map_t ccode_list_map[] = {
 	{BCM43454_CHIP_ID,	6,	ccode_43455c0,	"XZ/11"},
 	{BCM4345_CHIP_ID,	9,	ccode_43455c0,	"XZ/11"},
 	{BCM43454_CHIP_ID,	9,	ccode_43455c0,	"XZ/11"},
-	{BCM4354_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
-	{BCM4356_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
 	{BCM4371_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
-	{BCM4359_CHIP_ID,	9,	ccode_4359c0,	"XZ/11"},
 #endif
 #ifdef BCMPCIE
-	{BCM4354_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
-	{BCM4356_CHIP_ID,	2,	ccode_4356a2,	"XZ/11"},
-	{BCM4359_CHIP_ID,	9,	ccode_4359c0,	"XZ/11"},
 	{BCM4375_CHIP_ID,	5,	ccode_4375b4,	""},
 #endif
 #ifdef BCMDBUS
-	{BCM43569_CHIP_ID,	2,	ccode_4358u, "XW/0"},
+	{BCM43569_CHIP_ID,	2,	ccode_4358u, "XZ/11"},
+#endif
+};
+
+/*
+ * [ccode]:[disable_6g_band][disable_5g_band][ww_2g_chan_only]
+ * [ccode]:[x][xxxx][x]
+ */
+const char ccode_all_map[] = \
+"AA:000002 "\
+"AU:E08203 "\
+"BH:F0E042 BR:00E002 "\
+"CA:00E203 CN:F0E042 "\
+"EU:E08002 "\
+"GB:E08002 "\
+"ID:F0F042 IL:F08002 IN:F08002 "\
+"JP:E00082 "\
+"KR:00E002 "\
+"NZ:E0E002 "\
+"PH:F0C002 "\
+"RU:E0C302 "\
+"SG:E0E002 "\
+"TR:F00882 TW:F0E043 "\
+"US:000003 "\
+"VN:F0E002 "\
+"ZA:F00882 ";
+
+typedef struct ccode_all_chip_t {
+	uint chip;
+	uint chiprev;
+} ccode_all_chip_t;
+
+const ccode_all_chip_t ccode_all_chip[] = {
+	/* ChipID		Chiprev  */
+//	{0,	0},
+#if defined(BCMSDIO) || defined(BCMPCIE)
+	{BCM43752_CHIP_ID,	4},
+	{BCM43756_CHIP_ID,	4},
+	{BCM43756_CHIP_ID,	6},
 #endif
 };
 
 int
 dhd_ccode_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec)
 {
-	int bcmerror = -1, i;
+	int ret = -1, i;
 	uint chip = dhd->conf->chip, chiprev = dhd->conf->chiprev;
 	const char *ccode_list = NULL, *ccode_ww = NULL;
 	char *pch;
@@ -260,17 +291,86 @@ dhd_ccode_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec)
 		pch = strstr(ccode_list, cspec->ccode);
 		if (pch) {
 			cspec->rev = (int)simple_strtol(pch+strlen(cspec->ccode)+1, NULL, 0);
-			bcmerror = 0;
+			ret = 0;
 		}
 	}
 
 	if (dhd->op_mode != DHD_FLAG_MFG_MODE) {
-		if (bcmerror && ccode_ww && strlen(ccode_ww)>=4) {
+		if (ret && ccode_ww && strlen(ccode_ww)>=4) {
 			memcpy(cspec->ccode, ccode_ww, 2);
 			cspec->rev = (int)simple_strtol(ccode_ww+3, NULL, 0);
 		}
 	}
 
-	return bcmerror;
+	return ret;
+}
+
+#define WW_2G_CHAN_ONLY_MASK	0x00000F
+#define DISABLE_5G_BAND_MASK	0x0FFFF0
+#define DISABLE_6G_BAND_MASK	0xF00000
+
+#define DISABLE_5G_BAND_OFFSET	4
+#define DISABLE_6G_BAND_OFFSET	20
+
+int
+dhd_ccode_map_country_all(dhd_pub_t *dhd, wl_country_t *cspec)
+{
+	int ret = -1, i;
+	struct dhd_conf *conf = dhd->conf;
+	wl_ccode_all_t *ccode_all = &dhd->conf->ccode_all;
+	uint chip = conf->chip, chiprev = conf->chiprev, val;
+	char *pch, *pick_tmp;
+	bool picked = FALSE;
+
+	if (conf->ccode_all_list) {
+		pch = strstr(conf->ccode_all_list, cspec->ccode);
+		if (!pch)
+			goto exit;
+		pick_tmp = bcmstrtok(&pch, ", ", 0);
+		if (!pick_tmp)
+			goto exit;
+		ccode_all->ww_2g_chan_only = 0x2;
+		ccode_all->disable_5g_band = 0;
+		ccode_all->disable_6g_band = 0;
+		pch = strstr(pick_tmp, "2g");
+		if (pch) {
+			ccode_all->ww_2g_chan_only = (int)simple_strtol(pch+strlen("2g"), NULL, 16);
+			picked = TRUE;
+		}
+		pch = strstr(pick_tmp, "5g");
+		if (pch) {
+			ccode_all->disable_5g_band = (int)simple_strtol(pch+strlen("5g"), NULL, 16);
+			picked = TRUE;
+		}
+		pch = strstr(pick_tmp, "6g");
+		if (pch) {
+			ccode_all->disable_6g_band = (int)simple_strtol(pch+strlen("6g"), NULL, 16);
+			picked = TRUE;
+		}
+		if (picked) {
+			memcpy(cspec->ccode, &ccode_all->cspec.ccode, WLC_CNTRY_BUF_SZ);
+			return 0;
+		}
+	}
+
+exit:
+	for (i=0; i<sizeof(ccode_all_chip)/sizeof(ccode_all_chip[0]); i++) {
+		const ccode_all_chip_t* row = &ccode_all_chip[i];
+		if ((row->chip == chip && row->chiprev == chiprev) ||
+				(row->chip == 0 && row->chiprev == 0)) {
+			pch = strstr(ccode_all_map, cspec->ccode);
+			if (pch) {
+				val = simple_strtol(pch+strlen(cspec->ccode)+1, NULL, 16);
+				ccode_all->ww_2g_chan_only = val & WW_2G_CHAN_ONLY_MASK;
+				ccode_all->disable_5g_band = (val & DISABLE_5G_BAND_MASK) >> DISABLE_5G_BAND_OFFSET;
+				ccode_all->disable_6g_band = (val & DISABLE_6G_BAND_MASK) >> DISABLE_6G_BAND_OFFSET;
+				memcpy(cspec->ccode, &ccode_all->cspec.ccode, WLC_CNTRY_BUF_SZ);
+				ret = 0;
+				break;
+			}
+		}
+	}
+
+	return ret;
 }
 #endif

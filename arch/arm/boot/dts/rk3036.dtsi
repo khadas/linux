@@ -879,13 +879,13 @@
 
 		pwm0 {
 			pwm0_pin: pwm0-pin {
-				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_default>;
+				rockchip,pins = <0 RK_PD2 1 &pcfg_pull_default>;
 			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
-				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_default>;
+				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_default>;
 			};
 		};
 
