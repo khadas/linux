@@ -1019,7 +1019,11 @@ static int rknpu_gem_mmap_buffer(struct rknpu_gem_object *rknpu_obj,
 
 void rknpu_gem_free_object(struct drm_gem_object *obj)
 {
+	struct rknpu_device *rknpu_dev = obj->dev->dev_private;
+
+	rknpu_power_get(rknpu_dev);
 	rknpu_gem_object_destroy(to_rknpu_obj(obj));
+	rknpu_power_put_delay(rknpu_dev);
 }
 
 int rknpu_gem_dumb_create(struct drm_file *file_priv, struct drm_device *drm,

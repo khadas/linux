@@ -179,5 +179,6 @@ struct rknpu_session {
 
 int rknpu_power_get(struct rknpu_device *rknpu_dev);
 int rknpu_power_put(struct rknpu_device *rknpu_dev);
+int rknpu_power_put_delay(struct rknpu_device *rknpu_dev);
 
 #endif /* __LINUX_RKNPU_DRV_H_ */

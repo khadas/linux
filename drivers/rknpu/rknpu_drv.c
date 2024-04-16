@@ -263,13 +263,20 @@ static int rknpu_power_off(struct rknpu_device *rknpu_dev);
 
 static void rknpu_power_off_delay_work(struct work_struct *power_off_work)
 {
+	int ret = 0;
 	struct rknpu_device *rknpu_dev =
 		container_of(to_delayed_work(power_off_work),
 			     struct rknpu_device, power_off_work);
 	mutex_lock(&rknpu_dev->power_lock);
-	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0)
-		rknpu_power_off(rknpu_dev);
+	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
+		ret = rknpu_power_off(rknpu_dev);
+		if (ret)
+			atomic_inc(&rknpu_dev->power_refcount);
+	}
 	mutex_unlock(&rknpu_dev->power_lock);
+
+	if (ret)
+		rknpu_power_put_delay(rknpu_dev);
 }
 
 int rknpu_power_get(struct rknpu_device *rknpu_dev)
@@ -289,14 +296,20 @@ int rknpu_power_put(struct rknpu_device *rknpu_dev)
 	int ret = 0;
 
 	mutex_lock(&rknpu_dev->power_lock);
-	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0)
+	if (atomic_dec_if_positive(&rknpu_dev->power_refcount) == 0) {
 		ret = rknpu_power_off(rknpu_dev);
+		if (ret)
+			atomic_inc(&rknpu_dev->power_refcount);
+	}
 	mutex_unlock(&rknpu_dev->power_lock);
+
+	if (ret)
+		rknpu_power_put_delay(rknpu_dev);
 
 	return ret;
 }
 
-static int rknpu_power_put_delay(struct rknpu_device *rknpu_dev)
+int rknpu_power_put_delay(struct rknpu_device *rknpu_dev)
 {
 	if (rknpu_dev->power_put_delay == 0)
 		return rknpu_power_put(rknpu_dev);
