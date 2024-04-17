@@ -65,6 +65,9 @@
 #define RKVPSS_CMD_MODULE_GET \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 54, struct rkvpss_module_sel)
 
+#define RKVPSS_CMD_CHECKPARAMS \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 55, struct rkvpss_frame_cfg)
+
 /********************************************************************/
 
 /* struct rkvpss_mirror_flip

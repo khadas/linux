@@ -4,6 +4,8 @@
 #ifndef _RKVPSS_OFFLINE_H
 #define _RKVPSS_OFFLINE_H
 #define DEV_NUM_MAX 10
+#define UNITE_ENLARGE 16
+#define UNITE_LEFT_ENLARGE 16
 
 #include "hw.h"
 
@@ -45,6 +47,20 @@ struct rkvpss_dev_rate {
 	u32 delay;
 };
 
+struct rkvpss_unite_scl_params {
+	u32 y_w_fac;
+	u32 c_w_fac;
+	u32 y_h_fac;
+	u32 c_h_fac;
+	u32 y_w_phase;
+	u32 c_w_phase;
+	u32 quad_crop_w;
+	u32 scl_in_crop_w_y;
+	u32 scl_in_crop_w_c;
+	u32 right_scl_need_size_y;
+	u32 right_scl_need_size_c;
+};
+
 struct rkvpss_offline_dev {
 	struct rkvpss_hw_dev *hw;
 	struct v4l2_device v4l2_dev;
@@ -56,6 +72,8 @@ struct rkvpss_offline_dev {
 	struct list_head cfginfo_list;
 	struct mutex ofl_lock;
 	struct rkvpss_dev_rate dev_rate[DEV_NUM_MAX];
+	struct rkvpss_unite_scl_params unite_params[RKVPSS_OUTPUT_MAX];
+	u32 unite_right_enlarge;
 	bool mode_sel_en;
 };
 

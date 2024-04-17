@@ -20,11 +20,12 @@
 
 #define RKVPSS_DEFAULT_WIDTH	1920
 #define RKVPSS_DEFAULT_HEIGHT	1080
-
 #define RKVPSS_MAX_WIDTH	4672
 #define RKVPSS_MAX_HEIGHT	3504
 #define RKVPSS_MIN_WIDTH	32
 #define RKVPSS_MIN_HEIGHT	32
+#define RKVPSS_UNITE_MAX_WIDTH        8192
+#define RKVPSS_UNITE_MAX_HEIGHT       6144
 #define RKVPSS_VIDEO_NAME_LEN   16
 
 #define RKVPSS_REG_CACHE_SYNC	0xeeeeeeee
@@ -41,6 +42,13 @@ enum rkvpss_ver {
 enum rkvpss_fmt_pix_type {
 	FMT_YUV,
 	FMT_RGB,
+};
+
+enum rkvpss_rotate {
+	ROTATE_0 = 0,
+	ROTATE_90,
+	ROTATE_180,
+	ROTATE_270,
 };
 
 /* One structure per video node */
