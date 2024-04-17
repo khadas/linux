@@ -48,7 +48,7 @@
 #define OV13850_MODE_STREAMING		BIT(0)
 
 #define OV13850_REG_EXPOSURE		0x3500
-#define	OV13850_EXPOSURE_MIN		4
+#define	OV13850_EXPOSURE_MIN		2
 #define	OV13850_EXPOSURE_STEP		1
 #define OV13850_VTS_MAX			0x7fff
 
@@ -1406,7 +1406,7 @@ static int ov13850_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = ov13850->cur_mode->height + ctrl->val - 4;
+		max = ov13850->cur_mode->height + ctrl->val - 16;
 		__v4l2_ctrl_modify_range(ov13850->exposure,
 					 ov13850->exposure->minimum, max,
 					 ov13850->exposure->step,
@@ -1497,7 +1497,7 @@ static int ov13850_initialize_controls(struct ov13850 *ov13850)
 				OV13850_VTS_MAX - mode->height,
 				1, vblank_def);
 
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 16;
 	ov13850->exposure = v4l2_ctrl_new_std(handler, &ov13850_ctrl_ops,
 				V4L2_CID_EXPOSURE, OV13850_EXPOSURE_MIN,
 				exposure_max, OV13850_EXPOSURE_STEP,
