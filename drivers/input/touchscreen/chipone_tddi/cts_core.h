@@ -4,9 +4,6 @@
 #define CTS_CORE_H
 
 #include "cts_config.h"
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 
 enum cts_dev_hw_reg {
     CTS_DEV_HW_REG_HARDWARE_ID     = 0x70000u,
@@ -531,10 +528,6 @@ struct chipone_ts_data {
 #ifdef CONFIG_PM_DSI_EXTCON_NOTIFIER
     struct extcon_dev *edev;
     struct notifier_block extcon_nb;
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    struct early_suspend early_suspend;
 #endif
 };
 

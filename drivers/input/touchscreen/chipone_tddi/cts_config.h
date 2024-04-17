@@ -19,7 +19,7 @@
 //#define CFG_CTS_CASCADE_SUPPORTED
 
 /* Support RK dsi extcon notifier for suspend and resume */
-//#define CONFIG_PM_DSI_EXTCON_NOTIFIER
+#define CONFIG_PM_DSI_EXTCON_NOTIFIER
 
 /* Support both finger and stylus protocol, 11 */
 // #define CFG_CTS_FINGER_STYLUS_SUPPORTED

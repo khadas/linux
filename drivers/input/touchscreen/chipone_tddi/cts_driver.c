@@ -372,26 +372,6 @@ static int ts_extcon_notifier(struct notifier_block *self,
 }
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-/* earlysuspend module the suspend/resume procedure */
-static void cts_ts_early_suspend(struct early_suspend *h)
-{
-	struct chipone_ts_data *cts_data = container_of(h, struct chipone_ts_data, early_suspend);
-
-	pr_info("%s %d\n", __func__, __LINE__);
-	flush_work(&cts_data->ts_resume_work);
-	cts_suspend(cts_data);
-}
-
-static void cts_ts_late_resume(struct early_suspend *h)
-{
-	struct chipone_ts_data *cts_data = container_of(h, struct chipone_ts_data, early_suspend);
-
-	pr_info("%s %d\n", __func__, __LINE__);
-	queue_work(cts_data->workqueue, &cts_data->ts_resume_work);
-}
-#endif
-
 #ifdef CONFIG_CTS_I2C_HOST
 static int cts_driver_probe(struct i2c_client *client,
         const struct i2c_device_id *id)
@@ -635,13 +615,6 @@ static int cts_driver_probe(struct spi_device *client)
 #endif /* CONFIG_MTK_PLATFORM */
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	cts_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	cts_data->early_suspend.suspend = cts_ts_early_suspend;
-	cts_data->early_suspend.resume = cts_ts_late_resume;
-	register_early_suspend(&cts_data->early_suspend);
-#endif
-
 #ifdef CONFIG_PM_DSI_EXTCON_NOTIFIER
 	cts_data->edev = extcon_get_edev_by_phandle(&client->dev, 0);
 	if (IS_ERR(cts_data->edev)) {
@@ -781,10 +754,6 @@ static void cts_driver_remove(struct spi_device *client)
 #ifdef CONFIG_CTS_PM_FB_NOTIFIER
         cts_deinit_pm_fb_notifier(cts_data);
 #endif
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&cts_data->early_suspend);
 #endif
 
         cts_tool_deinit(cts_data);
