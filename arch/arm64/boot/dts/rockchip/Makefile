@@ -252,6 +252,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb2-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-industry-evb-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-iotest-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-iotest-v10-edp2dp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-iotest-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10.dtb
