@@ -4,9 +4,10 @@
 #
 
 config TOUCHSCREEN_CHIPONE_9551R
-    tristate "chipone Touchscreen"
-    depends on I2C
-    default n
-    help
-      Say Y here if you have chipone touch panel.
-      If unsure, say N.
+	tristate "chipone Touchscreen"
+	depends on I2C
+	select ROCKCHIP_PANEL_NOTIFIER
+	default n
+	help
+	  Say Y here if you have chipone touch panel.
+	  If unsure, say N.
