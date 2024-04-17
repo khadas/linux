@@ -168,6 +168,14 @@ static unsigned int cma_mem_size;
 module_param(cma_mem_size, uint, 0644);
 MODULE_PARM_DESC(cma_mem_size, "\n\t\t cma_mem_size");
 
+MODULE_PARM_DESC(dvbt2_common_plp_skip, "");
+static bool dvbt2_common_plp_skip = true;
+module_param(dvbt2_common_plp_skip, bool, 0644);
+
+MODULE_PARM_DESC(dvbt2_mplp_retune, "");
+static bool dvbt2_mplp_retune;
+module_param(dvbt2_mplp_retune, bool, 0644);
+
 /*-----------------------------------*/
 static struct amldtvdemod_device_s *dtvdd_devp;
 
@@ -1761,8 +1769,17 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
+
+	if (!demod_is_t5d_cpu(devp) && !dvbt2_mplp_retune && demod->freq == c->frequency / 1000) {
+		PR_INFO("same freq and mplp_retune %d not retune\n",
+				dvbt2_mplp_retune);
+
+		demod->time_start = jiffies_to_msecs(jiffies);
+
+		return 0;
+	}
+
 	demod->bw = dtvdemod_convert_bandwidth(c->bandwidth_hz);
-	demod->freq = c->frequency / 1000;
 	demod->last_lock = 0;
 	demod->last_status = 0;
 	demod->p1_peak = 0;
@@ -1790,7 +1807,10 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 
 	/* wait tuner stable */
 	msleep(30);
+
 	dvbt2_set_ch(demod, fe);
+
+	demod->freq = c->frequency / 1000;
 	demod->time_start = jiffies_to_msecs(jiffies);
 
 	if (is_meson_t5w_cpu())
@@ -5666,6 +5686,8 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 
 	case SYS_ISDBT:
 	case SYS_DVBT2:
+		demod->plp_id = 0xffff;
+
 		if (devp->data->hw_ver == DTVDEMOD_HW_T5D && delsys == SYS_DVBT2) {
 			PR_INFO("resume dmc val 0x%x\n", devp->dmc_saved);
 			dtvdemod_dmc_reg_write(0x274, devp->dmc_saved);
@@ -5711,6 +5733,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 
 	demod->inited = false;
 	demod->suspended = true;
+	demod->freq = 0;
 
 	return 0;
 }
@@ -8038,7 +8061,15 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
-		demod->plp_id = tvp->u.data;
+		if (dvbt2_mplp_retune || demod_is_t5d_cpu(devp)) {
+			demod->plp_id = tvp->u.data;
+		} else {
+			if (tvp->u.data != demod->plp_id) {
+				demod->plp_id = tvp->u.data;
+				if (demod->en_detect)
+					dtvdemod_set_plpid(demod->plp_id);
+			}
+		}
 		PR_INFO("[id %d] DTV_DVBT2_PLP_ID, %d\n", demod->id, demod->plp_id);
 		break;
 
@@ -8273,9 +8304,15 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 				for (i = 0; i < demod->real_para.plp_num; i++) {
 					if ((demod->real_para.plp_common >> i) & 1)
 						common_cnt++;
-					plp_ids[i] = i + common_cnt;
+					if (dvbt2_common_plp_skip)
+						plp_ids[i] = i + common_cnt;
+					else
+						plp_ids[i] = i;
 				}
-				tvp->u.buffer.reserved1[0] -= common_cnt;
+
+				if (dvbt2_common_plp_skip)
+					tvp->u.buffer.reserved1[0] -= common_cnt;
+
 				if (copy_to_user(tvp->u.buffer.reserved2,
 					plp_ids, tvp->u.buffer.reserved1[0]))
 					PR_ERR("copy plp ids to user err\n");
@@ -8448,6 +8485,8 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->last_lock = -1;
 	demod->inited = false;
 	demod->suspended = true;
+	demod->freq = 0;
+	demod->plp_id = 0xfff;
 
 	/* select dvbc module for s4 and S4D */
 	if (devp->data->hw_ver == DTVDEMOD_HW_S4 ||

@@ -133,6 +133,7 @@
 /*  V2.2.023 rebuild dtmb driver */
 /*  V2.2.024 fix incorrect cfo calculation results and add info */
 /*  V2.2.025 fix crash caused by accessing T2 registers on T5D */
+/*  V2.2.026 fix dvbt2 mplp id list and mplp tune(execpt T5D) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -149,9 +150,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.025"
-#define DTVDEMOD_VER	"2024/04/12: fix crash caused by accessing T2 registers on T5D"
-#define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
+#define AMLDTVDEMOD_VER "V2.2.026"
+#define DTVDEMOD_VER	"2024/04/25: fix dvbt2 mplp id list and mplp tune(execpt T5D)"
+#define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENGTH_ATSC (-87)
