@@ -172,6 +172,39 @@ done:
 static irqreturn_t husb311_irq(int irq, void *dev_id)
 {
 	struct husb311_chip *chip = dev_id;
+	enum typec_cc_status cc1, cc2;
+	u8 reg, role_ctrl;
+	u8 status;
+
+	husb311_read8(chip, TCPC_ALERT, &status);
+	dev_dbg(chip->dev, "status 0x%02x", status);
+
+	/*
+	 * If husb311 detects one of CC is Rp, let do clear the another CC
+	 * status in anyway to dodge the non-standard cables that double Rp
+	 * connected to VBUS which produced by Huawei and etc.
+	 */
+	if (status & TCPC_ALERT_CC_STATUS) {
+		husb311_read8(chip, TCPC_ROLE_CTRL, &role_ctrl);
+		husb311_read8(chip, TCPC_CC_STATUS, &reg);
+		cc1 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC1_SHIFT) &
+					 TCPC_CC_STATUS_CC1_MASK,
+					 reg & TCPC_CC_STATUS_TERM ||
+					 tcpc_presenting_rd(role_ctrl, CC1));
+		cc2 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC2_SHIFT) &
+					 TCPC_CC_STATUS_CC2_MASK,
+					 reg & TCPC_CC_STATUS_TERM ||
+					 tcpc_presenting_rd(role_ctrl, CC2));
+
+		dev_dbg(chip->dev, "CC1 %u, CC2 %u", cc1, cc2);
+		if (cc1 == TYPEC_CC_RP_DEF) {
+			role_ctrl |= TCPC_ROLE_CTRL_CC_OPEN << TCPC_ROLE_CTRL_CC2_SHIFT;
+			husb311_write8(chip, TCPC_ROLE_CTRL, role_ctrl);
+		} else if (cc2 == TYPEC_CC_RP_DEF) {
+			role_ctrl |= TCPC_ROLE_CTRL_CC_OPEN << TCPC_ROLE_CTRL_CC1_SHIFT;
+			husb311_write8(chip, TCPC_ROLE_CTRL, role_ctrl);
+		}
+	}
 
 	return tcpci_irq(chip->tcpci);
 }
