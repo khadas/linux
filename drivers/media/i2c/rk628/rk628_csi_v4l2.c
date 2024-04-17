@@ -1380,7 +1380,6 @@ static void rk628_csi_initial(struct v4l2_subdev *sd)
 	else
 		def_edid.edid = edid_init_data;
 	rk628_csi_s_edid(sd, &def_edid);
-	rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, false);
 }
 
 static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
