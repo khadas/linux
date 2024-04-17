@@ -90,6 +90,7 @@ struct rk628_bt1120 {
 	u32 stream_state;
 	int hdmirx_irq;
 	int plugin_irq;
+	int lock_fail_time;
 	bool nosignal;
 	bool rxphy_pwron;
 	bool enable_hdcp;
@@ -337,13 +338,14 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 {
-	int ret;
+	int ret, delay;
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
 	ret = rk628_hdmirx_phy_setup(sd);
 	if (ret >= 0 && !rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
 		ret = rk628_bt1120_format_change(sd);
 		if (!ret) {
+			bt1120->lock_fail_time = 0;
 			bt1120->nosignal = false;
 			return;
 		}
@@ -351,8 +353,12 @@ static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 
 	if (ret < 0 || rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
 		rk628_hdmirx_plugout(sd);
+		bt1120->lock_fail_time++;
+		v4l2_dbg(1, debug, sd, "%s: lock fail time: %d\n",
+			 __func__, bt1120->lock_fail_time);
+		delay = 800 + 800 * ((bt1120->lock_fail_time + 1) % 2);
 		schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
-				      msecs_to_jiffies(800));
+				      msecs_to_jiffies(delay));
 		}
 }
 
