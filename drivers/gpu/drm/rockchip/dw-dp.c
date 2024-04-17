@@ -424,6 +424,7 @@ struct dw_dp_mst_enc {
 	struct dw_dp_mst_conn *mst_conn;
 	struct dw_dp *dp;
 	int stream_id;
+	int fix_port_num;
 	bool active;
 };
 
@@ -488,6 +489,7 @@ struct dw_dp {
 	bool is_loader_protect;
 	bool support_mst;
 	bool is_mst;
+	bool is_fix_port;
 	int mst_port_num;
 	int active_mst_links;
 	struct drm_dp_mst_topology_mgr mst_mgr;
@@ -1306,6 +1308,7 @@ static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
 	struct dw_dp *dp = node->info_ent->data;
 	struct dw_dp_mst_conn *mst_conn;
 	struct drm_property_blob *path_blob;
+	int i;
 
 	if (dp->mst_mgr.cbs) {
 		drm_dp_mst_dump_topology(s, &dp->mst_mgr);
@@ -1321,6 +1324,17 @@ static int dw_dp_mst_info_dump(struct seq_file *s, void *data)
 				   (char *)path_blob->data);
 		}
 		seq_puts(s, "\n");
+		if (dp->is_fix_port) {
+			seq_puts(s, "\n*** Fix port info ***\n");
+			seq_puts(s, "stream id | port num\n");
+
+			for (i = 0; i < dp->mst_port_num; i++) {
+				if (!dp->mst_enc[i].dp)
+					continue;
+				seq_printf(s, "%-16d %d\n", dp->mst_enc[i].stream_id,
+					   dp->mst_enc[i].fix_port_num);
+			}
+		}
 	}
 
 	return 0;
@@ -3924,6 +3938,8 @@ dw_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_p
 	for (i = 0; i < dp->mst_port_num; i++) {
 		if (!of_device_is_available(dp->mst_enc[i].port_node))
 			continue;
+		if (dp->is_fix_port && dp->mst_enc[i].fix_port_num != port->port_num)
+			continue;
 		ret = drm_connector_attach_encoder(&mst_conn->connector, &dp->mst_enc[i].encoder);
 		if (ret)
 			goto err;
@@ -3979,6 +3995,31 @@ dw_dp_create_fake_mst_encoders(struct dw_dp *dp)
 	return true;
 }
 
+static int dw_dp_mst_get_fix_port(struct dw_dp *dp)
+{
+	char *prop_name = "rockchip,mst-fixed-ports";
+	int elem_len, ret, i;
+	int elem_data[DPTX_MAX_STREAMS];
+
+	if (!device_property_present(dp->dev, prop_name))
+		return 0;
+
+	elem_len = device_property_count_u32(dp->dev, prop_name);
+	if (dp->mst_port_num != elem_len)
+		return -EINVAL;
+
+	ret = device_property_read_u32_array(dp->dev, prop_name, elem_data, elem_len);
+	if (ret)
+		return -EINVAL;
+
+	dp->is_fix_port = true;
+
+	for (i = 0; i < dp->mst_port_num; i++)
+		dp->mst_enc[i].fix_port_num = elem_data[i];
+
+	return 0;
+}
+
 static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
 {
 	int ret;
@@ -3989,6 +4030,10 @@ static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
 	INIT_LIST_HEAD(&dp->mst_conn_list);
 	dp->mst_mgr.cbs = &mst_cbs;
 	dw_dp_create_fake_mst_encoders(dp);
+	ret = dw_dp_mst_get_fix_port(dp);
+	if (ret)
+		return ret;
+
 	ret = drm_dp_mst_topology_mgr_init(&dp->mst_mgr, dp->encoder.dev,
 					   &dp->aux, 16, dp->mst_port_num, conn_base_id);
 	if (ret)
