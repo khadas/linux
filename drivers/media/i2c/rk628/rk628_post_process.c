@@ -1659,6 +1659,65 @@ static void rk628_post_process_csc(struct rk628 *rk628, bool is_output_full_rang
 	}
 }
 
+static int rk628_scaler_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable horizontal color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/5-0050/scaler_color_bar\n");
+	seq_puts(s, "  Enable vertical color bar:\n");
+	seq_puts(s, "      example: echo 2 > /sys/kernel/debug/rk628/5-0050/scaler_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/5-0050/scaler_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_scaler_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_scaler_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_scaler_color_bar_write(struct file *file, const char __user *ubuf,
+					    size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	switch (mode) {
+	case 0:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(0));
+		break;
+	case 1:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(0));
+		break;
+	case 2:
+	default:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(1));
+	}
+
+	return len;
+}
+
+static const struct file_operations rk628_scaler_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_scaler_color_bar_open,
+	.read = seq_read,
+	.write = rk628_scaler_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_post_process_pattern_node(struct rk628 *rk628)
+{
+	debugfs_create_file("scaler_color_bar", 0600, rk628->debug_dir,
+			    rk628, &rk628_scaler_color_bar_fops);
+}
+EXPORT_SYMBOL(rk628_post_process_pattern_node);
+
 void rk628_post_process_csc_en(struct rk628 *rk628, bool output_full_range)
 {
 	rk628_post_process_csc(rk628, output_full_range);
