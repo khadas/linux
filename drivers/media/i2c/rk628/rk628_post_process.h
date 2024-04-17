@@ -9,5 +9,5 @@
 
 void rk628_post_process_csc_en(struct rk628 *rk628, bool output_full_range);
 void rk628_post_process_csc_dis(struct rk628 *rk628);
-
+void rk628_post_process_pattern_node(struct rk628 *rk628);
 #endif

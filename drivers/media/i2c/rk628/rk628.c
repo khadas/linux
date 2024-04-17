@@ -18,6 +18,7 @@
 #include "rk628_csi.h"
 #include "rk628_dsi.h"
 #include "rk628_hdmirx.h"
+#include "rk628_post_process.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
@@ -493,6 +494,7 @@ void rk628_debugfs_create(struct rk628 *rk628)
 
 	rk628_debugfs_register_create(rk628);
 	rk628_dbg_en_node(rk628);
+	rk628_post_process_pattern_node(rk628);
 }
 EXPORT_SYMBOL(rk628_debugfs_create);
 
