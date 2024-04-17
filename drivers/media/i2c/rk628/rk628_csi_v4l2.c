@@ -114,6 +114,7 @@ struct rk628_csi {
 	u32 stream_state;
 	int hdmirx_irq;
 	int plugin_irq;
+	int lock_fail_time;
 	bool nosignal;
 	bool rxphy_pwron;
 	bool txphy_pwron;
@@ -479,13 +480,14 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 {
-	int ret;
+	int ret, delay;
 	struct rk628_csi *csi = to_csi(sd);
 
 	ret = rk628_hdmirx_phy_setup(sd);
 	if (ret >= 0 && !rk628_hdmirx_scdc_ced_err(csi->rk628)) {
 		ret = rk628_csi_format_change(sd);
 		if (!ret) {
+			csi->lock_fail_time = 0;
 			csi->nosignal = false;
 			return;
 		}
@@ -493,8 +495,12 @@ static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 
 	if (ret < 0 || rk628_hdmirx_scdc_ced_err(csi->rk628)) {
 		rk628_hdmirx_plugout(sd);
+		csi->lock_fail_time++;
+		v4l2_dbg(1, debug, sd, "%s: lock fail time: %d\n",
+			 __func__, csi->lock_fail_time);
+		delay = 800 + 800 * ((csi->lock_fail_time + 1) % 2);
 		schedule_delayed_work(&csi->delayed_work_enable_hotplug,
-				      msecs_to_jiffies(800));
+				      msecs_to_jiffies(delay));
 	}
 }
 
