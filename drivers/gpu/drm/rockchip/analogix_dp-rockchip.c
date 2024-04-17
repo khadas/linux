@@ -829,7 +829,7 @@ static const struct rockchip_dp_chip_data rk3568_edp[] = {
 
 static const struct rockchip_dp_chip_data rk3576_edp[] = {
 	{
-		.chip_type = RK3588_EDP,
+		.chip_type = RK3576_EDP,
 		.spdif_sel = GRF_REG_FIELD(0x0000, 5, 5),
 		.i2s_sel = GRF_REG_FIELD(0x0000, 4, 4),
 		.mem_clk_auto_gating = GRF_REG_FIELD(0x0020, 1, 1),
