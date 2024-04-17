@@ -418,6 +418,7 @@ struct dw_dp_mst_enc {
 	struct dw_dp_video video;
 	struct dw_dp_audio *audio;
 	struct device_node *port_node;
+	struct drm_bridge *next_bridge;
 
 	DECLARE_BITMAP(sdp_reg_bank, SDP_REG_BANK_SIZE);
 
@@ -3264,13 +3265,38 @@ static const struct drm_connector_funcs dw_dp_mst_connector_funcs = {
 	.early_unregister	= dw_dp_mst_connector_early_unregister,
 };
 
+static struct drm_bridge *dw_dp_mst_connector_get_bridge(struct dw_dp_mst_conn *mst_conn)
+{
+	struct dw_dp *dp = mst_conn->dp;
+	int i;
+
+	if (!dp->is_fix_port)
+		return NULL;
+
+	for (i = 0; i < dp->mst_port_num; i++)
+		if (dp->mst_enc[i].fix_port_num == mst_conn->port->port_num)
+			return dp->mst_enc[i].next_bridge;
+
+	return NULL;
+}
+
 static int dw_dp_mst_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_dp_mst_conn *mst_conn = container_of(connector,
 					  struct dw_dp_mst_conn, connector);
 	struct dw_dp *dp = mst_conn->dp;
+	struct drm_bridge *bridge;
 	struct edid *edid;
 	int num_modes = 0;
+
+	if (dp->is_fix_port) {
+		bridge = dw_dp_mst_connector_get_bridge(mst_conn);
+		if (bridge) {
+			num_modes = drm_bridge_get_modes(bridge, connector);
+			if (num_modes)
+				return num_modes;
+		}
+	}
 
 	edid = drm_dp_mst_get_edid(connector, &dp->mst_mgr, mst_conn->port);
 	if (edid) {
@@ -4020,6 +4046,32 @@ static int dw_dp_mst_get_fix_port(struct dw_dp *dp)
 	return 0;
 }
 
+static int dw_dp_mst_find_ext_bridges(struct dw_dp *dp)
+{
+	struct dw_dp_mst_enc *mst_enc;
+	int i, ret;
+
+	for (i = 0; i < dp->mst_port_num; i++) {
+		mst_enc = &dp->mst_enc[i];
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
+		ret = drm_of_find_panel_or_bridge(mst_enc->port_node, 2, -1, NULL,
+						  &mst_enc->next_bridge);
+		if (ret < 0 && ret != -ENODEV)
+			return ret;
+
+		if (mst_enc->next_bridge) {
+			ret = drm_bridge_attach(&mst_enc->encoder, mst_enc->next_bridge, NULL, 0);
+			if (ret) {
+				DRM_DEV_ERROR(dp->dev, "failed to attach next bridge: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
 {
 	int ret;
@@ -4034,6 +4086,9 @@ static int dw_dp_mst_encoder_init(struct dw_dp *dp, int conn_base_id)
 	if (ret)
 		return ret;
 
+	ret = dw_dp_mst_find_ext_bridges(dp);
+	if (ret)
+		return ret;
 	ret = drm_dp_mst_topology_mgr_init(&dp->mst_mgr, dp->encoder.dev,
 					   &dp->aux, 16, dp->mst_port_num, conn_base_id);
 	if (ret)
@@ -4070,7 +4125,9 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
-	dw_dp_mst_encoder_init(dp, connector->base.id);
+	ret = dw_dp_mst_encoder_init(dp, connector->base.id);
+	if (ret)
+		return ret;
 	prop = drm_property_create_enum(connector->dev, 0, RK_IF_PROP_COLOR_DEPTH,
 					color_depth_enum_list,
 					ARRAY_SIZE(color_depth_enum_list));
