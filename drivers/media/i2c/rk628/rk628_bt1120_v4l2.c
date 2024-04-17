@@ -480,6 +480,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				enable_stream(sd, false);
 				cancel_delayed_work(&bt1120->delayed_work_res_change);
 				rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+				rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, bt1120->hdcp.enable);
 				rk628_hdmirx_controller_setup(bt1120->rk628);
 				rk628_hdmirx_hpd_ctrl(sd, false);
 				rk628_hdmirx_inno_phy_power_off(sd);
@@ -872,7 +873,6 @@ static void rk628_bt1120_initial(struct v4l2_subdev *sd)
 	def_edid.blocks = 2;
 	def_edid.edid = edid_init_data;
 	rk628_bt1120_s_edid(sd, &def_edid);
-	rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, false);
 }
 
 static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
