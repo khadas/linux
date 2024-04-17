@@ -3273,10 +3273,12 @@ static void video_composer_task(struct composer_dev *dev)
 
 			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
 				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
-				vf->crop[0] = frame_info->crop_x;
-				vf->crop[1] = frame_info->crop_y;
-				vf->crop[2] = frame_info->crop_w;
-				vf->crop[3] = frame_info->crop_h;
+				vf->crop[0] = frame_info->crop_y;
+				vf->crop[1] = frame_info->crop_x;
+				vf->crop[2] = frame_info->crop_y +
+					frame_info->crop_h;
+				vf->crop[3] = frame_info->crop_x +
+					frame_info->crop_w;
 				vc_print(dev->index, PRINT_AXIS,
 					"tunnel set vf crop:%d %d %d %d\n",
 					vf->crop[0],
