@@ -596,7 +596,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 
 			if (dev->isp_inp == INP_CIF && dev->isp_ver > ISP_V21) {
 				/* read back mode default if more sensor link to isp */
-				if (dev->hw_dev->dev_link_num > 1)
+				if (!dev->hw_dev->is_single)
 					dev->is_rdbk_auto = true;
 				mode.rdbk_mode = dev->is_rdbk_auto ? RKISP_VICAP_RDBK_AUTO : RKISP_VICAP_ONLINE;
 			} else {

@@ -3073,8 +3073,26 @@ void rkisp_rx_buf_pool_free(struct rkisp_device *dev)
 {
 	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
 	struct rkisp_rx_buf_pool *pool;
+	struct rkisp_stream *stream;
+	struct rkisp_buffer *buf;
+	unsigned long lock_flags = 0;
 	int i;
 
+	if (dev->is_rdbk_auto) {
+		for (i = RKISP_STREAM_RAWRD0; i <= RKISP_STREAM_RAWRD2; i++) {
+			stream = &dev->dmarx_dev.stream[i];
+			if (stream->id != i)
+				continue;
+			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+			while (!list_empty(&stream->buf_queue)) {
+				buf = list_first_entry(&stream->buf_queue,
+						       struct rkisp_buffer, queue);
+				list_del(&buf->queue);
+			}
+			stream->curr_buf = NULL;
+			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+		}
+	}
 	for (i = 0; i < RKISP_RX_BUF_POOL_MAX; i++) {
 		pool = &dev->pv_pool[i];
 		if (!pool->dbufs)

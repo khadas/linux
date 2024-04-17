@@ -836,8 +836,8 @@ static int isp_show(struct seq_file *p, void *v)
 	struct rkisp_stream *stream;
 	u32 val = 0;
 
-	seq_printf(p, "%-10s Version:v%02x.%02x.%02x\n",
-		   dev->name,
+	seq_printf(p, "%-10s ISP:0x%x Version:v%02x.%02x.%02x\n",
+		   dev->name, dev->isp_ver,
 		   RKISP_DRIVER_VERSION >> 16,
 		   (RKISP_DRIVER_VERSION & 0xff00) >> 8,
 		   RKISP_DRIVER_VERSION & 0x00ff);
@@ -854,12 +854,13 @@ static int isp_show(struct seq_file *p, void *v)
 
 	if (sensor && sensor->fi.interval.numerator)
 		val = sensor->fi.interval.denominator / sensor->fi.interval.numerator;
-	seq_printf(p, "%-10s %s Format:%s Size:%dx%d@%dfps Offset(%d,%d)\n",
+	seq_printf(p, "%-10s %s Format:%s Size:%dx%d@%dfps Offset(%d,%d) Inp:0x%x\n",
 		   "Input",
 		   sensor ? sensor->sd->name : NULL,
 		   sdev->in_fmt.name,
 		   sdev->in_crop.width, sdev->in_crop.height, val,
-		   sdev->in_crop.left, sdev->in_crop.top);
+		   sdev->in_crop.left, sdev->in_crop.top,
+		   dev->isp_inp);
 
 	if (!(dev->isp_state & ISP_START))
 		return 0;
@@ -868,7 +869,7 @@ static int isp_show(struct seq_file *p, void *v)
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
 		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms state:%s time:%dms frameloss:%d)"
 			   " cnt(total:%d X1:%d X2:%d X3:%d) rd_bufcnt:%d\n",
-			   "Isp Read",
+			   "Isp offline",
 			   dev->rd_mode - 3,
 			   dev->dmarx_dev.cur_frame.id,
 			   (u32)(dev->dmarx_dev.cur_frame.timestamp - dev->dmarx_dev.pre_frame.timestamp) / 1000 / 1000,
