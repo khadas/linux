@@ -93,7 +93,7 @@ static void create_khadas_attrs(void)
 	int i;
 	struct class *khadas_class;
 	printk("%s\n",__func__);
-	khadas_class = class_create(THIS_MODULE, "khadas");
+	khadas_class = class_create(THIS_MODULE, "khadas_watchdog");
 	if (IS_ERR(khadas_class)) {
 		pr_err("create khadas_class debug class fail\n");
 		return;
