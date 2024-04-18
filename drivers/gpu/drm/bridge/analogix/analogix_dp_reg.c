@@ -1012,6 +1012,7 @@ static void analogix_dp_reuse_spd(struct analogix_dp_device *dp)
 	u32 reg, val;
 
 	switch (dp->plat_data->dev_type) {
+	case RK3576_EDP:
 	case RK3588_EDP:
 		reg = ANALOGIX_DP_SPDIF_AUDIO_CTL_0;
 		break;

@@ -12406,17 +12406,18 @@ static int vop2_gamma_init(struct vop2 *vop2)
 			continue;
 		vp->gamma_lut_len = vp_data->gamma_lut_len;
 		vp->lut_dma_rid = vp_data->lut_dma_rid;
-		vp->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vp->lut),
-					     GFP_KERNEL);
-		if (!vp->lut)
-			return -ENOMEM;
+		if (!vp->gamma_lut_active) {
+			vp->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vp->lut), GFP_KERNEL);
+			if (!vp->lut)
+				return -ENOMEM;
 
-		for (j = 0; j < lut_len; j++) {
-			u32 b = j * lut_len * lut_len;
-			u32 g = j * lut_len;
-			u32 r = j;
+			for (j = 0; j < lut_len; j++) {
+				u32 b = j * lut_len * lut_len;
+				u32 g = j * lut_len;
+				u32 r = j;
 
-			vp->lut[j] = r | g | b;
+				vp->lut[j] = r | g | b;
+			}
 		}
 
 		drm_mode_crtc_set_gamma_size(crtc, lut_len);
@@ -13511,6 +13512,84 @@ static inline void rockchip_vop2_devfreq_uninit(struct vop2 *vop2)
 }
 #endif
 
+static int vop2_of_get_gamma_lut(struct vop2 *vop2, struct device_node *dsp_lut_node, int vp_id)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp_id];
+	struct vop2_video_port *vp = &vop2->vps[vp_id];
+	struct property *prop;
+	u32 lut_len = vp_data->gamma_lut_len;
+	int length = 0;
+	int i = 0, j = 0;
+	int ret = 0;
+
+	if (!vop2->lut_regs || !lut_len)
+		return 0;
+
+	prop = of_find_property(dsp_lut_node, "gamma-lut", &length);
+	if (!prop)
+		return -EINVAL;
+
+	vp->lut = devm_kmalloc_array(vop2->dev, lut_len, sizeof(*vp->lut), GFP_KERNEL);
+	if (!vp->lut)
+		return -ENOMEM;
+
+	length >>= 2;
+	if (length != vp_data->gamma_lut_len) {
+		u32 r, g, b;
+		u32 *lut;
+
+		lut = kmalloc_array(length, sizeof(*lut), GFP_KERNEL);
+		if (!lut) {
+			devm_kfree(vop2->dev, vp->lut);
+			vp->lut = NULL;
+			return -ENOMEM;
+		}
+
+		ret = of_property_read_u32_array(dsp_lut_node, "gamma-lut", lut, length);
+		if (ret) {
+			devm_kfree(vop2->dev, vp->lut);
+			vp->lut = NULL;
+			kfree(lut);
+			return -EINVAL;
+		}
+
+		/*
+		 * In order to achieve the same gamma correction effect in different
+		 * platforms, the following conversion helps to translate from 8bit
+		 * gamma table with 256 parameters to 10bit gamma with 1024 parameters.
+		 */
+		for (i = 0; i < lut_len; i++) {
+			j = i * length / lut_len;
+			r = lut[j] / length / length * lut_len / length;
+			g = lut[j] / length % length * lut_len / length;
+			b = lut[j] % length * lut_len / length;
+
+			vp->lut[i] = r * lut_len * lut_len + g * lut_len + b;
+		}
+
+		kfree(lut);
+	} else {
+		of_property_read_u32_array(dsp_lut_node, "gamma-lut", vp->lut, vp->gamma_lut_len);
+	}
+	vp->gamma_lut_active = true;
+
+	return 0;
+}
+
+static void vop2_of_get_dsp_lut(struct vop2 *vop2, struct device_node *vp_node, int vp_id)
+{
+	struct device_node *dsp_lut_node;
+	int ret = 0;
+
+	dsp_lut_node = of_parse_phandle(vp_node, "dsp-lut", 0);
+	if (dsp_lut_node) {
+		ret = vop2_of_get_gamma_lut(vop2, dsp_lut_node, vp_id);
+		if (ret)
+			DRM_ERROR("load vp%d gamma-lut failed\n", vp_id);
+	}
+}
+
 static int vop2_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -13707,6 +13786,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 				if (!of_property_read_u32(mcu_timing_node, "mcu-hold-mode", &val))
 					vop2->vps[vp_id].mcu_timing.mcu_hold_mode = val;
 			}
+
+			vop2_of_get_dsp_lut(vop2, child, vp_id);
 
 			if (vop2_get_vp_of_status(child))
 				enabled_vp_mask |= BIT(vp_id);

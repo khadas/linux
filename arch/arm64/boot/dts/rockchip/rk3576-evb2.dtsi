@@ -254,11 +254,11 @@
 	status = "okay";
 };
 
-&dp0_sound {
+&dp0 {
 	status = "okay";
 };
 
-&dp0_in_vp0 {
+&dp0_sound {
 	status = "okay";
 };
 

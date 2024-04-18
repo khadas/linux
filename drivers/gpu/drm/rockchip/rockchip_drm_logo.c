@@ -722,6 +722,31 @@ rockchip_drm_connector_get_single_encoder(struct drm_connector *connector)
 	return NULL;
 }
 
+static void rockchip_drm_mode_fixup(struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state,
+				    struct drm_display_mode *adj_mode)
+{
+	const struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_encoder *encoder = conn_state->best_encoder;
+	struct drm_crtc *crtc = crtc_state->crtc;
+	int ret;
+
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, adj_mode);
+	if (ret)
+		return;
+
+	encoder_funcs = encoder->helper_private;
+	if (encoder_funcs && encoder_funcs->atomic_check)
+		encoder_funcs->atomic_check(encoder, crtc_state, conn_state);
+	else if (encoder_funcs && encoder_funcs->mode_fixup)
+		encoder_funcs->mode_fixup(encoder, &crtc_state->mode, adj_mode);
+
+	crtc_funcs = crtc->helper_private;
+	if (crtc_funcs && crtc_funcs->mode_fixup)
+		crtc_funcs->mode_fixup(crtc, &crtc_state->mode, adj_mode);
+}
+
 static int setup_initial_state(struct drm_device *drm_dev,
 			       struct drm_atomic_state *state,
 			       struct rockchip_drm_mode_set *set)
@@ -733,6 +758,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	struct drm_connector_state *conn_state;
 	struct drm_plane_state *primary_state;
 	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode adj_mode;
 	const struct drm_connector_helper_funcs *funcs;
 	int pipe = drm_crtc_index(crtc);
 	bool is_crtc_enabled = true;
@@ -777,18 +803,26 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		goto error_conn;
 	}
 
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto error_conn;
+	}
+
 	list_for_each_entry(mode, &connector->modes, head) {
-		if (mode->clock == set->clock &&
-		    mode->hdisplay == set->hdisplay &&
-		    mode->vdisplay == set->vdisplay &&
-		    mode->crtc_hsync_end == set->crtc_hsync_end &&
-		    mode->crtc_vsync_end == set->crtc_vsync_end &&
-		    drm_mode_vrefresh(mode) == set->vrefresh &&
+		drm_mode_copy(&adj_mode, mode);
+		rockchip_drm_mode_fixup(crtc_state, conn_state, &adj_mode);
+		if (adj_mode.clock == set->clock &&
+		    adj_mode.hdisplay == set->hdisplay &&
+		    adj_mode.vdisplay == set->vdisplay &&
+		    adj_mode.crtc_hsync_end == set->crtc_hsync_end &&
+		    adj_mode.crtc_vsync_end == set->crtc_vsync_end &&
+		    drm_mode_vrefresh(&adj_mode) == set->vrefresh &&
 		    /* we just need to focus on DRM_MODE_FLAG_ALL flag, so here
 		     * we compare mode->flags with set->flags & DRM_MODE_FLAG_ALL.
 		     */
-		    mode->flags == (set->flags & DRM_MODE_FLAG_ALL) &&
-		    mode->picture_aspect_ratio == set->picture_aspect_ratio) {
+		    adj_mode.flags == (set->flags & DRM_MODE_FLAG_ALL) &&
+		    adj_mode.picture_aspect_ratio == set->picture_aspect_ratio) {
 			found = 1;
 			match = 1;
 			break;
@@ -802,10 +836,13 @@ static int setup_initial_state(struct drm_device *drm_dev,
 			connector->name);
 		DRM_INFO("%s support modes:\n\n", connector->name);
 		list_for_each_entry(mode, &connector->modes, head) {
-			DRM_INFO(DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+			drm_mode_copy(&adj_mode, mode);
+			rockchip_drm_mode_fixup(crtc_state, conn_state, &adj_mode);
+			DRM_INFO(DRM_MODE_FMT "\n", DRM_MODE_ARG(&adj_mode));
 		}
-		DRM_INFO("uboot set mode: h/v display[%d,%d] h/v sync_end[%d,%d] vfresh[%d], flags[0x%x], aspect_ratio[%d]\n",
-			 set->hdisplay, set->vdisplay, set->crtc_hsync_end, set->crtc_vsync_end,
+		DRM_INFO("uboot set mode: clock[%d] h/v display[%d,%d] h/v sync_end[%d,%d] vfresh[%d], flags[0x%x], aspect_ratio[%d]\n",
+			 set->clock, set->hdisplay, set->vdisplay,
+			 set->crtc_hsync_end, set->crtc_vsync_end,
 			 set->vrefresh, set->flags, set->picture_aspect_ratio);
 		goto error_conn;
 	}
@@ -815,13 +852,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	conn_state->tv.saturation = set->saturation;
 	conn_state->tv.hue = set->hue;
 	set->mode = mode;
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto error_conn;
-	}
 
-	drm_mode_copy(&crtc_state->adjusted_mode, mode);
+	drm_mode_copy(&crtc_state->adjusted_mode, &adj_mode);
 	if (!match || !is_crtc_enabled) {
 		set->mode_changed = true;
 	} else {

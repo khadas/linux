@@ -105,10 +105,6 @@ static long rockchip_rk3576_drm_dclk_round_rate(struct clk *dclk, unsigned long 
 	p_hw = clk_hw_get_parent(hw);
 	if (!p_hw)
 		return -EINVAL;
-	p_hw = clk_hw_get_parent(p_hw);
-
-	if (!p_hw)
-		return -EINVAL;
 	name = clk_hw_get_name(p_hw);
 
 	if (!strcmp(name, "vpll"))
@@ -129,17 +125,8 @@ static long rockchip_rk3588_drm_dclk_round_rate(struct clk *dclk, unsigned long 
 	hw = __clk_get_hw(dclk);
 	if (!hw)
 		return -EINVAL;
-	name = clk_hw_get_name(hw);
 
-	if (!strcmp(name, "dclk_vop3")) {
-		p_hw = clk_hw_get_parent(hw);
-	} else {
-		p_hw = clk_hw_get_parent(hw);
-		if (!p_hw)
-			return -EINVAL;
-		p_hw = clk_hw_get_parent(p_hw);
-	}
-
+	p_hw = clk_hw_get_parent(hw);
 	if (!p_hw)
 		return -EINVAL;
 	name = clk_hw_get_name(p_hw);

@@ -433,14 +433,14 @@ static int ufs_rockchip_rk3576_init(struct ufs_hba *hba)
 
 	/* Enable runtime autosuspend */
 	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
-	/* Enable clock-gating */
-	hba->caps |= UFSHCD_CAP_CLK_GATING;
 	/* Enable BKOPS when suspend */
 	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 	/* Enable putting device into deep sleep */
 	hba->caps |= UFSHCD_CAP_DEEPSLEEP;
 	/* Enable devfreq of UFS */
 	hba->caps |= UFSHCD_CAP_CLK_SCALING;
+	/* Enable WriteBooster */
+	hba->caps |= UFSHCD_CAP_WB_EN;
 
 	ret = ufs_rockchip_common_init(hba);
 	if (ret) {
@@ -584,6 +584,10 @@ static int ufs_rockchip_runtime_resume(struct device *dev)
 		dev_err(hba->dev, "failed to enable ref out clock %d\n", err);
 		return err;
 	}
+
+	reset_control_assert(host->rst);
+	udelay(1);
+	reset_control_deassert(host->rst);
 
 	ufs_rockchip_restore_link(hba, false);
 
