@@ -88,8 +88,6 @@
 	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -711,13 +709,7 @@
 	rockchip,typec-vbus-det;
 };
 
-&u2phy2_host {
-	phy-supply = <&vcc5v0_host>;
-};
 
-&u2phy3_host {
-	phy-supply = <&vcc5v0_host>;
-};
 
 &uart9 {
 	status = "okay";
