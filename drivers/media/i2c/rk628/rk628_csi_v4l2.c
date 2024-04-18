@@ -62,6 +62,12 @@ enum tx_mode_type {
 	DSI_MODE,
 };
 
+enum output_color_range {
+	OUT_RANGE_AUTO = 0,
+	OUT_RANGE_LIMIT = 1,
+	OUT_RANGE_FULL = 2,
+};
+
 struct rk628_plat_data {
 	int bus_fmt;
 	int tx_mode;
@@ -131,6 +137,7 @@ struct rk628_csi {
 	bool is_streaming;
 	bool csi_ints_en;
 	bool dual_mipi_use;
+	int output_range;
 };
 
 struct rk628_csi_mode {
@@ -771,8 +778,13 @@ static void rk628_dsi_set_scs(struct rk628_csi *csi)
 
 		color_range = rk628_hdmirx_get_range(csi->rk628);
 		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(0));
-		rk628_post_process_csc_en(csi->rk628,
+		if (csi->output_range == OUT_RANGE_AUTO)
+			rk628_post_process_csc_en(csi->rk628,
 					color_range == HDMIRX_LIMIT_RANGE ? false : true);
+		else if (csi->output_range == OUT_RANGE_LIMIT)
+			rk628_post_process_csc_en(csi->rk628, false);
+		else
+			rk628_post_process_csc_en(csi->rk628, true);
 	}
 
 	/* if avi packet is not stable, reset ctrl*/
@@ -1124,8 +1136,13 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 
 		color_range = rk628_hdmirx_get_range(csi->rk628);
 		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(1));
-		rk628_post_process_csc_en(csi->rk628,
+		if (csi->output_range == OUT_RANGE_AUTO)
+			rk628_post_process_csc_en(csi->rk628,
 					color_range == HDMIRX_LIMIT_RANGE ? false : true);
+		else if (csi->output_range == OUT_RANGE_LIMIT)
+			rk628_post_process_csc_en(csi->rk628, false);
+		else
+			rk628_post_process_csc_en(csi->rk628, true);
 	}
 	/* if avi packet is not stable, reset ctrl*/
 	if (!avi_rdy) {
@@ -2340,7 +2357,6 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_capture_info  *capture_info;
 	u32 val;
 	u32 stream = 0;
-	bool is_full_range;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2418,8 +2434,8 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*(int *)arg = csi->dsi.vid_mode;
 		break;
 	case RK_HDMIRX_CMD_SET_OUTPUT_RANGE:
-		is_full_range = *((int *)arg);
-		rk628_post_process_csc_en(csi->rk628, is_full_range);
+		csi->output_range = *((int *)arg);
+		v4l2_dbg(1, debug, sd, "set output_range: %d\n", csi->output_range);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -3044,6 +3060,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	csi->nosignal = true;
 	csi->stream_state = 0;
 	csi->avi_rcv_rdy = false;
+	csi->output_range = OUT_RANGE_AUTO;
 
 	ret = 0;
 
