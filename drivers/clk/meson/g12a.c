@@ -7331,11 +7331,22 @@ static int meson_g12a_probe(struct platform_device *pdev)
 {
 	const struct meson_eeclkc_data *eeclkc_data;
 	const struct meson_g12a_data *g12a_data;
+	struct meson_clk_pll_data *hifi_pll_data;
 	int ret;
 
 	eeclkc_data = of_device_get_match_data(&pdev->dev);
 	if (!eeclkc_data)
 		return -EINVAL;
+
+	/*
+	 * HACK: The G12A, G12B, and SM1 share the same driver, and SM1's
+	 * hifi_pll_dco has been initialized in the bootloader, and the kernel
+	 * does not need to repeat the configuration.
+	 */
+	if (eeclkc_data->hw_onecell_data == &sm1_hw_onecell_data) {
+		hifi_pll_data = (struct meson_clk_pll_data *)g12a_hifi_pll_dco.data;
+		hifi_pll_data->flags |= CLK_MESON_PLL_IGNORE_INIT;
+	}
 
 	ret = meson_eeclkc_probe(pdev);
 	if (ret)
