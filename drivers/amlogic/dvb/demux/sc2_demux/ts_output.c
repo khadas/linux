@@ -59,6 +59,7 @@ struct es_params_t {
 	s64 pre_time_ms;
 	u32 es_wp;
 	u32 es_header_wp;
+	u8 es_wp_has_err;
 };
 
 struct ts_out {
@@ -1114,14 +1115,15 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		if (es_params->has_splice == 0) {
 			memcpy(&header, &es_params->header, h_len);
 			ATRACE_COUNTER(pout->name, es_params->header.pts);
-			pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
+			pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d offset:0x%0x\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
 			   pout->es_pes->pid,
 			   pout->sid,
 		       header.pts_dts_flag,
 		       (unsigned long)header.pts,
 		       (unsigned long)header.dts,
-		       header.len);
+		       header.len,
+		       pout->pchan->r_offset);
 		} else {
 			header.len = es_params->header.len;
 		pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
@@ -2230,6 +2232,7 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 							sizeof(struct dmx_sec_es_data), 0, 0);
 						pr_dbg("notify sec mode encrypt type:%d\n",
 							pout->type);
+						es_params->es_wp_has_err = 1;
 					}
 				} else {
 					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
@@ -2242,6 +2245,7 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 							sizeof(struct dmx_non_sec_es_header), 0, 0);
 						pr_dbg("notify non-sec mode encrypt type:%d\n",
 							pout->type);
+						es_params->es_wp_has_err = 1;
 					}
 				}
 			} else {
@@ -2296,6 +2300,20 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				notify_encrypt_for_t5w(pout, es_params);
 			} else {
 				es_params->pre_time_ms = -1;
+			}
+			/*first es error, jump & correct wp*/
+			if (ret == 0 && es_params->es_wp_has_err) {
+				unsigned int cur_wp = 0;
+
+				cur_wp = pcur_header[7] << 24 |
+					pcur_header[6] << 16 | pcur_header[5] << 8 | pcur_header[4];
+				memcpy(&es_params->last_last_header,
+					&es_params->last_header, 16);
+				memcpy(&es_params->last_header, pcur_header,
+						sizeof(es_params->last_header));
+				pout->pchan->r_offset = cur_wp % pout->pchan->mem_size;
+				es_params->es_wp_has_err = 0;
+				return 0;
 			}
 		}
 		if (ret < 0) {
