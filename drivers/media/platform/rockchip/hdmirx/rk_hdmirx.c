@@ -115,6 +115,18 @@ enum hdmirx_pix_fmt {
 	HDMIRX_YUV420 = 3,
 };
 
+enum hdmirx_cn_type {
+	HDMIRX_CN_GRAPHICS = 0,
+	HDMIRX_CN_PHOTO = 1,
+	HDMIRX_CN_CINEMA = 2,
+	HDMIRX_CN_GAME = 3,
+};
+
+enum hdmirx_ycc_range {
+	HDMIRX_YCC_LIMIT,
+	HDMIRX_YCC_FULL,
+};
+
 static const char * const pix_fmt_str[] = {
 	"RGB888",
 	"YUV422",
@@ -375,7 +387,7 @@ static u8 edid_init_data_600M[] = {
 
 static char *hdmirx_color_space[8] = {
 	"xvYCC601", "xvYCC709", "sYCC601", "Adobe_YCC601",
-	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB_OR_YCbCr"
+	"Adobe_RGB", "BT2020_YcCbcCrc", "BT2020_RGB_OR_YCbCr", "RGB"
 };
 
 static const struct v4l2_dv_timings_cap hdmirx_timings_cap = {
@@ -774,7 +786,7 @@ try_loop:
 
 static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
 {
-	u32 val;
+	u32 val, EC2_0, C1_C0;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	/*
@@ -784,16 +796,58 @@ static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
 	 */
 	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
 	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0);
-	hdmirx_dev->cur_color_space = (val & EXTEND_COLORIMETRY) >> 28;
+	EC2_0 = (val & EXTEND_COLORIMETRY) >> 28;
+	C1_C0 = (val & COLORIMETRY_MASK) >> 22;
+	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888) {
+		if (EC2_0 == HDMIRX_ADOBE_RGB ||
+		    EC2_0 == HDMIRX_BT2020_RGB_OR_YCC)
+			hdmirx_dev->cur_color_space = EC2_0;
+		else
+			hdmirx_dev->cur_color_space = HDMIRX_RGB;
+	} else {
+		switch (C1_C0) {
+		case 0:
+			hdmirx_dev->cur_color_space = HDMIRX_XVYCC709;
+			break;
+		case 1:
+			hdmirx_dev->cur_color_space = HDMIRX_XVYCC601;
+			break;
+		case 2:
+			hdmirx_dev->cur_color_space = HDMIRX_XVYCC709;
+			break;
+		default:
+			hdmirx_dev->cur_color_space = EC2_0;
+			break;
+		}
+	}
 
 	v4l2_dbg(2, debug, v4l2_dev, "%s: video standard: %s\n", __func__,
 		 hdmirx_color_space[hdmirx_dev->cur_color_space]);
 }
 
+static bool IsColorRangeLimitFormat(uint32_t width, uint32_t height, bool interlace)
+{
+	if (((width == 720) && (height == 240) && (interlace == false))
+	 || ((width == 720) && (height == 1201) && (interlace == false))
+	 || ((width == 720) && (height == 480) && (interlace == true))
+	 || ((width == 720) && (height == 576) && (interlace == true))
+	 || ((width == 1440) && (height == 480) && (interlace == true))
+	 || ((width == 1440) && (height == 576) && (interlace == true))
+	 || ((width == 1920) && (height == 1080) && (interlace == true))
+	 || ((width == 2880) && (height == 480) && (interlace == true))
+	 || ((width == 3840) && (height == 2160) && (interlace == false))) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static void hdmirx_get_color_range(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u32 val;
-	int color_range;
+	int rgb_range, yuv_range, cn_type;
+	struct v4l2_dv_timings timings = hdmirx_dev->timings;
+	struct v4l2_bt_timings *bt = &timings.bt;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	/*
@@ -803,16 +857,36 @@ static void hdmirx_get_color_range(struct rk_hdmirx_dev *hdmirx_dev)
 	 */
 	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
 	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0);
-	color_range = (val & RGB_QUANTIZATION_RANGE) >> 26;
+
+	/* byte3 bit[3:2]*/
+	rgb_range = (val & RGB_QUANTIZATION_RANGE) >> 26;
+	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB7_4);
+	/* byte5 bit[7:6]*/
+	yuv_range = (val & YUV_QUANTIZATION_RANGE) >> 14;
+	/* byte5 bit[5:4]*/
+	cn_type = (val & CN_TYPE_MASK) >> 12;
 	if (hdmirx_dev->pix_fmt != HDMIRX_RGB888) {
-		hdmirx_dev->cur_color_range = color_range;
+		if (yuv_range == HDMIRX_YCC_LIMIT)
+			hdmirx_dev->cur_color_range = HDMIRX_LIMIT_RANGE;
+		else if (yuv_range == HDMIRX_YCC_FULL)
+			hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE;
+		else
+			hdmirx_dev->cur_color_range = HDMIRX_DEFAULT_RANGE;
 	} else {
-		if (color_range != HDMIRX_DEFAULT_RANGE) {
-			hdmirx_dev->cur_color_range = color_range;
+		if (rgb_range != HDMIRX_DEFAULT_RANGE) {
+			(hdmirx_dev->is_dvi_mode) ?
+			(hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE) :
+			(hdmirx_dev->cur_color_range = rgb_range);
 		} else {
-			(hdmirx_dev->cur_vic) ?
-			(hdmirx_dev->cur_color_range = HDMIRX_LIMIT_RANGE) :
-			(hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE);
+			if (cn_type == HDMIRX_CN_GRAPHICS) {
+				hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE;
+			} else {
+				if (IsColorRangeLimitFormat(bt->width,
+						bt->height, bt->interlaced))
+					hdmirx_dev->cur_color_range = HDMIRX_LIMIT_RANGE;
+				else
+					hdmirx_dev->cur_color_range = HDMIRX_FULL_RANGE;
+			}
 		}
 	}
 
