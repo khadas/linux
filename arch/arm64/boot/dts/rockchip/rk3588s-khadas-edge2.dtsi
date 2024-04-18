@@ -859,15 +859,15 @@
 		disp_timings0: display-timings {
 			native-mode = <&dsi0_timing0>;
 			dsi0_timing0: timing0 {
-				clock-frequency = <152200000>;
+				clock-frequency = <152198100>;
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <104>;
-				hsync-len = <6>;
+				hsync-len = <4>;
 				hback-porch = <127>;
-				vfront-porch = <12>;
-				vsync-len = <6>;
-				vback-porch = <10>;
+				vfront-porch = <4>;
+				vsync-len = <3>;
+				vback-porch = <2>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -887,6 +887,25 @@
 				vfront-porch = <11>;
 				vsync-len = <4>;
 				vback-porch = <14>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		disp_timings02: display-timings2 {
+			native-mode = <&dsi0_timing02>;
+			dsi0_timing02: timing02 {
+				clock-frequency = <152200000>;
+				hactive = <1080>;
+				vactive = <1920>;
+				hfront-porch = <104>;
+				hsync-len = <6>;
+				hback-porch = <127>;
+				vfront-porch = <12>;
+				vsync-len = <6>;
+				vback-porch = <10>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -1497,15 +1516,15 @@
 		disp_timings1: display-timings {
 			native-mode = <&dsi1_timing0>;
 			dsi1_timing0: timing0 {
-				clock-frequency = <152200000>;
+				clock-frequency = <152198100>;
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <104>;
 				hsync-len = <4>;
 				hback-porch = <127>;
 				vfront-porch = <4>;
-				vsync-len = <2>;
-				vback-porch = <3>;
+				vsync-len = <3>;
+				vback-porch = <2>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -1525,6 +1544,25 @@
 				vfront-porch = <11>;
 				vsync-len = <4>;
 				vback-porch = <14>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		disp_timings12: display-timings2 {
+			native-mode = <&dsi1_timing02>;
+			dsi1_timing02: timing02 {
+				clock-frequency = <152200000>;
+				hactive = <1080>;
+				vactive = <1920>;
+				hfront-porch = <104>;
+				hsync-len = <6>;
+				hback-porch = <127>;
+				vfront-porch = <12>;
+				vsync-len = <6>;
+				vback-porch = <10>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
