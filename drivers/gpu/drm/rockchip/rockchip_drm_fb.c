@@ -236,6 +236,25 @@ rockchip_drm_atomic_helper_connector_commit(struct drm_device *dev,
 	}
 }
 
+static int rockchip_drm_atomic_helper_get_crc(struct drm_device *dev,
+					      struct drm_atomic_state *state)
+{
+	struct rockchip_drm_private *priv = dev->dev_private;
+	const struct rockchip_crtc_funcs *funcs;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (!crtc->state->active || !crtc->crc.opened)
+			continue;
+
+		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];
+		if (funcs && funcs->get_crc)
+			funcs->get_crc(crtc);
+	}
+
+	return 0;
+}
+
 /**
  * rockchip_drm_atomic_helper_commit_tail_rpm - commit atomic update to hardware
  * @old_state: new modeset state to be committed
@@ -277,6 +296,8 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 	drm_atomic_helper_commit_hw_done(old_state);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	rockchip_drm_atomic_helper_get_crc(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 }

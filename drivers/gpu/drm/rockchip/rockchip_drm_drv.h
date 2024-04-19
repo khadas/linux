@@ -501,6 +501,7 @@ struct rockchip_crtc_funcs {
 	void (*crtc_output_pre_disable)(struct drm_crtc *crtc, int intf);
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode);
+	int (*get_crc)(struct drm_crtc *crtc);
 };
 
 struct rockchip_dclk_pll {

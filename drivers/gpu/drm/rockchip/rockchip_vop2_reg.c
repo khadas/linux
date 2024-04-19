@@ -1563,6 +1563,11 @@ static const struct vop2_video_port_regs rk3576_vop_vp0_regs = {
 	.cubic_lut_update_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3568_VP0_3D_LUT_MST, 0xffffffff, 0),
 
+	.crc_en = VOP_REG(RK3568_VP0_POST_SCL_CTRL, 0x1, 8),
+	.crc_val = VOP_REG(RK3576_VP0_POST_CRC, 0xffffffff, 0),
+	.crc_check_en = VOP_REG(RK3568_VP0_POST_SCL_CTRL, 0x1, 9),
+	.crc_check_val = VOP_REG(RK3576_VP0_POST_CRC_CHECK, 0xffffffff, 0),
+
 	.mcu_pix_total = VOP_REG(RK3562_VP0_MCU_CTRL, 0x3f, 0),
 	.mcu_cs_pst = VOP_REG(RK3562_VP0_MCU_CTRL, 0xf, 6),
 	.mcu_cs_pend = VOP_REG(RK3562_VP0_MCU_CTRL, 0x3f, 10),
@@ -1643,6 +1648,11 @@ static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
 	.bcsh_y2r_en = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP1_BCSH_COLOR_BAR, 0x1, 31),
 
+	.crc_en = VOP_REG(RK3568_VP1_POST_SCL_CTRL, 0x1, 8),
+	.crc_val = VOP_REG(RK3576_VP1_POST_CRC, 0xffffffff, 0),
+	.crc_check_en = VOP_REG(RK3568_VP1_POST_SCL_CTRL, 0x1, 9),
+	.crc_check_val = VOP_REG(RK3576_VP1_POST_CRC_CHECK, 0xffffffff, 0),
+
 	.mcu_pix_total = VOP_REG(RK3562_VP1_MCU_CTRL, 0x3f, 0),
 	.mcu_cs_pst = VOP_REG(RK3562_VP1_MCU_CTRL, 0xf, 6),
 	.mcu_cs_pend = VOP_REG(RK3562_VP1_MCU_CTRL, 0x3f, 10),
@@ -1722,6 +1732,11 @@ static const struct vop2_video_port_regs rk3576_vop_vp2_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP2_BCSH_COLOR_BAR, 0x1, 31),
+
+	.crc_en = VOP_REG(RK3568_VP2_POST_SCL_CTRL, 0x1, 8),
+	.crc_val = VOP_REG(RK3576_VP2_POST_CRC, 0xffffffff, 0),
+	.crc_check_en = VOP_REG(RK3568_VP2_POST_SCL_CTRL, 0x1, 9),
+	.crc_check_val = VOP_REG(RK3576_VP2_POST_CRC_CHECK, 0xffffffff, 0),
 
 	.mcu_pix_total = VOP_REG(RK3576_VP2_MCU_CTRL, 0x3f, 0),
 	.mcu_cs_pst = VOP_REG(RK3576_VP2_MCU_CTRL, 0xf, 6),
@@ -5080,6 +5095,12 @@ static const struct vop2_esmart_lb_map rk3576_esmart_lb_mode_map[] = {
 	{VOP3_ESMART_4K_4K_2K_2K_MODE, 3}
 };
 
+static const char * const rk3576_crc_sources[] = {
+	"auto",
+	"crtc",
+	"encoder",
+};
+
 static const struct vop2_data rk3528_vop = {
 	.version = VOP_VERSION_RK3528,
 	.nr_vps = 2,
@@ -5167,6 +5188,8 @@ static const struct vop2_data rk3576_vop = {
 	.nr_pds = ARRAY_SIZE(rk3576_vop_pd_data),
 	.dump_regs = rk3576_dump_regs,
 	.dump_regs_size = ARRAY_SIZE(rk3576_dump_regs),
+	.crc_sources = rk3576_crc_sources,
+	.crc_sources_num = ARRAY_SIZE(rk3576_crc_sources),
 };
 
 static const struct vop2_data rk3588_vop = {

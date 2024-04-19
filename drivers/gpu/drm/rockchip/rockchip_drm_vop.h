@@ -134,6 +134,22 @@ enum vop3_esmart_lb_mode {
 	VOP3_ESMART_4K_4K_2K_2K_MODE,
 };
 
+/**
+ * enum rockchip_drm_crc_source: CRC source
+ * @ROCKCHIP_DRM_CRC_SOURCE_AUTO: no source set
+ * @ROCKCHIP_DRM_CRC_SOURCE_PLANE: CRC in layer
+ * @ROCKCHIP_DRM_CRC_SOURCE_CRTC: CRC in vp
+ * @ROCKCHIP_DRM_CRC_SOURCE_ENCODER: CRC in encoder
+ * @ROCKCHIP_DRM_CRC_SOURCE_INVALID: Invalid source
+ */
+enum rockchip_drm_crc_source {
+	ROCKCHIP_DRM_CRC_SOURCE_AUTO = 0,
+	ROCKCHIP_DRM_CRC_SOURCE_PLANE,
+	ROCKCHIP_DRM_CRC_SOURCE_CRTC,
+	ROCKCHIP_DRM_CRC_SOURCE_ENCODER,
+	ROCKCHIP_DRM_CRC_SOURCE_INVALID = -1
+};
+
 /*
  * vop2 dsc id
  */
@@ -994,6 +1010,12 @@ struct vop2_video_port_regs {
 	/* color bar */
 	struct vop_reg color_bar_en;
 	struct vop_reg color_bar_mode;
+
+	/* crc */
+	struct vop_reg crc_en;
+	struct vop_reg crc_val;
+	struct vop_reg crc_check_en;
+	struct vop_reg crc_check_val;
 };
 
 struct vop2_power_domain_regs {
@@ -1477,6 +1499,7 @@ struct vop2_data {
 	uint8_t esmart_lb_mode;
 	bool delayed_pd;
 	uint8_t esmart_lb_mode_num;
+	uint8_t crc_sources_num;
 	const struct vop2_esmart_lb_map *esmart_lb_mode_map;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
@@ -1498,6 +1521,7 @@ struct vop2_data {
 	const struct vop_grf_ctrl *vo1_grf;
 	const struct vop_grf_ctrl *ioc_grf;
 	const struct vop_dump_regs *dump_regs;
+	const char * const *crc_sources;
 	uint32_t dump_regs_size;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
