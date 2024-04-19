@@ -80,9 +80,7 @@ static struct kobj_attribute attr_bridge_uac_status = __ATTR_RO(bridge_uac_statu
 static ssize_t bridge_capture_volume_ctr_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf,
-		"Volume Down:%ld, Volume Up:%ld, Volume Mute:%ld Volume Play/Pause:%ld\n",
-		VOLUME_DECRE, VOLUME_INCRE, VOLUME_MUTE, VOLUME_PLAY);
+	return sprintf(buf, "unsupport!");
 }
 
 static ssize_t bridge_capture_volume_ctr_store(struct kobject *kobj,
@@ -96,17 +94,7 @@ static ssize_t bridge_capture_volume_ctr_store(struct kobject *kobj,
 		pr_err("%s err!", __func__);
 		return len;
 	}
-#ifdef CONFIG_USB_CONFIGFS_F_HID
-	ret = f_hidg_internal_write(&bufer, sizeof(bufer));
-	if (ret < 0)
-		pr_err("%s err!", __func__);
-	bufer = 0;
-	ret = f_hidg_internal_write(&bufer, sizeof(bufer));
-	if (ret < 0)
-		pr_err("%s err!", __func__);
-#else
 	pr_err("%s unsupport!", __func__);
-#endif
 	return len;
 }
 
