@@ -1474,6 +1474,7 @@
 		snps,dis_rxdet_inp3_quirk;
 		snps,parkmode-disable-hs-quirk;
 		snps,parkmode-disable-ss-quirk;
+		dma-coherent;
 		status = "disabled";
 	};
 
@@ -3587,6 +3588,7 @@
 		reg-names = "pcie-apb", "pcie-dbi", "config";
 		resets = <&cru SRST_PCIE0_POWER_UP>, <&cru SRST_P_PCIE0>;
 		reset-names = "pipe", "p_pcie0";
+		dma-coherent;
 		status = "disabled";
 
 		pcie0_intc: legacy-interrupt-controller {
@@ -3642,6 +3644,7 @@
 		reg-names = "pcie-apb", "pcie-dbi", "config";
 		resets = <&cru SRST_PCIE1_POWER_UP>, <&cru SRST_P_PCIE1>;
 		reset-names = "pipe", "p_pcie1";
+		dma-coherent;
 		status = "disabled";
 
 		pcie1_intc: legacy-interrupt-controller {
@@ -3671,6 +3674,7 @@
 		reset-names = "stmmaceth";
 		power-domains = <&power RK3576_PD_SDGMAC>;
 
+		dma-coherent;
 		snps,mixed-burst;
 		snps,tso;
 
@@ -3720,6 +3724,7 @@
 		reset-names = "stmmaceth";
 		power-domains = <&power RK3576_PD_SDGMAC>;
 
+		dma-coherent;
 		snps,mixed-burst;
 		snps,tso;
 
@@ -3763,6 +3768,7 @@
 		phys = <&combphy0_ps PHY_TYPE_SATA>;
 		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
+		dma-coherent;
 		status = "disabled";
 	};
 
@@ -3778,6 +3784,7 @@
 		phys = <&combphy1_psu PHY_TYPE_SATA>;
 		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
+		dma-coherent;
 		status = "disabled";
 	};
 
