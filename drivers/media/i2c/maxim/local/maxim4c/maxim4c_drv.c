@@ -57,6 +57,10 @@
  *     3. remote serializer support more chip id
  *     4. support mode add crop rect dts config
  *
+ * V3.03.00
+ *     1. remote sensor Makefile rename module ko
+ *     2. remote sensor rename driver name
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>

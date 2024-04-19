@@ -26,13 +26,13 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-#define SENSOR_NAME			"maxim-dummy"
+#define SENSOR_NAME			"dummy"
 
 #define SENSOR_CHIP_ID			0x5809
 #define SENSOR_REG_CHIP_ID		0x300A
@@ -1472,7 +1472,7 @@ MODULE_DEVICE_TABLE(of, sensor_of_match);
 
 static struct i2c_driver sensor_i2c_driver = {
 	.driver = {
-		.name = SENSOR_NAME,
+		.name = "maxim-dummy",
 		.pm = &sensor_pm_ops,
 		.of_match_table = of_match_ptr(sensor_of_match),
 	},
