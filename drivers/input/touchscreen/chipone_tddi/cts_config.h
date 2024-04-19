@@ -18,18 +18,15 @@
 /* Support cascade application */
 //#define CFG_CTS_CASCADE_SUPPORTED
 
-/* Support RK dsi extcon notifier for suspend and resume */
-//#define CONFIG_PM_DSI_EXTCON_NOTIFIER
-
 /* Support both finger and stylus protocol, 11 */
 // #define CFG_CTS_FINGER_STYLUS_SUPPORTED
 
 /* #define CFG_CTS_STYLUS_BTN_SUPPORTED */
 
-#define CONFIG_CTS_I2C_HOST 
+#define CONFIG_CTS_I2C_HOST
 
 /* For Goole Security */
-#define CFG_CTS_FOR_GKI 
+#define CFG_CTS_FOR_GKI
 
 /** Whether reset pin is used */
 #define CFG_CTS_HAS_RESET_PIN

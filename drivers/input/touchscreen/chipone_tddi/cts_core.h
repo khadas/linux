@@ -3,10 +3,9 @@
 #ifndef CTS_CORE_H
 #define CTS_CORE_H
 
+#include <linux/rockchip-panel-notifier.h>
+
 #include "cts_config.h"
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 
 enum cts_dev_hw_reg {
     CTS_DEV_HW_REG_HARDWARE_ID     = 0x70000u,
@@ -528,14 +527,8 @@ struct chipone_ts_data {
 
     bool force_reflash;
     // struct kobject *suspend_kobj;
-#ifdef CONFIG_PM_DSI_EXTCON_NOTIFIER
-    struct extcon_dev *edev;
-    struct notifier_block extcon_nb;
-#endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-    struct early_suspend early_suspend;
-#endif
+    struct notifier_block panel_nb;
 };
 
 /*static inline u32 get_unaligned_le24(const void *p)

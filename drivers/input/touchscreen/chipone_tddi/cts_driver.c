@@ -5,7 +5,6 @@
 #else
 #define LOG_TAG         "SPIDrv"
 #endif
-#include <linux/extcon.h>
 #include "cts_config.h"
 #include "cts_platform.h"
 #include "cts_core.h"
@@ -348,49 +347,22 @@ static int cts_get_panel(void)
 }
 #endif
 
-#ifdef CONFIG_PM_DSI_EXTCON_NOTIFIER
-static int ts_extcon_notifier(struct notifier_block *self,
-					 unsigned long event, void *data)
+static int rockchip_panel_notifier_call(struct notifier_block *self,
+					unsigned long val, void *v)
 {
+	enum rockchip_panel_event event = (enum rockchip_panel_event)val;
 	struct chipone_ts_data *cts_data =
-		container_of(self, struct chipone_ts_data, extcon_nb);
-	if (extcon_get_state(cts_data->edev, EXTCON_JACK_VIDEO_OUT)){
-		pr_info("%s %d\n", __func__, __LINE__);
-		//cts_plat_set_reset(cts_data->pdata, 1);
-		//mdelay(1);
-		//cts_plat_set_reset(cts_data->pdata, 0);
-		//mdelay(5);/* 1ms */
-		//cts_plat_set_reset(cts_data->pdata, 1);
+		container_of(self, struct chipone_ts_data, panel_nb);
+
+	if (event == PANEL_ENABLED) {
+		cts_info("notify to resume");
 		cts_resume(cts_data);
-	} else {
+	} else if (event == PANEL_PRE_DISABLE) {
+		cts_info("notify to suspend");
 		cts_suspend(cts_data);
-		pr_info("%s %d\n", __func__, __LINE__);
-		//cts_plat_set_reset(cts_data->pdata, 0);
 	}
-
-	return 0;
+	return NOTIFY_OK;
 }
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-/* earlysuspend module the suspend/resume procedure */
-static void cts_ts_early_suspend(struct early_suspend *h)
-{
-	struct chipone_ts_data *cts_data = container_of(h, struct chipone_ts_data, early_suspend);
-
-	pr_info("%s %d\n", __func__, __LINE__);
-	flush_work(&cts_data->ts_resume_work);
-	cts_suspend(cts_data);
-}
-
-static void cts_ts_late_resume(struct early_suspend *h)
-{
-	struct chipone_ts_data *cts_data = container_of(h, struct chipone_ts_data, early_suspend);
-
-	pr_info("%s %d\n", __func__, __LINE__);
-	queue_work(cts_data->workqueue, &cts_data->ts_resume_work);
-}
-#endif
 
 #ifdef CONFIG_CTS_I2C_HOST
 static int cts_driver_probe(struct i2c_client *client,
@@ -635,32 +607,14 @@ static int cts_driver_probe(struct spi_device *client)
 #endif /* CONFIG_MTK_PLATFORM */
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	cts_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	cts_data->early_suspend.suspend = cts_ts_early_suspend;
-	cts_data->early_suspend.resume = cts_ts_late_resume;
-	register_early_suspend(&cts_data->early_suspend);
-#endif
+	cts_data->panel_nb.notifier_call = rockchip_panel_notifier_call;
 
-#ifdef CONFIG_PM_DSI_EXTCON_NOTIFIER
-	cts_data->edev = extcon_get_edev_by_phandle(&client->dev, 0);
-	if (IS_ERR(cts_data->edev)) {
-		if (PTR_ERR(cts_data->edev) != -EPROBE_DEFER)
-			dev_err(&client->dev, "Invalid or missing extcon\n");
-		pr_info("register notifier...but extcon_get_edev error\n");
-		return 0;
+	ret = devm_rockchip_panel_notifier_register_client(&client->dev,
+							   &cts_data->panel_nb);
+	if (ret) {
+		cts_err("failed to register notifier client for TP: %d\n", ret);
+		goto err_deinit_oem;
 	}
-
-	cts_data->extcon_nb.notifier_call = ts_extcon_notifier;
-	ret = extcon_register_notifier(cts_data->edev, EXTCON_JACK_VIDEO_OUT,
-					       &cts_data->extcon_nb);
-	pr_info("register notifier...\n");
-	if (ret < 0) {
-		pr_info("fail to register notifier...\n");
-		dev_err(&client->dev, "failed to register notifier for TP\n");
-		return ret;
-	}
-#endif
 
     return 0;
 
@@ -781,10 +735,6 @@ static void cts_driver_remove(struct spi_device *client)
 #ifdef CONFIG_CTS_PM_FB_NOTIFIER
         cts_deinit_pm_fb_notifier(cts_data);
 #endif
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&cts_data->early_suspend);
 #endif
 
         cts_tool_deinit(cts_data);

@@ -9113,39 +9113,68 @@ static int vop2_zpos_cmp(const void *a, const void *b)
 		return pa->plane->base.id - pb->plane->base.id;
 }
 
-static bool check_acm_state_changed(struct rockchip_crtc_state *new_vcstate,
-				    struct rockchip_crtc_state *old_vcstate,
-				    struct vop2_video_port *vp)
+static bool vop2_blob_changed(struct drm_property_blob *new_blob,
+			      struct drm_property_blob *old_blob)
+{
+	/* blob is not created after boot */
+	if (!old_blob && !new_blob)
+		return false;
+
+	/* blob has been created */
+	if (!old_blob && new_blob)
+		return true;
+
+	/* blob has been destroyed */
+	if (old_blob && !new_blob)
+		return true;
+
+	/* blob data has been updated */
+	if ((old_blob && new_blob) &&
+	    ((new_blob->length != old_blob->length) ||
+	     memcmp(new_blob->data, old_blob->data, new_blob->length)))
+		return true;
+
+	return false;
+}
+
+static bool vop2_update_acm_info(struct vop2_video_port *vp,
+				 struct rockchip_crtc_state *new_vcstate,
+				 struct rockchip_crtc_state *old_vcstate)
 {
 	struct drm_property_blob *old_blob = old_vcstate->acm_lut_data;
 	struct drm_property_blob *new_blob = new_vcstate->acm_lut_data;
-	struct post_acm *new_acm = NULL, *old_acm = NULL;
+	bool ret;
+
+	ret = vop2_blob_changed(new_blob, old_blob);
+
+	if (!ret)
+		return ret;
 
 	if (new_blob)
-		new_acm = (struct post_acm *)new_blob->data;
-
-	if (old_blob)
-		old_acm = (struct post_acm *)old_blob->data;
-
-	if (!old_acm && !new_acm)
-		return false;
-
-	if (!old_acm && new_acm) {
-		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
-		return true;
-	}
-
-	if (old_acm && !new_acm) {
+		memcpy(&vp->acm_info, new_blob->data, sizeof(struct post_acm));
+	else
 		memset(&vp->acm_info, 0, sizeof(struct post_acm));
-		return true;
-	}
 
-	if (old_acm && new_acm && memcmp(new_acm, old_acm, sizeof(struct post_acm))) {
-		memcpy(&vp->acm_info, new_acm, sizeof(struct post_acm));
-		return true;
-	}
+	return ret;
+}
 
-	return false;
+static void vop2_update_post_csc_info(struct vop2_video_port *vp,
+				      struct rockchip_crtc_state *new_vcstate,
+				      struct rockchip_crtc_state *old_vcstate)
+{
+	struct drm_property_blob *old_blob = old_vcstate->post_csc_data;
+	struct drm_property_blob *new_blob = new_vcstate->post_csc_data;
+	bool ret;
+
+	ret = vop2_blob_changed(new_blob, old_blob);
+
+	if (!ret)
+		return;
+
+	if (new_blob)
+		memcpy(&vp->csc_info, new_blob->data, sizeof(struct post_csc));
+	else
+		memset(&vp->csc_info, 0, sizeof(struct post_csc));
 }
 
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
@@ -9178,7 +9207,9 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	else
 		vp->refresh_rate_change = false;
 
-	if (check_acm_state_changed(new_vcstate, old_vcstate, vp) ||
+	vop2_update_post_csc_info(vp, new_vcstate, old_vcstate);
+
+	if (vop2_update_acm_info(vp, new_vcstate, old_vcstate) ||
 	    new_crtc_state->active_changed)
 		vp->acm_state_changed = true;
 	else
@@ -11042,21 +11073,6 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	vcstate->sharp_en = true;
 }
 
-static void vop3_post_config(struct drm_crtc *crtc)
-{
-	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct post_csc *csc;
-
-	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
-	if (csc && memcmp(&vp->csc_info, csc, sizeof(struct post_csc)))
-		memcpy(&vp->csc_info, csc, sizeof(struct post_csc));
-	vop3_post_csc_config(crtc, &vp->acm_info, vp->csc_info.csc_enable ? &vp->csc_info : NULL);
-
-	if (vp->acm_state_changed)
-		vop3_post_acm_config(crtc, &vp->acm_info);
-}
-
 static void vop2_cfg_update(struct drm_crtc *crtc,
 			    struct drm_crtc_state *old_crtc_state)
 {
@@ -11110,8 +11126,13 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 
 	spin_unlock(&vop2->reg_lock);
 
-	if (vp_data->feature & (VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC))
-		vop3_post_config(crtc);
+	if (vp_data->feature & VOP_FEATURE_POST_CSC)
+		vop3_post_csc_config(crtc, &vp->acm_info,
+				     vp->csc_info.csc_enable ? &vp->csc_info : NULL);
+
+	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && vp->acm_state_changed)
+		vop3_post_acm_config(crtc, &vp->acm_info);
+
 }
 
 static void vop2_sleep_scan_line_time(struct vop2_video_port *vp, int scan_line)

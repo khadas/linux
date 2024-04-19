@@ -129,6 +129,14 @@ config ROCKCHIP_LVDS
 	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
 	  driver.
 
+config ROCKCHIP_PANEL_NOTIFIER
+	tristate "Rockchip panel notifier"
+	depends on OF
+	help
+	  Say Y here if you want to enable support for the panel notifier. The
+	  notifier is used to notify other devices (such as TP) to perform the
+	  corresponding action when the panel is in different actions.
+
 config ROCKCHIP_RGB
 	bool "Rockchip RGB support"
 	depends on PINCTRL

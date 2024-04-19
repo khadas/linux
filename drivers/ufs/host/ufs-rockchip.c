@@ -561,16 +561,9 @@ static int ufs_rockchip_runtime_suspend(struct device *dev)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
-	int ret = 0;
-
-	ret = ufshcd_runtime_suspend(dev);
-	if (ret)
-		return ret;
 
 	clk_disable_unprepare(host->ref_out_clk);
-	ufs_rockchip_restore_link(hba, true);
-
-	return 0;
+	return ufs_rockchip_restore_link(hba, true);
 }
 
 static int ufs_rockchip_runtime_resume(struct device *dev)
@@ -589,9 +582,7 @@ static int ufs_rockchip_runtime_resume(struct device *dev)
 	udelay(1);
 	reset_control_deassert(host->rst);
 
-	ufs_rockchip_restore_link(hba, false);
-
-	return ufshcd_runtime_resume(dev);
+	return ufs_rockchip_restore_link(hba, false);
 }
 
 static int ufs_rockchip_suspend(struct device *dev)
@@ -603,7 +594,7 @@ static int ufs_rockchip_suspend(struct device *dev)
 
 	ufs_rockchip_restore_link(hba, true);
 
-	return ufshcd_system_suspend(dev);
+	return 0;
 }
 
 static int ufs_rockchip_resume(struct device *dev)
@@ -617,7 +608,7 @@ static int ufs_rockchip_resume(struct device *dev)
 	ufs_rockchip_device_reset(hba);
 	ufs_rockchip_restore_link(hba, false);
 
-	return ufshcd_system_resume(dev);
+	return 0;
 }
 
 static const struct dev_pm_ops ufs_rockchip_pm_ops = {
