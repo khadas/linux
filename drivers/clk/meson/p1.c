@@ -6920,7 +6920,7 @@ static int meson_p1_probe(struct platform_device *pdev)
 	}
 
 	pll_map = p1_regmap_resource(dev, "pll");
-	if (IS_ERR(basic_map)) {
+	if (IS_ERR(pll_map)) {
 		dev_err(dev, "pll clk registers not found\n");
 		return PTR_ERR(pll_map);
 	}
