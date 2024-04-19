@@ -1051,6 +1051,7 @@ static void vdin_rdma_irq(void *arg)
 		devp->flags_isr &= ~VDIN_FLAG_RDMA_DONE;
 
 	devp->rdma_irq_cnt++;
+	devp->rdma_undone_cnt = 0;
 	return;
 }
 
@@ -1469,6 +1470,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
 	devp->keystone_vframe_ready = 0;
+	devp->rdma_undone_cnt = 0;
 	memset(&devp->stats, 0, sizeof(devp->stats));
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
@@ -3499,7 +3501,8 @@ irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if ((devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
-	    (devp->flags_isr & VDIN_FLAG_RDMA_DONE)) {
+	    ((devp->flags_isr & VDIN_FLAG_RDMA_DONE) ||
+	    devp->rdma_undone_cnt++ > VDIN_RDMA_UNDONE_MAX_CNT)) {
 		ret = rdma_config(devp->rdma_handle,
 				  (devp->rdma_enable & 1) ?
 				  devp->rdma_irq : RDMA_TRIGGER_MANUAL);
@@ -3507,6 +3510,8 @@ irq_handled:
 			devp->flags_isr |= VDIN_FLAG_RDMA_DONE;
 		else
 			devp->flags_isr &= ~VDIN_FLAG_RDMA_DONE;
+		devp->rdma_undone_cnt = 0;
+		devp->stats.rdma_manual_cnt++;
 	}
 #endif
 	vdin_sct_queue_work(devp);

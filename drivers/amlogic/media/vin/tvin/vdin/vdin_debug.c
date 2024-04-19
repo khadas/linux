@@ -1351,6 +1351,8 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
 	pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
+	pr_info("rdma_manual_cnt: %d,rdma_undone_cnt: %d\n",
+		devp->stats.rdma_manual_cnt, devp->rdma_undone_cnt);
 	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
 
 	vdin_dump_vs_info(devp);

@@ -336,6 +336,7 @@ struct match_data_s {
 #define FPS_23_97_SET_TO_23		23
 #define VDIN_SET_MODE_MAX_FRAME		60
 #define VDIN_VRR_MIN_FRAME_RATE		25
+#define VDIN_RDMA_UNDONE_MAX_CNT	10
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -410,6 +411,8 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_HDR_SEI_DATA	BIT(14)
 #define VDIN_ISR_MONITOR_SCATTER_MEM	BIT(15)
 #define DBG_RX_UPDATE_VDIN_PROP		BIT(20)
+#define VDIN_ISR_MONITOR_RDMA		BIT(22)
+#define VDIN_ISR_MONITOR_CFMT		BIT(23)
 
 #define VDIN_ISR_MONITOR_CFMT		BIT(23)
 
@@ -680,6 +683,7 @@ struct vdin_frame_stat_s {
 	unsigned int meta_wr_done_irq_cnt;
 	/* Continuous cycle error counting */
 	unsigned int cycle_err_cnt_con;
+	unsigned int rdma_manual_cnt;
 };
 
 struct vdin_v4l2_s {
@@ -1087,6 +1091,7 @@ struct vdin_dev_s {
 	unsigned int common_divisor;
 	unsigned int vrr_frame_rate_min;
 	unsigned int fs_open_cnt;
+	unsigned int rdma_undone_cnt;
 };
 
 extern unsigned int max_ignore_frame_cnt;
