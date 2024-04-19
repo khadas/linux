@@ -709,7 +709,7 @@ static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 	if (ret < 0)
 		return ret;
 
-	if (rev >= DP_DPCD_REV_12)
+	if (rev > DP_DPCD_REV_12)
 		regmap_update_bits(dp->regmap, DPTX_HDCPCFG, DPCD12PLUS, DPCD12PLUS);
 
 	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP | ENABLE_HDCP_13,
