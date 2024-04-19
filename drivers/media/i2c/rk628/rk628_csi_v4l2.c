@@ -1551,11 +1551,9 @@ static void rk628_csi_clear_csi_interrupts(struct v4l2_subdev *sd)
 		rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
 
 	if (csi->rk628->version >= RK628F_VERSION)
-		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN, CSI_INT_EN_MASK |
-				CSI_INT_WRITE_EN_MASK, CSI_INT_EN(3) | CSI_INT_WRITE_EN(3));
+		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0xc000c0);
 	else
-		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN, CSI_INT_EN_MASK |
-				CSI_INT_WRITE_EN_MASK, CSI_INT_EN(1) | CSI_INT_WRITE_EN(1));
+		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0x400040);
 }
 
 static void rk628_csi_clear_hdmirx_interrupts(struct v4l2_subdev *sd)
@@ -1567,11 +1565,9 @@ static void rk628_csi_clear_hdmirx_interrupts(struct v4l2_subdev *sd)
 	rk628_i2c_write(csi->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
 	rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
 	if (csi->rk628->version >= RK628F_VERSION)
-		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN,
-					GRF_INT0_HDMIRX_CLR_MASK_F(1), GRF_INT0_HDMIRX_CLR_F(1));
+		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0x02000200);
 	else
-		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN,
-					GRF_INT0_HDMIRX_CLR_MASK_D(1), GRF_INT0_HDMIRX_CLR_D(1));
+		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0x01000100);
 }
 
 static void rk628_csi_error_process(struct v4l2_subdev *sd)
