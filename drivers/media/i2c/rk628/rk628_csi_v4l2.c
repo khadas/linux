@@ -474,6 +474,7 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
+	rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
 	rk628_hdmirx_controller_reset(csi->rk628);
 	rk628_clk_set_rate(csi->rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 }
@@ -580,7 +581,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_csi_enable_interrupts(sd, false);
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 				rk628_hdmirx_hpd_ctrl(sd, false);
-				rk628_hdmirx_inno_phy_power_off(sd);
+				rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
 				rk628_hdmirx_controller_reset(csi->rk628);
 				schedule_delayed_work(&csi->delayed_work_enable_hotplug,
 						      msecs_to_jiffies(1100));

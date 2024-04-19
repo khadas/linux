@@ -1186,6 +1186,15 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_verisyno_phy_power_on);
 
+void rk628_hdmirx_verisyno_phy_power_off(struct rk628 *rk628)
+{
+	if (rk628->version < RK628F_VERSION)
+		return;
+
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x07);
+}
+EXPORT_SYMBOL(rk628_hdmirx_verisyno_phy_power_off);
+
 void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628)
 {
 	u32 format;

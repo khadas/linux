@@ -511,6 +511,7 @@ void rk628_csi_isr_ctsn(HAUDINFO info, u32 pdec_ints);
 void rk628_csi_isr_fifoints(HAUDINFO info, u32 fifo_ints);
 int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy);
 void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628);
+void rk628_hdmirx_verisyno_phy_power_off(struct rk628 *rk628);
 void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
 int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
 u8 rk628_hdmirx_get_format(struct rk628 *rk628);
