@@ -2292,8 +2292,12 @@ static bool vop2_win_dither_up(uint32_t format)
 	}
 }
 
-static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
+static bool vop2_output_uv_swap(struct rockchip_crtc_state *vcstate)
 {
+	u32 bus_format = vcstate->bus_format;
+	u32 output_mode = vcstate->output_mode;
+	u32 output_if = vcstate->output_if;
+
 	/*
 	 * FIXME:
 	 *
@@ -2301,7 +2305,7 @@ static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 	 * so when out_mode is AAAA or P888, assume output is YUV444 on
 	 * yuv format.
 	 *
-	 * From H/W testing, YUV444 mode need a rb swap.
+	 * From H/W testing, YUV444 mode need a rb swap except eDP.
 	 */
 	if (bus_format == MEDIA_BUS_FMT_YVYU8_1X16 ||
 	    bus_format == MEDIA_BUS_FMT_VYUY8_1X16 ||
@@ -2310,14 +2314,17 @@ static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 	    ((bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
 	      bus_format == MEDIA_BUS_FMT_YUV10_1X30) &&
 	     (output_mode == ROCKCHIP_OUT_MODE_AAAA ||
-	      output_mode == ROCKCHIP_OUT_MODE_P888)))
+	      output_mode == ROCKCHIP_OUT_MODE_P888) &&
+	     !output_if_is_edp(output_if)))
 		return true;
 	else
 		return false;
 }
 
-static bool vop3_output_rb_swap(uint32_t bus_format, uint32_t output_mode)
+static bool vop3_output_rb_swap(struct rockchip_crtc_state *vcstate)
 {
+	u32 bus_format = vcstate->bus_format;
+
 	/*
 	 * The default component order of serial rgb3x8 formats
 	 * is BGR. So it is needed to enable RB swap.
@@ -8435,8 +8442,7 @@ static void vop2_post_color_swap(struct drm_crtc *crtc)
 	u32 output_if = vcstate->output_if;
 	u32 data_swap = 0;
 
-	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode) ||
-	    vop3_output_rb_swap(vcstate->bus_format, vcstate->output_mode))
+	if (vop2_output_uv_swap(vcstate) || vop3_output_rb_swap(vcstate))
 		data_swap = DSP_RB_SWAP;
 
 	if ((vop2->version == VOP_VERSION_RK3588 || vop2->version == VOP_VERSION_RK3576) &&
