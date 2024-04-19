@@ -24,7 +24,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1172,7 +1172,7 @@ MODULE_DEVICE_TABLE(of, ox01f10_of_match);
 
 static struct i2c_driver ox01f10_i2c_driver = {
 	.driver = {
-		.name = OX01F10_NAME,
+		.name = "maxim-ox01f10",
 		.pm = &ox01f10_pm_ops,
 		.of_match_table = of_match_ptr(ox01f10_of_match),
 	},
