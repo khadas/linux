@@ -70,6 +70,8 @@ struct rockchip_dp_chip_data {
 	bool	ssc;
 	bool	audio;
 	bool	split_mode;
+	bool	format_yuv;
+	u8	max_bpc;
 };
 
 struct rockchip_dp_device {
@@ -230,15 +232,16 @@ static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
 static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 				 struct drm_connector *connector)
 {
+	struct rockchip_dp_device *dp = pdata_encoder_to_dp(plat_data);
 	struct drm_display_info *di = &connector->display_info;
-	/* VOP couldn't output YUV video format for eDP rightly */
 	u32 mask = DRM_COLOR_FORMAT_YCBCR444 | DRM_COLOR_FORMAT_YCBCR422;
 
-	if ((di->color_formats & mask)) {
-		DRM_DEBUG_KMS("Swapping display color format from YUV to RGB\n");
-		di->color_formats &= ~mask;
-		di->color_formats |= DRM_COLOR_FORMAT_RGB444;
-		di->bpc = 8;
+	if (!dp->data->format_yuv) {
+		if ((di->color_formats & mask)) {
+			DRM_DEBUG_KMS("Swapping display color format from YUV to RGB\n");
+			di->color_formats &= ~mask;
+			di->color_formats |= DRM_COLOR_FORMAT_RGB444;
+		}
 	}
 
 	return 0;
@@ -463,12 +466,19 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
+	struct drm_bridge_state *new_bridge_state;
+	struct drm_bridge *bridge;
+	const struct analogix_dp_output_format *output_fmt;
 	int refresh_rate;
 
-	if (di->num_bus_formats)
-		s->bus_format = di->bus_formats[0];
-	else
-		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	bridge = drm_bridge_chain_get_first_bridge(encoder);
+	new_bridge_state = drm_atomic_get_new_bridge_state(conn_state->state, bridge);
+	if (!new_bridge_state)
+		return 0;
+
+	dev_dbg(dp->dev, "input format 0x%04x, output format 0x%04x\n",
+		new_bridge_state->input_bus_cfg.format,
+		new_bridge_state->output_bus_cfg.format);
 
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
@@ -477,8 +487,17 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	 * controller, that's why we need to hardcode the VOP output mode
 	 * to RGA10 here.
 	 */
-
-	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+	output_fmt = analogix_dp_get_output_format(new_bridge_state->output_bus_cfg.format);
+	switch (output_fmt->color_format) {
+	case DRM_COLOR_FORMAT_YCBCR422:
+		s->output_mode = ROCKCHIP_OUT_MODE_YUV422;
+		break;
+	case DRM_COLOR_FORMAT_RGB444:
+	case DRM_COLOR_FORMAT_YCBCR444:
+	default:
+		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
+		break;
+	}
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 	if (dp->plat_data.split_mode) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
@@ -495,12 +514,16 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 	}
 
-	s->output_bpc = di->bpc;
+	s->bus_format = output_fmt->bus_format;
+	s->output_bpc = output_fmt->bpc;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	s->color_encoding = DRM_COLOR_YCBCR_BT709;
-	s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	if (output_fmt->color_format == DRM_COLOR_FORMAT_RGB444)
+		s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	else
+		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	/**
 	 * It's priority to user rate range define in dtsi.
 	 */
@@ -707,6 +730,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->adp = ERR_PTR(-ENODEV);
 	dp->data = &dp_data[id];
 	dp->plat_data.ssc = dp->data->ssc;
+	dp->plat_data.max_bpc = dp->data->max_bpc ? dp->data->max_bpc : 8;
 	dp->plat_data.panel = panel;
 	dp->plat_data.dev_type = dp->data->chip_type;
 	dp->plat_data.power_on_start = rockchip_dp_poweron_start;
@@ -863,6 +887,8 @@ static const struct rockchip_dp_chip_data rk3576_edp[] = {
 		.ssc = true,
 		.audio = true,
 		.split_mode = true,
+		.format_yuv = true,
+		.max_bpc = 10,
 	},
 	{ /* sentinel */ }
 };
@@ -876,6 +902,8 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.ssc = true,
 		.audio = true,
 		.split_mode = true,
+		.format_yuv = true,
+		.max_bpc = 10,
 	},
 	{
 		.chip_type = RK3588_EDP,
@@ -885,6 +913,8 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.ssc = true,
 		.audio = true,
 		.split_mode = true,
+		.format_yuv = true,
+		.max_bpc = 10,
 	},
 	{ /* sentinel */ }
 };
