@@ -636,6 +636,9 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	devp->prop.dest_cfmt = devp->prop.color_format;
 #endif
 
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CFMT)
+		pr_info("dest_cfmt:%d, cfmt:%d\n", devp->prop.dest_cfmt, devp->prop.color_format);
+
 	if (devp->prop.color_format == devp->prop.dest_cfmt) {
 		switch (devp->prop.color_format) {
 		case TVIN_YUV422:
@@ -813,10 +816,11 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		devp->mif_fmt = MIF_FMT_NV12_21;
 	else
 		devp->mif_fmt = MIF_FMT_YUV422;
-	pr_info("%s pc mode:%d(%d) game:%d man_md:%d cfmt:%d dst cfmt:%d convert md:%d mif_fmt:%d\n",
-		__func__, vdin_pc_mode, devp->vdin_pc_mode, game_mode, manual_md,
-		devp->prop.color_format, devp->prop.dest_cfmt, format_convert,
-		devp->mif_fmt);
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_CFMT)
+		pr_info("%s pc mode:%d(%d) game:%d man_md:%d cfmt:%d dst cfmt:%d convert md:%d mif_fmt:%d\n",
+			__func__, vdin_pc_mode, devp->vdin_pc_mode, game_mode, manual_md,
+			devp->prop.color_format, devp->prop.dest_cfmt, format_convert,
+			devp->mif_fmt);
 }
 
 /*function:

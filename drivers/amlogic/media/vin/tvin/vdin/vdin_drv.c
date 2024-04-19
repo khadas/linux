@@ -3197,6 +3197,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->csc_cfg != 0) {
 		prop = &devp->prop;
 		pre_prop = &devp->pre_prop;
+		vdin_get_format_convert(devp);
 		if (prop->color_format != pre_prop->color_format ||
 		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag ||
 		    prop->color_fmt_range != pre_prop->color_fmt_range) {
