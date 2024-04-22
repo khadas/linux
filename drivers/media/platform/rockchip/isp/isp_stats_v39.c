@@ -380,7 +380,7 @@ void rkisp_stats_first_ddr_config_v39(struct rkisp_isp_stats_vdev *stats_vdev)
 	struct rkisp_pdaf_vdev *pdaf_vdev = &dev->pdaf_vdev;
 	u32 val, size = 0, div = dev->unite_div;
 
-	if (!stats_vdev->streamon || dev->isp_sdev.in_fmt.fmt_type == FMT_YUV)
+	if (dev->isp_sdev.in_fmt.fmt_type == FMT_YUV)
 		return;
 
 	rkisp_get_stat_size_v39(stats_vdev, &size);

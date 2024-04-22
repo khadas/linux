@@ -18,22 +18,13 @@
 #include <linux/mfd/syscon.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <uapi/misc/dw_hdcp2.h>
 
-#define VO0_GRF_VO0_STS0		0x20
-#define DP1_CONNECT_HDCP0_STATUS	BIT(24)
-#define DP0_CONNECT_HDCP0_STATUS	BIT(8)
-#define VO0_GRF_VO0_STS3		0x2C
-#define HDCP0_BOOT_STATUS		BIT(8)
-#define VO1_GRF_VO1_STS3		0x3C
-#define HDMITX0_CONNECT_HDCP1_STATUS	BIT(20)
-#define HDCP1_BOOT_STATUS		BIT(16)
-#define VO1_GRF_VO1_STS4		0x40
-#define HDMITX1_CONNECT_HDCP1_STATUS	BIT(0)
-#define HDMIRX_CONNECT_HDCP1_STATUS	BIT(8)
+#define HDCP_MAX_PORT			6
 
 /**
  * struct hl_device - hdcp host library device structure
@@ -61,6 +52,22 @@ struct hl_device {
 	uint8_t __iomem *hpi;
 };
 
+struct dw_hdcp_grf_reg {
+	uint32_t offset;
+	uint32_t shift;
+};
+
+struct dw_hdcp_port_cfg {
+	struct dw_hdcp_grf_reg connect_reg;
+	int port_id;
+};
+
+struct dw_hdcp_cfg {
+	int port_num;
+	struct dw_hdcp_grf_reg boot_reg;
+	struct dw_hdcp_port_cfg port_cfg[HDCP_MAX_PORT];
+};
+
 struct dw_hdcp {
 	struct device *dev;
 	struct miscdevice misc_dev;
@@ -69,6 +76,7 @@ struct dw_hdcp {
 	struct regmap *vo_grf;
 	struct reset_control *rsts_bulk;
 	struct clk_bulk_data *clks;
+	const struct dw_hdcp_cfg *cfgs;
 	int num_clks;
 	int id;
 	bool is_suspend;
@@ -122,7 +130,10 @@ static int dw_hdcp_set_reset(struct dw_hdcp *hdcp, void __user *arg)
 
 static int dw_hdcp_get_status(struct dw_hdcp *hdcp, void __user *arg)
 {
+	const struct dw_hdcp_cfg *cfg = hdcp->cfgs;
+	const struct dw_hdcp_port_cfg *port_cfg;
 	struct hl_drv_ioc_status status;
+	int i;
 	u32 val = 0;
 	u32 connected_status = 0;
 	u32 booted_status = 0;
@@ -131,29 +142,16 @@ static int dw_hdcp_get_status(struct dw_hdcp *hdcp, void __user *arg)
 		return -EFAULT;
 
 	if (!hdcp->is_suspend) {
-		if (hdcp->id) {
-			regmap_read(hdcp->vo_grf, VO1_GRF_VO1_STS3, &val);
-			if (val & HDMITX0_CONNECT_HDCP1_STATUS)
-				connected_status |= 1 << HDCP_PORT1;
-			if (val & HDCP1_BOOT_STATUS)
-				booted_status = 1;
-
-			regmap_read(hdcp->vo_grf, VO1_GRF_VO1_STS4, &val);
-			if (val & HDMITX1_CONNECT_HDCP1_STATUS)
-				connected_status |= 1 << HDCP_PORT2;
-			if (val & HDMIRX_CONNECT_HDCP1_STATUS)
-				connected_status |= 1 << HDCP_PORT0;
-		} else {
-			regmap_read(hdcp->vo_grf, VO0_GRF_VO0_STS0, &val);
-			if (val & DP0_CONNECT_HDCP0_STATUS)
-				connected_status |= 1 << HDCP_PORT0;
-			if (val & DP1_CONNECT_HDCP0_STATUS)
-				connected_status |= 1 << HDCP_PORT1;
-
-			regmap_read(hdcp->vo_grf, VO0_GRF_VO0_STS3, &val);
-			if (val & HDCP0_BOOT_STATUS)
-				booted_status = 1;
+		for (i = 0; i < cfg->port_num; i++) {
+			port_cfg = &cfg->port_cfg[i];
+			regmap_read(hdcp->vo_grf, port_cfg->connect_reg.offset, &val);
+			if (val & BIT(port_cfg->connect_reg.shift))
+				connected_status |= 1 << port_cfg->port_id;
 		}
+
+		regmap_read(hdcp->vo_grf, cfg->boot_reg.offset, &val);
+		if (val & BIT(cfg->boot_reg.shift))
+			booted_status = 1;
 	}
 
 	status.connected_status = connected_status;
@@ -523,6 +521,7 @@ static int dw_hdcp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_hdcp *hdcp;
+	const struct dw_hdcp_cfg *cfgs;
 	struct resource *res;
 	void __iomem *base;
 	int id, ret;
@@ -542,6 +541,14 @@ static int dw_hdcp_probe(struct platform_device *pdev)
 
 	hdcp->id = id;
 	hdcp->dev = dev;
+
+	cfgs = device_get_match_data(dev);
+	if (!cfgs) {
+		dev_err(dev, "no OF data can be matched with %p node\n", dev->of_node);
+		return -EINVAL;
+	}
+
+	hdcp->cfgs = &cfgs[hdcp->id];
 
 	hdcp->vo_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo-grf");
 	if (IS_ERR(hdcp->vo_grf)) {
@@ -617,8 +624,86 @@ static const struct dev_pm_ops dw_hdcp_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
+/*
+ * rk3576 hdcp connect as follow:
+ * HDMITX --> HDCP0 PORT1
+ * DPTX --> HDCP1 PORT0
+ */
+static const struct dw_hdcp_cfg rk3576_hdcp_cfgs[] = {
+	{
+		.port_num = 1,
+		.boot_reg = {0xd4, 20},
+		.port_cfg = {
+			{
+				.connect_reg = {0xd4, 16},
+				.port_id = 1,
+			},
+		},
+	},
+	{
+		.port_num = 1,
+		.boot_reg = {0xc8, 26},
+		.port_cfg = {
+			{
+				.connect_reg = {0xc0, 6},
+				.port_id = 0,
+			},
+		},
+	},
+};
+
+/*
+ * rk3588 hdcp connect as follow:
+ * DPTX0 --> HDCP0 PORT0
+ * DPTX1 --> HDCP0 PORT1
+ * HDMIRX --> HDCP1 PORT0
+ * HDMITX0 --> HDCP1 PORT1
+ * HDMITX1 --> HDCP1 PORT2
+ */
+static const struct dw_hdcp_cfg rk3588_hdcp_cfgs[] = {
+	{
+		.port_num = 2,
+		.boot_reg = {0x2c, 8},
+		.port_cfg = {
+			{
+				.connect_reg = {0x20, 8},
+				.port_id = 0,
+			},
+			{
+				.connect_reg = {0x20, 24},
+				.port_id = 1,
+			},
+		},
+	},
+	{
+		.port_num = 3,
+		.boot_reg = {0x3c, 16},
+		.port_cfg = {
+			{
+				.connect_reg = {0x40, 8},
+				.port_id = 0,
+			},
+			{
+				.connect_reg = {0x3c, 24},
+				.port_id = 1,
+			},
+			{
+				.connect_reg = {0x40, 4},
+				.port_id = 2,
+			},
+		},
+	},
+};
+
 static const struct of_device_id dw_hdcp_of_match[] = {
-	{.compatible = "rockchip,rk3588-hdcp",},
+	{
+		.compatible = "rockchip,rk3576-hdcp",
+		.data = &rk3576_hdcp_cfgs,
+	},
+	{
+		.compatible = "rockchip,rk3588-hdcp",
+		.data = &rk3588_hdcp_cfgs,
+	},
 	{}
 };
 

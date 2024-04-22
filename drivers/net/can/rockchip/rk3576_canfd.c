@@ -685,8 +685,8 @@ static int rk3576_canfd_set_mode(struct net_device *ndev,
  * xx xx xx xx ff ll 00 11 22 33 44 55 66 77
  * [ can_id ] [flags] [len] [can data (up to 8 bytes]
  */
-static int rk3576_canfd_start_xmit(struct sk_buff *skb,
-				   struct net_device *ndev)
+static netdev_tx_t rk3576_canfd_start_xmit(struct sk_buff *skb,
+					   struct net_device *ndev)
 {
 	struct rk3576_canfd *rcan = netdev_priv(ndev);
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;

@@ -533,9 +533,6 @@ int panel_simple_loader_protect(struct drm_panel *panel)
 	p->prepared = true;
 	p->enabled = true;
 
-	rockchip_panel_notifier_call_chain(&p->panel_notifier,
-					   PANEL_ENABLED, NULL);
-
 	return 0;
 }
 EXPORT_SYMBOL(panel_simple_loader_protect);

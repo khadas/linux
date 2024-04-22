@@ -554,6 +554,14 @@ config ROCKCHIP_CHARGER_MANAGER
 	  Say Y to enable charger manager support, which allows multiple
 	  chargers attached to a battery.
 
+config ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP
+	bool "rockchip charger manager for charge pump"
+	depends on ROCKCHIP_CHARGER_MANAGER
+	depends on NO_GKI
+	default y
+	help
+	  Say Y to enable charge pump support.
+
 config CHARGER_LT3651
 	tristate "Analog Devices LT3651 charger"
 	depends on GPIOLIB

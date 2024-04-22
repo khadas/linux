@@ -126,6 +126,7 @@
 #define RK3576_VO0_GRF_SOC_CON14	0x0038
 #define RK3576_I2S_SEL_MASK		BIT(0)
 #define RK3576_SPDIF_SEL_MASK		BIT(1)
+#define HDCP0_P1_GPIO_IN		BIT(2)
 #define RK3576_SCLIN_MASK		BIT(4)
 #define RK3576_SDAIN_MASK		BIT(5)
 #define RK3576_HDMITX_GRANT_SEL		BIT(6)
@@ -200,6 +201,7 @@ struct rockchip_hdmi_chip_ops {
 	irqreturn_t (*hdmi_hardirq)(int irq, void *dev_id);
 	irqreturn_t (*hdmi_thread)(int irq, void *dev_id);
 	void (*set_hdcp14_mem)(struct rockchip_hdmi *hdmi, bool enable);
+	void (*set_hdcp2_enable)(struct rockchip_hdmi *hdmi, bool enable);
 };
 
 /**
@@ -2164,16 +2166,30 @@ static void rk3588_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
 		regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON6, val);
 }
 
-static void rk3588_set_hdcp_status(void *data, u8 status)
+static void rockchip_set_hdcp_status(void *data, u8 status)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
 	hdmi->hdcp_status = status;
 }
 
-static void rk3588_set_hdcp2_enable(void *data, bool enable)
+static void rk3576_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
 {
-	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	if (enable)
+		val = HIWORD_UPDATE(HDCP0_P1_GPIO_IN, HDCP0_P1_GPIO_IN);
+	else
+		val = HIWORD_UPDATE(0, HDCP0_P1_GPIO_IN);
+
+	regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON14, val);
+}
+
+static void rk3588_set_hdcp2_enable(struct rockchip_hdmi *hdmi, bool enable)
+{
 	u32 val;
 
 	if (!hdmi->vo1_regmap)
@@ -2185,6 +2201,13 @@ static void rk3588_set_hdcp2_enable(void *data, bool enable)
 		val = HIWORD_UPDATE(0, HDCP1_P1_GPIO_IN);
 
 	regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON1, val);
+}
+
+static void rockchip_set_hdcp2_enable(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	hdmi->chip_data->ops->set_hdcp2_enable(hdmi, enable);
 }
 
 static void rockchip_set_grf_cfg(void *data)
@@ -2287,11 +2310,9 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	int output_eotf;
 
 	drm_mode_copy(&mode, &crtc_state->mode);
-	pixclock = mode.crtc_clock;
-	if (hdmi->plat_data->split_mode) {
+	if (hdmi->plat_data->split_mode)
 		drm_mode_convert_to_origin_mode(&mode);
-		pixclock /= 2;
-	}
+	pixclock = mode.crtc_clock;
 
 	vic = drm_match_cea_mode(&mode);
 
@@ -3864,6 +3885,7 @@ static const struct rockchip_hdmi_chip_ops rk3576_hdmi_chip_ops = {
 	.hdmi_hardirq = rk3576_hdmi_hardirq,
 	.hdmi_thread = rk3576_hdmi_thread,
 	.set_hdcp14_mem = rk3576_set_hdcp14_mem,
+	.set_hdcp2_enable = rk3576_set_hdcp2_enable,
 };
 
 struct rockchip_hdmi_chip_data rk3576_hdmi_chip_data = {
@@ -3899,6 +3921,7 @@ static const struct rockchip_hdmi_chip_ops rk3588_hdmi_chip_ops = {
 	.hdmi_hardirq = rk3588_hdmi_hardirq,
 	.hdmi_thread = rk3588_hdmi_thread,
 	.set_hdcp14_mem = rk3588_set_hdcp14_mem,
+	.set_hdcp2_enable = rk3588_set_hdcp2_enable,
 };
 
 struct rockchip_hdmi_chip_data rk3588_hdmi_chip_data = {
@@ -3999,8 +4022,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->get_colorimetry =
 		dw_hdmi_rockchip_get_colorimetry;
 	plat_data->get_link_cfg = dw_hdmi_rockchip_get_link_cfg;
-	plat_data->set_hdcp2_enable = rk3588_set_hdcp2_enable;
-	plat_data->set_hdcp_status = rk3588_set_hdcp_status;
+	plat_data->set_hdcp2_enable = rockchip_set_hdcp2_enable;
+	plat_data->set_hdcp_status = rockchip_set_hdcp_status;
 	plat_data->set_grf_cfg = rockchip_set_grf_cfg;
 	plat_data->get_grf_color_fmt = rockchip_get_grf_color_fmt;
 	plat_data->convert_to_split_mode = drm_mode_convert_to_split_mode;

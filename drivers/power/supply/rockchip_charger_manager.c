@@ -375,6 +375,7 @@ enum data_source {
 	CM_CHARGER_STAT,
 };
 
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 static const unsigned char *pm_debug_str[] = {
 	"PPS_PM_STATE_ENTRY",
 	"PPS_PM_STATE_FC_ENTRY",
@@ -384,6 +385,7 @@ static const unsigned char *pm_debug_str[] = {
 	"PPS_PM_STATE_FC_JEITA",
 	"PPS_PM_STATE_FC_EXIT"
 };
+#endif
 
 static struct {
 	const char *name;
@@ -455,6 +457,7 @@ static int get_battery_temperature(struct charger_manager *cm,
 	return 0;
 }
 
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 /**
  * get_battery_voltage - Get the voltage level of the battery
  * @cm: the Charger Manager representing the battery.
@@ -568,6 +571,7 @@ static bool is_ext_pwr_online(struct charger_manager *cm)
 
 	return online;
 }
+#endif
 
 static int set_sw_charger_enable(struct charger_manager *cm)
 {
@@ -790,6 +794,7 @@ static int get_sw_charger_current_max(struct charger_manager *cm, int *uA)
 	return 0;
 }
 
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 static int get_sw_charger_input_limit_current(struct charger_manager *cm, int *uA)
 {
 	union power_supply_propval val;
@@ -939,6 +944,7 @@ static bool is_polling_required(struct charger_manager *cm)
 	}
 	return false;
 }
+#endif
 
 static void cm_update_jeita_charge_info(struct charger_manager *cm)
 {
@@ -996,6 +1002,7 @@ static void cm_update_jeita_charge_info(struct charger_manager *cm)
 	}
 }
 
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 static void cm_update_charge_pump_status(struct charger_manager *cm)
 {
 	union power_supply_propval val = {0,};
@@ -2201,6 +2208,7 @@ static void cm_monitor_poller(struct work_struct *work)
 
 	cm->fc_charger_poller_status = true;
 }
+#endif
 
 static void cm_jeita_poller(struct work_struct *work)
 {
@@ -2275,12 +2283,14 @@ static void cm_jeita_poller(struct work_struct *work)
  */
 static void charger_extcon_work(struct work_struct *work)
 {
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	struct charger_manager *cm = container_of(work,
 						 struct charger_manager,
 						 wq);
 
 	cancel_delayed_work(&cm->cm_monitor_work);
 	queue_delayed_work(cm->cm_wq, &cm->cm_monitor_work, 0);
+#endif
 }
 
 static int cm_pd_adapter_det(struct charger_manager *cm)
@@ -2327,6 +2337,7 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 	cm->is_fast_charge = 1;
 	CM_DBG("POWER_SUPPLY_USB_TYPE_PD_PPS\n");
 	if (desc->psy_charger_pump_stat != NULL) {
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 		fc_config->charge_type = CHARGE_TYPE_PPS;
 		CM_DBG("charge_type: %d, %d\n", cm->fc_config->charge_type, __LINE__);
 		cm_charge_pump_move_state(cm, PPS_PM_STATE_ENTRY);
@@ -2339,6 +2350,7 @@ static int cm_pps_adapter_det(struct charger_manager *cm)
 		else
 			queue_delayed_work(cm->cm_wq, &cm->cm_monitor_work, 300);
 		cm->fc_charger_enabled = 1;
+#endif
 	} else {
 		if (cm->fc_config->jeita_charge_support) {
 			cancel_delayed_work(&cm->cm_jeita_work);
@@ -2447,7 +2459,9 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	cm->is_charge = 0;
 	cm->is_fast_charge = 0;
 	fc_config->charge_type = CHARGE_TYPE_DISCHARGE;
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cm_charge_limit_update(cm);
+#endif
 	if (!cm->desc->dc_charger_status) {
 		set_sw_charger_input_limit_current(cm, USB_SDP_INPUT_CURRENT);
 		set_sw_charger_disable(cm);
@@ -2456,9 +2470,11 @@ static void cm_adapter_disattach(struct charger_manager *cm)
 	} else {
 		queue_delayed_work(cm->cm_wq, &cm->dc_work, msecs_to_jiffies(500));
 	}
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cm_charge_pump_move_state(cm, PPS_PM_STATE_ENTRY);
 	if (cm->cp.charge_enabled)
 		set_cp_disable(cm);
+#endif
 	cm->fc_charger_enabled = 0;
 	cm->fc_config->sw_ovp_flag = 0;
 	cm->fc_config->fc_charge_error = false;
@@ -2567,8 +2583,9 @@ static int charger_extcon_notifier(struct notifier_block *self,
 
 static void cm_disable_charge(struct charger_manager *cm)
 {
-
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cancel_delayed_work_sync(&cm->cm_monitor_work);
+#endif
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	cancel_delayed_work_sync(&cm->dc_work);
 	cm_adapter_disattach(cm);
@@ -2579,7 +2596,6 @@ static void cm_enable_charge(struct charger_manager *cm)
 	set_sw_charger_enable(cm);
 	charger_extcon_notifier(&cm->nb, 1, NULL);
 	queue_delayed_work(cm->cm_wq, &cm->dc_work,  msecs_to_jiffies(500));
-
 }
 
 static ssize_t chg_en_show(struct device *dev,
@@ -2963,8 +2979,10 @@ static int charger_manager_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to alloc ordered charger manager wq\n");
 		return -ENOMEM;
 	}
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	INIT_DELAYED_WORK(&cm->cm_monitor_work,
 			  cm_monitor_poller);
+#endif
 	INIT_DELAYED_WORK(&cm->cm_jeita_work,
 			  cm_jeita_poller);
 	INIT_DELAYED_WORK(&cm->dc_work,
@@ -3016,7 +3034,9 @@ static int charger_manager_remove(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	cancel_delayed_work_sync(&cm->cm_monitor_work);
+#endif
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	cancel_delayed_work_sync(&cm->dc_work);
 
@@ -3026,14 +3046,17 @@ static int charger_manager_remove(struct platform_device *pdev)
 static void charger_manager_shutdown(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	union power_supply_propval val;
 	int ret;
 
 	cancel_delayed_work_sync(&cm->cm_monitor_work);
+#endif
 	cancel_delayed_work_sync(&cm->cm_jeita_work);
 	cancel_delayed_work_sync(&cm->dc_work);
 
 	CM_DBG("charger manager shutdown\n");
+#if defined(CONFIG_ROCKCHIP_CHARGER_MANAGER_CHARGE_PUMP)
 	CM_DBG("now charge_type: %d, CHARGE_TYPE_PPS:%d\n",
 	       cm->fc_config->charge_type, CHARGE_TYPE_PPS);
 	if (cm->fc_config->charge_type == CHARGE_TYPE_PPS) {
@@ -3046,6 +3069,7 @@ static void charger_manager_shutdown(struct platform_device *pdev)
 		if (ret)
 			dev_err(cm->dev, "failed to switch form PPS MODE to PD mode\n");
 	}
+#endif
 }
 
 static const struct platform_device_id charger_manager_id[] = {
