@@ -33,6 +33,10 @@
 	};
 };
 
+&csu {
+	status = "okay";
+};
+
 &display_subsystem {
 	status = "disabled";
 };
