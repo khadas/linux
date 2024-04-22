@@ -292,6 +292,10 @@
 	cpu-supply = <&vdd_cpu_big_s0>;
 };
 
+&csu {
+	status = "okay";
+};
+
 &dp {
 	status = "okay";
 };
