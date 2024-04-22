@@ -16,6 +16,8 @@
 #define u64_t u64
 #include <linux/amlogic/cpu_version.h>
 #include <linux/dvb/frontend.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
 
 struct aml_demod_i2c {
 	u8_t tuner;		/*type */

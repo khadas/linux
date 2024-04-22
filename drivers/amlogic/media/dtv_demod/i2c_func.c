@@ -18,7 +18,7 @@ int aml_demod_i2c_read(struct i2c_adapter *i2c_adap, unsigned char slave_addr,
 	memset(&msg, 0, sizeof(msg));
 
 	if (!i2c_adap) {
-		PR_ERR("%s: i2c adapter NULL error.\n", __func__);
+		PR_ERR("i2c adapter NULL\n");
 
 		return -EFAULT;
 	}
@@ -30,8 +30,8 @@ int aml_demod_i2c_read(struct i2c_adapter *i2c_adap, unsigned char slave_addr,
 
 	ret = i2c_transfer(i2c_adap, &msg, 1);
 	if (ret != 1) {
-		PR_ERR("%s: error read (slave addr: 0x%x, ret: %d).\n",
-			__func__, slave_addr, ret);
+		PR_ERR("error read(addr:0x%x,ret:%d)\n",
+			slave_addr, ret);
 
 		return ret;
 	}
@@ -48,7 +48,7 @@ int aml_demod_i2c_write(struct i2c_adapter *i2c_adap, unsigned char slave_addr,
 	memset(&msg, 0, sizeof(msg));
 
 	if (!i2c_adap) {
-		PR_ERR("%s: i2c adapter NULL error.\n", __func__);
+		PR_ERR("i2c adapter NULL\n");
 
 		return -EFAULT;
 	}
@@ -60,8 +60,8 @@ int aml_demod_i2c_write(struct i2c_adapter *i2c_adap, unsigned char slave_addr,
 
 	ret = i2c_transfer(i2c_adap, &msg, 1);
 	if (ret != 1) {
-		PR_ERR("%s: error write (slave addr: 0x%x, ret: %d).\n",
-			__func__, slave_addr, ret);
+		PR_ERR("error write(addr:0x%x,ret:%d)\n",
+			slave_addr, ret);
 
 		return ret;
 	}

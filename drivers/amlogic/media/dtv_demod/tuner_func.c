@@ -25,81 +25,24 @@ void tuner_set_params(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
-		PR_ERR("error: no tuner, set_params == NULL.\n");
+		PR_ERR("set_params NULL\n");
 }
 
 int tuner_get_ch_power(struct dvb_frontend *fe)
 {
 	int strength = 0;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
 	s16 strengtha = 0;
-#endif
 
 	if (fe != NULL) {
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
 		if (fe->ops.tuner_ops.get_strength) {
 			fe->ops.tuner_ops.get_strength(fe, &strengtha);
 			strength = (int)strengtha;
 		} else {
-			PR_INFO("no tuner get_strength\n");
+			PR_INFO("get_strength NULL\n");
 		}
-#endif
 	}
 
 	return strength;
-}
-
-struct dvb_tuner_info *tuner_get_info(int type, int mode)
-{
-	/*type :  0-NULL, 1-DCT7070, 2-Maxliner, 3-FJ2207, 4-TD1316 */
-	/*mode: 0-DVBC 1-DVBT */
-	static struct dvb_tuner_info tinfo_null = { };
-
-	static struct dvb_tuner_info tinfo_MXL5003S[2] = {
-		[1] = { /*DVBT*/ .name		= "Maxliner",
-				 .frequency_min_hz = 44000000,
-				 .frequency_max_hz = 885000000, }
-	};
-	static struct dvb_tuner_info tinfo_FJ2207[2] = {
-		[0] = { /*DVBC*/ .name		= "FJ2207",
-				 .frequency_min_hz = 54000000,
-				 .frequency_max_hz = 870000000, },
-		[1] = { /*DVBT*/ .name		= "FJ2207",
-				 .frequency_min_hz = 174000000,
-				 .frequency_max_hz = 864000000, },
-	};
-	static struct dvb_tuner_info tinfo_DCT7070[2] = {
-		[0] = { /*DVBC*/ .name		= "DCT7070",
-				 .frequency_min_hz = 51000000,
-				 .frequency_max_hz = 860000000, }
-	};
-	static struct dvb_tuner_info tinfo_TD1316[2] = {
-		[1] = { /*DVBT*/ .name		= "TD1316",
-				 .frequency_min_hz = 51000000,
-				 .frequency_max_hz = 858000000, }
-	};
-	static struct dvb_tuner_info tinfo_SI2176[2] = {
-		[0] = { /*DVBC*/
-			/*#error please add SI2176 code*/
-			.name		= "SI2176",
-			.frequency_min_hz	= 51000000,
-			.frequency_max_hz	= 860000000,
-		}
-	};
-
-	struct dvb_tuner_info *tinfo[] = {
-		&tinfo_null,
-		tinfo_DCT7070,
-		tinfo_MXL5003S,
-		tinfo_FJ2207,
-		tinfo_TD1316,
-		tinfo_SI2176
-	};
-
-	if ((type < 0) || (type > 4) || (mode < 0) || (mode > 1))
-		return tinfo[0];
-
-	return &tinfo[type][mode];
 }
 
 struct agc_power_tab *tuner_get_agc_power_table(int type)
@@ -192,16 +135,16 @@ int dtmb_get_power_strength(int agc_gain)
 	return strength;
 }
 
-/*tuner has 3 stage gain control, only last is controlled by demod agc*/
-static int dvbc_R842[20] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	1200, 1180, 1150, 1130, 1100, 1065, 1040, 1030, 1000, 970
-};
-
+#ifdef AML_DEMOD_SUPPORT_DVBC
 int dvbc_get_power_strength(int agc_gain, int tuner_strength)
 {
-	int strength;
-	int i;
+	int strength = 0;
+	int i = 0;
+	/*tuner has 3 stage gain control, only last is controlled by demod agc*/
+	int dvbc_R842[20] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		1200, 1180, 1150, 1130, 1100, 1065, 1040, 1030, 1000, 970
+	};
 
 	for (i = 0; i < sizeof(dvbc_R842)/sizeof(int); i++)
 		if (agc_gain >= dvbc_R842[i])
@@ -214,18 +157,18 @@ int dvbc_get_power_strength(int agc_gain, int tuner_strength)
 
 	return strength;
 }
+#endif
 
-static int j83b_R842[10] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	1140, 1110, 1080, 1060, 1030, 1000, 980, 1000, 970, 1000,
-	/*-80,-79,-78,  -77, -76  , -75 , -74 , -73  , -72 , -71dbm*/
-	/*970 ,    980, 960,  970, 950,   960,   970, 980,   960,   970*/
-};
-
-int  j83b_get_power_strength(int agc_gain, int tuner_strength)
+int j83b_get_power_strength(int agc_gain, int tuner_strength)
 {
 	int strength;
 	int i;
+	int j83b_R842[10] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		1140, 1110, 1080, 1060, 1030, 1000, 980, 1000, 970, 1000,
+		/*-80,-79,-78,  -77, -76  , -75 , -74 , -73  , -72 , -71dbm*/
+		/*970 ,    980, 960,  970, 950,   960,   970, 980,   960,   970*/
+	};
 
 	for (i = 0; i < sizeof(j83b_R842)/sizeof(int); i++)
 		if (agc_gain >= j83b_R842[i])
@@ -239,15 +182,14 @@ int  j83b_get_power_strength(int agc_gain, int tuner_strength)
 	return strength;
 }
 
-static int atsc_R842[6] = {
-	/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
-	2160, 2110, 2060, 2010, 1960, 1910/*, 1870, 1910, 1860, 1900*/
-};
-
 int atsc_get_power_strength(int agc_gain, int tuner_strength)
 {
-	int strength;
-	int i;
+	int strength = 0;
+	int i = 0;
+	int atsc_R842[6] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		2160, 2110, 2060, 2010, 1960, 1910/*, 1870, 1910, 1860, 1900*/
+	};
 
 	for (i = 0; i < sizeof(atsc_R842)/sizeof(int); i++)
 		if (agc_gain >= atsc_R842[i])
@@ -260,4 +202,3 @@ int atsc_get_power_strength(int agc_gain, int tuner_strength)
 
 	return strength;
 }
-
