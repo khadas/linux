@@ -15,7 +15,6 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
-#include <linux/extcon-provider.h>
 #include <linux/pinctrl/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -42,6 +41,7 @@
 #include "audio_utils.h"
 #include "card.h"
 #include "soft_locker.h"
+#include "../common/audio_uevent.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -79,9 +79,6 @@ struct aml_spdif {
 	int irq_spdifin;
 	struct toddr *tddr;
 	struct frddr *fddr;
-
-	/* external connect */
-	struct extcon_dev *edev;
 
 	unsigned int id;
 	struct spdif_chipinfo *chipinfo;
@@ -139,12 +136,6 @@ static const struct snd_pcm_hardware aml_spdif_hardware = {
 	.rate_max = 192000,
 	.channels_min = 2,
 	.channels_max = 32,
-};
-
-static const unsigned int spdifin_extcon[] = {
-	EXTCON_SPDIFIN_SAMPLERATE,
-	EXTCON_SPDIFIN_AUDIOTYPE,
-	EXTCON_NONE,
 };
 
 static void spdif_sharebuffer_prepare(struct snd_pcm_substream *substream,
@@ -952,14 +943,12 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 				pr_err("Not detect sample rate, spdifin may be disconnected\n");
 				p_spdif->in_err_cnt = 0;
 			}
-			extcon_set_state(p_spdif->edev,
-				EXTCON_SPDIFIN_SAMPLERATE, 0);
+			audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_SAMPLE_RATE_EVENT, 0);
 		} else if (mode >= 0) {
 			if (p_spdif->last_sample_rate_mode != mode) {
-				pr_info("Event: EXTCON_SPDIFIN_SAMPLERATE, new sample rate:%s\n",
+				pr_info("Event: 28, new sample rate:%s\n",
 					spdifin_samplerate[mode + 1]);
-				extcon_set_state(p_spdif->edev,
-					EXTCON_SPDIFIN_SAMPLERATE, 1);
+				audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_SAMPLE_RATE_EVENT, 1);
 			}
 		}
 		p_spdif->last_sample_rate_mode = mode;
@@ -969,10 +958,7 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 	if (p_spdif->chipinfo->pcpd_separated) {
 		if (intrpt_status & 0x8) {
 			pr_debug("Pc changed, try to read spdifin audio type\n");
-
-			extcon_set_state(p_spdif->edev,
-				EXTCON_SPDIFIN_AUDIOTYPE, 1);
-
+			audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_AUDIO_TYPE_EVENT, 1);
 		}
 		if (intrpt_status & 0x10)
 			pr_debug("Pd changed\n");
@@ -998,8 +984,7 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 
 	if (intrpt_status & 0x20) {
 		pr_info("nonpcm to pcm\n");
-		extcon_set_state(p_spdif->edev,
-			EXTCON_SPDIFIN_AUDIOTYPE, 0);
+		audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_AUDIO_TYPE_EVENT, 0);
 	}
 
 	if (intrpt_status & 0x40)
@@ -1113,13 +1098,9 @@ static int aml_spdif_close(struct snd_pcm_substream *substream)
 		aml_audio_unregister_toddr(p_spdif->dev, substream);
 		free_irq(p_spdif->irq_spdifin, p_spdif);
 
-		/* clear extcon status */
 		if (p_spdif->id == 0) {
-			extcon_set_state(p_spdif->edev,
-				EXTCON_SPDIFIN_SAMPLERATE, 0);
-
-			extcon_set_state(p_spdif->edev,
-				EXTCON_SPDIFIN_AUDIOTYPE, 0);
+			audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_SAMPLE_RATE_EVENT, 0);
+			audio_send_uevent(p_spdif->dev, SPDIFIN_NEW_AUDIO_TYPE_EVENT, 0);
 		}
 	}
 
@@ -1936,23 +1917,6 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 			platform_get_irq_byname(pdev, "irq_spdifin");
 		if (p_spdif->irq_spdifin < 0)
 			dev_err(dev, "platform_get_irq_byname failed\n");
-
-		/* spdifin sample rate change event */
-		p_spdif->edev = devm_extcon_dev_allocate(dev, spdifin_extcon);
-		if (IS_ERR(p_spdif->edev)) {
-			pr_err("failed to allocate spdifin extcon!!!\n");
-			ret = -ENOMEM;
-			return ret;
-		}
-
-		/*
-		 * p_spdif->edev->dev.parent  = dev;
-		 * p_spdif->edev->name = "spdifin_event";
-		 * dev_set_name(&p_spdif->edev->dev, "spdifin_event");
-		 */
-		ret = extcon_dev_register(p_spdif->edev);
-		if (ret < 0)
-			pr_err("SPDIF IN extcon failed to register!!, ignore it\n");
 
 		spdifa_ss_ops.private = p_spdif;
 		register_samesrc_ops(SHAREBUFFER_SPDIFA, &spdifa_ss_ops);

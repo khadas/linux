@@ -16,7 +16,6 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
-#include <linux/extcon-provider.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -136,9 +135,6 @@ struct earc {
 
 	int irq_earc_rx;
 	int irq_earc_tx;
-
-	/* external connect */
-	struct extcon_dev *rx_edev;
 
 	/* audio codec type for tx */
 	enum audio_coding_types tx_audio_coding_type;
@@ -408,25 +404,16 @@ static void earcrx_update_attend_event(struct earc *p_earc,
 			if (p_earc->rx_dmac_clk_on)
 				earcrx_set_dmac_sync_ctrl(p_earc->rx_dmac_map, true, true);
 			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
-			extcon_set_state_sync(p_earc->rx_edev,
-				EXTCON_EARCRX_ATNDTYP_ARC, false);
-			extcon_set_state_sync(p_earc->rx_edev,
-				EXTCON_EARCRX_ATNDTYP_EARC, state);
+			audio_send_uevent(p_earc->dev, EARCRX_ATNDTYP_EVENT, ATNDTYP_EARC);
 		} else {
 			spin_lock_irqsave(&p_earc->rx_lock, flags);
 			if (p_earc->rx_dmac_clk_on)
 				earcrx_set_dmac_sync_ctrl(p_earc->rx_dmac_map, false, true);
 			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
-			extcon_set_state_sync(p_earc->rx_edev,
-				EXTCON_EARCRX_ATNDTYP_ARC, state);
-			extcon_set_state_sync(p_earc->rx_edev,
-				EXTCON_EARCRX_ATNDTYP_EARC, false);
+			audio_send_uevent(p_earc->dev, EARCRX_ATNDTYP_EVENT, ATNDTYP_ARC);
 		}
 	} else {
-		extcon_set_state_sync(p_earc->rx_edev,
-			EXTCON_EARCRX_ATNDTYP_ARC, state);
-		extcon_set_state_sync(p_earc->rx_edev,
-			EXTCON_EARCRX_ATNDTYP_EARC, state);
+		audio_send_uevent(p_earc->dev, EARCRX_ATNDTYP_EVENT, ATNDTYP_DISCNCT);
 	}
 }
 
@@ -2864,37 +2851,6 @@ static const struct of_device_id earc_device_id[] = {
 
 MODULE_DEVICE_TABLE(of, earc_device_id);
 
-static const unsigned int earcrx_extcon[] = {
-	EXTCON_EARCRX_ATNDTYP_ARC,
-	EXTCON_EARCRX_ATNDTYP_EARC,
-	EXTCON_NONE,
-};
-
-static int earcrx_extcon_register(struct earc *p_earc)
-{
-	int ret = 0;
-
-	/* earc or arc connect */
-	p_earc->rx_edev = devm_extcon_dev_allocate(p_earc->dev, earcrx_extcon);
-	if (IS_ERR(p_earc->rx_edev)) {
-		dev_err(p_earc->dev, "failed to allocate earc extcon!!!\n");
-		ret = -ENOMEM;
-		return ret;
-	}
-	/*
-	 * p_earc->rx_edev->dev.parent  = p_earc->dev;
-	 * p_earc->rx_edev->name = "earcrx";
-	 * dev_set_name(&p_earc->rx_edev->dev, "earcrx");
-	 */
-	ret = devm_extcon_dev_register(p_earc->dev, p_earc->rx_edev);
-	if (ret < 0) {
-		dev_err(p_earc->dev, "earc extcon failed to register!!\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 void earc_hdmitx_hpdst(bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -3228,10 +3184,8 @@ static int earc_platform_probe(struct platform_device *pdev)
 	s_earc = p_earc;
 
 	/* RX */
-	if (!IS_ERR(p_earc->rx_top_map)) {
-		earcrx_extcon_register(p_earc);
+	if (!IS_ERR(p_earc->rx_top_map))
 		earcrx_cmdc_setup(p_earc);
-	}
 
 	/* TX */
 	if (!IS_ERR(p_earc->tx_top_map)) {
