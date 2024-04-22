@@ -109,6 +109,13 @@
 		irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_EDGE_BOTH>;
 		hall-active = <1>;
 		status = "okay";
+
+		//for ebook ultra sleep config
+		pmu-gpio-regs-base = <0x27320000>; //gpio0 base
+		pmu-gpio-regs-size = <0x200>; //gpio0 register size
+		pmu-gpio-int-reg = <0x50>; //gpio int status register
+		pmu-gpio-rtc-int-mask = <0x01>; //GPIO0_A0, rtc int
+		pmu-gpio-pmic-int-mask = <0x40>; //GPIO0_A6, pmic int
 	};
 
 	leds: gpio-leds {
