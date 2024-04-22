@@ -44,7 +44,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.5"
+#define DMC_VERSION		"1.6"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -187,6 +187,41 @@ static int set_dmc_filter(unsigned char *buf)
 	kfree(buffer);
 
 	return 0;
+}
+
+void dmc_vio_check_page(void *data)
+{
+	unsigned long vio_bit = 0;
+	struct page *page;
+	struct page_trace *trace;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
+	if (!pfn_valid(__phys_to_pfn(mon_comm->addr))) {
+		mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = 0;
+
+		if (dmc_mon->ops && dmc_mon->ops->vio_to_port)
+			dmc_mon->ops->vio_to_port(data, &vio_bit);
+
+		if (PHYS_PFN(mon_comm->addr) > get_num_physpages()) {
+			pr_crit("DMC WARNING: access out of DDR, addr:%lx, port:%s, sub:%s, rw:%c, s=%08lx\n",
+					mon_comm->addr,
+					virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
+					virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
+					mon_comm->rw,
+					mon_comm->status);
+			if (mon_comm->rw == 'w')
+				panic("DMC Trigger, write overflow ddr");
+		}
+	} else {
+		page = phys_to_page(mon_comm->addr);
+		trace = find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+	}
 }
 
 unsigned long read_violation_mem(unsigned long addr, char rw)

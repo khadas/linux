@@ -129,6 +129,7 @@ unsigned int get_all_dev_mask(void);
  */
 unsigned long dmc_prot_rw(void  __iomem *base, long off, unsigned long value, int rw);
 
+void dmc_vio_check_page(void *data);
 char *to_ports(int id);
 char *to_sub_ports_name(int mid, int sid, char rw);
 int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit);
