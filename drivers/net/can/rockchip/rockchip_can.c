@@ -272,7 +272,8 @@ static int rockchip_can_set_mode(struct net_device *ndev, enum can_mode mode)
  * xx xx xx xx         ff         ll 00 11 22 33 44 55 66 77
  * [ can_id ] [flags] [len] [can data (up to 8 bytes]
  */
-static int rockchip_can_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t rockchip_can_start_xmit(struct sk_buff *skb,
+					   struct net_device *ndev)
 {
 	struct rockchip_can *rcan = netdev_priv(ndev);
 	struct can_frame *cf = (struct can_frame *)skb->data;
