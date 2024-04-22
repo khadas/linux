@@ -336,7 +336,15 @@ struct dw_dp_sdp {
 	unsigned long flags;
 };
 
+enum gpio_hpd_state {
+	GPIO_STATE_IDLE,
+	GPIO_STATE_PLUG,
+	GPIO_STATE_UNPLUG,
+};
+
 struct dw_dp_hotplug {
+	struct delayed_work state_work;
+	enum gpio_hpd_state state;
 	bool long_hpd;
 	bool status;
 };
@@ -2464,28 +2472,56 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	return 0;
 }
 
+static void dw_dp_gpio_hpd_state_work(struct work_struct *work)
+{
+	struct dw_dp_hotplug *hotplug = container_of(to_delayed_work(work), struct dw_dp_hotplug,
+						     state_work);
+	struct dw_dp *dp = container_of(hotplug, struct dw_dp, hotplug);
+
+	mutex_lock(&dp->irq_lock);
+	if (hotplug->state == GPIO_STATE_UNPLUG) {
+		dev_dbg(dp->dev, "hpd state unplug to idle\n");
+		dp->hotplug.long_hpd = true;
+		dp->hotplug.status = false;
+		dp->hotplug.state = GPIO_STATE_IDLE;
+		schedule_work(&dp->hpd_work);
+	}
+	mutex_unlock(&dp->irq_lock);
+}
+
 static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 {
 	struct dw_dp *dp = arg;
 	bool hpd = dw_dp_detect(dp);
 
+	dev_dbg(dp->dev, "trigger gpio to %s\n", hpd ? "high" : "low");
 	mutex_lock(&dp->irq_lock);
-
-	dp->hotplug.long_hpd = true;
-
-	if (dp->hotplug.status && !hpd) {
-		usleep_range(2000, 2001);
-
-		hpd = dw_dp_detect(dp);
-		if (hpd)
+	if (dp->hotplug.state == GPIO_STATE_IDLE) {
+		if (hpd) {
+			dev_dbg(dp->dev, "hpd state idle to plug\n");
+			dp->hotplug.long_hpd = true;
+			dp->hotplug.status = hpd;
+			dp->hotplug.state = GPIO_STATE_PLUG;
+			schedule_work(&dp->hpd_work);
+		}
+	} else if (dp->hotplug.state == GPIO_STATE_PLUG) {
+		if (!hpd) {
+			dev_dbg(dp->dev, "hpd state plug to unplug\n");
+			dp->hotplug.state = GPIO_STATE_UNPLUG;
+			schedule_delayed_work(&dp->hotplug.state_work, msecs_to_jiffies(2));
+		}
+	} else if (dp->hotplug.state == GPIO_STATE_UNPLUG) {
+		if (hpd) {
+			dev_dbg(dp->dev, "hpd state unplug to plug\n");
+			cancel_delayed_work_sync(&dp->hotplug.state_work);
 			dp->hotplug.long_hpd = false;
+			dp->hotplug.status = hpd;
+			dp->hotplug.state = GPIO_STATE_PLUG;
+			schedule_work(&dp->hpd_work);
+		}
 	}
-
-	dp->hotplug.status = hpd;
-
 	mutex_unlock(&dp->irq_lock);
 
-	schedule_work(&dp->hpd_work);
 
 	return IRQ_HANDLED;
 }
@@ -4098,6 +4134,7 @@ static int dw_dp_probe(struct platform_device *pdev)
 
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
+	INIT_DELAYED_WORK(&dp->hotplug.state_work, dw_dp_gpio_hpd_state_work);
 	init_completion(&dp->complete);
 	init_completion(&dp->hdcp_complete);
 
@@ -4244,6 +4281,7 @@ static int dw_dp_remove(struct platform_device *pdev)
 
 	component_del(dp->dev, &dw_dp_component_ops);
 	cancel_work_sync(&dp->hpd_work);
+	cancel_delayed_work_sync(&dp->hotplug.state_work);
 
 	return 0;
 }
