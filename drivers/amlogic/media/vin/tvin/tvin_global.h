@@ -480,6 +480,7 @@ struct tvin_spd_data_s {
 struct tvin_hdr10plus_info_s {
 	bool hdr10p_on;
 	struct tvin_hdr10p_data_s hdr10p_data;
+	unsigned int hdr10p_check_cnt;
 };
 
 struct tvin_3d_meta_data_s {

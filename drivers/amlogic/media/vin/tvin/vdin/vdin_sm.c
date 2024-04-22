@@ -231,6 +231,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 	/*enum tvin_color_fmt_e cur_dest_color_fmt, pre_dest_color_fmt;*/
 	struct tvin_sig_property_s *prop, *pre_prop;
 	unsigned int vdin_hdr_flag, pre_vdin_hdr_flag;
+	unsigned int vdin_hdr10p_flag, pre_vdin_hdr10p_flag;
 	unsigned int vdin_fmt_range, pre_vdin_fmt_range;
 	unsigned int cur_dv_flag, pre_dv_flag;
 	unsigned int temp;
@@ -263,7 +264,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 
 		vdin_hdr_flag = prop->vdin_hdr_flag;
 		pre_vdin_hdr_flag = pre_prop->vdin_hdr_flag;
-		if (vdin_hdr_flag != pre_vdin_hdr_flag) {
+		if (vdin_hdr_flag != pre_vdin_hdr_flag ||
+			prop->hdr_info.hdr_data.eotf != pre_prop->hdr_info.hdr_data.eotf) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 				devp->hdr.hdr_chg_cnt++;
 			if (devp->hdr.hdr_chg_cnt >= vdin_hdr_chg_cnt) {
@@ -273,14 +275,37 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					TVIN_SIG_CHG_HDR2SDR;
 				if (signal_chg &&
 				    (sm_debug_enable & VDIN_SM_LOG_L_1))
-					pr_info("%s hdr chg 0x%x:(0x%x->0x%x)\n",
+					pr_info("%s hdr chg 0x%x:(0x%x->0x%x), eotf:%d\n",
 						__func__,
 						signal_chg, pre_vdin_hdr_flag,
-						vdin_hdr_flag);
+						vdin_hdr_flag,
+						devp->prop.hdr_info.hdr_data.eotf);
 				pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			}
 		} else {
 			devp->hdr.hdr_chg_cnt = 0;
+		}
+		vdin_hdr10p_flag = prop->hdr10p_info.hdr10p_on;
+		pre_vdin_hdr10p_flag = pre_prop->hdr10p_info.hdr10p_on;
+		if (vdin_hdr10p_flag != pre_vdin_hdr10p_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				prop->hdr10p_info.hdr10p_check_cnt++;
+			if (prop->hdr10p_info.hdr10p_check_cnt >=
+			    vdin_hdr_chg_cnt) {
+				prop->hdr10p_info.hdr10p_check_cnt = 0;
+				signal_chg |= vdin_hdr10p_flag ?
+					TVIN_SIG_CHG_SDR2HDR :
+					TVIN_SIG_CHG_HDR2SDR;
+				if (signal_chg &&
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s hdr10p chg 0x%x:(0x%x->0x%x)\n",
+						__func__,
+						signal_chg, pre_vdin_hdr10p_flag,
+						vdin_hdr10p_flag);
+				pre_prop->hdr10p_info.hdr10p_on = prop->hdr10p_info.hdr10p_on;
+			}
+		} else {
+			prop->hdr10p_info.hdr10p_check_cnt = 0;
 		}
 
 		cur_dv_flag = prop->dolby_vision;

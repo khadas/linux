@@ -6160,10 +6160,16 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->dv.chg_cnt = 0;
 
-		if (devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag)
+		if (devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag ||
+			devp->prop.hdr_info.hdr_data.eotf != devp->pre_prop.hdr_info.hdr_data.eotf)
 			devp->hdr.hdr_chg_cnt++;
 		else
 			devp->hdr.hdr_chg_cnt = 0;
+
+		if (devp->prop.hdr10p_info.hdr10p_on != devp->pre_prop.hdr10p_info.hdr10p_on)
+			devp->prop.hdr10p_info.hdr10p_check_cnt++;
+		else
+			devp->prop.hdr10p_info.hdr10p_check_cnt = 0;
 
 		if (!!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
 		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
