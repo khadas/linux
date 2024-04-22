@@ -201,13 +201,16 @@ serdes_bridge_detect(struct drm_bridge *bridge)
 	struct serdes_bridge *serdes_bridge = to_serdes_bridge(bridge);
 	struct serdes *serdes = serdes_bridge->parent;
 	enum drm_connector_status status = connector_status_connected;
+	enum drm_connector_status last_status = serdes->serdes_bridge->status;
 
 	if (serdes->chip_data->bridge_ops->detect)
 		status = serdes->chip_data->bridge_ops->detect(serdes);
 
-	SERDES_DBG_MFD("%s:%s %s, %s\n", __func__, dev_name(serdes->dev),
-		       serdes->chip_data->name,
-		       (status == connector_status_connected) ? "connected" : "disconnect");
+	if (status != last_status)
+		dev_info(serdes->dev, "%s: %s, %s\n", __func__, serdes->chip_data->name,
+			 (status == connector_status_connected) ? "connected" : "disconnect");
+
+	serdes->serdes_bridge->status = status;
 	return status;
 }
 
