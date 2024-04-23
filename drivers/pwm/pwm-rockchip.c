@@ -602,10 +602,18 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 		enable_conf |= PWM_CAPTURE;
 	}
 
-	if (enable)
+	if (enable) {
 		val |= enable_conf;
-	else
-		val &= ~enable_conf;
+	} else {
+		/*
+		 * The PWM io input/output state is controlled by PWM mode
+		 * configuration. In order to avoid the antagonistic drive
+		 * state between the PWM pin and the external pin, keep the
+		 * PWM mode fixed in capture mode although PWM is disabled.
+		 */
+		if (pc->capture_en)
+			val |= PWM_CAPTURE;
+	}
 
 	writel_relaxed(val, pc->base + PWM_CTRL_V1);
 	if (pc->data->vop_pwm)
@@ -917,8 +925,13 @@ static void rockchip_pwm_set_capture_v4(struct pwm_chip *chip, struct pwm_device
 
 	pc->capture_cnt = 0;
 
-	writel_relaxed(enable ? PWM_MODE(CAPTURE_MODE) : PWM_MODE(CONTINUOUS_MODE),
-		       pc->base + CTRL_V4);
+	/*
+	 * The PWM io input/output state is controlled by PWM mode
+	 * configuration. In order to avoid the antagonistic drive
+	 * state between the PWM pin and the external pin, keep the
+	 * PWM mode fixed in capture mode although PWM is disabled.
+	 */
+	writel_relaxed(PWM_MODE(CAPTURE_MODE), pc->base + CTRL_V4);
 	writel_relaxed(CAP_LPR_INT_EN(enable) | CAP_HPR_INT_EN(enable) | PWM_IN_SEL(channel_sel),
 		       pc->base + INT_EN);
 }
