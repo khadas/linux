@@ -61,13 +61,23 @@
 #include "internal.h"
 
 #ifdef CONFIG_PRINTK_TIME_FROM_ARM_ARCH_TIMER
-#include <clocksource/arm_arch_timer.h>
+#include <asm/arch_timer.h>
 static u64 get_local_clock(void)
 {
 	u64 ns;
+	static u32 mhz;
+
+	if (!mhz) {
+		mhz = arch_timer_get_cntfrq() / 1000000;
+		if (!mhz)
+			mhz = 24;
+	}
+
+	if (mhz == 1000)
+		return arch_timer_read_counter();
 
 	ns = arch_timer_read_counter() * 1000;
-	do_div(ns, 24);
+	do_div(ns, mhz);
 
 	return ns;
 }
