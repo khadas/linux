@@ -132,7 +132,7 @@ struct sensor {
 	maxim_remote_ser_t		*serializer;
 };
 
-const struct i2c_regval sensor_1920x1080_30fps_init_regs[] = {
+static const struct i2c_regval sensor_1920x1080_30fps_init_regs[] = {
 	{ REG_NULL, 0x00 }
 };
 
