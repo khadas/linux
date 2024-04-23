@@ -934,7 +934,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 		if (readl_poll_timeout(sfc->regbase + SFC_SR, status,
 				       !(status & SFC_SR_IS_BUSY), 10,
-				       500 * USEC_PER_MSEC))
+				       5000 * USEC_PER_MSEC))
 			dev_err(dev, "Wait for SFC idle timeout!\n");
 	}
 
