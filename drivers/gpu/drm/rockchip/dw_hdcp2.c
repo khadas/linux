@@ -42,20 +42,31 @@
  * info
  */
 struct hl_device {
+	/** @allocated: is the memory allocated */
 	bool allocated;
+	/** @initialized: is the device initialized */
 	bool initialized;
+	/** @code_loaded: is the code loaded */
 	bool code_loaded;
 
+	/** @code_is_phys_mem: is physical address used for code */
 	bool code_is_phys_mem;
+	/** @code_base: dma address for code */
 	dma_addr_t code_base;
+	/** @code_size: code length */
 	uint32_t code_size;
+	/** @code: virtual address for code */
 	uint8_t *code;
+	/** @data_is_phys_mem: is physical address used for data */
 	bool data_is_phys_mem;
+	/** @data_base: dma address for data */
 	dma_addr_t data_base;
+	/** @data_size: data length */
 	uint32_t data_size;
+	/** @data: virtual address for data */
 	uint8_t *data;
 
-	/** @hpi_respurce: resource of HPI interface */
+	/** @hpi_resource: resource of HPI interface */
 	struct resource *hpi_resource;
 	/** @hpi: base address of HPI registers */
 	uint8_t __iomem *hpi;
