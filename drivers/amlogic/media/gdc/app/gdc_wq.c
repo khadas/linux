@@ -569,6 +569,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 	int polling_ms = 100;
 	int ret = -1;
 	u32 time_cost;
+	unsigned int block = pitem->cmd.wait_done_flag;
 
 	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
@@ -579,7 +580,7 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 	if (gdc_manager.event.cmd_in_sem.count == 0)
 		up(&gdc_manager.event.cmd_in_sem);/* new cmd come in */
 
-	if (pitem->cmd.wait_done_flag) {
+	if (block) {
 		while (1) {
 			ret = wait_event_interruptible_timeout
 					(wq->cmd_complete,

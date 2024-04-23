@@ -976,6 +976,7 @@ void ge2d_wq_set_scale_coef(struct ge2d_context_s *wq,
 int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 {
 	struct ge2d_queue_item_s  *pitem;
+	unsigned int block = 0;
 
 	ge2d_log_dbg("add new work @@%s:%d\n", __func__, __LINE__);
 	pitem = kmalloc(sizeof(*pitem), GFP_KERNEL);
@@ -990,6 +991,7 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 	if (enqueue)
 		pitem->flag.cmd_queue_mode = 1;
 
+	block = pitem->cmd.wait_done_flag;
 	spin_lock(&wq->lock);
 	list_add_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
@@ -1000,7 +1002,7 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 		if (ge2d_manager.event.cmd_in_com.done == 0)
 			complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
 		/* add block mode   if() */
-		if (pitem->cmd.wait_done_flag) {
+		if (block) {
 			wait_event_interruptible(wq->cmd_complete,
 						 pitem->cmd.wait_done_flag == 0);
 			/* interruptible_sleep_on(&wq->cmd_complete); */
@@ -1032,7 +1034,7 @@ int post_queue_to_process(struct ge2d_context_s *wq, int block)
 	if (ge2d_manager.event.cmd_in_com.done == 0)
 		complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
 
-	if (pitem->cmd.wait_done_flag) {
+	if (block) {
 		wait_event_interruptible(wq->cmd_complete,
 					 pitem->cmd.wait_done_flag == 0);
 		kfree(pitem);
