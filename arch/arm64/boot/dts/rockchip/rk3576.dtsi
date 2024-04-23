@@ -2742,6 +2742,9 @@
 			      "dclk_src_vp0",
 			      "dclk_src_vp1",
 			      "dclk_src_vp2";
+		rockchip,aclk-normal-mode-rates = <500000000>;
+		rockchip,aclk-advanced-mode-rates = <702000000>;
+		operating-points-v2 = <&vop_opp_table>;
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3576_PD_VOP>;
 		rockchip,grf = <&sys_grf>;
@@ -2870,6 +2873,24 @@
 					remote-endpoint = <&dp2_in_vp2>;
 				};
 			};
+		};
+	};
+
+	vop_opp_table: vop-opp-table {
+		compatible = "operating-points-v2";
+
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,init-freq = <702000>; /* KHz */
+
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <750000 750000 800000>;
+		};
+		opp-702000000 {
+			opp-hz = /bits/ 64 <702000000>;
+			opp-microvolt = <750000 750000 800000>;
 		};
 	};
 
