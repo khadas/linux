@@ -3117,6 +3117,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 {
 	struct drm_plane_state *pstate = &vpstate->base;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->rockchip_crtc.crtc.state);
+	struct vop2 *vop2 = vp->vop2;
 	int is_input_yuv = pstate->fb->format->is_yuv;
 	int is_output_yuv = vcstate->yuv_overlay;
 	struct vop2_win *win = to_vop2_win(pstate->plane);
@@ -3187,6 +3188,17 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 	} else if (!is_input_yuv && is_output_yuv) {
 		vpstate->r2y_en = 1;
 		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_10BIT_DEPTH);
+
+		/**
+		 * VOP YUV overlay only can support YUV limit range, so force
+		 * select BT601L todo R2Y.
+		 */
+		if (vcstate->yuv_overlay && vpstate->csc_mode == CSC_BT601F &&
+		    (vop2->version == VOP_VERSION_RK3528 ||
+		     vop2->version == VOP_VERSION_RK3568 ||
+		     vop2->version == VOP_VERSION_RK3576 ||
+		     vop2->version == VOP_VERSION_RK3588))
+			vpstate->csc_mode = CSC_BT601L;
 	}
 }
 
