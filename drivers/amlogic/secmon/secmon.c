@@ -30,6 +30,7 @@ static unsigned int secmon_size;
 #else
  #define IN_SIZE	0x6000
 #endif
+// #define USE_CMA
  #define OUT_SIZE 0x1000
 static DEFINE_MUTEX(sharemem_mutex);
 #define DEV_REGISTERED 1
@@ -75,12 +76,44 @@ int within_secmon_region(unsigned long addr)
 	return 0;
 }
 
+static int get_reserver_base_size(struct platform_device *pdev)
+{
+	struct device_node *mem_region;
+	struct reserved_mem *rmem;
+
+	mem_region = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!mem_region) {
+		dev_warn(&pdev->dev, "no such memory-region\n");
+		return -ENODEV;
+	}
+
+	rmem = of_reserved_mem_lookup(mem_region);
+	if (!rmem) {
+		dev_warn(&pdev->dev, "no such reserved mem of node name %s\n",
+				pdev->dev.of_node->name);
+		return -ENODEV;
+	}
+
+	if (!rmem->base || !rmem->size) {
+		dev_warn(&pdev->dev, "unexpected reserved memory\n");
+		return -EINVAL;
+	}
+
+	secmon_start_virt = __phys_to_virt(rmem->base);
+
+//	pr_info("secmon_start_virt=0x%016lx, base=0x%010lx, size=0x%010x\n",
+//		secmon_start_virt, rmem->base, rmem->size);
+
+	return 0;
+}
 static int secmon_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	unsigned int id;
-	int ret;
+	int ret = 0;
+#ifdef USE_CMA
 	struct page *page;
+#endif
 
 	if (!of_property_read_u32(np, "in_base_func", &id))
 		phy_in_base = get_sharemem_info(id);
@@ -98,9 +131,11 @@ static int secmon_probe(struct platform_device *pdev)
 		pr_info("reserve_mem_size:0x%x\n", secmon_size);
 	}
 
+	get_reserver_base_size(pdev);
+#ifdef USE_CMA
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret) {
-		pr_info("reserve memory init fail:%d\n", ret);
+		pr_err("reserve memory init fail:%d\n", ret);
 		return ret;
 	}
 
@@ -111,6 +146,7 @@ static int secmon_probe(struct platform_device *pdev)
 	}
 	pr_debug("get page:%p, %lx\n", page, page_to_pfn(page));
 	secmon_start_virt = (unsigned long)page_to_virt(page);
+#endif
 
 	if (pfn_valid(__phys_to_pfn(phy_in_base)))
 		sharemem_in_base = (void __iomem *)__phys_to_virt(phy_in_base);
