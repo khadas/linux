@@ -495,6 +495,18 @@ struct rkcif_toisp_buf_state {
 	bool is_early_update;
 };
 
+struct rkcif_fence_context {
+	u64 context;
+	u64 seqno;
+	spinlock_t spinlock;
+};
+
+struct rkcif_fence {
+	struct list_head fence_list;
+	struct dma_fence *fence;
+	int fence_fd;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -578,6 +590,11 @@ struct rkcif_stream {
 	int				thunderboot_skip_interval;
 	int				sequence;
 	atomic_t			sub_stream_buf_cnt;
+	struct rkcif_fence_context	fence_ctx;
+	struct rkcif_fence		*rkcif_fence;
+	struct list_head		qbuf_fence_list_head;
+	struct list_head		done_fence_list_head;
+	spinlock_t			fence_lock;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -598,6 +615,7 @@ struct rkcif_stream {
 	bool				is_single_cap;
 	bool				is_wait_stop_complete;
 	bool				interlaced_bad_frame;
+	bool				low_latency;
 };
 
 struct rkcif_lvds_subdev {

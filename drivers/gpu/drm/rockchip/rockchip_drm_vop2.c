@@ -820,6 +820,12 @@ struct vop2_video_port {
 	 * @has_extra_layer: like rk3576, the vp1 layer can merge into vp0 layer after overlay
 	 */
 	bool has_extra_layer;
+
+	/**
+	 * @crc_frame_num: calc crc frame num
+	 */
+	u32 crc_frame_num;
+
 	/**
 	 * @irq: independent irq for each vp
 	 */
@@ -6136,7 +6142,7 @@ static const struct drm_plane_helper_funcs vop2_plane_helper_funcs = {
 };
 
 /**
- * rockchip_atomic_helper_update_plane copy from drm_atomic_helper_update_plane
+ * rockchip_atomic_helper_update_plane - copy from drm_atomic_helper_update_plane
  * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
  * @plane: plane object to update
  * @crtc: owning CRTC of owning plane
@@ -6207,7 +6213,7 @@ fail:
 }
 
 /**
- * drm_atomic_helper_disable_plane copy from drm_atomic_helper_disable_plane
+ * rockchip_atomic_helper_disable_plane - copy from drm_atomic_helper_disable_plane
  * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
  *
  * @plane: plane to disable
@@ -7495,6 +7501,22 @@ static int vop2_crtc_set_color_bar(struct drm_crtc *crtc, enum rockchip_color_ba
 	return ret;
 }
 
+static int vop2_crtc_get_crc(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	u32 crc32 = 0;
+
+	if (!vop2_data->crc_sources)
+		return -ENODEV;
+
+	crc32 = VOP_MODULE_GET(vop2, vp, crc_val);
+	drm_crtc_add_crc_entry(crtc, true, vp->crc_frame_num++, &crc32);
+
+	return 0;
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop2_crtc_loader_protect,
 	.cancel_pending_vblank = vop2_crtc_cancel_pending_vblank,
@@ -7512,6 +7534,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.crtc_output_pre_disable = vop2_crtc_output_pre_disable,
 	.crtc_set_color_bar = vop2_crtc_set_color_bar,
 	.set_aclk = vop2_devfreq_set_aclk,
+	.get_crc = vop2_crtc_get_crc,
 };
 
 static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -7649,6 +7672,12 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 	} else {
 		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, pre_dither_down_en);
 		VOP_MODULE_SET(vop2, vp, dither_down_sel, DITHER_DOWN_ALLEGRO);
+	}
+
+	/* If dither down enabled will lead to crc value dynamic changed */
+	if (crtc->crc.opened) {
+		VOP_MODULE_SET(vop2, vp, dither_down_en, 0);
+		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
 	}
 }
 
@@ -11409,8 +11438,7 @@ static void vop2_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(vcstate);
 }
 
-#ifdef CONFIG_DRM_ANALOGIX_DP
-static struct drm_connector *vop2_get_edp_connector(struct vop2 *vop2)
+static __maybe_unused struct drm_connector *vop2_get_edp_connector(struct vop2 *vop2)
 {
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
@@ -11427,24 +11455,42 @@ static struct drm_connector *vop2_get_edp_connector(struct vop2 *vop2)
 	return NULL;
 }
 
-static int vop2_crtc_set_crc_source(struct drm_crtc *crtc,
-				    const char *source_name)
+static int vop2_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	struct drm_connector *connector;
-	int ret;
+	const struct vop2_data *vop2_data = vp->vop2->data;
+	const char * const *crc_sources = vop2_data->crc_sources;
+	uint8_t crc_sources_num = vop2_data->crc_sources_num;
+	int ret = 0;
 
-	connector = vop2_get_edp_connector(vop2);
-	if (!connector)
-		return -EINVAL;
+	/* use crtc crc */
+	if (crc_sources && strcmp(crtc->crc.source, "encoder") != 0) {
+		if (source_name &&
+		    match_string(crc_sources, crc_sources_num, source_name) >= 0) {
+			VOP_MODULE_SET(vop2, vp, crc_en, 1);
+		} else if (!source_name) {
+			VOP_MODULE_SET(vop2, vp, crc_en, 0);
+		} else {
+			ret = -EINVAL;
+		}
+	} else {/* use encoder crc */
+#ifdef CONFIG_DRM_ANALOGIX_DP
+		struct drm_connector *connector;
 
-	if (source_name && strcmp(source_name, "auto") == 0)
-		ret = analogix_dp_start_crc(connector);
-	else if (!source_name)
-		ret = analogix_dp_stop_crc(connector);
-	else
-		ret = -EINVAL;
+		connector = vop2_get_edp_connector(vop2);
+		if (!connector)
+			return -EINVAL;
+		if (source_name && strcmp(source_name, "auto") == 0)
+			ret = analogix_dp_start_crc(connector);
+		else if (!source_name)
+			ret = analogix_dp_stop_crc(connector);
+		else
+			ret = -EINVAL;
+#else
+		return -ENODEV;
+#endif
+	}
 
 	return ret;
 }
@@ -11452,27 +11498,44 @@ static int vop2_crtc_set_crc_source(struct drm_crtc *crtc,
 static int vop2_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 				       size_t *values_cnt)
 {
-	if (source_name && strcmp(source_name, "auto") != 0)
-		return -EINVAL;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	const struct vop2_data *vop2_data = vp->vop2->data;
+	const char * const *crc_sources = vop2_data->crc_sources;
+	uint8_t crc_sources_num = vop2_data->crc_sources_num;
 
-	*values_cnt = 3;
+	if (crc_sources) {
+		if (source_name &&
+		    match_string(crc_sources, crc_sources_num, source_name) < 0)
+			return -EINVAL;
+	} else {
+		if (source_name && strcmp(source_name, "auto") != 0)
+			return -EINVAL;
+	}
+
+	/*
+	 * The number of CRC values from encoder is 3 words;
+	 * The number of CRC values from VOP is 1 words;
+	 */
+	if (crc_sources && source_name && strcmp(source_name, "encoder") != 0)
+		*values_cnt = 1;
+	else
+		*values_cnt = 3;
+
 	return 0;
 }
 
-#else
-static int vop2_crtc_set_crc_source(struct drm_crtc *crtc,
-				    const char *source_name)
+static const char *const *vop2_crtc_get_crc_sources(struct drm_crtc *crtc, size_t *count)
 {
-	return -ENODEV;
-}
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	const struct vop2_data *vop2_data = vp->vop2->data;
 
-static int
-vop2_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
-			    size_t *values_cnt)
-{
-	return -ENODEV;
+	if (vop2_data->crc_sources) {
+		*count = vop2_data->crc_sources_num;
+		return vop2_data->crc_sources;
+	} else {
+		return NULL;
+	}
 }
-#endif
 
 static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 					 const struct drm_crtc_state *state,
@@ -11707,6 +11770,7 @@ static const struct drm_crtc_funcs vop2_crtc_funcs = {
 	.disable_vblank = vop2_crtc_disable_vblank,
 	.set_crc_source = vop2_crtc_set_crc_source,
 	.verify_crc_source = vop2_crtc_verify_crc_source,
+	.get_crc_sources = vop2_crtc_get_crc_sources,
 };
 
 static void vop2_fb_unref_worker(struct drm_flip_work *work, void *val)

@@ -2383,7 +2383,7 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 };
 
 /**
- * rockchip_atomic_helper_update_plane copy from drm_atomic_helper_update_plane
+ * rockchip_atomic_helper_update_plane - copy from drm_atomic_helper_update_plane
  * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
  * @plane: plane object to update
  * @crtc: owning CRTC of owning plane
@@ -2455,7 +2455,7 @@ fail:
 
 
 /**
- * drm_atomic_helper_disable_plane copy from drm_atomic_helper_disable_plane
+ * rockchip_atomic_helper_disable_plane - copy from drm_atomic_helper_disable_plane
  * be designed to support async commit at ioctl DRM_IOCTL_MODE_SETPLANE.
  *
  * @plane: plane to disable
