@@ -27,14 +27,17 @@
 #define WSS_576I_AR_START						0x0
 #define WSS_576I_AR_LENGTH						0x4
 #define WSS_576I_AR_MASK						0x7
-	#define WSS_576I_BITS_AR_FULL_43				0x1
-	#define WSS_576I_BITS_AR_BOX_149_CENTRE		0x8
-	#define WSS_576I_BITS_AR_BOX_149_TOP			0x4
-	#define WSS_576I_BITS_AR_BOX_169_CENTRE		0xd
-	#define WSS_576I_BITS_AR_BOX_169_TOP			0x2
-	#define WSS_576I_BITS_AR_BOX_OVER_169_CENTRE	0xb
-	#define WSS_576I_BITS_AR_FULL_43_SHOOT			0x7
-	#define WSS_576I_BITS_AR_FULL_169				0xe
+/* note that the bits definition is LSB first, but register
+ * is bit15~0, need set reg bits correctly
+ */
+#define WSS_576I_BITS_AR_FULL_43				0x8
+#define WSS_576I_BITS_AR_BOX_149_CENTRE		0x1
+#define WSS_576I_BITS_AR_BOX_149_TOP			0x2
+#define WSS_576I_BITS_AR_BOX_169_CENTRE		0xb
+#define WSS_576I_BITS_AR_BOX_169_TOP			0x4
+#define WSS_576I_BITS_AR_BOX_OVER_169_CENTRE	0xd
+#define WSS_576I_BITS_AR_FULL_43_SHOOT			0xe
+#define WSS_576I_BITS_AR_FULL_169				0x7
 
 #define WSS_576I_MODE_START						0x4
 #define WSS_576I_MODE_LENGTH					0x1
@@ -111,7 +114,7 @@
 #define WSS_480I_CGMS_A_ONE_COPY				0x2
 #define WSS_480I_CGMS_A_NO_COPY					0x3
 
-#define WSS_480I_PSP_START						0x9
+#define WSS_480I_PSP_START						0x8
 #define WSS_480I_PSP_LENGTH						0x2
 #define WSS_480I_PSP_MASK						0x3
 #define WSS_480I_PSP_OFF						0x0
@@ -119,7 +122,7 @@
 #define WSS_480I_PSP_SPLIT_2LINE				0x2
 #define WSS_480I_PSP_SPLIT_4LINE				0x3
 
-#define WSS_480I_PRE_RECORDED_START				0xb
+#define WSS_480I_PRE_RECORDED_START				0xa
 #define WSS_480I_PRE_RECORDED_LENGTH			0x1
 #define WSS_480I_PRE_RECORDED_MASK				0x1
 #define WSS_480I_PRE_RECORDED_NO				0x0
