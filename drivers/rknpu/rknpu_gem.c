@@ -37,6 +37,8 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 	dma_addr_t dma_addr = 0;
 	dma_addr_t phys = 0;
 	int ret = -EINVAL, i = 0;
+	bool iova_aligned =
+		!(rknpu_obj->flags & RKNPU_MEM_IOMMU_LIMIT_IOVA_ALIGNMENT);
 
 	rknpu_obj->pages = drm_gem_get_pages(&rknpu_obj->base);
 	if (IS_ERR(rknpu_obj->pages)) {
@@ -60,8 +62,9 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 		goto put_pages;
 	}
 
-	ret = dma_map_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
-			 DMA_BIDIRECTIONAL);
+	ret = rknpu_iommu_dma_map_sg(drm->dev, rknpu_obj->sgt->sgl,
+				     rknpu_obj->sgt->nents, DMA_BIDIRECTIONAL,
+				     iova_aligned);
 	if (ret == 0) {
 		ret = -EFAULT;
 		LOG_DEV_ERROR(drm->dev, "%s: dma map %zu fail\n", __func__,
@@ -95,8 +98,9 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 	return 0;
 
 unmap_sg:
-	dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl, rknpu_obj->sgt->nents,
-		     DMA_BIDIRECTIONAL);
+	rknpu_iommu_dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl,
+				 rknpu_obj->sgt->nents, DMA_BIDIRECTIONAL,
+				 iova_aligned);
 
 free_sgt:
 	sg_free_table(rknpu_obj->sgt);
@@ -111,6 +115,8 @@ put_pages:
 static void rknpu_gem_put_pages(struct rknpu_gem_object *rknpu_obj)
 {
 	struct drm_device *drm = rknpu_obj->base.dev;
+	bool iova_aligned =
+		!(rknpu_obj->flags & RKNPU_MEM_IOMMU_LIMIT_IOVA_ALIGNMENT);
 
 	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING) {
 		vunmap(rknpu_obj->kv_addr);
@@ -118,8 +124,9 @@ static void rknpu_gem_put_pages(struct rknpu_gem_object *rknpu_obj)
 	}
 
 	if (rknpu_obj->sgt != NULL) {
-		dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl,
-			     rknpu_obj->sgt->nents, DMA_BIDIRECTIONAL);
+		rknpu_iommu_dma_unmap_sg(drm->dev, rknpu_obj->sgt->sgl,
+					 rknpu_obj->sgt->nents,
+					 DMA_BIDIRECTIONAL, iova_aligned);
 		sg_free_table(rknpu_obj->sgt);
 		kfree(rknpu_obj->sgt);
 	}
@@ -198,9 +205,9 @@ static int rknpu_gem_alloc_buf(struct rknpu_gem_object *rknpu_obj)
 		return -ENOMEM;
 	}
 
-	rknpu_obj->cookie =
-		dma_alloc_attrs(drm->dev, rknpu_obj->size, &rknpu_obj->dma_addr,
-				gfp_mask, rknpu_obj->dma_attrs);
+	rknpu_obj->cookie = dma_alloc_attrs(drm->dev, rknpu_obj->size,
+					    &rknpu_obj->dma_addr, gfp_mask,
+					    rknpu_obj->dma_attrs);
 	if (!rknpu_obj->cookie) {
 		/*
 		 * when RKNPU_MEM_CONTIGUOUS and IOMMU is available
@@ -214,10 +221,9 @@ static int rknpu_gem_alloc_buf(struct rknpu_gem_object *rknpu_obj)
 				rknpu_obj->size);
 			rknpu_obj->dma_attrs &= ~DMA_ATTR_FORCE_CONTIGUOUS;
 			rknpu_obj->flags |= RKNPU_MEM_NON_CONTIGUOUS;
-			rknpu_obj->cookie =
-				dma_alloc_attrs(drm->dev, rknpu_obj->size,
-						&rknpu_obj->dma_addr, gfp_mask,
-						rknpu_obj->dma_attrs);
+			rknpu_obj->cookie = dma_alloc_attrs(
+				drm->dev, rknpu_obj->size, &rknpu_obj->dma_addr,
+				gfp_mask, rknpu_obj->dma_attrs);
 			if (!rknpu_obj->cookie) {
 				LOG_DEV_ERROR(
 					drm->dev,
@@ -429,6 +435,8 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 	phys_addr_t cache_start = 0;
 	unsigned long cache_offset = 0;
 	unsigned long cache_size = 0;
+	bool iova_aligned =
+		!(rknpu_obj->flags & RKNPU_MEM_IOMMU_LIMIT_IOVA_ALIGNMENT);
 
 	switch (cache_type) {
 	case RKNPU_CACHE_SRAM:
@@ -458,7 +466,8 @@ static int rknpu_gem_alloc_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 	iovad = &cookie->iovad;
 	rknpu_obj->iova_size = iova_align(iovad, cache_size + rknpu_obj->size);
 	rknpu_obj->iova_start = rknpu_iommu_dma_alloc_iova(
-		domain, rknpu_obj->iova_size, dma_get_mask(drm->dev), drm->dev);
+		domain, rknpu_obj->iova_size, dma_get_mask(drm->dev), drm->dev,
+		iova_aligned);
 	if (!rknpu_obj->iova_start) {
 		LOG_ERROR("iommu_dma_alloc_iova failed\n");
 		return -ENOMEM;
@@ -567,7 +576,8 @@ cache_unmap:
 
 free_iova:
 	rknpu_iommu_dma_free_iova((void *)domain->iova_cookie,
-				  rknpu_obj->iova_start, rknpu_obj->iova_size);
+				  rknpu_obj->iova_start, rknpu_obj->iova_size,
+				  iova_aligned);
 
 	return ret;
 }
@@ -579,6 +589,8 @@ static void rknpu_gem_free_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 	struct rknpu_device *rknpu_dev = drm->dev_private;
 	struct iommu_domain *domain = NULL;
 	unsigned long cache_size = 0;
+	bool iova_aligned =
+		!(rknpu_obj->flags & RKNPU_MEM_IOMMU_LIMIT_IOVA_ALIGNMENT);
 
 	switch (cache_type) {
 	case RKNPU_CACHE_SRAM:
@@ -600,7 +612,7 @@ static void rknpu_gem_free_buf_with_cache(struct rknpu_gem_object *rknpu_obj,
 				    rknpu_obj->size);
 		rknpu_iommu_dma_free_iova((void *)domain->iova_cookie,
 					  rknpu_obj->iova_start,
-					  rknpu_obj->iova_size);
+					  rknpu_obj->iova_size, iova_aligned);
 	}
 
 	if (rknpu_obj->pages)
@@ -648,6 +660,9 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 			"non-contiguous allocation is not supported without IOMMU, falling back to contiguous buffer\n");
 	}
 
+	/* set memory type and cache attribute from user side. */
+	rknpu_obj->flags = flags;
+
 	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) &&
 	    (flags & RKNPU_MEM_TRY_ALLOC_SRAM) && rknpu_dev->sram_size > 0) {
 		size_t sram_free_size = 0;
@@ -655,9 +670,6 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 
 		if (sram_size != 0)
 			sram_size = round_up(sram_size, PAGE_SIZE);
-
-		/* set memory type and cache attribute from user side. */
-		rknpu_obj->flags = flags;
 
 		sram_free_size = rknpu_dev->sram_mm->free_chunks *
 				 rknpu_dev->sram_mm->chunk_size;
@@ -696,9 +708,6 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 					   remain_ddr_size :
 					   rknpu_dev->nbuf_size;
 
-		/* set memory type and cache attribute from user side. */
-		rknpu_obj->flags = flags;
-
 		if (nbuf_size > 0) {
 			rknpu_obj->nbuf_size = nbuf_size;
 
@@ -711,9 +720,6 @@ struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *drm,
 	}
 
 	if (remain_ddr_size > 0) {
-		/* set memory type and cache attribute from user side. */
-		rknpu_obj->flags = flags;
-
 		ret = rknpu_gem_alloc_buf(rknpu_obj);
 		if (ret < 0)
 			goto gem_release;
@@ -1471,8 +1477,7 @@ int rknpu_gem_sync_ioctl(struct drm_device *dev, void *data,
 					 RKNPU_CACHE_NBUF);
 		}
 
-		for_each_sg(rknpu_obj->sgt->sgl, sg, rknpu_obj->sgt->nents,
-			     i) {
+		for_each_sg(rknpu_obj->sgt->sgl, sg, rknpu_obj->sgt->nents, i) {
 			if (length == 0)
 				break;
 
