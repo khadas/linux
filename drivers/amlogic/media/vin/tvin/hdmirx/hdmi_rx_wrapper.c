@@ -3193,7 +3193,8 @@ void rx_main_state_machine(void)
 				hdmirx_phy_init();
 				rx.clk.cable_clk = 0;
 				esd_phy_rst_cnt++;
-			} else {
+			} else if (rx.port != rx.arc_port &&
+				rx.ddc_filter_en) {
 				rx.err_code = ERR_NONE;
 				rx.state = FSM_HPD_LOW;
 				rx_i2c_err_monitor();
@@ -3265,7 +3266,8 @@ void rx_main_state_machine(void)
 					esd_phy_rst_cnt = 0;
 					rx.err_rec_mode = ERR_REC_HPD_RST;
 				}
-			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
+			} else if (rx.err_rec_mode == ERR_REC_HPD_RST &&
+				rx.port != rx.arc_port && rx.ddc_filter_en) {
 				rx_set_cur_hpd(0, 2);
 				rx.clk.cable_clk = 0;
 				rx.state = FSM_INIT;
@@ -3390,7 +3392,8 @@ void rx_main_state_machine(void)
 					rx_set_eq_run_state(E_EQ_START);
 					esd_phy_rst_cnt = 0;
 				}
-			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
+			} else if (rx.err_rec_mode == ERR_REC_HPD_RST &&
+				rx.port != rx.arc_port && rx.ddc_filter_en) {
 				rx_set_cur_hpd(0, 2);
 				rx.clk.cable_clk = 0;
 				rx.state = FSM_INIT;

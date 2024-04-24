@@ -49,7 +49,9 @@
 //optimize afifo configuration
 //turn off 2m and 5m clks when shut down
 //optimize phy init flow
-#define RX_VER0 "ver.2024/01/16"
+//2024.04.24
+//remove esd and arc port hpd
+#define RX_VER0 "ver.2024/04/24"
 
 /*print type*/
 #define	LOG_EN		0x01
