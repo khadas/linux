@@ -158,7 +158,7 @@ struct rknpu_mem_create {
 	__u64 dma_addr;
 	__u64 sram_size;
 	__s32 iommu_domain_id;
-	__u32 reserved;
+	__u32 core_mask;
 };
 
 /**

@@ -32,7 +32,7 @@
 #define DRIVER_DATE "20240424"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 9
-#define DRIVER_PATCHLEVEL 6
+#define DRIVER_PATCHLEVEL 7
 
 #define LOG_TAG "RKNPU"
 
@@ -54,6 +54,7 @@
 #define LOG_DEV_ERROR(dev, fmt, args...) dev_err(dev, LOG_TAG ": " fmt, ##args)
 
 #define RKNPU_MAX_IOMMU_DOMAIN_NUM 16
+#define RKNPU_CACHE_SG_TABLE_NUM 2
 
 struct rknpu_irqs_data {
 	const char *name;
@@ -84,6 +85,8 @@ struct rknpu_config {
 	__u32 core_mask;
 	const struct rknpu_amount_data *amount_top;
 	const struct rknpu_amount_data *amount_core;
+	void (*state_init)(struct rknpu_device *rknpu_dev);
+	int (*cache_sgt_init)(struct rknpu_device *rknpu_dev);
 };
 
 struct rknpu_timer {
@@ -170,6 +173,7 @@ struct rknpu_device {
 	int iommu_domain_num;
 	int iommu_domain_id;
 	struct iommu_domain *iommu_domains[RKNPU_MAX_IOMMU_DOMAIN_NUM];
+	struct sg_table *cache_sgt[RKNPU_CACHE_SG_TABLE_NUM];
 };
 
 struct rknpu_session {
