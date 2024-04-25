@@ -254,6 +254,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 		if (csi_idx < 1) {
 			dcphy_hw = dphy->samsung_phy_group[csi_idx];
 			mutex_lock(&dcphy_hw->mutex);
+			dcphy_hw->dphy_dev[dcphy_hw->dphy_dev_num] = dphy;
 			dcphy_hw->dphy_dev_num++;
 			mutex_unlock(&dcphy_hw->mutex);
 			dphy->samsung_phy = dcphy_hw;
@@ -409,7 +410,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				return -EINVAL;
 			}
 			mutex_lock(&dcphy_hw->mutex);
-			dcphy_hw->dphy_dev_num--;
+			rockchip_csi2_samsung_phy_remove_dphy_dev(dphy, dcphy_hw);
 			mutex_unlock(&dcphy_hw->mutex);
 		} else {
 			dphy_hw = (struct csi2_dphy_hw *)dphy->phy_hw[index];
@@ -419,7 +420,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				return -EINVAL;
 			}
 			mutex_lock(&dphy_hw->mutex);
-			dphy_hw->dphy_dev_num--;
+			rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 			mutex_unlock(&dphy_hw->mutex);
 		}
 	} else {
