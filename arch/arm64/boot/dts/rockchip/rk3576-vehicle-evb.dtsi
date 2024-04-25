@@ -8,61 +8,6 @@
 #include "rk3576-rk806.dtsi"
 
 / {
-	es8388_sound: es8388-sound {
-		status = "disabled";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
-		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "adc-detect";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-		spk-con-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		hp-con-gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&sai1>;
-		rockchip,codec = <&es8388>;
-		rockchip,audio-routing =
-			"Headphone", "LOUT1",
-			"Headphone", "ROUT1",
-			"Speaker", "LOUT2",
-			"Speaker", "ROUT2",
-			"Headphone", "Headphone Power",
-			"Headphone", "Headphone Power",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
-			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
-			"RINPUT1", "Headset Mic",
-			"RINPUT2", "Headset Mic";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		play-pause-key {
-			label = "playpause";
-			linux,code = <KEY_PLAYPAUSE>;
-			press-threshold-microvolt = <2000>;
-		};
-	};
-
-	pdmics: dummy-codec {
-		status = "disabled";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-	};
-
-	pdm_mic_array: pdm-mic-array {
-		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,pdm-mic-array";
-		simple-audio-card,cpu {
-			sound-dai = <&pdm1>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&pdmics>;
-		};
-	};
-
 	vcc5v0_buck: vcc5v0-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_buck";
@@ -142,8 +87,6 @@
 		vin-supply = <&vcc_3v3_s0>;
 	};
 
-
-
 	vcc5v0_host_usb30: vcc5v0-host-usb30 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host_usb30";
@@ -176,7 +119,13 @@
 		vin-supply = <&vcc5v0_buck>;
 	};
 
-	car_rk3308_sound: car-rk3308-sound {
+	dummy_codec: dummy-codec {
+		status = "okay";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	vehicle_adsp_sound: vehicle-adsp-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,car-rk3308-sound";
@@ -190,7 +139,7 @@
 			dai-tdm-slot-width = <32>;
 		};
 		codec_master: simple-audio-card,codec {
-			sound-dai = <&spi_codec>;
+			sound-dai = <&dummy_codec>;
 		};
 	};
 };
@@ -222,7 +171,6 @@
 &dsi {
 	status = "okay";
 };
-
 
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
@@ -325,7 +273,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m1_xfer>;
 
-
 	icm42607_acc: icm_acc@68 {
 		status = "okay";
 		compatible = "icm42607_acc";
@@ -393,12 +340,6 @@
 		};
 	};
 
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
 	s35390a {
 		s35390a_int: s35390a-int {
 			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -435,12 +376,6 @@
 			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
-
-	rk3308 {
-		rk3308_reset: rk3308-reset {
-			rockchip,pins = <2 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
 
 &route_hdmi {
@@ -452,15 +387,15 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck
-			&sai1m0_sclk
-			&sai1m0_sdi0
-			&sai1m0_sdi1
-			&sai1m0_sdi2
-			&sai1m0_sdi3
-			&sai1m0_sdo0
-			&sai1m0_sdo1
-			&sai1m0_sdo2
-			&sai1m0_sdo3>;
+		     &sai1m0_sclk
+		     &sai1m0_sdi0
+		     &sai1m0_sdi1
+		     &sai1m0_sdi2
+		     &sai1m0_sdi3
+		     &sai1m0_sdo0
+		     &sai1m0_sdo1
+		     &sai1m0_sdo2
+		     &sai1m0_sdo3>;
 };
 
 &sdmmc {
@@ -469,18 +404,14 @@
 
 &spi1 {
 	status = "okay";
-	pinctrl-names = "default";
+	max-freq = <50000000>; /* spi internal clk, don't modify */
+	pinctrl-names = "default", "high_speed";
 	pinctrl-0 = <&spi1m1_csn0 &spi1m1_pins>;
-
-	spi_codec: spi-codec@1 {
-		compatible ="rockchip,spi-codec";
-		reg = <1>;
+	spi_dev@0 {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
 		spi-lsb-first;
-		spi-max-frequency = <5000000>;
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk3308_reset>;
-		status = "okay";
 	};
 };
 
