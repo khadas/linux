@@ -97,7 +97,6 @@ struct rk628_csi {
 	struct clk *clk_rx_read;
 	struct delayed_work delayed_work_enable_hotplug;
 	struct delayed_work delayed_work_res_change;
-	struct work_struct work_isr;
 	struct timer_list timer;
 	struct work_struct work_i2c_poll;
 	struct mutex confctl_mutex;
@@ -475,7 +474,6 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
 	rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
-	rk628_hdmirx_controller_reset(csi->rk628);
 	rk628_clk_set_rate(csi->rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 }
 
@@ -517,6 +515,7 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 	if (plugin) {
 		extcon_set_state_sync(csi->extcon, EXTCON_JACK_VIDEO_IN, true);
 		rk628_csi_enable_interrupts(sd, false);
+		cancel_delayed_work_sync(&csi->delayed_work_res_change);
 		rk628_hdmirx_audio_setup(csi->audio_info);
 		rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->hdcp.enable);
 		rk628_hdmirx_controller_setup(csi->rk628);
@@ -580,9 +579,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 			if (csi->rk628->version >= RK628F_VERSION) {
 				rk628_csi_enable_interrupts(sd, false);
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
-				rk628_hdmirx_hpd_ctrl(sd, false);
 				rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
-				rk628_hdmirx_controller_reset(csi->rk628);
 				schedule_delayed_work(&csi->delayed_work_enable_hotplug,
 						      msecs_to_jiffies(1100));
 			} else {
@@ -1640,21 +1637,23 @@ static void rk628_csi_error_process(struct v4l2_subdev *sd)
 	}
 }
 
-static void rk628_work_isr(struct work_struct *work)
+static int rk628_csi_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
-	struct rk628_csi *csi = container_of(work, struct rk628_csi, work_isr);
-	struct v4l2_subdev *sd = &csi->sd;
+	struct rk628_csi *csi = to_csi(sd);
 	u32 md_ints = 0x0, pdec_ints = 0x0, fifo_ints, hact, vact;
 	bool plugin;
 	void *audio_info = csi->audio_info;
-	bool handled = false;
 	u32 csi0_raw_ints = 0x0, csi1_raw_ints = 0x0;
 	u32 int0_status;
 	const struct v4l2_event evt_signal_lost = {
 		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
 	};
 
-	mutex_lock(&csi->rk628->rst_lock);
+	if (handled == NULL) {
+		v4l2_err(sd, "handled NULL, err return!\n");
+		return -EINVAL;
+	}
+
 	rk628_i2c_read(csi->rk628, GRF_INTR0_STATUS, &int0_status);
 	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
 
@@ -1664,7 +1663,6 @@ static void rk628_work_isr(struct work_struct *work)
 		if (csi->rk628->version >= RK628F_VERSION &&
 			rk628_hdmirx_is_signal_change_ists(csi->rk628, md_ints, pdec_ints))
 			rk628_set_bg_enable(csi->rk628, true);
-		rk628_csi_clear_hdmirx_interrupts(sd);
 	}
 	if ((int0_status & (BIT(6) | BIT(7)))) {
 		rk628_i2c_read(csi->rk628, CSITX_ERR_INTR_RAW_STATUS_IMD, &csi0_raw_ints);
@@ -1677,6 +1675,7 @@ static void rk628_work_isr(struct work_struct *work)
 	if (!plugin) {
 		rk628_csi_enable_interrupts(sd, false);
 		rk628_csi_enable_csi_interrupts(sd, false);
+		return 0;
 	}
 
 	if (csi->rk628->version < RK628F_VERSION && (int0_status & BIT(8))) {
@@ -1684,14 +1683,14 @@ static void rk628_work_isr(struct work_struct *work)
 			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
 				rk628_csi_isr_ctsn(audio_info, pdec_ints);
 				pdec_ints &= ~(ACR_CTS_CHG_ICLR | ACR_CTS_CHG_ICLR);
-				handled = true;
+				*handled = true;
 			}
 		}
 		if (rk628_audio_fifoints_enabled(audio_info)) {
 			rk628_i2c_read(csi->rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
 			if (fifo_ints & 0x18) {
 				rk628_csi_isr_fifoints(audio_info, fifo_ints);
-				handled = true;
+				*handled = true;
 			}
 		}
 	}
@@ -1715,7 +1714,7 @@ static void rk628_work_isr(struct work_struct *work)
 
 			v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
 				 __func__, (u32)(md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS)));
-			handled = true;
+			*handled = true;
 		}
 
 		if ((pdec_ints & AVI_RCV_ISTS) && plugin && !csi->avi_rcv_rdy) {
@@ -1726,7 +1725,7 @@ static void rk628_work_isr(struct work_struct *work)
 			/* After get the AVI_RCV interrupt state, disable interrupt. */
 			rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_IEN_CLR, AVI_RCV_ISTS);
 
-			handled = true;
+			*handled = true;
 		}
 	}
 
@@ -1735,26 +1734,11 @@ static void rk628_work_isr(struct work_struct *work)
 			"%s: csi interrupt: csi0_raw_ints: 0x%x, csi1_raw_ints: 0x%x!\n",
 				__func__, csi0_raw_ints, csi1_raw_ints);
 		rk628_csi_error_process(sd);
-		handled = true;
+		*handled = true;
 	}
 
-	if (!handled)
+	if (*handled != true)
 		v4l2_dbg(1, debug, sd, "%s: unhandled interrupt!\n", __func__);
-
-	mutex_unlock(&csi->rk628->rst_lock);
-}
-
-
-static int rk628_csi_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
-{
-	struct rk628_csi *csi = to_csi(sd);
-
-	if (handled == NULL) {
-		v4l2_err(sd, "handled NULL, err return!\n");
-		return -EINVAL;
-	}
-
-	schedule_work(&csi->work_isr);
 
 	return 0;
 }
@@ -1768,6 +1752,8 @@ static irqreturn_t rk628_csi_irq_handler(int irq, void *dev_id)
 
 	if (csi->cec_enable && csi->cec)
 		rk628_hdmirx_cec_irq(csi->rk628, csi->cec);
+
+	rk628_csi_clear_hdmirx_interrupts(&csi->sd);
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -3368,7 +3354,6 @@ static int rk628_csi_probe(struct i2c_client *client,
 			rk628_csi_delayed_work_enable_hotplug);
 	INIT_DELAYED_WORK(&csi->delayed_work_res_change,
 			rk628_delayed_work_res_change);
-	INIT_WORK(&csi->work_isr, rk628_work_isr);
 	csi->audio_info = rk628_hdmirx_audioinfo_alloc(dev,
 						       &csi->confctl_mutex,
 						       rk628,
@@ -3440,7 +3425,6 @@ err_work_queues:
 		flush_work(&csi->work_i2c_poll);
 	cancel_delayed_work(&csi->delayed_work_enable_hotplug);
 	cancel_delayed_work(&csi->delayed_work_res_change);
-	cancel_work_sync(&csi->work_isr);
 	rk628_hdmirx_audio_destroy(csi->audio_info);
 err_hdl:
 	mutex_destroy(&csi->confctl_mutex);
@@ -3473,7 +3457,6 @@ static int rk628_csi_remove(struct i2c_client *client)
 	rk628_hdmirx_audio_cancel_work_rate_change(csi->audio_info, true);
 	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);
 	cancel_delayed_work_sync(&csi->delayed_work_res_change);
-	cancel_work_sync(&csi->work_isr);
 
 	if (csi->rxphy_pwron)
 		rk628_rxphy_power_off(csi->rk628);
