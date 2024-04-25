@@ -702,12 +702,16 @@ struct rkmodule_channel_info {
  *         id3 reserved, can config by PAD3
  *
  * link to isp, the connection relationship is as follows
+ * PAD0 link to isp
+ * PAD1 link to csi rawwr0                             | hdr x2:L x3:M
+ * PAD2 link to csi rawwr1 if rv1126, rawwr3 if rk3568 | hdr      x3:L
+ * PAD3 link to csi rawwr2                             | hdr x2:M x3:S
  */
 enum rkmodule_max_pad {
-	PAD0, /* link to isp */
-	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
-	PAD2, /* link to csi wr1 | hdr      x3:L */
-	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
+	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
 	PAD_MAX,
 };
 

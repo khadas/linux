@@ -1200,7 +1200,7 @@ static struct streams_ops rkisp2_dmatx0_streams_ops = {
 	.config_mi = dmatx0_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx0_is_stream_stopped,
+	.is_stream_stopped = dmatx_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1209,7 +1209,7 @@ static struct streams_ops rkisp2_dmatx1_streams_ops = {
 	.config_mi = dmatx1_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx1_is_stream_stopped,
+	.is_stream_stopped = dmatx_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1218,7 +1218,7 @@ static struct streams_ops rkisp2_dmatx2_streams_ops = {
 	.config_mi = dmatx2_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx2_is_stream_stopped,
+	.is_stream_stopped = dmatx_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };
@@ -1227,7 +1227,7 @@ static struct streams_ops rkisp2_dmatx3_streams_ops = {
 	.config_mi = dmatx3_config_mi,
 	.enable_mi = dmatx_enable_mi,
 	.stop_mi = dmatx_stop_mi,
-	.is_stream_stopped = dmatx3_is_stream_stopped,
+	.is_stream_stopped = dmatx_is_stream_stopped,
 	.update_mi = update_dmatx_v2,
 	.frame_end = mi_frame_end,
 };

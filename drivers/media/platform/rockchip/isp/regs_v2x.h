@@ -2578,32 +2578,12 @@
 /* ISP21 DHAZ/DRC/BAY3D */
 #define ISP21_SELF_FORCE_UPD		BIT(31)
 
-static inline bool dmatx0_is_stream_stopped(struct rkisp_stream *stream)
+static inline bool dmatx_is_stream_stopped(struct rkisp_stream *stream)
 {
-	u32 ret = rkisp_read(stream->ispdev, CSI2RX_RAW0_WR_CTRL, true);
+	u32 reg = stream->config->dma.ctrl;
+	u32 val = rkisp_read(stream->ispdev, reg, true);
 
-	return !(ret & SW_CSI_RAW_WR_EN_SHD);
-}
-
-static inline bool dmatx1_is_stream_stopped(struct rkisp_stream *stream)
-{
-	u32 ret = rkisp_read(stream->ispdev, CSI2RX_RAW1_WR_CTRL, true);
-
-	return !(ret & SW_CSI_RAW_WR_EN_SHD);
-}
-
-static inline bool dmatx2_is_stream_stopped(struct rkisp_stream *stream)
-{
-	u32 ret = rkisp_read(stream->ispdev, CSI2RX_RAW2_WR_CTRL, true);
-
-	return !(ret & SW_CSI_RAW_WR_EN_SHD);
-}
-
-static inline bool dmatx3_is_stream_stopped(struct rkisp_stream *stream)
-{
-	u32 ret = rkisp_read(stream->ispdev, CSI2RX_RAW3_WR_CTRL, true);
-
-	return !(ret & SW_CSI_RAW_WR_EN_SHD);
+	return !(val & SW_CSI_RAW_WR_EN_SHD);
 }
 
 static inline bool is_mpfbc_stopped(void __iomem *base)
