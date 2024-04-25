@@ -57,7 +57,8 @@ static int rk628_rgb_resolution_show(struct seq_file *s, void *data)
 	rgb_rx_clkrate = val & RGB_RX_CLKRATE_MASK;
 
 	ref_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
-	pixel_clk = ref_clk * rgb_rx_clkrate / (rgb_rx_eval_time + 1);
+	pixel_clk = ref_clk * rgb_rx_clkrate;
+	do_div(pixel_clk, rgb_rx_eval_time + 1);
 
 	if (rk628_input_is_rgb(rk628)) {
 		rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS4, &val);

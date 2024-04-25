@@ -247,7 +247,8 @@ static void rk628_hdmirx_audio_clk_set_rate(struct rk628_hdmirx *hdmirx, u32 rat
 
 static void rk628_hdmirx_audio_clk_ppm_inc(struct rk628_hdmirx *hdmirx, int ppm)
 {
-	int delta, rate, inc;
+	u64 delta;
+	int rate, inc;
 
 	rate = hdmirx->audio_state.hdmirx_aud_clkrate;
 	if (ppm < 0) {
@@ -255,11 +256,13 @@ static void rk628_hdmirx_audio_clk_ppm_inc(struct rk628_hdmirx *hdmirx, int ppm)
 		inc = -1;
 	} else
 		inc = 1;
-	delta = (uint64_t)((uint64_t)rate * ppm + 500000) / 1000000;
+
+	delta = (uint64_t)((uint64_t)rate * ppm + 500000);
+	do_div(delta, 1000000);
 	delta *= inc;
-	rate += delta;
+	rate += (int)delta;
 	dev_dbg(hdmirx->rk628->dev, "%s: %u to %u(delta:%d)\n",
-		__func__, hdmirx->audio_state.hdmirx_aud_clkrate, rate, delta);
+		__func__, hdmirx->audio_state.hdmirx_aud_clkrate, rate, (int)delta);
 	rk628_cru_clk_set_rate(hdmirx->rk628, CGU_CLK_HDMIRX_AUD, rate);
 	hdmirx->audio_state.hdmirx_aud_clkrate = rate;
 }
@@ -674,7 +677,7 @@ static void rk628_hdmirx_get_timing(struct rk628 *rk628)
 	u64 tmp_data;
 	u32 interlaced;
 	u32 hfrontporch, hsync, hbackporch, vfrontporch, vsync, vbackporch;
-	unsigned long long pixelclock;
+	unsigned long long pixelclock, clock;
 	unsigned long flags = 0;
 	struct rk628_hdmirx *hdmirx = rk628->hdmirx;
 
@@ -770,7 +773,10 @@ static void rk628_hdmirx_get_timing(struct rk628 *rk628)
 		pixelclock /= 2;
 	}
 
-	hdmirx->mode.clock = pixelclock / 1000;
+	clock = pixelclock;
+	do_div(clock, 1000);
+
+	hdmirx->mode.clock = clock;
 	hdmirx->mode.hdisplay = hact;
 	hdmirx->mode.hstart = hdmirx->mode.hdisplay + hfrontporch;
 	hdmirx->mode.hend = hdmirx->mode.hstart + hsync;
