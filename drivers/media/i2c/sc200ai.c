@@ -777,42 +777,43 @@ static int sc200ai_set_gain_reg(struct sc200ai *sc200ai, u32 gain, int mode)
 	else if (gain > SC200AI_GAIN_MAX * 16)
 		gain = SC200AI_GAIN_MAX * 16;
 
-	if (gain < 2 * 1024) {               // start again
+	if (gain < 2 * 1024) {		/* start again 1.0x --2.0x */
 		Dcg_gainx100 = 100;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x03;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 3456) {
+	} else if (gain < 3481) {	/* 2.0x ~ 3.4x  1024 * 3.4 = 3481*/
 		Dcg_gainx100 = 100;
 		Coarse_gain = 2;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x07;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 6908) {
+	} else if (gain < 6963) {	/* 3.4x ~ 6.8x  1024 * 6.8 = 6963*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x23;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 13817) {
+	} else if (gain < 13926) {	/* 6.8x ~ 13.6x  1024 * 13.6 = 13926*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 2;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x27;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 27635) {
+	} else if (gain < 27852) {	/* 13.6x ~ 27.2x  1024 * 27.2 = 27852*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 4;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x2f;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 55270) {           // end again
+	} else if (gain <= 55270) {	/* 27.2x ~ 53.975x  1024 * 53.975 = 27852*/
+		// End again
 		Dcg_gainx100 = 340;
 		Coarse_gain = 8;
 		DIG_gain = 1;
