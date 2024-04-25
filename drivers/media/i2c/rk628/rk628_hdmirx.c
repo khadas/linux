@@ -181,6 +181,7 @@ static int rk628_hdmi_hdcp_load_key(struct rk628 *rk628, struct rk628_hdcp *hdcp
 				   KEY_DECRIPT_ENABLE_MASK,
 				   KEY_DECRIPT_ENABLE(0));
 	}
+	hdcp->hdcp_start = true;
 
 	return 0;
 }
@@ -192,6 +193,8 @@ void rk628_hdmirx_set_hdcp(struct rk628 *rk628, struct rk628_hdcp *hdcp, bool en
 	hdcp->rk628 = rk628;
 	hdcp->enable = en;
 	if (en) {
+		if (hdcp->hdcp_start && rk628->version >= RK628F_VERSION)
+			return;
 		rk628_hdmi_hdcp_load_key(rk628, hdcp);
 	} else {
 		rk628_i2c_update_bits(rk628, HDMI_RX_HDCP_CTRL,
@@ -199,6 +202,7 @@ void rk628_hdmirx_set_hdcp(struct rk628 *rk628, struct rk628_hdcp *hdcp, bool en
 				      HDCP_ENC_EN_MASK,
 				      HDCP_ENABLE(0) |
 				      HDCP_ENC_EN(0));
+		hdcp->hdcp_start = false;
 	}
 }
 EXPORT_SYMBOL(rk628_hdmirx_set_hdcp);

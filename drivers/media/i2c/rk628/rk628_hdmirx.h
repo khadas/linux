@@ -474,6 +474,7 @@ struct rk628_hdcp {
 	struct hdcp_keys *keys;
 	struct rk628 *rk628;
 	int enable;
+	bool hdcp_start;
 };
 
 struct rk628_hdmirx_cec {
