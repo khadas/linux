@@ -921,8 +921,7 @@ static void rk628_show_resolution(struct seq_file *s)
 	src_vtotal = src_mode->vtotal;
 
 	/* get fps */
-	fps = clk_rx_read * 1000;
-	do_div(fps, src_htotal * src_vtotal);
+	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
 
 	/* print */
 	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%u]\n", src_hactive,
@@ -955,7 +954,8 @@ static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 
 	imodet_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
 
-	clk_rx_read = imodet_clk * rgb_rx_clkrate / (rgb_rx_eval_time + 1);
+	clk_rx_read = imodet_clk * rgb_rx_clkrate;
+	do_div(clk_rx_read, rgb_rx_eval_time + 1);
 	do_div(clk_rx_read, 1000);
 
 	/* get timing */
@@ -976,8 +976,7 @@ static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 	src_vtotal = val & 0xffff;
 
 	/* get fps */
-	fps = clk_rx_read * 1000;
-	do_div(fps, src_htotal * src_vtotal);
+	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
 
 	/* print */
 	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n", src_hactive,
@@ -1028,8 +1027,7 @@ static void rk628_show_output_resolution(struct seq_file *s)
 	dsp_vact_end = val & 0xfff;
 
 	/* get fps */
-	fps = sclk_vop * 1000;
-	do_div(fps, dsp_vtotal * dsp_htotal);
+	fps = sclk_vop * 1000 / (dsp_vtotal * dsp_htotal);
 
 	/* print */
 	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
