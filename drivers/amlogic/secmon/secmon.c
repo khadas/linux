@@ -15,6 +15,8 @@
 #include <linux/dma-contiguous.h>
 #include <linux/cma.h>
 #include <linux/arm-smccc.h>
+#include <linux/amlogic/aml_cma.h>
+
 #undef pr_fmt
 #define pr_fmt(fmt) "secmon: " fmt
 
@@ -30,7 +32,7 @@ static unsigned int secmon_size;
 #else
  #define IN_SIZE	0x6000
 #endif
-// #define USE_CMA
+
  #define OUT_SIZE 0x1000
 static DEFINE_MUTEX(sharemem_mutex);
 #define DEV_REGISTERED 1
@@ -111,9 +113,7 @@ static int secmon_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	unsigned int id;
 	int ret = 0;
-#ifdef USE_CMA
 	struct page *page;
-#endif
 
 	if (!of_property_read_u32(np, "in_base_func", &id))
 		phy_in_base = get_sharemem_info(id);
@@ -131,22 +131,24 @@ static int secmon_probe(struct platform_device *pdev)
 		pr_info("reserve_mem_size:0x%x\n", secmon_size);
 	}
 
-	get_reserver_base_size(pdev);
-#ifdef USE_CMA
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret) {
-		pr_err("reserve memory init fail:%d\n", ret);
-		return ret;
-	}
+	page = phys_to_page(phy_in_base);
+	if (!cma_page(page)) {
+		get_reserver_base_size(pdev);
+	} else {
+		ret = of_reserved_mem_device_init(&pdev->dev);
+		if (ret) {
+			pr_err("reserve memory init fail:%d\n", ret);
+			return ret;
+		}
 
-	page = dma_alloc_from_contiguous(&pdev->dev, secmon_size >> PAGE_SHIFT, 0, 0);
-	if (!page) {
-		pr_err("alloc page failed, ret:%p\n", page);
-		return -ENOMEM;
+		page = dma_alloc_from_contiguous(&pdev->dev, secmon_size >> PAGE_SHIFT, 0, 0);
+		if (!page) {
+			pr_err("alloc page failed, ret:%p\n", page);
+			return -ENOMEM;
+		}
+		pr_debug("get page:%p, %lx\n", page, page_to_pfn(page));
+		secmon_start_virt = (unsigned long)page_to_virt(page);
 	}
-	pr_debug("get page:%p, %lx\n", page, page_to_pfn(page));
-	secmon_start_virt = (unsigned long)page_to_virt(page);
-#endif
 
 	if (pfn_valid(__phys_to_pfn(phy_in_base)))
 		sharemem_in_base = (void __iomem *)__phys_to_virt(phy_in_base);
