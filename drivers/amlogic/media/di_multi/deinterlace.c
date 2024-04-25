@@ -5045,6 +5045,9 @@ void pp_buf_clear(struct di_buf_s *buff)
 		return;
 	}
 	/* clear */
+	if (!atomic_read(&buff->blk_buf->p_ref_mem))
+		buff->queue_index = -1;
+
 	buff->blk_buf	= NULL;
 	buff->flg_null	= 1;
 	buff->buf_is_i	= 0;
