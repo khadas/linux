@@ -671,6 +671,8 @@ static struct mpp_trans_info trans_rkvenc_540c[] = {
 	},
 };
 
+static int rkvenc_soft_reset(struct mpp_dev *mpp);
+
 static bool req_over_class(struct mpp_request *req,
 			   struct rkvenc_task *task, int class)
 {
@@ -1418,6 +1420,18 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
+	if (hw->vepu_type == RKVENC_VEPU_510) {
+		/*
+		 * Config dvbm special reg to expected that
+		 * vepu will hold when the encoding finish.
+		 */
+		mpp_write(mpp, 0x74, 0x23);
+		mpp_write(mpp, 0x308, BIT(18) | BIT(16));
+		/* Enable slice done interrupt and slice fifo info. */
+		mpp_write(mpp, 0x20, mpp_read(mpp, 0x20) | BIT(3));
+		mpp_write(mpp, 0x300, mpp_read(mpp, 0x300) | BIT(30));
+	}
+
 	/* Flush the register before the start the device */
 	wmb();
 	mpp_write(mpp, enc->hw_info->enc_start_base, start_val);
@@ -1440,6 +1454,7 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 	u32 task_id = task->mpp_task.task_id;
 	u32 i;
 	u32 last = 0;
+	u32 split = task->task_split;
 
 	/* Need update irq status and slice number when enc done ready with new status*/
 	if ((new_irq_status != *irq_status) && (new_irq_status & INT_STA_ENC_DONE_STA)) {
@@ -1455,26 +1470,31 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 
 	for (i = 0; i < sli_num; i++) {
 		slice_info.val = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_LEN_BASE);
-
+		/* after vepu510, HW will return last slice flag in bit(31) */
+		last |= slice_info.last;
 		if (last && i == sli_num - 1) {
 			task->last_slice_found = 1;
 			slice_info.last = 1;
 		}
 
-		mpp_dbg_slice("task %d wr %3d len %d %s\n", task_id,
-			      task->slice_wr_cnt, slice_info.slice_len,
-			      slice_info.last ? "last" : "");
+		if (split) {
+			mpp_dbg_slice("task %d wr %3d len %d %s\n", task_id,
+				task->slice_wr_cnt, slice_info.slice_len,
+				slice_info.last ? "last" : "");
 
-		kfifo_in(&task->slice_info, &slice_info, 1);
-		task->slice_wr_cnt++;
+			kfifo_in(&task->slice_info, &slice_info, 1);
+			task->slice_wr_cnt++;
+		}
 	}
 
-	/* Fixup for async between last flag and slice number register */
-	if (last && !task->last_slice_found) {
-		mpp_dbg_slice("task %d mark last slice\n", task_id);
-		slice_info.last = 1;
-		slice_info.slice_len = 0;
-		kfifo_in(&task->slice_info, &slice_info, 1);
+	if (split) {
+		/* Fixup for async between last flag and slice number register */
+		if (last && !task->last_slice_found) {
+			mpp_dbg_slice("task %d mark last slice\n", task_id);
+			slice_info.last = 1;
+			slice_info.slice_len = 0;
+			kfifo_in(&task->slice_info, &slice_info, 1);
+		}
 	}
 
 	/*
@@ -1486,8 +1506,21 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 	 * without checking if fifo is non-empty, so there is no need to clear the
 	 * interrupt again after reading the slice.
 	 */
-	if (hw->vepu_type == RKVENC_VEPU_510)
+	if (hw->vepu_type == RKVENC_VEPU_510) {
 		mpp_write(mpp, hw->int_clr_base, *irq_status);
+		/*
+		 * Fix bug:
+		 * There is a hw bug, the encoder has probabilistically encodes
+		 * one frame repeatedlly and does not return enc done in time.
+		 * So use slice info to check if the frame is encoded and
+		 * soft reset to stop vepu.
+		 */
+		if (last) {
+			udelay(5);
+			rkvenc_soft_reset(mpp);
+			*irq_status |= 0x1;
+		}
+	}
 }
 
 static void rkvenc2_bs_overflow_handle(struct mpp_dev *mpp)
@@ -1563,11 +1596,17 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	}
 
 	/* 1. read slice number and slice length */
-	if (task && task->task_split &&
-	    (irq_status & (INT_STA_SLC_DONE_STA | INT_STA_ENC_DONE_STA))) {
-		mpp_time_part_diff(mpp_task);
+	if (hw->vepu_type == RKVENC_VEPU_510 && task) {
 		rkvenc2_read_slice_len(mpp, task, &irq_status);
-		wake_up(&mpp_task->wait);
+		if (task->task_split)
+			wake_up(&mpp_task->wait);
+	} else {
+		if (task && task->task_split &&
+		    (irq_status & (INT_STA_SLC_DONE_STA | INT_STA_ENC_DONE_STA))) {
+			mpp_time_part_diff(mpp_task);
+			rkvenc2_read_slice_len(mpp, task, &irq_status);
+			wake_up(&mpp_task->wait);
+		}
 	}
 
 	/* 2. process slice irq */
@@ -2097,11 +2136,16 @@ static int rkvenc_soft_reset(struct mpp_dev *mpp)
 
 	/* safe reset */
 	mpp_write(mpp, hw->int_mask_base, 0x3FF);
-	mpp_write(mpp, hw->enc_clr_base, 0x3);
+	mpp_write(mpp, hw->enc_clr_base, 0x1);
 	ret = readl_relaxed_poll_timeout(mpp->reg_base + hw->int_sta_base,
 					 rst_status,
 					 rst_status & RKVENC_SCLR_DONE_STA,
 					 0, 5);
+	if (ret)
+		mpp_err("safe reset failed\n");
+	mpp_write(mpp, hw->enc_clr_base, 0x2);
+	udelay(5);
+	mpp_write(mpp, hw->enc_clr_base, 0);
 	mpp_write(mpp, hw->int_clr_base, 0xffffffff);
 	mpp_write(mpp, hw->int_sta_base, 0);
 
