@@ -1418,8 +1418,6 @@
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
-		assigned-clocks = <&cru SCLK_SFC>;
-		assigned-clock-rates = <75000000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
