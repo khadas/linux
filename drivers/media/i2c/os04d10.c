@@ -1550,10 +1550,10 @@ static int os04d10_set_ctrl(struct v4l2_ctrl *ctrl)
 					OS04D10_REG_PAGE_CIS_TIMING);
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_H,
-					 ((ctrl->val + os04d10->cur_mode->height) >> 8) & 0xff);
+					 ((ctrl->val >> 8) & 0xff));
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_L,
-					 (ctrl->val + os04d10->cur_mode->height) & 0xff);
+					 ctrl->val & 0xff);
 		ret |= os04d10_write_reg(os04d10->client, OS04D10_REG_EXP_UPDATE, 0x01);
 		os04d10->cur_vts = ctrl->val + os04d10->cur_mode->height;
 		os04d10_modify_fps_info(os04d10);
