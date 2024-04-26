@@ -449,14 +449,31 @@ static struct streams_ops rkisp2_dmarx_streams_ops = {
 
 static int dmarx_frame_end(struct rkisp_stream *stream)
 {
+	struct rkisp_buffer *buf = NULL;
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
-		if (stream->curr_buf->other) {
+		buf = stream->curr_buf;
+		stream->curr_buf = NULL;
+	}
+	if (!list_empty(&stream->buf_queue)) {
+		stream->curr_buf =
+			list_first_entry(&stream->buf_queue,
+					struct rkisp_buffer,
+					queue);
+		list_del(&stream->curr_buf->queue);
+	}
+
+	if (stream->curr_buf)
+		stream->ops->update_mi(stream);
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
+	if (buf) {
+		if (buf->other) {
 			struct rkisp_device *dev = stream->ispdev;
 			struct v4l2_subdev *sd = dev->active_sensor->sd;
-			struct rkisp_rx_buf *rx_buf = stream->curr_buf->other;
+			struct rkisp_rx_buf *rx_buf = buf->other;
 
 			if (rx_buf->is_switch && stream->id == RKISP_STREAM_RAWRD2) {
 				switch (dev->rd_mode) {
@@ -482,22 +499,9 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 			rx_buf->runtime_us = dev->isp_sdev.dbg.interval / 1000;
 			v4l2_subdev_call(sd, video, s_rx_buffer, rx_buf, NULL);
 		} else {
-			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
-		stream->curr_buf = NULL;
 	}
-
-	if (!list_empty(&stream->buf_queue)) {
-		stream->curr_buf =
-			list_first_entry(&stream->buf_queue,
-					struct rkisp_buffer,
-					queue);
-		list_del(&stream->curr_buf->queue);
-	}
-
-	if (stream->curr_buf)
-		stream->ops->update_mi(stream);
-	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 	return 0;
 }
 
