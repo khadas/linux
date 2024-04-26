@@ -431,8 +431,6 @@ static int ufs_rockchip_rk3576_init(struct ufs_hba *hba)
 
 	hba->quirks = UFSHCI_QUIRK_BROKEN_HCE | UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING;
 
-	/* Enable runtime autosuspend */
-	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
 	/* Enable BKOPS when suspend */
 	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 	/* Enable putting device into deep sleep */
