@@ -127,10 +127,6 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		return -EINVAL;
 	}
 
-	/*
-	 * The mpi commit will use the request repeatedly, so an additional
-	 * get() is added here.
-	 */
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
 
@@ -217,13 +213,6 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		goto err_put_request;
 	}
 
-	if ((mpi_job->dma_buf_src0 != NULL) && (mpi_cmd.src.yrgb_addr > 0))
-		rga_mm_release_buffer(mpi_cmd.src.yrgb_addr);
-	if ((mpi_job->dma_buf_src1 != NULL) && (mpi_cmd.pat.yrgb_addr > 0))
-		rga_mm_release_buffer(mpi_cmd.pat.yrgb_addr);
-	if ((mpi_job->dma_buf_dst != NULL) && (mpi_cmd.dst.yrgb_addr > 0))
-		rga_mm_release_buffer(mpi_cmd.dst.yrgb_addr);
-
 	/* copy dst info to mpi job for next node */
 	if (mpi_job->output != NULL) {
 		mpi_job->output->x_offset = mpi_cmd.dst.x_offset;
@@ -236,9 +225,14 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		mpi_job->output->format = mpi_cmd.dst.format;
 	}
 
-	return 0;
-
 err_put_request:
+	if ((mpi_job->dma_buf_src0 != NULL) && (mpi_cmd.src.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.src.yrgb_addr);
+	if ((mpi_job->dma_buf_src1 != NULL) && (mpi_cmd.pat.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.pat.yrgb_addr);
+	if ((mpi_job->dma_buf_dst != NULL) && (mpi_cmd.dst.yrgb_addr > 0))
+		rga_mm_release_buffer(mpi_cmd.dst.yrgb_addr);
+
 	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
 	mutex_unlock(&request_manager->lock);

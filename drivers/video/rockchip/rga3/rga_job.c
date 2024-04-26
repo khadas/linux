@@ -1204,6 +1204,9 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	int ret = 0;
 	struct rga_job *job = NULL;
 	unsigned long flags;
+	struct rga_pending_request_manager *request_manager;
+
+	request_manager = rga_drvdata->pend_request_manager;
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		pr_err("mpi unsupported async mode!\n");
@@ -1231,6 +1234,14 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	request->failed_task_count = 0;
 
 	spin_unlock_irqrestore(&request->lock, flags);
+
+	/*
+	 * The mpi submit will use the request repeatedly, so an additional
+	 * get() is added here.
+	 */
+	mutex_lock(&request_manager->lock);
+	rga_request_get(request);
+	mutex_unlock(&request_manager->lock);
 
 	job = rga_job_commit(req, request);
 	if (IS_ERR_OR_NULL(job)) {
