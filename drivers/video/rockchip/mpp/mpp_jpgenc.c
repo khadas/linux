@@ -516,7 +516,7 @@ static int jpgenc_isr(struct mpp_dev *mpp)
 
 	mpp_debug_leave();
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 static int jpgenc_reset(struct mpp_dev *mpp)
