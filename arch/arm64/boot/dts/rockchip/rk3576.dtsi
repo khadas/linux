@@ -2743,6 +2743,7 @@
 			      "dclk_src_vp1",
 			      "dclk_src_vp2";
 		rockchip,aclk-normal-mode-rates = <500000000>;
+		rockchip,aclk-reset-mode-rates = <594000000>;
 		rockchip,aclk-advanced-mode-rates = <702000000>;
 		operating-points-v2 = <&vop_opp_table>;
 		iommus = <&vop_mmu>;
@@ -2886,6 +2887,10 @@
 
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <750000 750000 800000>;
+		};
+		opp-594000000 {
+			opp-hz = /bits/ 64 <594000000>;
 			opp-microvolt = <750000 750000 800000>;
 		};
 		opp-702000000 {
