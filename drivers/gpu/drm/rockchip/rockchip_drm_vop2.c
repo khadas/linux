@@ -4398,6 +4398,41 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 * immediately.
 		 */
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
+
+		/* Close dynamic turn on/off rk3588 PD_ESMART and keep esmart pd on when enable */
+		if (vop2->version == VOP_VERSION_RK3588) {
+			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
+
+			if (vop2_power_domain_status(esmart_pd))
+				esmart_pd->on = true;
+			else
+				vop2_power_domain_on(esmart_pd);
+
+			if (vop2->data->nr_dscs) {
+				struct vop2_dsc *dsc;
+				int i = 0;
+
+				for (i = 0; i < vop2->data->nr_dscs; i++) {
+					dsc = &vop2->dscs[i];
+
+					if (!dsc->pd)
+						continue;
+
+					if (!vop2_power_domain_status(dsc->pd))
+						continue;
+
+					dsc->enabled = VOP_MODULE_GET(vop2, dsc, dsc_en);
+
+					if (dsc->enabled) {
+						dsc->attach_vp_id = VOP_MODULE_GET(vop2, dsc,
+										   dsc_port_sel);
+						dsc->pd->vp_mask = BIT(dsc->attach_vp_id);
+						dsc->pd->on = true;
+						dsc->pd->ref_count++;
+					}
+				}
+			}
+		}
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
 		vop2->is_enabled = true;
