@@ -1063,14 +1063,9 @@ static int udphy_power_on(struct rockchip_udphy *udphy, u8 mode)
 		ret = udphy_setup(udphy);
 		if (ret)
 			return ret;
-
-		if (udphy->mode & UDPHY_MODE_USB)
-			udphy_u3_port_disable(udphy, false);
 	} else if (udphy->mode_change) {
 		udphy->mode_change = false;
 		udphy->status = UDPHY_MODE_NONE;
-		if (udphy->mode == UDPHY_MODE_DP)
-			udphy_u3_port_disable(udphy, true);
 
 		ret = udphy_disable(udphy);
 		if (ret)
@@ -1331,6 +1326,8 @@ static int rockchip_u3phy_init(struct phy *phy)
 	if (!(udphy->mode & UDPHY_MODE_USB) || udphy->hs) {
 		udphy_u3_port_disable(udphy, true);
 		goto unlock;
+	} else {
+		udphy_u3_port_disable(udphy, false);
 	}
 
 	ret = udphy_power_on(udphy, UDPHY_MODE_USB);
