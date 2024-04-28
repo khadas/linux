@@ -81,7 +81,10 @@ MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 #define NO_LOCK_CFG_RETRY_TIME		300
 #define WAIT_LOCK_STABLE_TIME		20
 #define WAIT_AVI_PKT_TIME		300
-#define BIG_CPU_PHY_ID			5
+#define LOGIC_CPU_ID_1			1
+#define LOGIC_CPU_ID_2			2
+#define LOGIC_CPU_ID_5			5
+#define PHY_CPU_ID_4			4
 
 #define is_validfs(x) (x == 32000 || \
 			x == 44100 || \
@@ -3767,6 +3770,38 @@ static void hdmirx_work_wdt_config(struct work_struct *work)
 	v4l2_dbg(3, debug, v4l2_dev, "hb\n");
 }
 
+static void hdmirx_get_phy_cpuid_func(void *_hdmirx_dev)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = _hdmirx_dev;
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+
+	hdmirx_dev->phy_cpuid = (mpidr >> 8) & 0xF;
+	dev_info(hdmirx_dev->dev, "%s: mpidr: 0x%010lx, phy_cpuid:%#x",
+		 __func__, (unsigned long)mpidr, hdmirx_dev->phy_cpuid);
+}
+
+static void hdmirx_get_phy_cpuid(struct rk_hdmirx_dev *hdmirx_dev, int cpu)
+{
+	smp_call_function_single(cpu, hdmirx_get_phy_cpuid_func, hdmirx_dev, true);
+}
+
+static void hdmirx_get_correct_phy_cpuid(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	int cpu;
+
+	cpu = LOGIC_CPU_ID_5;
+	hdmirx_get_phy_cpuid(hdmirx_dev, cpu);
+	if (hdmirx_dev->phy_cpuid < PHY_CPU_ID_4) {
+		for (cpu = LOGIC_CPU_ID_1; cpu < LOGIC_CPU_ID_5; cpu++) {
+			hdmirx_get_phy_cpuid(hdmirx_dev, cpu);
+			if (hdmirx_dev->phy_cpuid >= PHY_CPU_ID_4)
+				break;
+		}
+	}
+
+	hdmirx_dev->bound_cpu = cpu;
+}
+
 static irqreturn_t hdmirx_5v_det_irq_handler(int irq, void *dev_id)
 {
 	struct rk_hdmirx_dev *hdmirx_dev = dev_id;
@@ -4666,7 +4701,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct hdmirx_cec_data cec_data;
 	struct cpumask cpumask;
-	int ret, irq, cpu_aff, phy_cpuid, i;
+	int ret, irq, cpu_aff;
 
 	hdmirx_dev = devm_kzalloc(dev, sizeof(*hdmirx_dev), GFP_KERNEL);
 	if (!hdmirx_dev)
@@ -4693,27 +4728,14 @@ static int hdmirx_probe(struct platform_device *pdev)
 	 * in order to quickly respond to FIQ and prevent them from affecting
 	 * each other.
 	 */
-	for (i = 0; i < 8; i++) {
-		cpu_aff = sip_cpu_logical_map_mpidr(i);
-		phy_cpuid = (cpu_aff >> 8) & 0xf;
-		if (phy_cpuid == BIG_CPU_PHY_ID) {
-			hdmirx_dev->bound_cpu = i;
-			hdmirx_dev->phy_cpuid = phy_cpuid;
-			break;
-		}
-	}
+	hdmirx_get_correct_phy_cpuid(hdmirx_dev);
 
-	if (!hdmirx_dev->phy_cpuid) {
-		dev_info(dev, "%s: Failed to get phy_cpuid, use default BIG_CPU_PHY_ID!\n",
-				__func__);
-		cpu_aff = BIG_CPU_PHY_ID << 8;
-		hdmirx_dev->bound_cpu = BIG_CPU_PHY_ID;
-		hdmirx_dev->phy_cpuid = BIG_CPU_PHY_ID;
-	}
+	if (hdmirx_dev->phy_cpuid < PHY_CPU_ID_4)
+		dev_warn(dev, "%s: Failed to bind to big cpu!\n", __func__);
 
+	cpu_aff = hdmirx_dev->phy_cpuid << 8;
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
-	hdmirx_dev->phy_cpuid = (cpu_aff >> 8) & 0xf;
-	hdmirx_dev->wdt_cfg_bound_cpu = hdmirx_dev->bound_cpu + 1;
+	hdmirx_dev->wdt_cfg_bound_cpu = LOGIC_CPU_ID_2;
 	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d, phy_cpuid:%d\n",
 			__func__, cpu_aff,
 			hdmirx_dev->bound_cpu,
