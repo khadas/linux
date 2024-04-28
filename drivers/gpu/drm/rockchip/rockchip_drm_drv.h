@@ -120,8 +120,9 @@ enum rockchip_drm_split_area {
 
 enum rockchip_drm_vop_aclk_mode {
 	ROCKCHIP_VOP_ACLK_NORMAL_MODE = 0,
-	ROCKCHIP_VOP_ACLK_ADVANCED_MODE = 1,
-	ROCKCHIP_VOP_ACLK_MAX_MODE = 2,
+	ROCKCHIP_VOP_ACLK_RESET_MODE,
+	ROCKCHIP_VOP_ACLK_ADVANCED_MODE,
+	ROCKCHIP_VOP_ACLK_MAX_MODE,
 };
 
 struct rockchip_drm_sub_dev {

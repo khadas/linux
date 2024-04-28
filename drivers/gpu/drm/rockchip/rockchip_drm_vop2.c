@@ -885,6 +885,7 @@ struct vop2 {
 
 	bool aclk_rate_reset;
 	unsigned long aclk_current_freq;
+	enum rockchip_drm_vop_aclk_mode aclk_mode;
 	bool merge_irq;
 
 	const struct vop2_data *data;
@@ -4431,6 +4432,9 @@ static void vop2_disable(struct drm_crtc *crtc)
 		 * vop2 standby complete, so iommu detach is safe.
 		 */
 		VOP_CTRL_SET(vop2, dma_stop, 1);
+		if (vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE] &&
+		    clk_get_rate(vop2->aclk) > vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE])
+			vop2_devfreq_set_aclk(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE);
 		rockchip_drm_dma_detach_device(vop2->drm_dev, vop2->dev);
 		vop2->is_iommu_enabled = false;
 	}
@@ -11305,10 +11309,19 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 	vop2_cfg_update(crtc, old_cstate);
 
 	if (!vop2->is_iommu_enabled && vop2->is_iommu_needed) {
+		enum rockchip_drm_vop_aclk_mode aclk_mode = vop2->aclk_mode;
+		bool enter_vop_aclk_reset_mode = false;
+
 		if (vcstate->mode_update)
 			VOP_CTRL_SET(vop2, dma_stop, 1);
-
+		if (vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE] &&
+		    clk_get_rate(vop2->aclk) > vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE]) {
+			vop2_devfreq_set_aclk(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE);
+			enter_vop_aclk_reset_mode = true;
+		}
 		ret = rockchip_drm_dma_attach_device(vop2->drm_dev, vop2->dev);
+		if (enter_vop_aclk_reset_mode)
+			vop2_devfreq_set_aclk(crtc, aclk_mode);
 		if (ret) {
 			vop2->is_iommu_enabled = false;
 			vop2_disable_all_planes_for_crtc(crtc);
@@ -13469,6 +13482,7 @@ static int vop2_devfreq_set_aclk(struct drm_crtc *crtc, enum rockchip_drm_vop_ac
 	mutex_unlock(&vop2->devfreq->lock);
 	if (ret)
 		dev_err(vop2->dev, "failed to set rate %lu\n", vop2->aclk_target_freq);
+	vop2->aclk_mode = aclk_mode;
 
 	return 0;
 }
@@ -13537,7 +13551,7 @@ static int rockchip_vop2_devfreq_init(struct vop2 *vop2)
 
 	ret = rockchip_init_opp_table(vop2->dev, &vop2->opp_info, NULL, "vop");
 	if (ret) {
-		dev_err(vop2->dev, "failed to init_opp_table\n");
+		dev_info(vop2->dev, "Unsupported VOP aclk dvfs\n");
 		return ret;
 	}
 
@@ -13583,11 +13597,15 @@ static int rockchip_vop2_devfreq_init(struct vop2 *vop2)
 	of_property_read_u32(vop2->dev->of_node, "rockchip,aclk-normal-mode-rates",
 			     &vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_NORMAL_MODE]);
 
+	of_property_read_u32(vop2->dev->of_node, "rockchip,aclk-reset-mode-rates",
+			     &vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE]);
+
 	of_property_read_u32(vop2->dev->of_node, "rockchip,aclk-advanced-mode-rates",
 			     &vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_ADVANCED_MODE]);
 
-	dev_err(vop2->dev, "Supported VOP aclk dvfs, normal mode:%d, advanced mode:%d\n",
+	dev_err(vop2->dev, "Supported VOP aclk dvfs, normal mode:%d, reset mode:%d, advanced mode:%d\n",
 			   vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_NORMAL_MODE],
+			   vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE],
 			   vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_ADVANCED_MODE]);
 
 	return 0;
