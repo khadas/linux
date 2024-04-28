@@ -309,6 +309,16 @@ struct rkx12x_mipi_pll {
 	u8 rate_factor;
 };
 
+/* rkx12x mipi txphy timing */
+#define RKX12X_MIPI_TIMING_EN	BIT(31) // timing config enable flag
+
+struct rkx12x_mipi_timing {
+	u32 t_hstrail_dlane0;
+	u32 t_hstrail_dlane1;
+	u32 t_hstrail_dlane2;
+	u32 t_hstrail_dlane3;
+};
+
 struct rkx12x_txphy {
 	u32 phy_id; // TXPHY id
 	u32 phy_mode; // TXPHY Mode
@@ -319,6 +329,8 @@ struct rkx12x_txphy {
 
 	struct cfg_opts_mipi_dphy mipi_dphy_cfg;
 	struct rkx12x_mipi_pll mipi_pll;
+
+	struct rkx12x_mipi_timing mipi_timing;
 
 	/* register read/write api */
 	struct i2c_client *client;

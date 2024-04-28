@@ -12,6 +12,8 @@
 #include "rkx12x_txphy.h"
 #include "rkx12x_compact.h"
 
+#define TXPHY_TIMING_ADJUST_API		1 /* 1: enable txphy timing adjust api */
+
 #define PSEC_PER_SEC		1000000000000LL
 
 /* mipi txphy base */
@@ -250,6 +252,7 @@ static int rkx12x_txphy_dphy_timing_init(struct rkx12x_txphy *txphy)
 	t_hsprepare = DIV_ROUND_UP(cfg.hs_prepare, t_byte_clk) - 1;
 	t_hszero = DIV_ROUND_UP(cfg.hs_zero, t_byte_clk) - 1;
 	t_hstrail = DIV_ROUND_UP(cfg.hs_trail, t_byte_clk) - 1;
+#if (TXPHY_TIMING_ADJUST_API == 0)
 	dev_info(dev, "TXPHY: t_hsprepare = %d\n", t_hsprepare);
 	dev_info(dev, "TXPHY: t_hszero = %d\n", t_hszero);
 	dev_info(dev, "TXPHY: t_hstrail = %d\n", t_hstrail);
@@ -276,6 +279,94 @@ static int rkx12x_txphy_dphy_timing_init(struct rkx12x_txphy *txphy)
 				T_HSZERO_D(t_hszero) |
 				T_HSTRAIL_D(t_hstrail) |
 				T_HSEXIT_D(t_hsexit));
+#else /* TXPHY_TIMING_ADJUST_API */
+{
+	u32 mask = 0, val = 0;
+	u32 t_hstrail_dlane = 0;
+
+	mask = 0;
+	mask |= GENMASK(31, 24); // T_HSPREPARE_D
+	mask |= GENMASK(23, 16); // T_HSZERO_D
+	mask |= GENMASK(15, 8); // T_HSTRAIL_D
+	mask |= GENMASK(7, 0); // T_HSEXIT_D
+
+	val = 0;
+	val |= T_HSPREPARE_D(t_hsprepare);
+	val |= T_HSZERO_D(t_hszero);
+	t_hstrail_dlane = txphy->mipi_timing.t_hstrail_dlane0;
+	if (t_hstrail_dlane & RKX12X_MIPI_TIMING_EN) {
+		dev_info(dev, "TXPHY: DLane0: t_hstrail adjust by setting\n");
+		t_hstrail_dlane &= (~RKX12X_MIPI_TIMING_EN);
+	} else {
+		t_hstrail_dlane = t_hstrail;
+	}
+	val |= T_HSTRAIL_D(t_hstrail_dlane);
+	val |= T_HSEXIT_D(t_hsexit);
+
+	dev_info(dev, "TXPHY: DLane0: t_hsprepare = %d\n", t_hsprepare);
+	dev_info(dev, "TXPHY: DLane0: t_hszero = %d\n", t_hszero);
+	dev_info(dev, "TXPHY: DLane0: t_hstrail = %d\n", t_hstrail_dlane);
+
+	ret |= txphy->i2c_reg_update(client, txphy_base + DLANE0_PARA2, mask, val);
+
+	val = 0;
+	val |= T_HSPREPARE_D(t_hsprepare);
+	val |= T_HSZERO_D(t_hszero);
+	t_hstrail_dlane = txphy->mipi_timing.t_hstrail_dlane1;
+	if (t_hstrail_dlane & RKX12X_MIPI_TIMING_EN) {
+		dev_info(dev, "TXPHY: DLane1: t_hstrail adjust by setting\n");
+		t_hstrail_dlane &= (~RKX12X_MIPI_TIMING_EN);
+	} else {
+		t_hstrail_dlane = t_hstrail;
+	}
+	val |= T_HSTRAIL_D(t_hstrail_dlane);
+	val |= T_HSEXIT_D(t_hsexit);
+
+	dev_info(dev, "TXPHY: DLane1: t_hsprepare = %d\n", t_hsprepare);
+	dev_info(dev, "TXPHY: DLane1: t_hszero = %d\n", t_hszero);
+	dev_info(dev, "TXPHY: DLane1: t_hstrail = %d\n", t_hstrail_dlane);
+
+	ret |= txphy->i2c_reg_update(client, txphy_base + DLANE1_PARA2, mask, val);
+
+	val = 0;
+	val |= T_HSPREPARE_D(t_hsprepare);
+	val |= T_HSZERO_D(t_hszero);
+	t_hstrail_dlane = txphy->mipi_timing.t_hstrail_dlane2;
+	if (t_hstrail_dlane & RKX12X_MIPI_TIMING_EN) {
+		dev_info(dev, "TXPHY: DLane2: t_hstrail adjust by setting\n");
+		t_hstrail_dlane &= (~RKX12X_MIPI_TIMING_EN);
+	} else {
+		t_hstrail_dlane = t_hstrail;
+	}
+	val |= T_HSTRAIL_D(t_hstrail_dlane);
+	val |= T_HSEXIT_D(t_hsexit);
+
+	dev_info(dev, "TXPHY: DLane2: t_hsprepare = %d\n", t_hsprepare);
+	dev_info(dev, "TXPHY: DLane2: t_hszero = %d\n", t_hszero);
+	dev_info(dev, "TXPHY: DLane2: t_hstrail = %d\n", t_hstrail_dlane);
+
+	ret |= txphy->i2c_reg_update(client, txphy_base + DLANE2_PARA2, mask, val);
+
+	val = 0;
+	val |= T_HSPREPARE_D(t_hsprepare);
+	val |= T_HSZERO_D(t_hszero);
+	t_hstrail_dlane = txphy->mipi_timing.t_hstrail_dlane3;
+	if (t_hstrail_dlane & RKX12X_MIPI_TIMING_EN) {
+		dev_info(dev, "TXPHY: DLane3: t_hstrail adjust by setting\n");
+		t_hstrail_dlane &= (~RKX12X_MIPI_TIMING_EN);
+	} else {
+		t_hstrail_dlane = t_hstrail;
+	}
+	val |= T_HSTRAIL_D(t_hstrail_dlane);
+	val |= T_HSEXIT_D(t_hsexit);
+
+	dev_info(dev, "TXPHY: DLane3: t_hsprepare = %d\n", t_hsprepare);
+	dev_info(dev, "TXPHY: DLane3: t_hszero = %d\n", t_hszero);
+	dev_info(dev, "TXPHY: DLane3: t_hstrail = %d\n", t_hstrail_dlane);
+
+	ret |= txphy->i2c_reg_update(client, txphy_base + DLANE3_PARA2, mask, val);
+}
+#endif /* TXPHY_TIMING_ADJUST_API */
 
 	t_wakeup = DIV_ROUND_UP((u64)cfg.wakeup * (PSEC_PER_SEC / USEC_PER_SEC), t_byte_clk) - 1;
 	dev_info(dev, "TXPHY: t_wakeup = %d\n", t_wakeup);
