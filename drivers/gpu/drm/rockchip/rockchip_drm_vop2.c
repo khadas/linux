@@ -2700,10 +2700,8 @@ static uint16_t vop2_scale_factor(enum scale_mode mode,
 	/*
 	 * A workaround to avoid zero div.
 	 */
-	if ((dst == 1) || (src == 1)) {
-		dst = dst + 1;
-		src = src + 1;
-	}
+	if (dst < 2)
+		dst = 2;
 
 	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL)) {
 		fac = VOP2_BILI_SCL_DN(src, dst);
