@@ -580,6 +580,201 @@ static void rkx12x_module_debugfs_init(struct rkx12x *rkx12x, struct dentry *den
 	}
 }
 
+enum {
+	T_HSEXIT_DLANE0 = 0,
+	T_HSEXIT_DLANE1,
+	T_HSEXIT_DLANE2,
+	T_HSEXIT_DLANE3,
+
+	T_HSTRAIL_DLANE0,
+	T_HSTRAIL_DLANE1,
+	T_HSTRAIL_DLANE2,
+	T_HSTRAIL_DLANE3,
+
+	T_HSZERO_DLANE0,
+	T_HSZERO_DLANE1,
+	T_HSZERO_DLANE2,
+	T_HSZERO_DLANE3,
+
+	T_HSPREPARE_DLANE0,
+	T_HSPREPARE_DLANE1,
+	T_HSPREPARE_DLANE2,
+	T_HSPREPARE_DLANE3,
+};
+
+struct rkx12x_txphy_param {
+	const char *name;
+	uint32_t id;
+};
+
+static const struct rkx12x_txphy_param rkx12x_txphy_params[] = {
+	{
+		.name = "t_hstrail_dlane0",
+		.id = T_HSTRAIL_DLANE0,
+	},
+	{
+		.name = "t_hstrail_dlane1",
+		.id = T_HSTRAIL_DLANE1,
+	},
+	{
+		.name = "t_hstrail_dlane2",
+		.id = T_HSTRAIL_DLANE2,
+	},
+	{
+		.name = "t_hstrail_dlane3",
+		.id = T_HSTRAIL_DLANE3,
+	},
+	{ /* sentinel */ }
+};
+
+static int rkx12x_txphy_param_show(struct seq_file *s, void *v)
+{
+	const struct rkx12x_txphy_param *txphy_param = rkx12x_txphy_params;
+	struct rkx12x *rkx12x = s->private;
+	struct rkx12x_txphy *txphy = NULL;
+	u32 param_value;
+
+	if (rkx12x == NULL)
+		return -EINVAL;
+	txphy = &rkx12x->txphy;
+
+	while (txphy_param->name) {
+		if (!strcmp(txphy_param->name, file_dentry(s->file)->d_iname))
+			break;
+		txphy_param++;
+	}
+
+	if (!txphy_param->name) {
+		seq_printf(s, "Input Error: %s\n", file_dentry(s->file)->d_iname);
+		return -ENODEV;
+	}
+
+	if (txphy_param->id == T_HSTRAIL_DLANE0) {
+		param_value = txphy->mipi_timing.t_hstrail_dlane0;
+		if (param_value & RKX12X_MIPI_TIMING_EN) {
+			param_value &= (~RKX12X_MIPI_TIMING_EN);
+			seq_printf(s, "%s = %d\n", txphy_param->name, param_value);
+		} else {
+			seq_printf(s, "%s timing setting disable\n", txphy_param->name);
+		}
+	} else if (txphy_param->id == T_HSTRAIL_DLANE1) {
+		param_value = txphy->mipi_timing.t_hstrail_dlane1;
+		if (param_value & RKX12X_MIPI_TIMING_EN) {
+			param_value &= (~RKX12X_MIPI_TIMING_EN);
+			seq_printf(s, "%s = %d\n", txphy_param->name, param_value);
+		} else {
+			seq_printf(s, "%s timing setting disable\n", txphy_param->name);
+		}
+	} else if (txphy_param->id == T_HSTRAIL_DLANE2) {
+		param_value = txphy->mipi_timing.t_hstrail_dlane2;
+		if (param_value & RKX12X_MIPI_TIMING_EN) {
+			param_value &= (~RKX12X_MIPI_TIMING_EN);
+			seq_printf(s, "%s = %d\n", txphy_param->name, param_value);
+		} else {
+			seq_printf(s, "%s timing setting disable\n", txphy_param->name);
+		}
+	} else if (txphy_param->id == T_HSTRAIL_DLANE3) {
+		param_value = txphy->mipi_timing.t_hstrail_dlane3;
+		if (param_value & RKX12X_MIPI_TIMING_EN) {
+			param_value &= (~RKX12X_MIPI_TIMING_EN);
+			seq_printf(s, "%s = %d\n", txphy_param->name, param_value);
+		} else {
+			seq_printf(s, "%s timing setting disable\n", txphy_param->name);
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	seq_printf(s, "\n");
+
+	return 0;
+}
+
+static int rkx12x_txphy_param_open(struct inode *inode, struct file *file)
+{
+	struct rkx12x *rkx12x = inode->i_private;
+
+	return single_open(file, rkx12x_txphy_param_show, rkx12x);
+}
+
+static ssize_t rkx12x_txphy_param_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	const struct rkx12x_txphy_param *txphy_param = rkx12x_txphy_params;
+	struct rkx12x *rkx12x = file->f_path.dentry->d_inode->i_private;
+	struct rkx12x_txphy *txphy = NULL;
+	u32 param_value = 0;
+	char kbuf[25];
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%d", &param_value);
+	if (ret != 1)
+		return -EINVAL;
+
+	while (txphy_param->name) {
+		if (!strcmp(txphy_param->name, file_dentry(file)->d_iname))
+			break;
+		txphy_param++;
+	}
+
+	if (!txphy_param->name)
+		return -ENODEV;
+
+	if (rkx12x == NULL || rkx12x->client == NULL)
+		return -EFAULT;
+	txphy = &rkx12x->txphy;
+
+	pr_info("%s: value = %d\n", txphy_param->name, param_value);
+	if (txphy_param->id == T_HSTRAIL_DLANE0) {
+		param_value |= RKX12X_MIPI_TIMING_EN;
+		txphy->mipi_timing.t_hstrail_dlane0 = param_value;
+	} else if (txphy_param->id == T_HSTRAIL_DLANE1) {
+		param_value |= RKX12X_MIPI_TIMING_EN;
+		txphy->mipi_timing.t_hstrail_dlane1 = param_value;
+	} else if (txphy_param->id == T_HSTRAIL_DLANE2) {
+		param_value |= RKX12X_MIPI_TIMING_EN;
+		txphy->mipi_timing.t_hstrail_dlane2 = param_value;
+	} else if (txphy_param->id == T_HSTRAIL_DLANE3) {
+		param_value |= RKX12X_MIPI_TIMING_EN;
+		txphy->mipi_timing.t_hstrail_dlane3 = param_value;
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static const struct file_operations rkx12x_txphy_param_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rkx12x_txphy_param_open,
+	.read           = seq_read,
+	.write          = rkx12x_txphy_param_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rkx12x_txphy_param_debugfs_init(struct rkx12x *rkx12x, struct dentry *dentry)
+{
+	const struct rkx12x_txphy_param *txphy_param = rkx12x_txphy_params;
+	struct dentry *dir = NULL;
+
+	dir = debugfs_create_dir("txphy", dentry);
+	if (!IS_ERR(dir)) {
+		while (txphy_param->name) {
+			debugfs_create_file(txphy_param->name, 0600, dir, rkx12x, &rkx12x_txphy_param_fops);
+			txphy_param++;
+		}
+	}
+}
+
 int rkx12x_debugfs_init(struct rkx12x *rkx12x)
 {
 	struct dentry *debugfs_serdes = NULL;
@@ -606,6 +801,8 @@ int rkx12x_debugfs_init(struct rkx12x *rkx12x)
 	rkx12x_register_debugfs_init(rkx12x, debugfs_local);
 
 	rkx12x_module_debugfs_init(rkx12x, debugfs_local);
+
+	rkx12x_txphy_param_debugfs_init(rkx12x, debugfs_local);
 
 	// cru clock tree dump
 	debugfs_create_file("clk", 0400, debugfs_local, rkx12x, &rkx12x_clk_fops);
