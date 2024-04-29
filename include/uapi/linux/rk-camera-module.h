@@ -195,6 +195,9 @@
 #define RKCIS_CMD_FLASH_LIGHT_CTRL  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 43, struct rk_light_param)
 
+#define RKCIS_CMD_SELECT_SETTING  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 44, struct rk_sensor_setting)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -843,6 +846,14 @@ struct rk_light_param {
 	__u64 duty_cycle;
 	__u64 period;
 	__u32 polarity;
+} __attribute__ ((packed));
+
+struct rk_sensor_setting {
+	__u32 width;
+	__u32 height;
+	__u32 fps;
+	__u32 fmt;
+	__u32 mode;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
