@@ -1032,7 +1032,7 @@ static void gpio_config(void)
 		}
 
 		if (iomux == RKPM_IO_CFG_IOMUX_GPIO_VAL) {
-			if (dir == RKPM_IO_CFG_GPIO_DIR_INPUT_VAL)
+			if (dir == RKPM_IO_CFG_GPIO_DIR_OUTPUT_VAL)
 				gpio0_set_lvl(id, lvl);
 
 			gpio0_set_direct(id, dir);
