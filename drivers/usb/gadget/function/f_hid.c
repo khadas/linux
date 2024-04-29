@@ -760,7 +760,7 @@ stall:
 	return -EOPNOTSUPP;
 
 respond:
-	req->zero = 0;
+	req->zero = ((length % cdev->gadget->ep0->maxpacket) == 0);
 	req->length = length;
 	status = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
 	if (status < 0)
