@@ -31,7 +31,7 @@
 #define RGA_IMPORT_DMA			0x601d
 #define RGA_RELEASE_DMA			0x601e
 
-#define RGA_TASK_NUM_MAX		50
+#define RGA_TASK_NUM_MAX		256
 
 #define RGA_OUT_OF_RESOURCES		-10
 #define RGA_MALLOC_ERROR		-11
