@@ -573,6 +573,8 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 
 	do_div(t_frm_st, src_pixclock);
 	*dsp_frame_hst = do_div(t_frm_st, src_htotal);
+	if (src->vfront_porch < t_frm_st)
+		t_frm_st = src->vfront_porch;
 	*dsp_frame_vst = t_frm_st;
 }
 
