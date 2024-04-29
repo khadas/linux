@@ -2505,7 +2505,7 @@
 				 "spi0_miso_h",
 				 "spi0_clk_h";
 			function = "spi0";
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2515,7 +2515,7 @@
 				 "spi1_miso_dv",
 				 "spi1_clk_dv";
 			function = "spi1";
-			drive-strength = <1>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 

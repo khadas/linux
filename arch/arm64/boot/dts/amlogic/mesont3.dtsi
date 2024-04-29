@@ -3111,7 +3111,7 @@
 				 //"spi_a_ss0_h8",used as GPIOH_8
 				 "spi_a_clk_h11";
 			function = "spi_a";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3122,7 +3122,7 @@
 				 //"spi_a_ss0_m",used as GPIOM_22
 				 "spi_a_clk_m";
 			function = "spi_a";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3133,7 +3133,7 @@
 				 //"spi_a_ss0_z3",used as GPIOZ_3
 				 "spi_a_clk_z2";
 			function = "spi_a";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3144,7 +3144,7 @@
 				 //"spi_b_ss0_h",used as GPIOH_24
 				 "spi_b_clk_h";
 			function = "spi_b";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3152,7 +3152,7 @@
 		mux {
 			groups = "spi_b_ss0_h";
 			function = "spi_b";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3163,7 +3163,7 @@
 				 //"spi_c_ss0",used as GPIOC_3
 				 "spi_c_clk";
 			function = "spi_c";
-			drive-strength-microamp = <2000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
