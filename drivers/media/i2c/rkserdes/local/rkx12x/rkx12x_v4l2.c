@@ -82,6 +82,17 @@ static const struct rkx12x_mode rkx12x_def_mode = {
 	},
 };
 
+static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 3,
+	.lp_hys_sw = {3, 0, 3, 0},
+	.lp_escclk_pol_sel = {1, 0, 1, 0},
+	.skew_data_cal_clk = {0, 0, 0, 0},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
+};
+
 static int rkx12x_support_mode_init(struct rkx12x *rkx12x)
 {
 	struct device *dev = &rkx12x->client->dev;
@@ -321,6 +332,7 @@ static void rkx12x_set_vicap_rst_inf(struct rkx12x *rkx12x,
 static long rkx12x_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkx12x *rkx12x = v4l2_get_subdevdata(sd);
+	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 
 	dev_dbg(&rkx12x->client->dev, "ioctl cmd = 0x%08x\n", cmd);
@@ -337,6 +349,16 @@ static long rkx12x_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkx12x_set_vicap_rst_inf(rkx12x,
 			*(struct rkmodule_vicap_reset_info *)arg);
 		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		rk3588_dcphy_param = *dphy_param;
+		dev_info(&rkx12x->client->dev, "set dcphy parameter\n");
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		*dphy_param = rk3588_dcphy_param;
+		dev_info(&rkx12x->client->dev, "get dcphy parameter\n");
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -352,6 +374,7 @@ static long rkx12x_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_vicap_reset_info *vicap_rst_inf;
+	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 
 	switch (cmd) {
@@ -398,6 +421,35 @@ static long rkx12x_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 		else
 			ret = -EFAULT;
 		kfree(vicap_rst_inf);
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = rkx12x_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = rkx12x_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
