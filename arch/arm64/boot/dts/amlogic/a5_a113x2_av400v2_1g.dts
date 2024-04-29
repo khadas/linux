@@ -9,8 +9,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	amlogic-dt-id = "a5_a113x2_av400_1g";
-	compatible = "a5_a113x2_av400_1g";
+	amlogic-dt-id = "a5_a113x2_av400v2_1g";
+	compatible = "a5_a113x2_av400v2_1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -635,7 +635,7 @@
 		power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
-		lane-mask-in = <0 0 1 1>;
+		lane-mask-in = <0 0 1 0>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -743,10 +743,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf0>;
+		datain_chnum = <2>;
+		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 1>;
+		datain-lane-mask-in = <0 0 1 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -763,10 +763,10 @@
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
 		datalb_src = <1>;
-		datalb_chnum = <8>;
-		datalb_chmask = <0xff>;
+		datalb_chnum = <2>;
+		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
-		datalb-lane-mask-in = <1 1 1 1>;
+		datalb-lane-mask-in = <1 0 0 0>;
 
 		status = "okay";
 	};
