@@ -626,7 +626,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 	int i;
 	unsigned long flags;
 	enum rga_scheduler_status scheduler_status;
-	int running_abort_count = 0, todo_abort_count = 0;
+	int running_abort_count = 0, todo_abort_count = 0, all_task_count = 0;
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_job *job, *job_q;
 	LIST_HEAD(list_to_free);
@@ -679,8 +679,12 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 		rga_job_cleanup(job);
 	}
 
+	all_task_count = request->finished_task_count + request->failed_task_count +
+			 running_abort_count + todo_abort_count;
+
 	/* This means it has been cleaned up. */
-	if (running_abort_count + todo_abort_count == 0)
+	if (running_abort_count + todo_abort_count == 0 &&
+	    all_task_count == request->task_count)
 		return 1;
 
 	pr_err("request[%d] abort! finished %d failed %d running_abort %d todo_abort %d\n",
