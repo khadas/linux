@@ -728,6 +728,7 @@ struct rockchip_hdptx_phy {
 	struct reset_control *lcpll_reset;
 
 	bool earc_en;
+	bool initialized;
 	int count;
 };
 
@@ -2047,21 +2048,11 @@ static void rockchip_hdptx_phy_runtime_disable(void *data)
 
 #define PLL_REF_CLK 24000000ULL
 
-static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
-					       unsigned long parent_rate)
+static unsigned long hdptx_cal_current_rate(struct rockchip_hdptx_phy *hdptx)
 {
-	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
 	u8 mdiv, sdiv, sdm_num, sdm_deno, sdc_n, sdc_num, sdc_deno;
 	u64 fout, sdm;
-	u32 val;
 	bool sdm_en, sdm_num_sign;
-
-	if (hdptx->rate)
-		return hdptx->rate;
-
-	val = hdptx_grf_read(hdptx, GRF_HDPTX_CON0);
-	if (!(val & HDPTX_I_PLL_EN))
-		return 0;
 
 	mdiv = hdptx_read(hdptx, CMN_REG0051);
 	sdm_en = hdptx_read(hdptx, CMN_REG005E) & ROPLL_SDM_EN_MASK;
@@ -2087,6 +2078,22 @@ static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
 	fout = div_u64(fout * 2, sdiv * 10);
 
 	return fout;
+}
+
+static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+	u32 val;
+
+	if (hdptx->rate)
+		return hdptx->rate;
+
+	val = hdptx_grf_read(hdptx, GRF_HDPTX_CON0);
+	if (!(val & HDPTX_I_PLL_EN))
+		return 0;
+
+	return hdptx_cal_current_rate(hdptx);
 }
 
 static long hdptx_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -2143,14 +2150,23 @@ static int hdptx_phy_clk_enable(struct clk_hw *hw)
 	}
 
 	if (hdptx->rate) {
-		if (hdptx->rate > HDMI20_MAX_RATE) {
-			if  (hdptx->rate == FRL_8G_4LANES)
-				ret = hdptx_lcpll_ropll_cmn_config(hdptx, hdptx->rate / 100);
-			else
-				ret = hdptx_lcpll_cmn_config(hdptx, hdptx->rate / 100);
+		/* hdmi phy is initialized in uboot, don't re-init phy pll */
+		if (hdptx->initialized) {
+			hdptx->initialized = false;
 		} else {
-			ret = hdptx_ropll_cmn_config(hdptx, hdptx->rate / 100);
+			if (hdptx->rate > HDMI20_MAX_RATE) {
+				if  (hdptx->rate == FRL_8G_4LANES)
+					ret = hdptx_lcpll_ropll_cmn_config(hdptx,
+									   hdptx->rate / 100);
+				else
+					ret = hdptx_lcpll_cmn_config(hdptx, hdptx->rate / 100);
+			} else {
+				ret = hdptx_ropll_cmn_config(hdptx, hdptx->rate / 100);
+			}
 		}
+	} else {
+		/* default frequency */
+		hdptx_ropll_cmn_config(hdptx, 742500);
 	}
 
 	if (!ret)
@@ -2372,6 +2388,11 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		goto err_regsmap;
 
 	platform_set_drvdata(pdev, hdptx);
+	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE) {
+		hdptx->initialized = true;
+		hdptx->rate = hdptx_cal_current_rate(hdptx);
+	}
+
 	dev_info(dev, "hdptx phy init success\n");
 	return 0;
 
