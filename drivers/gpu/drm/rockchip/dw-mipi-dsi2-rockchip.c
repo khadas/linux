@@ -1582,12 +1582,19 @@ static int dw_mipi_dsi2_host_attach(struct mipi_dsi_host *host,
 	dsi2->format = device->format;
 	dsi2->mode_flags = device->mode_flags;
 
-	return 0;
+	return component_add(dsi2->dev, &dw_mipi_dsi2_ops);
 }
 
 static int dw_mipi_dsi2_host_detach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
+	struct dw_mipi_dsi2 *dsi2 = host_to_dsi2(host);
+
+	if (dsi2->master)
+		return 0;
+
+	component_del(dsi2->dev, &dw_mipi_dsi2_ops);
+
 	return 0;
 }
 
@@ -1828,7 +1835,7 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return component_add(&pdev->dev, &dw_mipi_dsi2_ops);
+	return 0;
 }
 
 static int dw_mipi_dsi2_remove(struct platform_device *pdev)
