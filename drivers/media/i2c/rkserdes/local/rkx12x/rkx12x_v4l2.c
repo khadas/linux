@@ -470,6 +470,11 @@ static int __rkx12x_start_stream(struct rkx12x *rkx12x)
 		return ret;
 	}
 
+	if (rkx12x->state_irq > 0) {
+		dev_info(dev, "state irq enable\n");
+		enable_irq(rkx12x->state_irq);
+	}
+
 	return 0;
 }
 
@@ -477,6 +482,11 @@ static int __rkx12x_stop_stream(struct rkx12x *rkx12x)
 {
 	struct device *dev = &rkx12x->client->dev;
 	int ret = 0;
+
+	if (rkx12x->state_irq > 0) {
+		dev_info(dev, "state irq disable\n");
+		disable_irq(rkx12x->state_irq);
+	}
 
 	// remote devices stop stream
 	ret |= rkx12x_remote_devices_s_stream(rkx12x, 0);

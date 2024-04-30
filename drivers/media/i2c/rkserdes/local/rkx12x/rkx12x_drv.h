@@ -127,6 +127,8 @@ struct rkx12x {
 	const char *len_name;
 	const char *sensor_name;
 
+	int state_irq; /* state irq */
+
 	u32 stream_port; /* stream port: 0 = lane0 / 1 = lane1 */
 	u32 stream_interface; /* stream interface: 0 = mipi / 1 = dvp / 2 = lvds */
 	u32 stream_clock_mode; /* 0: continuous mode, 1: non-continuous mode */

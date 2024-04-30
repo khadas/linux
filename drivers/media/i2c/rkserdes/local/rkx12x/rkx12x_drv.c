@@ -1295,6 +1295,224 @@ int rkx12x_link_preinit(struct rkx12x *rkx12x)
 }
 EXPORT_SYMBOL(rkx12x_link_preinit);
 
+/* rkx12x irq */
+static int rkx12x_state_int_cfg(struct rkx12x *rkx12x)
+{
+#if (IOMUX_PINSET_API_EN == 0)
+	struct i2c_client *client = rkx12x->client;
+	struct device *dev = &client->dev;
+	u32 reg, val = 0;
+	int ret = 0;
+
+	dev_info(&client->dev, "rkx12x state int config\n");
+
+	/* rkx12x gpio0a4_int_tx iomux */
+	reg = DES_GRF_GPIO0A_IOMUX_L;
+	val = HIWORD_UPDATE(GPIO0A4_INT_TX, GPIO0A4_MASK, GPIO0A4_SHIFT);
+	ret = rkx12x->i2c_reg_write(client, reg, val);
+	if (ret) {
+		dev_err(dev, "rkx12x GPIO0A4_INT_TX iomux error\n");
+		return ret;
+	}
+#else
+	struct i2c_client *client = rkx12x->client;
+	struct device *dev = &client->dev;
+	int ret = 0;
+
+	dev_info(&client->dev, "rkx12x state int config\n");
+
+	ret = rkx12x_hwpin_set(&rkx12x->hwpin, RKX12X_DES_GPIO_BANK0,
+				RKX12X_GPIO_PIN_A4, RKX12X_PIN_CONFIG_MUX_FUNC2);
+	if (ret) {
+		dev_err(dev, "rkx12x state int tx iomux error\n");
+		return ret;
+	}
+#endif /* IOMUX_PINSET_API_EN */
+
+	return 0;
+}
+
+static int rkx12x_module_irq_enable(struct rkx12x *rkx12x)
+{
+	struct device *dev = &rkx12x->client->dev;
+	struct rkx12x_linkrx *linkrx = &rkx12x->linkrx;
+	int ret = 0;
+
+	if (rkx12x->state_irq < 0)
+		return -1;
+
+	dev_info(dev, "=== rkx12x module irq enable ===\n");
+
+	ret = rkx12x_state_int_cfg(rkx12x);
+	if (ret)
+		return ret;
+
+	/* enable pcs irq */
+	ret |= rkx12x_des_pcs_irq_enable(linkrx, linkrx->lane_id);
+
+	/* enable pma irq */
+	ret |= rkx12x_des_pma_irq_enable(linkrx, linkrx->lane_id);
+
+	/* enable link irq */
+	ret |= rkx12x_linkrx_irq_enable(linkrx);
+
+	return ret;
+}
+
+static __maybe_unused int rkx12x_module_irq_disable(struct rkx12x *rkx12x)
+{
+	struct device *dev = &rkx12x->client->dev;
+	struct rkx12x_linkrx *linkrx = &rkx12x->linkrx;
+	int ret = 0;
+
+	if (rkx12x->state_irq < 0)
+		return -1;
+
+	dev_info(dev, "=== rkx12x module irq disable ===\n");
+
+	/* disable pcs irq */
+	ret |= rkx12x_des_pcs_irq_disable(linkrx, linkrx->lane_id);
+
+	/* disable pma adapt irq */
+	ret |= rkx12x_des_pma_irq_disable(linkrx, linkrx->lane_id);
+
+	/* disable link irq */
+	ret |= rkx12x_linkrx_irq_disable(linkrx);
+
+	return ret;
+}
+
+static int rkx12x_module_irq_handler(struct rkx12x *rkx12x)
+{
+	struct i2c_client *client = rkx12x->client;
+	struct device *dev = &client->dev;
+	struct rkx12x_linkrx *linkrx = &rkx12x->linkrx;
+	u32 mask = 0, status = 0;
+	int ret = 0, i = 0;
+
+	ret = rkx12x->i2c_reg_read(client, DES_GRF_IRQ_EN, &mask);
+	if (ret)
+		return ret;
+	ret = rkx12x->i2c_reg_read(client, DES_GRF_IRQ_STATUS, &status);
+	if (ret)
+		return ret;
+
+	dev_info(dev, "des module irq status: 0x%08x\n", status);
+
+	i = 0;
+	status &= mask;
+	while (status) {
+		switch (status & BIT(i)) {
+		case DES_IRQ_PCS0:
+			ret |= rkx12x_des_pcs_irq_handler(linkrx, 0);
+			break;
+		case DES_IRQ_PCS1:
+			ret |= rkx12x_des_pcs_irq_handler(linkrx, 1);
+			break;
+		case DES_IRQ_EFUSE:
+			/* TBD */
+			break;
+		case DES_IRQ_GPIO0:
+			/* TBD */
+			break;
+		case DES_IRQ_GPIO1:
+			/* TBD */
+			break;
+		case DES_IRQ_CSITX0:
+			/* TBD */
+			break;
+		case DES_IRQ_CSITX1:
+			/* TBD */
+			break;
+		case DES_IRQ_MIPI_DSI_HOST:
+			/* TBD */
+			break;
+		case DES_IRQ_PMA_ADAPT0:
+			ret |= rkx12x_des_pma_irq_handler(linkrx, 0);
+			break;
+		case DES_IRQ_PMA_ADAPT1:
+			ret |= rkx12x_des_pma_irq_handler(linkrx, 1);
+			break;
+		case DES_IRQ_REMOTE:
+			/* TBD */
+			break;
+		case DES_IRQ_PWM:
+			/* TBD */
+			break;
+		case DES_IRQ_DVP_TX:
+			/* TBD */
+			break;
+		case DES_IRQ_LINK:
+			ret |= rkx12x_linkrx_irq_handler(linkrx);
+			break;
+		case DES_IRQ_EXT:
+			/* TBD */
+			break;
+		default:
+			break;
+		}
+
+		status &= ~BIT(i);
+		i++;
+	}
+
+	return ret;
+}
+
+static irqreturn_t rkx12x_state_irq_handler(int irq, void *arg)
+{
+	struct rkx12x *rkx12x = arg;
+	struct device *dev = &rkx12x->client->dev;
+	int state_gpio_level = 0;
+	int ret = 0;
+
+	mutex_lock(&rkx12x->mutex);
+
+	if (rkx12x->streaming) {
+		state_gpio_level = gpiod_get_value_cansleep(rkx12x->gpio_irq);
+		dev_info(dev, "rkx12x state int gpio level: %d\n", state_gpio_level);
+
+		ret = rkx12x_module_irq_handler(rkx12x);
+		if (ret)
+			dev_warn(dev, "rkx12x module irq handler error\n");
+	}
+
+	mutex_unlock(&rkx12x->mutex);
+
+	return IRQ_HANDLED;
+}
+
+static int rkx12x_state_irq_init(struct rkx12x *rkx12x)
+{
+	struct device *dev = &rkx12x->client->dev;
+	int ret = 0;
+
+	dev_info(dev, "rkx12x state irq init\n");
+
+	if (!IS_ERR(rkx12x->gpio_irq)) {
+		rkx12x->state_irq = gpiod_to_irq(rkx12x->gpio_irq);
+		if (rkx12x->state_irq < 0)
+			return dev_err_probe(dev, rkx12x->state_irq, "failed to get irq\n");
+
+		irq_set_status_flags(rkx12x->state_irq, IRQ_NOAUTOEN);
+		ret = devm_request_threaded_irq(dev, rkx12x->state_irq, NULL,
+						rkx12x_state_irq_handler,
+						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						"rkx12x-irq", rkx12x);
+		if (ret) {
+			dev_err(dev, "failed to request rkx12x interrupt\n");
+			rkx12x->state_irq = -1;
+			return ret;
+		}
+	} else {
+		dev_warn(dev, "no support rkx12x irq function\n");
+		rkx12x->state_irq = -1;
+		return -1;
+	}
+
+	return 0;
+}
+
 /* rkx12x module hw init */
 int rkx12x_module_hw_init(struct rkx12x *rkx12x)
 {
@@ -1366,6 +1584,13 @@ int rkx12x_module_hw_init(struct rkx12x *rkx12x)
 	ret = rkx12x_extra_init_seq_run(rkx12x);
 	if (ret) {
 		dev_err(dev, "%s: run extra init seq error\n", __func__);
+		return ret;
+	}
+
+	/* rkx12x module irq */
+	ret = rkx12x_module_irq_enable(rkx12x);
+	if (ret) {
+		dev_err(dev, "%s: module irq enable error\n", __func__);
 		return ret;
 	}
 
@@ -1654,6 +1879,8 @@ static int rkx12x_i2c_probe(struct i2c_client *client, const struct i2c_device_i
 	/* i2c mux disable select and deselect */
 	rkx12x_i2c_mux_disable(rkx12x);
 #endif /* I2CMUX_CH_SEL_EN */
+
+	rkx12x_state_irq_init(rkx12x);
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
