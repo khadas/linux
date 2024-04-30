@@ -702,6 +702,79 @@ static int rkx12x_linkrx_hw_init(struct rkx12x *rkx12x)
 	return rkx12x_linkrx_lane_init(&rkx12x->linkrx);
 }
 
+/* rkx12x pinctrl init */
+static int rkx12x_pinctrl_init(struct rkx12x *rkx12x)
+{
+	struct device *dev = &rkx12x->client->dev;
+	const char *pinctrl_name = "rkx12x-pins";
+	struct device_node *local_node = NULL, *np = NULL;
+	u32 *pinctrl_configs = NULL;
+	u32 bank, pins, pin_configs;
+	int length, i, ret = 0;
+
+	dev_info(dev, "rkx12x pinctrl init\n");
+
+	// local device
+	local_node = of_get_child_by_name(dev->of_node, "serdes-local-device");
+	if (IS_ERR_OR_NULL(local_node)) {
+		dev_err(dev, "%pOF has no child node: serdes-local-device\n",
+				dev->of_node);
+
+		return -ENODEV;
+	}
+
+	if (!of_device_is_available(local_node)) {
+		dev_info(dev, "%pOF is disabled\n", local_node);
+
+		of_node_put(local_node);
+		return -ENODEV;
+	}
+
+	/* rkx12x-pins = <bank pins pin_configs>; */
+	for_each_child_of_node(local_node, np) {
+		if (!of_device_is_available(np))
+			continue;
+
+		length = of_property_count_u32_elems(np, pinctrl_name);
+		if (length < 0)
+			continue;
+		if (length % 3) {
+			dev_err(dev, "%s: invalid count for pinctrl\n", np->name);
+			continue;
+		}
+
+		pinctrl_configs = kmalloc_array(length, sizeof(u32), GFP_KERNEL);
+		if (!pinctrl_configs)
+			continue;
+
+		ret = of_property_read_u32_array(np, pinctrl_name, pinctrl_configs, length);
+		if (ret) {
+			dev_err(dev, "%s: pinctrl configs data error\n", np->name);
+			kfree(pinctrl_configs);
+			continue;
+		}
+
+		for (i = 0; i < length; i += 3) {
+			bank = pinctrl_configs[i + 0];
+			pins = pinctrl_configs[i + 1];
+			pin_configs = pinctrl_configs[i + 2];
+
+			dev_info(dev, "%s: bank = %d, pins = 0x%08x, pin_configs = 0x%08x\n",
+					np->name, bank, pins, pin_configs);
+
+			ret = rkx12x_hwpin_set(&rkx12x->hwpin, bank, pins, pin_configs);
+			if (ret)
+				dev_err(dev, "%s: pinctrl configs error\n", np->name);
+		}
+
+		kfree(pinctrl_configs);
+	}
+
+	of_node_put(local_node);
+
+	return 0;
+}
+
 /* rkx12x extra init sequence */
 static int rkx12x_extra_init_seq_parse(struct device *dev,
 		struct device_node *local_node, struct rkx12x_i2c_init_seq *init_seq)
@@ -1199,6 +1272,13 @@ int rkx12x_module_hw_init(struct rkx12x *rkx12x)
 	ret = rkx12x_linkrx_hw_init(rkx12x);
 	if (ret) {
 		dev_err(dev, "%s: linkrx hw init error\n", __func__);
+		return ret;
+	}
+
+	/* pinctrl init */
+	ret = rkx12x_pinctrl_init(rkx12x);
+	if (ret) {
+		dev_err(dev, "%s: pinctrl init error\n", __func__);
 		return ret;
 	}
 
