@@ -27,6 +27,7 @@
 #include "uvc_v4l2.h"
 #include "uvc_configfs.h"
 
+MODULE_IMPORT_NS(DMA_BUF);
 static struct uvc_format_desc *to_uvc_format(struct uvcg_format *uformat)
 {
 	char guid[16] = UVC_GUID_FORMAT_MJPEG;

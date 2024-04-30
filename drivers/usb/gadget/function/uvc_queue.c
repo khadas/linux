@@ -23,6 +23,7 @@
 #include "uvc.h"
 #include "u_uvc.h"
 
+MODULE_IMPORT_NS(DMA_BUF);
 /* ------------------------------------------------------------------------
  * Video buffers queue management.
  *

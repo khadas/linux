@@ -22,6 +22,7 @@
 #include "uvc_video.h"
 #include "u_uvc.h"
 
+MODULE_IMPORT_NS(DMA_BUF);
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 static bool uvc_using_zero_copy(struct uvc_video *video)
 {
