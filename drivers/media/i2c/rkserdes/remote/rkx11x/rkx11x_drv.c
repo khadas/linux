@@ -788,6 +788,61 @@ static int rkx11x_linktx_hw_init(struct rkx11x *rkx11x)
 	return 0;
 }
 
+/* rkx11x pinctrl init */
+static int rkx11x_pinctrl_init(struct rkx11x *rkx11x)
+{
+	struct device *dev = &rkx11x->client->dev;
+	const char *pinctrl_name = "rkx11x-pins";
+	struct device_node *np = NULL;
+	u32 *pinctrl_configs = NULL;
+	u32 bank, pins, pin_configs;
+	int length, i, ret = 0;
+
+	dev_info(dev, "rkx11x pinctrl init\n");
+
+	/* rkx11x-pins = <bank pins pin_configs>; */
+	for_each_child_of_node(dev->of_node, np) {
+		if (!of_device_is_available(np))
+			continue;
+
+		length = of_property_count_u32_elems(np, pinctrl_name);
+		if (length < 0)
+			continue;
+		if (length % 3) {
+			dev_err(dev, "%s: invalid count for pinctrl\n", np->name);
+			continue;
+		}
+
+		pinctrl_configs = kmalloc_array(length, sizeof(u32), GFP_KERNEL);
+		if (!pinctrl_configs)
+			continue;
+
+		ret = of_property_read_u32_array(np, pinctrl_name, pinctrl_configs, length);
+		if (ret) {
+			dev_err(dev, "%s: pinctrl configs data error\n", np->name);
+			kfree(pinctrl_configs);
+			continue;
+		}
+
+		for (i = 0; i < length; i += 3) {
+			bank = pinctrl_configs[i + 0];
+			pins = pinctrl_configs[i + 1];
+			pin_configs = pinctrl_configs[i + 2];
+
+			dev_info(dev, "%s: bank = %d, pins = 0x%08x, pin_configs = 0x%08x\n",
+					np->name, bank, pins, pin_configs);
+
+			ret = rkx11x_hwpin_set(&rkx11x->hwpin, bank, pins, pin_configs);
+			if (ret)
+				dev_err(dev, "%s: pinctrl configs error\n", np->name);
+		}
+
+		kfree(pinctrl_configs);
+	}
+
+	return 0;
+}
+
 /* rkx11x camera mclk */
 static int rkx11x_camera_mclk_enable(struct rkx11x *rkx11x)
 {
@@ -986,6 +1041,12 @@ static int rkx11x_module_init(struct rkser_dev *rkser_dev)
 			dev_err(dev, "%s: dvp iomux config error\n", __func__);
 			return ret;
 		}
+	}
+
+	ret = rkx11x_pinctrl_init(rkx11x);
+	if (ret) {
+		dev_err(dev, "%s: pinctrl init error\n", __func__);
+		return ret;
 	}
 
 	rkx11x_camera_mclk_enable(rkx11x);
