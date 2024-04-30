@@ -1178,3 +1178,338 @@ int rkx12x_linkrx_passthrough_cfg(struct rkx12x_linkrx *linkrx, u32 pt_id, bool 
 
 	return 0;
 }
+
+int rkx12x_linkrx_irq_enable(struct rkx12x_linkrx *linkrx)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = DES_IRQ_LINK_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = RKLINK_DES_SINK_IRQ_EN;
+	val = FIFO_UNDERRUN_IRQ_OUTPUT_EN | FIFO_OVERFLOW_IRQ_OUTPUT_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+int rkx12x_linkrx_irq_disable(struct rkx12x_linkrx *linkrx)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = DES_IRQ_LINK ^ DES_IRQ_LINK_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = RKLINK_DES_SINK_IRQ_EN;
+	ret |= linkrx->i2c_reg_read(client, reg, &val);
+	val &= ~(FIFO_UNDERRUN_IRQ_OUTPUT_EN | FIFO_OVERFLOW_IRQ_OUTPUT_EN);
+	reg |= linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+static int rkx12x_linkrx_fifo_handler(struct rkx12x_linkrx *linkrx)
+{
+	struct i2c_client *client = linkrx->client;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	reg = RKLINK_DES_FIFO_STATUS;
+	ret = linkrx->i2c_reg_read(client, reg, &val);
+	if (ret)
+		return ret;
+
+	if (val & AUDIO_DATA_FIFO_UNDERRUN)
+		dev_err(&client->dev, "linkrx audio data fifo underrun\n");
+	if (val & AUDIO_ORDER_FIFO_UNDERRUN)
+		dev_err(&client->dev, "linkrx audio order fifo underrun\n");
+	if (val & VIDEO_DATA_FIFO_UNDERRUN)
+		dev_err(&client->dev, "linkrx video data fifo underrun\n");
+	if (val & VIDEO_ORDER_FIFO_UNDERRUN)
+		dev_err(&client->dev, "linkrx video order fifo underrun\n");
+	if (val & CMD_FIFO_UNDERRUN)
+		dev_err(&client->dev, "linkrx cmd fifo underrun\n");
+	if (val & ENGINE1_DATA_ORDER_MIS)
+		dev_err(&client->dev, "linkrx engine1 data order mis\n");
+	if (val & ENGINE0_DATA_ORDER_MIS)
+		dev_err(&client->dev, "linkrx engine0 data order mis\n");
+	if (val & AUDIO_DATA_FIFO_OVERFLOW)
+		dev_err(&client->dev, "linkrx audio data fifo overflow\n");
+	if (val & AUDIO_ORDER_FIFO_OVERFLOW)
+		dev_err(&client->dev, "linkrx audio order fifo overflow\n");
+	if (val & VIDEO_DATA_FIFO_OVERFLOW)
+		dev_err(&client->dev, "linkrx video data fifo overflow\n");
+	if (val & VIDEO_ORDER_FIFO_OVERFLOW)
+		dev_err(&client->dev, "linkrx video order fifo overflow\n");
+	if (val & CMD_FIFO_OVERFLOW)
+		dev_err(&client->dev, "linkrx cmd fifo overflow\n");
+
+	ret = linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+int rkx12x_linkrx_irq_handler(struct rkx12x_linkrx *linkrx)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0, flag = 0;
+	int ret = 0, i = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	ret = linkrx->i2c_reg_read(client, RKLINK_DES_SINK_IRQ_EN, &flag);
+	if (ret)
+		return ret;
+
+	flag &= (COMP_NOT_ENOUGH_IRQ_FLAG
+			| VIDEO_FM_IRQ_FLAG
+			| AUDIO_FM_IRQ_FLAG
+			| ORDER_MIS_IRQ_FLAG
+			| FIFO_UNDERRUN_IRQ_FLAG
+			| FIFO_OVERFLOW_IRQ_FLAG
+			| PKT_LOSE_IRQ_FLAG
+			| LAST_ERROR_IRQ_FLAG
+			| ECC2BIT_ERROR_IRQ_FLAG
+			| ECC1BIT_ERROR_IRQ_FLAG
+			| CRC_ERROR_IRQ_FLAG
+		);
+	dev_info(&client->dev, "linkrx irq flag:0x%08x\n", flag);
+
+	i = 0;
+	while (flag) {
+		switch (flag & BIT(i)) {
+		case COMP_NOT_ENOUGH_IRQ_FLAG:
+			break;
+		case VIDEO_FM_IRQ_FLAG:
+			break;
+		case AUDIO_FM_IRQ_FLAG:
+			break;
+		case ORDER_MIS_IRQ_FLAG:
+		case FIFO_UNDERRUN_IRQ_FLAG:
+		case FIFO_OVERFLOW_IRQ_FLAG:
+			flag &= ~(ORDER_MIS_IRQ_FLAG
+					| FIFO_UNDERRUN_IRQ_FLAG
+					| FIFO_OVERFLOW_IRQ_FLAG
+				);
+			ret |= rkx12x_linkrx_fifo_handler(linkrx);
+			break;
+		case PKT_LOSE_IRQ_FLAG:
+			/* clear pkt lost irq flag */
+			reg = RKLINK_DES_LANE_ENGINE_CFG;
+			ret |= linkrx->i2c_reg_read(client, reg, &val);
+			val |= LANE0_PKT_LOSE_NUM_CLR | LANE1_PKT_LOSE_NUM_CLR;
+			ret |= linkrx->i2c_reg_write(client, reg, val);
+			break;
+		case LAST_ERROR_IRQ_FLAG:
+		case ECC2BIT_ERROR_IRQ_FLAG:
+		case ECC1BIT_ERROR_IRQ_FLAG:
+		case CRC_ERROR_IRQ_FLAG:
+			flag &= ~(LAST_ERROR_IRQ_FLAG
+					| ECC2BIT_ERROR_IRQ_FLAG
+					| ECC1BIT_ERROR_IRQ_FLAG
+					| CRC_ERROR_IRQ_FLAG
+				);
+			reg = RKLINK_DES_SINK_IRQ_EN;
+			ret |= linkrx->i2c_reg_read(client, reg, &val);
+			dev_info(&client->dev, "linkrx ecc crc result: 0x%08x\n", val);
+			/* clear ecc crc irq flag */
+			ret |= linkrx->i2c_reg_write(client, reg, val);
+			break;
+		default:
+			break;
+		}
+		flag &= ~BIT(i);
+		i++;
+	}
+
+	return ret;
+}
+
+int rkx12x_des_pcs_irq_enable(struct rkx12x_linkrx *linkrx, u32 pcs_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = pcs_id ? DES_IRQ_PCS1_EN : DES_IRQ_PCS0_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = DES_PCS_DEV(pcs_id) + DES_PCS_REG30;
+	val = PCS_INI_EN(0xffff);
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+int rkx12x_des_pcs_irq_disable(struct rkx12x_linkrx *linkrx, u32 pcs_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = pcs_id ? (DES_IRQ_PCS1 ^ DES_IRQ_PCS1_EN) : (DES_IRQ_PCS0 ^ DES_IRQ_PCS0_EN);
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = DES_PCS_DEV(pcs_id) + DES_PCS_REG30;
+	val = PCS_INI_EN(0);
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+int rkx12x_des_pcs_irq_handler(struct rkx12x_linkrx *linkrx, u32 pcs_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_PCS_DEV(pcs_id) + DES_PCS_REG20;
+	ret |= linkrx->i2c_reg_read(client, reg, &val);
+	dev_info(&client->dev, "des pcs fatal status: 0x%08x\n", val);
+
+	/* clear fatal status */
+	reg = DES_PCS_DEV(pcs_id) + DES_PCS_REG10;
+	ret |= linkrx->i2c_reg_write(client, reg, 0xffffffff);
+	ret |= linkrx->i2c_reg_write(client, reg, 0xffff0000);
+
+	return ret;
+}
+
+int rkx12x_des_pma_irq_enable(struct rkx12x_linkrx *linkrx, u32 pma_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = pma_id ? DES_IRQ_PMA_ADAPT1_EN : DES_IRQ_PMA_ADAPT0_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = DES_PMA_DEV(pma_id) + DES_PMA_IRQ_EN;
+	val = (FORCE_INITIAL_IRQ_EN
+			| RX_RDY_NEG_IRQ_EN
+			| RX_LOS_IRQ_EN
+			| RX_RDY_TIMEOUT_IRQ_EN
+			| PLL_LOCK_TIMEOUT_IRQ_EN);
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	return ret;
+}
+
+int rkx12x_des_pma_irq_disable(struct rkx12x_linkrx *linkrx, u32 pma_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, val = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_GRF_IRQ_EN;
+	val = pma_id ? (DES_IRQ_PMA_ADAPT1 ^ DES_IRQ_PMA_ADAPT1_EN) :
+			(DES_IRQ_PMA_ADAPT0 ^ DES_IRQ_PMA_ADAPT0_EN);
+	ret |= linkrx->i2c_reg_write(client, reg, val);
+
+	reg = DES_PMA_DEV(pma_id) + DES_PMA_IRQ_EN;
+	ret |= linkrx->i2c_reg_write(client, reg, 0);
+
+	return ret;
+}
+
+int rkx12x_des_pma_irq_handler(struct rkx12x_linkrx *linkrx, u32 pma_id)
+{
+	struct i2c_client *client = NULL;
+	u32 reg = 0, status = 0;
+	int ret = 0;
+
+	if ((linkrx == NULL) || (linkrx->client == NULL)
+			|| (linkrx->i2c_reg_read == NULL)
+			|| (linkrx->i2c_reg_write == NULL)
+			|| (linkrx->i2c_reg_update == NULL))
+		return -EINVAL;
+	client = linkrx->client;
+
+	reg = DES_PMA_DEV(pma_id) + DES_PMA_IRQ_STATUS;
+	ret = linkrx->i2c_reg_read(client, reg, &status);
+	if (ret)
+		return -EINVAL;
+
+	dev_info(&client->dev, "des pma irq status: 0x%08x\n", status);
+
+	if (status == 0)
+		return -EINVAL;
+
+	if (status & FORCE_INITIAL_IRQ_STATUS)
+		dev_info(&client->dev, "des pma trig force initial pulse status\n");
+	else if (status & RX_RDY_NEG_IRQ_STATUS)
+		dev_info(&client->dev, "des pma trig rx rdy neg status\n");
+	else if (status & RX_LOS_IRQ_STATUS)
+		dev_info(&client->dev, "des pma trig rx los status\n");
+	else if (status & RX_RDY_TIMEOUT_IRQ_STATUS)
+		dev_info(&client->dev, "des pma trig rx rdy timeout status\n");
+	else if (status & PLL_LOCK_TIMEOUT_IRQ_STATUS)
+		dev_info(&client->dev, "des pma trig pll lock timeout status\n");
+	else
+		dev_info(&client->dev, "des pma trig unknown\n");
+
+	return 0;
+}

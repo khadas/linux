@@ -119,4 +119,14 @@ int rkx12x_des_pma_set_rate(struct rkx12x_linkrx *linkrx,
 			const struct rkx12x_pma_pll *pma_pll);
 int rkx12x_des_pma_set_line(struct rkx12x_linkrx *linkrx, u32 link_line);
 
+int rkx12x_linkrx_irq_enable(struct rkx12x_linkrx *linkrx);
+int rkx12x_linkrx_irq_disable(struct rkx12x_linkrx *linkrx);
+int rkx12x_linkrx_irq_handler(struct rkx12x_linkrx *linkrx);
+int rkx12x_des_pcs_irq_enable(struct rkx12x_linkrx *linkrx, u32 pcs_id);
+int rkx12x_des_pcs_irq_disable(struct rkx12x_linkrx *linkrx, u32 pcs_id);
+int rkx12x_des_pcs_irq_handler(struct rkx12x_linkrx *linkrx, u32 pcs_id);
+int rkx12x_des_pma_irq_enable(struct rkx12x_linkrx *linkrx, u32 pma_id);
+int rkx12x_des_pma_irq_disable(struct rkx12x_linkrx *linkrx, u32 pma_id);
+int rkx12x_des_pma_irq_handler(struct rkx12x_linkrx *linkrx, u32 pma_id);
+
 #endif /* __RKX12X_LINKRX_H__ */
