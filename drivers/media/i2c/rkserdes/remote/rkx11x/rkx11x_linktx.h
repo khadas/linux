@@ -40,6 +40,19 @@ enum {
 	RKX11X_LINK_LINE_LONG_CONFIG, /* link long line config */
 };
 
+/* link passthrough id */
+#define RKX11X_LINK_PT_GPI_GPO_0	0
+#define RKX11X_LINK_PT_GPI_GPO_1	1
+#define RKX11X_LINK_PT_GPI_GPO_2	2
+#define RKX11X_LINK_PT_GPI_GPO_3	3
+#define RKX11X_LINK_PT_GPI_GPO_4	4
+#define RKX11X_LINK_PT_GPI_GPO_5	5
+#define RKX11X_LINK_PT_GPI_GPO_6	6
+#define RKX11X_LINK_PT_IRQ		7
+#define RKX11X_LINK_PT_UART_0		8
+#define RKX11X_LINK_PT_UART_1		9
+#define RKX11X_LINK_PT_SPI		10
+
 /* pma pll mode */
 enum {
 	RKX11X_PMA_PLL_FDR_RATE_MODE = 0,
@@ -83,6 +96,7 @@ struct rkx11x_linktx {
 int rkx11x_linktx_lane_init(struct rkx11x_linktx *linktx);
 int rkx11x_linktx_video_enable(struct rkx11x_linktx *linktx, bool enable);
 int rkx11x_linktx_video_stop(struct rkx11x_linktx *linktx, bool stop, u32 lane_id);
+int rkx11x_linktx_passthrough_cfg(struct rkx11x_linktx *linktx, u32 pt_id, bool is_pt_rx);
 
 int rkx11x_ser_pma_set_rate(struct rkx11x_linktx *linktx,
 			const struct rkx11x_pma_pll *ser_pma_pll);
