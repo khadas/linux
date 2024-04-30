@@ -71,6 +71,19 @@ enum {
 	RKX12X_LINK_LINE_LONG_CONFIG, /* long line config */
 };
 
+/* link passthrough id */
+#define RKX12X_LINK_PT_GPI_GPO_0	0
+#define RKX12X_LINK_PT_GPI_GPO_1	1
+#define RKX12X_LINK_PT_GPI_GPO_2	2
+#define RKX12X_LINK_PT_GPI_GPO_3	3
+#define RKX12X_LINK_PT_GPI_GPO_4	4
+#define RKX12X_LINK_PT_GPI_GPO_5	5
+#define RKX12X_LINK_PT_GPI_GPO_6	6
+#define RKX12X_LINK_PT_IRQ		7
+#define RKX12X_LINK_PT_UART_0		8
+#define RKX12X_LINK_PT_UART_1		9
+#define RKX12X_LINK_PT_SPI		10
+
 struct rkx12x_linkrx {
 	u32 lane_id;
 	u32 link_lock;
@@ -98,6 +111,7 @@ int rkx12x_linkrx_cmd_select(struct rkx12x_linkrx *linkrx, u32 lane_id);
 int rkx12x_linkrx_video_stop(struct rkx12x_linkrx *linkrx,
 			u32 engine_id, bool engine_stop);
 int rkx12x_linkrx_audio_stop(struct rkx12x_linkrx *linkrx, bool audio_stop);
+int rkx12x_linkrx_passthrough_cfg(struct rkx12x_linkrx *linkrx, u32 pt_id, bool is_pt_rx);
 
 int rkx12x_des_pma_enable(struct rkx12x_linkrx *linkrx, bool enable, u32 pma_id);
 int rkx12x_des_pcs_enable(struct rkx12x_linkrx *linkrx, bool enable, u32 pcs_id);

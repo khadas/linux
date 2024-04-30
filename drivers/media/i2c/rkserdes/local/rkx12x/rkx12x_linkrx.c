@@ -363,6 +363,136 @@
 #define RX_RDY_TIMEOUT_IRQ_STATUS	BIT(2)
 #define PLL_LOCK_TIMEOUT_IRQ_STATUS	BIT(0)
 
+/* link passthrough */
+struct rkx12x_des_pt {
+	u32 id;
+
+	u32 en_reg;
+	u32 en_mask;
+	u32 en_val;
+
+	u32 dir_reg;
+	u32 dir_mask;
+	u32 dir_val;
+};
+
+static const struct rkx12x_des_pt des_pt_cfg[] = {
+	{
+		/* gpi_gpo_0 */
+		.id = RKX12X_LINK_PT_GPI_GPO_0,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x10001,
+		.en_val = 0x10001,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x10,
+		.dir_val = 0x10,
+	}, {
+		/* gpi_gpo_1 */
+		.id = RKX12X_LINK_PT_GPI_GPO_1,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x10002,
+		.en_val = 0x10002,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x20,
+		.dir_val = 0x20,
+	}, {
+		/* gpi_gpo_2 */
+		.id = RKX12X_LINK_PT_GPI_GPO_2,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x10004,
+		.en_val = 0x10004,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x40,
+		.dir_val = 0x40,
+	}, {
+		/* gpi_gpo_3 */
+		.id = RKX12X_LINK_PT_GPI_GPO_3,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x10008,
+		.en_val = 0x10008,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x80,
+		.dir_val = 0x80,
+	}, {
+		/* gpi_gpo_4 */
+		.id = RKX12X_LINK_PT_GPI_GPO_4,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x20100,
+		.en_val = 0x20100,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x1000,
+		.dir_val = 0x1000,
+	}, {
+		/* gpi_gpo_5 */
+		.id = RKX12X_LINK_PT_GPI_GPO_5,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x20200,
+		.en_val = 0x20200,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x2000,
+		.dir_val = 0x2000,
+	}, {
+		/* gpi_gpo_6 */
+		.id = RKX12X_LINK_PT_GPI_GPO_6,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x20400,
+		.en_val = 0x20400,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x4000,
+		.dir_val = 0x4000,
+	}, {
+		/* irq */
+		.id = RKX12X_LINK_PT_IRQ,
+
+		.en_reg = RKLINK_DES_GPIO_CFG,
+		.en_mask = 0x20800,
+		.en_val = 0x20800,
+
+		.dir_reg = RKLINK_DES_GPIO_CFG,
+		.dir_mask = 0x8000,
+		.dir_val = 0x8000,
+	}, {
+		/* uart0 */
+		.id = RKX12X_LINK_PT_UART_0,
+
+		.en_reg = RKLINK_DES_UART_CFG,
+		.en_mask = 0x1,
+		.en_val = 0x1,
+	}, {
+		/* uart1 */
+		.id = RKX12X_LINK_PT_UART_1,
+
+		.en_reg = RKLINK_DES_UART_CFG,
+		.en_mask = 0x2,
+		.en_val = 0x2,
+	}, {
+		/* spi */
+		.id = RKX12X_LINK_PT_SPI,
+
+		.en_reg = RKLINK_DES_SPI_CFG,
+		.en_mask = 0x4,
+		.en_val = 0x4,
+
+		.dir_reg = RKLINK_DES_SPI_CFG,
+		.dir_mask = 0x1,
+		.dir_val = 0,
+	},
+};
+
 /* note: link ready only need local chip */
 static bool rkx12x_linkrx_wait_ready(struct rkx12x_linkrx *linkrx, u32 lane_id)
 {
@@ -999,4 +1129,52 @@ int rkx12x_des_pma_set_line(struct rkx12x_linkrx *linkrx, u32 link_line)
 	}
 
 	return ret;
+}
+
+int rkx12x_linkrx_passthrough_cfg(struct rkx12x_linkrx *linkrx, u32 pt_id, bool is_pt_rx)
+{
+	struct i2c_client *client = linkrx->client;
+	const struct rkx12x_des_pt *des_pt = NULL;
+	u32 reg, mask = 0, val = 0;
+	int ret = 0, i = 0;
+
+	dev_info(&client->dev, "%s: pt_id = %d, is_pt_rx = %d\n",
+			__func__, pt_id, is_pt_rx);
+
+	des_pt = NULL;
+	for (i = 0; i < ARRAY_SIZE(des_pt_cfg); i++) {
+		if (des_pt_cfg[i].id == pt_id) {
+			des_pt = &des_pt_cfg[i];
+			break;
+		}
+	}
+	if (des_pt == NULL) {
+		dev_err(&client->dev, "find link des_pt setting error\n");
+		return -EINVAL;
+	}
+
+	/* config link passthrough */
+	if (des_pt->en_reg) {
+		reg = des_pt->en_reg;
+		mask = des_pt->en_mask;
+		val = des_pt->en_val;
+		ret = linkrx->i2c_reg_update(client, reg, mask, val);
+		if (ret) {
+			dev_err(&client->dev, "en_reg setting error\n");
+			return ret;
+		}
+	}
+
+	if (des_pt->dir_reg) {
+		reg = des_pt->dir_reg;
+		mask = des_pt->dir_mask;
+		val = is_pt_rx ? des_pt->dir_val : ~des_pt->dir_val;
+		ret = linkrx->i2c_reg_update(client, reg, mask, val);
+		if (ret) {
+			dev_err(&client->dev, "dir_reg setting error\n");
+			return ret;
+		}
+	}
+
+	return 0;
 }
