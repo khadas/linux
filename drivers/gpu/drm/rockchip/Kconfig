@@ -173,6 +173,12 @@ config ROCKCHIP_DW_HDCP2
 	  Choose this option to enable support for the Synopsys
 	  Designware HDCP2 Controller.
 
+config ROCKCHIP_DP_MST_AUX_CLIENT
+	tristate "dp mst aux client"
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  This selects support dp mst device that not support aux client.
+
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
 
 endif
