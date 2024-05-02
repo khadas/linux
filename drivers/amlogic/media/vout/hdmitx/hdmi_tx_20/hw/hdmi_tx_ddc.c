@@ -244,7 +244,7 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
 		/* Program SEGPTR */
-		if (byte_num / 256 == 0)
+		if (byte_num % 256 == 0)
 			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, byte_num >> 8);
 
 		/* Wait until I2C done */
