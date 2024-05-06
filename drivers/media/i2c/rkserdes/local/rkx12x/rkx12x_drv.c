@@ -775,6 +775,79 @@ static int rkx12x_pinctrl_init(struct rkx12x *rkx12x)
 	return 0;
 }
 
+/* rkx12x passthrough init */
+static int rkx12x_passthrough_init(struct rkx12x *rkx12x)
+{
+	struct device *dev = &rkx12x->client->dev;
+	const char *pt_name = "rkx12x-pt";
+	struct device_node *local_node = NULL, *np = NULL;
+	u32 *pt_configs = NULL;
+	u32 func_id = 0, pt_rx = 0;
+	int length, i, ret = 0;
+
+	dev_info(dev, "rkx12x passthrough init\n");
+
+	// local device
+	local_node = of_get_child_by_name(dev->of_node, "serdes-local-device");
+	if (IS_ERR_OR_NULL(local_node)) {
+		dev_err(dev, "%pOF has no child node: serdes-local-device\n",
+				dev->of_node);
+
+		return -ENODEV;
+	}
+
+	if (!of_device_is_available(local_node)) {
+		dev_info(dev, "%pOF is disabled\n", local_node);
+
+		of_node_put(local_node);
+		return -ENODEV;
+	}
+
+	/* rkx12x-pt = <passthrough_func_id passthrough_rx>; */
+	for_each_child_of_node(local_node, np) {
+		if (!of_device_is_available(np))
+			continue;
+
+		length = of_property_count_u32_elems(np, pt_name);
+		if (length < 0)
+			continue;
+		if (length % 2) {
+			dev_err(dev, "%s: invalid count for passthrough\n", np->name);
+			continue;
+		}
+
+		pt_configs = kmalloc_array(length, sizeof(u32), GFP_KERNEL);
+		if (!pt_configs)
+			continue;
+
+		ret = of_property_read_u32_array(np, pt_name, pt_configs, length);
+		if (ret) {
+			dev_err(dev, "%s: passthrough configs data error\n", np->name);
+			kfree(pt_configs);
+			continue;
+		}
+
+		for (i = 0; i < length; i += 2) {
+			func_id = pt_configs[i + 0];
+			pt_rx = pt_configs[i + 1];
+
+			dev_info(dev, "%s: passthrough func_id = %d, pt_rx = %d\n",
+					np->name, func_id, pt_rx);
+
+			ret = rkx12x_linkrx_passthrough_cfg(&rkx12x->linkrx, func_id, pt_rx);
+			if (ret)
+				dev_err(dev, "%s: passthrough func_id = %d config error\n",
+						np->name, func_id);
+		}
+
+		kfree(pt_configs);
+	}
+
+	of_node_put(local_node);
+
+	return 0;
+}
+
 /* rkx12x extra init sequence */
 static int rkx12x_extra_init_seq_parse(struct device *dev,
 		struct device_node *local_node, struct rkx12x_i2c_init_seq *init_seq)
@@ -1279,6 +1352,13 @@ int rkx12x_module_hw_init(struct rkx12x *rkx12x)
 	ret = rkx12x_pinctrl_init(rkx12x);
 	if (ret) {
 		dev_err(dev, "%s: pinctrl init error\n", __func__);
+		return ret;
+	}
+
+	/* passthrough init */
+	ret = rkx12x_passthrough_init(rkx12x);
+	if (ret) {
+		dev_err(dev, "%s: passthrough init error\n", __func__);
 		return ret;
 	}
 
