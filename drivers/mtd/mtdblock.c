@@ -431,7 +431,11 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	for (i = 0; i < (mtd->size >> mtd->erasesize_shift); i++)
 		if (mtd_block_isbad(mtd, i * mtd->erasesize))
+#if (IS_ENABLED(CONFIG_MTD_NAND_MESON) || IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON))
+			dev->mbd.size -= (mtd->erasesize >> tr->blkshift);
+#else
 			dev->mbd.size -= (mtd->erasesize >> 9);
+#endif
 _ok:
 #endif
 	dev->mbd.tr = tr;
