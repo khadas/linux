@@ -8,6 +8,8 @@
  *
  * V1.00.00 rockchip serdes rkx11x driver framework.
  *
+ * V1.01.00 support pinctrl and passthrough
+ *
  */
 #include <linux/version.h>
 #include <linux/delay.h>
@@ -21,7 +23,7 @@
 #include "rkx11x_reg.h"
 #include "rkx11x_api.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(1, 0x01, 0x00)
 
 #define IOMUX_PINSET_API_EN	1 /* 1: PINCTRL API enable */
 

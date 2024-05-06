@@ -10,6 +10,10 @@
  *     1. support for rkx12x chip version v0 and v1
  *     2. support csi and dvp camera stream base functions
  *
+ * V1.01.00
+ *     1. support pinctrl and passthrough
+ *     2. support state irq
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -36,7 +40,7 @@
 #include "rkx12x_api.h"
 #include "rkx12x_remote.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(1, 0x01, 0x00)
 
 #define RKX12X_NAME		"rkx12x"
 
