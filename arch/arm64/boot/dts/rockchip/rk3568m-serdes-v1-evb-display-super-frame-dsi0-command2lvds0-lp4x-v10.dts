@@ -82,7 +82,7 @@
 	local-port0 = <RK_SERDES_DSI_RX0>;
 	remote0-port0 = <RK_SERDES_LVDS_TX0>;
 	remote1-port0 = <RK_SERDES_LVDS_TX0>;
-	split-mode;
+	rockchip,split-mode;
 	backlight = <&backlight>;
 	enable-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	reset-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
