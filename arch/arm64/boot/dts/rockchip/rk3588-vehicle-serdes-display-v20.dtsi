@@ -402,7 +402,7 @@
 };
 
 &dp0 {
-	split-mode;
+	rockchip,split-mode;
 	force-hpd;
 	status = "okay";
 
@@ -531,7 +531,7 @@
 };
 
 &edp0 {
-	split-mode;
+	rockchip,split-mode;
 	force-hpd;
 	status = "okay";
 
