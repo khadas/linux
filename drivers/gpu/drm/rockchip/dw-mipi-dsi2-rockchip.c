@@ -486,6 +486,8 @@ static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
 		s->output_if &= ~(VOP_OUTPUT_IF_MIPI1 | VOP_OUTPUT_IF_MIPI0);
 	else
 		s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
+
+	s->output_if_left_panel &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 }
 
 static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
@@ -1019,6 +1021,8 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
 		s->output_if |= VOP_OUTPUT_IF_MIPI1;
+		s->output_if_left_panel |= dsi2->id ?
+				VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
 	}
 
 	if (dsi2->dual_connector_split) {
@@ -1737,10 +1741,10 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	if (device_property_read_bool(dev, "disable-hold-mode"))
 		dsi2->disable_hold_mode = true;
 
-	if (device_property_read_bool(dev, "dual-connector-split")) {
+	if (device_property_read_bool(dev, "rockchip,dual-connector-split")) {
 		dsi2->dual_connector_split = true;
 
-		if (device_property_read_bool(dev, "left-display"))
+		if (device_property_read_bool(dev, "rockchip,left-display"))
 			dsi2->left_display = true;
 	}
 
