@@ -2482,7 +2482,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 				ret++;
 			}
 		}
-		if (ret > 0 && hdmi->plat_data->split_mode) {
+		if (ret > 0 && (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)) {
 			struct drm_display_mode *mode;
 
 			list_for_each_entry(mode, &connector->probed_modes, head)
@@ -2809,7 +2809,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->hdmi_data.enc_out_bus_format =
 				hdmi->plat_data->get_output_bus_format(data);
 
-		if (hdmi->plat_data->split_mode)
+		if (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)
 			hdmi->plat_data->convert_to_origin_mode(&mode);
 
 		drm_mode_copy(&hdmi->previous_mode, &mode);
@@ -3070,7 +3070,7 @@ static void dw_hdmi_qp_bridge_mode_set(struct drm_bridge *bridge,
 		hdmi->frl_switch = false;
 	/* Store the display mode for plugin/DKMS poweron events */
 	drm_mode_copy(&hdmi->previous_mode, mode);
-	if (hdmi->plat_data->split_mode)
+	if (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)
 		hdmi->plat_data->convert_to_origin_mode(&hdmi->previous_mode);
 
 	mutex_unlock(&hdmi->mutex);

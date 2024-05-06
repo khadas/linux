@@ -226,6 +226,8 @@ struct dw_hdmi_plat_data {
 	/* split mode */
 	bool split_mode;
 	bool first_screen;
+	bool dual_connector_split;
+	bool left_display;
 	struct dw_hdmi_qp *left;
 	struct dw_hdmi_qp *right;
 

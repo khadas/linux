@@ -969,7 +969,7 @@ static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
 	unsigned long max_frl_rate;
 
 	drm_mode_copy(&mode, &crtc_state->mode);
-	if (hdmi->plat_data->split_mode)
+	if (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&mode);
 
 	max_lanes = hdmi->max_lanes;
@@ -1906,6 +1906,7 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 			else
 				s->output_if &= ~VOP_OUTPUT_IF_HDMI1;
 		}
+		s->output_if_left_panel &= ~(hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0);
 	}
 	/*
 	 * when plug out hdmi it will be switch cvbs and then phy bus width
@@ -2566,7 +2567,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 secondary:
 	drm_mode_copy(&mode, &crtc_state->mode);
 
-	if (hdmi->plat_data->split_mode)
+	if (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&mode);
 
 	dw_hdmi_rockchip_select_output(conn_state, crtc_state, hdmi,
@@ -2619,11 +2620,15 @@ secondary:
 		if (hdmi->plat_data->right && hdmi->id)
 			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 		s->output_if |= VOP_OUTPUT_IF_HDMI0 | VOP_OUTPUT_IF_HDMI1;
+		s->output_if_left_panel |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
+	} else if (hdmi->plat_data->dual_connector_split) {
+		s->output_if |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE;
+		if (hdmi->plat_data->left_display)
+			s->output_if_left_panel |= hdmi->id ?
+				VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
 	} else {
-		if (!hdmi->id)
-			s->output_if |= VOP_OUTPUT_IF_HDMI0;
-		else
-			s->output_if |= VOP_OUTPUT_IF_HDMI1;
+		s->output_if |= hdmi->id ? VOP_OUTPUT_IF_HDMI1 : VOP_OUTPUT_IF_HDMI0;
 	}
 
 	s->output_mode = output_mode;
@@ -4058,12 +4063,21 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		 * mode is on and determine the sequence of hdmi bind.
 		 */
 		if (device_property_read_bool(dev, "split-mode") ||
-		    device_property_read_bool(secondary->dev, "split-mode")) {
+		    device_property_read_bool(dev, "rockchip,split-mode") ||
+		    device_property_read_bool(secondary->dev, "split-mode") ||
+		    device_property_read_bool(secondary->dev, "rockchip,split-mode")) {
 			plat_data->split_mode = true;
 			secondary->plat_data->split_mode = true;
 			if (!secondary->plat_data->first_screen)
 				plat_data->first_screen = true;
 		}
+	}
+
+	if (device_property_read_bool(dev, "rockchip,dual-connector-split")) {
+		plat_data->dual_connector_split = true;
+
+		if (device_property_read_bool(dev, "rockchip,left-display"))
+			plat_data->left_display = true;
 	}
 
 	if (!plat_data->first_screen) {
@@ -4243,7 +4257,9 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		} else if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
 			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
-			if (secondary && device_property_read_bool(secondary->dev, "split-mode"))
+			if (secondary &&
+			    (device_property_read_bool(secondary->dev, "split-mode") ||
+			     device_property_read_bool(secondary->dev, "rockchip,split-mode")))
 				hdmi->sub_dev.of_node = secondary->dev->of_node;
 			else
 				hdmi->sub_dev.of_node = hdmi->dev->of_node;
@@ -4252,7 +4268,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		}
 
 		if (plat_data->split_mode && secondary) {
-			if (device_property_read_bool(dev, "split-mode")) {
+			if (device_property_read_bool(dev, "split-mode") ||
+			    device_property_read_bool(dev, "rockchip,split-mode")) {
 				plat_data->right = secondary->hdmi_qp;
 				secondary->plat_data->left = hdmi->hdmi_qp;
 			} else {
