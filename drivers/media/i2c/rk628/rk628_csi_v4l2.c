@@ -744,6 +744,7 @@ static void enable_csitx(struct v4l2_subdev *sd)
 		rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
 		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 	}
+	csi->is_streaming = true;
 }
 
 static void rk628_dsi_set_scs(struct rk628_csi *csi)
@@ -862,6 +863,7 @@ static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
 	}
 	mipi_dphy_power_off(csi);
 	csi->txphy_pwron = false;
+	csi->is_streaming = false;
 }
 
 static void enable_stream(struct v4l2_subdev *sd, bool en)
@@ -885,7 +887,6 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			rk628_csi_enable_csi_interrupts(sd, true);
 		}
 		rk628_hdmirx_vid_enable(sd, true);
-		csi->is_streaming = true;
 	} else {
 		if (csi->plat_data->tx_mode == CSI_MODE) {
 			rk628_csi_enable_csi_interrupts(sd, false);
@@ -895,7 +896,6 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 		} else {
 			rk628_disable_dsitx(sd);
 		}
-		csi->is_streaming = false;
 	}
 }
 
@@ -2315,11 +2315,11 @@ static void rk628_csi_reset_streaming(struct v4l2_subdev *sd, int on)
 				rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 			}
 			rk628_csi_enable_csi_interrupts(sd, true);
+			csi->is_streaming = true;
 		} else {
 			enable_dsitx(sd);
 		}
 		rk628_hdmirx_vid_enable(sd, true);
-		csi->is_streaming = true;
 	} else {
 		rk628_hdmirx_vid_enable(sd, false);
 		if (csi->plat_data->tx_mode == CSI_MODE) {
@@ -2329,7 +2329,6 @@ static void rk628_csi_reset_streaming(struct v4l2_subdev *sd, int on)
 		} else {
 			rk628_disable_dsitx(sd);
 		}
-		csi->is_streaming = false;
 	}
 	v4l2_info(sd, "%s: on: %d, %dx%d@%d\n", __func__, on,
 				csi->timings.bt.width,
@@ -2872,6 +2871,12 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
 	};
 
+	if (csi->plat_data->tx_mode == DSI_MODE)
+		rk628_dsi_disable(sd);
+	if (csi->plat_data->tx_mode == CSI_MODE) {
+		rk628_csi_enable_csi_interrupts(sd, false);
+		rk628_csi_disable_stream(sd);
+	}
 	/* control hpd after 50ms */
 	schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	v4l2_event_queue(sd->devnode, &evt_signal_lost);
