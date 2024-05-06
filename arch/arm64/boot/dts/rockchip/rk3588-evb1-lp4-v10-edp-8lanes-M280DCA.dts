@@ -122,7 +122,7 @@
 &edp1 {
 	force-hpd;
 	status = "okay";
-	dual-channel;
+	rockchip,dual-channel;
 
 	ports {
 		port@1 {
