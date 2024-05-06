@@ -423,6 +423,7 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 		s->output_if &= ~(VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_eDP0);
 	else
 		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0);
+	s->output_if_left_panel &= ~(dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0);
 	crtc = rockchip_dp_drm_get_new_crtc(encoder, state);
 	/* No crtc means we're doing a full shutdown */
 	if (!crtc)
@@ -467,17 +468,15 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
 		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
 		s->output_if |= VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_eDP1;
-	} else {
-		s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
-	}
-
-	if (dp->plat_data.dual_connector_split) {
+		s->output_if_left_panel |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
+	} else if (dp->plat_data.dual_connector_split) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE;
-
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 		if (dp->plat_data.left_display)
 			s->output_if_left_panel |= dp->id ?
-						   VOP_OUTPUT_IF_eDP1 :
-						   VOP_OUTPUT_IF_eDP0;
+					VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
+	} else {
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 	}
 
 	s->output_bpc = di->bpc;
@@ -708,7 +707,9 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 	if (dp->data->split_mode &&
 	    (device_property_read_bool(dev, "split-mode") ||
-	     device_property_read_bool(dev, "dual-channel"))) {
+	     device_property_read_bool(dev, "rockchip,split-mode") ||
+	     device_property_read_bool(dev, "dual-channel") ||
+	     device_property_read_bool(dev, "rockchip,dual-channel"))) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
 		if (!secondary) {
@@ -718,7 +719,9 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
-		dp->plat_data.dual_channel_mode = device_property_read_bool(dev, "dual-channel");
+		dp->plat_data.dual_channel_mode =
+			device_property_read_bool(dev, "dual-channel") ||
+			device_property_read_bool(dev, "rockchip,dual-channel");
 		secondary->plat_data.panel = dp->plat_data.panel;
 		secondary->plat_data.left = dp->adp;
 		secondary->plat_data.split_mode = true;
@@ -727,9 +730,9 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "min-refresh-rate", &dp->min_refresh_rate);
 	device_property_read_u32(dev, "max-refresh-rate", &dp->max_refresh_rate);
 
-	if (dp->data->split_mode && device_property_read_bool(dev, "dual-connector-split")) {
+	if (dp->data->split_mode && device_property_read_bool(dev, "rockchip,dual-connector-split")) {
 		dp->plat_data.dual_connector_split = true;
-		if (device_property_read_bool(dev, "left-display"))
+		if (device_property_read_bool(dev, "rockchip,left-display"))
 			dp->plat_data.left_display = true;
 	}
 

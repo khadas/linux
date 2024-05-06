@@ -1332,7 +1332,8 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
 
-	if (num_modes > 0 && dp->plat_data->split_mode && !dp->plat_data->dual_channel_mode) {
+	if (num_modes > 0 && !dp->plat_data->dual_channel_mode &&
+	    (dp->plat_data->split_mode || dp->plat_data->dual_connector_split)) {
 		struct drm_display_mode *mode;
 
 		list_for_each_entry(mode, &connector->probed_modes, head)
@@ -1850,7 +1851,7 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 	int vic;
 
 	drm_mode_copy(mode, adj_mode);
-	if (dp->plat_data->split_mode)
+	if (dp->plat_data->split_mode || dp->plat_data->dual_connector_split)
 		dp->plat_data->convert_to_origin_mode(mode);
 
 	/* Input video interlaces & hsync pol & vsync pol */
