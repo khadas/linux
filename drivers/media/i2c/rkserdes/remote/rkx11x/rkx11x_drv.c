@@ -843,6 +843,61 @@ static int rkx11x_pinctrl_init(struct rkx11x *rkx11x)
 	return 0;
 }
 
+/* rkx11x passthrough init */
+static int rkx11x_passthrough_init(struct rkx11x *rkx11x)
+{
+	struct device *dev = &rkx11x->client->dev;
+	const char *pt_name = "rkx11x-pt";
+	struct device_node *np = NULL;
+	u32 *pt_configs = NULL;
+	u32 func_id = 0, pt_rx = 0;
+	int length, i, ret = 0;
+
+	dev_info(dev, "rkx11x passthrough init\n");
+
+	/* rkx11x-pt = <passthrough_func_id passthrough_rx>; */
+	for_each_child_of_node(dev->of_node, np) {
+		if (!of_device_is_available(np))
+			continue;
+
+		length = of_property_count_u32_elems(np, pt_name);
+		if (length < 0)
+			continue;
+		if (length % 2) {
+			dev_err(dev, "%s: invalid count for passthrough\n", np->name);
+			continue;
+		}
+
+		pt_configs = kmalloc_array(length, sizeof(u32), GFP_KERNEL);
+		if (!pt_configs)
+			continue;
+
+		ret = of_property_read_u32_array(np, pt_name, pt_configs, length);
+		if (ret) {
+			dev_err(dev, "%s: passthrough configs data error\n", np->name);
+			kfree(pt_configs);
+			continue;
+		}
+
+		for (i = 0; i < length; i += 2) {
+			func_id = pt_configs[i + 0];
+			pt_rx = pt_configs[i + 1];
+
+			dev_info(dev, "%s: passthrough func_id = %d, pt_rx = %d\n",
+					np->name, func_id, pt_rx);
+
+			ret = rkx11x_linktx_passthrough_cfg(&rkx11x->linktx, func_id, pt_rx);
+			if (ret)
+				dev_err(dev, "%s: passthrough func_id = %d config error\n",
+						np->name, func_id);
+		}
+
+		kfree(pt_configs);
+	}
+
+	return 0;
+}
+
 /* rkx11x camera mclk */
 static int rkx11x_camera_mclk_enable(struct rkx11x *rkx11x)
 {
@@ -1046,6 +1101,12 @@ static int rkx11x_module_init(struct rkser_dev *rkser_dev)
 	ret = rkx11x_pinctrl_init(rkx11x);
 	if (ret) {
 		dev_err(dev, "%s: pinctrl init error\n", __func__);
+		return ret;
+	}
+
+	ret = rkx11x_passthrough_init(rkx11x);
+	if (ret) {
+		dev_err(dev, "%s: passthrough init error\n", __func__);
 		return ret;
 	}
 
