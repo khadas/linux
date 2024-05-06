@@ -474,16 +474,6 @@ static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 	i2c_wr(sd, reg, &val, 1);
 }
 
-static void lt7911uxc_i2c_enable(struct v4l2_subdev *sd)
-{
-	i2c_wr8(sd, I2C_EN_REG, I2C_ENABLE);
-}
-
-static void lt7911uxc_i2c_disable(struct v4l2_subdev *sd)
-{
-	i2c_wr8(sd, I2C_EN_REG, I2C_DISABLE);
-}
-
 static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 {
 	bool ret;
@@ -708,13 +698,11 @@ static void lt7911uxc_cphy_timing_config(struct v4l2_subdev *sd)
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 
 	if (lt7911uxc->bus_cfg.bus_type == V4L2_MBUS_CSI2_CPHY) {
-		lt7911uxc_i2c_enable(sd);
 		while (i2c_rd8(sd, HS_RQST_PRE_REG) != 0x3c) {
 			i2c_wr8(sd, HS_RQST_PRE_REG, 0x3c);
 			usleep_range(500, 600);
 		}
 		// i2c_wr8(sd, HS_TRAIL, 0x0b);
-		lt7911uxc_i2c_disable(sd);
 	}
 
 	v4l2_dbg(1, debug, sd, "%s config timing succeed\n", __func__);
@@ -1587,10 +1575,8 @@ static int lt7911uxc_check_chip_id(struct lt7911uxc *lt7911uxc)
 	u32 chipid;
 	int ret = 0;
 
-	lt7911uxc_i2c_enable(sd);
 	id_l  = i2c_rd8(sd, CHIPID_REGL);
 	id_h  = i2c_rd8(sd, CHIPID_REGH);
-	lt7911uxc_i2c_disable(sd);
 
 	chipid = (id_h << 8) | id_l;
 	if (chipid != LT7911UXC_CHIPID) {

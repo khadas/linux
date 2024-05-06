@@ -492,19 +492,9 @@ static u8 i2c_rd8(struct v4l2_subdev *sd, u16 reg)
 	return val;
 }
 
-static void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
+static __maybe_unused void i2c_wr8(struct v4l2_subdev *sd, u16 reg, u8 val)
 {
 	i2c_wr(sd, reg, &val, 1);
-}
-
-static void lt8668sx_i2c_enable(struct v4l2_subdev *sd)
-{
-	i2c_wr8(sd, I2C_EN_REG, I2C_ENABLE);
-}
-
-static void lt8668sx_i2c_disable(struct v4l2_subdev *sd)
-{
-	i2c_wr8(sd, I2C_EN_REG, I2C_DISABLE);
 }
 
 static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
@@ -1580,10 +1570,8 @@ static int lt8668sx_check_chip_id(struct lt8668sx *lt8668sx)
 	u32 chipid;
 	int ret = 0;
 
-	lt8668sx_i2c_enable(sd);
 	id_l  = i2c_rd8(sd, CHIPID_REGL);
 	id_h  = i2c_rd8(sd, CHIPID_REGH);
-	lt8668sx_i2c_disable(sd);
 
 	chipid = (id_h << 8) | id_l;
 	if (chipid != LT8668SX_CHIPID) {
