@@ -463,6 +463,9 @@ struct dw_dp {
 	DECLARE_BITMAP(sdp_reg_bank, SDP_REG_BANK_SIZE);
 
 	bool split_mode;
+	bool dual_connector_split;
+	bool left_display;
+
 	struct dw_dp *left;
 	struct dw_dp *right;
 
@@ -1424,7 +1427,7 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	if (!di->bpc)
 		di->bpc = 8;
 
-	if (num_modes > 0 && dp->split_mode) {
+	if (num_modes > 0 && (dp->split_mode || dp->dual_connector_split)) {
 		struct drm_display_mode *mode;
 
 		di->width_mm *= 2;
@@ -2868,6 +2871,7 @@ static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 		s->output_if &= ~(VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1);
 	else
 		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
+	s->output_if_left_panel &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
 }
 
 static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted_mode)
@@ -2884,7 +2888,7 @@ static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted
 	 * 3. the minimum hbp should be 16 pixel;
 	 */
 
-	if (dp->split_mode) {
+	if (dp->split_mode || dp->dual_connector_split) {
 		min_hbp *= 2;
 		min_hsync *= 2;
 		align_hfp *= 2;
@@ -2946,6 +2950,13 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
 		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
 		s->output_if |= VOP_OUTPUT_IF_DP0 | VOP_OUTPUT_IF_DP1;
+		s->output_if_left_panel |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+	} else if (dp->dual_connector_split) {
+		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CONNECTOR_SPLIT_MODE;
+		s->output_if |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
+		if (dp->left_display)
+			s->output_if_left_panel |= dp->id ?
+					VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
 	} else {
 		s->output_if |= dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0;
 	}
@@ -3106,7 +3117,7 @@ dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 
 	drm_mode_copy(&m, mode);
 
-	if (dp->split_mode)
+	if (dp->split_mode || dp->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&m);
 
 	if (info->color_formats & DRM_COLOR_FORMAT_YCBCR420 &&
@@ -4108,7 +4119,7 @@ static void dw_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 
 	drm_mode_copy(m, &crtc_state->adjusted_mode);
 
-	if (dp->split_mode)
+	if (dp->split_mode || dp->dual_connector_split)
 		drm_mode_convert_to_origin_mode(m);
 
 	if (dp->panel)
@@ -4355,7 +4366,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	u32 *output_fmts;
 	unsigned int i, j = 0;
 
-	if (dp->split_mode)
+	if (dp->split_mode || dp->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&mode);
 
 	if (dp->panel) {
@@ -5485,7 +5496,8 @@ static int dw_dp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dp);
 
-	if (device_property_read_bool(dev, "split-mode")) {
+	if (device_property_read_bool(dev, "split-mode") ||
+	    device_property_read_bool(dev, "rockchip,split-mode")) {
 		struct dw_dp *secondary = dw_dp_find_by_id(dev->driver, !dp->id);
 
 		if (!secondary)
@@ -5495,6 +5507,13 @@ static int dw_dp_probe(struct platform_device *pdev)
 		dp->split_mode = true;
 		secondary->left = dp;
 		secondary->split_mode = true;
+	}
+
+	if (device_property_read_bool(dev, "rockchip,dual-connector-split")) {
+		dp->dual_connector_split = true;
+
+		if (device_property_read_bool(dev, "rockchip,left-display"))
+			dp->left_display = true;
 	}
 
 	dw_dp_hdcp_init(dp);
