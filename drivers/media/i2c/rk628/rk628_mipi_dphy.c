@@ -193,6 +193,9 @@ void rk628_mipi_dphy_init_hsmanual(struct rk628 *rk628, bool manual, uint8_t mip
 	dev_info(rk628->dev,
 		"mipi dphy%d hs config, manual: %s\n", mipi_id, manual ? "true" : "false");
 	//config mipi timing when mipi freq is 1250Mbps
+	rk628_testif_write(rk628, 0x70,
+		manual ? (HSZERO(rk628->mipi_timing[mipi_id].data_lp) | BIT(6)) : 0, mipi_id);
+	usleep_range(1500, 2000);
 	rk628_testif_write(rk628, 0x71,
 		manual ? (HSTX(rk628->mipi_timing[mipi_id].data_prepare) | BIT(7)) : 0, mipi_id);
 	usleep_range(1500, 2000);
@@ -201,6 +204,9 @@ void rk628_mipi_dphy_init_hsmanual(struct rk628 *rk628, bool manual, uint8_t mip
 	usleep_range(1500, 2000);
 	rk628_testif_write(rk628, 0x73,
 		manual ? (HSTX(rk628->mipi_timing[mipi_id].data_trail) | BIT(7)) : 0, mipi_id);
+	usleep_range(1500, 2000);
+	rk628_testif_write(rk628, 0x60,
+		manual ? (HSZERO(rk628->mipi_timing[mipi_id].clk_lp) | BIT(6)) : 0, mipi_id);
 	usleep_range(1500, 2000);
 	rk628_testif_write(rk628, 0x61,
 		manual ? (HSTX(rk628->mipi_timing[mipi_id].clk_prepare) | BIT(7)) : 0, mipi_id);
@@ -212,15 +218,12 @@ void rk628_mipi_dphy_init_hsmanual(struct rk628 *rk628, bool manual, uint8_t mip
 		manual ? (HSTX(rk628->mipi_timing[mipi_id].clk_trail) | BIT(7)) : 0, mipi_id);
 	usleep_range(1500, 2000);
 	rk628_testif_write(rk628, 0x65,
-		manual ? (HSPOST(rk628->mipi_timing[mipi_id].clk_post) | BIT(5)) : 0, mipi_id);
+		manual ? (HSPOST(rk628->mipi_timing[mipi_id].clk_post) | BIT(4)) : 0, mipi_id);
 }
 EXPORT_SYMBOL(rk628_mipi_dphy_init_hsmanual);
 
-int rk628_mipi_dphy_reset(struct rk628 *rk628)
+int rk628_mipi_dphy_reset_assert(struct rk628 *rk628)
 {
-	u32 val, mask;
-	int ret;
-
 	rk628_i2c_write(rk628, CSITX_SYS_CTRL0_IMD, 0x1);
 	if (rk628->version >= RK628F_VERSION)
 		rk628_i2c_write(rk628, CSITX1_SYS_CTRL0_IMD, 0x1);
@@ -248,6 +251,13 @@ int rk628_mipi_dphy_reset(struct rk628 *rk628)
 	mipi_dphy_enablelane_assert(rk628, 0);
 	if (rk628->version >= RK628F_VERSION)
 		mipi_dphy_enablelane_assert(rk628, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL(rk628_mipi_dphy_reset_assert);
+
+int rk628_mipi_dphy_reset_deassert(struct rk628 *rk628)
+{
 	mipi_dphy_shutdownz_deassert(rk628);
 	mipi_dphy_rstz_deassert(rk628);
 	rk628_i2c_write(rk628, CSITX_SYS_CTRL0_IMD, 0x0);
@@ -255,25 +265,6 @@ int rk628_mipi_dphy_reset(struct rk628 *rk628)
 		rk628_i2c_write(rk628, CSITX1_SYS_CTRL0_IMD, 0x0);
 	usleep_range(10000, 11000);
 
-	mask = STOPSTATE_CLK | STOPSTATE_LANE0;
-
-	ret = regmap_read_poll_timeout(rk628->regmap[RK628_DEV_CSI],
-				       CSITX_CSITX_STATUS1,
-				       val, (val & mask) == mask,
-				       0, 1000);
-	if (ret < 0)
-		dev_err(rk628->dev, "csi0 lane module is not in stop state, val: 0x%x\n", val);
-
-	if (rk628->version >= RK628F_VERSION) {
-		ret = regmap_read_poll_timeout(rk628->regmap[RK628_DEV_CSI1],
-				       CSITX1_CSITX_STATUS1,
-				       val, (val & mask) == mask,
-				       0, 1000);
-		if (ret < 0)
-			dev_err(rk628->dev,
-				"csi1 lane module is not in stop state, val: 0x%x\n", val);
-	}
-
 	return 0;
 }
-EXPORT_SYMBOL(rk628_mipi_dphy_reset);
+EXPORT_SYMBOL(rk628_mipi_dphy_reset_deassert);
