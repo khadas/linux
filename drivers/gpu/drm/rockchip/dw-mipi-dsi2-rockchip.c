@@ -1479,6 +1479,10 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 		if (ret)
 			goto encoder_cleanup;
 
+		if (dsi2->bridge && (dsi2->bridge->ops & DRM_BRIDGE_OP_DETECT))
+			dsi2->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
+						 DRM_CONNECTOR_POLL_DISCONNECT;
+
 		connector = &dsi2->connector;
 	}
 
