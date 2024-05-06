@@ -238,20 +238,20 @@ static u8 rk628f_edid_init_data[] = {
 };
 
 static const struct mipi_timing rk628d_csi_mipi = {
-	0x4a, 0xf, 0x5d, 0x3a, 0x3a, 0x5a, 0x1f
+	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
 };
 
 static const struct mipi_timing rk628f_csi0_mipi = {
-	0x4a, 0xf, 0x5d, 0x3a, 0x3a, 0x5a, 0x1f
+	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
 };
 
 static const struct mipi_timing rk628f_csi1_mipi = {
-//data-pre, data-zero, data-trail, clk-pre, clk-zero, clk-trail, clk-post
-	0x4a, 0xf, 0x66, 0x3a, 0x3a, 0x5a, 0x1f
+//data_lp, data-pre, data-zero, data-trail, clk_lp, clk-pre, clk-zero, clk-trail, clk-post
+	0x0b, 0x53, 0x10, 0x5b, 0x0b, 0x43, 0x2c, 0x50, 0x0f
 };
 
 static const struct mipi_timing rk628f_dsi0_mipi = {
-	0x70, 0x1c, 0x7f, 0x70, 0x3f, 0x7f, 0x1f
+	0x10, 0x70, 0x1c, 0x7f, 0x10, 0x70, 0x3f, 0x7f, 0x1f
 };
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
@@ -802,45 +802,34 @@ static void rk628_dsi_enable(struct v4l2_subdev *sd)
 	csi->dsi.timings = csi->timings;
 	csi->dsi.lane_mbps = csi->lane_mbps;
 	rk628_mipi_dsi_power_on(&csi->dsi);
+	rk628_mipi_txdata_reset(sd);
 	csi->txphy_pwron = true;
 	v4l2_dbg(2, debug, sd, "%s: txphy power on!\n", __func__);
 	usleep_range(1000, 1500);
 	rk628_dsi_set_scs(csi);
 }
 
-static void enable_dsitx(struct v4l2_subdev *sd)
+static void rk628_dsi_disable(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
-	/* rst for dsi0 */
-	rk628_control_assert(csi->rk628, RGU_DSI0);
-	udelay(20);
-	rk628_control_deassert(csi->rk628, RGU_DSI0);
-	udelay(20);
+	rk628_dsi_disable_stream(&csi->dsi);
+	csi->txphy_pwron = false;
+}
 
-	/* rst for dsi1 */
-	rk628_control_assert(csi->rk628, RGU_DSI1);
-	udelay(20);
-	rk628_control_deassert(csi->rk628, RGU_DSI1);
-	udelay(20);
-
+static void enable_dsitx(struct v4l2_subdev *sd)
+{
+	rk628_dsi_disable(sd);
 	rk628_dsi_enable(sd);
 }
 
-static void rk628_dsi_enable_stream(struct v4l2_subdev *sd, bool en)
+static void rk628_disable_dsitx(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
-	if (en) {
-		rk628_hdmirx_vid_enable(sd, true);
-		rk628_i2c_write(csi->rk628, GRF_SCALER_CON0, SCL_EN(1));
-		rk628_dsi_set_scs(csi);
-		return;
-	}
-
 	rk628_hdmirx_vid_enable(sd, false);
 	rk628_i2c_write(csi->rk628, GRF_SCALER_CON0, SCL_EN(0));
-	rk628_dsi_disable_stream(&csi->dsi);
+	rk628_dsi_disable(sd);
 }
 
 static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
@@ -862,6 +851,8 @@ static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
 				csi->continues_clk ? CONT_MODE_CLK_CLR(1) : CONT_MODE_CLK_CLR(0));
 		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 	}
+	mipi_dphy_power_off(csi);
+	csi->txphy_pwron = false;
 }
 
 static void enable_stream(struct v4l2_subdev *sd, bool en)
@@ -893,7 +884,7 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			rk628_hdmirx_vid_enable(sd, false);
 			rk628_csi_disable_stream(sd);
 		} else {
-			rk628_dsi_enable_stream(sd, en);
+			rk628_disable_dsitx(sd);
 		}
 		csi->is_streaming = false;
 	}
@@ -961,7 +952,6 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	rk628_csi0_cru_reset(sd);
 	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_csi1_cru_reset(sd);
-	rk628_mipi_dphy_reset(csi->rk628);
 	rk628_post_process_setup(sd);
 
 	if (csi->txphy_pwron) {
@@ -1391,10 +1381,9 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 	}
 
 	csi->rk628->dphy_lane_en = 0x1f;
-	if (csi->plat_data->tx_mode == CSI_MODE) {
-		rk628_mipi_dphy_reset(csi->rk628);
+	if (csi->plat_data->tx_mode == CSI_MODE)
 		mipi_dphy_power_on(csi);
-	}
+
 	csi->txphy_pwron = true;
 	if (tx_5v_power_present(sd))
 		schedule_delayed_work(&csi->delayed_work_enable_hotplug, msecs_to_jiffies(4000));
@@ -2346,7 +2335,7 @@ static void rk628_csi_reset_streaming(struct v4l2_subdev *sd, int on)
 			msleep(20);
 			rk628_csi_disable_stream(sd);
 		} else {
-			rk628_dsi_enable_stream(sd, false);
+			rk628_disable_dsitx(sd);
 		}
 		csi->is_streaming = false;
 	}
@@ -2389,7 +2378,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_CAPTURE_MODE:
 		capture_info = (struct rkmodule_capture_info *)arg;
 		if (csi->rk628->dual_mipi) {
-			v4l2_info(sd, "set dual mipi mode\n");
+			v4l2_dbg(1, debug, sd, "set dual mipi mode\n");
 			capture_info->mode = RKMODULE_MULTI_DEV_COMBINE_ONE;
 			capture_info->multi_dev = csi->multi_dev_info;
 		} else {
@@ -2457,6 +2446,7 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	unsigned int val;
 	u32 bus_width, mask;
 	struct v4l2_subdev *sd = &csi->sd;
+	int ret;
 
 	if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
 		csi->lane_mbps = MIPI_DATARATE_MBPS_HIGH;
@@ -2474,6 +2464,7 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	rk628_txphy_set_bus_width(csi->rk628, bus_width);
 	rk628_txphy_set_mode(csi->rk628, PHY_MODE_VIDEO_MIPI);
 
+	rk628_mipi_dphy_reset_assert(csi->rk628);
 	rk628_mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 0);
 	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 1);
@@ -2490,7 +2481,7 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 		if (csi->rk628->version >= RK628F_VERSION)
 			rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
 	}
-
+	rk628_mipi_dphy_reset_deassert(csi->rk628);
 	usleep_range(1500, 2000);
 	rk628_txphy_power_on(csi->rk628);
 
@@ -2509,6 +2500,24 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 		}
 	}
 	udelay(10);
+
+	mask = STOPSTATE_CLK | STOPSTATE_LANE0;
+	ret = regmap_read_poll_timeout(csi->rk628->regmap[RK628_DEV_CSI],
+				       CSITX_CSITX_STATUS1,
+				       val, (val & mask) == mask,
+				       0, 1000);
+	if (ret < 0)
+		dev_err(csi->rk628->dev, "csi0 lane module is not in stop state, val: 0x%x\n", val);
+
+	if (csi->rk628->version >= RK628F_VERSION) {
+		ret = regmap_read_poll_timeout(csi->rk628->regmap[RK628_DEV_CSI1],
+				       CSITX1_CSITX_STATUS1,
+				       val, (val & mask) == mask,
+				       0, 1000);
+		if (ret < 0)
+			dev_err(csi->rk628->dev,
+				"csi1 lane module is not in stop state, val: 0x%x\n", val);
+	}
 
 	return 0;
 }

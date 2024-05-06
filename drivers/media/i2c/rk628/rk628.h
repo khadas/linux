@@ -279,9 +279,11 @@ enum {
 };
 
 struct mipi_timing {
+	u8 data_lp;
 	u8 data_prepare;
 	u8 data_zero;
 	u8 data_trail;
+	u8 clk_lp;
 	u8 clk_prepare;
 	u8 clk_zero;
 	u8 clk_trail;
@@ -302,6 +304,7 @@ struct rk628 {
 	int dbg_en;
 	struct dentry *debug_dir;
 	struct gpio_desc *hdmirx_det_gpio;
+	bool last_mipi_status;
 };
 
 #define rk628_dbg(rk628, format, ...)	\

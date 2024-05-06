@@ -341,13 +341,27 @@ void rk628_mipi_dsi_power_on(struct rk628_dsi *dsi)
 	dev_info(dsi->rk628->dev, "%s mipi bitrate:%llu mbps\n", __func__,
 		dsi->lane_mbps);
 
+	/* rst for dsi0 */
+	rk628_control_assert(dsi->rk628, RGU_DSI0);
+	udelay(20);
+	rk628_control_deassert(dsi->rk628, RGU_DSI0);
+	udelay(20);
+
 	rk628_dsi_pre_enable(dsi, 0);
-	if (rk628->dual_mipi)
+
+	if (rk628->dual_mipi) {
+		/* rst for dsi1 */
+		rk628_control_assert(dsi->rk628, RGU_DSI1);
+		udelay(20);
+		rk628_control_deassert(dsi->rk628, RGU_DSI1);
+		udelay(20);
 		rk628_dsi_pre_enable(dsi, 1);
+	}
 
 	rk628_dsi_enable(dsi, 0);
 	if (rk628->dual_mipi)
 		rk628_dsi_enable(dsi, 1);
+	rk628->last_mipi_status = rk628->dual_mipi;
 }
 EXPORT_SYMBOL(rk628_mipi_dsi_power_on);
 
@@ -361,11 +375,13 @@ void rk628_dsi_disable_stream(struct rk628_dsi *dsi)
 	dsi_write(rk628, 0, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 	dsi_write(rk628, 0, DSI_PWR_UP, POWER_UP);
 
-	dsi_write(rk628, 1, DSI_PWR_UP, RESET);
-	dsi_write(rk628, 1, DSI_LPCLK_CTRL, 0);
-	dsi_write(rk628, 1, DSI_EDPI_CMD_SIZE, 0);
-	dsi_write(rk628, 1, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
-	dsi_write(rk628, 1, DSI_PWR_UP, POWER_UP);
+	if (rk628->last_mipi_status) {
+		dsi_write(rk628, 1, DSI_PWR_UP, RESET);
+		dsi_write(rk628, 1, DSI_LPCLK_CTRL, 0);
+		dsi_write(rk628, 1, DSI_EDPI_CMD_SIZE, 0);
+		dsi_write(rk628, 1, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
+		dsi_write(rk628, 1, DSI_PWR_UP, POWER_UP);
+	}
 
 	rk628_txphy_power_off(rk628);
 }
