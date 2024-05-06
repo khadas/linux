@@ -823,8 +823,10 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 	lvds->funcs = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, lvds);
 
-	lvds->dual_channel = of_property_read_bool(dev->of_node,
-						   "dual-channel");
+	lvds->dual_channel =
+		of_property_read_bool(dev->of_node, "dual-channel") ||
+		of_property_read_bool(dev->of_node, "rockchip,dual-channel");
+
 	lvds->data_swap = of_property_read_bool(dev->of_node,
 						"rockchip,data-swap");
 
