@@ -1079,4 +1079,6 @@ static inline u64 rkcif_time_get_ns(struct rkcif_device *dev)
 bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw);
 void rkcif_dphy_quick_stream(struct rkcif_device *dev, int on);
 
+void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
+					       int channel_id);
 #endif
