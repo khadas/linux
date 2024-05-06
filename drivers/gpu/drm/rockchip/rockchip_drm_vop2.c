@@ -4884,8 +4884,10 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		vcstate->dsc_enable = false;
 	}
 
-	if (vp->output_if & VOP_OUTPUT_IF_eDP0)
+	if (vp->output_if & VOP_OUTPUT_IF_eDP0) {
 		VOP_GRF_SET(vop2, grf, grf_edp0_en, 0);
+		VOP_CTRL_SET(vop2, edp0_data1_sel, 0);
+	}
 
 	if (vp->output_if & VOP_OUTPUT_IF_eDP1) {
 		VOP_GRF_SET(vop2, grf, grf_edp1_en, 0);
@@ -4896,6 +4898,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (vp->output_if & VOP_OUTPUT_IF_HDMI0) {
 		VOP_GRF_SET(vop2, grf, grf_hdmi0_dsc_en, 0);
 		VOP_GRF_SET(vop2, grf, grf_hdmi0_en, 0);
+		VOP_CTRL_SET(vop2, hdmi0_data1_sel, 0);
 	}
 
 	if (vp->output_if & VOP_OUTPUT_IF_HDMI1) {
@@ -4905,8 +4908,14 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 			VOP_CTRL_SET(vop2, hdmi_dual_en, 0);
 	}
 
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP0)
+		VOP_CTRL_SET(vop2, dp0_data1_sel, 0);
+
 	if ((vcstate->output_if & VOP_OUTPUT_IF_DP1) && dual_channel)
 		VOP_CTRL_SET(vop2, dp_dual_en, 0);
+
+	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0)
+		VOP_CTRL_SET(vop2, mipi0_data1_sel, 0);
 
 	if ((vcstate->output_if & VOP_OUTPUT_IF_MIPI1) && dual_channel)
 		VOP_CTRL_SET(vop2, mipi_dual_en, 0);
@@ -8648,7 +8657,8 @@ static void vop2_setup_dual_channel_if(struct drm_crtc *crtc)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
 
-	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE) {
+	if (output_if_is_lvds(vcstate->output_if) &&
+	    (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_ODD_EVEN_MODE)) {
 		VOP_CTRL_SET(vop2, lvds_dual_en, 1);
 		VOP_CTRL_SET(vop2, lvds_dual_mode, 0);
 		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP)
@@ -8660,21 +8670,40 @@ static void vop2_setup_dual_channel_if(struct drm_crtc *crtc)
 	if (vcstate->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP)
 		VOP_MODULE_SET(vop2, vp, dual_channel_swap, 1);
 
+	/*
+	 * For RK3588, at dual_channel/split mode, the DP1/eDP1/HDMI1/MIPI1 data
+	 * only can be from data1[vp left half screen is data0, right half screen
+	 * is data1].
+	 * From RK3576, the connector can select from data0 or data1.
+	 */
+	if (vcstate->output_if & VOP_OUTPUT_IF_DP0 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_DP0))
+		VOP_CTRL_SET(vop2, dp0_data1_sel, 1);
+	if (vcstate->output_if & VOP_OUTPUT_IF_eDP0 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_eDP0))
+		VOP_CTRL_SET(vop2, edp0_data1_sel, 1);
+	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_HDMI0))
+		VOP_CTRL_SET(vop2, hdmi0_data1_sel, 1);
+	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI0 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_MIPI0))
+		VOP_CTRL_SET(vop2, mipi0_data1_sel, 1);
+	/* Todo for LVDS0 */
 	if (vcstate->output_if & VOP_OUTPUT_IF_DP1 &&
 	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_DP1))
-		VOP_CTRL_SET(vop2, dp_dual_en, 1);
-	else if (vcstate->output_if & VOP_OUTPUT_IF_eDP1 &&
-		 !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_eDP1))
-		VOP_CTRL_SET(vop2, edp_dual_en, 1);
-	else if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1 &&
-		 !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_HDMI1))
-		VOP_CTRL_SET(vop2, hdmi_dual_en, 1);
-	else if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1 &&
-		 !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_MIPI1))
-		VOP_CTRL_SET(vop2, mipi_dual_en, 1);
-	else if (vcstate->output_if & VOP_OUTPUT_IF_LVDS1) {
-		VOP_CTRL_SET(vop2, lvds_dual_en, 1);
-		VOP_CTRL_SET(vop2, lvds_dual_mode, 1);
+		VOP_CTRL_SET(vop2, dp_dual_en, 1);/* rk3588 only */
+	if (vcstate->output_if & VOP_OUTPUT_IF_eDP1 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_eDP1))
+		VOP_CTRL_SET(vop2, edp_dual_en, 1);/* rk3588 only */
+	if (vcstate->output_if & VOP_OUTPUT_IF_HDMI1 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_HDMI1))
+		VOP_CTRL_SET(vop2, hdmi_dual_en, 1);/* rk3588 only */
+	if (vcstate->output_if & VOP_OUTPUT_IF_MIPI1 &&
+	    !vop2_mark_as_left_panel(vcstate, VOP_OUTPUT_IF_MIPI1))
+		VOP_CTRL_SET(vop2, mipi_dual_en, 1);/* rk3588 only */
+	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS1) {
+		VOP_CTRL_SET(vop2, lvds_dual_en, 1);/* rk3568 only */
+		VOP_CTRL_SET(vop2, lvds_dual_mode, 1);/* rk3568 only */
 	}
 }
 
