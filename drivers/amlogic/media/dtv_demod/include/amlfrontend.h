@@ -141,6 +141,7 @@
 /*  V2.2.026 fix dvbt2 mplp id list and mplp tune(execpt T5D) */
 /*  V2.2.027 standard code optimization */
 /*  V2.2.028 fix dump adc issue */
+/*  V2.2.029 fix coverity errors */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -157,8 +158,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.028"
-#define DTVDEMOD_VER	"2024/05/07: fix dump adc issue"
+#define AMLDTVDEMOD_VER "V2.2.029"
+#define DTVDEMOD_VER	"2024/05/09: fix coverity errors"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

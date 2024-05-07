@@ -914,7 +914,7 @@ static int calc_ave(int *val_arr, int cnt, unsigned int mode, int par)
 	need_order = (mode >> 31) & 1 ? 0 : 1;
 	mode = mode & 0x7FFFFFFF;
 
-	if (!val_arr || cnt <= 0 || mode < 0 || mode > 2)
+	if (!val_arr || cnt <= 0 || mode > 2)
 		return 0;
 
 	if (mode != 0 && par <= 0)
