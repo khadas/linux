@@ -2183,8 +2183,6 @@ static int it6161_bridge_attach(struct drm_bridge *bridge,
 		goto cleanup_connector;
 	}
 
-    	DRM_INFO("%s, ret:%d", __func__, it6161_attach_dsi(it6161));
-
 	err = drm_connector_register(&it6161->connector);
 	if (err < 0) {
 		DRM_DEV_ERROR(dev, "Failed to register connector: %d", err);
@@ -4030,7 +4028,7 @@ static void hdmi_tx_enable_hdcp(struct it6161 *it6161)
 }
 #endif
 
-static bool getHDMITX_LinkStatus()
+static bool getHDMITX_LinkStatus(void)
 {
 it6161_debug("%s reg0E:0x%02x reg0x61:0x%02x", __func__, it6161_hdmi_tx_read(it6161, REG_TX_SYS_STATUS), it6161_hdmi_tx_read(it6161, REG_TX_AFE_DRV_CTRL));//allen
     if(B_TX_RXSENDETECT & it6161_hdmi_tx_read(it6161, REG_TX_SYS_STATUS)) {
@@ -4669,7 +4667,7 @@ static void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/)
     // it6161_hdmi_tx_write(it6161, REG_TX_SW_RST, rst  );
 }
 
-static void setHDMITX_DSDAudio()
+static void setHDMITX_DSDAudio(void)
 {
     // to be continue
     // u8 rst;
@@ -6811,6 +6809,12 @@ static int it6161_i2c_probe(struct i2c_client *i2c_mipi_rx,
 	i2c_set_clientdata(i2c_mipi_rx, it6161);
 	it6161->bridge.funcs = &it6161_bridge_funcs;
 	drm_bridge_add(&it6161->bridge);
+
+	err = it6161_attach_dsi(it6161);
+	if (err) {
+		DRM_DEV_ERROR(dev, "failed to attach dsi, ret: %d", err);
+		goto err_cec;
+	}
 
 	return 0;
 
