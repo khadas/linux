@@ -47,6 +47,8 @@ static unsigned int atsc_mode_para;
 static unsigned long demod_dmc_id;
 static unsigned int demod_ddr_addr;
 static unsigned int demod_ddr_size;
+MODULE_PARM_DESC(demod_ddr_size, "\n\t\t demod_ddr_size");
+module_param(demod_ddr_size, int, 0644);
 
 MODULE_PARM_DESC(testbus_addr, "");
 static unsigned int testbus_addr = 0x1000;
@@ -418,13 +420,13 @@ static void wait_capture(int cap_cur_addr, int depth_MB, int start)
 		time_out = time_out + 1;
 		usleep_range(1000, 2000);
 		readfirst = front_read_reg(cap_cur_addr);
-
+		PR_INFO("%s: cap_cur_addr:0x%x", __func__, readfirst);
 		if ((last - readfirst) > 0)
 			tmp = 0;
 		else
 			last = readfirst;
 
-		usleep_range(10000, 20000);
+		usleep_range(100000, 200000);
 	}
 }
 
@@ -622,6 +624,8 @@ static int read_memory_to_file(char *path, unsigned int start_addr,
 	if (!buf) {
 		PR_ERR("buf NULL\n");
 		return -1;
+	} else {
+		PR_INFO("%s: buf:%p", __func__, buf);
 	}
 
 	demod_dma_flush(buf, size, DMA_FROM_DEVICE);
@@ -798,10 +802,15 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 	}
 
-	if (!demod_ddr_size)
+	if (!demod_ddr_size) {
 		size = devp->mem_size - offset;
-	else
-		size = demod_ddr_size;
+	} else {
+		if (demod_ddr_size < devp->mem_size - offset)
+			size = demod_ddr_size * SZ_1M;
+		else
+			size = devp->mem_size - offset;
+	}
+
 
 	PR_INFO("%s:capture_mode:%d,test_mode:%d,start_addr:0x%x,offset:%dM,size:%dM\n",
 			__func__, capture_mode, test_mode || testbus_test_mode,
@@ -836,7 +845,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
 	tb_start = front_read_reg(0x3f);
-
+	PR_INFO("%s: tb_start: %#x", __func__, tb_start);
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 		devp->demod_thread = polling_en;
