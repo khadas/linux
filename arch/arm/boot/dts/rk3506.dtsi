@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/rockchip,rk3506-cru.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/pinctrl/rockchip.h>
 
 / {
 	#address-cells = <1>;
@@ -16,6 +17,11 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
 		serial0 = &uart0;
 		spi2 = &fspi;
 	};
@@ -226,6 +232,11 @@
 		status = "disabled";
 	};
 
+	ioc_grf: syscon@ff4d8000 {
+		compatible = "rockchip,rk3506-ioc-grf", "syscon";
+		reg = <0xff4d8000 0x8000>;
+	};
+
 	gic: interrupt-controller@ff581000 {
 		compatible = "arm,gic-400";
 		reg = <0xff581000 0x1000>,
@@ -255,6 +266,11 @@
 				remote-endpoint = <&rgb_in_vop>;
 			};
 		};
+	};
+
+	ioc1: syscon@ff660000 {
+		compatible = "rockchip,rk3506-ioc1", "syscon";
+		reg = <0xff660000 0x10000>;
 	};
 
 	arm-debug@ff810000 {
@@ -304,6 +320,11 @@
 		status = "disabled";
 	};
 
+	ioc_pmu: syscon@ff950000 {
+		compatible = "rockchip,rk3506-ioc-pmu", "syscon";
+		reg = <0xff950000 0x10000>;
+	};
+
 	cru: clock-controller@ff9a0000 {
 		compatible = "rockchip,rk3506-cru";
 		reg = <0xff9a0000 0x20000>;
@@ -311,4 +332,81 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
+
+	pinctrl: pinctrl {
+		compatible = "rockchip,rk3506-pinctrl";
+		rockchip,grf = <&ioc_grf>;
+		rockchip,ioc1 = <&ioc1>;
+		rockchip,pmu = <&ioc_pmu>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpio0: gpio@ff940000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff940000 0x200>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 0 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@ff870000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff870000 0x200>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 32 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@ff1c0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff1c0000 0x200>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 64 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio3: gpio@ff1d0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff1d0000 0x200>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 96 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio4: gpio@ff1e0000 {
+			compatible = "rockchip,gpio-bank";
+			reg = <0xff1e0000 0x200>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl 0 128 32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
 };
+
+#include "rk3506-pinctrl.dtsi"
