@@ -3858,6 +3858,7 @@ static int dw_dp_mst_encoder_atomic_check(struct drm_encoder *encoder,
 	struct dw_dp_mst_conn *mst_conn = container_of(connector,
 						       struct dw_dp_mst_conn, connector);
 	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_mst_atomic_payload *payload;
 	int pbn, slot;
 
 	mst_state = drm_atomic_get_mst_topology_state(crtc_state->state, &dp->mst_mgr);
@@ -3917,6 +3918,14 @@ static int dw_dp_mst_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	drm_dp_mst_update_slots(mst_state, DP_CAP_ANSI_8B10B);
+
+	payload = drm_atomic_get_mst_payload_state(mst_state, mst_conn->port);
+	if (dp->aux_client && !payload->vcpi) {
+		payload->vcpi = mst_enc->stream_id + 1;
+		dev_info(dp->dev, "[MST PORT:%p] assigned VCPI #%d\n",
+			 payload->port, payload->vcpi);
+		mst_state->payload_mask |= BIT(payload->vcpi - 1);
+	}
 
 	return 0;
 }
