@@ -1130,6 +1130,7 @@ int rga_request_submit(struct rga_request *request)
 	request->is_done = false;
 	request->finished_task_count = 0;
 	request->failed_task_count = 0;
+	request->ret = 0;
 	request->current_mm = current_mm;
 
 	/* Unlock after ensuring that the current request will not be resubmitted. */
@@ -1236,6 +1237,7 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	request->is_done = false;
 	request->finished_task_count = 0;
 	request->failed_task_count = 0;
+	request->ret = 0;
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
