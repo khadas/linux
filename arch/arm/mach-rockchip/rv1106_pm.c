@@ -779,7 +779,7 @@ static void pmu_sleep_config(void)
 		/* BIT(RV1106_PMU_WAKEUP_CPU_INT_EN) | */
 		BIT(RV1106_PMU_WAKEUP_GPIO_INT_EN) |
 		0;
-	if (IS_ENABLED(CONFIG_RV1106_PMU_WAKEUP_TIMEOUT))
+	if (readl_relaxed(pmu_base + RV1106_PMU_WAKEUP_TIMEOUT_CNT) != 0)
 		pmu_wkup_con |= BIT(RV1106_PMU_WAKEUP_TIMEOUT_EN);
 
 	pmu_pwr_con =
@@ -1343,6 +1343,9 @@ static int __init rv1106_suspend_init(struct device_node *np)
 	/* gpio0_a3 activelow, gpio0_a4 active high, select sleep func */
 	writel_relaxed(BITS_WITH_WMASK(0x5, 0x7, 0),
 		       pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
+
+	/* PMU_WAKEUP_TIMEOUT_CNT = 0, disable TIMEOUT_WAKEUP by default */
+	writel_relaxed(0x0, pmu_base + RV1106_PMU_WAKEUP_TIMEOUT_CNT);
 
 	rkpm_region_mem_init(RV1106_PM_REG_REGION_MEM_SIZE);
 	rkpm_reg_rgns_init();
