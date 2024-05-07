@@ -11949,14 +11949,14 @@ void di_disable_prelink_notify(bool async)
 		    !atomic_read(&vd_layer[0].disable_prelink_done) &&
 		    skip_cycle < 20) {
 			skip_cycle++;
-			msleep(sleep_time);
+			usleep_range(sleep_time * 1000, (sleep_time + 1) * 1000);
 		}
 		/* need one more vsync for rdma config */
-		msleep(vsync_time);
+		usleep_range(vsync_time * 1000, (vsync_time + 1) * 1000);
 		sleep_cycle = 2;
 	} else {
 		sleep_cycle = 2;
-		msleep(sleep_time * 2);
+		usleep_range(sleep_time * 2 * 1000, (sleep_time + 1) * 2 * 1000);
 	}
 	if (debug_flag & DEBUG_FLAG_PRELINK)
 		pr_info("%s: wait %dx(%d+%d) ms\n", __func__, sleep_time, sleep_cycle, skip_cycle);
