@@ -588,6 +588,7 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 	struct rkvdec2_task *task = NULL;
 	struct mpp_task *mpp_task = mpp->cur_task;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_info *link_info = mpp->var->hw_info->link_info;
 
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
@@ -601,8 +602,7 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 	task->irq_status = mpp->irq_status;
 
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
-	err_mask = RKVDEC_COLMV_REF_ERR_STA | RKVDEC_BUF_EMPTY_STA |
-		   RKVDEC_TIMEOUT_STA | RKVDEC_ERROR_STA;
+	err_mask = link_info->err_mask;
 	if (err_mask & task->irq_status) {
 		atomic_inc(&mpp->reset_request);
 		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {

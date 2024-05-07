@@ -67,10 +67,6 @@
 #define RKVDEC_READY_STA		BIT(2)
 #define RKVDEC_IRQ_RAW			BIT(1)
 #define RKVDEC_IRQ			BIT(0)
-#define RKVDEC_INT_ERROR_MASK		(RKVDEC_COLMV_REF_ERR_STA |\
-					RKVDEC_BUF_EMPTY_STA |\
-					RKVDEC_TIMEOUT_STA |\
-					RKVDEC_ERROR_STA)
 #define RKVDEC_PERF_WORKING_CNT		0x41c
 
 /* perf sel reference register */

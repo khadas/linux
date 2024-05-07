@@ -79,6 +79,7 @@ struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 	},
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
+	.err_mask = 0xf0,
 };
 
 /* vdpu34x link hw info for rk356x */
@@ -140,6 +141,7 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 	},
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
+	.err_mask = 0xf0,
 };
 
 /* vdpu382 link hw info */
@@ -201,6 +203,7 @@ struct rkvdec_link_info rkvdec_link_vdpu382_hw_info = {
 	},
 	.irq_base = 0x00,
 	.next_addr_base = 0x1c,
+	.err_mask = 0xf0,
 };
 
 /* vdpu383 link hw info */
@@ -1102,7 +1105,7 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 			     mpp_task->session->index, mpp_task->task_index,
 			     irq_status, timeout_flag, abort_flag);
 
-		if (irq_status & RKVDEC_INT_ERROR_MASK) {
+		if (irq_status & info->err_mask) {
 			dev_err(mpp->dev,
 				"session %d task %d irq_status %#08x timeout %u abort %u\n",
 				mpp_task->session->index, mpp_task->task_index,
@@ -1851,10 +1854,11 @@ irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param)
 {
 	struct mpp_dev *mpp = param;
 	u32 irq_status = mpp_read_relaxed(mpp, RKVDEC_REG_INT_EN);
+	struct rkvdec_link_info *link_info = mpp->var->hw_info->link_info;
 
 	if (irq_status & RKVDEC_IRQ_RAW) {
 		mpp_debug(DEBUG_IRQ_STATUS, "irq_status=%08x\n", irq_status);
-		if (irq_status & RKVDEC_INT_ERROR_MASK) {
+		if (irq_status & link_info->err_mask) {
 			atomic_inc(&mpp->reset_request);
 			atomic_inc(&mpp->queue->reset_request);
 		}
@@ -2214,7 +2218,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 		mpp_debug(DEBUG_IRQ_CHECK,
 			  "session %d task %d w:h[%d %d] err %d irq_status %#x timeout=%u abort=%u iova %08x next %08x ccu[%d %d]\n",
 			  mpp_task->session->index, mpp_task->task_index, task->width,
-			  task->height, !!(irq_status & RKVDEC_INT_ERROR_MASK), irq_status,
+			  task->height, !!(irq_status & hw->err_mask), irq_status,
 			  timeout_flag, abort_flag, (u32)task->table->iova,
 			  ((u32 *)task->table->vaddr)[hw->tb_reg_next],
 			  ccu_decoded_num, ccu_total_dec_num);
@@ -2251,7 +2255,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 			list_del_init(&mpp_task->queue_link);
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
-			if ((irq_status & RKVDEC_INT_ERROR_MASK) || timeout_flag) {
+			if ((irq_status & hw->err_mask) || timeout_flag) {
 				pr_err("session %d task %d irq_status %#x timeout=%u abort=%u\n",
 					mpp_task->session->index, mpp_task->task_index,
 					irq_status, timeout_flag, abort_flag);
