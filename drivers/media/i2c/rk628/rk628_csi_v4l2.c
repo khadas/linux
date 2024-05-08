@@ -494,6 +494,9 @@ static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 	}
 
 	if (ret < 0 || rk628_hdmirx_scdc_ced_err(csi->rk628)) {
+		if (rk628_hdmirx_get_arc_enable(csi->audio_info))
+			return;
+
 		rk628_hdmirx_plugout(sd);
 		csi->lock_fail_time++;
 		v4l2_dbg(1, debug, sd, "%s: lock fail time: %d\n",
