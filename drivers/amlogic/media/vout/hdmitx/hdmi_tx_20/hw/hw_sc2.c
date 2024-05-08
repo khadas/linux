@@ -47,7 +47,7 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 	hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, frac_val);
 	hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
 
-	if (frac_val == 0x8148) {
+	if (frac_val == 0x8168) {
 		if ((hdev->para->vic == HDMI_3840x2160p50_16x9 ||
 		     hdev->para->vic == HDMI_3840x2160p60_16x9 ||
 		     hdev->para->vic == HDMI_3840x2160p50_64x27 ||
@@ -126,7 +126,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 {
 	switch (clk) {
 	case 5940000:
-		if (set_hpll_hclk_v1(0xf7, frac_rate ? 0x8148 : 0x10000))
+		if (set_hpll_hclk_v1(0xf7, frac_rate ? 0x8168 : 0x10000))
 			break;
 		if (set_hpll_hclk_v2(0x7b, 0x18000))
 			break;
