@@ -234,6 +234,7 @@ obj-$(CONFIG_MFD_RK806_I2C)	+= rk806-i2c.o
 obj-$(CONFIG_MFD_RK806_SPI)	+= rk806-spi.o
 obj-$(CONFIG_MFD_RK808)		+= rk808.o
 obj-$(CONFIG_MFD_RK1000)	+= rk1000-core.o
+obj-$(CONFIG_MFD_ROCKCHIP_FLEXBUS)	+= rockchip-flexbus.o
 obj-$(CONFIG_MFD_SERDES_DISPLAY)	+= display-serdes/
 obj-y				+= rkx110_x120/
 obj-$(CONFIG_MFD_RN5T618)	+= rn5t618.o

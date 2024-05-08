@@ -1304,6 +1304,14 @@ config MFD_RK1000
 source "drivers/mfd/display-serdes/Kconfig"
 source "drivers/mfd/rkx110_x120/Kconfig"
 
+config MFD_ROCKCHIP_FLEXBUS
+	tristate "Rockchip Flexbus"
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	select MFD_CORE
+	help
+	  Select this to get support for Rockchip Flexbus.
+
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"
 	depends on I2C
