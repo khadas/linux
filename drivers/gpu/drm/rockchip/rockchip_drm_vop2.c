@@ -2224,12 +2224,21 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 	}
 }
 
-static void vop2_set_system_status(struct vop2 *vop2)
+static void vop2_set_system_status(struct vop2 *vop2, bool is_enabled)
 {
-	if (hweight8(vop2->active_vp_mask) > 1)
-		rockchip_set_system_status(SYS_STATUS_DUALVIEW);
-	else
-		rockchip_clear_system_status(SYS_STATUS_DUALVIEW);
+	unsigned int nports = hweight8(vop2->active_vp_mask);
+
+	if (is_enabled) {
+		if (nports == 2)
+			rockchip_set_system_status(SYS_STATUS_MULTIVP);
+		else if (nports == 1)
+			rockchip_set_system_status(SYS_STATUS_SINGLEVP);
+	} else {
+		if (nports == 0)
+			rockchip_clear_system_status(SYS_STATUS_SINGLEVP);
+		else if (nports == 1)
+			rockchip_clear_system_status(SYS_STATUS_MULTIVP);
+	}
 }
 
 static bool vop2_win_rb_swap(uint32_t format)
@@ -4963,7 +4972,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	memset(&vp->active_tv_state, 0, sizeof(vp->active_tv_state));
 	vop2_unlock(vop2);
 
-	vop2_set_system_status(vop2);
+	vop2_set_system_status(vop2, false);
 	if (!vop2->active_vp_mask)
 		rockchip_request_early_suspend();
 
@@ -6960,7 +6969,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 	if (on) {
 		vp->loader_protect = true;
 		vop2->active_vp_mask |= BIT(vp->id);
-		vop2_set_system_status(vop2);
+		vop2_set_system_status(vop2, true);
 		vop2_initial(crtc);
 		if (crtc->primary) {
 			win = to_vop2_win(crtc->primary);
@@ -8967,7 +8976,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	}
 
 	vop2->active_vp_mask |= BIT(vp->id);
-	vop2_set_system_status(vop2);
+	vop2_set_system_status(vop2, true);
 	rockchip_request_late_resume();
 
 	vop2_lock(vop2);
