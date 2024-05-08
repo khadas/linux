@@ -180,7 +180,8 @@ static struct monitor_dev_profile dmc_mdevp = {
 
 static inline unsigned long is_dualview(unsigned long status)
 {
-	return (status & SYS_STATUS_LCDC0) && (status & SYS_STATUS_LCDC1);
+	return ((status & SYS_STATUS_SINGLEVP) &&
+		((status & SYS_STATUS_MULTIVP) || (status & SYS_STATUS_EBC)));
 }
 
 static inline unsigned long is_isp(unsigned long status)
