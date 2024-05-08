@@ -486,7 +486,9 @@ struct rk628_hdmirx_cec {
 	unsigned int tx_status;
 	bool tx_done;
 	bool rx_done;
+	bool cec_hpd;
 	struct cec_notifier *notify;
+	struct delayed_work delayed_work_cec;
 };
 
 void rk628_hdmirx_set_hdcp(struct rk628 *rk628, struct rk628_hdcp *hdcp, bool en);

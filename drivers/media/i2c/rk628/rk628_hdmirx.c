@@ -1027,6 +1027,17 @@ void rk628_hdmirx_cec_irq(struct rk628 *rk628, struct rk628_hdmirx_cec *cec)
 }
 EXPORT_SYMBOL(rk628_hdmirx_cec_irq);
 
+static void rk628_delayed_work_cec(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk628_hdmirx_cec *cec = container_of(dwork, struct rk628_hdmirx_cec,
+						    delayed_work_cec);
+	bool en = rk628_hdmirx_tx_5v_power_detect(cec->rk628->hdmirx_det_gpio);
+
+	cec->cec_hpd = en;
+	cec_queue_pin_hpd_event(cec->adap, en, ktime_get());
+}
+
 struct rk628_hdmirx_cec *rk628_hdmirx_cec_register(struct rk628 *rk628)
 {
 	struct rk628_hdmirx_cec *cec;
@@ -1068,6 +1079,8 @@ struct rk628_hdmirx_cec *rk628_hdmirx_cec_register(struct rk628 *rk628)
 	/* override the module pointer */
 	cec->adap->owner = THIS_MODULE;
 
+	INIT_DELAYED_WORK(&cec->delayed_work_cec, rk628_delayed_work_cec);
+
 	ret = devm_add_action(cec->dev, rk628_hdmirx_cec_del, cec);
 	if (ret) {
 		cec_delete_adapter(cec->adap);
@@ -1102,6 +1115,8 @@ struct rk628_hdmirx_cec *rk628_hdmirx_cec_register(struct rk628 *rk628)
 	 */
 	devm_remove_action(cec->dev, rk628_hdmirx_cec_del, cec);
 
+	schedule_delayed_work(&cec->delayed_work_cec, msecs_to_jiffies(10000));
+
 	return cec;
 }
 EXPORT_SYMBOL(rk628_hdmirx_cec_register);
@@ -1121,7 +1136,11 @@ void rk628_hdmirx_cec_hpd(struct rk628_hdmirx_cec *cec, bool en)
 	if (!cec || !cec->adap)
 		return;
 
-	cec_queue_pin_hpd_event(cec->adap, en, ktime_get());
+	rk628_dbg(cec->rk628, "%s: cec_hpd:%d, en:%d\n", __func__, cec->cec_hpd, en);
+	if (cec->cec_hpd != en) {
+		cec->cec_hpd = en;
+		cec_queue_pin_hpd_event(cec->adap, en, ktime_get());
+	}
 }
 EXPORT_SYMBOL(rk628_hdmirx_cec_hpd);
 
@@ -1130,6 +1149,9 @@ void rk628_hdmirx_cec_state_reconfiguration(struct rk628 *rk628,
 {
 	unsigned int irqs;
 	u32 val;
+
+	/* clk_hdmirx_cec = 32.768k */
+	rk628_clk_set_rate(rk628, CGU_CLK_HDMIRX_CEC, 32768);
 
 	rk628_i2c_write(rk628, HDMI_RX_CEC_ADDR_L, cec->addresses & 0xff);
 	rk628_i2c_write(rk628, HDMI_RX_CEC_ADDR_H, (cec->addresses >> 8) & 0xff);
