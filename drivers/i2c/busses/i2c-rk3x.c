@@ -201,6 +201,7 @@ struct rk3x_i2c_soc_data {
  * @clk: function clk for rk3399 or function & Bus clks for others
  * @pclk: Bus clk for rk3399
  * @clk_rate_nb: i2c clk rate change notify
+ * @irq: irq number
  * @t: I2C known timing information
  * @lock: spinlock for the i2c bus
  * @wait: the waitqueue to wait for i2c transfer
@@ -230,6 +231,7 @@ struct rk3x_i2c {
 
 	struct reset_control *reset;
 	struct reset_control *reset_apb;
+	int irq;
 
 	/* Settings */
 	struct i2c_timings t;
@@ -254,7 +256,6 @@ struct rk3x_i2c {
 	struct notifier_block i2c_restart_nb;
 	bool system_restarting;
 	struct rk_tb_client tb_cl;
-	int irq;
 };
 
 static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c);
@@ -1249,15 +1250,20 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 		if (i + ret >= num)
 			i2c->is_last_msg = true;
 
-		rk3x_i2c_start(i2c);
-
 		spin_unlock_irqrestore(&i2c->lock, flags);
 
 		if (!polling) {
+			rk3x_i2c_start(i2c);
+
 			timeout = wait_event_timeout(i2c->wait, !i2c->busy,
 						     msecs_to_jiffies(xfer_time));
 		} else {
+			disable_irq(i2c->irq);
+			rk3x_i2c_start(i2c);
+
 			timeout = rk3x_i2c_wait_xfer_poll(i2c, xfer_time);
+
+			enable_irq(i2c->irq);
 		}
 
 		spin_lock_irqsave(&i2c->lock, flags);
