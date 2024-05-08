@@ -251,7 +251,7 @@ static bool tx_5v_power_present(struct v4l2_subdev *sd)
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
 	ret = rk628_hdmirx_tx_5v_power_detect(bt1120->plugin_det_gpio);
-	v4l2_dbg(1, debug, sd, "%s: %d\n", __func__, ret);
+	v4l2_dbg(2, debug, sd, "%s: %d\n", __func__, ret);
 
 	return ret;
 }
@@ -464,6 +464,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 	bool plugin;
 
 	mutex_lock(&bt1120->confctl_mutex);
+	rk628_set_bg_enable(bt1120->rk628, false);
 	enable_stream(sd, false);
 	bt1120->nosignal = true;
 	bt1120->avi_rcv_rdy = false;
@@ -950,16 +951,23 @@ static void rk628_bt1120_clear_hdmirx_interrupts(struct v4l2_subdev *sd)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	/* clear interrupts */
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
 	if (bt1120->rk628->version >= RK628F_VERSION)
 		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x02000200);
 	else
 		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x01000100);
 }
 
-static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
+static int rk628_is_general_isr(struct rk628_bt1120 *bt1120, u32 md_ints, u32 pdec_ints)
+{
+	if (rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints))
+		return 1;
+	if ((pdec_ints & AVI_RCV_ISTS) && !bt1120->avi_rcv_rdy)
+		return 1;
+
+	return 0;
+}
+
+static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	u32 md_ints, pdec_ints, fifo_ints, hact, vact;
@@ -972,11 +980,25 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		return -EINVAL;
 	}
 
+	if (!bt1120->vid_ints_en)
+		return 0;
+
 	rk628_i2c_read(bt1120->rk628, GRF_INTR0_STATUS, &int0_status);
+	if (!(int0_status & (BIT(8) | BIT(9))))
+		return 0;
+
 	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
 
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
+
+	/* clear interrupts */
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
+
+	if (!rk628_is_general_isr(bt1120, md_ints, pdec_ints))
+		return 0;
+
 	if (bt1120->rk628->version >= RK628F_VERSION &&
 	    rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints))
 		rk628_set_bg_enable(bt1120->rk628, true);
@@ -1003,40 +1025,50 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			}
 		}
 	}
-	if (bt1120->vid_ints_en) {
-		v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
-			 __func__, md_ints, pdec_ints, plugin);
+	v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
+		 __func__, md_ints, pdec_ints, plugin);
 
-		if (rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints)) {
+	if (rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints)) {
+		rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_HACT_PX, &hact);
+		rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_VAL, &vact);
+		v4l2_dbg(1, debug, sd, "%s: HACT:%#x, VACT:%#x\n",
+			 __func__, hact, vact);
 
-			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_HACT_PX, &hact);
-			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_VAL, &vact);
-			v4l2_dbg(1, debug, sd, "%s: HACT:%#x, VACT:%#x\n",
-				 __func__, hact, vact);
-
-			rk628_bt1120_enable_interrupts(sd, false);
-			if (bt1120->rk628->version < RK628F_VERSION) {
-				enable_stream(sd, false);
-				bt1120->nosignal = true;
-			}
-			schedule_delayed_work(&bt1120->delayed_work_res_change, HZ / 2);
-
-			v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
-				 __func__, (u32)(md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS)));
-			*handled = true;
+		rk628_bt1120_enable_interrupts(sd, false);
+		if (bt1120->rk628->version < RK628F_VERSION) {
+			enable_stream(sd, false);
+			bt1120->nosignal = true;
 		}
+		schedule_delayed_work(&bt1120->delayed_work_res_change, HZ / 2);
 
-		if ((pdec_ints & AVI_RCV_ISTS) && plugin && !bt1120->avi_rcv_rdy) {
-			v4l2_dbg(1, debug, sd, "%s: AVI RCV INT!\n", __func__);
-			bt1120->avi_rcv_rdy = true;
-			/* After get the AVI_RCV interrupt state, disable interrupt. */
-			rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_IEN_CLR, AVI_RCV_ISTS);
+		v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
+			 __func__, (u32)(md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS)));
+		*handled = true;
+	}
 
-			*handled = true;
-		}
+	if ((pdec_ints & AVI_RCV_ISTS) && plugin && !bt1120->avi_rcv_rdy) {
+		v4l2_dbg(1, debug, sd, "%s: AVI RCV INT!\n", __func__);
+		bt1120->avi_rcv_rdy = true;
+		/* After get the AVI_RCV interrupt state, disable interrupt. */
+		rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_IEN_CLR, AVI_RCV_ISTS);
+
+		*handled = true;
 	}
 	if (*handled != true)
 		v4l2_dbg(1, debug, sd, "%s: unhandled interrupt!\n", __func__);
+
+	return 0;
+}
+
+static int rk628_hdmirx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
+{
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	rk628_hdmirx_general_isr(sd, status, handled);
+	if (bt1120->cec_enable && bt1120->cec)
+		rk628_hdmirx_cec_irq(bt1120->rk628, bt1120->cec);
+
+	rk628_bt1120_clear_hdmirx_interrupts(sd);
 
 	return 0;
 }
@@ -1046,12 +1078,7 @@ static irqreturn_t rk628_bt1120_irq_handler(int irq, void *dev_id)
 	struct rk628_bt1120 *bt1120 = dev_id;
 	bool handled = true;
 
-	rk628_bt1120_isr(&bt1120->sd, 0, &handled);
-
-	if (bt1120->cec_enable && bt1120->cec)
-		rk628_hdmirx_cec_irq(bt1120->rk628, bt1120->cec);
-
-	rk628_bt1120_clear_hdmirx_interrupts(&bt1120->sd);
+	rk628_hdmirx_isr(&bt1120->sd, 0, &handled);
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -1615,7 +1642,7 @@ static const struct v4l2_subdev_internal_ops bt1120_subdev_internal_ops = {
 #endif
 
 static const struct v4l2_subdev_core_ops rk628_bt1120_core_ops = {
-	.interrupt_service_routine = rk628_bt1120_isr,
+	.interrupt_service_routine = rk628_hdmirx_isr,
 	.subscribe_event = rk628_bt1120_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.ioctl = rk628_bt1120_ioctl,
