@@ -3932,6 +3932,36 @@
 		status = "disabled";
 	};
 
+	flexbus: flexbus@2a2f0000 {
+		compatible = "rockchip,rk3576-flexbus";
+		reg = <0x0 0x2a2f0000 0x0 0x200>;
+		interrupts = <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_HSGPIO_TX>, <&cru CLK_HSGPIO_RX>,
+			 <&cru ACLK_HSGPIO>, <&cru HCLK_HSGPIO>;
+		clock-names = "tx_clk_flexbus", "rx_clk_flexbus",
+			      "aclk_flexbus", "hclk_flexbus";
+		rockchip,grf = <&ioc_grf>;
+		status = "disabled";
+
+		flexbus_adc: adc {
+			compatible = "rockchip,flexbus-adc";
+			#io-channel-cells = <0>;
+			rockchip,slave-mode;
+			rockchip,free-sclk;
+			rockchip,auto-pad;
+			rockchip,dfs = <16>;
+			status = "disabled";
+		};
+
+		flexbus_dac: dac {
+			compatible = "rockchip,flexbus-dac";
+			#io-channel-cells = <0>;
+			rockchip,free-sclk;
+			rockchip,dfs = <16>;
+			status = "disabled";
+		};
+	};
+
 	sfc1: spi@2a300000 {
 		compatible = "rockchip,sfc";
 		reg = <0x0 0x2a300000 0x0 0x4000>;
