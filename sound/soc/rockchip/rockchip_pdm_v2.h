@@ -80,6 +80,7 @@
 #define PDM_V2_GAIN_MIN			0
 #define PDM_V2_GAIN_MAX			0xff
 #define PDM_V2_GAIN_0DB			(175 << 23)
+#define PDM_V2_GAIN_24DB		(239 << 23)
 #define PDM_V2_HPF_R_MSK		(0x1 << 21)
 #define PDM_V2_HPF_R_EN			(0x1 << 21)
 #define PDM_V2_HPF_R_DIS		(0x0 << 21)
