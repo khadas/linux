@@ -1543,10 +1543,6 @@ static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en)
 		rk628_i2c_write(csi->rk628, HDMI_RX_MD_IEN_CLR, md_mask);
 		rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_IEN_CLR, pdec_mask);
 		rk628_i2c_write(csi->rk628, HDMI_RX_AUD_FIFO_IEN_CLR, 0x1f);
-		if (csi->cec && csi->cec->adap) {
-			rk628_i2c_write(csi->rk628, HDMI_RX_AUD_CEC_IEN_SET, 0);
-			rk628_i2c_write(csi->rk628, HDMI_RX_AUD_CEC_IEN_CLR, ~0);
-		}
 		csi->vid_ints_en = false;
 	}
 	usleep_range(5000, 5000);
