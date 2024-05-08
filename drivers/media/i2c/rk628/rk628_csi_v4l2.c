@@ -3132,12 +3132,48 @@ static ssize_t audio_present_show(struct device *dev,
 			rk628_hdmirx_audio_present(csi->audio_info) : 0);
 }
 
+static ssize_t arc_enable_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+
+	if (!hdmirx_dev)
+		return -EINVAL;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			rk628_hdmirx_get_arc_enable(csi->audio_info) ? 1 : 0);
+}
+
+static ssize_t arc_enable_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
+	bool enabled;
+	int ret;
+
+	if (!hdmirx_dev)
+		return -EINVAL;
+
+	ret = kstrtobool(buf, &enabled);
+	if (ret)
+		return ret;
+
+	rk628_hdmirx_set_arc_enable(csi->audio_info, enabled);
+
+	return count;
+}
+
 static DEVICE_ATTR_RO(audio_rate);
 static DEVICE_ATTR_RO(audio_present);
+static DEVICE_ATTR_RW(arc_enable);
 
 static struct attribute *rk628_attrs[] = {
 	&dev_attr_audio_rate.attr,
 	&dev_attr_audio_present.attr,
+	&dev_attr_arc_enable.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(rk628);

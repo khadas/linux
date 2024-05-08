@@ -42,6 +42,7 @@ struct rk628_audioinfo {
 	bool fifo_ints_en;
 	bool ctsn_ints_en;
 	bool audio_present;
+	bool arc_en;
 	struct device *dev;
 };
 
@@ -638,6 +639,28 @@ int rk628_hdmirx_audio_fs(HAUDINFO info)
 	return aif->audio_state.fs_audio;
 }
 EXPORT_SYMBOL(rk628_hdmirx_audio_fs);
+
+bool rk628_hdmirx_get_arc_enable(HAUDINFO info)
+{
+	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+
+	if (!aif)
+		return false;
+
+	return aif->arc_en;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_arc_enable);
+
+int rk628_hdmirx_set_arc_enable(HAUDINFO info, bool enabled)
+{
+	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+
+	if (!aif)
+		return false;
+
+	return aif->arc_en = enabled;
+}
+EXPORT_SYMBOL(rk628_hdmirx_set_arc_enable);
 
 void rk628_hdmirx_audio_i2s_ctrl(HAUDINFO info, bool enable)
 {
