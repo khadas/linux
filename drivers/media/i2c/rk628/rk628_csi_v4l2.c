@@ -626,7 +626,7 @@ static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en)
 			HOT_PLUG_DETECT_MASK, HOT_PLUG_DETECT(set_level));
 
 	if (csi->cec_enable && csi->cec)
-		rk628_hdmirx_cec_hpd(csi->cec, en);
+		rk628_hdmirx_cec_hpd(csi->cec, tx_5v_power_present(sd));
 }
 
 

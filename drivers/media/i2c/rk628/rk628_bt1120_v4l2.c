@@ -513,7 +513,7 @@ static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en)
 			HOT_PLUG_DETECT_MASK, HOT_PLUG_DETECT(set_level));
 
 	if (bt1120->cec_enable && bt1120->cec)
-		rk628_hdmirx_cec_hpd(bt1120->cec, en);
+		rk628_hdmirx_cec_hpd(bt1120->cec, tx_5v_power_present(sd));
 }
 
 static int rk628_bt1120_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd)
