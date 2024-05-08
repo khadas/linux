@@ -938,7 +938,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	/* Catch common mistakes for panels. */
 	switch (connector_type) {
 	case 0:
-		dev_warn(dev, "Specify missing connector_type\n");
+		dev_warn(dev, "Specify missing connector_type, please specify \"connector-type\" in dts\n");
 		connector_type = DRM_MODE_CONNECTOR_DPI;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -4703,6 +4703,7 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 
 	if (desc->num_modes || desc->num_timings) {
 		of_property_read_u32(np, "bpc", &desc->bpc);
+		of_property_read_u32(np, "connector-type", &desc->connector_type);
 		of_property_read_u32(np, "bus-format", &desc->bus_format);
 		of_property_read_u32(np, "width-mm", &desc->size.width);
 		of_property_read_u32(np, "height-mm", &desc->size.height);
@@ -5051,6 +5052,8 @@ static int panel_simple_dsi_of_get_desc_data(struct device *dev,
 	if (err)
 		return err;
 
+	desc->desc.connector_type = DRM_MODE_CONNECTOR_DSI;
+
 	if (!of_property_read_u32(np, "dsi,flags", &val))
 		desc->flags = val;
 	if (!of_property_read_u32(np, "dsi,format", &val))
@@ -5222,6 +5225,7 @@ static int panel_simple_spi_probe(struct spi_device *spi)
 			return ret;
 		}
 
+		d->connector_type = DRM_MODE_CONNECTOR_SPI;
 		d->spi_write = panel_simple_spi_write;
 		d->spi_read = panel_simple_spi_read;
 		d->cmd_type = CMD_TYPE_SPI;
