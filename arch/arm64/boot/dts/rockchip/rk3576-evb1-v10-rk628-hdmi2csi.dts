@@ -90,7 +90,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&rk628_pin>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <RK_PB0 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_HIGH>;
 		enable-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		plugin-det-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
