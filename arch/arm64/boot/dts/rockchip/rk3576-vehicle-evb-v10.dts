@@ -339,6 +339,18 @@
 
 };
 
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
 &sdmmc {
 	status = "disabled";
 };
