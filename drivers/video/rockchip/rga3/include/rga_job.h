@@ -35,6 +35,7 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *reque
 				       uint32_t id);
 
 int rga_request_commit(struct rga_request *user_request);
+void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler);
 void rga_request_session_destroy_abort(struct rga_session *session);
 int rga_request_put(struct rga_request *request);
 void rga_request_get(struct rga_request *request);

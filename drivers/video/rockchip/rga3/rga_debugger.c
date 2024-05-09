@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/syscalls.h>
+#include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -21,6 +22,7 @@
 #include "rga_drv.h"
 #include "rga_mm.h"
 #include "rga_common.h"
+#include "rga_job.h"
 
 #define RGA_DEBUGGER_ROOT_NAME "rkrga"
 
@@ -462,6 +464,65 @@ static int rga_hardware_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int rga_reset_show(struct seq_file *m, void *data)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+	int i;
+
+	seq_puts(m, "help:\n");
+	seq_puts(m, " 'echo <core> > reset' to reset hardware.\n");
+
+	seq_puts(m, "core:\n");
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		seq_printf(m, "  %s core <%d>\n",
+			   dev_driver_string(scheduler->dev), scheduler->core);
+	}
+
+	return 0;
+}
+
+static ssize_t rga_reset_write(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	char buf[14];
+	int i, ret;
+	int reset_core = 0;
+	int reset_done = false;
+	struct rga_scheduler_t *scheduler = NULL;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	ret = kstrtoint(buf, 10, &reset_core);
+	if (ret < 0 || reset_core <= 0) {
+		pr_err("invalid core! failed to reset hardware, data = %s len = %zu.\n", buf, len);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		if (scheduler->core == reset_core) {
+			reset_done = true;
+			pr_info("reset hardware core[%d]!\n", reset_core);
+
+			rga_request_scheduler_abort(scheduler);
+
+			break;
+		}
+	}
+
+	if (!reset_done)
+		pr_err("cannot find core[%d]\n", reset_core);
+
+	return len;
+}
+
 static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"debug", rga_debug_show, rga_debug_write, NULL},
 	{"driver_version", rga_version_show, NULL, NULL},
@@ -474,6 +535,7 @@ static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"dump_image", rga_dump_image_show, rga_dump_image_write, NULL},
 #endif
 	{"hardware", rga_hardware_show, NULL, NULL},
+	{"reset", rga_reset_show, rga_reset_write, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,

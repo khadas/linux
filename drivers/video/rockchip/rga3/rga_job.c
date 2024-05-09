@@ -651,6 +651,46 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *manag
 	return request;
 }
 
+void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job;
+	unsigned long flags;
+
+	rga_power_enable(scheduler);
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+	if (job) {
+		scheduler->running_job = NULL;
+		scheduler->status = RGA_SCHEDULER_ABORT;
+		scheduler->ops->soft_reset(scheduler);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		rga_mm_unmap_job_info(job);
+
+		job->ret = -EBUSY;
+		rga_request_release_signal(scheduler, job);
+
+		rga_job_next(scheduler);
+
+		/*
+		 *  Since the running job was abort, turn off the power here that
+		 * should have been turned off after job done (corresponds to
+		 * power_enable in rga_job_run()).
+		 */
+		rga_power_disable(scheduler);
+	} else {
+		scheduler->status = RGA_SCHEDULER_ABORT;
+		scheduler->ops->soft_reset(scheduler);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+	rga_power_disable(scheduler);
+}
+
 static int rga_request_scheduler_job_abort(struct rga_request *request)
 {
 	int i;
