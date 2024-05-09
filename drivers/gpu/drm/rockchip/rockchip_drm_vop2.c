@@ -11543,6 +11543,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 	struct drm_atomic_state *old_state = old_cstate->state;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct drm_plane_state *old_pstate;
 	struct drm_plane *plane;
 	unsigned long flags;
@@ -11614,7 +11616,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
 
-	vop2_post_sharp_config(crtc);
+	if (vp_data->feature & VOP_FEATURE_POST_SHARP)
+		vop2_post_sharp_config(crtc);
 
 	if (vcstate->line_flag)
 		vop2_crtc_enable_line_flag_event(crtc, vcstate->line_flag);
