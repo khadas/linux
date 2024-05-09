@@ -2225,6 +2225,7 @@ const struct rga_backend_ops rga3_ops = {
 	.init_reg = rga3_init_reg,
 	.soft_reset = rga3_soft_reset,
 	.read_back_reg = NULL,
+	.read_status = NULL,
 	.irq = rga3_irq,
 	.isr_thread = rga3_isr_thread,
 };

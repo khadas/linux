@@ -17,6 +17,7 @@
 #define RGA2_MMU_CTRL0				0x014
 #define RGA2_MMU_CMD_BASE			0x018
 #define RGA2_STATUS2				0x01c
+#define RGA2_WORK_CNT				0x020
 #define RGA2_VERSION_NUM			0x028
 #define RGA2_READ_LINE_CNT			0x030
 #define RGA2_WRITE_LINE_CNT			0x034

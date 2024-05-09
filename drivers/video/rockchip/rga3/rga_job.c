@@ -275,10 +275,11 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 		rga_dump_job_image(job);
 
 	if (DEBUGGER_EN(TIME))
-		pr_info("request[%d], hardware[%s] cost time %lld us\n",
+		pr_info("request[%d], hardware[%s] cost time %lld us, work cycle %d\n",
 			job->request_id,
 			rga_get_core_name(scheduler->core),
-			ktime_us_delta(now, job->hw_running_time));
+			ktime_us_delta(now, job->hw_running_time),
+			job->work_cycle);
 
 	rga_mm_unmap_job_info(job);
 
@@ -766,7 +767,16 @@ static int rga_request_timeout_query_state(struct rga_request *request)
 
 		if (scheduler->running_job) {
 			job = scheduler->running_job;
+
 			if (request->id == job->request_id) {
+				if (scheduler->ops->read_status) {
+					scheduler->ops->read_status(job, scheduler);
+					pr_err("request[%d] core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+					       request->id, scheduler->core,
+					       job->intr_status, job->hw_status, job->cmd_status,
+					       job->work_cycle, job->work_cycle);
+				}
+
 				if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 				    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 					spin_unlock_irqrestore(&scheduler->irq_lock, flags);

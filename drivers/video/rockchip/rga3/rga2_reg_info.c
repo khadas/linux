@@ -2988,6 +2988,16 @@ static int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *sched
 	return 0;
 }
 
+static int rga2_read_status(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	job->intr_status = rga_read(RGA2_INT, scheduler);
+	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
+	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
+	job->work_cycle = rga_read(RGA2_WORK_CNT, scheduler);
+
+	return 0;
+}
+
 static int rga2_irq(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job = scheduler->running_job;
@@ -2999,13 +3009,12 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
 		return IRQ_WAKE_THREAD;
 
-	job->intr_status = rga_read(RGA2_INT, scheduler);
-	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
-	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
+	scheduler->ops->read_status(job, scheduler);
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			job->intr_status, job->hw_status, job->cmd_status);
+		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+			job->intr_status, job->hw_status, job->cmd_status,
+			job->work_cycle, job->work_cycle);
 
 	if (job->intr_status &
 	    (m_RGA2_INT_CUR_CMD_DONE_INT_FLAG | m_RGA2_INT_ALL_CMD_DONE_INT_FLAG)) {
@@ -3013,8 +3022,10 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 	} else if (job->intr_status & m_RGA2_INT_ERROR_FLAG_MASK) {
 		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
 
-		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-		       job->intr_status, job->hw_status, job->cmd_status);
+		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+		       job->intr_status, job->hw_status, job->cmd_status,
+		       job->work_cycle, job->work_cycle);
+
 		scheduler->ops->soft_reset(scheduler);
 	}
 
@@ -3065,6 +3076,7 @@ const struct rga_backend_ops rga2_ops = {
 	.init_reg = rga2_init_reg,
 	.soft_reset = rga2_soft_reset,
 	.read_back_reg = rga2_read_back_reg,
+	.read_status = rga2_read_status,
 	.irq = rga2_irq,
 	.isr_thread = rga2_isr_thread,
 };

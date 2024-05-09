@@ -301,6 +301,8 @@ struct rga_job {
 	uint32_t intr_status;
 	uint32_t hw_status;
 	uint32_t cmd_status;
+
+	uint32_t work_cycle;
 };
 
 struct rga_backend_ops {
@@ -309,6 +311,7 @@ struct rga_backend_ops {
 	int (*init_reg)(struct rga_job *job);
 	void (*soft_reset)(struct rga_scheduler_t *scheduler);
 	int (*read_back_reg)(struct rga_job *job, struct rga_scheduler_t *scheduler);
+	int (*read_status)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 	int (*irq)(struct rga_scheduler_t *scheduler);
 	int (*isr_thread)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 };
