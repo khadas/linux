@@ -36,6 +36,21 @@ struct rockchip_csu {
 static struct rockchip_csu *rk_csu;
 static DEFINE_MUTEX(csu_lock);
 
+static struct csu_bus *rockchip_csu_get_bus(unsigned int bus_id)
+{
+	int i;
+
+	if (!rk_csu || !rk_csu->bus)
+		return NULL;
+
+	for (i = 0; i < rk_csu->bus_cnt; i++) {
+		if (bus_id == rk_csu->bus[i].id)
+			return &rk_csu->bus[i];
+	}
+
+	return NULL;
+}
+
 static int rockchip_csu_sip_config(struct device *dev, u32 bus_id, u32 cfg,
 				   u32 enable_msk)
 {
@@ -91,7 +106,7 @@ static int csu_disable(struct csu_clk *clk, bool disable)
 		return 0;
 	if (clk->bus_id >= rk_csu->bus_cnt)
 		return 0;
-	bus = &rk_csu->bus[clk->bus_id];
+	bus = rockchip_csu_get_bus(clk->bus_id);
 	if (!bus)
 		return 0;
 
@@ -138,7 +153,7 @@ int rockchip_csu_set_div(struct csu_clk *clk, unsigned int div)
 		return 0;
 	if (clk->bus_id >= rk_csu->bus_cnt)
 		return 0;
-	bus = &rk_csu->bus[clk->bus_id];
+	bus = rockchip_csu_get_bus(clk->bus_id);
 	if (!bus)
 		return 0;
 
