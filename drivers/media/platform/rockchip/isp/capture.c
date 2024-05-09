@@ -435,9 +435,6 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 		rkisp_dvbm_event(dev, CIF_ISP_V_START);
 	rkisp_bridge_update_mi(dev, isp_mis);
 
-	if (dev->isp_ver == ISP_V39)
-		rkisp_sditf_sof(dev, isp_mis);
-
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA)
 			continue;

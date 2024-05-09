@@ -75,6 +75,9 @@ int rkvpss_pipeline_stream(struct rkvpss_device *dev, bool on)
 	    (!on && atomic_dec_return(&dev->pipe_stream_cnt) > 0))
 		return 0;
 
+	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
+		 "%s on:%d\n", __func__, on);
+
 	if (on) {
 		ret = v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, true);
 		if (ret < 0)
@@ -84,7 +87,12 @@ int rkvpss_pipeline_stream(struct rkvpss_device *dev, bool on)
 			v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, false);
 			goto err;
 		}
+		dev->stopping = false;
 	} else {
+		dev->stopping = true;
+		ret = wait_event_timeout(dev->stop_done, !dev->stopping, msecs_to_jiffies(300));
+		if (!ret)
+			v4l2_warn(&dev->v4l2_dev, "%s timeout\n", __func__);
 		v4l2_subdev_call(dev->remote_sd, video, s_stream, false);
 		v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, false);
 	}
@@ -256,7 +264,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkvpss_device *vpss_dev;
-	int ret;
+	int ret, mult = 2;
 
 	sprintf(rkvpss_version, "v%02x.%02x.%02x",
 		RKVPSS_DRIVER_VERSION >> 16,
@@ -268,7 +276,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	vpss_dev = devm_kzalloc(dev, sizeof(*vpss_dev), GFP_KERNEL);
 	if (!vpss_dev)
 		return -ENOMEM;
-	vpss_dev->sw_base_addr = devm_kzalloc(dev, RKVPSS_SW_REG_SIZE_MAX, GFP_KERNEL);
+	vpss_dev->sw_base_addr = devm_kzalloc(dev, RKVPSS_SW_REG_SIZE_MAX * mult, GFP_KERNEL);
 	if (!vpss_dev->sw_base_addr)
 		return -ENOMEM;
 
@@ -314,6 +322,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	rkvpss_proc_init(vpss_dev);
 	pm_runtime_enable(&pdev->dev);
 	vpss_dev->is_probe_end = true;
+	init_waitqueue_head(&vpss_dev->stop_done);
 	return 0;
 
 err_unreg_media_dev:

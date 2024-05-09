@@ -458,6 +458,80 @@ static struct stream_config scl3_config = {
 	},
 };
 
+static void calc_unite_scl_params(struct rkvpss_stream *stream)
+{
+	struct rkvpss_online_unite_params *params = &stream->unite_params;
+	u32 right_scl_need_size_y, right_scl_need_size_c;
+	u32 left_in_used_size_y, left_in_used_size_c;
+	u32 right_fst_position_y, right_fst_position_c;
+	u32 right_y_crop_total;
+	u32 right_c_crop_total;
+
+	params->y_w_fac = (stream->crop.width - 1) * 4096 /
+			  (stream->out_fmt.width  - 1);
+	params->c_w_fac = (stream->crop.width / 2 - 1) * 4096 /
+			  (stream->out_fmt.width / 2 - 1);
+	params->y_h_fac = (stream->crop.height - 1) * 4096 /
+			  (stream->out_fmt.height - 1);
+	params->c_h_fac = (stream->crop.height - 1) * 4096 /
+			  (stream->out_fmt.height - 1);
+
+	right_fst_position_y = stream->out_fmt.width / 2 *
+			       params->y_w_fac;
+	right_fst_position_c = stream->out_fmt.width / 2 / 2 *
+			       params->c_w_fac;
+
+	left_in_used_size_y = right_fst_position_y >> 12;
+	left_in_used_size_c = (right_fst_position_c >> 12) * 2;
+
+	params->y_w_phase = right_fst_position_y & 0xfff;
+	params->c_w_phase = right_fst_position_c & 0xfff;
+
+	right_scl_need_size_y = stream->crop.width -
+				left_in_used_size_y;
+	params->right_scl_need_size_y = right_scl_need_size_y;
+	right_scl_need_size_c = stream->crop.width -
+				left_in_used_size_c;
+	params->right_scl_need_size_c = right_scl_need_size_c;
+
+	if (stream->id == 0 && stream->crop.width != stream->out_fmt.width) {
+		right_y_crop_total = stream->crop.width / 2 +
+				     RKMOUDLE_UNITE_EXTEND_PIXEL -
+				     right_scl_need_size_y - 3;
+		right_c_crop_total = stream->crop.width / 2 +
+				     RKMOUDLE_UNITE_EXTEND_PIXEL -
+				     right_scl_need_size_c - 6;
+	} else {
+		right_y_crop_total = stream->crop.width / 2 +
+				     RKMOUDLE_UNITE_EXTEND_PIXEL -
+				     right_scl_need_size_y;
+		right_c_crop_total = stream->crop.width / 2 +
+				     RKMOUDLE_UNITE_EXTEND_PIXEL -
+				     right_scl_need_size_c;
+	}
+
+	params->quad_crop_w = ALIGN_DOWN(min(right_y_crop_total, right_c_crop_total), 2);
+
+	params->scl_in_crop_w_y = right_y_crop_total - params->quad_crop_w;
+	params->scl_in_crop_w_c = right_c_crop_total - params->quad_crop_w;
+
+	if (rkvpss_debug >= 2) {
+		v4l2_info(&stream->dev->v4l2_dev,
+			  "%s ch:%d y_w_fac:%u c_w_fac:%u y_h_fac:%u c_h_fac:%u\n",
+			  __func__, stream->id, params->y_w_fac,
+			  params->c_w_fac, params->y_h_fac, params->c_h_fac);
+		v4l2_info(&stream->dev->v4l2_dev,
+			  "\t%s y_w_phase:%u c_w_phase:%u quad_crop_w:%u scl_in_crop_w_y:%u scl_in_crop_w_c:%u\n",
+			  __func__, params->y_w_phase, params->c_w_phase,
+			  params->quad_crop_w,
+			  params->scl_in_crop_w_y, params->scl_in_crop_w_c);
+		v4l2_info(&stream->dev->v4l2_dev,
+			  "\t%s right_scl_need_size_y:%u right_scl_need_size_c:%u\n",
+			  __func__, params->right_scl_need_size_y,
+			  params->right_scl_need_size_c);
+	}
+}
+
 int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream)
 {
 	unsigned long lock_flags = 0;
@@ -477,7 +551,11 @@ int rkvpss_stream_buf_cnt(struct rkvpss_stream *stream)
 
 static void stream_frame_start(struct rkvpss_stream *stream, u32 irq)
 {
+	struct rkvpss_device *dev = stream->dev;
+
 	if (stream->is_crop_upd) {
+		if (dev->unite_mode)
+			calc_unite_scl_params(stream);
 		rkvpss_stream_scale(stream, true, !irq);
 		rkvpss_stream_crop(stream, true, !irq);
 	}
@@ -507,8 +585,8 @@ static void scl_force_update(struct rkvpss_stream *stream)
 		return;
 	}
 	/* need update two for online2 mode */
-	rkvpss_write(stream->dev, RKVPSS_MI_WR_INIT, val);
-	rkvpss_write(stream->dev, RKVPSS_MI_WR_INIT, val);
+	rkvpss_unite_write(stream->dev, RKVPSS_MI_WR_INIT, val);
+	rkvpss_unite_write(stream->dev, RKVPSS_MI_WR_INIT, val);
 }
 
 static void scl_update_mi(struct rkvpss_stream *stream)
@@ -516,7 +594,7 @@ static void scl_update_mi(struct rkvpss_stream *stream)
 	struct rkvpss_device *dev = stream->dev;
 	struct rkvpss_buffer *buf = NULL;
 	unsigned long lock_flags = 0;
-	u32 val;
+	u32 y_base, uv_base;
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (!list_empty(&stream->buf_queue) && !stream->curr_buf) {
@@ -527,10 +605,17 @@ static void scl_update_mi(struct rkvpss_stream *stream)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	if (buf) {
-		val = buf->dma[0];
-		rkvpss_write(dev, stream->config->mi.y_base, val);
-		val = buf->dma[1];
-		rkvpss_write(dev, stream->config->mi.uv_base, val);
+		y_base = buf->dma[0];
+		uv_base = buf->dma[1];
+		rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, VPSS_UNITE_LEFT);
+		if (dev->unite_mode) {
+			y_base = buf->dma[0] + stream->out_fmt.width / 2;
+			uv_base = buf->dma[1] + stream->out_fmt.width / 2;
+			rkvpss_idx_write(dev, stream->config->mi.y_base, y_base, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, stream->config->mi.uv_base, uv_base, VPSS_UNITE_RIGHT);
+		}
+
 		scl_force_update(stream);
 		if (stream->is_pause) {
 			stream->is_pause = false;
@@ -540,11 +625,12 @@ static void scl_update_mi(struct rkvpss_stream *stream)
 		stream->is_pause = true;
 		stream->ops->disable_mi(stream);
 	}
+
 	v4l2_dbg(2, rkvpss_debug, &dev->v4l2_dev,
-		 "%s id:%d Y:0x%x UV:0x%x | Y_SHD:0x%x\n",
-		__func__, stream->id,
-		rkvpss_read(dev, stream->config->mi.y_base),
-		rkvpss_read(dev, stream->config->mi.uv_base),
+		 "%s id:%d unite_index:%d Y:0x%x UV:0x%x | Y_SHD:0x%x\n",
+		__func__, stream->id, dev->unite_index,
+		rkvpss_idx_read(dev, stream->config->mi.y_base, dev->unite_index),
+		rkvpss_idx_read(dev, stream->config->mi.uv_base, dev->unite_index),
 		rkvpss_hw_read(dev->hw_dev, stream->config->mi.y_shd));
 }
 
@@ -557,7 +643,8 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 
 	val = out_fmt->plane_fmt[0].bytesperline;
 	reg = stream->config->mi.stride;
-	rkvpss_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
 
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_RGB565:
@@ -575,25 +662,25 @@ static void scl_config_mi(struct rkvpss_stream *stream)
 
 	val = val * out_fmt->height;
 	reg = stream->config->mi.y_pic_size;
-	rkvpss_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
 
 	val = out_fmt->plane_fmt[0].bytesperline * out_fmt->height;
 	reg = stream->config->mi.y_size;
-	rkvpss_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
 
 	val = out_fmt->plane_fmt[1].sizeimage;
 	reg = stream->config->mi.uv_size;
-	rkvpss_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
 
 	reg = stream->config->mi.y_offs_cnt;
-	rkvpss_write(dev, reg, 0);
+	rkvpss_unite_write(dev, reg, 0);
 	reg = stream->config->mi.uv_offs_cnt;
-	rkvpss_write(dev, reg, 0);
+	rkvpss_unite_write(dev, reg, 0);
 
 	val = fmt->wr_fmt | fmt->output_fmt | fmt->swap |
 	      RKVPSS_MI_CHN_WR_EN | RKVPSS_MI_CHN_WR_AUTO_UPD;
 	reg = stream->config->mi.ctrl;
-	rkvpss_write(dev, reg, val);
+	rkvpss_unite_write(dev, reg, val);
 
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_NV21:
@@ -636,9 +723,9 @@ static void scl_enable_mi(struct rkvpss_stream *stream)
 	val |= RKVPSS_ISP2VPSS_ONLINE2;
 	if (!dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_ISP2VPSS_ONLINE2_CMSC_EN;
-	rkvpss_set_bits(dev, RKVPSS_VPSS_ONLINE, mask, val);
+	rkvpss_unite_set_bits(dev, RKVPSS_VPSS_ONLINE, mask, val);
 	val = RKVPSS_ONLINE2_CHN_FORCE_UPD | RKVPSS_CFG_GEN_UPD;
-	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
+	rkvpss_unite_write(dev, RKVPSS_VPSS_UPDATE, val);
 }
 
 static void scl_disable_mi(struct rkvpss_stream *stream)
@@ -663,9 +750,9 @@ static void scl_disable_mi(struct rkvpss_stream *stream)
 		return;
 	}
 
-	rkvpss_clear_bits(dev, RKVPSS_VPSS_ONLINE, val);
+	rkvpss_unite_clear_bits(dev, RKVPSS_VPSS_ONLINE, val);
 	val = RKVPSS_ONLINE2_CHN_FORCE_UPD | RKVPSS_CFG_GEN_UPD;
-	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
+	rkvpss_unite_write(dev, RKVPSS_VPSS_UPDATE, val);
 }
 
 static struct streams_ops scl_stream_ops = {
@@ -863,19 +950,78 @@ static int rkvpss_stream_crop(struct rkvpss_stream *stream, bool on, bool sync)
 	u32 val;
 
 	val = RKVPSS_CROP_CHN_EN(stream->id);
-	if (on) {
-		rkvpss_set_bits(dev, reg_ctrl, 0, val);
-		rkvpss_write(dev, reg_h_offs, crop->left);
-		rkvpss_write(dev, reg_v_offs, crop->top);
-		rkvpss_write(dev, reg_h_size, crop->width);
-		rkvpss_write(dev, reg_v_size, crop->height);
+	if (!dev->unite_mode) {
+		if (on) {
+			rkvpss_unite_set_bits(dev, reg_ctrl, 0, val);
+			rkvpss_unite_write(dev, reg_h_offs, crop->left);
+			rkvpss_unite_write(dev, reg_v_offs, crop->top);
+			rkvpss_unite_write(dev, reg_h_size, crop->width);
+			rkvpss_unite_write(dev, reg_v_size, crop->height);
+
+			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+				 "crop left:%d top:%d w:%d h:%d\n",
+				 crop->left, crop->top, crop->width, crop->height);
+		} else {
+			rkvpss_unite_clear_bits(dev, reg_ctrl, val);
+		}
+		if (sync) {
+			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
+			val |= RKVPSS_CROP_GEN_UPD;
+			rkvpss_unite_write(dev, reg_upd, val);
+			rkvpss_unite_write(dev, reg_upd, val);
+		}
 	} else {
-		rkvpss_clear_bits(dev, reg_ctrl, val);
-	}
-	if (sync) {
-		val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
-		val |= RKVPSS_CROP_GEN_UPD;
-		rkvpss_write(dev, reg_upd, val);
+		if (on) {
+			if (crop->left + crop->width / 2 != dev->vpss_sdev.in_fmt.width / 2) {
+				v4l2_err(&dev->v4l2_dev,
+					 "unite need centered crop left:%d top:%d w:%d h:%d\n",
+					 crop->left, crop->top, crop->width, crop->height);
+				return -EINVAL;
+			}
+			/* unite left */
+			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, reg_h_offs, crop->left, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, reg_v_offs, crop->top, VPSS_UNITE_LEFT);
+			/* if no scale left don't enlarge */
+			if (crop->width == stream->out_fmt.width)
+				rkvpss_idx_write(dev, reg_h_size, crop->width / 2,
+						 VPSS_UNITE_LEFT);
+			else
+				rkvpss_idx_write(dev, reg_h_size, crop->width / 2 +
+						 RKMOUDLE_UNITE_EXTEND_PIXEL, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, reg_v_size, crop->height, VPSS_UNITE_LEFT);
+			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+				 "right crop left:%d top:%d w:%d h:%d\n",
+				 rkvpss_idx_read(dev, reg_h_offs, VPSS_UNITE_LEFT),
+				 rkvpss_idx_read(dev, reg_v_offs, VPSS_UNITE_LEFT),
+				 rkvpss_idx_read(dev, reg_h_size, VPSS_UNITE_LEFT),
+				 rkvpss_idx_read(dev, reg_v_size, VPSS_UNITE_LEFT));
+
+			/* unite right */
+			rkvpss_idx_set_bits(dev, reg_ctrl, 0, val, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_h_offs, stream->unite_params.quad_crop_w,
+					 VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_v_offs, crop->top, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_h_size, crop->width / 2 +
+				     RKMOUDLE_UNITE_EXTEND_PIXEL -
+				     stream->unite_params.quad_crop_w, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, reg_v_size, crop->height, VPSS_UNITE_RIGHT);
+			v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+				 "right crop left:%d top:%d w:%d h:%d\n",
+				 rkvpss_idx_read(dev, reg_h_offs, VPSS_UNITE_RIGHT),
+				 rkvpss_idx_read(dev, reg_v_offs, VPSS_UNITE_RIGHT),
+				 rkvpss_idx_read(dev, reg_h_size, VPSS_UNITE_RIGHT),
+				 rkvpss_idx_read(dev, reg_v_size, VPSS_UNITE_RIGHT));
+		} else {
+			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_LEFT);
+			rkvpss_idx_clear_bits(dev, reg_ctrl, val, VPSS_UNITE_RIGHT);
+		}
+		if (sync) {
+			val = RKVPSS_CROP_CHN_FORCE_UPD(stream->id);
+			val |= RKVPSS_CROP_GEN_UPD;
+			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, reg_upd, val, VPSS_UNITE_RIGHT);
+		}
 	}
 	stream->is_crop_upd = false;
 	return 0;
@@ -893,8 +1039,14 @@ static void poly_phase_scale(struct rkvpss_stream *stream, bool on, bool sync)
 	bool dering_en = false, yuv420_in = false, yuv422_to_420 = false;
 
 	if (!on) {
-		rkvpss_write(dev, RKVPSS_ZME_Y_SCL_CTRL, 0);
-		rkvpss_write(dev, RKVPSS_ZME_UV_SCL_CTRL, 0);
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_SCL_CTRL, 0);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_SCL_CTRL, 0);
+		if (dev->unite_mode) {
+			rkvpss_idx_write(dev, RKVPSS_ZME_Y_SCL_CTRL, 0, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_UV_SCL_CTRL, 0, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_Y_SCL_CTRL, 0, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_UV_SCL_CTRL, 0, VPSS_UNITE_RIGHT);
+		}
 		return;
 	}
 
@@ -910,19 +1062,52 @@ static void poly_phase_scale(struct rkvpss_stream *stream, bool on, bool sync)
 		out_div = 1;
 	}
 
-	val = (in_w - 1) | ((in_h - 1) << 16);
-	rkvpss_write(dev, RKVPSS_ZME_Y_SRC_SIZE, val);
-	rkvpss_write(dev, RKVPSS_ZME_UV_SRC_SIZE, val);
-	val = (out_w - 1) | ((out_h - 1) << 16);
-	rkvpss_write(dev, RKVPSS_ZME_Y_DST_SIZE, val);
-	rkvpss_write(dev, RKVPSS_ZME_UV_DST_SIZE, val);
+	if (dev->unite_mode) {
+		/* unite left */
+		if (in_w == out_w)
+			val = (in_w / 2 - 1) | ((in_h - 1) << 16);
+		else
+			val = (in_w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL - 1) |
+			      ((in_h - 1) << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_SRC_SIZE, val, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_SRC_SIZE, val, VPSS_UNITE_LEFT);
+
+		/* unite right */
+		val = (ALIGN(stream->unite_params.right_scl_need_size_y + 3, 2) - 1) |
+			  ((in_h - 1) << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_SRC_SIZE, val, VPSS_UNITE_RIGHT);
+		val = (ALIGN(stream->unite_params.right_scl_need_size_c + 6, 2) - 1) |
+			  ((in_h - 1) << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_SRC_SIZE, val, VPSS_UNITE_RIGHT);
+
+		val = (out_w / 2 - 1) | ((out_h - 1) << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_DST_SIZE, val, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_DST_SIZE, val, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_DST_SIZE, val, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_DST_SIZE, val, VPSS_UNITE_RIGHT);
+	} else {
+		val = (in_w - 1) | ((in_h - 1) << 16);
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_SRC_SIZE, val);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_SRC_SIZE, val);
+		val = (out_w - 1) | ((out_h - 1) << 16);
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_DST_SIZE, val);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_DST_SIZE, val);
+	}
 
 	ctrl = RKVPSS_ZME_XSCL_MODE | RKVPSS_ZME_YSCL_MODE;
 	if (dering_en) {
 		ctrl |= RKVPSS_ZME_DERING_EN;
-		rkvpss_write(dev, RKVPSS_ZME_Y_DERING_PARA, 0xd10410);
-		rkvpss_write(dev, RKVPSS_ZME_UV_DERING_PARA, 0xd10410);
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_DERING_PARA, 0xd10410);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_DERING_PARA, 0xd10410);
+
+		if (dev->unite_mode) {
+			rkvpss_idx_write(dev, RKVPSS_ZME_Y_DERING_PARA, 0xd10410, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_UV_DERING_PARA, 0xd10410, VPSS_UNITE_LEFT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_Y_DERING_PARA, 0xd10410, VPSS_UNITE_RIGHT);
+			rkvpss_idx_write(dev, RKVPSS_ZME_UV_DERING_PARA, 0xd10410, VPSS_UNITE_RIGHT);
+		}
 	}
+
 	if (in_w != out_w) {
 		if (in_w > out_w) {
 			factor = 4096;
@@ -940,16 +1125,45 @@ static void poly_phase_scale(struct rkvpss_stream *stream, bool on, bool sync)
 			for (j = 0; j < 8; j += 2) {
 				val = RKVPSS_ZME_TAP_COE(rkvpss_zme_tap8_coe[idx][i][j],
 							 rkvpss_zme_tap8_coe[idx][i][j + 1]);
-				rkvpss_write(dev, RKVPSS_ZME_Y_HOR_COE0_10 + i * 16 + j * 2, val);
-				rkvpss_write(dev, RKVPSS_ZME_UV_HOR_COE0_10 + i * 16 + j * 2, val);
+				rkvpss_unite_write(dev, RKVPSS_ZME_Y_HOR_COE0_10 + i * 16 + j * 2, val);
+				rkvpss_unite_write(dev, RKVPSS_ZME_UV_HOR_COE0_10 + i * 16 + j * 2, val);
+
+				if (dev->unite_mode) {
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_Y_HOR_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_LEFT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_UV_HOR_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_LEFT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_Y_HOR_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_RIGHT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_UV_HOR_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_RIGHT);
+				}
 			}
 		}
 	} else {
 		y_xscl_fac = 0;
 		uv_xscl_fac = 0;
 	}
-	rkvpss_write(dev, RKVPSS_ZME_Y_XSCL_FACTOR, y_xscl_fac);
-	rkvpss_write(dev, RKVPSS_ZME_UV_XSCL_FACTOR, uv_xscl_fac);
+
+	if (dev->unite_mode) {
+		/* unite left */
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_XSCL_FACTOR, y_xscl_fac, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_XSCL_FACTOR, uv_xscl_fac, VPSS_UNITE_LEFT);
+
+		/* unite right */
+		val = y_xscl_fac | (stream->unite_params.y_w_phase << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_XSCL_FACTOR, val, VPSS_UNITE_RIGHT);
+		val = uv_xscl_fac | (stream->unite_params.c_w_phase << 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_XSCL_FACTOR, val, VPSS_UNITE_RIGHT);
+	} else {
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_XSCL_FACTOR, y_xscl_fac);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_XSCL_FACTOR, uv_xscl_fac);
+	}
+
 	if (in_h != out_h) {
 		if (in_h > out_h) {
 			factor = 4096;
@@ -967,31 +1181,90 @@ static void poly_phase_scale(struct rkvpss_stream *stream, bool on, bool sync)
 			for (j = 0; j < 8; j += 2) {
 				val = RKVPSS_ZME_TAP_COE(rkvpss_zme_tap6_coe[idx][i][j],
 							 rkvpss_zme_tap6_coe[idx][i][j + 1]);
-				rkvpss_write(dev, RKVPSS_ZME_Y_VER_COE0_10 + i * 16 + j * 2, val);
-				rkvpss_write(dev, RKVPSS_ZME_UV_VER_COE0_10 + i * 16 + j * 2, val);
+				rkvpss_unite_write(dev, RKVPSS_ZME_Y_VER_COE0_10 + i * 16 + j * 2, val);
+				rkvpss_unite_write(dev, RKVPSS_ZME_UV_VER_COE0_10 + i * 16 + j * 2, val);
+
+				if (dev->unite_mode) {
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_Y_VER_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_LEFT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_UV_VER_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_LEFT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_Y_VER_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_RIGHT);
+					rkvpss_idx_write(dev,
+							 RKVPSS_ZME_UV_VER_COE0_10 + i * 16 + j * 2,
+							 val, VPSS_UNITE_RIGHT);
+				}
 			}
 		}
 	} else {
 		y_yscl_fac = 0;
 		uv_yscl_fac = 0;
 	}
-	rkvpss_write(dev, RKVPSS_ZME_Y_YSCL_FACTOR, y_yscl_fac);
-	rkvpss_write(dev, RKVPSS_ZME_UV_YSCL_FACTOR, uv_yscl_fac);
 
-	rkvpss_write(dev, RKVPSS_ZME_Y_SCL_CTRL, ctrl);
-	rkvpss_write(dev, RKVPSS_ZME_UV_SCL_CTRL, ctrl);
+	if (dev->unite_mode) {
+		/* unite left */
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_YSCL_FACTOR, y_yscl_fac, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_YSCL_FACTOR, uv_yscl_fac, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_SCL_CTRL, ctrl, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_SCL_CTRL, ctrl, VPSS_UNITE_LEFT);
+
+		/* unite right */
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_YSCL_FACTOR, y_yscl_fac, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_YSCL_FACTOR, uv_yscl_fac, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_Y_SCL_CTRL, ctrl, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UV_SCL_CTRL, ctrl, VPSS_UNITE_RIGHT);
+	} else {
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_YSCL_FACTOR, y_yscl_fac);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_YSCL_FACTOR, uv_yscl_fac);
+		rkvpss_unite_write(dev, RKVPSS_ZME_Y_SCL_CTRL, ctrl);
+		rkvpss_unite_write(dev, RKVPSS_ZME_UV_SCL_CTRL, ctrl);
+	}
+
+	if (dev->unite_mode) {
+		/* unite left */
+		val = out_w / 2;
+		rkvpss_idx_write(dev, RKVPSS_ZME_H_SIZE, (val << 16) | val, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_H_OFFS, 0, VPSS_UNITE_LEFT);
+
+		/* unite right */
+		rkvpss_idx_write(dev, RKVPSS_ZME_H_SIZE, (val << 16) | val, VPSS_UNITE_RIGHT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_H_OFFS, 0, VPSS_UNITE_RIGHT);
+		val = out_w / 2 - ALIGN_DOWN(out_w / 2, 16);
+		rkvpss_idx_write(dev, RKVPSS_ZME_H_OFFS, (3 << 20) | (3 << 16) |
+				(stream->unite_params.scl_in_crop_w_y << 8) |
+				(stream->unite_params.scl_in_crop_w_c << 12) |
+				(val << 4) | val, VPSS_UNITE_RIGHT);
+	}
 
 	ctrl = RKVPSS_ZME_GATING_EN;
 	if (yuv420_in)
 		ctrl |= RKVPSS_ZME_SCL_YUV420_REAL_EN;
 	if (yuv422_to_420)
 		ctrl |= RKVPSS_ZME_422TO420_EN;
-	rkvpss_write(dev, RKVPSS_ZME_CTRL, ctrl);
+	if (dev->unite_mode) {
+		/* unite left */
+		ctrl |= RKVPSS_ZME_CLIP_EN | RKVPSS_ZME_8K_EN;
+		rkvpss_idx_write(dev, RKVPSS_ZME_CTRL, ctrl, VPSS_UNITE_LEFT);
+
+		/* unite left */
+		ctrl |= RKVPSS_ZME_IN_CLIP_EN;
+		rkvpss_idx_write(dev, RKVPSS_ZME_CTRL, ctrl, VPSS_UNITE_RIGHT);
+	} else {
+		rkvpss_unite_write(dev, RKVPSS_ZME_CTRL, ctrl);
+	}
 
 	val = RKVPSS_ZME_GEN_UPD;
 	if (sync)
 		val |= RKVPSS_ZME_FORCE_UPD;
-	rkvpss_write(dev, RKVPSS_ZME_UPDATE, val);
+	rkvpss_unite_write(dev, RKVPSS_ZME_UPDATE, val);
+	if (dev->unite_mode) {
+		rkvpss_idx_write(dev, RKVPSS_ZME_UPDATE, val, VPSS_UNITE_LEFT);
+		rkvpss_idx_write(dev, RKVPSS_ZME_UPDATE, val, VPSS_UNITE_RIGHT);
+	}
 }
 
 static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
@@ -1007,68 +1280,184 @@ static void bilinear_scale(struct rkvpss_stream *stream, bool on, bool sync)
 
 	if (!on) {
 		reg = stream->config->scale.ctrl;
-		rkvpss_write(dev, reg, 0);
+		rkvpss_unite_write(dev, reg, 0);
 		return;
 	}
 
-	/* TODO diff for input and output format */
-	if (yuv420_in) {
-		in_div = 2;
-		out_div = 2;
-	} else if (yuv422_to_420) {
-		in_div = 1;
-		out_div = 2;
+	if (!dev->unite_mode) {
+		/* TODO diff for input and output format */
+		if (yuv420_in) {
+			in_div = 2;
+			out_div = 2;
+		} else if (yuv422_to_420) {
+			in_div = 1;
+			out_div = 2;
+		} else {
+			in_div = 1;
+			out_div = 1;
+		}
+
+		reg = stream->config->scale.hy_offs;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.hc_offs;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.vy_offs;
+		rkvpss_unite_write(dev, reg, 0);
+		reg = stream->config->scale.vc_offs;
+		rkvpss_unite_write(dev, reg, 0);
+
+		val = in_w | (in_h << 16);
+		reg = stream->config->scale.src_size;
+		rkvpss_unite_write(dev, reg, val);
+		val = out_w | (out_h << 16);
+		reg = stream->config->scale.dst_size;
+		rkvpss_unite_write(dev, reg, val);
+
+		if (in_w != out_w) {
+			val = (in_w - 1) * 4096 / (out_w - 1);
+			reg = stream->config->scale.hy_fac;
+			rkvpss_unite_write(dev, reg, val);
+
+			val = (in_w / 2 - 1) * 4096 / (out_w / 2 - 1);
+			reg = stream->config->scale.hc_fac;
+			rkvpss_unite_write(dev, reg, val);
+
+			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
+		}
+		if (in_h != out_h) {
+			val = (in_h - 1) * 4096 / (out_h - 1);
+			reg = stream->config->scale.vy_fac;
+			rkvpss_unite_write(dev, reg, val);
+
+			val = (in_h / in_div - 1) * 4096 / (out_h / out_div - 1);
+			reg = stream->config->scale.vc_fac;
+			rkvpss_unite_write(dev, reg, val);
+
+			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
+		}
+
+		reg = stream->config->scale.ctrl;
+		rkvpss_unite_write(dev, reg, ctrl);
+
+		val = RKVPSS_SCL_GEN_UPD;
+		if (sync)
+			val |= RKVPSS_SCL_FORCE_UPD;
+		reg = stream->config->scale.update;
+		rkvpss_unite_write(dev, reg, val);
 	} else {
-		in_div = 1;
-		out_div = 1;
+		/* unite left */
+		reg = stream->config->scale.in_crop_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+
+		reg = stream->config->scale.hy_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+		reg = stream->config->scale.hc_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+		reg = stream->config->scale.vy_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+		reg = stream->config->scale.vc_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+
+		reg = stream->config->scale.hy_offs_mi;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+		reg = stream->config->scale.hc_offs_mi;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_LEFT);
+
+		if (in_w == out_w)
+			val = (in_w / 2) | (in_h << 16);
+		else
+			val = (in_w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL) | (in_h << 16);
+		reg = stream->config->scale.src_size;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
+		val = (out_w / 2) | (out_h << 16);
+		reg = stream->config->scale.dst_size;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
+
+		ctrl |= RKVPSS_SCL_CLIP_EN;
+
+		if (in_w != out_w) {
+			reg = stream->config->scale.hy_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.y_w_fac, VPSS_UNITE_LEFT);
+			reg = stream->config->scale.hc_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.c_w_fac, VPSS_UNITE_LEFT);
+			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
+		}
+
+		if (in_h != out_h) {
+			reg = stream->config->scale.vy_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.y_h_fac, VPSS_UNITE_LEFT);
+			reg = stream->config->scale.vc_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.c_h_fac, VPSS_UNITE_LEFT);
+			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
+		}
+
+		reg = stream->config->scale.ctrl;
+		rkvpss_idx_write(dev, reg, ctrl, VPSS_UNITE_LEFT);
+
+		val = RKVPSS_SCL_GEN_UPD;
+		if (sync)
+			val |= RKVPSS_SCL_FORCE_UPD;
+		reg = stream->config->scale.update;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
+
+		/* unite right */
+		ctrl = 0;
+		val = stream->unite_params.scl_in_crop_w_y |
+		      (stream->unite_params.scl_in_crop_w_c << 4);
+		reg = stream->config->scale.in_crop_offs;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+
+		val = stream->unite_params.y_w_phase;
+		reg = stream->config->scale.hy_offs;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+		val = stream->unite_params.c_w_phase;
+		reg = stream->config->scale.hc_offs;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+		reg = stream->config->scale.vy_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_RIGHT);
+		reg = stream->config->scale.vc_offs;
+		rkvpss_idx_write(dev, reg, 0, VPSS_UNITE_RIGHT);
+
+		val = out_w / 2 - ALIGN_DOWN(out_w / 2, 16);
+		reg = stream->config->scale.hy_offs_mi;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+		reg = stream->config->scale.hc_offs_mi;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+
+		val = (in_w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL) | (in_h << 16);
+		reg = stream->config->scale.src_size;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+		val = (out_w / 2) | (out_h << 16);
+		reg = stream->config->scale.dst_size;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+
+		ctrl |= RKVPSS_SCL_CLIP_EN | RKVPSS_SCL_IN_CLIP_EN;
+
+		if (in_w != out_w) {
+			reg = stream->config->scale.hy_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.y_w_fac, VPSS_UNITE_RIGHT);
+			reg = stream->config->scale.hc_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.c_w_fac, VPSS_UNITE_RIGHT);
+			ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
+		}
+
+		if (in_h != out_h) {
+			reg = stream->config->scale.vy_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.y_h_fac, VPSS_UNITE_RIGHT);
+			reg = stream->config->scale.vc_fac;
+			rkvpss_idx_write(dev, reg, stream->unite_params.c_h_fac, VPSS_UNITE_RIGHT);
+			ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
+		}
+
+		reg = stream->config->scale.ctrl;
+		rkvpss_idx_write(dev, reg, ctrl, VPSS_UNITE_RIGHT);
+
+		val = RKVPSS_SCL_GEN_UPD;
+		if (sync)
+			val |= RKVPSS_SCL_FORCE_UPD;
+		reg = stream->config->scale.update;
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
 	}
-
-	reg = stream->config->scale.hy_offs;
-	rkvpss_write(dev, reg, 0);
-	reg = stream->config->scale.hc_offs;
-	rkvpss_write(dev, reg, 0);
-	reg = stream->config->scale.vy_offs;
-	rkvpss_write(dev, reg, 0);
-	reg = stream->config->scale.vc_offs;
-	rkvpss_write(dev, reg, 0);
-
-	val = in_w | (in_h << 16);
-	reg = stream->config->scale.src_size;
-	rkvpss_write(dev, reg, val);
-	val = out_w | (out_h << 16);
-	reg = stream->config->scale.dst_size;
-	rkvpss_write(dev, reg, val);
-
-	if (in_w != out_w) {
-		val = (in_w - 1) * 4096 / (out_w - 1);
-		reg = stream->config->scale.hy_fac;
-		rkvpss_write(dev, reg, val);
-
-		val = (in_w / 2 - 1) * 4096 / (out_w / 2 - 1);
-		reg = stream->config->scale.hc_fac;
-		rkvpss_write(dev, reg, val);
-
-		ctrl |= RKVPSS_SCL_HY_EN | RKVPSS_SCL_HC_EN;
-	}
-	if (in_h != out_h) {
-		val = (in_h - 1) * 4096 / (out_h - 1);
-		reg = stream->config->scale.vy_fac;
-		rkvpss_write(dev, reg, val);
-
-		val = (in_h / in_div - 1) * 4096 / (out_h / out_div - 1);
-		reg = stream->config->scale.vc_fac;
-		rkvpss_write(dev, reg, val);
-
-		ctrl |= RKVPSS_SCL_VY_EN | RKVPSS_SCL_VC_EN;
-	}
-	reg = stream->config->scale.ctrl;
-	rkvpss_write(dev, reg, ctrl);
-
-	val = RKVPSS_SCL_GEN_UPD;
-	if (sync)
-		val |= RKVPSS_SCL_FORCE_UPD;
-	reg = stream->config->scale.update;
-	rkvpss_write(dev, reg, val);
 }
 
 static int rkvpss_stream_scale(struct rkvpss_stream *stream, bool on, bool sync)
@@ -1086,10 +1475,12 @@ static void rkvpss_stream_stop(struct rkvpss_stream *stream)
 	int ret;
 
 	stream->stopping = true;
-	ret = wait_event_timeout(stream->done, !stream->streaming,
-				 msecs_to_jiffies(300));
-	if (!ret)
-		v4l2_warn(&dev->v4l2_dev, "%s id:%d timeout\n", __func__, stream->id);
+	if (atomic_read(&dev->pipe_stream_cnt) > 0) {
+		ret = wait_event_timeout(stream->done, !stream->streaming,
+					 msecs_to_jiffies(300));
+		if (!ret)
+			v4l2_warn(&dev->v4l2_dev, "%s id:%d timeout\n", __func__, stream->id);
+	}
 	stream->stopping = false;
 	stream->streaming = false;
 	if (stream->ops->disable_mi)
@@ -1112,8 +1503,14 @@ static void rkvpss_stop_streaming(struct vb2_queue *queue)
 	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
 		 "%s %s id:%d enter\n", __func__,
 		 node->vdev.name, stream->id);
-	rkvpss_stream_stop(stream);
-	rkvpss_pipeline_stream(dev, false);
+
+	if (atomic_read(&dev->pipe_stream_cnt) == 1) {
+		rkvpss_pipeline_stream(dev, false);
+		rkvpss_stream_stop(stream);
+	} else {
+		rkvpss_stream_stop(stream);
+		rkvpss_pipeline_stream(dev, false);
+	}
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 	rkvpss_pipeline_close(dev);
 	tasklet_disable(&stream->buf_done_tasklet);
@@ -1161,9 +1558,14 @@ static int check_wr_uvswap(struct rkvpss_stream *stream)
 
 	return ret;
 }
+
 static int rkvpss_stream_start(struct rkvpss_stream *stream)
 {
+	struct rkvpss_device *dev = stream->dev;
 	int ret = 0;
+
+	if (dev->unite_mode)
+		calc_unite_scl_params(stream);
 
 	stream->is_crop_upd = true;
 	ret = rkvpss_stream_scale(stream, true, true);
@@ -1523,6 +1925,7 @@ static int rkvpss_s_selection(struct file *file, void *prv,
 			 sel->r.left, sel->r.top, sel->r.width, sel->r.height, max_w, max_h);
 		return -EINVAL;
 	}
+
 	*crop = sel->r;
 	stream->is_crop_upd = true;
 	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
@@ -1560,11 +1963,11 @@ static void rkvpss_stream_mf(struct rkvpss_stream *stream)
 	if (!dev->hw_dev->is_ofl_cmsc) {
 		mask = RKVPSS_MIR_EN;
 		val = dev->mir_en ? RKVPSS_MIR_EN : 0;
-		rkvpss_set_bits(dev, RKVPSS_VPSS_CTRL, mask, val);
+		rkvpss_unite_set_bits(dev, RKVPSS_VPSS_CTRL, mask, val);
 	}
 	mask = RKVPSS_MI_CHN_V_FLIP(stream->id);
 	val = stream->flip_en ? mask : 0;
-	rkvpss_set_bits(dev, RKVPSS_MI_WR_VFLIP_CTRL, mask, val);
+	rkvpss_unite_set_bits(dev, RKVPSS_MI_WR_VFLIP_CTRL, mask, val);
 }
 
 static int rkvpss_get_mirror_flip(struct rkvpss_stream *stream,
@@ -1593,12 +1996,76 @@ static int rkvpss_set_mirror_flip(struct rkvpss_stream *stream,
 	return 0;
 }
 
+static void cmsc_config_hw(struct rkvpss_device *dev, struct rkvpss_cmsc_cfg *cfg, bool sync,
+			       int unite_index)
+{
+	int i, j, k, slope, hor;
+	u32 win_en, mode, val, ctrl = 0;
+
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		win_en = cfg->win[i].win_en;
+		v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+		 "%s unite:%d, unite_index:%d ch:%d win_en:0x%x\n", __func__,
+		 dev->unite_mode, unite_index, i, win_en);
+		if (win_en)
+			ctrl |= RKVPSS_CMSC_CHN_EN(i);
+		rkvpss_idx_write(dev, RKVPSS_CMSC_CHN0_WIN + i * 4, win_en, unite_index);
+
+		mode = cfg->win[i].mode;
+		rkvpss_idx_write(dev, RKVPSS_CMSC_CHN0_MODE + i * 4, mode, unite_index);
+
+		for (j = 0; j < RKVPSS_CMSC_WIN_MAX && win_en; j++) {
+			if (!(win_en & BIT(j)))
+				continue;
+			for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+				val = RKVPSS_CMSC_WIN_VTX(cfg->win[j].point[k].x,
+							  cfg->win[j].point[k].y);
+				rkvpss_idx_write(dev, RKVPSS_CMSC_WIN0_L0_VTX + k * 8 + j * 32, val,
+						 unite_index);
+
+				rkvpss_cmsc_slop(&cfg->win[j].point[k],
+						 (k + 1 == RKVPSS_CMSC_POINT_MAX) ?
+						 &cfg->win[j].point[0] : &cfg->win[j].point[k + 1],
+						 &slope, &hor);
+				val = RKVPSS_CMSC_WIN_SLP(slope, hor);
+				rkvpss_idx_write(dev, RKVPSS_CMSC_WIN0_L0_SLP + k * 8 + j * 32, val,
+						 unite_index);
+				v4l2_dbg(4, rkvpss_debug, &dev->v4l2_dev,
+					 "%s unite:%d unite_index:%d ch:%d win:%d point:%d x:%u y:%u",
+					 __func__, dev->unite_mode, unite_index, i, j, k,
+					 cfg->win[j].point[k].x,
+					 cfg->win[j].point[k].y);
+			}
+
+			if ((mode & BIT(j)))
+				continue;
+			val = RKVPSS_CMSK_WIN_YUV(cfg->win[j].cover_color_y,
+						  cfg->win[j].cover_color_u,
+						  cfg->win[j].cover_color_v);
+			val |= RKVPSS_CMSC_WIN_ALPHA(cfg->win[j].cover_color_a);
+			rkvpss_idx_write(dev, RKVPSS_CMSC_WIN0_PARA + j * 4, val, unite_index);
+		}
+	}
+
+	if (ctrl) {
+		ctrl |= RKVPSS_CMSC_EN;
+		ctrl |= RKVPSS_CMSC_BLK_SZIE(cfg->mosaic_block);
+	}
+	rkvpss_idx_write(dev, RKVPSS_CMSC_CTRL, ctrl, unite_index);
+	val = RKVPSS_CMSC_GEN_UPD;
+	if (sync)
+		val |= RKVPSS_CMSC_FORCE_UPD;
+	rkvpss_idx_write(dev, RKVPSS_CMSC_UPDATE, val, unite_index);
+}
+
 void rkvpss_cmsc_config(struct rkvpss_device *dev, bool sync)
 {
 	unsigned long lock_flags = 0;
-	struct rkvpss_cmsc_cfg cfg;
-	int i, j, k, slope, hor;
-	u32 win_en, mode, val, ctrl = 0;
+	struct rkvpss_cmsc_cfg left_cfg = {0}, right_cfg = {0};
+	struct rkvpss_cmsc_win *win;
+	struct rkvpss_cmsc_point *point;
+	int i, j, k;
+	u32  mask;
 
 	spin_lock_irqsave(&dev->cmsc_lock, lock_flags);
 	if (dev->hw_dev->is_ofl_cmsc || !dev->cmsc_upd) {
@@ -1606,53 +2073,123 @@ void rkvpss_cmsc_config(struct rkvpss_device *dev, bool sync)
 		return;
 	}
 	dev->cmsc_upd = false;
-	cfg = dev->cmsc_cfg;
 	spin_unlock_irqrestore(&dev->cmsc_lock, lock_flags);
 
-	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
-		win_en = cfg.win[i].win_en;
-		if (win_en)
-			ctrl |= RKVPSS_CMSC_CHN_EN(i);
-		rkvpss_write(dev, RKVPSS_CMSC_CHN0_WIN + i * 4, win_en);
-
-		mode = cfg.win[i].mode;
-		rkvpss_write(dev, RKVPSS_CMSC_CHN0_MODE + i * 4, mode);
-
-		for (j = 0; j < RKVPSS_CMSC_WIN_MAX && win_en; j++) {
-			if (!(win_en & BIT(j)))
-				continue;
-			for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
-				val = RKVPSS_CMSC_WIN_VTX(cfg.win[j].point[k].x,
-							  cfg.win[j].point[k].y);
-				rkvpss_write(dev, RKVPSS_CMSC_WIN0_L0_VTX + k * 8 + j * 32, val);
-
-				rkvpss_cmsc_slop(&cfg.win[j].point[k],
-						 (k + 1 == RKVPSS_CMSC_POINT_MAX) ?
-						 &cfg.win[j].point[0] : &cfg.win[j].point[k + 1],
-						 &slope, &hor);
-				val = RKVPSS_CMSC_WIN_SLP(slope, hor);
-				rkvpss_write(dev, RKVPSS_CMSC_WIN0_L0_SLP + k * 8 + j * 32, val);
-			}
-
-			if ((mode & BIT(j)))
-				continue;
-			val = RKVPSS_CMSK_WIN_YUV(cfg.win[j].cover_color_y,
-						  cfg.win[j].cover_color_u,
-						  cfg.win[j].cover_color_v);
-			val |= RKVPSS_CMSC_WIN_ALPHA(cfg.win[j].cover_color_a);
-			rkvpss_write(dev, RKVPSS_CMSC_WIN0_PARA + j * 4, val);
+	if (dev->unite_mode) {
+		/* unite left */
+		for (i = 0; i < RKVPSS_CMSC_WIN_MAX; i++) {
+			left_cfg.win[i].cover_color_y = dev->cmsc_cfg.win[i].cover_color_y;
+			left_cfg.win[i].cover_color_u = dev->cmsc_cfg.win[i].cover_color_u;
+			left_cfg.win[i].cover_color_v = dev->cmsc_cfg.win[i].cover_color_v;
+			left_cfg.win[i].cover_color_a = dev->cmsc_cfg.win[i].cover_color_a;
+			for (j = 0; j < RKVPSS_CMSC_POINT_MAX; j++)
+				left_cfg.win[i].point[j] = dev->cmsc_cfg.win[i].point[j];
 		}
-	}
+		left_cfg.mosaic_block = dev->cmsc_cfg.mosaic_block;
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			left_cfg.win[i].win_en = dev->cmsc_cfg.win[i].win_en;
+			left_cfg.win[i].mode = dev->cmsc_cfg.win[i].mode;
+		}
 
-	if (ctrl) {
-		ctrl |= RKVPSS_CMSC_EN;
-		ctrl |= RKVPSS_CMSC_BLK_SZIE(cfg.mosaic_block);
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			for (j = 0; j < RKVPSS_CMSC_WIN_MAX; j++) {
+				win = &left_cfg.win[j];
+				if (!(left_cfg.win[i].win_en & BIT(j)))
+					continue;
+				mask = 0;
+				for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+					point = &win->point[k];
+					if (point->x >= dev->vpss_sdev.in_fmt.width / 2)
+						mask |= BIT(k);
+					else
+						mask &= ~BIT(k);
+				}
+				if (mask == 0xf) {
+					/** all right **/
+					left_cfg.win[i].win_en &= ~BIT(j);
+				} else if (mask != 0) {
+					/** middle  need avoid pentagon **/
+					if (win->point[0].x != win->point[3].x ||
+					    win->point[1].x != win->point[2].x) {
+						left_cfg.win[i].win_en &= ~BIT(j);
+					} else {
+						win->point[1].x = dev->vpss_sdev.in_fmt.width / 2;
+						win->point[2].x = dev->vpss_sdev.in_fmt.width / 2;
+					}
+				}
+			}
+		}
+
+		/* unite right */
+		for (i = 0; i < RKVPSS_CMSC_WIN_MAX; i++) {
+			right_cfg.win[i].cover_color_y = dev->cmsc_cfg.win[i].cover_color_y;
+			right_cfg.win[i].cover_color_u = dev->cmsc_cfg.win[i].cover_color_u;
+			right_cfg.win[i].cover_color_v = dev->cmsc_cfg.win[i].cover_color_v;
+			right_cfg.win[i].cover_color_a = dev->cmsc_cfg.win[i].cover_color_a;
+
+			for (j = 0; j < RKVPSS_CMSC_POINT_MAX; j++)
+				right_cfg.win[i].point[j] = dev->cmsc_cfg.win[i].point[j];
+		}
+		right_cfg.mosaic_block = dev->cmsc_cfg.mosaic_block;
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			right_cfg.win[i].win_en = dev->cmsc_cfg.win[i].win_en;
+			right_cfg.win[i].mode = dev->cmsc_cfg.win[i].mode;
+		}
+
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			for (j = 0; j < RKVPSS_CMSC_WIN_MAX; j++) {
+				win = &right_cfg.win[j];
+				if (!(right_cfg.win[i].win_en & BIT(j)))
+					continue;
+				mask = 0;
+				for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+					point = &win->point[k];
+					if (point->x <= dev->vpss_sdev.in_fmt.width / 2)
+						mask |= BIT(k);
+					else
+						mask &= ~BIT(k);
+				}
+				if (mask == 0xf) {
+					/** all left **/
+					right_cfg.win[i].win_en &= ~BIT(j);
+				} else if (mask != 0) {
+					/** middle  need avoid pentagon **/
+					if (win->point[0].x != win->point[3].x ||
+					    win->point[1].x != win->point[2].x) {
+						right_cfg.win[i].win_en &= ~BIT(j);
+					} else {
+						win->point[0].x = RKMOUDLE_UNITE_EXTEND_PIXEL;
+						win->point[3].x = RKMOUDLE_UNITE_EXTEND_PIXEL;
+						win->point[1].x = win->point[1].x -
+								  (dev->vpss_sdev.in_fmt.width / 2) +
+								  RKMOUDLE_UNITE_EXTEND_PIXEL;
+						win->point[2].x = win->point[2].x -
+								  (dev->vpss_sdev.in_fmt.width / 2) +
+								  RKMOUDLE_UNITE_EXTEND_PIXEL;
+					}
+				} else {
+					/** all right **/
+					win->point[0].x = win->point[0].x -
+							  (dev->vpss_sdev.in_fmt.width / 2) +
+							  RKMOUDLE_UNITE_EXTEND_PIXEL;
+					win->point[1].x = win->point[1].x -
+							  (dev->vpss_sdev.in_fmt.width / 2) +
+							  RKMOUDLE_UNITE_EXTEND_PIXEL;
+					win->point[2].x = win->point[2].x -
+							  (dev->vpss_sdev.in_fmt.width / 2) +
+							  RKMOUDLE_UNITE_EXTEND_PIXEL;
+					win->point[3].x = win->point[3].x -
+							  (dev->vpss_sdev.in_fmt.width / 2) +
+							  RKMOUDLE_UNITE_EXTEND_PIXEL;
+				}
+			}
+		}
+
+		cmsc_config_hw(dev, &left_cfg, sync, VPSS_UNITE_LEFT);
+		cmsc_config_hw(dev, &right_cfg, sync, VPSS_UNITE_RIGHT);
+	} else {
+		cmsc_config_hw(dev, &dev->cmsc_cfg, sync, VPSS_UNITE_LEFT);
 	}
-	rkvpss_write(dev, RKVPSS_CMSC_CTRL, ctrl);
-	val = RKVPSS_CMSC_GEN_UPD;
-	if (sync)
-		val |= RKVPSS_CMSC_FORCE_UPD;
-	rkvpss_write(dev, RKVPSS_CMSC_UPDATE, val);
 }
 
 static int rkvpss_get_cmsc(struct rkvpss_stream *stream, struct rkvpss_cmsc_cfg *cfg)
@@ -1722,6 +2259,11 @@ static int rkvpss_set_cmsc(struct rkvpss_stream *stream, struct rkvpss_cmsc_cfg 
 	dev->cmsc_cfg.win[stream->id].mode = mode;
 	dev->cmsc_cfg.mosaic_block = cfg->mosaic_block;
 	dev->cmsc_upd = true;
+	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
+		 "%s ch:%d win_en:0x%x",
+		 __func__, stream->id,
+		 dev->cmsc_cfg.win[stream->id].win_en);
+
 unlock:
 	spin_unlock_irqrestore(&dev->cmsc_lock, lock_flags);
 	return ret;
@@ -1931,7 +2473,7 @@ void rkvpss_isr(struct rkvpss_device *dev, u32 mis_val)
 		 "isr:0x%x\n", mis_val);
 	dev->isr_cnt++;
 	if (mis_val & RKVPSS_ISP_ALL_FRM_END && dev->remote_sd)
-		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF, NULL);
+		rkvpss_check_idle(dev, VPSS_FRAME_END);
 }
 
 void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val)
@@ -1941,8 +2483,6 @@ void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val)
 
 	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
 		 "mi isr:0x%x, ris:0x%x\n", mis_val, ris);
-	if (mis_val & RKVPSS_MI_BUS_ERR)
-		v4l2_warn(&dev->v4l2_dev, "axi bus error\n");
 
 	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
 		stream = &dev->stream_vdev.stream[i];
@@ -1951,13 +2491,17 @@ void rkvpss_mi_isr(struct rkvpss_device *dev, u32 mis_val)
 		    !(ris & stream->config->frame_end_id))
 			continue;
 		writel(stream->config->frame_end_id, dev->hw_dev->base_addr + RKVPSS_MI_ICR);
-		if (stream->stopping) {
-			stream->stopping = false;
-			stream->streaming = false;
-			stream->ops->disable_mi(stream);
-			wake_up(&stream->done);
-		} else {
-			rkvpss_frame_end(stream);
+
+		if (!dev->unite_mode || dev->unite_index == VPSS_UNITE_RIGHT) {
+			if (stream->stopping) {
+				stream->stopping = false;
+				stream->streaming = false;
+				stream->ops->disable_mi(stream);
+				wake_up(&stream->done);
+			} else {
+				rkvpss_frame_end(stream);
+			}
 		}
 	}
+	rkvpss_check_idle(dev, (ris & 0xf) << 3);
 }

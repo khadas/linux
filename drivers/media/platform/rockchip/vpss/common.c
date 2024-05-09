@@ -9,49 +9,70 @@
 #include "dev.h"
 #include "regs.h"
 
-void rkvpss_write(struct rkvpss_device *dev, u32 reg, u32 val)
-{
-	u32 *mem = dev->sw_base_addr + reg;
-	u32 *flag = dev->sw_base_addr + reg + RKVPSS_SW_REG_SIZE;
 
+void rkvpss_idx_write(struct rkvpss_device *dev, u32 reg, u32 val, int idx)
+{
+	u32 *mem, *flag, offset = idx * RKVPSS_SW_REG_SIZE_MAX;
+
+	if (!dev->unite_mode)
+		offset = 0;
+
+	mem = dev->sw_base_addr + reg + offset;
+	flag = dev->sw_base_addr + reg + RKVPSS_SW_REG_SIZE + offset;
 	*mem = val;
 	*flag = RKVPSS_REG_CACHE;
-	if (dev->hw_dev->is_single)
+
+	if (dev->hw_dev->is_single && !dev->unite_mode)
 		rkvpss_hw_write(dev->hw_dev, reg, val);
 }
 
-u32 rkvpss_read(struct rkvpss_device *dev, u32 reg)
+void rkvpss_unite_write(struct rkvpss_device *dev, u32 reg, u32 val)
 {
-	u32 val;
+	rkvpss_idx_write(dev, reg, val, VPSS_UNITE_LEFT);
+	if (dev->unite_mode)
+		rkvpss_idx_write(dev, reg, val, VPSS_UNITE_RIGHT);
+}
 
-	if (dev->hw_dev->is_single)
+u32 rkvpss_idx_read(struct rkvpss_device *dev, u32 reg, int idx)
+{
+	u32 val, offset = idx * RKVPSS_SW_REG_SIZE_MAX;
+
+	if (!dev->unite_mode)
+		offset = 0;
+
+	if (dev->hw_dev->is_single && !dev->unite_mode)
 		val = rkvpss_hw_read(dev->hw_dev, reg);
 	else
-		val = *(u32 *)(dev->sw_base_addr + reg);
+		val = *(u32 *)(dev->sw_base_addr + reg + offset);
 	return val;
 }
 
-void rkvpss_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val)
+void rkvpss_idx_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val, int idx)
 {
-	u32 *mem = dev->sw_base_addr + reg;
-	u32 *flag = dev->sw_base_addr + reg + RKVPSS_SW_REG_SIZE;
+	u32 tmp = rkvpss_idx_read(dev, reg, idx) & ~mask;
 
-	*mem &= ~mask;
-	*mem |= val;
-	*flag = RKVPSS_REG_CACHE;
-	if (dev->hw_dev->is_single)
-		rkvpss_hw_set_bits(dev->hw_dev, reg, mask, val);
+	rkvpss_idx_write(dev, reg, val | tmp, idx);
 }
 
-void rkvpss_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask)
+void rkvpss_unite_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val)
 {
-	u32 *mem = dev->sw_base_addr + reg;
-	u32 *flag = dev->sw_base_addr + reg + RKVPSS_SW_REG_SIZE;
+	rkvpss_idx_set_bits(dev, reg, mask, val, VPSS_UNITE_LEFT);
+	if (dev->unite_mode)
+		rkvpss_idx_set_bits(dev, reg, mask, val, VPSS_UNITE_RIGHT);
+}
 
-	*mem &= ~mask;
-	*flag = RKVPSS_REG_CACHE;
-	if (dev->hw_dev->is_single)
-		rkvpss_hw_clear_bits(dev->hw_dev, reg, mask);
+void rkvpss_idx_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask, int idx)
+{
+	u32 tmp = rkvpss_idx_read(dev, reg, idx);
+
+	rkvpss_idx_write(dev, reg, tmp & ~mask, idx);
+}
+
+void rkvpss_unite_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask)
+{
+	rkvpss_idx_clear_bits(dev, reg, mask, VPSS_UNITE_LEFT);
+	if (dev->unite_mode)
+		rkvpss_idx_clear_bits(dev, reg, mask, VPSS_UNITE_RIGHT);
 }
 
 void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
@@ -68,6 +89,13 @@ void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 	for (i = start; i <= end; i += 4) {
 		u32 *val = dev->sw_base_addr + i;
 		u32 *flag = dev->sw_base_addr + i + RKVPSS_SW_REG_SIZE;
+
+		if (dev->unite_mode &&
+		    ((!dev->mir_en && dev->unite_index == VPSS_UNITE_RIGHT) ||
+		     (dev->mir_en && dev->unite_index == VPSS_UNITE_LEFT))) {
+			val += (RKVPSS_SW_REG_SIZE_MAX / 4);
+			flag += (RKVPSS_SW_REG_SIZE_MAX / 4);
+		}
 
 		if (*flag != RKVPSS_REG_CACHE)
 			continue;
@@ -86,6 +114,8 @@ void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 			}
 		}
 		writel(*val, base + i);
+		if (i == RKVPSS_MI_WR_INIT)
+			writel(*val, base + i);
 		if (IS_SYNC_REG(i))
 			spin_unlock_irqrestore(&hw->reg_lock, lock_flags);
 	}

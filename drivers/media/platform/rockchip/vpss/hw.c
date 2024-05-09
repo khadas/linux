@@ -665,8 +665,11 @@ static irqreturn_t mi_irq_hdl(int irq, void *ctx)
 
 	mis_val = rkvpss_hw_read(hw_dev, RKVPSS_MI_MIS);
 	if (mis_val) {
+		if (mis_val & RKVPSS_MI_BUS_ERR)
+			dev_err(dev, "axi bus error\n");
 		rkvpss_hw_write(hw_dev, RKVPSS_MI_ICR, mis_val);
-		rkvpss_mi_isr(vpss, mis_val);
+		if (vpss)
+			rkvpss_mi_isr(vpss, mis_val);
 	}
 	return IRQ_HANDLED;
 }

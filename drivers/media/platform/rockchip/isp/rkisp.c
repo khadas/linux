@@ -660,6 +660,9 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		rkisp_stream_frame_start(dev, 0);
 	}
 
+	if (dev->isp_ver == ISP_V39)
+		rkisp_sditf_sof(dev, 0);
+
 	if (!hw->is_single) {
 		/* multi sensor need to reset isp resize mode if scale up */
 		val = 0;
@@ -1147,6 +1150,9 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 	if (!(dev->irq_ends_mask & val)) {
 		u32 state = dev->isp_state;
 		struct rkisp_stream *s;
+
+		if (dev->sditf_dev && !dev->sditf_dev->is_on)
+			dev->isp_state = ISP_STOP;
 
 		for (val = 0; val < RKISP_STREAM_VIR; val++) {
 			s = &dev->cap_dev.stream[val];
@@ -4453,6 +4459,8 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
 			rkisp_stream_frame_start(dev, isp_mis);
+			if (dev->isp_ver == ISP_V39)
+				rkisp_sditf_sof(dev, isp_mis);
 			rkisp_rockit_frame_start(dev);
 		}
 vs_skip:
@@ -4617,6 +4625,8 @@ vs_skip:
 		rkisp_isp_queue_event_sof(&dev->isp_sdev);
 		rkisp_stream_frame_start(dev, isp_mis);
 		rkisp_rockit_frame_start(dev);
+		if (dev->isp_ver == ISP_V39)
+			rkisp_sditf_sof(dev, isp_mis);
 	}
 
 	if (isp_mis & ISP3X_OUT_FRM_QUARTER) {

@@ -29,6 +29,12 @@ enum {
 	T_CMD_END,
 };
 
+enum {
+	VPSS_UNITE_LEFT = 0,
+	VPSS_UNITE_RIGHT,
+	VPSS_UNITE_MAX,
+};
+
 struct rkvpss_rdbk_info {
 	u64 timestamp;
 	u64 seq;
@@ -65,6 +71,12 @@ struct rkvpss_device {
 
 	bool mir_en;
 	bool cmsc_upd;
+	u32 unite_mode;
+	u8 unite_index;
+	bool stopping;
+	wait_queue_head_t stop_done;
+	unsigned int irq_ends;
+	unsigned int irq_ends_mask;
 
 	bool is_probe_end;
 };

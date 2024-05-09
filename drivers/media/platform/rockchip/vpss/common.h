@@ -14,6 +14,7 @@
 #include <media/videobuf2-v4l2.h>
 
 #include "../isp/isp_vpss.h"
+#include <linux/rk-camera-module.h>
 
 #define RKVPSS_PLANE_Y		0
 #define RKVPSS_PLANE_UV		1
@@ -90,10 +91,13 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 extern int rkvpss_debug;
 extern struct platform_driver rkvpss_plat_drv;
 
-void rkvpss_write(struct rkvpss_device *dev, u32 reg, u32 val);
-void rkvpss_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val);
-u32 rkvpss_read(struct rkvpss_device *dev, u32 reg);
-void rkvpss_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask);
+void rkvpss_idx_write(struct rkvpss_device *dev, u32 reg, u32 val, int idx);
+void rkvpss_unite_write(struct rkvpss_device *dev, u32 reg, u32 val);
+void rkvpss_idx_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val, int idx);
+void rkvpss_unite_set_bits(struct rkvpss_device *dev, u32 reg, u32 mask, u32 val);
+u32 rkvpss_idx_read(struct rkvpss_device *dev, u32 reg, int idx);
+void rkvpss_idx_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask, int idx);
+void rkvpss_unite_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask);
 void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end);
 
 int rkvpss_attach_hw(struct rkvpss_device *vpss);

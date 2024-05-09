@@ -96,6 +96,7 @@ void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 		return;
 	info.irq = irq;
 	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, true);
+	info.unite_index = dev->unite_index;
 	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_CMD_SOF, &info);
 }
 
@@ -106,7 +107,17 @@ static long rkisp_sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *ar
 
 	switch (cmd) {
 	case RKISP_VPSS_CMD_EOF:
+		if (*(int *)arg) {
+			sditf->is_on = false;
+			sditf->isp->irq_ends_mask &= ~ISP_FRAME_VPSS;
+		}
 		rkisp_check_idle(sditf->isp, ISP_FRAME_VPSS);
+		break;
+	case RKISP_VPSS_GET_UNITE_MODE:
+		if (sditf->isp->unite_div == ISP_UNITE_DIV2)
+			*(unsigned int *)arg = sditf->isp->unite_div;
+		else
+			*(unsigned int *)arg = 0;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
