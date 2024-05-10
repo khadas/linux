@@ -76,9 +76,9 @@
 /* PDM_V2_FILTER_CTRL */
 /* 0.375dB every step. 0: mute, 1: -65.25dB, 255: 30dB */
 #define PDM_V2_GAIN_CTRL_MSK		(0xff << 23)
-#define PDM_V2_GAIN_CTRL_SHIFT		23
+#define PDM_V2_GAIN_CTRL_SHIFT		24
 #define PDM_V2_GAIN_MIN			0
-#define PDM_V2_GAIN_MAX			0xff
+#define PDM_V2_GAIN_MAX			0x7f
 #define PDM_V2_GAIN_0DB			(175 << 23)
 #define PDM_V2_GAIN_24DB		(239 << 23)
 #define PDM_V2_HPF_R_MSK		(0x1 << 21)

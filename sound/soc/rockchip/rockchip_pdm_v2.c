@@ -414,7 +414,7 @@ static const char * const hpf_cutoff_text[] = {
 static SOC_ENUM_SINGLE_DECL(hpf_cutoff_enum, PDM_V2_FILTER_CTRL,
 			    19, hpf_cutoff_text);
 
-static const DECLARE_TLV_DB_SCALE(pdm_v2_digtal_gain_tlv, -6525, 375, 0);
+static const DECLARE_TLV_DB_SCALE(pdm_v2_digtal_gain_tlv, -6563, 75, 0);
 
 static const struct snd_kcontrol_new rockchip_pdm_v2_controls[] = {
 	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
