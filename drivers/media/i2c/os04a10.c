@@ -2521,7 +2521,7 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 			0, PIXEL_RATE_WITH_648M,
 			1, dst_pixel_rate);
 
-	__v4l2_ctrl_s_ctrl(os04a10->link_freq, dst_link_freq);
+	v4l2_ctrl_s_ctrl(os04a10->link_freq, dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	os04a10->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
