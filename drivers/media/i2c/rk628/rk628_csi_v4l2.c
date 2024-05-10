@@ -876,6 +876,11 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 
 	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, en ? "en" : "dis");
 	if (en) {
+		if (!tx_5v_power_present(sd) || csi->nosignal) {
+			v4l2_err(sd, "%s: hdmi no signal or unplug!\n", __func__);
+			return;
+		}
+
 		if (rk628_hdmirx_scdc_ced_err(csi->rk628)) {
 			rk628_hdmirx_plugout(sd);
 			schedule_delayed_work(&csi->delayed_work_enable_hotplug,
@@ -2007,13 +2012,20 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 
-	mutex_lock(&csi->confctl_mutex);
+	/* The application don't wants this to be blocked, so use mutex_trylock() */
+	if (!mutex_trylock(&csi->confctl_mutex)) {
+		format->format.code = csi->mbus_fmt_code;
+		format->format.width = RK628_DEFAULT_WIDTH;
+		format->format.height = RK628_DEFAULT_HEIGHT;
+		format->format.field = V4L2_FIELD_NONE;
+		return 0;
+	}
+
 	format->format.code = csi->mbus_fmt_code;
 	format->format.width = ALIGN_DOWN(csi->timings.bt.width, 8);
 	format->format.height = csi->timings.bt.height;
 	format->format.field = csi->timings.bt.interlaced ?
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
-	mutex_unlock(&csi->confctl_mutex);
 
 	if (csi->plat_data->tx_mode == CSI_MODE) {
 		if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
@@ -2057,6 +2069,7 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate, RK628_CSI_PIXEL_RATE_HIGH);
 	}
 
+	mutex_unlock(&csi->confctl_mutex);
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
 			__func__, format->format.code, format->format.width,
 			format->format.height, format->format.field);
