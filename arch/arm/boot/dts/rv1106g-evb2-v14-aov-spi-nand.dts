@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb2-v10.dts"
+
+/ {
+	model = "Rockchip RV1106G EVB2 V12 Board";
+	compatible = "rockchip,rv1106g-evb2-v14-aov-spi-nand", "rockchip,rv1106";
+
+	vcc3v3_sd: vcc3v3-sd {
+		enable-active-high;
+	};
+};
+
+/delete-node/ &thunder_boot_spi_nor;
+
+&acodec {
+	pa-ctl-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&rkcif_mipi_lvds {
+	aov-reserved;
+	status = "okay";
+};
+
+&sfc {
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
