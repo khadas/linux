@@ -193,7 +193,7 @@ static int rfkill_rk_setup_wake_irq(struct rfkill_rk_data *rfkill, int flag)
 		irq->irq = gpio_to_irq(irq->gpio.io);
 		sprintf(irq->name, "%s_irq", irq->gpio.name);
 		ret = request_threaded_irq(irq->irq, rfkill_rk_wake_host_irq,
-					   rfkill_rk_wake_host_irq_thread,
+					   IS_ENABLED(CONFIG_INPUT) ? rfkill_rk_wake_host_irq_thread : NULL,
 					   IRQF_ONESHOT | ((irq->gpio.enable == GPIO_ACTIVE_LOW) ?
 					   IRQF_TRIGGER_FALLING :
 					   IRQF_TRIGGER_RISING),
@@ -764,12 +764,14 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 		goto fail_alloc;
 	}
 
-	/* read/write proc entries */
-	ent = proc_create("powerupkey", 0444, sleep_dir, &bluesleep_powerupkey);
-	if (!ent) {
-		LOG("Unable to create /proc/%s/powerupkey entry", PROC_DIR);
-		ret = -ENOMEM;
-		goto fail_alloc;
+	if (IS_ENABLED(CONFIG_INPUT)) {
+		/* read/write proc entries */
+		ent = proc_create("powerupkey", 0444, sleep_dir, &bluesleep_powerupkey);
+		if (!ent) {
+			LOG("Unable to create /proc/%s/powerupkey entry", PROC_DIR);
+			ret = -ENOMEM;
+			goto fail_alloc;
+		}
 	}
 
 	DBG("init gpio\n");
@@ -834,7 +836,7 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 
 	LOG("%s device registered.\n", pdata->name);
 
-	if (rfkill_rk_register_power_key(&pdev->dev) != 0)
+	if (IS_ENABLED(CONFIG_INPUT) && rfkill_rk_register_power_key(&pdev->dev) != 0)
 		goto fail_rfkill;
 
 	return 0;

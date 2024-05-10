@@ -35,7 +35,6 @@ config RFKILL_GPIO
 
 config RFKILL_RK
 	tristate "Rockchip RFKILL driver"
-	select INPUT
 	depends on RFKILL
 	depends on ARCH_ROCKCHIP
 	default n
