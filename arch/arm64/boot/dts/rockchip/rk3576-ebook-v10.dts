@@ -261,32 +261,6 @@
 	panel,panel_color = <0>;
 	panel,width-mm = <157>;
 	panel,height-mm = <210>;
-#if 0
-	/* EC103KH3 panel */
-	panel,width = <2480>;
-	panel,height = <1860>;
-	panel,vir_width = <2496>;
-	panel,vir_height = <1944>;
-	panel,sdck = <60000000>;
-	panel,lsl = <64>;
-	panel,lbl = <64>;
-	panel,ldl = <312>;
-	panel,lel = <22>;
-	panel,gdck-sta = <1>;
-	panel,lgonl = <252>;
-	panel,fsl = <1>;
-	panel,fbl = <4>;
-	panel,fdl = <1944>;
-	panel,fel = <16>;
-	panel,mirror = <0>;
-	panel,panel_16bit = <1>;
-	panel,panel_color = <1>;
-	panel,sdoe_mode = <1>;
-	panel,sdce_width = <1>;
-	panel,width-mm = <166>;
-	panel,height-mm = <210>;
-	panel,disable_logo = <1>;
-#endif
 };
 
 &gpu {
