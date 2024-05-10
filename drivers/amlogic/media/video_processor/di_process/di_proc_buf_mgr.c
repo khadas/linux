@@ -731,7 +731,7 @@ int buf_mgr_dq_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 	}
 
 	if (!di_proc_enable) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: DI backend not enable.\n", __func__);
+		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: DI backend not enable.\n", __func__);
 		return -1;
 	}
 
