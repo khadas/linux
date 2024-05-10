@@ -143,14 +143,16 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		else
 			tps_coderate = dvbt_t2_rdb(0x2913) & 0x7;
 
-		if (demod->bw == BANDWIDTH_6_MHZ && (dvbt_t2_rdb(0x2744) & 0xf) == 0x3 &&
-			(dvbt_t2_rdb(0x2912) & 0x3) == 0x2 && tps_coderate != 0) {
-			if (tps_coderate == 1 && dvbt_t2_rdb(0x5d0) != 0x2)
-				dvbt_t2_wrb(0x5d0, 0x2);
-			else if (tps_coderate != 1 && dvbt_t2_rdb(0x5d0) != 0x80)
-				dvbt_t2_wrb(0x5d0, 0x80);
-		} else if (dvbt_t2_rdb(0x5d0) != 0) {
-			dvbt_t2_wrb(0x5d0, 0);
+		if (demod->bw == BANDWIDTH_6_MHZ) {
+			if ((dvbt_t2_rdb(0x2744) & 0xf) == 0x3 &&
+				(dvbt_t2_rdb(0x2912) & 0x3) == 0x2 && tps_coderate != 0) {
+				if (tps_coderate == 1 && dvbt_t2_rdb(0x5d0) != 0x2)
+					dvbt_t2_wrb(0x5d0, 0x2);
+				else if (tps_coderate != 1 && dvbt_t2_rdb(0x5d0) != 0x80)
+					dvbt_t2_wrb(0x5d0, 0x80);
+			} else if (dvbt_t2_rdb(0x5d0) != 0) {
+				dvbt_t2_wrb(0x5d0, 0);
+			}
 		}
 
 		do {

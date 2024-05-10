@@ -142,6 +142,7 @@
 /*  V2.2.027 standard code optimization */
 /*  V2.2.028 fix dump adc issue */
 /*  V2.2.029 fix coverity errors */
+/*  V2.2.030 fix occasional failure to lock dvbt signal */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -159,7 +160,7 @@
 /****************************************************************/
 #define KERNEL_4_9_EN		1
 #define AMLDTVDEMOD_VER "V2.2.029"
-#define DTVDEMOD_VER	"2024/05/09: fix coverity errors"
+#define DTVDEMOD_VER	"2024/05/10: fix occasional failure to lock dvbt signal"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
