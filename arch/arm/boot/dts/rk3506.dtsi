@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		spi2 = &fspi;
 	};
 
 	clocks {
@@ -212,6 +213,17 @@
 				};
 			};
 		};
+	};
+
+	fspi: spi@ff488000 {
+		compatible = "rockchip,fspi";
+		reg = <0xff488000 0x4000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_FSPI>, <&cru HCLK_FSPI>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 
 	gic: interrupt-controller@ff581000 {
