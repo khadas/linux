@@ -12,6 +12,7 @@
 #include "regs_v2x.h"
 #include "isp_params_v3x.h"
 #include "isp_params_v32.h"
+#include "isp_params_v39.h"
 
 #ifdef CONFIG_PROC_FS
 
@@ -830,6 +831,7 @@ static void isp32_show(struct rkisp_device *dev, struct seq_file *p)
 
 static void isp39_show(struct rkisp_device *dev, struct seq_file *p)
 {
+	struct rkisp_isp_params_val_v39 *priv = dev->params_vdev.priv_val;
 	u32 full_range_flg = CIF_ISP_CTRL_ISP_CSM_Y_FULL_ENA | CIF_ISP_CTRL_ISP_CSM_C_FULL_ENA;
 	static const char * const effect[] = { "OFF", "BLACKWHITE" };
 	u32 val, val1, val2;
@@ -869,27 +871,38 @@ static void isp39_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x)\n", "HDRDRC", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_HDRMGE_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "HDRMGE", (val & 1) ? "ON" : "OFF", val);
+	val = rkisp_read(dev, ISP3X_DHAZ_CTRL, false);
+	val1 = rkisp_read(dev, ISP39_DHAZ_THUMB_SIZE, false);
+	seq_printf(p, "%-10s %s(0x%x) contrast:%d hist:%d enhance:%d blk(row:%d col:%d)\n",
+		   "DHAZ", (val & 1) ? "ON" : "OFF", val,
+		   !!(val & BIT(4)), !!(val & BIT(8)), !!(val & BIT(20)),
+		   val1 & 0x1f, (val1 & 0x1f00) >> 8);
 	val = rkisp_read(dev, ISP3X_BAY3D_CTRL, false);
 	val1 = rkisp_read(dev, ISP39_BAY3D_CTRL1, false);
 	val2 = rkisp_read(dev, ISP39_BAY3D_CTRL2, false);
-	seq_printf(p, "%-10s %s(0x%x 0x%x 0x%x)\n", "BAY3D",
-		   (val & 1) ? "ON" : "OFF", val, val1, val2);
+	seq_printf(p, "%-10s %s(0x%x 0x%x 0x%x) bypass:%d iirsparse:%d size:%d\n",
+		   "BAY3D", (val & 1) ? "ON" : "OFF", val, val1, val2,
+		   !!(val & BIT(1)), !!(val & BIT(2)),
+		   priv ? priv->buf_3dnr_iir.size : 0);
+	val = rkisp_read(dev, ISP39_YUVME_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d size:%d\n",
+		   "YUVME", (val & 1) ? "ON" : "OFF", val, !!(val & BIT(1)),
+		   priv ? priv->buf_3dnr_cur.size : 0);
 	val = rkisp_read(dev, ISP3X_YNR_GLOBAL_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "YNR", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x) bypass(lospnr:%d hispnr:%d)\n",
+		   "YNR", (val & 1) ? "ON" : "OFF", val,
+		   !!(val & BIT(1)), !!(val & BIT(2)));
 	val = rkisp_read(dev, ISP3X_CNR_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "CNR", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_SHARP_EN, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "SHARP", (val & 1) ? "ON" : "OFF", val);
-	val = rkisp_read(dev, ISP3X_DHAZ_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "DHAZ", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "SHARP",
+		   (val & 1) ? "ON" : "OFF", val, !!(val & BIT(1)));
 	val = rkisp_read(dev, ISP3X_3DLUT_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "3DLUT", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_LDCH_STS, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "LDCH", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP39_LDCV_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "LDCV", (val & 1) ? "ON" : "OFF", val);
-	val = rkisp_read(dev, ISP39_YUVME_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "YUVME", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP39_RGBIR_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "RGBIR", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_ISP_CTRL0, false);

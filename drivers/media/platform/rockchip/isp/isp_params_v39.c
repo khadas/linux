@@ -2512,6 +2512,11 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 				ISP39_DHAZ_THUMB_ROW_MAX : arg->thumb_row & ~1;
 	thumb_col = arg->thumb_col > ISP39_DHAZ_THUMB_COL_MAX ?
 				ISP39_DHAZ_THUMB_COL_MAX : arg->thumb_col & ~1;
+	if (dev->hw_dev->dev_link_num > 1 && thumb_row > 4 &&
+	    !dev->hw_dev->is_frm_buf && thumb_col > 4) {
+		thumb_row = 4;
+		thumb_col = 4;
+	}
 	blk_het = ALIGN(h / thumb_row, 2);
 	blk_wid = ALIGN(w / thumb_col, 2);
 	priv_val->dhaz_blk_num = thumb_row * thumb_col;
@@ -3959,6 +3964,8 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	mask = ISP39_MODULE_YNR | ISP39_MODULE_CNR | ISP39_MODULE_SHARP;
 	if  ((module_ens & mask) && ((module_ens & mask) != mask))
 		dev_err(params_vdev->dev->dev, "ynr cnr sharp no enable together\n");
+	if (module_ens & ISP39_MODULE_YUVME && !(module_ens & ISP39_MODULE_BAY3D))
+		dev_err(params_vdev->dev->dev, "yuvme need bay3d enable together\n");
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_en_update:0x%llx module_ens:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_en_update, module_ens);
@@ -4922,7 +4929,7 @@ rkisp_params_disable_isp_v39(struct rkisp_isp_params_vdev *params_vdev)
 	int i;
 
 	params_vdev->isp39_params->module_ens = 0;
-	params_vdev->isp39_params->module_en_update = 0x7ffffffffff;
+	params_vdev->isp39_params->module_en_update = ~ISP39_MODULE_FORCE;
 
 	for (i = 0; i < params_vdev->dev->unite_div; i++) {
 		__isp_isr_other_en(params_vdev, params_vdev->isp39_params, RKISP_PARAMS_ALL, i);
