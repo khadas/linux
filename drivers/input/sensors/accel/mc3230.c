@@ -179,9 +179,12 @@ static int mc3230_active(struct i2c_client *client, int enable);
 static void MC32X0_rbm(struct i2c_client *client, int enable);
 static int init_3230_ctl_data(struct i2c_client *client);
 
-struct file *openFile(const char *path, int flag, int mode)
+static struct file *openFile(const char *path, int flag, int mode)
 {
 	struct file *fp;
+
+	if (!IS_ENABLED(CONFIG_NO_GKI))
+		return NULL;
 
 	fp = filp_open(path, flag, mode);
 	if (IS_ERR(fp) || !fp->f_op)
