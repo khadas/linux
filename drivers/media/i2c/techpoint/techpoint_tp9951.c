@@ -23,10 +23,10 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .common_reg_size = 0,
 	 .bpp = TP9951_BITS_PER_SAMPLE,
 	 .lane = TP9951_LANES,
-	 .vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	 .vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-	 .vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-	 .vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+	 .vc[PAD0] = 0,
+	 .vc[PAD1] = 1,
+	 .vc[PAD2] = 2,
+	 .vc[PAD3] = 3,
 	},
 #endif
 #if TP9951_DEF_NTSC
@@ -43,10 +43,10 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .common_reg_size = 0,
 	 .bpp = TP9951_BITS_PER_SAMPLE,
 	 .lane = TP9951_LANES,
-	 .vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	 .vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-	 .vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-	 .vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+	 .vc[PAD0] = 0,
+	 .vc[PAD1] = 1,
+	 .vc[PAD2] = 2,
+	 .vc[PAD3] = 3,
 	},
 #endif
 #if TP9951_DEF_1080P
@@ -64,10 +64,10 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .common_reg_size = 0,
 	 .bpp = TP9951_BITS_PER_SAMPLE,
 	 .lane = TP9951_LANES,
-	 .vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	 .vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-	 .vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-	 .vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+	 .vc[PAD0] = 0,
+	 .vc[PAD1] = 1,
+	 .vc[PAD2] = 2,
+	 .vc[PAD3] = 3,
 	},
 #endif
 #if TP9951_DEF_720P
@@ -84,10 +84,10 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .common_reg_size = 0,
 	 .bpp = TP9951_BITS_PER_SAMPLE,
 	 .lane = TP9951_LANES,
-	 .vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	 .vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-	 .vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-	 .vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+	 .vc[PAD0] = 0,
+	 .vc[PAD1] = 1,
+	 .vc[PAD2] = 2,
+	 .vc[PAD3] = 3,
 	},
 #endif
 };
