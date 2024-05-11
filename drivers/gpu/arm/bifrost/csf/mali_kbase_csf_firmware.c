@@ -55,9 +55,11 @@
 #include <linux/delay.h>
 #include <linux/version_compat_defs.h>
 
-#define MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN ((size_t)20)
+#define MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN ((size_t)64)
 
-static char default_fw_name[MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN] = "mali_csffw.bin";
+#define DEFAULT_FW_NAME MALI_RELEASE_NAME".mali_csffw.bin"
+
+static char default_fw_name[MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN] = DEFAULT_FW_NAME;
 module_param_string(fw_name, default_fw_name, sizeof(default_fw_name), 0644);
 MODULE_PARM_DESC(fw_name, "firmware image");
 
@@ -2345,6 +2347,7 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 
 #endif /* IS_ENABLED(CONFIG_OF) */
 
+	dev_info(kbdev->dev, "to load firmware image '%s'\n", fw_name);
 	if (request_firmware(&firmware, fw_name, kbdev->dev) != 0) {
 		dev_err(kbdev->dev, "Failed to load firmware image '%s'\n", fw_name);
 		ret = -ENOENT;
