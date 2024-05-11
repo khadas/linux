@@ -94,6 +94,36 @@
 	};
 };
 
+&csi2_dphy5 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam4: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx464_out3>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy5_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input>;
+			};
+		};
+	};
+};
+
 &i2c5 {
 	status = "okay";
 	pinctrl-0 = <&i2c5m3_xfer>;
@@ -168,6 +198,27 @@
 		port {
 			imx464_out2: endpoint {
 				remote-endpoint = <&mipi_in_ucam3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	imx464_3: imx464-3@36 {
+		compatible = "sony,imx464";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipicsi1>;
+		pwdn-gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <3>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT1980-PX1";
+		rockchip,camera-module-lens-name = "SHG102";
+		port {
+			imx464_out3: endpoint {
+				remote-endpoint = <&mipi_in_ucam4>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -267,6 +318,37 @@
 	};
 };
 
+&mipi4_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy5_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in4>;
+			};
+		};
+	};
+};
+
 &rkcif {
 	status = "okay";
 };
@@ -331,6 +413,26 @@
 	};
 };
 
+&rkcif_mipi_lvds4 {
+	status = "okay";
+
+	port {
+		cif_mipi_in4: endpoint {
+			remote-endpoint = <&mipi4_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf {
+	status = "okay";
+
+	port {
+		mipi4_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_vir3>;
+		};
+	};
+};
+
 &rkcif_mmu {
 	status = "okay";
 };
@@ -383,4 +485,42 @@
 			remote-endpoint = <&mipi3_lvds_sditf>;
 		};
 	};
+};
+
+&rkisp_vir3 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir3: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi4_lvds_sditf>;
+		};
+	};
+};
+
+&rkvpss {
+	status = "okay";
+};
+
+&rkvpss_mmu {
+	status = "okay";
+};
+
+&rkvpss_vir0 {
+	status = "okay";
+};
+
+&rkvpss_vir1 {
+	status = "okay";
+};
+
+&rkvpss_vir2 {
+	status = "okay";
+};
+
+&rkvpss_vir3 {
+	status = "okay";
 };
