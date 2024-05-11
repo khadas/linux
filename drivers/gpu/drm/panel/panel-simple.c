@@ -5197,10 +5197,18 @@ static int panel_simple_spi_write(struct device *dev, const u8 *data, size_t len
 }
 
 static const struct of_device_id panel_simple_spi_of_match[] = {
+	{ .compatible = "panel-simple-spi", .data = NULL },
 	{ .compatible = "simple-panel-spi", .data = NULL },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, panel_simple_spi_of_match);
+
+static const struct spi_device_id panel_simple_spi_ids[] = {
+	{ .name = "panel-simple-spi" },
+	{ .name = "simple-panel-spi" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, panel_simple_spi_ids);
 
 static int panel_simple_spi_probe(struct spi_device *spi)
 {
@@ -5264,6 +5272,7 @@ static struct spi_driver panel_simple_spi_driver = {
 	.probe			= panel_simple_spi_probe,
 	.remove			= panel_simple_spi_remove,
 	.shutdown		= panel_simple_spi_shutdown,
+	.id_table		= panel_simple_spi_ids,
 };
 
 static int __init panel_simple_init(void)
