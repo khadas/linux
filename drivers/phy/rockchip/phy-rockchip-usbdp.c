@@ -1629,8 +1629,8 @@ static const struct rockchip_udphy_cfg rk3576_udphy_cfgs = {
 		},
 	},
 	.dp_tx_ctrl_cfg = {
-		rk3588_dp_tx_drv_ctrl_rbr_hbr,
-		rk3588_dp_tx_drv_ctrl_rbr_hbr,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
 		rk3588_dp_tx_drv_ctrl_hbr2,
 		rk3588_dp_tx_drv_ctrl_hbr3,
 	},
