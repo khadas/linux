@@ -243,7 +243,6 @@ struct dw_mipi_dsi2 {
 	struct clk *pclk;
 	struct clk *sys_clk;
 	bool phy_enabled;
-	bool phy_request_clkhs;
 	struct phy *dcphy;
 	union phy_configure_opts phy_opts;
 
@@ -830,10 +829,9 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 		dw_mipi_dsi2_pre_enable(dsi2->slave);
 }
 
-static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
+static void dw_mipi_dsi2_clk_management(struct dw_mipi_dsi2 *dsi2)
 {
-	u32 clk_type, mode;
-	int ret;
+	u32 clk_type;
 
 	/*
 	 * initial deskew calibration is send after phy_power_on,
@@ -846,7 +844,14 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 
 	regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
 			   CLK_TYPE_MASK, clk_type);
+}
 
+static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
+{
+	u32 mode;
+	int ret;
+
+	dw_mipi_dsi2_clk_management(dsi2);
 	dw_mipi_dsi2_ipi_set(dsi2);
 
 	if (dsi2->auto_calc_mode) {
@@ -1604,18 +1609,9 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 	u32 val;
 	u32 mode;
 
-	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
-		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
-				   CLK_TYPE_MASK, dsi2->phy_request_clkhs ?
-				   CONTIUOUS_CLK : NON_CONTINUOUS_CLK);
-		regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
-				   LPDT_DISPLAY_CMD_EN, LPDT_DISPLAY_CMD_EN);
-	} else {
-		regmap_update_bits(dsi2->regmap, DSI2_PHY_CLK_CFG,
-				   CLK_TYPE_MASK, CONTIUOUS_CLK);
-		regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG,
-				   LPDT_DISPLAY_CMD_EN, 0);
-	}
+	dw_mipi_dsi2_clk_management(dsi2);
+	regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG, LPDT_DISPLAY_CMD_EN,
+			   msg->flags & MIPI_DSI_MSG_USE_LPM ? LPDT_DISPLAY_CMD_EN : 0);
 
 	/* create a packet to the DSI protocol */
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -1702,9 +1698,6 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
-
-	if (device_property_read_bool(dev, "phy-request-clkhs"))
-		dsi2->phy_request_clkhs = true;
 
 	if (device_property_read_bool(dev, "auto-calculation-mode"))
 		dsi2->auto_calc_mode = true;
