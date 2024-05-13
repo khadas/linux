@@ -313,6 +313,7 @@ struct drm_dp_link_train {
 struct dw_dp_link {
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	unsigned char revision;
+	unsigned int max_rate;
 	unsigned int rate;
 	unsigned int lanes;
 	struct drm_dp_link_caps caps;
@@ -1573,6 +1574,7 @@ static void dw_dp_link_reset(struct dw_dp_link *link)
 
 	link->rate = 0;
 	link->lanes = 0;
+	link->max_rate = 0;
 }
 
 static int dw_dp_link_power_up(struct dw_dp *dp)
@@ -1668,10 +1670,11 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
 	link->revision = link->dpcd[DP_DPCD_REV];
-	link->rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
-			   drm_dp_max_link_rate(link->dpcd));
+	link->max_rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
+			 drm_dp_max_link_rate(link->dpcd));
 	link->lanes = min_t(u8, phy_get_bus_width(dp->phy),
-			    drm_dp_max_lane_count(link->dpcd));
+		      drm_dp_max_lane_count(link->dpcd));
+	link->rate = link->max_rate;
 
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(link->dpcd);
 	link->caps.tps3_supported = drm_dp_tps3_supported(link->dpcd);
@@ -3135,7 +3138,7 @@ dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	    drm_mode_is_420_only(info, &m))
 		return MODE_NO_420;
 
-	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->rate))
+	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->max_rate))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -3171,17 +3174,21 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 		switch (FIELD_GET(PHY_RATE, value)) {
 		case 3:
 			link->rate = 810000;
+			link->max_rate = 810000;
 			break;
 		case 2:
 			link->rate = 540000;
+			link->max_rate = 540000;
 			break;
 		case 1:
 			link->rate = 270000;
+			link->max_rate = 270000;
 			break;
 		case 0:
 			fallthrough;
 		default:
 			link->rate = 162000;
+			link->max_rate = 162000;
 			break;
 		}
 
@@ -3418,7 +3425,7 @@ dw_dp_mst_connector_mode_valid(struct drm_connector *connector, struct drm_displ
 	if (drm_connector_is_unregistered(connector))
 		return  MODE_ERROR;
 
-	if (!dw_dp_bandwidth_ok(dp, mode, min_bpp, dp->link.lanes, dp->link.rate))
+	if (!dw_dp_bandwidth_ok(dp, mode, min_bpp, dp->link.lanes, dp->link.max_rate))
 		return MODE_CLOCK_HIGH;
 
 	if (drm_dp_calc_pbn_mode(mode->clock, min_bpp, false) > port->full_pbn)
@@ -3561,6 +3568,32 @@ static void dw_dp_enable_vop_gate(struct dw_dp *dp, struct drm_crtc *crtc,
 		rockchip_drm_crtc_output_pre_disable(crtc, output_if);
 }
 
+/*
+ * When DPTX controller config 2 pixe mode and work in sst mode,
+ * and a low pixel clock image transmit in high link rate(HBR3),
+ * some monitor may display flicker. To avoid this issue appear, use
+ * lower link rate(HBR2) when transmit a low pixel clock image.
+ */
+static void dw_dp_limit_max_link_rate(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+	struct dw_dp_video *video = &dp->video;
+
+	link->rate = link->max_rate;
+
+	if (dp->is_mst)
+		return;
+
+	if (dp->pixel_mode != DPTX_MP_DUAL_PIXEL)
+		return;
+
+	if (video->mode.clock > 50000)
+		return;
+
+	if (link->max_rate > 540000)
+		link->rate = 540000;
+}
+
 static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 					    struct drm_atomic_state *state)
 {
@@ -3597,6 +3630,8 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 	mst_enc->mst_conn = mst_conn;
 
 	if (first_mst_stream) {
+		dw_dp_limit_max_link_rate(dp);
+
 		ret = phy_power_on(dp->phy);
 		if (ret)
 			dev_err(dp->dev, "phy power on failed: %d\n", ret);
@@ -4155,6 +4190,8 @@ static int dw_dp_link_enable(struct dw_dp *dp)
 {
 	int ret;
 
+	dw_dp_limit_max_link_rate(dp);
+
 	ret = phy_power_on(dp->phy);
 	if (ret)
 		return ret;
@@ -4412,7 +4449,7 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		    fmt->color_format != DRM_COLOR_FORMAT_YCBCR420)
 			continue;
 
-		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->rate))
+		if (!dw_dp_bandwidth_ok(dp, &mode, fmt->bpp, link->lanes, link->max_rate))
 			continue;
 
 		if (dp_state->bpc != 0) {
