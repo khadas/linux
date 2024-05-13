@@ -311,7 +311,7 @@ static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_BT_DATA_OEN_MASK | SW_INPUT_MODE_MASK,
 			      SW_BT_DATA_OEN | SW_INPUT_MODE(INPUT_MODE_BT1120));
-	rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
+
 	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON0,
 			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC |
 			      SW_PROGRESS_EN |
@@ -340,7 +340,7 @@ static void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_RGB_MODE_MASK,
 			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_BT1120 >> 3));
-	rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_R2Y_EN(1));
+
 	if (rk628->version != RK628F_VERSION)
 		rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
 				      SW_DCLK_OUT_INV_EN, SW_DCLK_OUT_INV_EN);

@@ -1594,6 +1594,9 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 		range_type <<= is_input_yuv ? 0 : 1;
 		val = SW_Y2R_MODE(range_type) | SW_FROM_CSC_MATRIX_EN(1);
 		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, val);
+
+		if (rk628_output_is_bt1120(rk628))
+			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(1));
 	}
 }
 
