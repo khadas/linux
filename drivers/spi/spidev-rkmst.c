@@ -617,6 +617,12 @@ MODULE_DEVICE_TABLE(of, spidev_rkmst_dt_match);
 
 #endif /* CONFIG_OF */
 
+static const struct spi_device_id spidev_rkmst_spi_ids[] = {
+	{ .name = "spi-obj-master" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, spidev_rkmst_spi_ids);
+
 static struct spi_driver spidev_rkmst_driver = {
 	.driver = {
 		.name	= "spidev_rkmst",
@@ -625,6 +631,7 @@ static struct spi_driver spidev_rkmst_driver = {
 	},
 	.probe		= spidev_rkmst_probe,
 	.remove		= spidev_rkmst_remove,
+	.id_table	= spidev_rkmst_spi_ids,
 };
 module_spi_driver(spidev_rkmst_driver);
 
