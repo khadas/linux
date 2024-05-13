@@ -395,7 +395,13 @@ MODULE_DEVICE_TABLE(of, spidev_rkslv_dt_match);
 
 #endif /* CONFIG_OF */
 
-static struct spi_driver spidev_rkmst_driver = {
+static const struct spi_device_id spidev_rkslv_spi_ids[] = {
+	{ .name = "spi-obj-slave" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, spidev_rkslv_spi_ids);
+
+static struct spi_driver spidev_rkslv_driver = {
 	.driver = {
 		.name	= "spidev_rkslv",
 		.owner = THIS_MODULE,
@@ -403,8 +409,9 @@ static struct spi_driver spidev_rkmst_driver = {
 	},
 	.probe		= spidev_rkslv_probe,
 	.remove		= spidev_rkslv_remove,
+	.id_table	= spidev_rkslv_spi_ids,
 };
-module_spi_driver(spidev_rkmst_driver);
+module_spi_driver(spidev_rkslv_driver);
 
 MODULE_AUTHOR("Jon Lin <jon.lin@rock-chips.com>");
 MODULE_DESCRIPTION("ROCKCHIP SPI Object Slave Driver");
