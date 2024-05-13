@@ -280,6 +280,11 @@
 		      <0xff814000 0x1000>;
 	};
 
+	grf_pmu: syscon@ff910000 {
+		compatible = "rockchip,rk3506-grf-pmu", "syscon";
+		reg = <0xff910000 0x4000>;
+	};
+
 	pwm0_4ch_0: pwm@ff930000 {
 		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
 		reg = <0xff930000 0x200>;
@@ -338,6 +343,7 @@
 		rockchip,grf = <&ioc_grf>;
 		rockchip,ioc1 = <&ioc1>;
 		rockchip,pmu = <&ioc_pmu>;
+		rockchip,rmio = <&grf_pmu>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -410,3 +416,4 @@
 };
 
 #include "rk3506-pinctrl.dtsi"
+#include "rk3506-pinctrl-rmio.dtsi"
