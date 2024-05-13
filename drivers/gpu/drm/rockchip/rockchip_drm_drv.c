@@ -41,6 +41,7 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
+#include "rockchip_drm_fbdev.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_logo.h"
 
@@ -1722,11 +1723,19 @@ static int rockchip_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_helper_poll_fini;
 
-	drm_fbdev_generic_setup(drm_dev, 0);
+	ret = rockchip_drm_fbdev_init(drm_dev);
+	if (ret)
+		goto err_drm_dev_unregister;
 
-	rockchip_drm_sysfs_init(drm_dev);
+	ret = rockchip_drm_sysfs_init(drm_dev);
+	if (ret)
+		goto err_drm_fbdev_fini;
 
 	return 0;
+err_drm_fbdev_fini:
+	rockchip_drm_fbdev_fini(drm_dev);
+err_drm_dev_unregister:
+	drm_dev_unregister(drm_dev);
 err_kms_helper_poll_fini:
 	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
@@ -1747,6 +1756,7 @@ static void rockchip_drm_unbind(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	rockchip_drm_sysfs_fini(drm_dev);
+	rockchip_drm_fbdev_fini(drm_dev);
 	drm_dev_unregister(drm_dev);
 
 	rockchip_gem_pool_destroy(drm_dev);
