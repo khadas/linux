@@ -1240,6 +1240,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	unsigned long long local_time[3];
 	int ret;
 
 	ret = lcd_tcon_valid_check();
@@ -1260,6 +1261,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	//lcd_tcon_top_set_t5(pdrv);
 
 	/* step 2: tcon_core_reg_update */
+	local_time[0] = sched_clock();
 	if (mm_table->core_reg_header) {
 		if (mm_table->core_reg_header->block_ctrl == 0) {
 			local_cfg->cur_core_reg_table = mm_table->core_reg_table;
@@ -1269,8 +1271,10 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	}
 
 	/* step 3: tcon data set */
+	local_time[1] = sched_clock();
 	if (mm_table->version)
 		lcd_tcon_data_set(pdrv, mm_table);
+	local_time[2] = sched_clock();
 
 	/* step 4: tcon_top_output_set */
 	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL0, 0x76543210);
@@ -1282,67 +1286,6 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	//lcd_venc_enable(pdrv, 1);
 	lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk
 
-	return 0;
-}
-
-int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-
-	if (!tcon_conf)
-		return -1;
-
-	//off goa clk after mute enable
-	lcd_tcon_write(pdrv, 0x30e, 0);
-	//ddrif off
-	lcd_tcon_setb(pdrv, 0x263, 0, 31, 1);
-	//enc off
-	lcd_tcon_setb(pdrv, 0x26c, 0, 8, 1);
-	/* disable demura ddr_if */
-	lcd_tcon_setb(pdrv, 0x1a3, 0, 31, 1);
-	lcd_delay_ms(30);
-
-	//venc off
-	//lcd_venc_enable(pdrv, 0);
-	lcd_tcon_setb(pdrv, 0x207, 0, 4, 1);//disable pre_proc_clk
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: read tcon reg_width: %d, goa:0x %x\n",
-		      __func__, tcon_conf->core_reg_width,
-		      lcd_tcon_read(pdrv, 0x30e));
-	}
-
-	return 0;
-}
-
-int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
-	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
-	unsigned long long local_time[3];
-
-	if (!tcon_conf || !mm_table || !local_cfg)
-		return -1;
-
-	local_time[0] = sched_clock();
-	if (mm_table->core_reg_header) {
-		if (mm_table->core_reg_header->block_ctrl == 0) {
-			local_cfg->cur_core_reg_table = mm_table->core_reg_table;
-			lcd_tcon_core_reg_set(pdrv, tcon_conf,
-				mm_table, mm_table->core_reg_table);
-		}
-	}
-	//venc on
-	//lcd_venc_enable(pdrv, 1);
-
-	local_time[1] = sched_clock();
-	if (mm_table->version)
-		lcd_tcon_data_set(pdrv, mm_table);
-
-	lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk
-
-	local_time[2] = sched_clock();
 	pdrv->config.cus_ctrl.reg_set_time = local_time[1] - local_time[0];
 	pdrv->config.cus_ctrl.data_set_time = local_time[2] - local_time[1];
 
@@ -1361,7 +1304,9 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_setb(pdrv, 0x263, 0, 31, 1);
 	/* disable demura ddr_if */
 	lcd_tcon_setb(pdrv, 0x1a3, 0, 31, 1);
-	msleep(100);
+	msleep(30);
+
+	lcd_tcon_setb(pdrv, 0x207, 0, 4, 1);//disable pre_proc_clk
 
 	/* top reset */
 	lcd_tcon_write(pdrv, TCON_RST_CTRL, 0x003f);

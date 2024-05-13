@@ -664,6 +664,8 @@ struct lcd_reg_map_s {
 #define LCD_STATUS_PREPARE       BIT(5) //control status
 #define LCD_STATUS_VMODE_ACTIVE  BIT(6) //control status
 
+#define LCD_STATUS_TCON_RDY      BIT(8)
+
 #define LCD_VIU_SEL_NONE         0
 
 struct aml_lcd_drv_s {

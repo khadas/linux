@@ -29,7 +29,6 @@ struct lcd_tcon_axi_mem_cfg_s {
 
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
-	unsigned char tcon_is_busy;
 
 	unsigned int core_reg_ver;
 	unsigned int core_reg_width;
@@ -67,8 +66,6 @@ struct lcd_tcon_config_s {
 	void (*tcon_axi_mem_secure)(void);
 	void (*tcon_init_table_pre_proc)(unsigned char *table);
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
-	int (*tcon_reload_pre)(struct aml_lcd_drv_s *pdrv);
-	int (*tcon_reload)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_top_init)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
@@ -269,8 +266,6 @@ int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv);
 

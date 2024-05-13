@@ -80,7 +80,8 @@
 /* 20240307: update swpdf support*/
 /* 20240319: add tcon pre_proc_clk_en control*/
 /* 20240403: update lcd status, notifier event and bypass ufr switch when power off */
-#define LCD_DRV_VERSION    "20240403"
+/* 20240513: update tcon ufr switch mode 3 flow */
+#define LCD_DRV_VERSION    "20240513"
 
 static inline unsigned char __p_to_u8(void *p)
 {
