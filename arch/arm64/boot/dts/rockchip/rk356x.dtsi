@@ -128,7 +128,6 @@
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
 				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
-		rockchip,max-volt = <1150000>;
 		rockchip,pvtm-voltage-sel = <
 			0        84000   0
 			84001    87000   1
