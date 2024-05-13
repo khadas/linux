@@ -597,6 +597,8 @@ struct rkcif_stream {
 	bool				is_single_cap;
 	bool				is_wait_stop_complete;
 	bool				interlaced_bad_frame;
+	bool				is_finish_single_cap;
+	bool				is_wait_single_cap;
 };
 
 struct rkcif_lvds_subdev {
@@ -1081,4 +1083,6 @@ void rkcif_dphy_quick_stream(struct rkcif_device *dev, int on);
 
 void rkcif_check_buffer_update_pingpong_rockit(struct rkcif_stream *stream,
 					       int channel_id);
+
+int rkcif_quick_stream_on(struct rkcif_device *dev);
 #endif

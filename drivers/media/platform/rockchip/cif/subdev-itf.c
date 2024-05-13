@@ -1025,6 +1025,17 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		spin_unlock_irqrestore(&stream->vbq_lock, flags);
 	}
 
+	spin_lock_irqsave(&stream->fps_lock, flags);
+	if (!stream->is_finish_single_cap && stream->is_wait_single_cap &&
+	    (cif_dev->hdr.hdr_mode == NO_HDR ||
+	     (cif_dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+	     (cif_dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
+		rkcif_quick_stream_on(cif_dev);
+		stream->is_finish_single_cap = true;
+		stream->is_wait_single_cap = false;
+	}
+	spin_unlock_irqrestore(&stream->fps_lock, flags);
+
 	rx_buf = to_cif_rx_buf(dbufs);
 	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "buf back to vicap 0x%x\n",
 		 (u32)rx_buf->dummy.dma_addr);
