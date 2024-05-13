@@ -469,6 +469,7 @@ struct rockchip_pinctrl {
 	struct regmap			*regmap_pmu;
 	struct regmap			*regmap_sys_grf;
 	struct regmap			*regmap_ioc1;
+	struct regmap			*regmap_rmio;
 	struct device			*dev;
 	struct rockchip_pin_ctrl	*ctrl;
 	struct pinctrl_desc		pctl;

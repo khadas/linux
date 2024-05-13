@@ -1272,6 +1272,74 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
 	return 0;
 }
 
+static int rockchip_set_rmio(struct rockchip_pin_bank *bank, int pin, int *mux)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
+	struct regmap *regmap;
+	int reg, function;
+	u32 data, rmask;
+	int ret = 0;
+	int iomux_num = (pin / 8);
+	u32 iomux_max, mux_type;
+
+	mux_type = bank->iomux[iomux_num].type;
+	if (mux_type & IOMUX_WIDTH_4BIT)
+		iomux_max = (1 << 4) - 1;
+	else if (mux_type & IOMUX_WIDTH_3BIT)
+		iomux_max = (1 << 3) - 1;
+	else
+		iomux_max = (1 << 2) - 1;
+
+	if (*mux > iomux_max)
+		function = *mux - iomux_max;
+	else
+		return 0;
+
+	switch (ctrl->type) {
+	case RK3506:
+		regmap = info->regmap_rmio;
+		if (bank->bank_num == 0) {
+			if (pin < 24)
+				reg = 0x80 + 0x4 * pin;
+			else
+				ret = -EINVAL;
+		} else if (bank->bank_num == 1) {
+			if (pin >= 9 && pin <= 11)
+				reg = 0xbc + 0x4 * pin;
+			else if (pin >= 18 && pin <= 19)
+				reg = 0xa4 + 0x4 * pin;
+			else if (pin >= 25 && pin <= 27)
+				reg = 0x90 + 0x4 * pin;
+			else
+				ret = -EINVAL;
+		} else {
+			ret = -EINVAL;
+		}
+
+		if (ret) {
+			dev_err(info->dev,
+				"rmio unsupported bank_num %d function %d\n",
+				bank->bank_num, function);
+
+			return -EINVAL;
+		}
+
+		rmask = 0x7f007f;
+		data = 0x7f0000 | function;
+		*mux = 7;
+		ret = regmap_update_bits(regmap, reg, rmask, data);
+		if (ret)
+			return ret;
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /*
  * Set a new mux function for a pin.
  *
@@ -1305,6 +1373,10 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 		return 0;
 
 	dev_dbg(dev, "setting mux of GPIO%d-%d to %d\n", bank->bank_num, pin, mux);
+
+	ret = rockchip_set_rmio(bank, pin, &mux);
+	if (ret)
+		return ret;
 
 	if (bank->iomux[iomux_num].type & IOMUX_SOURCE_PMU)
 		regmap = info->regmap_pmu;
@@ -4875,6 +4947,9 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 	/* try to find the optional reference to the ioc1 syscon */
 	info->regmap_ioc1 = syscon_regmap_lookup_by_phandle_optional(np, "rockchip,ioc1");
+
+	/* try to find the optional reference to the rmio syscon */
+	info->regmap_rmio = syscon_regmap_lookup_by_phandle_optional(np, "rockchip,rmio");
 
 	if (IS_ENABLED(CONFIG_CPU_RK3308) && ctrl->type == RK3308) {
 		ret = rk3308_soc_data_init(info);
