@@ -252,6 +252,8 @@ static bool tx_5v_power_present(struct v4l2_subdev *sd)
 
 	ret = rk628_hdmirx_tx_5v_power_detect(bt1120->plugin_det_gpio);
 	v4l2_dbg(2, debug, sd, "%s: %d\n", __func__, ret);
+	if (bt1120->rk628->is_suspend)
+		ret = false;
 
 	return ret;
 }
@@ -1770,9 +1772,11 @@ static int rk628_bt1120_resume(struct device *dev)
 	rk628_cru_initialize(bt1120->rk628);
 	rk628_bt1120_initial(sd);
 	rk628_hdmirx_plugout(sd);
+	enable_irq(bt1120->plugin_irq);
 	enable_irq(bt1120->hdmirx_irq);
 	schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
 			     msecs_to_jiffies(500));
+	bt1120->rk628->is_suspend = false;
 
 	return 0;
 }
@@ -1785,6 +1789,9 @@ static int rk628_bt1120_suspend(struct device *dev)
 
 	v4l2_info(sd, "%s: suspend!\n", __func__);
 
+	bt1120->rk628->is_suspend = true;
+	rk628_hdmirx_plugout(sd);
+	disable_irq(bt1120->plugin_irq);
 	disable_irq(bt1120->hdmirx_irq);
 	cancel_delayed_work_sync(&bt1120->delayed_work_res_change);
 	cancel_delayed_work_sync(&bt1120->delayed_work_enable_hotplug);

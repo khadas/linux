@@ -308,6 +308,7 @@ struct rk628 {
 	struct dentry *debug_dir;
 	struct gpio_desc *hdmirx_det_gpio;
 	bool last_mipi_status;
+	bool is_suspend;
 };
 
 #define rk628_dbg(rk628, format, ...)	\
