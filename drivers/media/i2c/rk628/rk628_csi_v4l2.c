@@ -1715,10 +1715,9 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 			 __func__, hact, vact);
 
 		rk628_csi_enable_interrupts(sd, false);
-		if (csi->rk628->version < RK628F_VERSION) {
+		if (csi->rk628->version < RK628F_VERSION)
 			enable_stream(sd, false);
-			csi->nosignal = true;
-		}
+		csi->nosignal = true;
 		v4l2_event_queue(sd->devnode, &evt_signal_lost);
 		schedule_delayed_work(&csi->delayed_work_res_change, msecs_to_jiffies(100));
 
@@ -2067,15 +2066,15 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 
-	/* The application don't wants this to be blocked, so use mutex_trylock() */
-	if (!mutex_trylock(&csi->confctl_mutex)) {
+	if (!tx_5v_power_present(sd) || csi->nosignal) {
+		v4l2_info(sd, "%s hdmirx no signal\n", __func__);
 		format->format.code = csi->mbus_fmt_code;
 		format->format.width = RK628_DEFAULT_WIDTH;
 		format->format.height = RK628_DEFAULT_HEIGHT;
 		format->format.field = V4L2_FIELD_NONE;
 		return 0;
 	}
-
+	mutex_lock(&csi->confctl_mutex);
 	format->format.code = csi->mbus_fmt_code;
 	format->format.width = ALIGN_DOWN(csi->timings.bt.width, 8);
 	format->format.height = csi->timings.bt.height;
@@ -2938,6 +2937,7 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 		rk628_csi_enable_csi_interrupts(sd, false);
 		rk628_csi_disable_stream(sd);
 	}
+	csi->nosignal = true;
 	/* control hpd after 50ms */
 	schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
 	v4l2_event_queue(sd->devnode, &evt_signal_lost);
