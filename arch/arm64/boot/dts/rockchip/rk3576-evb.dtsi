@@ -760,6 +760,8 @@
 		| RKPM_VCCIO3_RET_EN
 		)
 	>;
+
+	rockchip,regulator-on-before-mem = <&vdd_npu_s0>;
 };
 
 &route_dsi {
