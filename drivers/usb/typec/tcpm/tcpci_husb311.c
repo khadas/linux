@@ -309,6 +309,16 @@ static void husb311_remove(struct i2c_client *client)
 	tcpci_unregister_port(chip->tcpci);
 }
 
+static void husb311_shutdown(struct i2c_client *client)
+{
+	struct husb311_chip *chip = i2c_get_clientdata(client);
+
+	husb311_set_vbus(chip->tcpci, &chip->data, false, false);
+
+	cancel_delayed_work_sync(&chip->pm_work);
+	tcpci_unregister_port(chip->tcpci);
+}
+
 static int husb311_pm_suspend(struct device *dev)
 {
 	struct husb311_chip *chip = dev->driver_data;
@@ -388,6 +398,7 @@ static struct i2c_driver husb311_i2c_driver = {
 	},
 	.probe = husb311_probe,
 	.remove = husb311_remove,
+	.shutdown = husb311_shutdown,
 	.id_table = husb311_id,
 };
 module_i2c_driver(husb311_i2c_driver);
