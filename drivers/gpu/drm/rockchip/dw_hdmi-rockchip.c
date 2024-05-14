@@ -1830,8 +1830,14 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 	hdmi = to_rockchip_hdmi(encoder);
 
 	if (!hdmi->skip_check_420_mode) {
+		u32 max_tmds_clock = connector->display_info.max_tmds_clock;
+
+		/* some sinks edid max_tmds_clocks are 0, we think it only support hdmi1.4 */
+		if (!connector->display_info.max_tmds_clock)
+			max_tmds_clock = 340000;
+
 		/* edid isn't support yuv420 and max_tmds_clock is less than mode pixel clk */
-		if (mode->clock < 600000 && connector->display_info.max_tmds_clock < mode->clock &&
+		if (mode->clock < 600000 && max_tmds_clock < mode->clock &&
 		    (!drm_mode_is_420(&connector->display_info, mode) ||
 		     !connector->ycbcr_420_allowed))
 			return MODE_BAD;
@@ -1846,7 +1852,7 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 		 * exceeds the max_tmds_clock of edid.
 		 */
 		if (drm_mode_is_420(&connector->display_info, mode) &&
-		    connector->display_info.max_tmds_clock < (mode->clock / 2) &&
+		    max_tmds_clock < (mode->clock / 2) &&
 		    is_hdmi2_mode(mode))
 			return MODE_BAD;
 	};
