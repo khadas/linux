@@ -46,10 +46,10 @@ static const char * const pm_state_str[RK_PM_STATE_MAX] = {
 	[RK_PM_MEM_ULTRA] = "mem-ultra",
 };
 
-static struct rk_on_off_regulator_list {
+static struct rk_on_off_regulator_dev_list {
 	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
-} on_off_regs_list[RK_PM_STATE_MAX];
+} on_off_regs_dev_list[RK_PM_STATE_MAX];
 
 /* rk_tag related defines */
 #define sleep_tag_next(t)	\
@@ -217,9 +217,9 @@ static int parse_sleep_config(struct device_node *node, enum rk_pm_state state)
 	return 0;
 }
 
-static int parse_regulator_list(struct device_node *node,
-				char *prop_name,
-				struct regulator_dev **out_list)
+static int parse_regulator_dev_list(struct device_node *node,
+				    char *prop_name,
+				    struct regulator_dev **out_list)
 {
 	struct device_node *dn;
 	struct regulator_dev *reg;
@@ -246,7 +246,7 @@ static int parse_regulator_list(struct device_node *node,
 	return 0;
 }
 
-static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state state)
+static int parse_on_off_regulator_dev(struct device_node *node, enum rk_pm_state state)
 {
 	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
 	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
@@ -259,8 +259,8 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 	snprintf(off_prop_name, sizeof(off_prop_name),
 		 "rockchip,regulator-off-in-%s", pm_state_str[state]);
 
-	parse_regulator_list(node, on_prop_name, on_off_regs_list[state].on_reg_list);
-	parse_regulator_list(node, off_prop_name, on_off_regs_list[state].off_reg_list);
+	parse_regulator_dev_list(node, on_prop_name, on_off_regs_dev_list[state].on_reg_list);
+	parse_regulator_dev_list(node, off_prop_name, on_off_regs_dev_list[state].off_reg_list);
 
 	return 0;
 }
@@ -543,7 +543,7 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);
-		parse_on_off_regulator(node, i);
+		parse_on_off_regulator_dev(node, i);
 	}
 
 	return 0;
@@ -581,8 +581,8 @@ static int pm_config_prepare(struct device *dev)
 		sip_smc_set_suspend_mode(WKUP_SOURCE_CONFIG,
 					 def_config->wakeup_config, 0);
 
-	on_list = on_off_regs_list[state].on_reg_list;
-	off_list = on_off_regs_list[state].off_reg_list;
+	on_list = on_off_regs_dev_list[state].on_reg_list;
+	off_list = on_off_regs_dev_list[state].off_reg_list;
 
 	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_list[i]; i++)
 		regulator_suspend_enable(on_list[i], PM_SUSPEND_MEM);
