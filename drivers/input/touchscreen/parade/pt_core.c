@@ -12305,7 +12305,7 @@ static void pt_setup_early_suspend(struct pt_core_data *cd)
 }
 #elif defined(CONFIG_FB)
 /*******************************************************************************
- * FUNCTION: fb_notifier_callback
+ * FUNCTION: pt_fb_notifier_callback
  *
  * SUMMARY: Call back function for FrameBuffer notifier to allow to call
  * resume/suspend attention list.
@@ -12318,7 +12318,7 @@ static void pt_setup_early_suspend(struct pt_core_data *cd)
  *   event  - event type of fb notifier
  *  *data   - pointer to fb_event structure
  ******************************************************************************/
-static int fb_notifier_callback(struct notifier_block *self,
+static int pt_fb_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data)
 {
 	struct pt_core_data *cd =
@@ -12370,7 +12370,7 @@ static void pt_setup_fb_notifier(struct pt_core_data *cd)
 
 	cd->fb_state = FB_ON;
 
-	cd->fb_notifier.notifier_call = fb_notifier_callback;
+	cd->fb_notifier.notifier_call = pt_fb_notifier_callback;
 
 	rc = fb_register_client(&cd->fb_notifier);
 	if (rc)

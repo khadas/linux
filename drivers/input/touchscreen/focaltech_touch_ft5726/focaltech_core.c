@@ -1432,7 +1432,7 @@ static void fts_resume_work(struct work_struct *work)
 }
 
 #if defined(CONFIG_FB)
-static int fb_notifier_callback(struct notifier_block *self,
+static int fts_fb_notifier_callback(struct notifier_block *self,
                                 unsigned long event, void *data)
 {
     struct fb_event *evdata = data;
@@ -1445,7 +1445,7 @@ static int fb_notifier_callback(struct notifier_block *self,
         return 0;
     }
 
-    if (!(event == FB_EARLY_EVENT_BLANK || event == FB_EVENT_BLANK)) {
+    if (event != FB_EVENT_BLANK) {
         FTS_INFO("event(%lu) do not need process\n", event);
         return 0;
     }
@@ -1454,18 +1454,14 @@ static int fb_notifier_callback(struct notifier_block *self,
     FTS_INFO("FB event:%lu,blank:%d", event, *blank);
     switch (*blank) {
     case FB_BLANK_UNBLANK:
-        if (FB_EARLY_EVENT_BLANK == event) {
-            FTS_INFO("resume: event = %lu, not care\n", event);
-        } else if (FB_EVENT_BLANK == event) {
+        if (FB_EVENT_BLANK == event) {
             queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
         }
         break;
     case FB_BLANK_POWERDOWN:
-        if (FB_EARLY_EVENT_BLANK == event) {
+        if (FB_EVENT_BLANK == event) {
             cancel_work_sync(&fts_data->resume_work);
             fts_ts_suspend(ts_data->dev);
-        } else if (FB_EVENT_BLANK == event) {
-            FTS_INFO("suspend: event = %lu, not care\n", event);
         }
         break;
     default:
@@ -1766,7 +1762,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 #endif
 
 #if defined(CONFIG_FB)
-    ts_data->fb_notif.notifier_call = fb_notifier_callback;
+    ts_data->fb_notif.notifier_call = fts_fb_notifier_callback;
     ret = fb_register_client(&ts_data->fb_notif);
     if (ret) {
         FTS_ERROR("[FB]Unable to register fb_notifier: %d", ret);
