@@ -351,12 +351,19 @@ static const struct of_device_id spi_codec_device_id[] = {
 };
 MODULE_DEVICE_TABLE(of, spi_codec_device_id);
 
+static const struct spi_device_id spi_codec_id[] = {
+	{ "spi-codec" },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, spi_codec_id);
+
 static struct spi_driver spi_codec_driver = {
 	.driver		= {
-		.name	= "spi_codec",
+		.name	= "spi-codec",
 		.owner = THIS_MODULE,
 			.of_match_table = of_match_ptr(spi_codec_device_id),
 	},
+	.id_table	= spi_codec_id,
 	.probe		= spi_codec_probe,
 	.remove		= spi_codec_remove,
 };
