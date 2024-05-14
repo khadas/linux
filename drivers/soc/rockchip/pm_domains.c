@@ -341,6 +341,7 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.pwr_w_mask = (pwr) << 16,			\
 	.pwr_mask = (pwr),				\
 	.status_mask = (status),			\
+	.mem_status_mask = (r_status),			\
 	.repair_status_mask = (r_status),		\
 	.req_offset = r_offset,				\
 	.req_w_mask = (req) << 16,			\
@@ -2287,6 +2288,9 @@ static const struct rockchip_pmu_info rk3568_pmu = {
 static const struct rockchip_pmu_info rk3576_pmu = {
 	.pwr_offset = 0x210,
 	.status_offset = 0x230,
+	.chain_status_offset = 0x248,
+	.mem_status_offset = 0x250,
+	.mem_pwr_offset = 0x300,
 	.req_offset = 0x110,
 	.idle_offset = 0x128,
 	.ack_offset = 0x120,
