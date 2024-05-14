@@ -1718,10 +1718,10 @@ static int rockchip_eink_devfs_notifier(struct notifier_block *nb,
 {
 	switch (action) {
 	case EBC_ON:
-		rockchip_clear_system_status(SYS_STATUS_LOW_POWER);
+		rockchip_set_system_status(SYS_STATUS_EBC);
 		break;
 	case EBC_OFF:
-		rockchip_set_system_status(SYS_STATUS_LOW_POWER);
+		rockchip_clear_system_status(SYS_STATUS_EBC);
 		break;
 	default:
 		break;
