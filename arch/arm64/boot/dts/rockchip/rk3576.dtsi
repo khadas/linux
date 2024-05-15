@@ -786,10 +786,10 @@
 		clocks = <&scmi_clk SCLK_DDR>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
-		vop-bw-dmc-freq = <
-		/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-			0	1999	528000
-			2000	99999	1068000
+		vop-bw-dmc-level = <
+		/* min_bw(MB/s) max_bw(MB/s) freq_level */
+			0	999	DMC_FREQ_LEVEL_LOW
+			1000	99999	DMC_FREQ_LEVEL_MID_LOW
 		>;
 		upthreshold = <40>;
 		downdifferential = <20>;
