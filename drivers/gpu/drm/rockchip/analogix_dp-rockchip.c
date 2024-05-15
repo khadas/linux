@@ -600,7 +600,7 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 			.ops = &rockchip_dp_audio_codec_ops,
 			.spdif = 1,
 			.i2s = 1,
-			.max_i2s_channels = 2,
+			.max_i2s_channels = 8,
 		};
 
 		dp->audio_pdev =
