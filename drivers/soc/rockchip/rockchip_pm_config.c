@@ -51,6 +51,11 @@ static struct rk_on_off_regulator_dev_list {
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
 } on_off_regs_dev_list[RK_PM_STATE_MAX];
 
+static struct rk_regulator {
+	const char *name;
+	struct regulator *reg;
+} on_reg_list_before_mem[MAX_ON_OFF_REG_NUM];
+
 /* rk_tag related defines */
 #define sleep_tag_next(t)	\
 	((struct rk_sleep_tag *)((__u32 *)(t) + (t)->hdr.size))
@@ -276,6 +281,41 @@ const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 	return &sleep_config[state];
 }
 EXPORT_SYMBOL_GPL(rockchip_get_cur_sleep_config);
+
+static int parse_regulator_list(struct platform_device *pdev,
+				struct device_node *node,
+				char *prop_name,
+				struct rk_regulator *reg_list)
+{
+	struct device_node *dn;
+	struct regulator *reg;
+	const char *reg_name;
+	int i, j;
+
+	if (of_find_property(node, prop_name, NULL)) {
+		for (i = 0, j = 0;
+		     (dn = of_parse_phandle(node, prop_name, i)) && j < MAX_ON_OFF_REG_NUM;
+		     i++) {
+			if (of_property_read_string(dn, "regulator-name", &reg_name) == 0) {
+				reg = devm_regulator_get(&pdev->dev, reg_name);
+				if (IS_ERR(reg)) {
+					dev_err(&pdev->dev, "failed to get regulator %s for %s\n",
+						reg_name, prop_name);
+				} else {
+					reg_list[j].name = reg_name;
+					reg_list[j].reg = reg;
+					j++;
+				}
+			} else {
+				dev_err(&pdev->dev, "failed to get regulator-name property in %s\n",
+					dn->name);
+			}
+			of_node_put(dn);
+		}
+	}
+
+	return 0;
+}
 
 static int parse_mcu_sleep_config(struct device_node *node)
 {
@@ -535,6 +575,9 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	parse_io_config(&pdev->dev);
 	parse_mcu_sleep_config(node);
+	parse_regulator_list(pdev, node,
+			     "rockchip,regulator-on-before-mem",
+			     on_reg_list_before_mem);
 
 	if (__is_defined(MODULE))
 		return 0;
@@ -593,8 +636,34 @@ static int pm_config_prepare(struct device *dev)
 	return 0;
 }
 
+static int pm_config_suspend_late(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_reg_list_before_mem[i].reg; i++)
+		if (regulator_enable(on_reg_list_before_mem[i].reg))
+			dev_err(dev, "fail to enable regulator:%s\n",
+				on_reg_list_before_mem[i].name);
+
+	return 0;
+}
+
+static int pm_config_resume_early(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_reg_list_before_mem[i].reg; i++)
+		if (regulator_disable(on_reg_list_before_mem[i].reg))
+			dev_err(dev, "fail to disable regulator:%s\n",
+				on_reg_list_before_mem[i].name);
+
+	return 0;
+}
+
 static const struct dev_pm_ops rockchip_pm_ops = {
 	.prepare = pm_config_prepare,
+	.suspend_late = pm_config_suspend_late,
+	.resume_early = pm_config_resume_early,
 };
 
 static struct platform_driver pm_driver = {
