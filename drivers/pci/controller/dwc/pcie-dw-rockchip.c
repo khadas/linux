@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/rfkill-wlan.h>
+#include <linux/aspm_ext.h>
 
 #include "pcie-designware.h"
 #include "../rockchip-pcie-dma.h"
@@ -1593,6 +1594,38 @@ err:
 
 	return ret;
 }
+
+int rockchip_dw_pcie_pm_ctrl_for_user(struct pci_dev *dev, enum rockchip_pcie_pm_ctrl_flag flag)
+{
+	struct dw_pcie_rp *pp;
+	struct dw_pcie *pci;
+	struct rk_pcie *rk_pcie;
+
+	if (!dev || !dev->bus || !dev->bus->sysdata) {
+		pr_err("%s input invalid\n", __func__);
+		return -EINVAL;
+	}
+
+	pp = dev->bus->sysdata;
+	pci = to_dw_pcie_from_pp(pp);
+	rk_pcie = to_rk_pcie(pci);
+
+	switch (flag) {
+	case ROCKCHIP_PCIE_PM_CTRL_RESET:
+		rockchip_dw_pcie_suspend(rk_pcie->pci->dev);
+		rockchip_dw_pcie_resume(rk_pcie->pci->dev);
+		break;
+	default:
+		dev_err(rk_pcie->pci->dev, "%s flag=%d invalid\n", __func__, flag);
+		return -EINVAL;
+	}
+
+	dev_info(rk_pcie->pci->dev, "%s ltssm=%x\n", __func__,
+		 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_dw_pcie_pm_ctrl_for_user);
 
 #ifdef CONFIG_PCIEASPM
 static int rockchip_dw_pcie_prepare(struct device *dev)
