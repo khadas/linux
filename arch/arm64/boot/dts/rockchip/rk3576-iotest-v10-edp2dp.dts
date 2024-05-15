@@ -37,6 +37,10 @@
 	status = "okay";
 };
 
+&edp_sound {
+	status = "okay";
+};
+
 &hdmi {
 	status = "disabled";
 };
@@ -64,6 +68,10 @@
 
 &route_hdmi {
 	status = "disabled";
+};
+
+&sai6 {
+	status = "okay";
 };
 
 &vp0 {
