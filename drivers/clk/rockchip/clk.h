@@ -795,6 +795,7 @@ enum rockchip_clk_branch_type {
 	branch_muxpmugrf,
 	branch_divider,
 	branch_fraction_divider,
+	branch_fraction_divider_v2,
 	branch_gate,
 	branch_gate_no_set_rate,
 	branch_mmc,
@@ -1035,6 +1036,23 @@ struct rockchip_clk_branch {
 		.div_flags	= df,				\
 		.gate_offset	= -1,				\
 		.child		= ch,				\
+	}
+
+#define COMPOSITE_FRAC_V2(_id, cname, pname, f, mo, ms, mw, do, ds, dw, df)\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_fraction_divider_v2,	\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.div_offset	= do,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
 	}
 
 #define COMPOSITE_DDRCLK(_id, cname, pnames, f, mo, ms, mw,	\
@@ -1350,6 +1368,30 @@ int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale);
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel);
 void rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 					unsigned int reg, void (*cb)(void));
+
+struct clk_hw *clk_hw_register_fractional_divider_v2(struct device *dev,
+						     const char *name,
+						     const char *parent_name,
+						     unsigned long flags,
+						     void __iomem *reg,
+						     u8 mshift, u8 mwidth,
+						     u8 nshift, u8 nwidth,
+						     void __iomem *high_reg,
+						     u8 high_mshift, u8 high_mwidth,
+						     u8 high_nshift, u8 high_nwidth,
+						     u8 clk_divider_flags,
+						     spinlock_t *lock);
+struct clk *clk_register_fractional_divider_v2(struct device *dev,
+					       const char *name,
+					       const char *parent_name,
+					       unsigned long flags,
+					       void __iomem *reg,
+					       u8 mshift, u8 width,
+					       void __iomem *high_reg,
+					       u8 high_mshift, u8 high_width,
+					       u8 clk_divider_flags,
+					       spinlock_t *lock);
+void clk_hw_unregister_fractional_divider_v2(struct clk_hw *hw);
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 

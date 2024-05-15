@@ -12,6 +12,7 @@ clk-rockchip-y += clk-cpu.o
 clk-rockchip-y += clk-half-divider.o
 clk-rockchip-y += clk-mmc-phase.o
 clk-rockchip-y += clk-muxgrf.o
+clk-rockchip-y += clk-fractional-divider-v2.o
 clk-rockchip-$(CONFIG_ROCKCHIP_DDRCLK) += clk-ddr.o
 clk-rockchip-$(CONFIG_ROCKCHIP_CLK_INV)  += clk-inverter.o
 clk-rockchip-$(CONFIG_ROCKCHIP_CLK_PVTM) += clk-pvtm.o
