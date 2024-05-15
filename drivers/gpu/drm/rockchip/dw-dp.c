@@ -3329,7 +3329,8 @@ static void dw_dp_mst_assigned_encoder(struct dw_dp *dp, struct drm_atomic_state
 		if (!connector->state->crtc && new_con_state->crtc) {
 			availble_encoders = encoder_mask ^ connector->possible_encoders;
 			for (i = 0; i < dp->mst_port_num; i++) {
-				if (drm_encoder_crtc_ok(&dp->mst_enc[i].encoder, crtc) &&
+				if (drm_encoder_crtc_ok(&dp->mst_enc[i].encoder,
+							new_con_state->crtc) &&
 				    (availble_encoders &
 				     drm_encoder_mask(&dp->mst_enc[i].encoder))) {
 					mst_conn->mst_enc = &dp->mst_enc[i];
