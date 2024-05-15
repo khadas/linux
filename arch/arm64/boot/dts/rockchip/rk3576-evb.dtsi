@@ -116,6 +116,15 @@
 		rockchip,jack-det;
 	};
 
+	edp_sound: edp-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <128>;
+		rockchip,card-name = "rockchip-edp";
+		rockchip,cpu = <&sai6>;
+		rockchip,codec = <&edp 0>;
+	};
+
 	hdmi_sound: hdmi-sound {
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
