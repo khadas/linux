@@ -3158,6 +3158,7 @@
 		phy-names = "dp";
 		power-domains = <&power RK3576_PD_VO0>;
 		rockchip,grf = <&vo0_grf>;
+		#sound-dai-cells = <1>;
 		status = "disabled";
 
 		ports {
