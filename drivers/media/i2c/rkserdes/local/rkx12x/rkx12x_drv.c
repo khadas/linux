@@ -14,6 +14,11 @@
  *     1. support pinctrl and passthrough
  *     2. support state irq
  *
+ * V1.02.00
+ *     1. support mipi txphy dlane timing setting
+ *     2. support mipi txphy dlane timing property parsing
+ *     3. support rk3588 dcphy parameter setting
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -40,7 +45,7 @@
 #include "rkx12x_api.h"
 #include "rkx12x_remote.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(1, 0x01, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(1, 0x02, 0x00)
 
 #define RKX12X_NAME		"rkx12x"
 
