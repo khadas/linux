@@ -908,7 +908,8 @@ static void rkvdec2_link_power_off(struct mpp_dev *mpp)
 			mpp->hw_ops->clk_off(mpp);
 
 		pm_relax(mpp->dev);
-		pm_runtime_put_sync_suspend(mpp->dev);
+		pm_runtime_mark_last_busy(mpp->dev);
+		pm_runtime_put_autosuspend(mpp->dev);
 
 		mpp_clk_set_rate(&dec->aclk_info, CLK_MODE_NORMAL);
 		mpp_clk_set_rate(&dec->cabac_clk_info, CLK_MODE_NORMAL);
