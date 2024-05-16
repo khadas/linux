@@ -276,6 +276,7 @@ struct dw_mipi_dsi {
 	struct dw_mipi_dsi *slave; /* dual-dsi slave ptr */
 
 	const struct dw_mipi_dsi_plat_data *plat_data;
+	bool support_psr;
 };
 
 /*
@@ -322,6 +323,14 @@ static inline void dsi_write(struct dw_mipi_dsi *dsi, u32 reg, u32 val)
 static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
 {
 	return readl(dsi->base + reg);
+}
+
+static int dw_mipi_dsi_is_cmd_mode(struct dw_mipi_dsi *dsi)
+{
+	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO))
+		return true;
+
+	return false;
 }
 
 static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
@@ -603,13 +612,19 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 	dsi_write(dsi, DSI_PWR_UP, POWERUP);
 }
 
-static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi, struct drm_crtc_state *new_crtc_state)
 {
+
+	if (new_crtc_state && new_crtc_state->self_refresh_active)
+		goto psr_out;
+
 	dsi_write(dsi, DSI_LPCLK_CTRL, 0);
 	dsi_write(dsi, DSI_EDPI_CMD_SIZE, 0);
 	dw_mipi_dsi_set_mode(dsi, 0);
+
+psr_out:
 	if (dsi->slave)
-		dw_mipi_dsi_disable(dsi->slave);
+		dw_mipi_dsi_disable(dsi->slave, new_crtc_state);
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -863,47 +878,92 @@ static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 	dsi_write(dsi, DSI_INT_MSK1, 0);
 }
 
-static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi, struct drm_crtc_state *new_crtc_state)
 {
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 
 	if (phy_ops->power_off)
 		phy_ops->power_off(dsi->plat_data->priv_data);
 
+	if (new_crtc_state && new_crtc_state->self_refresh_active)
+		goto psr_out;
+
 	dsi_write(dsi, DSI_PWR_UP, RESET);
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
 	pm_runtime_put(dsi->dev);
 
+psr_out:
 	if (dsi->slave)
-		dw_mipi_dsi_post_disable(dsi->slave);
+		dw_mipi_dsi_post_disable(dsi->slave, new_crtc_state);
 }
 
-static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
+static struct drm_crtc *dw_mipi_dsi_get_new_crtc(struct dw_mipi_dsi *dsi,
+						 struct drm_atomic_state *state)
 {
+	struct drm_encoder *encoder = dsi->encoder;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
+	if (!connector)
+		return NULL;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return NULL;
+
+	return conn_state->crtc;
+}
+
+static void dw_mipi_dsi_bridge_atomic_post_disable(struct drm_bridge *bridge,
+						   struct drm_bridge_state *old_bridge_state)
+{
+	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+	struct drm_crtc *new_crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
 
-	if (dsi->panel)
-		drm_panel_unprepare(dsi->panel);
+	new_crtc = dw_mipi_dsi_get_new_crtc(dsi, old_state);
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(old_state, new_crtc);
 
-	dw_mipi_dsi_post_disable(dsi);
+	if (dsi->support_psr && new_crtc_state && new_crtc_state->self_refresh_active)
+		dev_info(dsi->dev, "%s:%d:psr entry\n", __func__, __LINE__);
+
+	if (!new_crtc_state || !new_crtc_state->self_refresh_active) {
+		if (dsi->panel)
+			drm_panel_unprepare(dsi->panel);
+	}
+
+	dw_mipi_dsi_post_disable(dsi, new_crtc_state);
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 0);
 }
 
-static void dw_mipi_dsi_bridge_disable(struct drm_bridge *bridge)
+static void dw_mipi_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
+					      struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+	struct drm_crtc *new_crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
 
-	if (dsi->panel)
-		drm_panel_disable(dsi->panel);
+	new_crtc = dw_mipi_dsi_get_new_crtc(dsi, old_state);
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(old_state, new_crtc);
+
+	if (!new_crtc_state || !new_crtc_state->self_refresh_active) {
+		if (dsi->panel)
+			drm_panel_disable(dsi->panel);
+	}
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 1);
 
-	dw_mipi_dsi_disable(dsi);
+	dw_mipi_dsi_disable(dsi, new_crtc_state);
 }
 
 static unsigned int dw_mipi_dsi_get_lanes(struct dw_mipi_dsi *dsi)
@@ -932,7 +992,7 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		drm_mode_copy(&dsi->slave->mode, adjusted_mode);
 }
 
-static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi, struct drm_crtc_state *old_crtc_state)
 {
 	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 	void *priv_data = dsi->plat_data->priv_data;
@@ -940,16 +1000,23 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 	int ret;
 	u32 lanes = dw_mipi_dsi_get_lanes(dsi);
 
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		goto phy_get_lane_rate;
+
 	if (dsi->apb_rst) {
 		reset_control_assert(dsi->apb_rst);
 		usleep_range(10, 20);
 		reset_control_deassert(dsi->apb_rst);
 	}
 
+phy_get_lane_rate:
 	ret = phy_ops->get_lane_mbps(priv_data, adjusted_mode, dsi->mode_flags,
 				     lanes, dsi->format, &dsi->lane_mbps);
 	if (ret)
 		DRM_DEBUG_DRIVER("Phy get_lane_mbps() failed\n");
+
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		goto phy_power_on;
 
 	pm_runtime_get_sync(dsi->dev);
 	dw_mipi_dsi_init(dsi);
@@ -967,12 +1034,16 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 
 	dw_mipi_dsi_clear_err(dsi);
 
+phy_power_on:
 	ret = phy_ops->init(priv_data);
 	if (ret)
 		DRM_DEBUG_DRIVER("Phy init() failed\n");
 
 	if (phy_ops->power_on)
 		phy_ops->power_on(dsi->plat_data->priv_data);
+
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		goto psr_out;
 
 	dw_mipi_dsi_dphy_enable(dsi);
 
@@ -981,27 +1052,45 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 	/* Switch to cmd mode for panel-bridge pre_enable & panel prepare */
 	dw_mipi_dsi_set_mode(dsi, 0);
 
+psr_out:
 	if (dsi->slave)
-		dw_mipi_dsi_pre_enable(dsi->slave);
+		dw_mipi_dsi_pre_enable(dsi->slave, old_crtc_state);
 }
 
-static void dw_mipi_dsi_bridge_pre_enable(struct drm_bridge *bridge)
+static void dw_mipi_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
+						 struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state = NULL;
+
+	crtc = dw_mipi_dsi_get_new_crtc(dsi, old_state);
+	if (!crtc)
+		return;
+
+	old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 1);
 
-	dw_mipi_dsi_pre_enable(dsi);
+	dw_mipi_dsi_pre_enable(dsi, old_crtc_state);
+
+	/* Don't touch the panel if we're coming back from PSR */
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		return;
 
 	if (dsi->panel)
 		drm_panel_prepare(dsi->panel);
 }
 
-static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi, struct drm_crtc_state *old_crtc_state)
 {
 	u32 val;
+
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		goto psr_out;
 
 	val = PHY_TXREQUESTCLKHS;
 	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
@@ -1009,29 +1098,44 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 
 	dsi_write(dsi, DSI_LPCLK_CTRL, val);
 
-	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+	if (!dw_mipi_dsi_is_cmd_mode(dsi)) {
 		dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
 	} else {
 		dsi_write(dsi, DSI_EDPI_CMD_SIZE, dsi->mode.hdisplay);
 		dw_mipi_dsi_set_mode(dsi, 0);
 	}
 
+psr_out:
 	if (dsi->slave)
-		dw_mipi_dsi_enable(dsi->slave);
+		dw_mipi_dsi_enable(dsi->slave, old_crtc_state);
 }
 
-static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
+static void dw_mipi_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *old_state = old_bridge_state->base.state;
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state = NULL;
 
-	dw_mipi_dsi_enable(dsi);
+	crtc = dw_mipi_dsi_get_new_crtc(dsi, old_state);
+	if (crtc)
+		old_crtc_state = drm_atomic_get_old_crtc_state(old_state, crtc);
+
+	if (dsi->support_psr && old_crtc_state && old_crtc_state->self_refresh_active)
+		dev_info(dsi->dev, "%s:%d:psr exit\n", __func__, __LINE__);
+
+	dw_mipi_dsi_enable(dsi, old_crtc_state);
 
 	if (pdata->stream_standby)
 		pdata->stream_standby(pdata->priv_data, 0);
 
-	if (dsi->panel)
-		drm_panel_enable(dsi->panel);
+	/* Don't touch the panel if we're coming back from PSR */
+	if (!old_crtc_state || !old_crtc_state->self_refresh_active) {
+		if (dsi->panel)
+			drm_panel_enable(dsi->panel);
+	}
 
 	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
 		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
@@ -1074,13 +1178,16 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.mode_set     = dw_mipi_dsi_bridge_mode_set,
-	.pre_enable   = dw_mipi_dsi_bridge_pre_enable,
-	.enable	      = dw_mipi_dsi_bridge_enable,
-	.post_disable = dw_mipi_dsi_bridge_post_disable,
-	.disable      = dw_mipi_dsi_bridge_disable,
 	.mode_valid   = dw_mipi_dsi_bridge_mode_valid,
 	.attach	      = dw_mipi_dsi_bridge_attach,
+	.atomic_pre_enable   = dw_mipi_dsi_bridge_atomic_pre_enable,
+	.atomic_enable	     = dw_mipi_dsi_bridge_atomic_enable,
+	.atomic_post_disable = dw_mipi_dsi_bridge_atomic_post_disable,
+	.atomic_disable      = dw_mipi_dsi_bridge_atomic_disable,
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -1226,6 +1333,8 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 		return ERR_PTR(ret);
 	}
 
+	dsi->support_psr = device_property_read_bool(dev, "support-psr");
+
 	dsi->bridge.driver_private = dsi;
 	dsi->bridge.funcs = &dw_mipi_dsi_bridge_funcs;
 #ifdef CONFIG_OF
@@ -1287,8 +1396,35 @@ static int dw_mipi_dsi_connector_get_modes(struct drm_connector *connector)
 	return -EINVAL;
 }
 
+static int dw_mipi_dsi_atomic_check(struct drm_connector *connector,
+				     struct drm_atomic_state *state)
+{
+	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (WARN_ON(!conn_state))
+		return -ENODEV;
+
+	conn_state->self_refresh_aware = true;
+
+	if (!conn_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (!crtc_state)
+		return 0;
+
+	if (crtc_state->self_refresh_active && (!dsi->support_psr || !dw_mipi_dsi_is_cmd_mode(dsi)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct drm_connector_helper_funcs dw_mipi_dsi_connector_helper_funcs = {
 	.get_modes = dw_mipi_dsi_connector_get_modes,
+	.atomic_check = dw_mipi_dsi_atomic_check,
 };
 
 static enum drm_connector_status
