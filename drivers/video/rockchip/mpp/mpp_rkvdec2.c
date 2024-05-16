@@ -2027,6 +2027,14 @@ static int __maybe_unused rkvdec2_runtime_suspend(struct device *dev)
 				disable_irq(mpp->iommu_info->irq);
 		}
 
+		/*
+		 * to ensure hardware is fully idle,
+		 * reset and wait for reset ready before suspend.
+		 */
+		if (mpp->hw_ops->reset)
+			mpp->hw_ops->reset(mpp);
+		mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
+
 		if (mpp->hw_ops->clk_off)
 			mpp->hw_ops->clk_off(mpp);
 	}
