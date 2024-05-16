@@ -1416,14 +1416,30 @@ static int rkvdec_vdpu383_reset(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec_link_dev *link = dec->link_dec;
+	int ret = 0;
+	u32 irq_status = 0;
 
 	mpp_debug_enter();
 
+	/* disable irq */
+	writel(link->info->ip_en_val & BIT(15), link->reg_base + link->info->ip_en_base);
 	/* use ip reset to reset core and mmu */
 	writel(link->info->ip_reset_en, link->reg_base + link->info->ip_reset_base);
-	udelay(5);
+	ret = readl_relaxed_poll_timeout(link->reg_base + link->info->status_base,
+					 irq_status,
+					 irq_status & 0x800,
+					 0, 200);
+	if (ret)
+		dev_err(mpp->dev, "reset timeout\n");
 	/* clear reset ready status bit */
 	writel(link->info->ip_reset_mask, link->reg_base + link->info->status_base);
+
+	/* clear irq and status */
+	writel_relaxed(0xffff0000, link->reg_base + link->info->irq_base);
+	writel_relaxed(0xffff0000, link->reg_base + link->info->status_base);
+
+	/* enable irq */
+	writel(link->info->ip_en_val, link->reg_base + link->info->ip_en_base);
 
 	mpp_debug_leave();
 
