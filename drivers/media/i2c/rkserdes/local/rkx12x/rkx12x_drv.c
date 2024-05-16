@@ -388,8 +388,10 @@ static int rkx12x_add_txphy(struct rkx12x *rkx12x)
 static int rkx12x_txphy_parse_dt(struct device *dev,
 		struct device_node *local_node, struct rkx12x_txphy *txphy)
 {
+	const char *dlane_hstrail_name = "txphy-timing-dlane-hstrail";
+	u32 *dlane_t_hstrail;
 	u32 value = 0;
-	int ret = 0;
+	int ret = 0, length = 0;
 
 	if (dev == NULL || local_node == NULL || txphy == NULL)
 		return -EINVAL;
@@ -398,6 +400,46 @@ static int rkx12x_txphy_parse_dt(struct device *dev,
 	if (ret == 0) {
 		dev_info(dev, "txphy-clock-mode property: %d", value);
 		txphy->clock_mode = value;
+	}
+
+	/* txphy timing */
+	length = of_property_count_u32_elems(local_node, dlane_hstrail_name);
+	if (length < 0)
+		return 0;
+
+	dlane_t_hstrail = kmalloc_array(length, sizeof(u32), GFP_KERNEL);
+	if (!dlane_t_hstrail)
+		return 0;
+
+	ret = of_property_read_u32_array(local_node,
+				dlane_hstrail_name, dlane_t_hstrail, length);
+	if (ret == 0) {
+		switch (length) {
+		case 4:
+			dev_info(dev, "%s[3] property: %d\n", dlane_hstrail_name, dlane_t_hstrail[3]);
+			txphy->mipi_timing.t_hstrail_dlane3 = dlane_t_hstrail[3];
+			txphy->mipi_timing.t_hstrail_dlane3 |= RKX12X_MIPI_TIMING_EN;
+			fallthrough;
+		case 3:
+			dev_info(dev, "%s[2] property: %d\n", dlane_hstrail_name, dlane_t_hstrail[2]);
+			txphy->mipi_timing.t_hstrail_dlane2 = dlane_t_hstrail[2];
+			txphy->mipi_timing.t_hstrail_dlane2 |= RKX12X_MIPI_TIMING_EN;
+			fallthrough;
+		case 2:
+			dev_info(dev, "%s[1] property: %d\n", dlane_hstrail_name, dlane_t_hstrail[1]);
+			txphy->mipi_timing.t_hstrail_dlane1 = dlane_t_hstrail[1];
+			txphy->mipi_timing.t_hstrail_dlane1 |= RKX12X_MIPI_TIMING_EN;
+			fallthrough;
+		case 1:
+			dev_info(dev, "%s[0] property: %d\n", dlane_hstrail_name, dlane_t_hstrail[0]);
+			txphy->mipi_timing.t_hstrail_dlane0 = dlane_t_hstrail[0];
+			txphy->mipi_timing.t_hstrail_dlane0 |= RKX12X_MIPI_TIMING_EN;
+			fallthrough;
+		default:
+			break;
+		}
+
+		kfree(dlane_t_hstrail);
 	}
 
 	return 0;
