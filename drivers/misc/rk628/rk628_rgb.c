@@ -297,7 +297,8 @@ static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 	 * so that the deviation between the actual clk and the required clk
 	 * frequency is not significant.
 	 */
-	dec_clk_rate = rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, mode->clock * 1000);
+	rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, mode->clock * 1000);
+	dec_clk_rate = rk628_cru_clk_get_rate(rk628, CGU_BT1120DEC);
 	if (dec_clk_rate < mode->clock * 1000)
 		rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, mode->clock * 1020);
 

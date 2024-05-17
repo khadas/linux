@@ -480,6 +480,19 @@ static unsigned long rk628_cru_clk_set_rate_bt1120_dec(struct rk628 *rk628,
 	return parent_rate / div;
 }
 
+static unsigned long rk628_cru_clk_get_rate_bt1120_dec(struct rk628 *rk628)
+{
+	unsigned long parent_rate;
+	u32 div;
+
+	parent_rate = rk628_cru_clk_get_rate_bt1120_dec_parent(rk628);
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &div);
+	div = (div & 0x1f) + 1;
+
+	return parent_rate / div;
+}
+
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate)
 {
@@ -535,6 +548,9 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 		break;
 	case CGU_CLK_HDMIRX_AUD:
 		rate = rk628_cru_clk_get_rate_sclk_hdmirx_aud(rk628);
+		break;
+	case CGU_BT1120DEC:
+		rate = rk628_cru_clk_get_rate_bt1120_dec(rk628);
 		break;
 	default:
 		return 0;
