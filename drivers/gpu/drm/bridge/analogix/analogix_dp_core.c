@@ -335,16 +335,22 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	for (lane = 0; lane < lane_count; lane++)
 		dp->link_train.cr_loop[lane] = 0;
 
-	/* Set link rate and count as you want to establish*/
+	/* Set link rate and count as you want to establish */
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 
-	/* Setup RX configuration */
-	buf[0] = dp->link_train.link_rate;
-	buf[1] = dp->link_train.lane_count;
-	retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
-	if (retval < 0)
-		return retval;
+	if (dp->nr_link_rate_table) {
+		/* Setup DP_LINK_RATE_SET for eDP 1.4 and later */
+		drm_dp_dpcd_writeb(&dp->aux, DP_LANE_COUNT_SET, dp->link_train.lane_count);
+		drm_dp_dpcd_writeb(&dp->aux, DP_LINK_RATE_SET, dp->link_rate_select);
+	} else {
+		/* Setup DP_LINK_BW_SET for eDP 1.3 and earlier */
+		buf[0] = dp->link_train.link_rate;
+		buf[1] = dp->link_train.lane_count;
+		retval = drm_dp_dpcd_write(&dp->aux, DP_LINK_BW_SET, buf, 2);
+		if (retval < 0)
+			return retval;
+	}
 
 	/* Spread AMP if required, enable 8b/10b coding */
 	buf[0] = analogix_dp_ssc_supported(dp) ? DP_SPREAD_AMP_0_5 : 0;
@@ -648,23 +654,133 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 	return 0;
 }
 
+static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
+{
+	switch (link_rate) {
+	case DP_LINK_BW_1_62:
+	case DP_LINK_BW_2_7:
+	case DP_LINK_BW_5_4:
+		break;
+	default:
+		return false;
+	}
+
+	switch (lane_count) {
+	case 1:
+	case 2:
+	case 4:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static u8 analogix_dp_select_link_rate_from_table(struct analogix_dp_device *dp)
+{
+	int i;
+	u8 bw_code;
+	u32 max_link_rate = drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate);
+
+	for (i = 0; i < dp->nr_link_rate_table; i++) {
+		bw_code =  drm_dp_link_rate_to_bw_code(dp->link_rate_table[i]);
+
+		if (!analogix_dp_bandwidth_ok(dp, &dp->video_info.mode, dp->link_rate_table[i],
+					      dp->link_train.lane_count))
+			continue;
+
+		if (dp->link_rate_table[i] <= max_link_rate &&
+		    analogix_dp_link_config_validate(bw_code, dp->link_train.lane_count)) {
+			dp->link_rate_select = i;
+			return bw_code;
+		}
+	}
+
+	return 0;
+}
+
+static int analogix_dp_select_rx_bandwidth(struct analogix_dp_device *dp)
+{
+	if (dp->nr_link_rate_table)
+		/*
+		 * Select the smallest one among link rates which meet
+		 * the bandwidth requirement for eDP 1.4 and later.
+		 */
+		dp->link_train.link_rate = analogix_dp_select_link_rate_from_table(dp);
+	else
+		/*
+		 * Select the smaller one between rx DP_MAX_LINK_RATE
+		 * and the max link rate supported by the platform.
+		 */
+		dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate,
+						 dp->video_info.max_link_rate);
+	if (!dp->link_train.link_rate)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int analogix_dp_init_link_rate_table(struct analogix_dp_device *dp)
+{
+	__le16 link_rate_table[DP_MAX_SUPPORTED_RATES];
+	int i;
+	int ret;
+
+	ret = drm_dp_dpcd_read(&dp->aux, DP_SUPPORTED_LINK_RATES, link_rate_table,
+			       sizeof(link_rate_table));
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(link_rate_table); i++) {
+		int val = le16_to_cpu(link_rate_table[i]);
+
+		if (val == 0)
+			break;
+
+		/* Convert to the link_rate as drm_dp_bw_code_to_link_rate() */
+		dp->link_rate_table[i] = (val * 20);
+	}
+	dp->nr_link_rate_table = i;
+
+	return 0;
+}
+
 static int analogix_dp_get_max_rx_bandwidth(struct analogix_dp_device *dp,
 					    u8 *bandwidth)
 {
 	u8 data;
 	int ret;
 
-	/*
-	 * For DP rev.1.1, Maximum link rate of Main Link lanes
-	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
-	 * For DP rev.1.2, Maximum link rate of Main Link lanes
-	 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
-	 */
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
-	if (ret < 0)
-		return ret;
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_DPCD_REV, &data);
+	if (ret == 1 && data >= DP_EDP_14) {
+		u32 max_link_rate;
 
-	*bandwidth = data;
+		/* As the Table 4-23 in eDP 1.4 spec, the link rate table is required */
+		if (!dp->nr_link_rate_table) {
+			dev_info(dp->dev, "eDP version: 0x%02x supports link rate table\n", data);
+
+			ret = analogix_dp_init_link_rate_table(dp);
+			if (ret) {
+				dev_err(dp->dev, "failed to read link rate table: %d\n", ret);
+				return ret;
+			}
+		}
+		max_link_rate = dp->link_rate_table[dp->nr_link_rate_table - 1];
+		*bandwidth = drm_dp_link_rate_to_bw_code(max_link_rate);
+	} else {
+		/*
+		 * For DP rev.1.1, Maximum link rate of Main Link lanes
+		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps
+		 * For DP rev.1.2, Maximum link rate of Main Link lanes
+		 * 0x06 = 1.62 Gbps, 0x0a = 2.7 Gbps, 0x14 = 5.4Gbps
+		 */
+		ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LINK_RATE, &data);
+		if (ret < 0)
+			return ret;
+
+		*bandwidth = data;
+	}
 
 	return 0;
 }
@@ -702,9 +818,14 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	 */
 	analogix_dp_reset_macro(dp);
 
-	/* Setup TX lane count & rate */
+	/* Setup TX lane count */
 	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
-	dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate, max_rate);
+
+	/* Setup TX lane rate */
+	if (analogix_dp_select_rx_bandwidth(dp)) {
+		dev_err(dp->dev, "Select rx bandwidth failed\n");
+		return -EINVAL;
+	}
 
 	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
 				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
@@ -1921,29 +2042,6 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->v_sync_polarity = true;
 	if (of_property_read_bool(dp_node, "interlaced"))
 		video->interlaced = true;
-}
-
-static bool analogix_dp_link_config_validate(u8 link_rate, u8 lane_count)
-{
-	switch (link_rate) {
-	case DP_LINK_BW_1_62:
-	case DP_LINK_BW_2_7:
-	case DP_LINK_BW_5_4:
-		break;
-	default:
-		return false;
-	}
-
-	switch (lane_count) {
-	case 1:
-	case 2:
-	case 4:
-		break;
-	default:
-		return false;
-	}
-
-	return true;
 }
 
 static enum drm_mode_status

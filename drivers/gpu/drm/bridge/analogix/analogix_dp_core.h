@@ -182,6 +182,9 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
+	int			nr_link_rate_table;
+	int			link_rate_table[DP_MAX_SUPPORTED_RATES];
+	int			link_rate_select;
 	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
 	bool			fast_train_enable;
