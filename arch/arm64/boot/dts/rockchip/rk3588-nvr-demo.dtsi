@@ -535,7 +535,7 @@
 			<0xb5	KEY_BACKSPACE>;
 	};
 };
-
+/*
 &rk806single {
 	pinctrl-names = "default", "pmic-power-off";
 	pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
@@ -555,7 +555,7 @@
 		};
 	};
 };
-
+*/
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;

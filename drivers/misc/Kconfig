@@ -512,6 +512,17 @@ config VCPU_STALL_DETECTOR
 	  will be called vcpu_stall_detector.
 
 	  If you do not intend to run this kernel as a guest, say N.
+config RK803
+	tristate "RK803"
+	default n
+	help
+	  Driver for RK803 which is used for driving porjector and IR flood LED.
+
+config KHADAS_MCU
+	tristate "Khadas MCU control driver"
+	default n
+	help
+	  This driver allow to control MCU.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

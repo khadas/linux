@@ -20,6 +20,7 @@
  * Global Utility Structures and Macros
  */
 
+MODULE_IMPORT_NS(DMA_BUF);
 #define UVC_ATTR(prefix, cname, aname) \
 static struct configfs_attribute prefix##attr_##cname = { \
 	.ca_name	= __stringify(aname),				\
