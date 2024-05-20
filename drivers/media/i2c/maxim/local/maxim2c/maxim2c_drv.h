@@ -82,6 +82,8 @@ typedef struct maxim2c {
 
 	u32 chipid;
 
+	bool remote_routing_to_isp;
+
 	bool streaming;
 	bool power_on;
 	bool hot_plug;

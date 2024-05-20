@@ -336,6 +336,7 @@ static long maxim2c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_capture_info *capture_info;
 	long ret = 0;
 
 	dev_dbg(&maxim2c->client->dev, "ioctl cmd = 0x%08x\n", cmd);
@@ -362,6 +363,13 @@ static long maxim2c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&maxim2c->client->dev, "get dcphy param\n");
 		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = (struct rkmodule_capture_info *)arg;
+		if (maxim2c->remote_routing_to_isp != 0)
+			capture_info->mode = RKMODULE_MULTI_CH_TO_MULTI_ISP;
+		else
+			capture_info->mode = RKMODULE_CAPTURE_MODE_NONE;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -378,6 +386,7 @@ static long maxim2c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_vicap_reset_info *vicap_rst_inf;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_capture_info  *capture_info;
 	long ret = 0;
 
 	switch (cmd) {
@@ -454,6 +463,22 @@ static long maxim2c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 		}
 		kfree(dphy_param);
 		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = kzalloc(sizeof(*capture_info), GFP_KERNEL);
+		if (!capture_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = maxim2c_ioctl(sd, cmd, capture_info);
+		if (!ret) {
+			ret = copy_to_user(up, capture_info,
+					   sizeof(*capture_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(capture_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -492,10 +517,14 @@ static int __maxim2c_start_stream(maxim2c_t *maxim2c)
 
 #if (MAXIM2C_TEST_PATTERN == 0)
 	// remote devices power on
-	ret = maxim2c_remote_devices_power(maxim2c, link_mask, 1);
-	if (ret) {
-		dev_err(dev, "remote devices power on error\n");
-		return ret;
+	if (maxim2c->remote_routing_to_isp == 0) {
+		ret = maxim2c_remote_devices_power(maxim2c, link_mask, 1);
+		if (ret) {
+			dev_err(dev, "remote devices power on error\n");
+			return ret;
+		}
+	} else {
+		dev_info(dev, "remote devices power on by cif\n");
 	}
 #endif /* MAXIM2C_TEST_PATTERN */
 
@@ -516,10 +545,14 @@ static int __maxim2c_start_stream(maxim2c_t *maxim2c)
 
 #if (MAXIM2C_TEST_PATTERN == 0)
 	// remote devices start stream
-	ret = maxim2c_remote_devices_s_stream(maxim2c, link_mask, 1);
-	if (ret) {
-		dev_err(dev, "remote devices start stream error\n");
-		return ret;
+	if (maxim2c->remote_routing_to_isp == 0) {
+		ret = maxim2c_remote_devices_s_stream(maxim2c, link_mask, 1);
+		if (ret) {
+			dev_err(dev, "remote devices start stream error\n");
+			return ret;
+		}
+	} else {
+		dev_info(dev, "remote devices start stream by cif\n");
 	}
 #endif /* MAXIM2C_TEST_PATTERN */
 
@@ -603,10 +636,14 @@ static int __maxim2c_stop_stream(maxim2c_t *maxim2c)
 	ret |= maxim2c_video_pipe_mask_enable(maxim2c, pipe_mask, false);
 
 #if (MAXIM2C_TEST_PATTERN == 0)
-	// remote devices stop stream
-	ret |= maxim2c_remote_devices_s_stream(maxim2c, link_mask, 0);
-	// remote devices power off
-	ret |= maxim2c_remote_devices_power(maxim2c, link_mask, 0);
+	if (maxim2c->remote_routing_to_isp == 0) {
+		// remote devices stop stream
+		ret |= maxim2c_remote_devices_s_stream(maxim2c, link_mask, 0);
+		// remote devices power off
+		ret |= maxim2c_remote_devices_power(maxim2c, link_mask, 0);
+	} else {
+		dev_info(dev, "remote devices control by cif\n");
+	}
 #endif /* MAXIM2C_TEST_PATTERN */
 
 	// i2c mux enable: default disable all remote channel
@@ -891,13 +928,15 @@ static int maxim2c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 	u8 data_lanes = maxim2c->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
 
-	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+	for (i = 0; i < PAD_MAX; i++)
+		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
@@ -910,13 +949,15 @@ static int maxim2c_g_mbus_config(struct v4l2_subdev *sd,
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 	u8 data_lanes = maxim2c->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
 
-	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+	for (i = 0; i < PAD_MAX; i++)
+		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 	config->type = V4L2_MBUS_CSI2;
 	config->flags = val;
