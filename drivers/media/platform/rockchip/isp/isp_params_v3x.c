@@ -3609,6 +3609,8 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	if (i == ISP3X_MESH_BUF_NUM) {
+		if (arg->bypass_en)
+			goto end;
 		dev_err(dev->dev, "cannot find cac buf fd(%d)\n", arg->buf_fd);
 		return;
 	}
@@ -3632,19 +3634,27 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, arg->vsize, ISP3X_MI_LUT_CAC_RD_V_SIZE, id);
 	if (ctrl & ISP3X_CAC_EN)
 		ctrl |= ISP3X_CAC_LUT_EN;
+end:
 	isp3_param_write(params_vdev, ctrl, ISP3X_CAC_CTRL, id);
 }
 
 static void
 isp_cac_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
-	u32 val;
+	struct rkisp_isp_params_val_v3x *priv_val = params_vdev->priv_val;
+	u32 val, ctrl = isp3_param_read(params_vdev, ISP3X_CAC_CTRL, id);
 
-	val = isp3_param_read(params_vdev, ISP3X_CAC_CTRL, id);
-	val &= ~ISP3X_CAC_EN;
-	if (en)
-		val |= ISP3X_CAC_EN | ISP3X_CAC_LUT_EN;
-	isp3_param_write(params_vdev, val, ISP3X_CAC_CTRL, id);
+	if (en == !!(ctrl & ISP3X_CAC_EN))
+		return;
+
+	ctrl &= ~(ISP3X_CAC_EN | ISP3X_CAC_LUT_EN | ISP3X_SELF_FORCE_UPD);
+	if (en) {
+		ctrl |= ISP3X_CAC_EN;
+		val = priv_val->buf_cac_idx[id];
+		if (priv_val->buf_cac[id][val].vaddr)
+			ctrl |= ISP3X_CAC_LUT_EN;
+	}
+	isp3_param_write(params_vdev, ctrl, ISP3X_CAC_CTRL, id);
 }
 
 static void
