@@ -5949,7 +5949,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		if (!win->parent && !vop2_cluster_window(win))
 			VOP_WIN_SET(vop2, win, scale_engine_num, win->scale_engine_num);
 
-		if (!win->parent) {
+		/* Only esmart win0 and cluster win0 need to enter config vp id and win dly num */
+		if (!win->parent && !vop2_cluster_sub_window(win)) {
 			VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], vp->id);
 			VOP_CTRL_SET(vop2, win_dly[win->phys_id], win->dly_num);
 		}
