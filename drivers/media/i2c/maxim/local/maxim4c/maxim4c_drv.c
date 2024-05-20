@@ -61,6 +61,11 @@
  *     1. remote sensor Makefile rename module ko
  *     2. remote sensor rename driver name
  *
+ * V3.04.00
+ *     1. fix g_mbus_config flag setting error for ISP
+ *     2. support remote raw sensor s_power and s_stream control by cif
+ *     3. support vicap multi channel to multi ISP mode
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -88,7 +93,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x02, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x04, 0x00)
 
 #define MAXIM4C_NAME			"maxim4c"
 
@@ -527,6 +532,8 @@ static int maxim4c_module_parse_dt(maxim4c_t *maxim4c)
 {
 	struct device *dev = &maxim4c->client->dev;
 	struct device_node *node = NULL;
+	u32 value = 0;
+	int ret = 0;
 
 	// maxim serdes local
 	node = of_get_child_by_name(dev->of_node, "serdes-local-device");
@@ -542,6 +549,12 @@ static int maxim4c_module_parse_dt(maxim4c_t *maxim4c)
 
 		of_node_put(node);
 		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(node, "remote-routing-to-isp", &value);
+	if (ret == 0) {
+		dev_info(dev, "remote-routing-to-isp property: %d\n", value);
+		maxim4c->remote_routing_to_isp = value;
 	}
 
 	/* gmsl link parse dt */
