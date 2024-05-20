@@ -294,6 +294,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				else
 					dphy->phy_index = 5;
 			}
+			dphy_hw->dphy_dev[dphy_hw->dphy_dev_num] = dphy;
 			dphy_hw->dphy_dev_num++;
 			dphy->dphy_hw = dphy_hw;
 			dphy->phy_hw[index] = (void *)dphy_hw;
