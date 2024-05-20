@@ -183,6 +183,7 @@ struct rockchip_udphy {
 	bool dp_sink_hpd_cfg;
 	u8 bw;
 	int id;
+	int dp_lanes;
 
 	/* PHY const config */
 	const struct rockchip_udphy_cfg *cfgs;
@@ -533,7 +534,7 @@ static void udphy_usb_bvalid_enable(struct rockchip_udphy *udphy, u8 enable)
  * B(Flip    )  dpln1         dpln0       usbrx         usbtx
  * ---------------------------------------------------------------------------
  *
- * 2 Mapping the lanes in dtsi
+ * 3 Mapping the lanes in dtsi
  * if all 4 lane assignment for dp function, define rockchip,dp-lane-mux = <x x x x>;
  * sample as follow:
  * ---------------------------------------------------------------------------
@@ -550,6 +551,13 @@ static void udphy_usb_bvalid_enable(struct rockchip_udphy *udphy, u8 enable)
  * <0 1>                  dpln0         dpln1       usbrx         usbtx
  * <2 3>                  usbrx         usbtx       dpln0         dpln1
  * ---------------------------------------------------------------------------
+ * if 1 lane for dp function, 2 lane for usb function, define rockchip,dp-lane-mux = <x>;
+ * sample as follow:
+ * ---------------------------------------------------------------------------
+ *                        B11-B10       A2-A3       A11-A10       B2-B3
+ * rockchip,dp-lane-mux   ln0(tx/rx)    ln1(tx)     ln2(tx/rx)    ln3(tx)
+ * <0>                    dpln0         \           usbrx         usbtx
+ * ---------------------------------------------------------------------------
  */
 
 static int udphy_dplane_select(struct rockchip_udphy *udphy)
@@ -557,16 +565,16 @@ static int udphy_dplane_select(struct rockchip_udphy *udphy)
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	u32 value = 0;
 
-	switch (udphy->mode) {
-	case UDPHY_MODE_DP:
+	switch (udphy->dp_lanes) {
+	case 4:
 		value |= 2 << udphy->dp_lane_sel[2] * 2;
 		value |= 3 << udphy->dp_lane_sel[3] * 2;
 		fallthrough;
-	case UDPHY_MODE_DP_USB:
-		value |= 0 << udphy->dp_lane_sel[0] * 2;
+	case 2:
 		value |= 1 << udphy->dp_lane_sel[1] * 2;
-		break;
-	case UDPHY_MODE_USB:
+		fallthrough;
+	case 1:
+		value |= 0 << udphy->dp_lane_sel[0] * 2;
 		break;
 	default:
 		break;
@@ -578,27 +586,6 @@ static int udphy_dplane_select(struct rockchip_udphy *udphy)
 		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
 
 	return 0;
-}
-
-static int udphy_dplane_get(struct rockchip_udphy *udphy)
-{
-	int dp_lanes;
-
-	switch (udphy->mode) {
-	case UDPHY_MODE_DP:
-		dp_lanes = 4;
-		break;
-	case UDPHY_MODE_DP_USB:
-		dp_lanes = 2;
-		break;
-	case UDPHY_MODE_USB:
-		fallthrough;
-	default:
-		dp_lanes = 0;
-		break;
-	}
-
-	return dp_lanes;
 }
 
 static int udphy_dplane_enable(struct rockchip_udphy *udphy, int dp_lanes)
@@ -664,6 +651,7 @@ static int udphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
 	}
 
 	udphy->mode = UDPHY_MODE_DP_USB;
+	udphy->dp_lanes = 2;
 
 	return 0;
 }
@@ -907,7 +895,7 @@ static int udphy_parse_lane_mux_data(struct rockchip_udphy *udphy, struct device
 
 	num_lanes = len / sizeof(u32);
 
-	if (num_lanes != 2 && num_lanes != 4) {
+	if (num_lanes != 1 && num_lanes != 2 && num_lanes != 4) {
 		dev_err(dev, "invalid number of lane mux\n");
 		return -EINVAL;
 	}
@@ -937,7 +925,8 @@ static int udphy_parse_lane_mux_data(struct rockchip_udphy *udphy, struct device
 	}
 
 	udphy->mode = UDPHY_MODE_DP;
-	if (num_lanes == 2) {
+	udphy->dp_lanes = num_lanes;
+	if (num_lanes == 1 || num_lanes == 2) {
 		udphy->mode |= UDPHY_MODE_USB;
 		udphy->flip = udphy->lane_mux_sel[0] == PHY_LANE_MUX_DP ? true : false;
 	}
@@ -1115,18 +1104,17 @@ static int udphy_power_off(struct rockchip_udphy *udphy, u8 mode)
 static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
-	int ret, dp_lanes;
+	int ret;
 
 	mutex_lock(&udphy->mutex);
 
-	dp_lanes = udphy_dplane_get(udphy);
-	phy_set_bus_width(phy, dp_lanes);
+	phy_set_bus_width(phy, udphy->dp_lanes);
 
 	ret = udphy_power_on(udphy, UDPHY_MODE_DP);
 	if (ret)
 		goto unlock;
 
-	ret = udphy_dplane_enable(udphy, dp_lanes);
+	ret = udphy_dplane_enable(udphy, udphy->dp_lanes);
 	if (ret)
 		goto unlock;
 
@@ -1386,6 +1374,7 @@ static int usbdp_typec_mux_set(struct typec_mux_dev *mux,
 		udphy->lane_mux_sel[2] = PHY_LANE_MUX_DP;
 		udphy->lane_mux_sel[3] = PHY_LANE_MUX_DP;
 		mode = UDPHY_MODE_DP;
+		udphy->dp_lanes = 4;
 		break;
 	case TYPEC_DP_STATE_D:
 		fallthrough;
@@ -1402,6 +1391,7 @@ static int usbdp_typec_mux_set(struct typec_mux_dev *mux,
 			udphy->lane_mux_sel[3] = PHY_LANE_MUX_DP;
 		}
 		mode = UDPHY_MODE_DP_USB;
+		udphy->dp_lanes = 2;
 		break;
 	}
 
@@ -1561,7 +1551,7 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 				goto put_child;
 			}
 
-			phy_set_bus_width(phy, udphy_dplane_get(udphy));
+			phy_set_bus_width(phy, udphy->dp_lanes);
 			phy->attrs.max_link_rate = udphy_dp_get_max_link_rate(udphy, child_np);
 		} else if (of_node_name_eq(child_np, "u3-port")) {
 			phy = devm_phy_create(dev, child_np, &rockchip_u3phy_ops);
