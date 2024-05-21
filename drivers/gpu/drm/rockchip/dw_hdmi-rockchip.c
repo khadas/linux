@@ -3458,8 +3458,10 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 
-	if (hdmi->is_hdmi_qp)
+	if (hdmi->is_hdmi_qp) {
 		dw_hdmi_qp_register_audio(hdmi->hdmi_qp);
+		dw_hdmi_qp_register_cec(hdmi->hdmi_qp);
+	}
 
 	return 0;
 }
