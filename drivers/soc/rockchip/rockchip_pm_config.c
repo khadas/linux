@@ -15,6 +15,8 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/reboot.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -458,6 +460,54 @@ out:
 	return ret;
 }
 
+static int parse_pm_domains(struct device *dev)
+{
+	struct device **pd_dev;
+	struct device_link **pd_link;
+	int num_pds, i, ret;
+
+	num_pds = of_count_phandle_with_args(dev->of_node, "power-domains",
+					     "#power-domain-cells");
+	if (num_pds <= 1)
+		return 0;
+
+	pd_dev = devm_kcalloc(dev, num_pds, sizeof(*pd_dev), GFP_KERNEL);
+	if (!pd_dev)
+		return -ENOMEM;
+
+	pd_link = devm_kcalloc(dev, num_pds, sizeof(*pd_link), GFP_KERNEL);
+	if (!pd_link)
+		return -ENOMEM;
+
+	for (i = 0; i < num_pds; i++) {
+		pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
+		if (IS_ERR(pd_dev[i])) {
+			ret = PTR_ERR(pd_dev[i]);
+			goto detach;
+		}
+
+		pd_link[i] = device_link_add(dev, pd_dev[i], DL_FLAG_STATELESS |
+					     DL_FLAG_PM_RUNTIME);
+		if (!pd_link[i]) {
+			ret = -EINVAL;
+			goto detach;
+		}
+	}
+	devm_kfree(dev, pd_link);
+
+	return 0;
+
+detach:
+	for (i = num_pds - 1; i >= 0; i--) {
+		if (pd_link[i])
+			device_link_del(pd_link[i]);
+		if (!IS_ERR_OR_NULL(pd_dev[i]))
+			dev_pm_domain_detach(pd_dev[i], true);
+	}
+
+	return ret;
+}
+
 static int pm_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
@@ -578,6 +628,12 @@ static int pm_config_probe(struct platform_device *pdev)
 	parse_regulator_list(pdev, node,
 			     "rockchip,regulator-on-before-mem",
 			     on_reg_list_before_mem);
+	ret = parse_pm_domains(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to parse pm domains, ret=%d\n", ret);
+		return ret;
+	}
+	pm_runtime_enable(&pdev->dev);
 
 	if (__is_defined(MODULE))
 		return 0;
@@ -633,7 +689,12 @@ static int pm_config_prepare(struct device *dev)
 	for (i = 0; i < MAX_ON_OFF_REG_NUM && off_list[i]; i++)
 		regulator_suspend_disable(off_list[i], PM_SUSPEND_MEM);
 
-	return 0;
+	return pm_runtime_resume_and_get(dev);
+}
+
+static void pm_config_complete(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
 }
 
 static int pm_config_suspend_late(struct device *dev)
@@ -662,6 +723,7 @@ static int pm_config_resume_early(struct device *dev)
 
 static const struct dev_pm_ops rockchip_pm_ops = {
 	.prepare = pm_config_prepare,
+	.complete = pm_config_complete,
 	.suspend_late = pm_config_suspend_late,
 	.resume_early = pm_config_resume_early,
 };
