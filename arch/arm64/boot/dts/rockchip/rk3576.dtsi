@@ -1326,6 +1326,7 @@
 			)
 			(0)
 		>;
+		power-domains = <&power RK3576_PD_USB>, <&power RK3576_PD_PHP>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
