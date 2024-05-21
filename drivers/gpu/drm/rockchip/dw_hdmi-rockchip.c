@@ -3454,6 +3454,15 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
 	.mode_set = dw_hdmi_rockchip_encoder_mode_set,
 };
 
+/*
+ * Register child devices like audio/cec/hdcp at late_register stage
+ * to avoid register these devie at probe/bind(which may cause
+ * infinite loop of .probe() if a component is always defer)
+ *
+ * As these devices are not that critical, so we don't check
+ * the register results here, just give warning in it's register
+ * function if it failed, let the drm bringup.
+ */
 static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
@@ -3461,6 +3470,7 @@ static int dw_hdmi_encoder_late_register(struct drm_encoder *encoder)
 	if (hdmi->is_hdmi_qp) {
 		dw_hdmi_qp_register_audio(hdmi->hdmi_qp);
 		dw_hdmi_qp_register_cec(hdmi->hdmi_qp);
+		dw_hdmi_qp_register_hdcp(hdmi->hdmi_qp);
 	}
 
 	return 0;

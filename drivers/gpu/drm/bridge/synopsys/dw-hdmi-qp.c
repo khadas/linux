@@ -3775,9 +3775,10 @@ static void dw_hdmi_qp_unregister_platform_device(void *pdev)
 	platform_device_unregister(pdev);
 }
 
-static int dw_hdmi_qp_register_hdcp(struct device *dev,
-				    struct dw_hdmi_qp *hdmi)
+int dw_hdmi_qp_register_hdcp(struct dw_hdmi_qp *hdmi)
 {
+	int ret = 0;
+
 	struct dw_qp_hdcp hdmi_hdcp = {
 		.hdmi = hdmi,
 		.write = hdmi_writel,
@@ -3785,8 +3786,9 @@ static int dw_hdmi_qp_register_hdcp(struct device *dev,
 		.regs = hdmi->regs,
 		.get_mem = dw_hdmi_qp_hdcp14_get_mem,
 	};
+
 	struct platform_device_info hdcp_device_info = {
-		.parent = dev,
+		.parent = hdmi->dev,
 		.id = PLATFORM_DEVID_AUTO,
 		.res = NULL,
 		.num_res = 0,
@@ -3795,16 +3797,23 @@ static int dw_hdmi_qp_register_hdcp(struct device *dev,
 		.size_data = sizeof(hdmi_hdcp),
 		.dma_mask = DMA_BIT_MASK(32),
 	};
-	hdmi->hdcp_dev = platform_device_register_full(&hdcp_device_info);
-	if (IS_ERR(hdmi->hdcp_dev)) {
-		dev_err(dev, "failed to register hdcp!\n");
-		return -ENOMEM;
+
+	if (hdmi->hdcp14_mem) {
+		hdmi->hdcp_dev = platform_device_register_full(&hdcp_device_info);
+		if (IS_ERR(hdmi->hdcp_dev)) {
+			dev_err(hdmi->dev, "Failed to register hdcp device!\n");
+			ret = PTR_ERR(hdmi->hdcp_dev);
+		} else {
+			hdmi->hdcp = hdmi->hdcp_dev->dev.platform_data;
+			ret = devm_add_action_or_reset(hdmi->dev,
+						       dw_hdmi_qp_unregister_platform_device,
+						       hdmi->hdcp_dev);
+		}
 	}
 
-	hdmi->hdcp = hdmi->hdcp_dev->dev.platform_data;
-
-	return 0;
+	return ret;
 }
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_register_hdcp);
 
 int dw_hdmi_qp_register_audio(struct dw_hdmi_qp *hdmi)
 {
@@ -4097,12 +4106,9 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 
 		if (IS_ERR(hdmi->hdcp14_mem)) {
 			ret = PTR_ERR(hdmi->hdcp14_mem);
+			hdmi->hdcp14_mem = NULL;
 			goto err_ddc;
 		}
-
-		ret = dw_hdmi_qp_register_hdcp(dev, hdmi);
-		if (ret)
-			goto err_ddc;
 	}
 
 	return hdmi;
