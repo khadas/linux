@@ -2001,9 +2001,12 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 #endif
 	serial8250_modem_status(up);
 #ifdef CONFIG_ARCH_ROCKCHIP
-	if ((!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err))) &&
-	    ((iir & 0xf) == UART_IIR_THRI))
-		serial8250_tx_chars(up);
+	if ((iir & 0xf) == UART_IIR_THRI) {
+		if (!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err)))
+			serial8250_tx_chars(up);
+		else if (!up->dma->tx_running)
+			__stop_tx(up);
+	}
 #else
 	if ((status & UART_LSR_THRE) && (up->ier & UART_IER_THRI)) {
 		if (!up->dma || up->dma->tx_err)
