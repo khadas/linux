@@ -3782,6 +3782,11 @@ static void dw_hdmi_qp_hdcp14_get_mem(struct dw_hdmi_qp *hdmi, u8 *data, u32 len
 		hdmi->plat_data->set_hdcp14_mem(hdmi_data, false);
 }
 
+static void dw_hdmi_qp_unregister_platform_device(void *pdev)
+{
+	platform_device_unregister(pdev);
+}
+
 static int dw_hdmi_qp_register_hdcp(struct device *dev,
 				    struct dw_hdmi_qp *hdmi)
 {
@@ -3813,6 +3818,42 @@ static int dw_hdmi_qp_register_hdcp(struct device *dev,
 	return 0;
 }
 
+int dw_hdmi_qp_register_audio(struct dw_hdmi_qp *hdmi)
+{
+	int ret = 0;
+
+	struct dw_hdmi_qp_i2s_audio_data audio = {
+		.hdmi	= hdmi,
+		.eld	= hdmi->connector.eld,
+		.write	= hdmi_writel,
+		.read	= hdmi_readl,
+		.mod	= hdmi_modb,
+	};
+
+	struct platform_device_info pdevinfo = {
+		.parent = hdmi->dev,
+		.id = PLATFORM_DEVID_AUTO,
+		.name = "dw-hdmi-qp-i2s-audio",
+		.data = &audio,
+		.size_data = sizeof(audio),
+		.dma_mask = DMA_BIT_MASK(32),
+	};
+
+	hdmi->enable_audio = dw_hdmi_i2s_audio_enable;
+	hdmi->disable_audio = dw_hdmi_i2s_audio_disable;
+	hdmi->audio = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(hdmi->audio)) {
+		dev_err(hdmi->dev, "cannot register %s device\n", pdevinfo.name);
+		ret = PTR_ERR(hdmi->audio);
+	} else {
+		ret = devm_add_action_or_reset(hdmi->dev, dw_hdmi_qp_unregister_platform_device,
+					       hdmi->audio);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_register_audio);
+
 static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 					   const struct dw_hdmi_plat_data *plat_data)
 {
@@ -3820,7 +3861,6 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	struct device_node *np = dev->of_node;
 	struct device_node *ddc_node;
 	struct dw_hdmi_qp *hdmi;
-	struct dw_hdmi_qp_i2s_audio_data audio;
 	struct platform_device_info pdevinfo;
 	struct dw_hdmi_qp_cec_data cec;
 	struct resource *iores = NULL;
@@ -3869,16 +3909,13 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 
 		iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		hdmi->regs = devm_ioremap_resource(dev, iores);
-		if (IS_ERR(hdmi->regs)) {
-			ret = PTR_ERR(hdmi->regs);
-			goto err_ddc;
-		}
+		if (IS_ERR(hdmi->regs))
+			return ERR_CAST(hdmi->regs);
 
 		hdmi->regm = devm_regmap_init_mmio(dev, hdmi->regs, reg_config);
 		if (IS_ERR(hdmi->regm)) {
 			dev_err(dev, "Failed to configure regmap\n");
-			ret = PTR_ERR(hdmi->regm);
-			goto err_ddc;
+			return ERR_CAST(hdmi->regm);
 		}
 	} else {
 		hdmi->regm = plat_data->regm;
@@ -3886,7 +3923,7 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 
 	ret = dw_hdmi_detect_phy(hdmi);
 	if (ret < 0)
-		goto err_ddc;
+		return ERR_PTR(ret);
 
 	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
 		hdmi->force_kernel_output = true;
@@ -3947,34 +3984,17 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 
 	hdmi->connector.ycbcr_420_allowed = hdmi->plat_data->ycbcr_420_allowed;
 
-	audio.hdmi	= hdmi;
-	audio.eld	= hdmi->connector.eld;
-	audio.write	= hdmi_writel;
-	audio.read	= hdmi_readl;
-	audio.mod	= hdmi_modb;
-	hdmi->enable_audio = dw_hdmi_i2s_audio_enable;
-	hdmi->disable_audio = dw_hdmi_i2s_audio_disable;
-
-	memset(&pdevinfo, 0, sizeof(pdevinfo));
-	pdevinfo.parent = dev;
-	pdevinfo.id = PLATFORM_DEVID_AUTO;
-	pdevinfo.name = "dw-hdmi-qp-i2s-audio";
-	pdevinfo.data = &audio;
-	pdevinfo.size_data = sizeof(audio);
-	pdevinfo.dma_mask = DMA_BIT_MASK(32);
-	hdmi->audio = platform_device_register_full(&pdevinfo);
-
 	hdmi->extcon = devm_extcon_dev_allocate(hdmi->dev, dw_hdmi_cable);
 	if (IS_ERR(hdmi->extcon)) {
 		dev_err(hdmi->dev, "allocate extcon failed\n");
 		ret = PTR_ERR(hdmi->extcon);
-		goto err_aud;
+		goto err_ddc;
 	}
 
 	ret = devm_extcon_dev_register(hdmi->dev, hdmi->extcon);
 	if (ret) {
 		dev_err(hdmi->dev, "failed to register extcon: %d\n", ret);
-		goto err_aud;
+		goto err_ddc;
 	}
 
 	ret = extcon_set_property_capability(hdmi->extcon, EXTCON_DISP_HDMI,
@@ -3982,13 +4002,13 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	if (ret) {
 		dev_err(hdmi->dev,
 			"failed to set USB property capability: %d\n", ret);
-		goto err_aud;
+		goto err_ddc;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto err_aud;
+		goto err_ddc;
 	}
 
 	hdmi->avp_irq = irq;
@@ -3997,12 +4017,12 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 					dw_hdmi_qp_avp_irq, IRQF_ONESHOT,
 					dev_name(dev), hdmi);
 	if (ret)
-		goto err_aud;
+		goto err_ddc;
 
 	irq = platform_get_irq(pdev, 1);
 	if (irq < 0) {
 		ret = irq;
-		goto err_aud;
+		goto err_ddc;
 	}
 
 	cec.irq = irq;
@@ -4066,11 +4086,6 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 err_cec:
 	if (!IS_ERR(hdmi->cec))
 		platform_device_unregister(hdmi->cec);
-
-err_aud:
-	if (hdmi->audio && !IS_ERR(hdmi->audio))
-		platform_device_unregister(hdmi->audio);
-
 err_ddc:
 	if (hdmi->i2c)
 		i2c_del_adapter(&hdmi->i2c->adap);
@@ -4105,9 +4120,6 @@ static void dw_hdmi_qp_remove(struct dw_hdmi_qp *hdmi)
 		dw_hdmi_destroy_properties(hdmi);
 		hdmi->connector.funcs->destroy(&hdmi->connector);
 	}
-
-	if (hdmi->audio && !IS_ERR(hdmi->audio))
-		platform_device_unregister(hdmi->audio);
 
 	if (hdmi->bridge.encoder && !hdmi->plat_data->first_screen)
 		hdmi->bridge.encoder->funcs->destroy(hdmi->bridge.encoder);
