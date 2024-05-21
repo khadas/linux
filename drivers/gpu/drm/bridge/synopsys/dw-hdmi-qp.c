@@ -3813,9 +3813,8 @@ static int dw_hdmi_qp_register_hdcp(struct device *dev,
 	return 0;
 }
 
-static struct dw_hdmi_qp *
-__dw_hdmi_probe(struct platform_device *pdev,
-		const struct dw_hdmi_plat_data *plat_data)
+static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
+					   const struct dw_hdmi_plat_data *plat_data)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -4089,7 +4088,7 @@ err_ddc:
 	return ERR_PTR(ret);
 }
 
-static void __dw_hdmi_remove(struct dw_hdmi_qp *hdmi)
+static void dw_hdmi_qp_remove(struct dw_hdmi_qp *hdmi)
 {
 	if (hdmi->avp_irq)
 		disable_irq(hdmi->avp_irq);
@@ -4132,14 +4131,14 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 	struct dw_hdmi_qp *hdmi;
 	int ret;
 
-	hdmi = __dw_hdmi_probe(pdev, plat_data);
+	hdmi = dw_hdmi_qp_probe(pdev, plat_data);
 	if (IS_ERR(hdmi))
 		return hdmi;
 
 	if (!plat_data->first_screen) {
 		ret = drm_bridge_attach(encoder, &hdmi->bridge, NULL, 0);
 		if (ret) {
-			__dw_hdmi_remove(hdmi);
+			dw_hdmi_qp_remove(hdmi);
 			dev_err(hdmi->dev, "Failed to initialize bridge with drm\n");
 			return ERR_PTR(ret);
 		}
@@ -4173,7 +4172,7 @@ EXPORT_SYMBOL_GPL(dw_hdmi_qp_bind);
 
 void dw_hdmi_qp_unbind(struct dw_hdmi_qp *hdmi)
 {
-	__dw_hdmi_remove(hdmi);
+	dw_hdmi_qp_remove(hdmi);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_unbind);
 
