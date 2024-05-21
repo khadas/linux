@@ -282,6 +282,9 @@ struct dw_mipi_dsi2 {
 	bool dual_connector_split;
 	bool left_display;
 	u32 split_area;
+
+	bool support_psr;
+	bool enabled;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -316,6 +319,14 @@ static void grf_field_write(struct dw_mipi_dsi2 *dsi2, enum grf_reg_fields index
 	msb = (field >>  0) & 0xff;
 
 	regmap_write(dsi2->grf, reg, (val << lsb) | (GENMASK(msb, lsb) << 16));
+}
+
+static int dw_mipi_dsi2_is_cmd_mode(struct dw_mipi_dsi2 *dsi2)
+{
+	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
+		return true;
+
+	return false;
 }
 
 static int cri_fifos_wait_avail(struct dw_mipi_dsi2 *dsi2)
@@ -432,53 +443,95 @@ static void dw_mipi_dsi2_set_cmd_mode(struct dw_mipi_dsi2 *dsi2)
 				       mode, mode & COMMAND_MODE,
 				       1000, MODE_STATUS_TIMEOUT_US);
 	if (ret < 0)
-		dev_err(dsi2->dev, "failed to enter data stream mode\n");
+		dev_err(dsi2->dev, "failed to enter command mode\n");
 }
 
 static void dw_mipi_dsi2_disable(struct dw_mipi_dsi2 *dsi2)
 {
+	if (!dsi2->enabled)
+		goto out;
+
 	regmap_write(dsi2->regmap, DSI2_IPI_PIX_PKT_CFG, 0);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
 
+out:
 	if (dsi2->slave)
 		dw_mipi_dsi2_disable(dsi2->slave);
 }
 
 static void dw_mipi_dsi2_post_disable(struct dw_mipi_dsi2 *dsi2)
 {
+	if (!dsi2->enabled)
+		goto out;
+
 	dw_mipi_dsi2_irq_enable(dsi2, 0);
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, RESET);
 	mipi_dcphy_power_off(dsi2);
 	pm_runtime_put(dsi2->dev);
 
+out:
 	if (dsi2->slave)
 		dw_mipi_dsi2_post_disable(dsi2->slave);
 }
 
+static struct drm_crtc *dw_mipi_dsi2_get_new_crtc(struct dw_mipi_dsi2 *dsi2,
+						  struct drm_atomic_state *state)
+{
+	struct drm_encoder *encoder = &dsi2->encoder;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
+	if (!connector)
+		return NULL;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return NULL;
+
+	return conn_state->crtc;
+}
+
 static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
-						struct drm_atomic_state *state)
+						struct drm_atomic_state *old_state)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
-	struct drm_crtc *crtc = encoder->crtc;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(encoder->crtc->state);
+	struct drm_crtc *new_crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
 
-	if (dsi2->panel)
-		drm_panel_disable(dsi2->panel);
+	new_crtc = dw_mipi_dsi2_get_new_crtc(dsi2, old_state);
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(old_state, new_crtc);
 
-	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
+	if (new_crtc_state && new_crtc_state->self_refresh_active)
+		dev_dbg(dsi2->dev, "%s:%d: psr entry\n", __func__, __LINE__);
+
+	if (!new_crtc_state || !new_crtc_state->self_refresh_active) {
+		if (dsi2->panel)
+			drm_panel_disable(dsi2->panel);
+	}
+
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2))
 		rockchip_drm_crtc_standby(encoder->crtc, 1);
 
 	dw_mipi_dsi2_disable(dsi2);
 
-	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2))
 		rockchip_drm_crtc_standby(encoder->crtc, 0);
 
-	if (dsi2->panel)
-		drm_panel_unprepare(dsi2->panel);
+	if (!new_crtc_state || !new_crtc_state->self_refresh_active) {
+		if (dsi2->panel)
+			drm_panel_unprepare(dsi2->panel);
+	}
 
 	dw_mipi_dsi2_post_disable(dsi2);
 
-	if (!crtc->state->active_changed)
+	dsi2->enabled = false;
+	if (dsi2->slave)
+		dsi2->slave->enabled = false;
+
+	if (!encoder->crtc->state->active_changed)
 		return;
 
 	if (dsi2->slave)
@@ -747,7 +800,7 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	 * if the controller is intended to operate in data stream mode,
 	 * no more steps are required.
 	 */
-	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO))
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2))
 		return;
 
 	vact = mode->vdisplay;
@@ -809,6 +862,9 @@ dw_mipi_dsi2_work_mode(struct dw_mipi_dsi2 *dsi2, u32 mode)
 
 static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 {
+	if (dsi2->enabled)
+		goto out;
+
 	pm_runtime_get_sync(dsi2->dev);
 
 	dw_mipi_dsi2_host_softrst(dsi2);
@@ -825,6 +881,7 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 	regmap_write(dsi2->regmap, DSI2_PWR_UP, POWER_UP);
 	dw_mipi_dsi2_set_cmd_mode(dsi2);
 
+out:
 	if (dsi2->slave)
 		dw_mipi_dsi2_pre_enable(dsi2->slave);
 }
@@ -851,6 +908,9 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 	u32 mode;
 	int ret;
 
+	if (dsi2->enabled)
+		goto out;
+
 	dw_mipi_dsi2_clk_management(dsi2);
 	dw_mipi_dsi2_ipi_set(dsi2);
 
@@ -868,6 +928,7 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 	else
 		dw_mipi_dsi2_set_data_stream_mode(dsi2);
 
+out:
 	if (dsi2->slave)
 		dw_mipi_dsi2_enable(dsi2->slave);
 }
@@ -941,7 +1002,18 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 					       struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state = NULL;
 	int ret;
+
+	crtc = dw_mipi_dsi2_get_new_crtc(dsi2, state);
+	if (crtc)
+		old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
+
+	if (old_crtc_state && old_crtc_state->self_refresh_active) {
+		rockchip_drm_crtc_standby(encoder->crtc, 1);
+		dev_dbg(dsi2->dev, "%s:%d: psr exit\n", __func__, __LINE__);
+	}
 
 	ret = dw_mipi_dsi2_encoder_mode_set(dsi2, state);
 	if (ret) {
@@ -959,13 +1031,24 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	dw_mipi_dsi2_pre_enable(dsi2);
 
-	if (dsi2->panel)
-		drm_panel_prepare(dsi2->panel);
+	if (!(old_crtc_state && old_crtc_state->self_refresh_active)) {
+		if (dsi2->panel)
+			drm_panel_prepare(dsi2->panel);
+	}
 
 	dw_mipi_dsi2_enable(dsi2);
 
-	if (dsi2->panel)
-		drm_panel_enable(dsi2->panel);
+	if (old_crtc_state && old_crtc_state->self_refresh_active)
+		rockchip_drm_crtc_standby(encoder->crtc, 0);
+
+	dsi2->enabled = true;
+	if (dsi2->slave)
+		dsi2->slave->enabled = true;
+
+	if (!(old_crtc_state && old_crtc_state->self_refresh_active)) {
+		if (dsi2->panel)
+			drm_panel_enable(dsi2->panel);
+	}
 
 	DRM_DEV_INFO(dsi2->dev, "final DSI-Link bandwidth: %u x %d %s\n",
 		     dsi2->lane_hs_rate,
@@ -1011,7 +1094,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
-	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+	if (dw_mipi_dsi2_is_cmd_mode(dsi2)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
 		s->soft_te = dsi2->te_gpio ? true : false;
 		s->hold_mode = dsi2->disable_hold_mode ? false : true;
@@ -1058,12 +1141,16 @@ static void dw_mipi_dsi2_loader_protect(struct dw_mipi_dsi2 *dsi2, bool on)
 		dsi2->phy_enabled = true;
 		if (dsi2->dcphy)
 			dsi2->dcphy->power_count++;
+
+		dsi2->enabled = true;
 	} else {
 		pm_runtime_put(dsi2->dev);
 		phy_exit(dsi2->dcphy);
 		dsi2->phy_enabled = false;
 		if (dsi2->dcphy)
 			dsi2->dcphy->power_count--;
+
+		dsi2->enabled = false;
 	}
 
 	if (dsi2->slave)
@@ -1147,9 +1234,36 @@ dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static int dw_mipi_dsi2_connector_atomic_check(struct drm_connector *connector,
+					       struct drm_atomic_state *state)
+{
+	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (WARN_ON(!conn_state))
+		return -ENODEV;
+
+	conn_state->self_refresh_aware = dsi2->support_psr && dw_mipi_dsi2_is_cmd_mode(dsi2);
+
+	if (!conn_state->crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (!crtc_state)
+		return 0;
+
+	if (crtc_state->self_refresh_active && !dw_mipi_dsi2_is_cmd_mode(dsi2))
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct drm_connector_helper_funcs dw_mipi_dsi2_connector_helper_funcs = {
 	.get_modes = dw_mipi_dsi2_connector_get_modes,
 	.mode_valid = dw_mipi_dsi2_connector_mode_valid,
+	.atomic_check = dw_mipi_dsi2_connector_atomic_check,
 };
 
 static enum drm_connector_status
@@ -1229,6 +1343,7 @@ static int dw_mipi_dsi2_dual_channel_probe(struct dw_mipi_dsi2 *dsi2)
 		dsi2->slave->channel = dsi2->channel;
 		dsi2->slave->format = dsi2->format;
 		dsi2->slave->mode_flags = dsi2->mode_flags;
+		dsi2->slave->support_psr = dsi2->support_psr;
 	}
 
 	return 0;
@@ -1609,6 +1724,7 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 	u32 val;
 	u32 mode;
 
+	pm_runtime_get_sync(dsi2->dev);
 	dw_mipi_dsi2_clk_management(dsi2);
 	regmap_update_bits(dsi2->regmap, DSI2_DSI_VID_TX_CFG, LPDT_DISPLAY_CMD_EN,
 			   msg->flags & MIPI_DSI_MSG_USE_LPM ? LPDT_DISPLAY_CMD_EN : 0);
@@ -1617,12 +1733,12 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 	ret = mipi_dsi_create_packet(&packet, msg);
 	if (ret) {
 		DRM_DEV_ERROR(dsi2->dev, "failed to create packet: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	ret = cri_fifos_wait_avail(dsi2);
 	if (ret)
-		return ret;
+		goto err;
 
 	/* Send payload */
 	while (DIV_ROUND_UP(packet.payload_length, 4)) {
@@ -1649,18 +1765,24 @@ static ssize_t dw_mipi_dsi2_transfer(struct dw_mipi_dsi2 *dsi2,
 
 	ret = cri_fifos_wait_avail(dsi2);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (msg->rx_len) {
 		ret = dw_mipi_dsi2_read_from_fifo(dsi2, msg);
 		if (ret < 0)
-			return ret;
+			goto err;
 	}
+
+	pm_runtime_put(dsi2->dev);
 
 	if (dsi2->slave)
 		dw_mipi_dsi2_transfer(dsi2->slave, msg);
 
 	return msg->tx_len;
+
+err:
+	pm_runtime_put(dsi2->dev);
+	return ret;
 }
 
 static ssize_t dw_mipi_dsi2_host_transfer(struct mipi_dsi_host *host,
@@ -1714,6 +1836,12 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 
 	if (device_property_read_u32(dev, "split-area", &dsi2->split_area))
 		dsi2->split_area = 0;
+
+	dsi2->support_psr = device_property_read_bool(dev, "support-psr");
+	if (dsi2->support_psr && dsi2->auto_calc_mode) {
+		dsi2->auto_calc_mode = false;
+		dev_info(dev, "disable auto-calculation-mode in PSR mode\n");
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
