@@ -3993,6 +3993,7 @@
 			 <&cru SRST_T_EMMC>;
 		reset-names = "core", "bus", "axi", "block", "timer";
 		max-frequency = <200000000>;
+		supports-cqe;
 		status = "disabled";
 	};
 
