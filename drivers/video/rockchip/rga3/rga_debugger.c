@@ -34,6 +34,7 @@ int RGA_DEBUG_TIME;
 int RGA_DEBUG_INT_FLAG;
 int RGA_DEBUG_MM;
 int RGA_DEBUG_CHECK_MODE;
+int RGA_DEBUG_INTERNAL_MODE;
 int RGA_DEBUG_NONUSE;
 int RGA_DEBUG_DEBUG_MODE;
 int RGA_DEBUG_DUMP_IMAGE;
@@ -50,6 +51,7 @@ static int rga_debug_show(struct seq_file *m, void *data)
 		 "INT [%s]\n"
 		 "MM [%s]\n"
 		 "CHECK [%s]\n"
+		 "INTL [%s]\n"
 		 "STOP [%s]\n",
 		 STR_ENABLE(RGA_DEBUG_REG),
 		 STR_ENABLE(RGA_DEBUG_MSG),
@@ -57,6 +59,7 @@ static int rga_debug_show(struct seq_file *m, void *data)
 		 STR_ENABLE(RGA_DEBUG_INT_FLAG),
 		 STR_ENABLE(RGA_DEBUG_MM),
 		 STR_ENABLE(RGA_DEBUG_CHECK_MODE),
+		 STR_ENABLE(RGA_DEBUG_INTERNAL_MODE),
 		 STR_ENABLE(RGA_DEBUG_NONUSE));
 
 	seq_puts(m, "\nhelp:\n");
@@ -66,6 +69,7 @@ static int rga_debug_show(struct seq_file *m, void *data)
 	seq_puts(m, " 'echo int > debug' to enable/disable interruppt log printing.\n");
 	seq_puts(m, " 'echo mm > debug' to enable/disable memory manager log printing.\n");
 	seq_puts(m, " 'echo check > debug' to enable/disable check mode.\n");
+	seq_puts(m, " 'echo intl > debug' to enable/disable internal mode.\n");
 	seq_puts(m, " 'echo stop > debug' to enable/disable stop using hardware\n");
 
 	return 0;
@@ -105,6 +109,14 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 		} else {
 			RGA_DEBUG_TIME = 1;
 			pr_info("open rga test time!\n");
+		}
+	} else if (strncmp(buf, "intl", 4) == 0) {
+		if (RGA_DEBUG_INTERNAL_MODE) {
+			RGA_DEBUG_INTERNAL_MODE = 0;
+			pr_info("close rga internal flag!\n");
+		} else {
+			RGA_DEBUG_INTERNAL_MODE = 1;
+			pr_info("open rga internal flag!\n");
 		}
 	} else if (strncmp(buf, "int", 3) == 0) {
 		if (RGA_DEBUG_INT_FLAG) {

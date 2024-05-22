@@ -138,6 +138,13 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 			job->priority = rga_command_base->priority;
 	}
 
+	if (DEBUGGER_EN(INTERNAL_MODE)) {
+		job->flags |= RGA_JOB_DEBUG_FAKE_BUFFER;
+
+		/* skip subsequent flag judgments. */
+		return job;
+	}
+
 	if (job->rga_command_base.handle_flag & 1) {
 		job->flags |= RGA_JOB_USE_HANDLE;
 
