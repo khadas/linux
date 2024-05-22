@@ -286,6 +286,35 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	return job;
 }
 
+static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
+{
+	struct rga_scheduler_t *scheduler = job->scheduler;
+
+	if (scheduler->ops->read_status) {
+		scheduler->ops->read_status(job, scheduler);
+		pr_err("request[%d] core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+			job->request_id, scheduler->core,
+			job->intr_status, job->hw_status, job->cmd_status,
+			job->work_cycle, job->work_cycle);
+	}
+
+	if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
+	    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+		return orig_ret;
+	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
+		   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+		pr_err("request[%d] job hardware has finished, but the software has timeout!\n",
+			job->request_id);
+		return -EBUSY;
+	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
+		   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+		pr_err("request[%d] job hardware has timeout.\n", job->request_id);
+		return -EBUSY;
+	}
+
+	return orig_ret;
+}
+
 static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 {
 	unsigned long flags;
@@ -300,6 +329,8 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 
 	job = scheduler->running_job;
 	if (ktime_ms_delta(ktime_get(), job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
+		job->ret = rga_job_timeout_query_state(job, job->ret);
+
 		scheduler->running_job = NULL;
 		scheduler->status = RGA_SCHEDULER_ABORT;
 		scheduler->ops->soft_reset(scheduler);
@@ -307,8 +338,6 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 		rga_mm_unmap_job_info(job);
-
-		job->ret = -EBUSY;
 		rga_request_release_signal(scheduler, job);
 
 		rga_power_disable(scheduler);
@@ -769,30 +798,10 @@ static int rga_request_timeout_query_state(struct rga_request *request)
 			job = scheduler->running_job;
 
 			if (request->id == job->request_id) {
-				if (scheduler->ops->read_status) {
-					scheduler->ops->read_status(job, scheduler);
-					pr_err("request[%d] core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
-					       request->id, scheduler->core,
-					       job->intr_status, job->hw_status, job->cmd_status,
-					       job->work_cycle, job->work_cycle);
-				}
+				request->ret = rga_job_timeout_query_state(job, request->ret);
 
-				if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
-				    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
-					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-					return request->ret;
-				} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
-					   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
-					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-					pr_err("request[%d] hardware has finished, but the software has timeout!\n",
-					       request->id);
-					return -EBUSY;
-				} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
-					   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
-					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-					pr_err("request[%d] hardware has timeout.\n", request->id);
-					return -EBUSY;
-				}
+				spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+				break;
 			}
 		}
 
