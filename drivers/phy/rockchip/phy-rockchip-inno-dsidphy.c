@@ -179,6 +179,11 @@
 #define TTL_MODE_ENABLE				BIT(2)
 #define LVDS_MODE_ENABLE			BIT(1)
 #define MIPI_MODE_ENABLE			BIT(0)
+/* LVDS Register Part: reg04 */
+#define LVDS_VCOM_MASK				GENMASK(5, 4)
+#define LVDS_VCOM(x)				UPDATE(x, 5, 4)
+#define LVDS_VOD_MASK				GENMASK(7, 6)
+#define LVDS_VOD(x)				UPDATE(x, 7, 6)
 /* LVDS Register Part: reg0b */
 #define LVDS_LANE_EN_MASK			GENMASK(7, 3)
 #define LVDS_DATA_LANE0_EN			BIT(7)
@@ -239,6 +244,8 @@ struct inno_dsidphy {
 		u16 fbdiv;
 		unsigned long rate;
 	} pll;
+	u32 lvds_vcom;
+	u32 lvds_vod;
 };
 
 enum {
@@ -638,6 +645,35 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	inno_mipi_dphy_lane_enable(inno);
 }
 
+static void inno_dsiphy_lvds_voltage_set(struct inno_dsidphy *inno)
+{
+	u32 val = 0;
+
+	/* This version of inno phy does not have voltage register, skip it. */
+	if (inno->pdata->max_rate == MAX_1GHZ)
+		return;
+
+	if (inno->lvds_vcom >= 1000)
+		val |= LVDS_VCOM(3);
+	else if (inno->lvds_vcom >= 950)
+		val |= LVDS_VCOM(2);
+	else if (inno->lvds_vcom >= 900)
+		val |= LVDS_VCOM(0);
+	else
+		val |= LVDS_VCOM(1); /* 850mV */
+
+	if (inno->lvds_vod >= 400)
+		val |= LVDS_VOD(3);
+	else if (inno->lvds_vod >= 350)
+		val |= LVDS_VOD(2);
+	else if (inno->lvds_vod >= 300)
+		val |= LVDS_VOD(1);
+	else
+		val |= LVDS_VOD(0); /* 250mV */
+
+	phy_update_bits(inno, REGISTER_PART_LVDS, 0x04, LVDS_VCOM_MASK | LVDS_VOD_MASK, val);
+}
+
 static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
 {
 	u8 prediv = 2;
@@ -657,7 +693,7 @@ static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
 			LVDS_DIGITAL_INTERNAL_RESET_MASK,
 			LVDS_DIGITAL_INTERNAL_RESET_DISABLE);
-
+	inno_dsiphy_lvds_voltage_set(inno);
 	/* Select LVDS mode */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, LVDS_MODE_ENABLE);
@@ -956,8 +992,14 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (of_property_read_u32(dev->of_node, "inno,lanes", &inno->lanes))
+	if (device_property_read_u32(dev, "inno,lanes", &inno->lanes))
 		inno->lanes = 4;
+
+	if (device_property_read_u32(dev, "inno,lvds-vcom", &inno->lvds_vcom))
+		inno->lvds_vcom = 950;
+
+	if (device_property_read_u32(dev, "inno,lvds-vod", &inno->lvds_vod))
+		inno->lvds_vod = 350;
 
 	phy_set_drvdata(phy, inno);
 
