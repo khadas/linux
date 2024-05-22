@@ -2863,6 +2863,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	int i;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
+	unsigned long flags;
 	ktime_t now = ktime_get();
 
 	/*
@@ -2873,12 +2874,6 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		master_mode_en = true;
 	else
 		master_mode_en = false;
-
-	if (job->pre_intr_info.enable)
-		rga2_set_pre_intr_reg(job, scheduler);
-
-	if (job->full_csc.flag)
-		rga2_set_reg_full_csc(job, scheduler);
 
 	if (DEBUGGER_EN(REG)) {
 		uint32_t *p;
@@ -2894,15 +2889,23 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				p[2 + i * 4], p[3 + i * 4]);
 	}
 
-	/* All CMD finish int */
-	rga_write(rga_read(RGA2_INT, scheduler) |
-		  m_RGA2_INT_ERROR_ENABLE_MASK | m_RGA2_INT_ALL_CMD_DONE_INT_EN,
-		  RGA2_INT, scheduler);
-
 	/* sys_reg init */
 	sys_ctrl = m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_AUTO_RST |
 		   m_RGA2_SYS_CTRL_RST_PROTECT_P | m_RGA2_SYS_CTRL_DST_WR_OPT_DIS |
 		   m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS;
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	if (job->pre_intr_info.enable)
+		rga2_set_pre_intr_reg(job, scheduler);
+
+	if (job->full_csc.flag)
+		rga2_set_reg_full_csc(job, scheduler);
+
+	/* All CMD finish int */
+	rga_write(rga_read(RGA2_INT, scheduler) |
+		  m_RGA2_INT_ERROR_ENABLE_MASK | m_RGA2_INT_ALL_CMD_DONE_INT_EN,
+		  RGA2_INT, scheduler);
 
 	if (master_mode_en) {
 		/* master mode */
@@ -2926,10 +2929,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
 	}
 
-	if (DEBUGGER_EN(REG))
-		pr_info("sys_ctrl = %x, int = %x\n",
-			rga_read(RGA2_SYS_CTRL, scheduler),
-			rga_read(RGA2_INT, scheduler));
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	if (DEBUGGER_EN(TIME))
 		pr_info("request[%d], set register cost time %lld us\n",
