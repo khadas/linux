@@ -172,10 +172,12 @@
 #define CGU_BT1120DEC		37
 #define CGU_SCLK_UART		38
 #define CGU_CLK_APLL		39
+#define CGU_CLK_UART_SRC	40
 
 unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id);
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate);
 void rk628_cru_init(struct rk628 *rk628);
+void rk628_cru_create_debugfs_file(struct rk628 *rk628);
 
 #endif
