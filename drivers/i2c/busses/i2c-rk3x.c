@@ -95,6 +95,11 @@ enum {
 /* Disable i2c all irqs */
 #define IEN_ALL_DISABLE   0
 
+/* default data update point (0x3 + 1) */
+#define DATA_UPDATE_POINT 0x3
+#define START_SETUP_MAX 0x3
+#define STOP_SETUP_MAX 0x3
+
 #define REG_CON1_AUTO_STOP BIT(0)
 #define REG_CON1_TRANSFER_AUTO_STOP BIT(1)
 #define REG_CON1_NACK_AUTO_STOP BIT(2)
@@ -947,10 +952,10 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 	}
 
 	/*
-	 * calculate sda data hold count by the rules, data_upd_st:3
-	 * is a appropriate value to reduce calculated times.
+	 * calculate sda data hold count by the rules, data_upd_point = 3
+	 * is a appropriate value to reduce calculated times, max is 0x5.
 	 */
-	for (sda_update_cfg = 3; sda_update_cfg > 0; sda_update_cfg--) {
+	for (sda_update_cfg = DATA_UPDATE_POINT; sda_update_cfg > 0; sda_update_cfg--) {
 		max_hold_data_ns =  DIV_ROUND_UP((sda_update_cfg
 						 * (t_calc->div_low) + 1)
 						 * 1000000, clk_rate_khz);
@@ -961,16 +966,19 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 		    (min_setup_data_ns > spec->min_data_setup_ns))
 			break;
 	}
+	sda_update_cfg = (sda_update_cfg ? sda_update_cfg : 1) & DATA_UPDATE_POINT;
 
-	/* calculate setup start config */
+	/* calculate setup start config, min is over 1 by DIV_ROUND_UP */
 	min_setup_start_ns = t->scl_rise_ns + spec->min_setup_start_ns;
 	stp_sta_cfg = DIV_ROUND_UP(clk_rate_khz * min_setup_start_ns
 			   - 1000000, 8 * 1000000 * (t_calc->div_high));
+	stp_sta_cfg = (stp_sta_cfg > START_SETUP_MAX) ? START_SETUP_MAX : stp_sta_cfg;
 
-	/* calculate setup stop config */
+	/* calculate setup stop config, min is over 1 by DIV_ROUND_UP */
 	min_setup_stop_ns = t->scl_rise_ns + spec->min_setup_stop_ns;
 	stp_sto_cfg = DIV_ROUND_UP(clk_rate_khz * min_setup_stop_ns
 			   - 1000000, 8 * 1000000 * (t_calc->div_high));
+	stp_sto_cfg = (stp_sto_cfg > STOP_SETUP_MAX) ? STOP_SETUP_MAX : stp_sto_cfg;
 
 	t_calc->tuning = REG_CON_SDA_CFG(--sda_update_cfg) |
 			 REG_CON_STA_CFG(--stp_sta_cfg) |
