@@ -5,6 +5,8 @@
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
+#include <linux/debugfs.h>
+
 #include "asm-generic/errno-base.h"
 #include "rk628.h"
 #include "rk628_cru.h"
@@ -273,19 +275,85 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 	return (unsigned long)foutpostdiv;
 }
 
+static int rk628_cru_clk_get_parent_rate(struct rk628 *rk628, unsigned int id,
+					 unsigned int *parent_id,
+					 unsigned long *parent_rate)
+{
+	u32 val;
+	int parent = -1;
+
+	switch (id) {
+	case CGU_CLK_RX_READ:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &val);
+		val &= CLK_RX_READ_SEL_MASK;
+		val >>= CLK_RX_READ_SEL_SHIFT;
+		parent = val == CLK_RX_READ_SEL_GPLL ? CGU_CLK_GPLL : CGU_CLK_CPLL;
+		break;
+	case CGU_SCLK_VOP:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &val);
+		val &= CLK_UART_SRC_SEL_MASK;
+		val >>= SCLK_VOP_SEL_SHIFT;
+		parent = val == SCLK_VOP_SEL_GPLL ? CGU_CLK_GPLL : CGU_CLK_CPLL;
+		break;
+	case CGU_CLK_UART_SRC:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON21, &val);
+		val &= SCLK_VOP_SEL_MASK;
+		parent = val == CLK_UART_SRC_SEL_GPLL ? CGU_CLK_GPLL : CGU_CLK_CPLL;
+		break;
+	case CGU_BT1120DEC:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &val);
+		val &= CLK_BT1120DEC_SEL_MASK;
+		parent = val == CLK_BT1120DEC_SEL_GPLL ? CGU_CLK_GPLL : CGU_CLK_CPLL;
+		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &val);
+		if (rk628->version >= RK628F_VERSION)
+			val = (val & CLK_HDMIRX_AUD_SEL_MASK_V2) >> 14;
+		else
+			val = (val & CLK_HDMIRX_AUD_SEL_MASK_V1) >> 15;
+		switch (val) {
+		case 0:
+			parent = CGU_CLK_CPLL;
+			break;
+		case 1:
+			parent = CGU_CLK_GPLL;
+			break;
+		case 2:
+			parent = CGU_CLK_APLL;
+		}
+		break;
+	case CGU_CLK_IMODET:
+		rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &val);
+		val &= CLK_IMODET_SEL_MASK;
+		val >>= CLK_IMODET_SEL_SHIFT;
+		parent = val == SCLK_VOP_SEL_GPLL ? CGU_CLK_GPLL : CGU_CLK_CPLL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (parent < 0)
+		return -EINVAL;
+
+	if (parent_id)
+		*parent_id = parent;
+
+	if (parent_rate)
+		*parent_rate = rk628_cru_clk_get_rate(rk628, parent);
+
+	return 0;
+}
+
 static unsigned long rk628_cru_clk_set_rate_sclk_vop(struct rk628 *rk628,
 						     unsigned long rate)
 {
 	unsigned long m, n, parent_rate;
-	u32 val;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &val);
-	val &= SCLK_VOP_SEL_MASK;
-	val >>= SCLK_VOP_SEL_SHIFT;
-	if (val == SCLK_VOP_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_SCLK_VOP,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rational_best_approximation(rate, parent_rate,
 				    GENMASK(15, 0), GENMASK(15, 0),
@@ -298,15 +366,13 @@ static unsigned long rk628_cru_clk_set_rate_sclk_vop(struct rk628 *rk628,
 static unsigned long rk628_cru_clk_get_rate_sclk_vop(struct rk628 *rk628)
 {
 	unsigned long rate, parent_rate, m, n;
-	u32 mux, div;
+	u32 div;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &mux);
-	mux &= CLK_UART_SRC_SEL_MASK;
-	mux >>= SCLK_VOP_SEL_SHIFT;
-	if (mux == SCLK_VOP_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_SCLK_VOP,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rk628_i2c_read(rk628, CRU_CLKSEL_CON13, &div);
 	m = div >> 16 & 0xffff;
@@ -319,15 +385,13 @@ static unsigned long rk628_cru_clk_get_rate_sclk_vop(struct rk628 *rk628)
 static unsigned long rk628_cru_clk_get_rate_clk_imodet(struct rk628 *rk628)
 {
 	unsigned long rate, parent_rate, n;
-	u32 mux, div;
+	u32 div;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &mux);
-	mux &= CLK_IMODET_SEL_MASK;
-	mux >>= CLK_IMODET_SEL_SHIFT;
-	if (mux == SCLK_VOP_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_CLK_IMODET,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &div);
 	n = div & 0x1f;
@@ -340,15 +404,12 @@ static unsigned long rk628_cru_clk_set_rate_rx_read(struct rk628 *rk628,
 						    unsigned long rate)
 {
 	unsigned long m, n, parent_rate;
-	u32 val;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &val);
-	val &= CLK_RX_READ_SEL_MASK;
-	val >>= CLK_RX_READ_SEL_SHIFT;
-	if (val == CLK_RX_READ_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_CLK_RX_READ,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rational_best_approximation(rate, parent_rate,
 				    GENMASK(15, 0), GENMASK(15, 0),
@@ -358,17 +419,35 @@ static unsigned long rk628_cru_clk_set_rate_rx_read(struct rk628 *rk628,
 	return rate;
 }
 
+static unsigned long rk628_cru_clk_get_rate_rx_read(struct rk628 *rk628)
+{
+	unsigned long rate, m, n, parent_rate;
+	u32 div;
+	int ret;
+
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_CLK_RX_READ,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON14, &div);
+	m = div >> 16 & 0xffff;
+	n = div & 0xffff;
+	rate = parent_rate * m / n;
+
+	return rate;
+}
+
 static unsigned long rk628_cru_clk_get_rate_uart_src(struct rk628 *rk628)
 {
 	unsigned long rate, parent_rate;
-	u32 mux, div;
+	u32 div;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON21, &mux);
-	mux &= SCLK_VOP_SEL_MASK;
-	if (mux == CLK_UART_SRC_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_CLK_UART_SRC,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rk628_i2c_read(rk628, CRU_CLKSEL_CON21, &div);
 	div &= CLK_UART_SRC_DIV_MASK;
@@ -429,42 +508,20 @@ static unsigned long rk628_cru_clk_set_rate_sclk_hdmirx_aud(struct rk628 *rk628,
 
 static unsigned long rk628_cru_clk_get_rate_sclk_hdmirx_aud(struct rk628 *rk628)
 {
-	unsigned long rate;
-	u64 parent_rate;
-	u8 div;
-	u32 val;
+	unsigned long rate, parent_rate;
+	u32 div;
+	int ret;
 
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &val);
-	div = ((val & CLK_HDMIRX_AUD_DIV_MASK) >> 6) + 1;
-	if (rk628->version >= RK628F_VERSION)
-		val = (val & CLK_HDMIRX_AUD_SEL_MASK_V2) >> 14;
-	else
-		val = (val & CLK_HDMIRX_AUD_SEL_MASK_V1) >> 15;
-	if (!val)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
-	else if (val == 2)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_APLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	do_div(parent_rate, div);
-	rate = parent_rate;
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_CLK_HDMIRX_AUD,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &div);
+	div = ((div & CLK_HDMIRX_AUD_DIV_MASK) >> 6) + 1;
+	rate = parent_rate / div;
+
 	return rate;
-}
-
-static unsigned long
-rk628_cru_clk_get_rate_bt1120_dec_parent(struct rk628 *rk628)
-{
-	unsigned long parent_rate;
-	u32 mux;
-
-	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &mux);
-	mux &= CLK_BT1120DEC_SEL_MASK;
-	if (mux == CLK_BT1120DEC_SEL_GPLL)
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
-	else
-		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
-
-	return parent_rate;
 }
 
 static unsigned long rk628_cru_clk_set_rate_bt1120_dec(struct rk628 *rk628,
@@ -472,8 +529,13 @@ static unsigned long rk628_cru_clk_set_rate_bt1120_dec(struct rk628 *rk628,
 {
 	unsigned long parent_rate;
 	u32 div;
+	int ret;
 
-	parent_rate = rk628_cru_clk_get_rate_bt1120_dec_parent(rk628);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_BT1120DEC,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
+
 	div = DIV_ROUND_UP(parent_rate, rate);
 	rk628_i2c_write(rk628, CRU_CLKSEL_CON02, CLK_BT1120DEC_DIV(div-1));
 
@@ -484,8 +546,12 @@ static unsigned long rk628_cru_clk_get_rate_bt1120_dec(struct rk628 *rk628)
 {
 	unsigned long parent_rate;
 	u32 div;
+	int ret;
 
-	parent_rate = rk628_cru_clk_get_rate_bt1120_dec_parent(rk628);
+	ret = rk628_cru_clk_get_parent_rate(rk628, CGU_BT1120DEC,
+					    NULL, &parent_rate);
+	if (ret)
+		return 0;
 
 	rk628_i2c_read(rk628, CRU_CLKSEL_CON02, &div);
 	div = (div & 0x1f) + 1;
@@ -540,6 +606,9 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 	case CGU_CLK_GPLL:
 		rate = rk628_cru_clk_get_rate_pll(rk628, id);
 		break;
+	case CGU_CLK_RX_READ:
+		rate = rk628_cru_clk_get_rate_rx_read(rk628);
+		break;
 	case CGU_SCLK_VOP:
 		rate = rk628_cru_clk_get_rate_sclk_vop(rk628);
 		break;
@@ -557,6 +626,78 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 	}
 
 	return rate;
+}
+
+static void rk628_cru_show_pll_tree(struct seq_file *s, unsigned int parent_id,
+				    const char *parent_name)
+{
+	struct rk628 *rk628 = s->private;
+	unsigned long rate;
+	unsigned int parent, i;
+	unsigned int id_list[] = {
+		CGU_CLK_RX_READ,
+		CGU_SCLK_VOP,
+		CGU_BT1120DEC,
+		CGU_CLK_HDMIRX_AUD,
+		CGU_CLK_IMODET
+	};
+	char const *id_name[] = {
+		"clk_rx_read",
+		"clk_sclk_vop",
+		"clk_bt1120dec",
+		"clk_hdmirx_aud",
+		"clk_imodet"
+	};
+
+	if (rk628->version < RK628F_VERSION && parent_id == CGU_CLK_APLL)
+		return;
+
+	rate = rk628_cru_clk_get_rate(rk628, parent_id);
+	seq_printf(s, "%-22s %10lu\n", parent_name, rate);
+
+	for (i = 0; i < ARRAY_SIZE(id_list); ++i) {
+		rk628_cru_clk_get_parent_rate(rk628, id_list[i], &parent, NULL);
+		if (parent != parent_id)
+			continue;
+		rate = rk628_cru_clk_get_rate(rk628, id_list[i]);
+		seq_printf(s, "    %-18s %10lu\n", id_name[i], rate);
+	}
+}
+
+static int rk628_cru_show_clk_tree(struct seq_file *s, void *data)
+{
+	unsigned int pll_list[] = {CGU_CLK_CPLL, CGU_CLK_GPLL, CGU_CLK_APLL};
+	char const *pll_name[] = {"cpll", "gpll", "apll"};
+	unsigned int i;
+
+	seq_printf(s, "%-22s %10s\n", "  clock", "rate  ");
+	seq_puts(s, "---------------------------------\n");
+
+	for (i = 0; i < ARRAY_SIZE(pll_list); ++i)
+		rk628_cru_show_pll_tree(s, pll_list[i], pll_name[i]);
+
+	return 0;
+}
+
+static int rk628_clk_summary_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_cru_show_clk_tree, rk628);
+}
+
+static const struct file_operations rk628_clk_summary_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_clk_summary_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_cru_create_debugfs_file(struct rk628 *rk628)
+{
+	debugfs_create_file("clk_summary", 0400, rk628->debug_dir, rk628,
+			    &rk628_clk_summary_fops);
 }
 
 void rk628_cru_init(struct rk628 *rk628)
