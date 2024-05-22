@@ -40,7 +40,6 @@ enum rk_pm_state {
 	RK_PM_STATE_MAX
 };
 
-#ifndef MODULE
 static const char * const pm_state_str[RK_PM_STATE_MAX] = {
 	[RK_PM_MEM] = "mem",
 	[RK_PM_MEM_LITE] = "mem-lite",
@@ -51,7 +50,6 @@ static struct rk_on_off_regulator_list {
 	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
 } on_off_regs_list[RK_PM_STATE_MAX];
-#endif
 
 /* rk_tag related defines */
 #define sleep_tag_next(t)	\
@@ -98,7 +96,6 @@ static const struct of_device_id pm_match_table[] = {
 	{ },
 };
 
-#ifndef MODULE
 enum {
 	RK_PM_VIRT_PWROFF_EN = 0,
 	RK_PM_VIRT_PWROFF_IRQ_CFG = 1,
@@ -106,6 +103,11 @@ enum {
 };
 
 static u32 *virtual_pwroff_irqs;
+
+static inline suspend_state_t get_mem_sleep_current(void)
+{
+	return __is_defined(MODULE) ? PM_SUSPEND_MEM : mem_sleep_current;
+}
 
 static int rockchip_pm_virt_pwroff_prepare(struct sys_off_data *data)
 {
@@ -265,7 +267,7 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 
 const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 {
-	suspend_state_t suspend_state = mem_sleep_current;
+	suspend_state_t suspend_state = get_mem_sleep_current();
 	enum rk_pm_state state = suspend_state - PM_SUSPEND_MEM;
 
 	if (state >= RK_PM_STATE_MAX)
@@ -274,7 +276,6 @@ const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 	return &sleep_config[state];
 }
 EXPORT_SYMBOL_GPL(rockchip_get_cur_sleep_config);
-#endif
 
 static int parse_mcu_sleep_config(struct device_node *node)
 {
@@ -535,23 +536,23 @@ static int pm_config_probe(struct platform_device *pdev)
 	parse_io_config(&pdev->dev);
 	parse_mcu_sleep_config(node);
 
-#ifndef MODULE
+	if (__is_defined(MODULE))
+		return 0;
+
 	parse_virtual_pwroff_config(pdev, node);
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);
 		parse_on_off_regulator(node, i);
 	}
-#endif
 
 	return 0;
 }
 
-#ifndef MODULE
 static int pm_config_prepare(struct device *dev)
 {
 	int i;
-	suspend_state_t suspend_state = mem_sleep_current;
+	suspend_state_t suspend_state = get_mem_sleep_current();
 	enum rk_pm_state state = suspend_state - PM_SUSPEND_MEM;
 	struct regulator_dev **on_list;
 	struct regulator_dev **off_list;
@@ -595,16 +596,13 @@ static int pm_config_prepare(struct device *dev)
 static const struct dev_pm_ops rockchip_pm_ops = {
 	.prepare = pm_config_prepare,
 };
-#endif
 
 static struct platform_driver pm_driver = {
 	.probe = pm_config_probe,
 	.driver = {
 		.name = "rockchip-pm",
 		.of_match_table = pm_match_table,
-#ifndef MODULE
 		.pm = &rockchip_pm_ops,
-#endif
 	},
 };
 
