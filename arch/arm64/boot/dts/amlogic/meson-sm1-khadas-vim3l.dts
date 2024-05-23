@@ -96,7 +96,7 @@
 	#size-cells = <0>;
 	pinctrl-0 = <&i2c3_sda_a_pins>, <&i2c3_sck_a_pins>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 
 	touch-controller@38 {
 		compatible = "edt,edt-ft5206";
