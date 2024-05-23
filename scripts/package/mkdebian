@@ -160,6 +160,9 @@ else
 	packagename=linux-image
 fi
 
+packagename=linux-image$LOCAL_VERSION
+kernel_headers_packagename=linux-headers$LOCAL_VERSION
+
 debarch=
 set_debarch
 
@@ -197,7 +200,7 @@ Build-Depends: debhelper-compat (= 12)
 Build-Depends-Arch: bc, bison, cpio, flex, kmod, libelf-dev:native, libssl-dev:native, rsync
 Homepage: https://www.kernel.org/
 
-Package: $packagename-$version
+Package: $packagename
 Architecture: $debarch
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
@@ -220,8 +223,9 @@ EOF
 if is_enabled CONFIG_MODULES; then
 cat <<EOF >> debian/control
 
-Package: linux-headers-$version
+Package: $kernel_headers_packagename
 Architecture: $debarch
+Depends: make, gcc, libc6-dev, bison, flex, libssl-dev
 Description: Linux kernel headers for $version on $debarch
  This package provides kernel header files for $version on $debarch
  .
@@ -233,7 +237,7 @@ fi
 if is_enabled CONFIG_DEBUG_INFO; then
 cat <<EOF >> debian/control
 
-Package: linux-image-$version-dbg
+Package: $packagename-dbg
 Section: debug
 Architecture: $debarch
 Description: Linux kernel debugging symbols for $version

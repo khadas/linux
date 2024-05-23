@@ -2,18 +2,23 @@
 /*
  * Copyright (c) 2019 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- * Copyright (c) 2019 Christian Hewitt <christianshewitt@gmail.com>
  */
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/g12a-clkc.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
+
 /dts-v1/;
+/plugin/;
 
-#include "meson-g12b-s922x.dtsi"
-#include "meson-khadas-vim3.dtsi"
-#include "meson-g12b-khadas-vim3.dtsi"
+/*
+ * Enable Khadas TS050 DSI Panel + Touch Controller
+ * on Khadas VIM3 (A311D) and VIM3L (S905D3)
+ */
 
-/ {
-	compatible = "khadas,vim3", "amlogic,s922x", "amlogic,g12b";
-
+&{/} {
 	panel_backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm_AO_cd 0 25000 0>;
@@ -40,7 +45,6 @@
 		touchscreen-size-y = <1920>;
 		status = "okay";
 	};
-
 };
 
 &mipi_dsi {
@@ -65,7 +69,7 @@
 			       <0>;
 
 	panel@0 {
-		compatible = "khadas,ts101";
+		compatible = "khadas,ts050";
 		reset-gpios = <&gpio_expander 0 GPIO_ACTIVE_LOW>;
 		enable-gpios = <&gpio_expander 1 GPIO_ACTIVE_HIGH>;
 		power-supply = <&vcc_3v3>;
@@ -102,32 +106,3 @@
 &pwm_AO_cd {
 	pinctrl-0 = <&pwm_ao_c_6_pins>, <&pwm_ao_d_e_pins>;
 };
-
-&npu {
-	status = "okay";
-};
-
-/*
- * The VIM3 on-board  MCU can mux the PCIe/USB3.0 shared differential
- * lines using a FUSB340TMX USB 3.1 SuperSpeed Data Switch between
- * an USB3.0 Type A connector and a M.2 Key M slot.
- * The PHY driving these differential lines is shared between
- * the USB3.0 controller and the PCIe Controller, thus only
- * a single controller can use it.
- * If the MCU is configured to mux the PCIe/USB3.0 differential lines
- * to the M.2 Key M slot, uncomment the following block to disable
- * USB3.0 from the USB Complex and enable the PCIe controller.
- * The End User is not expected to uncomment the following except for
- * testing purposes, but instead rely on the firmware/bootloader to
- * update these nodes accordingly if PCIe mode is selected by the MCU.
- */
-/*
-&pcie {
-	status = "okay";
-};
-
-&usb {
-	phys = <&usb2_phy0>, <&usb2_phy1>;
-	phy-names = "usb2-phy0", "usb2-phy1";
-};
- */

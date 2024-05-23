@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_accel.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -488,10 +489,10 @@ static const struct drm_ioctl_desc etnaviv_ioctls[] = {
 	ETNA_IOCTL(PM_QUERY_SIG, pm_query_sig, DRM_RENDER_ALLOW),
 };
 
-DEFINE_DRM_GEM_FOPS(fops);
+DEFINE_DRM_GEM_FOPS(render_fops);
+DEFINE_DRM_ACCEL_FOPS(accel_fops);
 
-static const struct drm_driver etnaviv_drm_driver = {
-	.driver_features    = DRIVER_GEM | DRIVER_RENDER,
+static struct drm_driver etnaviv_drm_driver = {
 	.open               = etnaviv_open,
 	.postclose           = etnaviv_postclose,
 	.gem_prime_import_sg_table = etnaviv_gem_prime_import_sg_table,
@@ -500,7 +501,6 @@ static const struct drm_driver etnaviv_drm_driver = {
 #endif
 	.ioctls             = etnaviv_ioctls,
 	.num_ioctls         = DRM_ETNAVIV_NUM_IOCTLS,
-	.fops               = &fops,
 	.name               = "etnaviv",
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
@@ -508,14 +508,19 @@ static const struct drm_driver etnaviv_drm_driver = {
 	.minor              = 4,
 };
 
-/*
- * Platform driver:
- */
-static int etnaviv_bind(struct device *dev)
+static int etnaviv_bind_with_type(struct device *dev, u32 type)
 {
 	struct etnaviv_drm_private *priv;
 	struct drm_device *drm;
+	bool is_compute_only = true;
 	int ret;
+
+	etnaviv_drm_driver.driver_features = DRIVER_GEM | type;
+
+	if (type == DRIVER_RENDER)
+		etnaviv_drm_driver.fops = &render_fops;
+	else
+		etnaviv_drm_driver.fops = &accel_fops;
 
 	drm = drm_dev_alloc(&etnaviv_drm_driver, dev);
 	if (IS_ERR(drm))
@@ -553,6 +558,18 @@ static int etnaviv_bind(struct device *dev)
 
 	load_gpu(drm);
 
+	for (unsigned int i = 0; i < ETNA_MAX_PIPES; i++) {
+		struct etnaviv_gpu *g = priv->gpu[i];
+
+		if (g && (g->identity.minor_features8 & chipMinorFeatures8_COMPUTE_ONLY) == 0)
+			is_compute_only = false;
+	}
+
+	if (type == DRIVER_RENDER && is_compute_only) {
+		ret = -EINVAL;
+		goto out_unbind;
+	}
+
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto out_unbind;
@@ -567,6 +584,19 @@ out_free_priv:
 	kfree(priv);
 out_put:
 	drm_dev_put(drm);
+
+	return ret;
+}
+
+/*
+ * Platform driver:
+ */
+static int etnaviv_bind(struct device *dev)
+{
+	int ret = etnaviv_bind_with_type(dev, DRIVER_RENDER);
+
+	if (ret == -EINVAL)
+		return etnaviv_bind_with_type(dev, DRIVER_COMPUTE_ACCEL);
 
 	return ret;
 }
