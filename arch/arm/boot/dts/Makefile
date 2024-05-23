@@ -1020,6 +1020,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb2-v12-wakeup.dtb \
 	rv1106g-evb2-v14-aov-spi-nand.dtb \
 	rv1106g-evb2-v14-spi-nor.dtb \
+	rv1106g-evb2-v14-v15-dual-camera-spi-nor.dtb \
 	rv1106g-evb2-v14-wakeup.dtb \
 	rv1106g-smart-door-lock-rmsl-v10.dtb \
 	rv1106g-smart-door-lock-rmsl-v12.dtb \
