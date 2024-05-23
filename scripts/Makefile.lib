@@ -378,6 +378,9 @@ endif
 
 DTC_FLAGS += $(DTC_FLAGS_$(target-stem))
 
+# enable creation of __symbols__ node
+DTC_FLAGS += -@
+
 # Set -@ if the target is a base DTB that overlay is applied onto
 DTC_FLAGS += $(if $(filter $(patsubst $(obj)/%,%,$@), $(base-dtb-y)), -@)
 
