@@ -1138,21 +1138,21 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb1-mcu-display-v20.dtb \
 	rv1106g-evb1-rgb-display-v11.dtb \
 	rv1106g-evb1-v10.dtb \
+	rv1106g-evb1-v10-dual-cam.dtb \
+	rv1106g-evb1-v10-facial-gate.dtb \
+	rv1106g-evb1-v10-spi-nand.dtb \
+	rv1106g-evb1-v10-spi-nor.dtb \
 	rv1106g-evb1-v11.dtb \
 	rv1106g-evb1-v11-4k.dtb \
 	rv1106g-evb1-v11-cvr.dtb \
 	rv1106g-evb1-v11-cvr-dual-cam.dtb \
-	rv1106g-evb1-v11-spi-nand-cvr.dtb \
+	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
+	rv1106g-evb1-v11-dual-cam.dtb \
+	rv1106g-evb1-v11-facial-gate.dtb \
+	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
 	rv1106g-evb1-v11-sii902x-bt11202hdmi.dtb \
 	rv1106g-evb1-v11-sii902x-rgb2hdmi.dtb \
-	rv1106g-evb1-v10-dual-cam.dtb \
-	rv1106g-evb1-v11-dual-cam.dtb \
-	rv1106g-evb1-v10-facial-gate.dtb \
-	rv1106g-evb1-v11-facial-gate.dtb \
-	rv1106g-evb1-v10-spi-nand.dtb \
-	rv1106g-evb1-v10-spi-nor.dtb \
-	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
-	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
+	rv1106g-evb1-v11-spi-nand-cvr.dtb \
 	rv1106g-evb2-v10.dtb \
 	rv1106g-evb2-v10-dual-camera.dtb \
 	rv1106g-evb2-v11-emmc.dtb \
