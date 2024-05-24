@@ -457,6 +457,38 @@
 		status = "disabled";
 	};
 
+	usb2phy: usb2-phy@ff2b0000 {
+		compatible = "rockchip,rk3506-usb2phy";
+		reg = <0xff2b0000 0x8000>;
+		clocks = <&cru CLK_REF_USBPHY_TOP>, <&cru PCLK_USBPHY>;
+		clock-names = "phyclk", "apb_pclk";
+		#clock-cells = <0>;
+		rockchip,usbgrf = <&grf>;
+		status = "disabled";
+
+		u2phy_otg0: otg-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "otg-bvalid",
+					  "otg-id",
+					  "linestate";
+			status = "disabled";
+		};
+
+		u2phy_otg1: host-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "otg-bvalid",
+					  "otg-id",
+					  "linestate";
+			status = "disabled";
+		};
+	};
+
 	can0: can@ff320000 {
 		compatible = "rockchip,rk3506-canfd", "rockchip,rk3576-canfd";
 		reg = <0xff320000 0x1000>;
@@ -608,6 +640,40 @@
 	ioc1: syscon@ff660000 {
 		compatible = "rockchip,rk3506-ioc1", "syscon";
 		reg = <0xff660000 0x10000>;
+	};
+
+	usb20_otg0: usb@ff740000 {
+		compatible = "rockchip,rk3506-usb", "rockchip,rk3066-usb",
+			     "snps,dwc2";
+		reg = <0xff740000 0x40000>;
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USBOTG0>, <&cru HCLK_USBOTG0_PMU>,
+			 <&cru CLK_USBOTG0_ADP>;
+		clock-names = "otg", "pmu", "adp";
+		dr_mode = "otg";
+		phys = <&u2phy_otg0>;
+		phy-names = "usb2-phy";
+		g-np-tx-fifo-size = <16>;
+		g-rx-fifo-size = <280>;
+		g-tx-fifo-size = <256 128 128 64 32 16>;
+		status = "disabled";
+	};
+
+	usb20_otg1: usb@ff780000 {
+		compatible = "rockchip,rk3506-usb", "rockchip,rk3066-usb",
+			     "snps,dwc2";
+		reg = <0xff780000 0x40000>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_USBOTG1>, <&cru HCLK_USBOTG1_PMU>,
+			 <&cru CLK_USBOTG1_ADP>;
+		clock-names = "otg", "pmu", "adp";
+		dr_mode = "otg";
+		phys = <&u2phy_otg1>;
+		phy-names = "usb2-phy";
+		g-np-tx-fifo-size = <16>;
+		g-rx-fifo-size = <280>;
+		g-tx-fifo-size = <256 128 128 64 32 16>;
+		status = "disabled";
 	};
 
 	arm-debug@ff810000 {
