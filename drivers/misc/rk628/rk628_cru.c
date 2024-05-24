@@ -729,3 +729,52 @@ void rk628_cru_init(struct rk628 *rk628)
 	mdelay(1);
 	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
 }
+
+void rk628_cru_clk_adjust(struct rk628 *rk628)
+{
+	struct rk628_display_mode *src = &rk628->src_mode;
+	const struct rk628_display_mode *dst = &rk628->dst_mode;
+	u64 dst_rate, src_rate;
+	unsigned long dec_clk_rate;
+	u32 val;
+
+	/*
+	 * Try to keep cpll frequency close to 1188m (Tested rk628f hdmirx
+	 * scenarios)
+	 */
+	if (rk628_input_is_hdmi(rk628) && rk628->version != RK628D_VERSION) {
+		val = 1188000000UL / (src->clock * 1000);
+		val *= src->clock * 1000;
+		rk628_cru_clk_set_rate(rk628, CGU_CLK_CPLL, val);
+		msleep(50);
+		dev_info(rk628->dev, "adjust cpll to %uHz", val);
+	}
+
+	/*
+	 * BT1120 dec clk is a 5-bit integer division, which is inaccurate in
+	 * most resolutions. So if the frequency division is not accurate, apply
+	 * for a fault tolerance of up 2% in frequency setting, so that the
+	 * obtained frequency is slightly higher than the actual required clk,
+	 * so that the deviation between the actual clk and the required clk
+	 * frequency is not significant.
+	 */
+	if (rk628_input_is_bt1120(rk628)) {
+		rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, src->clock * 1000);
+		dec_clk_rate = rk628_cru_clk_get_rate(rk628, CGU_BT1120DEC);
+		if (dec_clk_rate < src->clock * 1000)
+			rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, src->clock * 1020);
+	}
+
+	src_rate = src->clock * 1000;
+	dst_rate = src_rate * dst->vtotal * dst->htotal;
+	do_div(dst_rate, (src->vtotal * src->htotal));
+	do_div(dst_rate, 1000);
+	dev_info(rk628->dev, "src %dx%d clock:%d\n",
+		 src->hdisplay, src->vdisplay, src->clock);
+
+	dev_info(rk628->dev, "dst %dx%d clock:%llu\n",
+		 dst->hdisplay, dst->vdisplay, dst_rate);
+
+	rk628_cru_clk_set_rate(rk628, CGU_CLK_RX_READ, src->clock * 1000);
+	rk628_cru_clk_set_rate(rk628, CGU_SCLK_VOP, dst_rate * 1000);
+}
