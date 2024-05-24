@@ -5,7 +5,6 @@
  */
 
 #include <dt-bindings/usb/pd.h>
-#include "rk3576.dtsi"
 #include "rk3576-evb.dtsi"
 #include "rk3576-rk806.dtsi"
 

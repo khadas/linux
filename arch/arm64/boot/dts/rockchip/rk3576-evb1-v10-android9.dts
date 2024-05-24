@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "rk3576.dtsi"
 #include "rk3576-evb1.dtsi"
 #include "rk3576-evb1-cam-dcphy0.dtsi"
 #include "rk3576-android9.dtsi"
