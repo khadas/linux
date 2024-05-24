@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "rk3576.dtsi"
 #include "rk3576-iotest.dtsi"
 #include "rk3576-linux.dtsi"
 
