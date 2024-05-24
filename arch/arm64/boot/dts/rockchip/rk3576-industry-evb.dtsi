@@ -4,7 +4,6 @@
  *
  */
 
-#include "rk3576.dtsi"
 #include "rk3576-industry.dtsi"
 #include "rk3576-rk806.dtsi"
 

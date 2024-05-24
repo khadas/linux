@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "rk3576.dtsi"
 #include "rk3576-industry-evb.dtsi"
 #include "rk3576-industry-evb-cam-dcphy0.dtsi"
 #include "rk3576-linux.dtsi"
