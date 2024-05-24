@@ -677,8 +677,19 @@ static void rk628_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	struct rk628_display_mode *src = rk628_display_get_src_mode(rk628);
 	struct rk628_display_mode *dst = rk628_display_get_dst_mode(rk628);
 
-	/* Store the display mode for plugin/DPMS poweron events */
+	/*
+	 * Store the display mode for plugin/DPMS poweron events. rk628d hdmitx
+	 * below (including) 40MHz clock frequency (800x600@60Hz), hsync and
+	 * vsync can only output negative polarity
+	 */
 	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
+	if (rk628->version == RK628D_VERSION && mode->clock <= 40000) {
+		hdmi->previous_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+					       DRM_MODE_FLAG_PVSYNC);
+		hdmi->previous_mode.flags |= (DRM_MODE_FLAG_NHSYNC |
+					      DRM_MODE_FLAG_NVSYNC);
+	}
+
 	dst->clock = mode->clock;
 	dst->hdisplay = mode->hdisplay;
 	dst->hsync_start = mode->hsync_start;
