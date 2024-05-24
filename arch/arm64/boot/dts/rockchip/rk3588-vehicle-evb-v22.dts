@@ -432,11 +432,7 @@
 
 	bl {
 		bl0_enable_pin: bl0-enable-pin {
-			rockchip,pins =
-				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
-
+			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bl1_enable_pin: bl1-enable-pin {
