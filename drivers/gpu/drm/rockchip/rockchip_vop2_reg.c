@@ -3657,6 +3657,25 @@ static const struct vop2_win_regs rk3576_cluster1_win_data = {
  * * After prescale down:
  *	* nearest-neighbor/bilinear/bicubic for scale up
  *	* nearest-neighbor/bilinear for scale down
+ *
+ * AXI config::
+ *
+ * * Cluster0 win0: 0xa,  0xb       [AXI0]
+ * * Cluster0 win1: 0xc,  0xd       [AXI0]
+ * * Cluster1 win0: 0x6,  0x7       [AXI0]
+ * * Cluster1 win1: 0x8,  0x9       [AXI0]
+ * * Esmart0:       0x10, 0x11      [AXI0]
+ * * Esmart1:       0x12, 0x13      [AXI0]
+ * * Esmart2:       0xa,  0xb       [AXI1]
+ * * Esmart3:       0xc,  0xd       [AXI1]
+ * * Lut dma rid:   0x1,  0x2,  0x3 [AXI0]
+ * * DCI dma rid:   0x4             [AXI0]
+ * * Metadata rid:  0x5             [AXI0]
+ *
+ * * Limit:
+ * * (1) 0x0 and 0xf can't be used;
+ * * (2) cluster and lut/dci/metadata rid must smaller than 0xf, If Cluster rid is bigger than 0xf,
+ * * VOP will dead at the system bandwidth very terrible scene.
  */
 static const struct vop2_win_data rk3576_vop_win_data[] = {
 	{
@@ -3680,8 +3699,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 0,
-	  .axi_yrgb_id = 0x0a,
-	  .axi_uv_id = 0x0b,
+	  .axi_yrgb_id = 0x10,
+	  .axi_uv_id = 0x11,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP2),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
@@ -3709,8 +3728,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .pd_id = VOP2_PD_ESMART,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .axi_id = 0,
-	  .axi_yrgb_id = 0x0c,
-	  .axi_uv_id = 0x0d,
+	  .axi_yrgb_id = 0x12,
+	  .axi_uv_id = 0x13,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP1) | BIT(ROCKCHIP_VOP_VP2),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
@@ -3792,8 +3811,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .vsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .regs = &rk3576_cluster0_win_data,
 	  .pd_id = VOP2_PD_CLUSTER,
-	  .axi_yrgb_id = 0x10,
-	  .axi_uv_id = 0x11,
+	  .axi_yrgb_id = 0x0a,
+	  .axi_uv_id = 0x0b,
 	  .dci_rid_id = 0x4,/* dci axi id length is 4 bits */
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
@@ -3819,8 +3838,8 @@ static const struct vop2_win_data rk3576_vop_win_data[] = {
 	  .hsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .vsd_pre_filter_mode = VOP3_PRE_SCALE_DOWN_AVG,/* gt or avg */
 	  .regs = &rk3576_cluster0_win_data,
-	  .axi_yrgb_id = 0x12,
-	  .axi_uv_id = 0x13,
+	  .axi_yrgb_id = 0x0c,
+	  .axi_uv_id = 0x0d,
 	  .possible_vp_mask = BIT(ROCKCHIP_VOP_VP0) | BIT(ROCKCHIP_VOP_VP1),
 	  .max_upscale_factor = 8,
 	  .max_downscale_factor = 8,
