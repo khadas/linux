@@ -1993,12 +1993,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m3_xfer>;
 	clock-frequency = <400000>;
-	status = "disabled";
 
 	i2c7_bu18tl82: i2c7-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
-		status = "okay";
+		status = "disabled";
 
 		serdes-init-sequence = [
 			0013 001a
@@ -2071,7 +2070,7 @@
 			compatible = "rohm,bu18tl82-pinctrl";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c7_bu18tl82_panel_pins>;
-			status = "okay";
+			status = "disabled";
 
 			i2c7_bu18tl82_panel_pins: panel-pins {
 				lcd-bl-pwm {
@@ -2098,7 +2097,7 @@
 
 			i2c7_bu18tl82_gpio: i2c7-bu18tl82-gpio {
 				compatible = "rohm,bu18tl82-gpio";
-				status = "okay";
+				status = "disabled";
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -2108,7 +2107,7 @@
 
 		i2c7_bu18tl82_bridge: i2c7-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
-			status = "okay";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -2136,7 +2135,8 @@
 	i2c7_bu18rl82: i2c7-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
-		status = "okay";
+		status = "disabled";
+
 		serdes-init-sequence = [
 			0011 000b
 			0012 0003
@@ -2200,11 +2200,12 @@
 			0645 0020
 			0646 001f
 		];
+
 		i2c7_bu18rl82_pinctrl: i2c7-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c7_bu18rl82_panel_pins>;
-			status = "okay";
+			status = "disabled";
 
 			i2c7_bu18rl82_panel_pins: panel-pins {
 				lcd-bl-pwm {
@@ -2240,7 +2241,7 @@
 
 			i2c7_bu18rl82_gpio: i2c7-bu18rl82-gpio {
 				compatible = "rohm,bu18rl82-gpio";
-				status = "okay";
+				status = "disabled";
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -2250,7 +2251,7 @@
 
 		i2c7_bu18rl82_bridge: i2c7-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
-			status = "okay";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -2280,7 +2281,7 @@
 		compatible = "lontium,lt7911d-fb-notifier";
 		reg = <0x2b>;
 		reset-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -2288,12 +2289,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c8m2_xfer>;
 	clock-frequency = <400000>;
-	status = "disabled";
 
 	i2c8_bu18tl82: i2c8-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
-		status = "okay";
+		status = "disabled";
 
 		serdes-init-sequence = [
 			0013 001a	//013h[3]1-lane1 enable 013h[3] 1-LVDS Receiver Port-A
@@ -2369,11 +2369,12 @@
 			0444 0090	//h_blank=144
 			0446 00d2	//v_blank=210
 		];
+
 		i2c8_bu18tl82_pinctrl: i2c8-bu18tl82-pinctrl {
 			compatible = "rohm,bu18tl82-pinctrl";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c8_bu18tl82_panel_pins>;
-			status = "okay";
+			status = "disabled";
 
 			i2c8_bu18tl82_panel_pins: panel-pins {
 				lcd-bl-pwm {
@@ -2400,7 +2401,7 @@
 
 			i2c8_bu18tl82_gpio: i2c8-bu18tl82-gpio {
 				compatible = "rohm,bu18tl82-gpio";
-				status = "okay";
+				status = "disabled";
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -2410,7 +2411,7 @@
 
 		i2c8_bu18tl82_bridge: i2c8-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
-			status = "okay";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -2439,7 +2440,8 @@
 	i2c8_bu18rl82: i2c8-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
-		status = "okay";
+		status = "disabled";
+
 		serdes-init-sequence = [
 			0011 0003	//Clockless Link Receiver Lane-0+ LVDS portA
 			0012 0003	//Clockless Link Receiver Lane-1+ LVDS portB
@@ -2507,11 +2509,12 @@
 			0644 0090
 			0646 00d2
 		];
+
 		i2c8_bu18rl82_pinctrl: i2c8-bu18rl82-pinctrl {
 			compatible = "rohm,bu18rl82-pinctrl";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c8_bu18rl82_panel_pins>;
-			status = "okay";
+			status = "disabled";
 
 			i2c8_bu18rl82_panel_pins: panel-pins {
 				lcd-bl-pwm {
@@ -2547,7 +2550,7 @@
 
 			i2c8_bu18rl82_gpio: i2c8-bu18rl82-gpio {
 				compatible = "rohm,bu18rl82-gpio";
-				status = "okay";
+				status = "disabled";
 
 				gpio-controller;
 				#gpio-cells = <2>;
@@ -2557,7 +2560,7 @@
 
 		i2c8_bu18rl82_bridge: i2c8-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
-			status = "okay";
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -2587,7 +2590,7 @@
 		compatible = "lontium,lt7911d-fb-notifier";
 		reg = <0x2b>;
 		reset-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_LOW>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
