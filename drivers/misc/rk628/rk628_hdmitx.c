@@ -630,6 +630,33 @@ static enum drm_mode_status
 rk628_hdmi_connector_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
+	struct rk628_hdmi *hdmi = connector_to_hdmi(connector);
+	struct rk628 *rk628 = hdmi->rk628;
+
+	/* rk628 hdmitx supports up to 148.5MHz frequency */
+	if (mode->clock > 148500)
+		return MODE_CLOCK_HIGH;
+
+	/*
+	 * rk628d hdmitx below (including) 40MHz clock frequency (800x600@60Hz),
+	 * hsync and vsync can only output negative polarity
+	 */
+	if (rk628->version == RK628D_VERSION && mode->clock <= 40000 &&
+	    (mode->flags & DRM_MODE_FLAG_PHSYNC ||
+	     mode->flags & DRM_MODE_FLAG_PVSYNC))
+		return MODE_BAD;
+
+	if (rk628_input_is_bt1120(rk628) || rk628_input_is_rgb(rk628)) {
+		/* rk628 bt1120rx cannot be displayed at frequencies below 40MHz. */
+		if (rk628_input_is_bt1120(rk628) && mode->clock < 40000)
+			return MODE_CLOCK_LOW;
+
+		return MODE_OK;
+	}
+
+	/*
+	 * Unverified pathway retains only 1080p and 720p resolutions
+	 */
 	if ((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
 	    (mode->hdisplay == 1280 && mode->vdisplay == 720))
 		return MODE_OK;
