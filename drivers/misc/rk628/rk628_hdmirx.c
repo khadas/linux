@@ -1227,14 +1227,7 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 			return HDMIRX_PLUGIN | HDMIRX_NOSIGNAL;
 
 		dev_info(rk628->dev, "hdmirx success\n");
-		if (rk628->version != RK628D_VERSION) {
-			/* Try to keep pll frequency close to 1188m */
-			val = DIV_ROUND_CLOSEST_ULL(1188000000, (src_mode->clock * 1000));
-			val *= src_mode->clock * 1000;
-			/* set pll rate according hdmirx tmds clk */
-			rk628_cru_clk_set_rate(rk628, CGU_CLK_CPLL, val);
-			msleep(50);
-		}
+
 		rk628_hdmirx_video_unmute(rk628, 1);
 
 		return HDMIRX_PLUGIN;

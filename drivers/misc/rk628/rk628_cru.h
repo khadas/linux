@@ -179,5 +179,6 @@ int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate);
 void rk628_cru_init(struct rk628 *rk628);
 void rk628_cru_create_debugfs_file(struct rk628 *rk628);
+void rk628_cru_clk_adjust(struct rk628 *rk628);
 
 #endif
