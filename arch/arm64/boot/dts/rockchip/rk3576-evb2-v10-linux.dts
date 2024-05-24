@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "rk3576.dtsi"
 #include "rk3576-evb2.dtsi"
 #include "rk3576-evb2-rk628-bt1120-to-hdmi.dtsi"
 #include "rk3576-evb2-rk628-hdmi2csi.dtsi"
