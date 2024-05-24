@@ -1509,19 +1509,21 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 	 * interrupt again after reading the slice.
 	 */
 	if (hw->vepu_type == RKVENC_VEPU_510) {
-		mpp_write(mpp, hw->int_clr_base, *irq_status);
 		/*
 		 * Fix bug:
 		 * There is a hw bug, the encoder has probabilistically encodes
 		 * one frame repeatedlly and does not return enc done in time.
-		 * So use slice info to check if the frame is encoded and
-		 * soft reset to stop vepu.
+		 * So use slice info to check if the frame is encoded.
 		 */
 		if (last) {
+			/* after config the register, the encoder will update enc done int status */
+			mpp_write(mpp, 0x308, 0);
 			udelay(5);
-			rkvenc_soft_reset(mpp);
-			*irq_status |= 0x1;
+			new_irq_status = mpp_read(mpp, hw->int_sta_base);
+			if (new_irq_status & INT_STA_ENC_DONE_STA)
+				*irq_status |= new_irq_status;
 		}
+		mpp_write(mpp, hw->int_clr_base, *irq_status);
 	}
 }
 
