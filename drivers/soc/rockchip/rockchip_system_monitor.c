@@ -840,8 +840,22 @@ static int monitor_device_parse_status_config(struct device_node *np,
 static int monitor_device_parse_early_min_volt(struct device_node *np,
 					       struct monitor_dev_info *info)
 {
-	return of_property_read_u32(np, "rockchip,early-min-microvolt",
-				    &info->early_min_volt);
+	const char *prop_name = "rockchip,early-min-microvolt";
+	int count = 0, ret = 0;
+
+	count = of_property_count_u32_elems(np, prop_name);
+	if (count <= 0)
+		return -EINVAL;
+
+	if (count > 1) {
+		ret = of_property_read_u32_index(np, prop_name, 1,
+						 &info->early_min_volt[1]);
+		if (ret)
+			return ret;
+	}
+
+	return of_property_read_u32_index(np, prop_name, 0,
+					  &info->early_min_volt[0]);
 }
 
 static int monitor_device_parse_dt(struct device *dev,
@@ -1186,18 +1200,48 @@ rockchip_system_monitor_early_regulator_init(struct monitor_dev_info *info)
 	struct rockchip_opp_info *opp_info = devp->opp_info;
 	struct regulator *reg;
 	struct regulator_dev *rdev;
+	int i;
 
 	if (!opp_info || !opp_info->regulators)
 		return;
-	if (!info->early_min_volt)
+
+	for (i = 0; i < opp_info->regulator_count; i++) {
+		if (!info->early_min_volt[i] || i >= 2)
+			continue;
+		rdev = opp_info->regulators[i]->rdev;
+		reg = regulator_get(NULL, get_rdev_name(rdev));
+		if (!IS_ERR_OR_NULL(reg)) {
+			info->early_reg[i] = reg;
+			reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt[i];
+			reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
+		}
+	}
+}
+
+static void
+rockchip_system_monitor_early_regulator_uninit(struct monitor_dev_info *info)
+{
+	struct monitor_dev_profile *devp = info->devp;
+	struct rockchip_opp_info *opp_info = devp->opp_info;
+	struct regulator_dev *rdev;
+	int min_uV, max_uV;
+	int ret, i;
+
+	if (!opp_info || !opp_info->regulators)
 		return;
 
-	rdev = opp_info->regulators[0]->rdev;
-	reg = regulator_get(NULL, get_rdev_name(rdev));
-	if (!IS_ERR_OR_NULL(reg)) {
-		info->early_reg = reg;
-		reg->voltage[PM_SUSPEND_ON].min_uV = info->early_min_volt;
-		reg->voltage[PM_SUSPEND_ON].max_uV = rdev->constraints->max_uV;
+	for (i = 0; i < opp_info->regulator_count; i++) {
+		if (!info->early_reg[i] || i >= 2)
+			continue;
+		rdev = info->early_reg[i]->rdev;
+		min_uV = rdev->constraints->min_uV;
+		max_uV = rdev->constraints->max_uV;
+		ret = regulator_set_voltage(info->early_reg[i], min_uV, max_uV);
+		if (ret)
+			dev_err(&rdev->dev,
+				"%s: failed to set volt\n", __func__);
+		regulator_put(info->early_reg[i]);
+		info->early_reg[i] = NULL;
 	}
 }
 
@@ -1338,6 +1382,7 @@ void rockchip_system_monitor_unregister(struct monitor_dev_info *info)
 		return;
 
 	down_write(&mdev_list_sem);
+	rockchip_system_monitor_early_regulator_uninit(info);
 	list_del(&info->node);
 	up_write(&mdev_list_sem);
 
@@ -1737,23 +1782,10 @@ static struct notifier_block rockchip_monitor_ebc_nb = {
 static void system_monitor_early_min_volt_function(struct work_struct *work)
 {
 	struct monitor_dev_info *info;
-	struct regulator_dev *rdev;
-	int min_uV, max_uV;
-	int ret;
 
 	down_read(&mdev_list_sem);
-	list_for_each_entry(info, &monitor_dev_list, node) {
-		if (!info->early_min_volt || !info->early_reg)
-			continue;
-		rdev = info->early_reg->rdev;
-		min_uV = rdev->constraints->min_uV;
-		max_uV = rdev->constraints->max_uV;
-		ret = regulator_set_voltage(info->early_reg, min_uV, max_uV);
-		if (ret)
-			dev_err(&rdev->dev,
-				"%s: failed to set volt\n", __func__);
-		regulator_put(info->early_reg);
-	}
+	list_for_each_entry(info, &monitor_dev_list, node)
+		rockchip_system_monitor_early_regulator_uninit(info);
 	up_read(&mdev_list_sem);
 }
 
