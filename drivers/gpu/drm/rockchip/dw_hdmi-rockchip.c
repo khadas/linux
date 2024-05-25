@@ -4359,6 +4359,8 @@ static void dw_hdmi_rockchip_unbind(struct device *dev, struct device *master,
 		regulator_disable(hdmi->avdd_1v8);
 	if (hdmi->avdd_0v9)
 		regulator_disable(hdmi->avdd_0v9);
+
+	hdmi->drm_dev = NULL;
 }
 
 static const struct component_ops dw_hdmi_rockchip_ops = {
@@ -4405,7 +4407,7 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
-	if (!hdmi)
+	if (!hdmi || !hdmi->drm_dev)
 		return;
 
 	if (hdmi->is_hdmi_qp) {
