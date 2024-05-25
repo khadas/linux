@@ -900,17 +900,21 @@ EXPORT_SYMBOL(rockchip_monitor_cpu_low_temp_adjust);
 int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high)
 {
-	if (!info->high_limit)
-		return 0;
-
 	if (!freq_qos_request_active(&info->max_temp_freq_req))
 		return 0;
 
 	if (info->high_limit_table) {
-		freq_qos_update_request(&info->max_temp_freq_req,
-					info->high_limit / 1000);
+		if (info->high_limit)
+			freq_qos_update_request(&info->max_temp_freq_req,
+						info->high_limit / 1000);
+		else
+			freq_qos_update_request(&info->max_temp_freq_req,
+						FREQ_QOS_MAX_DEFAULT_VALUE);
 		return 0;
 	}
+
+	if (!info->high_limit)
+		return 0;
 
 	if (is_high)
 		freq_qos_update_request(&info->max_temp_freq_req,
@@ -949,14 +953,18 @@ int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 	if (!dev_pm_qos_request_active(&info->dev_max_freq_req))
 		return 0;
 
-	if (!info->high_limit)
-		return 0;
-
 	if (info->high_limit_table) {
-		dev_pm_qos_update_request(&info->dev_max_freq_req,
-					  info->high_limit / 1000);
+		if (info->high_limit)
+			dev_pm_qos_update_request(&info->dev_max_freq_req,
+						  info->high_limit / 1000);
+		else
+			dev_pm_qos_update_request(&info->dev_max_freq_req,
+						  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
 		return 0;
 	}
+
+	if (!info->high_limit)
+		return 0;
 
 	if (is_high)
 		dev_pm_qos_update_request(&info->dev_max_freq_req,
