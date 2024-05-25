@@ -43,7 +43,7 @@
 	ir_key2 {
 		rockchip,usercode = <0xff00>;
 		rockchip,key_table =
-			<0xf9	KEY_HOME>,
+			<0xb1	KEY_HOME>,
 			<0xbf	KEY_BACK>,
 			<0xfb	KEY_MENU>,
 			<0xaa	KEY_REPLY>,
