@@ -73,23 +73,10 @@ static int serdes_bridge_split_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	if (serdes_bridge_split->sel_mipi) {
-		dev_info(serdes_bridge_split->dev->parent, "serdes sel_mipi %d\n",
-			 serdes_bridge_split->sel_mipi);
-		/* Attach primary DSI */
-		serdes_bridge_split->dsi = serdes_attach_dsi(serdes_bridge_split,
-							     serdes_bridge_split->remote_node);
-		if (IS_ERR(serdes_bridge_split->dsi))
-			return PTR_ERR(serdes_bridge_split->dsi);
-	}
-
 	if (serdes_bridge_split->next_bridge) {
 		ret = drm_bridge_attach(bridge->encoder, serdes_bridge_split->next_bridge,
 					bridge, flags);
 		if (ret) {
-			if (serdes_bridge_split->sel_mipi)
-				mipi_dsi_device_unregister(serdes_bridge_split->dsi);
-
 			dev_err(serdes_bridge_split->dev->parent,
 				"failed to attach bridge, ret=%d\n", ret);
 			return ret;
@@ -106,14 +93,12 @@ static int serdes_bridge_split_attach(struct drm_bridge *bridge,
 
 static void serdes_bridge_split_detach(struct drm_bridge *bridge)
 {
-	struct serdes_bridge_split *serdes_bridge_split = to_serdes_bridge_split(bridge);
+}
 
-	if (serdes_bridge_split->sel_mipi) {
-		mipi_dsi_detach(serdes_bridge_split->dsi);
-		mipi_dsi_device_unregister(serdes_bridge_split->dsi);
-	}
-
-	SERDES_DBG_MFD("%s\n", __func__);
+static void serdes_detach_dsi(struct serdes_bridge_split *serdes_bridge_split)
+{
+	mipi_dsi_detach(serdes_bridge_split->dsi);
+	mipi_dsi_device_unregister(serdes_bridge_split->dsi);
 }
 
 static void serdes_bridge_split_disable(struct drm_bridge *bridge)
@@ -301,6 +286,18 @@ static int serdes_bridge_split_probe(struct platform_device *pdev)
 
 	drm_bridge_add(&serdes_bridge_split->base_bridge);
 
+	if (serdes_bridge_split->sel_mipi) {
+		dev_info(serdes_bridge_split->dev->parent, "serdes sel_mipi %d\n",
+			 serdes_bridge_split->sel_mipi);
+		/* Attach primary DSI */
+		serdes_bridge_split->dsi = serdes_attach_dsi(serdes_bridge_split,
+							     serdes_bridge_split->remote_node);
+		if (IS_ERR(serdes_bridge_split->dsi)) {
+			drm_bridge_remove(&serdes_bridge_split->base_bridge);
+			return PTR_ERR(serdes_bridge_split->dsi);
+		}
+	}
+
 	dev_info(dev, "serdes %s, %s successful mipi=%d, of_node=%s\n",
 		 serdes->chip_data->name, __func__, serdes_bridge_split->sel_mipi,
 		 serdes_bridge_split->base_bridge.of_node->name);
@@ -311,6 +308,9 @@ static int serdes_bridge_split_probe(struct platform_device *pdev)
 static int serdes_bridge_split_remove(struct platform_device *pdev)
 {
 	struct serdes_bridge_split *serdes_bridge_split = platform_get_drvdata(pdev);
+
+	if (serdes_bridge_split->sel_mipi)
+		serdes_detach_dsi(serdes_bridge_split);
 
 	drm_bridge_remove(&serdes_bridge_split->base_bridge);
 
