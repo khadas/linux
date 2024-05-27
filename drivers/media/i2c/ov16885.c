@@ -5,6 +5,9 @@
  * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01
+ * 1. fix vflip ghost issue.
+ * 2. add write/read reg failed log.
  *
  */
 //#define DEBUG
@@ -27,7 +30,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 #define OV16885_MAJOR_I2C_ADDR		0x36
 #define OV16885_MINOR_I2C_ADDR		0x10
 
@@ -70,6 +73,8 @@
 
 #define OV16885_SOFTWARE_RESET_REG	0x0103
 #define OV16885_REG_ISP_X_WIN		0x3810
+#define OV16885_REG_ISP_Y_WIN		0x3812
+#define OV16885_REG_SYNC_FIF0_CTRL	0x4500
 
 #define OV16885_GROUP_UPDATE_ADDRESS	0x3208
 #define OV16885_GROUP_UPDATE_START_DATA	0x00
@@ -958,8 +963,11 @@ static int ov16885_write_reg(struct i2c_client *client, u16 reg,
 	while (val_i < 4)
 		buf[buf_i++] = val_p[val_i++];
 
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
+	if (i2c_master_send(client, buf, len + 2) != len + 2) {
+		dev_err(&client->dev,
+			"write reg(0x%x val:0x%x)!\n", reg, val);
 		return -EIO;
+	}
 
 	return 0;
 }
@@ -1005,8 +1013,11 @@ static int ov16885_read_reg(struct i2c_client *client, u16 reg,
 	msgs[1].buf = &data_be_p[4 - len];
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-	if (ret != ARRAY_SIZE(msgs))
+	if (ret != ARRAY_SIZE(msgs)) {
+		dev_err(&client->dev,
+			"read reg(0x%x val:0x%x) failed !\n", reg, *val);
 		return -EIO;
+	}
 
 	*val = be32_to_cpu(data_be);
 
@@ -1717,7 +1728,7 @@ static int ov16885_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = ov16885->client;
 	s64 max;
 	int ret = 0;
-	u32 val = 0, x_win = 0;
+	u32 val = 0, x_win = 0, y_win = 0, sync_ctrl = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1801,12 +1812,46 @@ static int ov16885_set_ctrl(struct v4l2_ctrl *ctrl)
 				       OV16885_REG_VALUE_08BIT,
 				       &val);
 		if (ctrl->val)
-			val |= FLIP_BIT_MASK;
+			val |= (FLIP_BIT_MASK | BIT(6));
 		else
-			val &= ~FLIP_BIT_MASK;
+			val &= ~(FLIP_BIT_MASK | BIT(6));
+
+		ret |= ov16885_read_reg(ov16885->client, OV16885_REG_ISP_Y_WIN,
+					OV16885_REG_VALUE_16BIT,
+					&y_win);
+
+		if ((y_win == 0x0008) && (ctrl->val)) {
+			y_win = 0x0009;
+			sync_ctrl = 0x80;
+		} else if ((y_win == 0x0009) && (!(ctrl->val))) {
+			y_win = 0x0008;
+			sync_ctrl = 0x00;
+		}
+
+		ret |= ov16885_write_reg(ov16885->client,
+					 OV16885_GROUP_UPDATE_ADDRESS,
+					 OV16885_REG_VALUE_08BIT,
+					 OV16885_GROUP_UPDATE_START_DATA);
+
 		ret |= ov16885_write_reg(ov16885->client, OV16885_FLIP_REG,
 					 OV16885_REG_VALUE_08BIT,
 					 val);
+		ret |= ov16885_write_reg(ov16885->client, OV16885_REG_ISP_Y_WIN,
+					 OV16885_REG_VALUE_16BIT,
+					 y_win);
+		ret |= ov16885_write_reg(ov16885->client, OV16885_REG_SYNC_FIF0_CTRL,
+					 OV16885_REG_VALUE_08BIT,
+					 sync_ctrl);
+
+		ret |= ov16885_write_reg(ov16885->client,
+					 OV16885_GROUP_UPDATE_ADDRESS,
+					 OV16885_REG_VALUE_08BIT,
+					 OV16885_GROUP_UPDATE_END_DATA);
+		ret |= ov16885_write_reg(ov16885->client,
+					 OV16885_GROUP_UPDATE_ADDRESS,
+					 OV16885_REG_VALUE_08BIT,
+					 OV16885_GROUP_UPDATE_LAUNCH);
+
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
