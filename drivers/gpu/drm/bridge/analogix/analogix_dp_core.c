@@ -702,10 +702,6 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	 */
 	analogix_dp_reset_macro(dp);
 
-	/* Initialize by reading RX's DPCD */
-	analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
-	analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.lane_count);
-
 	/* Setup TX lane count & rate */
 	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
 	dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate, max_rate);
@@ -1400,6 +1396,7 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 		analogix_dp_panel_prepare(dp);
 
 	if (!analogix_dp_detect_hpd(dp)) {
+		/* Initialize by reading RX's DPCD */
 		ret = analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
 		if (ret) {
 			dev_err(dp->dev, "failed to read max link rate\n");
