@@ -44,12 +44,12 @@ static void rga_job_get(struct rga_job *job)
 
 static int rga_job_cleanup(struct rga_job *job)
 {
-	rga_job_put(job);
-
 	if (DEBUGGER_EN(TIME))
 		pr_info("request[%d], job cleanup total cost time %lld us\n",
 			job->request_id,
 			ktime_us_delta(ktime_get(), job->timestamp));
+
+	rga_job_put(job);
 
 	return 0;
 }
@@ -234,14 +234,13 @@ next_job:
 		pr_err("some error on rga_job_run before hw start, %s(%d)\n", __func__, __LINE__);
 
 		spin_lock_irqsave(&scheduler->irq_lock, flags);
-
 		scheduler->running_job = NULL;
-		rga_job_put(job);
-
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 		job->ret = ret;
 		rga_request_release_signal(scheduler, job);
+
+		rga_job_put(job);
 
 		goto next_job;
 	}
