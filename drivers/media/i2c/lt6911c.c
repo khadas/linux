@@ -523,7 +523,7 @@ static void lt6911c_delayed_work_enable_hotplug(struct work_struct *work)
 			struct lt6911c_state, delayed_work_enable_hotplug);
 	struct v4l2_subdev *sd = &lt6911c->sd;
 
-	lt6911c_config_hpd(sd);
+	lt6911c_s_ctrl_detect_tx_5v(sd);
 }
 
 static void lt6911c_delayed_work_res_change(struct work_struct *work)
@@ -603,21 +603,6 @@ static void lt6911c_format_change(struct v4l2_subdev *sd)
 
 	if (sd->devnode)
 		v4l2_subdev_notify_event(sd, &lt6911c_ev_fmt);
-}
-
-static int lt6911c_get_ctrl(struct v4l2_ctrl *ctrl)
-{
-	int ret = -1;
-	struct lt6911c_state *lt6911c = container_of(ctrl->handler,
-			struct lt6911c_state, hdl);
-	struct v4l2_subdev *sd = &(lt6911c->sd);
-
-	if (ctrl->id == V4L2_CID_DV_RX_POWER_PRESENT) {
-		ret = tx_5v_power_present(sd);
-		*ctrl->p_new.p_s32 = ret;
-	}
-
-	return ret;
 }
 
 static int lt6911c_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
@@ -1021,10 +1006,6 @@ static long lt6911c_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-static const struct v4l2_ctrl_ops lt6911c_ctrl_ops = {
-	.g_volatile_ctrl = lt6911c_get_ctrl,
-};
-
 static const struct v4l2_subdev_core_ops lt6911c_core_ops = {
 	.interrupt_service_routine = lt6911c_isr,
 	.subscribe_event = lt6911c_subscribe_event,
@@ -1112,10 +1093,8 @@ static int lt6911c_init_v4l2_ctrls(struct lt6911c_state *lt6911c)
 			0, LT6911C_PIXEL_RATE, 1, LT6911C_PIXEL_RATE);
 
 	lt6911c->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&lt6911c->hdl,
-			&lt6911c_ctrl_ops, V4L2_CID_DV_RX_POWER_PRESENT,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
-	if (lt6911c->detect_tx_5v_ctrl)
-		lt6911c->detect_tx_5v_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	lt6911c->audio_sampling_rate_ctrl =
 		v4l2_ctrl_new_custom(&lt6911c->hdl,
