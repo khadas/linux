@@ -7896,8 +7896,10 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	drm_connector_list_iter_end(&conn_iter);
 
 	if (adj_mode->crtc_clock <= VOP2_MAX_DCLK_RATE) {
-		adj_mode->crtc_clock = rockchip_drm_dclk_round_rate(vop2->version, vp->dclk,
-								    adj_mode->crtc_clock * 1000);
+		adj_mode->crtc_clock =
+			rockchip_drm_dclk_round_rate(vop2->version,
+						     vp->dclk_parent ? vp->dclk_parent : vp->dclk,
+						     adj_mode->crtc_clock * 1000);
 		adj_mode->crtc_clock = DIV_ROUND_UP(adj_mode->crtc_clock, 1000);
 	}
 	return true;
