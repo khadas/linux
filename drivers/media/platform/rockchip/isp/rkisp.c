@@ -361,11 +361,13 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 	sensor = sd_to_sensor(dev, sensor_sd);
 	if (!sensor)
 		return -ENODEV;
-	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,
-			       0, &sensor->mbus);
-	if (ret && ret != -ENOIOCTLCMD)
-		return ret;
-
+	if (dev->isp_inp & INP_CIF) {
+		sensor->mbus.type = 0;
+	} else {
+		ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,  0, &sensor->mbus);
+		if (ret && ret != -ENOIOCTLCMD)
+			return ret;
+	}
 	sensor->fmt[0].pad = 0;
 	sensor->fmt[0].which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(sensor->sd, pad, get_fmt,
