@@ -891,9 +891,6 @@ static int vepu2_iommu_fault_handle(struct iommu_domain *iommu, struct device *i
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_ccu *ccu = enc->ccu;
 
-	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
-		iova, status, arg);
-
 	if (ccu) {
 		int i;
 		struct mpp_dev *core;
@@ -907,6 +904,16 @@ static int vepu2_iommu_fault_handle(struct iommu_domain *iommu, struct device *i
 		}
 	}
 
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	if (mpp)
+		rockchip_iommu_mask_irq(mpp->dev);
+
+	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
+		iova, status, arg);
+
 	if (!mpp) {
 		dev_err(iommu_dev, "pagefault without device to handle\n");
 		return 0;
@@ -916,11 +923,6 @@ static int vepu2_iommu_fault_handle(struct iommu_domain *iommu, struct device *i
 		mpp_task_dump_mem_region(mpp, mpp_task);
 
 	mpp_task_dump_hw_reg(mpp);
-	/*
-	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
-	 * Until the pagefault task finish by hw timeout.
-	 */
-	rockchip_iommu_mask_irq(mpp->dev);
 
 	return 0;
 }

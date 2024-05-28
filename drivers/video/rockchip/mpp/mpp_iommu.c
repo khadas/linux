@@ -445,6 +445,13 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 {
 	struct mpp_dev *mpp = (struct mpp_dev *)arg;
 
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	if (mpp)
+		rockchip_iommu_mask_irq(mpp->dev);
+
 	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
 		iova, status, arg);
 
@@ -460,12 +467,6 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 		mpp->dev_ops->dump_dev(mpp);
 	else
 		mpp_task_dump_hw_reg(mpp);
-
-	/*
-	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
-	 * Until the pagefault task finish by hw timeout.
-	 */
-	rockchip_iommu_mask_irq(mpp->dev);
 
 	return 0;
 }

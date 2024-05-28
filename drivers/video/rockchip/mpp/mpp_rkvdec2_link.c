@@ -966,6 +966,14 @@ static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct mpp_task *mpp_task = NULL, *n;
 	struct mpp_taskqueue *queue;
+	u32 dump_mem_region = 0;
+
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	if (mpp)
+		rockchip_iommu_mask_irq(mpp->dev);
 
 	dev_err(iommu_dev, "fault addr 0x%08lx status %x arg %p\n",
 		iova, status, arg);
@@ -982,17 +990,15 @@ static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
 		u32 irq_status = tb_reg[info->tb_reg_int];
 
 		if (!irq_status) {
-			mpp_task_dump_mem_region(mpp, mpp_task);
+			dump_mem_region = 1;
 			break;
 		}
 	}
 
+	if (dump_mem_region)
+		mpp_task_dump_mem_region(mpp, mpp_task);
 	mpp_task_dump_hw_reg(mpp);
-	/*
-	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
-	 * Until the pagefault task finish by hw timeout.
-	 */
-	rockchip_iommu_mask_irq(mpp->dev);
+
 	dec->mmu_fault = 1;
 
 	return 0;
@@ -1791,15 +1797,15 @@ int rkvdec2_soft_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 		dev_err(iommu_dev, "iommu fault, but no dev match\n");
 		return 0;
 	}
-	mpp_task = mpp->cur_task;
-	if (mpp_task)
-		mpp_task_dump_mem_region(mpp, mpp_task);
-
 	/*
 	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
 	 * Until the pagefault task finish by hw timeout.
 	 */
 	rockchip_iommu_mask_irq(mpp->dev);
+	mpp_task = mpp->cur_task;
+	if (mpp_task)
+		mpp_task_dump_mem_region(mpp, mpp_task);
+
 	atomic_inc(&mpp->queue->reset_request);
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 
