@@ -4591,7 +4591,7 @@ static void dw_dp_handle_test_request(struct dw_dp *dp)
 
 	switch (request) {
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
-		dev_dbg(dp->dev, "PHY_PATTERN test requested\n");
+		dev_info(dp->dev, "PHY_PATTERN test requested\n");
 		response = dw_dp_autotest_phy_pattern(dp);
 		break;
 	default:
@@ -4644,13 +4644,13 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 
 	switch (data->phy_pattern) {
 	case DP_PHY_TEST_PATTERN_NONE:
-		dev_dbg(dp->dev, "Disable Phy Test Pattern\n");
+		dev_info(dp->dev, "Disable Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_NONE);
 		break;
 	case DP_PHY_TEST_PATTERN_D10_2:
-		dev_dbg(dp->dev, "Set D10.2 Phy Test Pattern\n");
+		dev_info(dp->dev, "Set D10.2 Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_1);
@@ -4658,17 +4658,17 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
-		dev_dbg(dp->dev, "Set Error Count Phy Test Pattern\n");
+		dev_info(dp->dev, "Set Error Count Phy Test Pattern\n");
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_SERM);
 		break;
 	case DP_PHY_TEST_PATTERN_PRBS7:
-		dev_dbg(dp->dev, "Set PRBS7 Phy Test Pattern\n");
+		dev_info(dp->dev, "Set PRBS7 Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_PBRS7);
 		break;
 	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
-		dev_dbg(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
+		dev_info(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		regmap_write(dp->regmap, DPTX_CUSTOMPAT0, 0x3e0f83e0);
@@ -4677,13 +4677,13 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CUSTOM_80BIT);
 		break;
 	case DP_PHY_TEST_PATTERN_CP2520:
-		dev_dbg(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
+		dev_info(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CP2520_1);
 		break;
 	case DP_PHY_TEST_PATTERN_SEL_MASK:
-		dev_dbg(dp->dev, "Set TPS4  Phy Test Pattern\n");
+		dev_info(dp->dev, "Set TPS4  Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_4);
@@ -4718,7 +4718,7 @@ static void dw_dp_process_phy_request(struct dw_dp *dp)
 	dw_dp_phy_pattern_update(dp);
 	drm_dp_set_phy_test_pattern(&dp->aux, data, link_status[DP_DPCD_REV]);
 
-	dev_dbg(dp->dev, "phy test rate:%d, lane count:%d, ssc:%d, vs:%d, pe: %d\n",
+	dev_info(dp->dev, "phy test rate:%d, lane count:%d, ssc:%d, vs:%d, pe: %d\n",
 		 data->link_rate, data->num_lanes, spread, dp->link.train.adjust.voltage_swing[0],
 		 dp->link.train.adjust.pre_emphasis[0]);
 }
