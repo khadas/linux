@@ -2191,6 +2191,7 @@
 			| RKPM_GPIO_WKUP_EN
 			)
 		>;
+		power-domains = <&power RK3588_PD_USB>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
