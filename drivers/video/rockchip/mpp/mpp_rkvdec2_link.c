@@ -966,6 +966,7 @@ static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct mpp_task *mpp_task = NULL, *n;
 	struct mpp_taskqueue *queue;
+	unsigned long flags;
 	u32 dump_mem_region = 0;
 
 	/*
@@ -983,6 +984,7 @@ static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
 		return 0;
 	}
 	queue = mpp->queue;
+	spin_lock_irqsave(&queue->running_lock, flags);
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
 		struct rkvdec_link_info *info = dec->link_dec->info;
 		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
@@ -994,6 +996,7 @@ static int rkvdec2_link_iommu_fault_handle(struct iommu_domain *iommu,
 			break;
 		}
 	}
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 
 	if (dump_mem_region)
 		mpp_task_dump_mem_region(mpp, mpp_task);
@@ -1034,6 +1037,7 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 		      readl(link_dec->reg_base + RKVDEC_LINK_EN_BASE) : 0;
 	u32 force_dequeue = iommu_fault || !link_en;
 	u32 dequeue_cnt = 0;
+	unsigned long flags;
 
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
 		/*
@@ -1097,8 +1101,10 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 		mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 		rkvdec2_link_finish(mpp, mpp_task);
 
+		spin_lock_irqsave(&queue->running_lock, flags);
 		list_move_tail(&task->table->link, &link_dec->unused_list);
 		list_del_init(&mpp_task->queue_link);
+		spin_unlock_irqrestore(&queue->running_lock, flags);
 		link_dec->task_running--;
 
 		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
