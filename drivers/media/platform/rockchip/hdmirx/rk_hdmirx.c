@@ -2352,8 +2352,10 @@ static int hdmirx_get_hdcp_auth_status(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u32 val;
 
+	val = hdmirx_readl(hdmirx_dev, HDCP2_ESM_P0_GPIO_OUT) & BIT(2);
+	if (val)
+		return 1;
 	hdmirx_clear_interrupt(hdmirx_dev, HDCP_INT_CLEAR, 0xffffffff);
-	msleep(200);
 	val = hdmirx_readl(hdmirx_dev, HDCP_INT_STATUS) & 0x40;
 
 	return val ? 1 : 0;
