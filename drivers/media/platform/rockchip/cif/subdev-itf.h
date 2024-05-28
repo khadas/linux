@@ -100,6 +100,7 @@ struct sditf_priv {
 	struct rkmodule_hdr_cfg	hdr_cfg;
 	struct capture_info cap_info;
 	struct rkisp_vicap_mode mode;
+	struct rkisp_vicap_mode mode_src;
 	struct toisp_info toisp_inf;
 	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl_handler ctrl_handler;

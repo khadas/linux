@@ -7888,7 +7888,8 @@ static bool rkcif_check_can_be_online(struct rkcif_device *cif_dev)
 {
 	if (cif_dev->sditf[0] == NULL || cif_dev->sditf[0]->mode.name == NULL ||
 	    (cif_dev->chip_id == CHIP_RV1106_CIF &&
-	     strstr(cif_dev->sditf[0]->mode.name, "unite")))
+	     strstr(cif_dev->sditf[0]->mode.name, "unite")) ||
+	     cif_dev->sditf[0]->mode_src.rdbk_mode == RKISP_VICAP_RDBK_AIQ)
 		return false;
 	return true;
 }

@@ -399,6 +399,7 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		mutex_lock(&cif_dev->stream_lock);
 		memcpy(&priv->mode, mode, sizeof(*mode));
 		mutex_unlock(&cif_dev->stream_lock);
+		priv->mode_src = priv->mode;
 		sditf_reinit_mode(priv, &priv->mode);
 		if (priv->is_combine_mode)
 			mode->input.merge_num = cif_dev->sditf_cnt;
