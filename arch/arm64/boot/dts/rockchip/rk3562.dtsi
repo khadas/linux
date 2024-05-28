@@ -3064,6 +3064,7 @@
 			| RKPM_GPIO0_WKUP_EN
 			)
 		>;
+		power-domains = <&power RK3562_PD_PHP>;
 	};
 };
 
