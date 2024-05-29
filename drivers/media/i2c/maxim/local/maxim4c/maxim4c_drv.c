@@ -136,6 +136,20 @@ static int maxim4c_check_local_chipid(maxim4c_t *maxim4c)
 	return -ENODEV;
 }
 
+static void maxim4c_hot_plug_event_report(maxim4c_t *maxim4c, int data)
+{
+	struct v4l2_subdev *sd = &maxim4c->subdev;
+	struct device *dev = &maxim4c->client->dev;
+	struct v4l2_event evt_hot_plug = {
+		.type = V4L2_EVENT_HOT_PLUG,
+		.u.data[0] = data,
+	};
+
+	dev_dbg(dev, "%s data %d\n", __func__, data);
+
+	v4l2_event_queue(sd->devnode, &evt_hot_plug);
+}
+
 static irqreturn_t maxim4c_hot_plug_detect_irq_handler(int irq, void *dev_id)
 {
 	maxim4c_t *maxim4c = dev_id;
@@ -223,6 +237,7 @@ static void maxim4c_hot_plug_state_check_work(struct work_struct *work)
 		dev_dbg(dev, "lock state: current = 0x%02x, last = 0x%02x\n",
 			curr_lock_state, last_lock_state);
 
+		maxim4c_hot_plug_event_report(maxim4c, curr_lock_state);
 		maxim4c->link_lock_state = curr_lock_state;
 	}
 

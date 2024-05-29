@@ -9,12 +9,14 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-fwnode.h>
 
@@ -31,6 +33,10 @@
 
 /* power supply numbers */
 #define MAXIM4C_NUM_SUPPLIES		2
+
+/* Private v4l2 event */
+#define V4L2_EVENT_HOT_PLUG	\
+		(V4L2_EVENT_PRIVATE_START + 0x10)
 
 enum {
 	MAXIM4C_HOT_PLUG_OUT = 0,
