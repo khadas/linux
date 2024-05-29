@@ -2383,15 +2383,15 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	reset_control_deassert(hdptx->cmn_reset);
 	reset_control_deassert(hdptx->init_reset);
 
-	ret = rockchip_hdptx_phy_clk_register(hdptx);
-	if (ret)
-		goto err_regsmap;
-
 	platform_set_drvdata(pdev, hdptx);
 	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE) {
 		hdptx->initialized = true;
 		hdptx->rate = hdptx_cal_current_rate(hdptx);
 	}
+
+	ret = rockchip_hdptx_phy_clk_register(hdptx);
+	if (ret)
+		goto err_regsmap;
 
 	dev_info(dev, "hdptx phy init success\n");
 	return 0;
