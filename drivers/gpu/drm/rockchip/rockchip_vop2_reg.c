@@ -917,6 +917,7 @@ static const struct vop2_wb_regs rk3576_vop_wb_regs = {
 	.r2y_en = VOP_REG(RK3576_WB_CTRL, 0x1, 5),
 	.scale_x_en = VOP_REG(RK3576_WB_CTRL, 0x1, 7),
 	.scale_y_en = VOP_REG(RK3576_WB_CTRL, 0x1, 8),
+	.post_empty_stop_en = VOP_REG(RK3576_WB_CTRL, 0x1, 11),
 	.one_frame_mode = VOP_REG(RK3576_WB_CTRL, 0x1, 12),
 	.axi_yrgb_id = VOP_REG(RK3576_WB_CTRL, 0xff, 20),
 	.axi_uv_id = VOP_REG(RK3576_WB_CTRL, 0x1f, 24),

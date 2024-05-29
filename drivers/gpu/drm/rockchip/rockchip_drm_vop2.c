@@ -3683,6 +3683,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 			VOP_MODULE_SET(vop2, wb, act_width, fb->width - 1);
 			VOP_MODULE_SET(vop2, wb, vir_stride, fb->pitches[0] >> 2);
 			VOP_MODULE_SET(vop2, wb, vir_stride_en, 1);
+			VOP_MODULE_SET(vop2, wb, post_empty_stop_en, 1);
 			if (one_frame_mode) {
 				if (vop2->version == VOP_VERSION_RK3576)
 					VOP_MODULE_SET(vop2, wb, auto_gating, 0);
