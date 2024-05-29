@@ -206,6 +206,9 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x080, 0x0a4, 4, &perisgrf_base, WMSK_VAL)},
 	{ REG_REGION(0x0b8, 0x0bc, 4, &perisgrf_base, WMSK_VAL)},
 
+	/* vi_grf */
+	{ REG_REGION(0x000, 0x000, 4, &vigrf_base, 0x00400000)}, /* rtc_clamp_en */
+
 	/* vi_cru */
 	{ REG_REGION(0x300, 0x30c, 4, &vicru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x808, 4, &vicru_base, WMSK_VAL)},
