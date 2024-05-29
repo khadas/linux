@@ -4175,6 +4175,30 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, otp_en, 1);
 
 		/*
+		 * Close dynamic turn on/off rk3588 PD_ESMART and keep esmart pd on when enable
+		 *
+		 * This should be before read regs to regsbak, otherwise all the power down module
+		 * register is zero.
+		 */
+		if (vop2->version == VOP_VERSION_RK3588) {
+			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
+
+			if (vop2_power_domain_status(esmart_pd))
+				esmart_pd->on = true;
+			else
+				vop2_power_domain_on(esmart_pd);
+		} else {
+			struct vop2_power_domain *pd, *n;
+
+			list_for_each_entry_safe_reverse(pd, n, &vop2->pd_list_head, list) {
+				if (vop2_power_domain_status(pd))
+					pd->on = true;
+				else
+					vop2_power_domain_on(pd);
+			}
+		}
+
+		/*
 		 * rk3588 don't support access mmio by memcpy
 		 */
 		if (vop2->version == VOP_VERSION_RK3588)
@@ -4263,26 +4287,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 * immediately.
 		 */
 		VOP_CTRL_SET(vop2, if_ctrl_cfg_done_imd, 1);
-
-		/* Close dynamic turn on/off rk3588 PD_ESMART and keep esmart pd on when enable */
-		if (vop2->version == VOP_VERSION_RK3588) {
-			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
-
-			if (vop2_power_domain_status(esmart_pd))
-				esmart_pd->on = true;
-			else
-				vop2_power_domain_on(esmart_pd);
-		} else {
-			struct vop2_power_domain *pd, *n;
-
-			list_for_each_entry_safe_reverse(pd, n, &vop2->pd_list_head, list) {
-				if (vop2_power_domain_status(pd))
-					pd->on = true;
-				else
-					vop2_power_domain_on(pd);
-			}
-		}
-
 		vop2_layer_map_initial(vop2, current_vp_id);
 		vop2_axi_irqs_enable(vop2);
 		vop2->is_enabled = true;
