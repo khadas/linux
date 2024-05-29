@@ -444,6 +444,9 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 
 	buffer->scheduler = scheduler;
 
+	if (scheduler->data->mmu == RGA_IOMMU)
+		buffer->iova = buffer->dma_addr;
+
 	if (rga_mm_check_range_sgt(buffer->sgt))
 		mm_flag |= RGA_MEM_UNDER_4G;
 
@@ -608,6 +611,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 			       __func__, scheduler->core);
 			goto free_dma_buffer;
 		}
+
+		buffer->dma_addr = buffer->iova;
+
 		break;
 	case RGA_MMU:
 		ret = dma_map_sg(scheduler->dev, sgt->sgl, sgt->orig_nents, DMA_BIDIRECTIONAL);
@@ -978,9 +984,12 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 			break;
 
 		pr_info("dma_buffer:\n");
-		pr_info("dma_buf = %p, iova = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
-			dump_buffer->dma_buffer->dma_buf,
+		pr_info("dma_buf = %p\n",
+			dump_buffer->dma_buffer->dma_buf);
+		pr_info("iova = 0x%lx, dma_addr = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
 			(unsigned long)dump_buffer->dma_buffer->iova,
+			(unsigned long)dump_buffer->dma_buffer->dma_addr,
+			(unsigned long)dump_buffer->dma_buffer->offset,
 			dump_buffer->dma_buffer->sgt,
 			dump_buffer->dma_buffer->size,
 			dump_buffer->dma_buffer->scheduler->core);
@@ -1002,8 +1011,9 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 		if (rga_mm_is_invalid_dma_buffer(dump_buffer->dma_buffer))
 			break;
 
-		pr_info("iova = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
+		pr_info("iova = 0x%lx, dma_addr = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
 			(unsigned long)dump_buffer->dma_buffer->iova,
+			(unsigned long)dump_buffer->dma_buffer->dma_addr,
 			(unsigned long)dump_buffer->dma_buffer->offset,
 			dump_buffer->dma_buffer->sgt,
 			dump_buffer->dma_buffer->size,
@@ -1014,7 +1024,8 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 				(unsigned long)dump_buffer->phys_addr);
 		break;
 	case RGA_PHYSICAL_ADDRESS:
-		pr_info("physical address: pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
+		pr_info("physical address:\n");
+		pr_info("pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");
@@ -1851,6 +1862,11 @@ static void rga_mm_unmap_channel_job_buffer(struct rga_job *job,
 		if (rga_mm_sync_dma_sg_for_cpu(job_buffer->addr, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("unmap buffer:\n");
+		rga_mm_dump_buffer(job_buffer->addr);
+	}
+
 	rga_mm_unmap_buffer(job_buffer->addr);
 	kfree(job_buffer->addr);
 
@@ -1876,6 +1892,11 @@ static int rga_mm_map_channel_job_buffer(struct rga_job *job,
 	if (ret < 0) {
 		pr_err("job buffer map failed!\n");
 		goto error_free_buffer;
+	}
+
+	if (DEBUGGER_EN(MM)) {
+		pr_info("map buffer:\n");
+		rga_mm_dump_buffer(buffer);
 	}
 
 	ret = rga_mm_get_buffer_info(job, buffer, &img->yrgb_addr);
