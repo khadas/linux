@@ -4849,6 +4849,17 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		goto out;
 	}
 
+	/*
+	 * Usperspace not commit new frame for long time will triggle driver enter
+	 * psr mode, If userspace directly close display at next time and without
+	 * any new frame commit, driver will not exit psr, at this case we need to
+	 * recover aclk here.
+	 */
+	if (vop2->aclk_rate_reset) {
+		clk_set_rate(vop2->aclk, vop2->aclk_current_freq);
+		vop2->aclk_rate_reset = false;
+	}
+
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
 	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 0);
