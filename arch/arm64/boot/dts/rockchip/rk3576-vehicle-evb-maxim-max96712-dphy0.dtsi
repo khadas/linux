@@ -6,11 +6,11 @@
 #include <dt-bindings/display/media-bus-format.h>
 
 / {
-	max96712_dphy0_osc0: max96712-dphy0-oscillator@0 {
+	max96712_dphy0_osc: max96712-dphy0-oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <1>;
 		clock-frequency = <25000000>;
-		clock-output-names = "max96712-dphy0-osc0";
+		clock-output-names = "max96712-dphy0-osc";
 	};
 
 	max96712_dphy0_vcc1v2: max96712-dphy0-vcc1v2 {
@@ -38,7 +38,7 @@
 	max96712_dphy0_pwdn_regulator: max96712-dphy0-pwdn-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "max96712_dphy0_pwdn";
-		gpio = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max96712_dphy0_pwdn>;
 		enable-active-high;
@@ -102,7 +102,7 @@
 		status = "okay";
 		reg = <0x29>;
 		clock-names = "xvclk";
-		clocks = <&max96712_dphy0_osc0 0>;
+		clocks = <&max96712_dphy0_osc 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max96712_dphy0_errb>, <&max96712_dphy0_lock>;
 		power-domains = <&power RK3576_PD_VI>;
@@ -110,7 +110,7 @@
 		vcc1v2-supply = <&max96712_dphy0_vcc1v2>;
 		vcc1v8-supply = <&max96712_dphy0_vcc1v8>;
 		pwdn-supply = <&max96712_dphy0_pwdn_regulator>;
-		lock-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
@@ -155,9 +155,9 @@
 					status = "okay";
 					link-id = <0>; // Link ID: 0/1/2/3
 
-					link-type = <1>;
-					link-rx-rate = <1>;
-					link-tx-rate = <0>;
+					link-type = <1>; // 0: GMSL1, 1: GMSL2
+					link-rx-rate = <1>; // 0: 3GBPS, 1: 6GBPS
+					link-tx-rate = <0>; // 0: default for 187.5MBPS
 
 					link-remote-cam = <&max96712_dphy0_cam0>; // remote camera
 
@@ -179,9 +179,9 @@
 					status = "okay";
 					link-id = <1>; // Link ID: 0/1/2/3
 
-					link-type = <1>;
-					link-rx-rate = <1>;
-					link-tx-rate = <0>;
+					link-type = <1>; // 0: GMSL1, 1: GMSL2
+					link-rx-rate = <1>; // 0: 3GBPS, 1: 6GBPS
+					link-tx-rate = <0>; // 0: default for 187.5MBPS
 
 					link-remote-cam = <&max96712_dphy0_cam1>; // remote camera
 
@@ -203,9 +203,9 @@
 					status = "okay";
 					link-id = <2>; // Link ID: 0/1/2/3
 
-					link-type = <1>;
-					link-rx-rate = <1>;
-					link-tx-rate = <0>;
+					link-type = <1>; // 0: GMSL1, 1: GMSL2
+					link-rx-rate = <1>; // 0: 3GBPS, 1: 6GBPS
+					link-tx-rate = <0>; // 0: default for 187.5MBPS
 
 					link-remote-cam = <&max96712_dphy0_cam2>; // remote camera
 
@@ -227,9 +227,9 @@
 					status = "okay";
 					link-id = <3>; // Link ID: 0/1/2/3
 
-					link-type = <1>;
-					link-rx-rate = <1>;
-					link-tx-rate = <0>;
+					link-type = <1>; // 0: GMSL1, 1: GMSL2
+					link-rx-rate = <1>; // 0: 3GBPS, 1: 6GBPS
+					link-tx-rate = <0>; // 0: default for 187.5MBPS
 
 					link-remote-cam = <&max96712_dphy0_cam3>; // remote camera
 
@@ -374,17 +374,17 @@
 			mipi-txphys {
 				status = "okay";
 
-				phy-mode = <0>;
-				phy-force-clock-out = <1>;
-				phy-force-clk0-en = <1>;
-				phy-force-clk3-en = <0>;
+				phy-mode = <0>; // 0: 4Lanes, 1: 2Lanes
+				phy-force-clock-out = <1>; // 1: default for force clock out
+				phy-force-clk0-en = <1>; // provide MIPI clock: 0 = PHY1, 1 = PHY0
+				phy-force-clk3-en = <0>; // provide MIPI clock: 0 = PHY2, 1 = PHY3
 
 				// MIPI TXPHY A: phy-id = 0
 				mipi-txphy-config-0 {
 					status = "okay";
 					phy-id = <0>; // MIPI TXPHY ID: 0/1/2/3
 
-					phy-type = <0>;
+					phy-type = <0>; // 0: DPHY, 1: CPHY
 					auto-deskew = <0x80>;
 					data-lane-num = <4>;
 					data-lane-map = <0x4>;
@@ -396,7 +396,7 @@
 					status = "okay";
 					phy-id = <1>; // MIPI TXPHY ID: 0/1/2/3
 
-					phy-type = <0>;
+					phy-type = <0>; // 0: DPHY, 1: CPHY
 					auto-deskew = <0x80>;
 					data-lane-num = <4>;
 					data-lane-map = <0xe>;
@@ -710,7 +710,7 @@
 &pinctrl {
 	max96712-dphy0 {
 		max96712_dphy0_pwdn: max96712-dphy0-pwdn {
-			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 
 		max96712_dphy0_errb: max96712-dphy0-errb {
@@ -718,7 +718,7 @@
 		};
 
 		max96712_dphy0_lock: max96712-dphy0-lock {
-			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none_smt>;
+			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none_smt>;
 		};
 	};
 };
