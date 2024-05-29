@@ -2019,7 +2019,7 @@ static int rga3_init_reg(struct rga_job *job)
 	if (DEBUGGER_EN(MSG))
 		print_debug_info(&req);
 
-	if (rga3_gen_reg_info((uint8_t *) job->cmd_reg, &req) == -1) {
+	if (rga3_gen_reg_info((uint8_t *) job->cmd_buf->vaddr, &req) == -1) {
 		pr_err("RKA: gen reg info error\n");
 		return -EINVAL;
 	}
@@ -2056,7 +2056,10 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	int i;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
+	uint32_t *cmd;
 	ktime_t now = ktime_get();
+
+	cmd = job->cmd_buf->vaddr;
 
 	/*
 	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
@@ -2068,14 +2071,11 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		master_mode_en = false;
 
 	if (DEBUGGER_EN(REG)) {
-		uint32_t *p;
-
-		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
 		for (i = 0; i < 12; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				p[0 + i * 4], p[1 + i * 4],
-				p[2 + i * 4], p[3 + i * 4]);
+				cmd[0 + i * 4], cmd[1 + i * 4],
+				cmd[2 + i * 4], cmd[3 + i * 4]);
 	}
 
 	/* All CMD finish int */
@@ -2086,10 +2086,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		/* master mode */
 		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
 
-		/* cmd buffer flush cache to ddr */
-		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
-
-		rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
+		rga_write(job->cmd_buf->dma_addr, RGA3_CMD_ADDR, scheduler);
 		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
 		rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
 	} else {
@@ -2097,7 +2094,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
 
 		for (i = 0; i <= 50; i++)
-			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
 		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
 	}

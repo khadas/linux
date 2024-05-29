@@ -1393,6 +1393,12 @@ static int rga_drv_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to attach iommu\n");
 			scheduler->iommu_info = NULL;
 		}
+
+		dma_set_mask(dev, DMA_BIT_MASK(40));
+		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	} else {
+		dma_set_mask(dev, DMA_BIT_MASK(32));
+		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	}
 
 	platform_set_drvdata(pdev, scheduler);

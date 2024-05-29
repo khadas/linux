@@ -17,7 +17,10 @@
 
 static void rga_job_free(struct rga_job *job)
 {
-	free_page((unsigned long)job);
+	if (job->cmd_buf)
+		rga_dma_free(job->cmd_buf);
+
+	kfree(job);
 }
 
 static void rga_job_kref_release(struct kref *ref)
@@ -116,7 +119,7 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 {
 	struct rga_job *job = NULL;
 
-	job = (struct rga_job *)get_zeroed_page(GFP_KERNEL | GFP_DMA32);
+	job = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job)
 		return NULL;
 
@@ -440,11 +443,17 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 		goto err_free_job;
 	}
 
+	job->cmd_buf = rga_dma_alloc_coherent(scheduler, RGA_CMD_REG_SIZE);
+	if (job->cmd_buf == NULL) {
+		pr_err("failed to alloc command buffer.\n");
+		goto err_free_job;
+	}
+
 	/* Memory mapping needs to keep pd enabled. */
 	if (rga_power_enable(scheduler) < 0) {
 		pr_err("power enable failed");
 		job->ret = -EFAULT;
-		goto err_free_job;
+		goto err_free_cmd_buf;
 	}
 
 	ret = rga_mm_map_job_info(job);
@@ -474,6 +483,10 @@ err_unmap_job_info:
 
 err_power_disable:
 	rga_power_disable(scheduler);
+
+err_free_cmd_buf:
+	rga_dma_free(job->cmd_buf);
+	job->cmd_buf = NULL;
 
 err_free_job:
 	ret = job->ret;

@@ -269,7 +269,7 @@ struct rga_job {
 	struct rga_session *session;
 
 	struct rga_req rga_command_base;
-	uint32_t cmd_reg[32 * 8];
+	struct rga_dma_buffer *cmd_buf;
 	struct rga_full_csc full_csc;
 	struct rga_csc_clip full_csc_clip;
 	struct rga_pre_intr_info pre_intr_info;

@@ -2720,7 +2720,7 @@ static int rga2_init_reg(struct rga_job *job)
 	if (scheduler->data->mmu == RGA_IOMMU)
 		req.CMD_fin_int_enable = 1;
 
-	if (rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_reg, &req) == -1) {
+	if (rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_buf->vaddr, &req) == -1) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
 	}
@@ -2863,8 +2863,11 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	int i;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
+	uint32_t *cmd;
 	unsigned long flags;
 	ktime_t now = ktime_get();
+
+	cmd = job->cmd_buf->vaddr;
 
 	/*
 	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
@@ -2876,17 +2879,14 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		master_mode_en = false;
 
 	if (DEBUGGER_EN(REG)) {
-		uint32_t *p;
-
 		rga2_dump_read_back_sys_reg(scheduler);
 		rga2_dump_read_back_csc_reg(scheduler);
 
-		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
 		for (i = 0; i < 8; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				p[0 + i * 4], p[1 + i * 4],
-				p[2 + i * 4], p[3 + i * 4]);
+				cmd[0 + i * 4], cmd[1 + i * 4],
+				cmd[2 + i * 4], cmd[3 + i * 4]);
 	}
 
 	/* sys_reg init */
@@ -2911,11 +2911,8 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		/* master mode */
 		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(1);
 
-		/* cmd buffer flush cache to ddr */
-		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[32], scheduler);
-
 		/* set cmd_addr */
-		rga_write(virt_to_phys(job->cmd_reg), RGA2_CMD_BASE, scheduler);
+		rga_write(job->cmd_buf->dma_addr, RGA2_CMD_BASE, scheduler);
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
 		rga_write(m_RGA2_CMD_CTRL_CMD_LINE_ST_P, RGA2_CMD_CTRL, scheduler);
 	} else {
@@ -2924,7 +2921,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 		/* set cmd_reg */
 		for (i = 0; i <= 32; i++)
-			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
 	}
