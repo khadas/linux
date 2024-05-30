@@ -705,29 +705,74 @@ void rk628_cru_init(struct rk628 *rk628)
 	u32 val;
 	u8 mcu_mode;
 
+	/*
+	 * In rk628d application, if you need to dynamically tune the cpll
+	 * frequency, you need to mount pclk under gpll, otherwise it will
+	 * affect the i2c use. The bt1120rx only supports 5bit integer crossover
+	 * frequency, in order to crossover frequency accurately, you need to
+	 * adjust the cpll frequency dynamically, so in the scenario of rk628d
+	 * bt1120rx, mount the pclk under gpll.
+	 */
 	rk628_i2c_read(rk628, GRF_SYSTEM_STATUS0, &val);
 	mcu_mode = (val & I2C_ONLY_FLAG) ? 0 : 1;
 	if (mcu_mode || rk628->version >= RK628F_VERSION) {
 		rk628_i2c_write(rk628, CRU_MODE_CON00, HIWORD_UPDATE(1, 4, 4));
+		/*
+		 * rk628d pclk use cpll by default, and frequency is 99MHz
+		 * rk628f pclk use gpll by default, and frequency is 98.304MHz
+		 */
+		if (rk628_input_is_bt1120(rk628)) {
+			/* set pclk use gpll, and set pclk 98.304Hz */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0089);
+		}
 		return;
 	}
+
+	/* clock switch and first set gpll almost 99MHz */
 	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);
 	mdelay(1);
+	/* set clk_gpll_mux from gpll */
 	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0004);
 	mdelay(1);
 	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0080);
+	/* set pclk use gpll, now div is 4 */
 	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0083);
+	/* set cpll almost 400MHz */
 	rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff3063);
 	mdelay(1);
+	/* set clk_cpll_mux from clk_cpll */
 	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0005);
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
-	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
 	mdelay(1);
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff008b);
-	rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
-	mdelay(1);
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
+	if (rk628_input_is_bt1120(rk628)) {
+		/* set pclk use cpll, now div is 4 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
+		/* set pclk use cpll, now div is 10 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0009);
+		/* set gpll 983.04Hz */
+		rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
+		mdelay(1);
+		/* set pclk use gpll, now div is 10 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0089);
+		/* set cpll 1188MHz */
+		rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
+		/* final: cpll 1188MHz, gpll 983.04Hz, pclk (use gpll) 98.304Hz */
+	} else {
+		/* set pclk use cpll, now div is 4 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
+		/* set pclk use cpll, now div is 12 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
+		/* set gpll 983.04Hz */
+		rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
+		mdelay(1);
+		/* set pclk use gpll, now div is 12 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff008b);
+		/* set cpll 1188MHz */
+		rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
+		mdelay(1);
+		/* set pclk use cpll, now div is 12 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
+		/* final: cpll 1188MHz, gpll 983.04Hz, pclk (use cpll) 99Hz */
+	}
 }
 
 void rk628_cru_clk_adjust(struct rk628 *rk628)
@@ -739,11 +784,11 @@ void rk628_cru_clk_adjust(struct rk628 *rk628)
 	u32 val;
 
 	/*
-	 * Try to keep cpll frequency close to 1188m (Tested rk628f hdmirx
-	 * scenarios)
+	 * Try to keep cpll frequency close to 1188m (Tested bt1120rx and rk628f
+	 * hdmirx scenarios)
 	 */
-	if ((rk628_input_is_hdmi(rk628) || rk628_input_is_bt1120(rk628)) &&
-	    rk628->version != RK628D_VERSION) {
+	if ((rk628_input_is_hdmi(rk628) && rk628->version != RK628D_VERSION) ||
+	    rk628_input_is_bt1120(rk628)) {
 		val = 1188000000UL / (src->clock * 1000);
 		if (rk628_input_is_bt1120(rk628) && val > (CLK_BT1120DEC_DIV_MAX + 1))
 			val = CLK_BT1120DEC_DIV_MAX + 1;
