@@ -21,6 +21,7 @@
  * DEFINE_DRM_ACCEL_FOPS instead.
  */
 #define DRM_ACCEL_FOPS \
+	.open       = accel_open,\
 	.release	= drm_release,\
 	.unlocked_ioctl	= drm_ioctl,\
 	.compat_ioctl	= drm_compat_ioctl,\
