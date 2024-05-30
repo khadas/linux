@@ -742,8 +742,11 @@ void rk628_cru_clk_adjust(struct rk628 *rk628)
 	 * Try to keep cpll frequency close to 1188m (Tested rk628f hdmirx
 	 * scenarios)
 	 */
-	if (rk628_input_is_hdmi(rk628) && rk628->version != RK628D_VERSION) {
+	if ((rk628_input_is_hdmi(rk628) || rk628_input_is_bt1120(rk628)) &&
+	    rk628->version != RK628D_VERSION) {
 		val = 1188000000UL / (src->clock * 1000);
+		if (rk628_input_is_bt1120(rk628) && val > (CLK_BT1120DEC_DIV_MAX + 1))
+			val = CLK_BT1120DEC_DIV_MAX + 1;
 		val *= src->clock * 1000;
 		rk628_cru_clk_set_rate(rk628, CGU_CLK_CPLL, val);
 		msleep(50);
