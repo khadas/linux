@@ -427,8 +427,8 @@
 		rockchip,reboot-freq = <1416000>;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <750000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <800000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -545,8 +545,8 @@
 		rockchip,reboot-freq = <1608000>;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <750000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <800000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -821,7 +821,7 @@
 		rockchip,early-min-microvolt = <0 750000>; /* <vdd_ddr vdd_logic> */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 
 		rockchip,leakage-voltage-sel = <
@@ -2057,7 +2057,7 @@
 				      <&cru PCLK_NPUTOP_ROOT>;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
@@ -2180,7 +2180,7 @@
 		rockchip,opp-clocks = <&cru CLK_GPU>, <&cru PCLK_GPU_ROOT>;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
@@ -2910,6 +2910,10 @@
 		nvmem-cell-names = "leakage";
 
 		rockchip,early-min-microvolt = <750000>; /* vdd_logic */
+
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <750000>;
 
 		rockchip,init-freq = <702000>; /* KHz */
 
