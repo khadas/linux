@@ -57,6 +57,12 @@ struct mpp_dma_session {
 	/* the buffer used in session */
 	struct list_head unused_list;
 	struct list_head used_list;
+	/*
+	 * For those buffer import by ioctl MPP_CMD_TRANS_FD_TO_IOVA,
+	 * move to static_list instead of used_list and don't increase extra kref,
+	 * so that it will release when user space call ioctl MPP_CMD_RELEASE_FD.
+	 */
+	struct list_head static_list;
 	struct mpp_dma_buffer dma_bufs[MPP_SESSION_MAX_BUFFERS];
 	/* the mutex for the above buffer list */
 	struct mutex list_mutex;
@@ -108,7 +114,7 @@ int mpp_dma_free(struct mpp_dma_buffer *buffer);
 
 struct mpp_dma_buffer *
 mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
-		  struct mpp_dma_session *dma, int fd);
+		  struct mpp_dma_session *dma, int fd, int static_use);
 int mpp_dma_release(struct mpp_dma_session *dma,
 		    struct mpp_dma_buffer *buffer);
 int mpp_dma_release_fd(struct mpp_dma_session *dma, int fd);

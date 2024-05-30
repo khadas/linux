@@ -1363,7 +1363,7 @@ static int mpp_process_request(struct mpp_session *session,
 
 			mpp_iommu_down_read(mpp->iommu_info);
 			buffer = mpp_dma_import_fd(mpp->iommu_info,
-						   session->dma, fd);
+						   session->dma, fd, 1);
 			mpp_iommu_up_read(mpp->iommu_info);
 			if (IS_ERR_OR_NULL(buffer)) {
 				mpp_err("can not import fd %d\n", fd);
@@ -1770,7 +1770,7 @@ mpp_task_attach_fd(struct mpp_task *task, int fd)
 		mem_region->is_dup = true;
 	} else {
 		mpp_iommu_down_read(mpp->iommu_info);
-		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd);
+		buffer = mpp_dma_import_fd(mpp->iommu_info, dma, fd, 0);
 		mpp_iommu_up_read(mpp->iommu_info);
 		if (IS_ERR(buffer)) {
 			mpp_err("can't import dma-buf %d\n", fd);

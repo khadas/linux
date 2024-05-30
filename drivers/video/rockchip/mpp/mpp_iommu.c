@@ -33,6 +33,7 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 	struct dma_buf *dmabuf;
 	struct mpp_dma_buffer *out = NULL;
 	struct mpp_dma_buffer *buffer = NULL, *n;
+	int find = 0;
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf))
@@ -47,9 +48,26 @@ mpp_dma_find_buffer_fd(struct mpp_dma_session *dma, int fd)
 		 */
 		if (buffer->dmabuf == dmabuf) {
 			out = buffer;
+			find = 1;
+			list_move_tail(&buffer->link, &buffer->dma->used_list);
 			break;
 		}
 	}
+	if (!find) {
+		list_for_each_entry_safe(buffer, n,
+					&dma->static_list, link) {
+			/*
+			 * fd may dup several and point the same dambuf.
+			 * thus, here should be distinguish with the dmabuf.
+			 */
+			if (buffer->dmabuf == dmabuf) {
+				out = buffer;
+				list_move_tail(&buffer->link, &buffer->dma->static_list);
+				break;
+			}
+		}
+	}
+
 	mutex_unlock(&dma->list_mutex);
 	dma_buf_put(dmabuf);
 
@@ -84,22 +102,20 @@ static int
 mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 {
 	struct mpp_dma_buffer *n;
-	struct mpp_dma_buffer *oldest = NULL, *buffer = NULL;
-	ktime_t oldest_time = ktime_set(0, 0);
+	struct mpp_dma_buffer *removable = NULL, *buffer = NULL;
 
 	if (dma->buffer_count > dma->max_buffers) {
 		mutex_lock(&dma->list_mutex);
 		list_for_each_entry_safe(buffer, n,
 					 &dma->used_list,
 					 link) {
-			if (ktime_to_ns(oldest_time) == 0 ||
-			    ktime_after(oldest_time, buffer->last_used)) {
-				oldest_time = buffer->last_used;
-				oldest = buffer;
+			if (kref_read(&buffer->ref) == 1) {
+				removable = buffer;
+				break;
 			}
 		}
-		if (oldest && kref_read(&oldest->ref) == 1)
-			kref_put(&oldest->ref, mpp_dma_release_buffer);
+		if (removable)
+			kref_put(&removable->ref, mpp_dma_release_buffer);
 		mutex_unlock(&dma->list_mutex);
 	}
 
@@ -176,7 +192,7 @@ int mpp_dma_free(struct mpp_dma_buffer *buffer)
 
 struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 					 struct mpp_dma_session *dma,
-					 int fd)
+					 int fd, int static_use)
 {
 	int ret = 0;
 	struct sg_table *sgt;
@@ -196,10 +212,8 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 	/* Check whether in dma session */
 	buffer = mpp_dma_find_buffer_fd(dma, fd);
 	if (!IS_ERR_OR_NULL(buffer)) {
-		if (kref_get_unless_zero(&buffer->ref)) {
-			buffer->last_used = ktime_get();
+		if (kref_get_unless_zero(&buffer->ref))
 			return buffer;
-		}
 		dev_dbg(dma->dev, "missing the fd %d\n", fd);
 	}
 
@@ -224,7 +238,6 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	buffer->dmabuf = dmabuf;
 	buffer->dir = DMA_BIDIRECTIONAL;
-	buffer->last_used = ktime_get();
 
 	attach = dma_buf_attach(buffer->dmabuf, dma->dev);
 	if (IS_ERR(attach)) {
@@ -247,13 +260,16 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	kref_init(&buffer->ref);
 
-	if (!IS_ENABLED(CONFIG_DMABUF_CACHE))
+	if (!static_use && !IS_ENABLED(CONFIG_DMABUF_CACHE))
 		/* Increase the reference for used outside the buffer pool */
 		kref_get(&buffer->ref);
 
 	mutex_lock(&dma->list_mutex);
 	dma->buffer_count++;
-	list_add_tail(&buffer->link, &dma->used_list);
+	if (static_use)
+		list_add_tail(&buffer->link, &dma->static_list);
+	else
+		list_add_tail(&buffer->link, &dma->used_list);
 	mutex_unlock(&dma->list_mutex);
 
 	return buffer;
@@ -333,6 +349,11 @@ int mpp_dma_session_destroy(struct mpp_dma_session *dma)
 				 link) {
 		kref_put(&buffer->ref, mpp_dma_release_buffer);
 	}
+	list_for_each_entry_safe(buffer, n,
+				 &dma->static_list,
+				 link) {
+		kref_put(&buffer->ref, mpp_dma_release_buffer);
+	}
 	mutex_unlock(&dma->list_mutex);
 
 	kfree(dma);
@@ -354,6 +375,7 @@ mpp_dma_session_create(struct device *dev, u32 max_buffers)
 	mutex_init(&dma->list_mutex);
 	INIT_LIST_HEAD(&dma->unused_list);
 	INIT_LIST_HEAD(&dma->used_list);
+	INIT_LIST_HEAD(&dma->static_list);
 
 	if (max_buffers > MPP_SESSION_MAX_BUFFERS) {
 		mpp_debug(DEBUG_IOCTL, "session_max_buffer %d must less than %d\n",
