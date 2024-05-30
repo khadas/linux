@@ -19,7 +19,7 @@
 	panel,vir_height = <1944>;
 	panel,sdck = <60000000>;
 	panel,lsl = <64>;
-	panel,lbl = <64>;
+	panel,lbl = <20>;
 	panel,ldl = <312>;
 	panel,lel = <22>;
 	panel,gdck-sta = <1>;
