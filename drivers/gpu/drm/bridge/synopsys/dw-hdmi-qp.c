@@ -2075,9 +2075,8 @@ static u8 dw_hdmi_qp_hdcp_capable(struct dw_hdmi_qp *hdmi)
 }
 
 static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
-				   struct drm_connector *connector)
+				   const struct drm_connector_state *conn_state)
 {
-	const struct drm_connector_state *conn_state = connector->state;
 	void *data = hdmi->plat_data->phy_data;
 
 	hdmi_writel(hdmi, 0, HDCP2LOGIC_ESM_GPIO_IN);
@@ -2715,8 +2714,31 @@ static bool check_hdr_color_change(struct drm_connector_state *old_state,
 	return false;
 }
 
-static bool check_dw_hdcp_state_changed(struct drm_connector *conn,
-					struct drm_atomic_state *state)
+static void dw_hdmi_qp_hdcp_disable(struct dw_hdmi_qp *hdmi,
+				    const struct drm_connector_state *conn_state)
+{
+	void *data = hdmi->plat_data->phy_data;
+
+	hdmi_writel(hdmi, 0, AVP_1_INT_MASK_N);
+	hdmi_writel(hdmi, 0, AVP_3_INT_MASK_N);
+	if (hdmi->hdcp && hdmi->hdcp->hdcp_stop)
+		hdmi->hdcp->hdcp_stop(hdmi->hdcp);
+
+	hdmi_writel(hdmi, 0x34, HDCP2LOGIC_ESM_GPIO_IN);
+	hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
+
+	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		drm_hdcp_update_content_protection(hdmi->curr_conn,
+						   DRM_MODE_CONTENT_PROTECTION_DESIRED);
+
+	hdmi->hdcp_status = 0;
+	if (hdmi->plat_data->set_hdcp_status)
+		hdmi->plat_data->set_hdcp_status(data, hdmi->hdcp_status);
+}
+
+static void set_dw_hdmi_hdcp_enable(struct dw_hdmi_qp *hdmi,
+				    struct drm_connector *conn,
+				    struct drm_atomic_state *state)
 {
 	struct drm_connector_state *old_state, *new_state;
 	u64 old_cp, new_cp;
@@ -2726,24 +2748,14 @@ static bool check_dw_hdcp_state_changed(struct drm_connector *conn,
 	old_cp = old_state->content_protection;
 	new_cp = new_state->content_protection;
 
-	if (old_state->hdcp_content_type != new_state->hdcp_content_type &&
-	    new_cp != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		new_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-		return true;
+	if (old_cp != new_cp) {
+		if (new_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED &&
+		    old_cp == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+			dw_hdmi_qp_hdcp_enable(hdmi, new_state);
+		else if (new_cp == DRM_MODE_CONTENT_PROTECTION_UNDESIRED &&
+			 old_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+			dw_hdmi_qp_hdcp_disable(hdmi, new_state);
 	}
-
-	if (!new_state->crtc) {
-		if (old_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED)
-			new_state->content_protection = DRM_MODE_CONTENT_PROTECTION_DESIRED;
-		return false;
-	}
-
-	if (old_cp == new_cp ||
-	    (old_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED &&
-	     new_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED))
-		return false;
-
-	return true;
 }
 
 static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
@@ -2890,9 +2902,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		}
 	}
 
-	if (check_dw_hdcp_state_changed(connector, state))
-		crtc_state->mode_changed = true;
-
 	return 0;
 }
 
@@ -2908,6 +2917,8 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);
 		hdmi->update = false;
 	}
+
+	set_dw_hdmi_hdcp_enable(hdmi, connector, state);
 }
 
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val)
@@ -3078,21 +3089,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	hdmi_writel(hdmi, 1, PKTSCHED_PKT_CONTROL0);
 	mdelay(50);
 
-	hdmi_writel(hdmi, 0, AVP_1_INT_MASK_N);
-	hdmi_writel(hdmi, 0, AVP_3_INT_MASK_N);
-	if (hdmi->hdcp && hdmi->hdcp->hdcp_stop)
-		hdmi->hdcp->hdcp_stop(hdmi->hdcp);
-
-	hdmi_writel(hdmi, 0x34, HDCP2LOGIC_ESM_GPIO_IN);
-	hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
-
-	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
-		drm_hdcp_update_content_protection(hdmi->curr_conn,
-						   DRM_MODE_CONTENT_PROTECTION_DESIRED);
-
-	hdmi->hdcp_status = 0;
-	if (hdmi->plat_data->set_hdcp_status)
-		hdmi->plat_data->set_hdcp_status(data, hdmi->hdcp_status);
+	dw_hdmi_qp_hdcp_disable(hdmi, conn_state);
 
 	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
 	handle_plugged_change(hdmi, false);
@@ -3165,7 +3162,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (hdmi->panel)
 		drm_panel_enable(hdmi->panel);
 
-	dw_hdmi_qp_hdcp_enable(hdmi, hdmi->curr_conn);
+	dw_hdmi_qp_hdcp_enable(hdmi, hdmi->curr_conn->state);
 }
 
 static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
