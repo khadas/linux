@@ -5914,9 +5914,18 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		}
 	}
 
-	if (is_linear_10bit_yuv(fb->format->format) && actual_w & 0x3) {
-		DRM_WARN("vp%d %s actual_w[%d] should align as 4 pixel when is linear 10 bit yuv format\n", vp->id, win->name, actual_w);
-		actual_w = ALIGN_DOWN(actual_w, 4);
+	/*
+	 * At RK356X/RK3588/RK3562/RK3528 linear 10bit yuv format actual_w should align as 4 pixel,
+	 * from RK3576 linear 10bit yuv format actual_w should align as 2 pixel.
+	 */
+	if (is_linear_10bit_yuv(fb->format->format)) {
+		if (vop2->version < VOP_VERSION_RK3576 && actual_w & 0x3) {
+			DRM_WARN("vp%d %s actual_w[%d] should align as 4 pixel when is linear 10 bit yuv format\n", vp->id, win->name, actual_w);
+			actual_w = ALIGN_DOWN(actual_w, 4);
+		} else if (vop2->version >= VOP_VERSION_RK3576 && actual_w & 0x1) {
+			DRM_WARN("vp%d %s actual_w[%d] should align as 2 pixel when is linear 10 bit yuv format\n", vp->id, win->name, actual_w);
+			actual_w = ALIGN_DOWN(actual_w, 2);
+		}
 	}
 
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
