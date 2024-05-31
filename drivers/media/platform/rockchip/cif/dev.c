@@ -2806,7 +2806,8 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
-	rkcif_do_soft_reset(cif_dev);
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF)
+		rkcif_do_soft_reset(cif_dev);
 	return (ret > 0) ? 0 : ret;
 }
 
