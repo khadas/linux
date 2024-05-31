@@ -67,10 +67,16 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct rockchip_hwspinlock *hwspin;
 	struct hwspinlock *hwlock;
+	u32 num_locks = 0;
 	int idx, ret;
 
+	ret = device_property_read_u32(&pdev->dev, "rockchip,hwlock-num-locks",
+				       &num_locks);
+	if (ret || !num_locks)
+		num_locks = HWSPINLOCK_NUMBER;
+
 	hwspin = devm_kzalloc(&pdev->dev,
-			      struct_size(hwspin, bank.lock, HWSPINLOCK_NUMBER),
+			      struct_size(hwspin, bank.lock, num_locks),
 			      GFP_KERNEL);
 	if (!hwspin)
 		return -ENOMEM;
@@ -83,9 +89,9 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 				       &hwlock_user_id);
 	if (ret || !hwlock_user_id || hwlock_user_id > HWSPINLOCK_ID_MASK)
 		hwlock_user_id = HWLOCK_DEFAULT_USER;
-	dev_info(&pdev->dev, "hwlock user id %u\n", hwlock_user_id);
+	dev_info(&pdev->dev, "hwlock user id %u, locks %u\n", hwlock_user_id, num_locks);
 
-	for (idx = 0; idx < HWSPINLOCK_NUMBER; idx++) {
+	for (idx = 0; idx < num_locks; idx++) {
 		hwlock = &hwspin->bank.lock[idx];
 		hwlock->priv = hwspin->io_base + HWSPINLOCK_OFFSET(idx);
 	}
@@ -94,7 +100,7 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 
 	return devm_hwspin_lock_register(&pdev->dev, &hwspin->bank,
 					 &rockchip_hwspinlock_ops, 0,
-					 HWSPINLOCK_NUMBER);
+					 num_locks);
 }
 
 static const struct of_device_id rockchip_hwpinlock_ids[] = {
