@@ -3381,10 +3381,6 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 			value = priv_val->buf_gain.dma_addr + value * id;
 			isp3_param_write(params_vdev, value, ISP3X_MI_GAIN_WR_BASE, id);
 			isp3_param_write(params_vdev, value, ISP3X_MI_RAW0_RD_BASE, id);
-
-			value = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL, id);
-			value |= ISP3X_GAIN_2DDR_MODE(1) | ISP3X_GAIN_2DDR_EN;
-			isp3_param_write(params_vdev, value, ISP3X_GAIN_CTRL, id);
 		}
 
 		bay3d_ctrl |= ISP39_MODULE_EN;
@@ -3636,6 +3632,11 @@ isp_yuvme_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		return;
 
 	if (en) {
+		value = isp3_param_read_cache(params_vdev, ISP3X_BAY3D_CTRL, id);
+		if (!(value & ISP39_MODULE_EN)) {
+			dev_err(ispdev->dev, "yuvme need bay3d enable together\n");
+			return;
+		}
 		if (!priv_val->buf_3dnr_cur.mem_priv) {
 			dev_err(ispdev->dev, "no yuvme cur buffer available\n");
 			return;
@@ -3972,8 +3973,6 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	mask = ISP39_MODULE_YNR | ISP39_MODULE_CNR | ISP39_MODULE_SHARP;
 	if  ((module_ens & mask) && ((module_ens & mask) != mask))
 		dev_err(params_vdev->dev->dev, "ynr cnr sharp no enable together\n");
-	if (module_ens & ISP39_MODULE_YUVME && !(module_ens & ISP39_MODULE_BAY3D))
-		dev_err(params_vdev->dev->dev, "yuvme need bay3d enable together\n");
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_en_update:0x%llx module_ens:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_en_update, module_ens);
@@ -5103,7 +5102,7 @@ rkisp_params_isr_v39(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis)
 		}
 	}
 
-	if ((isp_mis & CIF_ISP_FRAME) && !params_vdev->rdbk_times)
+	if ((isp_mis & CIF_ISP_FRAME) && !params_vdev->rdbk_times && !dev->hw_dev->is_single)
 		rkisp_params_clear_fstflg(params_vdev);
 
 	if ((isp_mis & CIF_ISP_FRAME) && !IS_HDR_RDBK(dev->rd_mode))
