@@ -1425,9 +1425,6 @@ static int dw_mipi_dsi2_bind(struct device *dev, struct device *master,
 	int ret;
 
 	dsi2->drm_dev = drm_dev;
-	ret = dw_mipi_dsi2_dual_channel_probe(dsi2);
-	if (ret)
-		return ret;
 
 	if (dsi2->master)
 		return 0;
@@ -1573,6 +1570,7 @@ static int dw_mipi_dsi2_host_attach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi2 *dsi2 = host_to_dsi2(host);
+	int ret;
 
 	if (dsi2->master)
 		return 0;
@@ -1586,7 +1584,25 @@ static int dw_mipi_dsi2_host_attach(struct mipi_dsi_host *host,
 	dsi2->format = device->format;
 	dsi2->mode_flags = device->mode_flags;
 
-	return component_add(dsi2->dev, &dw_mipi_dsi2_ops);
+	ret = dw_mipi_dsi2_dual_channel_probe(dsi2);
+	if (ret)
+		return ret;
+
+	ret = component_add(dsi2->dev, &dw_mipi_dsi2_ops);
+	if (ret)
+		return ret;
+
+	if (dsi2->slave) {
+		ret = component_add(dsi2->slave->dev, &dw_mipi_dsi2_ops);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	component_del(dsi2->dev, &dw_mipi_dsi2_ops);
+	return ret;
 }
 
 static int dw_mipi_dsi2_host_detach(struct mipi_dsi_host *host,
@@ -1596,6 +1612,9 @@ static int dw_mipi_dsi2_host_detach(struct mipi_dsi_host *host,
 
 	if (dsi2->master)
 		return 0;
+
+	if (dsi2->slave)
+		component_del(dsi2->slave->dev, &dw_mipi_dsi2_ops);
 
 	component_del(dsi2->dev, &dw_mipi_dsi2_ops);
 
