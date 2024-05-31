@@ -93,7 +93,7 @@ static const s64 link_freq_menu_items[] = {
 };
 
 struct lt6911c_state {
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_mbus_config_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -523,7 +523,7 @@ static void lt6911c_delayed_work_enable_hotplug(struct work_struct *work)
 			struct lt6911c_state, delayed_work_enable_hotplug);
 	struct v4l2_subdev *sd = &lt6911c->sd;
 
-	lt6911c_config_hpd(sd);
+	lt6911c_s_ctrl_detect_tx_5v(sd);
 }
 
 static void lt6911c_delayed_work_res_change(struct work_struct *work)
@@ -603,21 +603,6 @@ static void lt6911c_format_change(struct v4l2_subdev *sd)
 
 	if (sd->devnode)
 		v4l2_subdev_notify_event(sd, &lt6911c_ev_fmt);
-}
-
-static int lt6911c_get_ctrl(struct v4l2_ctrl *ctrl)
-{
-	int ret = -1;
-	struct lt6911c_state *lt6911c = container_of(ctrl->handler,
-			struct lt6911c_state, hdl);
-	struct v4l2_subdev *sd = &(lt6911c->sd);
-
-	if (ctrl->id == V4L2_CID_DV_RX_POWER_PRESENT) {
-		ret = tx_5v_power_present(sd);
-		*ctrl->p_new.p_s32 = ret;
-	}
-
-	return ret;
 }
 
 static int lt6911c_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
@@ -781,26 +766,7 @@ static int lt6911c_g_mbus_config(struct v4l2_subdev *sd,
 	struct lt6911c_state *lt6911c = to_state(sd);
 
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
-	cfg->flags = V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
-			V4L2_MBUS_CSI2_CHANNEL_0;
-
-	switch (lt6911c->csi_lanes_in_use) {
-	case 1:
-		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
-		break;
-	case 2:
-		cfg->flags |= V4L2_MBUS_CSI2_2_LANE;
-		break;
-	case 3:
-		cfg->flags |= V4L2_MBUS_CSI2_3_LANE;
-		break;
-	case 4:
-		cfg->flags |= V4L2_MBUS_CSI2_4_LANE;
-		break;
-
-	default:
-		return -EINVAL;
-	}
+	cfg->bus.mipi_csi2 = lt6911c->bus;
 
 	return 0;
 }
@@ -813,7 +779,7 @@ static int lt6911c_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int lt6911c_enum_mbus_code(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->index) {
@@ -829,7 +795,7 @@ static int lt6911c_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int lt6911c_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->index >= ARRAY_SIZE(supported_modes))
@@ -847,7 +813,7 @@ static int lt6911c_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int lt6911c_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *format)
 {
 	struct lt6911c_state *lt6911c = to_state(sd);
@@ -870,7 +836,7 @@ static int lt6911c_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt6911c_enum_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval_enum *fie)
 {
 	if (fie->index >= ARRAY_SIZE(supported_modes))
@@ -914,7 +880,7 @@ lt6911c_find_best_fit(struct v4l2_subdev_format *fmt)
 }
 
 static int lt6911c_set_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *format)
 {
 	struct lt6911c_state *lt6911c = to_state(sd);
@@ -922,7 +888,7 @@ static int lt6911c_set_fmt(struct v4l2_subdev *sd,
 
 	/* is overwritten by get_fmt */
 	u32 code = format->format.code;
-	int ret = lt6911c_get_fmt(sd, cfg, format);
+	int ret = lt6911c_get_fmt(sd, sd_state, format);
 
 	format->format.code = code;
 
@@ -979,6 +945,9 @@ static long lt6911c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_MODULE_INFO:
 		lt6911c_get_module_inf(lt6911c, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_HDMI_MODE:
+		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -994,6 +963,7 @@ static long lt6911c_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	long ret;
+	int *seq;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1011,7 +981,21 @@ static long lt6911c_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(inf);
 		break;
+	case RKMODULE_GET_HDMI_MODE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
 
+		ret = lt6911c_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1020,10 +1004,6 @@ static long lt6911c_compat_ioctl32(struct v4l2_subdev *sd,
 	return ret;
 }
 #endif
-
-static const struct v4l2_ctrl_ops lt6911c_ctrl_ops = {
-	.g_volatile_ctrl = lt6911c_get_ctrl,
-};
 
 static const struct v4l2_subdev_core_ops lt6911c_core_ops = {
 	.interrupt_service_routine = lt6911c_isr,
@@ -1112,10 +1092,8 @@ static int lt6911c_init_v4l2_ctrls(struct lt6911c_state *lt6911c)
 			0, LT6911C_PIXEL_RATE, 1, LT6911C_PIXEL_RATE);
 
 	lt6911c->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&lt6911c->hdl,
-			&lt6911c_ctrl_ops, V4L2_CID_DV_RX_POWER_PRESENT,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
-	if (lt6911c->detect_tx_5v_ctrl)
-		lt6911c->detect_tx_5v_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	lt6911c->audio_sampling_rate_ctrl =
 		v4l2_ctrl_new_custom(&lt6911c->hdl,
@@ -1338,7 +1316,7 @@ static int lt6911c_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 lt6911c->module_index, facing,
 		 LT6911C_NAME, dev_name(sd->dev));
-	err = v4l2_async_register_subdev_sensor_common(sd);
+	err = v4l2_async_register_subdev_sensor(sd);
 	if (err < 0) {
 		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
 		goto err_clean_entity;
@@ -1407,7 +1385,7 @@ err_free_hdl:
 	return err;
 }
 
-static int lt6911c_remove(struct i2c_client *client)
+static void lt6911c_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct lt6911c_state *lt6911c = to_state(sd);
@@ -1426,8 +1404,6 @@ static int lt6911c_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&lt6911c->hdl);
 	mutex_destroy(&lt6911c->confctl_mutex);
 	clk_disable_unprepare(lt6911c->xvclk);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
