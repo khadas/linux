@@ -590,6 +590,7 @@ static const u16 trans_tbl_h264e_540c[] = {
 	14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
 	// /* renc and ref wrap */
 	// 24, 25, 26, 27,
+	28, 29, 30
 };
 
 static const u16 trans_tbl_h264e_540c_osd[] = {
@@ -599,7 +600,8 @@ static const u16 trans_tbl_h264e_540c_osd[] = {
 
 static const u16 trans_tbl_h265e_540c[] = {
 	4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
-	14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+	14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+	28, 29, 30
 };
 
 static const u16 trans_tbl_h265e_540c_osd[] = {
