@@ -6956,11 +6956,11 @@ static void vop2_crtc_csu_set_rate(struct drm_crtc *crtc)
 
 	aclk_rate = clk_get_rate(vop2->aclk);
 	dclk_rate = clk_get_rate(vp->dclk);
-	if (!dclk_rate)
+	if (!dclk_rate || !aclk_rate)
 		return;
 
-	/* aclk >= 1/2 * dclk */
-	csu_div = aclk_rate * 2 / dclk_rate;
+	/* aclk > 1/2 * dclk */
+	csu_div = (aclk_rate - 1) * 2 / dclk_rate;
 
 	rockchip_csu_set_div(vop2->csu_aclk, csu_div);
 }
