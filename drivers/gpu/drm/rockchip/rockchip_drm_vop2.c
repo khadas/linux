@@ -12738,9 +12738,6 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 
 	drm_object_attach_property(&win->base.base, private->async_commit_prop, 0);
 
-	if (win->feature & (WIN_FEATURE_CLUSTER_SUB | WIN_FEATURE_CLUSTER_MAIN))
-		drm_object_attach_property(&win->base.base, private->share_id_prop, win->plane_id);
-
 	if (win->parent)
 		drm_object_attach_property(&win->base.base, private->share_id_prop,
 					   win->parent->base.base.id);
