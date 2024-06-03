@@ -43,6 +43,7 @@
 #define GPIO_HIGH 1
 #define es8316_DEF_VOL			0x1e
 
+struct es8316_priv *es8316_use;
 static struct snd_soc_component *es8316_component;
 
 static const struct reg_default es8316_reg_defaults[] = {
@@ -715,8 +716,10 @@ static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 				    ES8316_CLKMGR_DAC_ANALOG_EN);
 		msleep(50);
 	} else {
-		snd_soc_component_update_bits(component,
-				    ES8316_ADC_PDN_LINSEL_REG22, 0xC0, 0x20);
+		if (es8316->hp_inserted)
+			snd_soc_component_update_bits(component, ES8316_ADC_PDN_LINSEL_REG22, 0xF0, 0x10);
+		else
+			snd_soc_component_update_bits(component, ES8316_ADC_PDN_LINSEL_REG22, 0xF0, 0x00);
 		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW_REG01,
 				    ES8316_CLKMGR_ADC_MCLK_MASK |
 				    ES8316_CLKMGR_ADC_ANALOG_MASK,
@@ -752,7 +755,10 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 				    ES8316_CLKMGR_DAC_ANALOG_MASK,
 				    ES8316_CLKMGR_DAC_ANALOG_DIS);
 	} else {
-		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
+		if (es8316->hp_inserted)
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
+		else
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW_REG01,
 				    ES8316_CLKMGR_ADC_MCLK_MASK |
 				    ES8316_CLKMGR_ADC_ANALOG_MASK,
@@ -826,7 +832,6 @@ static int es8316_set_bias_level(struct snd_soc_component *component,
 {
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	//int ret;
-//printk("hlm level=%d\n", level);
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -856,7 +861,10 @@ static int es8316_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, ES8316_HPMIX_SWITCH_REG14, 0x00);
 		snd_soc_component_write(component, ES8316_HPMIX_PDN_REG15, 0x33);
 		snd_soc_component_write(component, ES8316_HPMIX_VOL_REG16, 0x00);
-		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xC0);
+		if (es8316->hp_inserted)
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
+		else
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 		if (!es8316->hp_inserted)
 			snd_soc_component_write(component, ES8316_SYS_PDN_REG0D, 0x3F);
 		snd_soc_component_write(component, ES8316_SYS_LP1_REG0E, 0x3F);
@@ -904,6 +912,8 @@ static struct snd_soc_dai_driver es8316_dai = {
 
 static int es8316_init_regs(struct snd_soc_component *component)
 {
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+
 	snd_soc_component_write(component, ES8316_RESET_REG00, 0x3f);
 	usleep_range(5000, 5500);
 	snd_soc_component_write(component, ES8316_RESET_REG00, 0x00);
@@ -922,13 +932,16 @@ static int es8316_init_regs(struct snd_soc_component *component)
 	snd_soc_component_write(component, ES8316_CAL_HPLIV_REG1E, 0x90);
 	snd_soc_component_write(component, ES8316_CAL_HPRIV_REG1F, 0x90);
 	snd_soc_component_write(component, ES8316_ADC_VOLUME_REG27, 0x00);
-	snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
+	if (es8316->hp_inserted)
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
+	else
+		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 	snd_soc_component_write(component, ES8316_ADC_D2SEPGA_REG24, 0x00);
 	snd_soc_component_write(component, ES8316_ADC_DMIC_REG25, 0x08);
 	snd_soc_component_write(component, ES8316_DAC_SET2_REG31, 0x20);
 	snd_soc_component_write(component, ES8316_DAC_SET3_REG32, 0x00);
-	snd_soc_component_write(component, ES8316_DAC_VOLL_REG33, 0x00);
-	snd_soc_component_write(component, ES8316_DAC_VOLR_REG34, 0x00);
+	snd_soc_component_write(component, ES8316_DAC_VOLL_REG33, 0x0f);//0x0
+	snd_soc_component_write(component, ES8316_DAC_VOLR_REG34, 0x0f);//0x0
 	snd_soc_component_write(component, ES8316_SDP_ADCFMT_REG0A, 0x00);
 	snd_soc_component_write(component, ES8316_SDP_DACFMT_REG0B, 0x00);
 	snd_soc_component_write(component, ES8316_SYS_VMIDLOW_REG10, 0x11);
@@ -997,7 +1010,10 @@ static int es8316_resume(struct snd_soc_component *component)
 		snd_soc_component_write(component, ES8316_SYS_LP1_REG0E, 0xFF);
 		snd_soc_component_write(component, ES8316_SYS_LP2_REG0F, 0xFF);
 		snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
-		snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
+		if (es8316->hp_inserted)
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
+		else
+			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 	}
 	return 0;
 }
@@ -1063,17 +1079,18 @@ static void hp_det_work(struct work_struct *work)
 {
 	struct es8316_adc_hp_det *hp;
 	int value;
+	
 	hp = container_of(work, struct es8316_adc_hp_det, work.work);
 	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
 		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
-		    //hdmitx_ext_set_audio_output(1);
+		    hdmitx_ext_set_audio_output(1);
+			es8316_use->hp_inserted = false;
         }else{
-			//printk("hlm disable hdmi audio output\n");
-			//hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+			hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+			es8316_use->hp_inserted = true;
 		}
-		//printk("hlm value===%d\n",value);
 	}
-   queue_delayed_work(system_wq, &hp->work,msecs_to_jiffies(500));
+    queue_delayed_work(system_wq, &hp->work,msecs_to_jiffies(500));
 }
 
 static int es8316_probe(struct snd_soc_component *component)
@@ -1118,8 +1135,10 @@ static int es8316_probe(struct snd_soc_component *component)
 			snd_soc_component_write(component, ES8316_SYS_LP1_REG0E, 0xFF);
 			snd_soc_component_write(component, ES8316_SYS_LP2_REG0F, 0xFF);
 			snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
-			snd_soc_component_write(component,
-				      ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
+			if (es8316->hp_inserted)
+				snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
+			else
+				snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 		}
 	}
 	printk("%s %d\n",__func__,__LINE__);
@@ -1130,15 +1149,6 @@ static void es8316_remove(struct snd_soc_component *component)
 {
 	es8316_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
-
-const struct regmap_config es8316_regmap_config = {
-	.reg_bits	= 8,
-	.val_bits	= 8,
-	.max_register	= ES8316_TEST3_REG53,
-	.cache_type	= REGCACHE_RBTREE,
-	.reg_defaults = es8316_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(es8316_reg_defaults),
-};
 
 static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.probe =	es8316_probe,
@@ -1152,6 +1162,23 @@ static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.num_dapm_widgets = ARRAY_SIZE(es8316_dapm_widgets),
 	.dapm_routes = es8316_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(es8316_dapm_routes),
+};
+
+static const struct regmap_range es8316_volatile_ranges[] = {
+	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
+};
+
+static const struct regmap_access_table es8316_volatile_table = {
+	.yes_ranges	= es8316_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
+};
+
+static const struct regmap_config es8316_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x53,
+	.volatile_table	= &es8316_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int es8316_adc_hp_det_get_devtree_pdata(struct device *dev,
@@ -1225,6 +1252,37 @@ err:
 
 }
 
+static ssize_t show_hp_inserted(struct class *cls,
+             struct class_attribute *attr, char *buf)
+{
+	struct es8316_priv *es8316;
+
+	if (!es8316_component)
+		return -1;
+
+	es8316 = snd_soc_component_get_drvdata(es8316_component);
+	return sprintf(buf, "%d\n", es8316_use->hp_inserted);
+}
+
+static struct class_attribute es8316_class_attrs[] = {
+    __ATTR(hp_inserted, 0664, show_hp_inserted, NULL),
+};
+
+static void create_es8316_attrs(void) {
+	int i;
+	struct class *es8316_class;
+
+	es8316_class = class_create(THIS_MODULE, "es8316");
+	if (IS_ERR(es8316_class)) {
+		pr_err("create es8316_class debug class fail\n");
+
+		return;
+	}
+	for (i = 0; i < ARRAY_SIZE(es8316_class_attrs); i++) {
+		if (class_create_file(es8316_class, &es8316_class_attrs[i]))
+			pr_err("create es8316 attribute %s fail\n",es8316_class_attrs[i].attr.name);
+	}
+}
 
 static int es8316_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -1232,6 +1290,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	struct es8316_priv *es8316;
 	struct es8316_adc_hp_det *hp;
 	int ret = -1;
+	int error = -1;
 	int hpret = -1;
 	//int hp_irq;
 	//enum of_gpio_flags flags;
@@ -1247,14 +1306,18 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	es8316->debounce_time = 200;
 	es8316->hp_det_invert = 0;
 	es8316->pwr_count = 0;
-	es8316->hp_inserted = true;
+	es8316->hp_inserted = false;
 	es8316->muted = true;
-	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap_config);
+	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap);
 	if (IS_ERR(es8316->regmap)) {
 		ret = PTR_ERR(es8316->regmap);
 		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
 		return ret;
 	}
+
+	error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
+	if (error)
+		return error;
 	i2c_set_clientdata(i2c, es8316);
 	
 	/*es8316->spk_mute_gpio = of_get_named_gpio_flags(np,
@@ -1327,11 +1390,12 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	printk("es8316_i2c_probe %d\n",__LINE__);
 	hpret = es8316_adc_hp_det_get_devtree_pdata(&i2c->dev,hp);
 	if(hpret == 0) {
-		printk("hlm hp_det_work %d\n",__LINE__);
 	INIT_DELAYED_WORK(&hp->work, hp_det_work);
 	mod_delayed_work(system_wq,&hp->work,
 				      msecs_to_jiffies(500));
 	}
+	create_es8316_attrs();
+	es8316_use = es8316;
 	return ret;
 }
 
