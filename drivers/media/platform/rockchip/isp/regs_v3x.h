@@ -2533,6 +2533,8 @@
 #define ISP39_LDCV_UV_SWAP		BIT(4)
 #define ISP39_LDCV_LUT_MODE(x)		((x & 0x3) << 24)
 #define ISP39_LDCV_FORCE_UPD		BIT(26)
+#define ISP39_LDCV_MAP_ERROR		BIT(28)
+#define ISP39_LDCV_WORKING		BIT(30)
 #define ISP39_LDCV_EN_SHD		BIT(31)
 
 /* mi interrupt */

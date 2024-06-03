@@ -1814,7 +1814,13 @@ end:
 void rkisp_stream_ldc_end_v39(struct rkisp_device *dev)
 {
 	struct rkisp_stream *stream = &dev->cap_dev.stream[RKISP_STREAM_LDC];
+	u32 val = rkisp_read(dev, ISP39_LDCV_CTRL, true);
 
+	/* ldcv_irq: ldcv enable is frame end other frame input */
+	if (val & ISP39_LDCV_MAP_ERROR) {
+		v4l2_err(&dev->v4l2_dev, "ldcv map data error\n");
+		return;
+	}
 	if (stream->stopping) {
 		if (!dev->hw_dev->is_single) {
 			stream->stopping = false;
@@ -1826,7 +1832,7 @@ void rkisp_stream_ldc_end_v39(struct rkisp_device *dev)
 			stream->streaming = false;
 			wake_up(&stream->done);
 		}
-	} else {
+	} else if (stream->streaming) {
 		mi_frame_end(stream, FRAME_IRQ);
 	}
 	rkisp_check_idle(dev, ISP_FRAME_LDC);
