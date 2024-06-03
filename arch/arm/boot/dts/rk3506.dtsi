@@ -195,6 +195,38 @@
 		status = "disabled";
 	};
 
+	hwlock0: hwspinlock@ff240000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0xff240000 0x20>;
+		#hwlock-cells = <1>;
+		rockchip,hwlock-num-locks = <8>;
+		status = "disabled";
+	};
+
+	hwlock1: hwspinlock@ff241000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0xff241000 0x20>;
+		#hwlock-cells = <1>;
+		rockchip,hwlock-num-locks = <8>;
+		status = "disabled";
+	};
+
+	hwlock2: hwspinlock@ff242000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0xff242000 0x20>;
+		#hwlock-cells = <1>;
+		rockchip,hwlock-num-locks = <8>;
+		status = "disabled";
+	};
+
+	hwlock3: hwspinlock@ff243000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0xff243000 0x20>;
+		#hwlock-cells = <1>;
+		rockchip,hwlock-num-locks = <8>;
+		status = "disabled";
+	};
+
 	grf: syscon@ff288000 {
 		compatible = "rockchip,rk3506-grf", "syscon", "simple-mfd";
 		reg = <0xff288000 0x4000>;
@@ -219,6 +251,46 @@
 				};
 			};
 		};
+	};
+
+	mailbox0: mailbox@ff290000 {
+		compatible = "rockchip,rk3506-mailbox", "rockchip,rk3576-mailbox";
+		reg = <0xff290000 0x20>;
+		interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
+	mailbox1: mailbox@ff291000 {
+		compatible = "rockchip,rk3506-mailbox", "rockchip,rk3576-mailbox";
+		reg = <0xff291000 0x20>;
+		interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
+	mailbox2: mailbox@ff292000 {
+		compatible = "rockchip,rk3506-mailbox", "rockchip,rk3576-mailbox";
+		reg = <0xff292000 0x20>;
+		interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
+	};
+
+	mailbox3: mailbox@ff293000 {
+		compatible = "rockchip,rk3506-mailbox", "rockchip,rk3576-mailbox";
+		reg = <0xff293000 0x20>;
+		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_MAILBOX>;
+		clock-names = "pclk_mailbox";
+		#mbox-cells = <1>;
+		status = "disabled";
 	};
 
 	fspi: spi@ff488000 {
