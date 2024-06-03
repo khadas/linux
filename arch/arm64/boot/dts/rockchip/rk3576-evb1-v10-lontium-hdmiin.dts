@@ -20,6 +20,11 @@
 		clock-output-names = "CLK_CAMERA_24MHZ";
 		#clock-cells = <0>;
 	};
+
+	rkvtunnel: rkvtunnel {
+		compatible = "rockchip,video-tunnel";
+		status = "okay";
+	};
 };
 
 &csi2_dcphy0 {
