@@ -5,6 +5,9 @@
  */
 #include <dt-bindings/display/media-bus-format.h>
 
+/* Multiple raw sensor link to RK ISP: 0 = disable, 1 = enable */
+#define MULTI_SENSOR_LINK_TO_ISP	1
+
 /* sensor data lane config: 1: data lanes = 2, 0: data lanes = 4 */
 #define REMOTE_SENSOR_2_DATA_LANES	1
 
@@ -148,6 +151,10 @@
 		/* serdes local device start */
 		serdes-local-device {
 			status = "okay";
+
+#if MULTI_SENSOR_LINK_TO_ISP
+			remote-routing-to-isp = <1>; /* remote camera route to ISP */
+#endif
 
 			/* GMSL LINK config start */
 			gmsl-links {
@@ -486,6 +493,10 @@
 					/* port config start */
 					port {
 						max96712_dphy3_cam0_out: endpoint {
+#if MULTI_SENSOR_LINK_TO_ISP
+							remote-endpoint = <&mipi_lvds4_sditf_in>;
+#endif
+
 #if REMOTE_SENSOR_2_DATA_LANES == 0
 							data-lanes = <1 2 3 4>;
 #else
@@ -551,6 +562,10 @@
 					/* port config start */
 					port {
 						max96712_dphy3_cam1_out: endpoint {
+#if MULTI_SENSOR_LINK_TO_ISP
+							remote-endpoint = <&mipi_lvds4_sditf_vir1_in>;
+#endif
+
 #if REMOTE_SENSOR_2_DATA_LANES == 0
 							data-lanes = <1 2 3 4>;
 #else
@@ -616,6 +631,10 @@
 					/* port config start */
 					port {
 						max96712_dphy3_cam2_out: endpoint {
+#if MULTI_SENSOR_LINK_TO_ISP
+							remote-endpoint = <&mipi_lvds4_sditf_vir2_in>;
+#endif
+
 #if REMOTE_SENSOR_2_DATA_LANES == 0
 							data-lanes = <1 2 3 4>;
 #else
@@ -681,6 +700,10 @@
 					/* port config start */
 					port {
 						max96712_dphy3_cam3_out: endpoint {
+#if MULTI_SENSOR_LINK_TO_ISP
+							remote-endpoint = <&mipi_lvds4_sditf_vir3_in>;
+#endif
+
 #if REMOTE_SENSOR_2_DATA_LANES == 0
 							data-lanes = <1 2 3 4>;
 #else
@@ -730,6 +753,10 @@
 &rkcif_mipi_lvds4 {
 	status = "okay";
 
+#if MULTI_SENSOR_LINK_TO_ISP
+	camera-over-bridge; // serdes multi raw camera to isp
+#endif
+
 	/* parameters for do cif reset detecting:
 	 * index0: monitor mode,
 		   0 for idle,
@@ -752,6 +779,146 @@
 	};
 };
 
+#if MULTI_SENSOR_LINK_TO_ISP
+&rkcif_mipi_lvds4_sditf {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dphy3_cam0_out>;
+#if REMOTE_SENSOR_2_DATA_LANES == 0
+				data-lanes = <1 2 3 4>;
+#else
+				data-lanes = <1 2>;
+#endif
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_vir0>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf_vir1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir1_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dphy3_cam1_out>;
+#if REMOTE_SENSOR_2_DATA_LANES == 0
+				data-lanes = <1 2 3 4>;
+#else
+				data-lanes = <1 2>;
+#endif
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_vir1>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf_vir2 {
+	address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir2_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dphy3_cam2_out>;
+#if REMOTE_SENSOR_2_DATA_LANES == 0
+				data-lanes = <1 2 3 4>;
+#else
+				data-lanes = <1 2>;
+#endif
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir2: endpoint {
+				remote-endpoint = <&isp1_vir0>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4_sditf_vir3 {
+	address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir3_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_dphy3_cam3_out>;
+#if REMOTE_SENSOR_2_DATA_LANES == 0
+				data-lanes = <1 2 3 4>;
+#else
+				data-lanes = <1 2>;
+#endif
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			mipi_lvds4_sditf_vir3: endpoint {
+				remote-endpoint = <&isp1_vir1>;
+			};
+		};
+	};
+};
+#endif /* MULTI_SENSOR_LINK_TO_ISP */
+
 &rkcif {
 	status = "okay";
 	rockchip,android-usb-camerahal-enable;
@@ -760,6 +927,80 @@
 &rkcif_mmu {
 	status = "okay";
 };
+
+#if MULTI_SENSOR_LINK_TO_ISP
+&rkisp0 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&rkisp0_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf>;
+		};
+	};
+};
+
+&rkisp0_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf_vir1>;
+		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&rkisp1_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf_vir2>;
+		};
+	};
+};
+
+&rkisp1_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds4_sditf_vir3>;
+		};
+	};
+};
+#endif /* MULTI_SENSOR_LINK_TO_ISP */
 
 &pinctrl {
 	max96712-dphy3 {
