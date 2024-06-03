@@ -1057,6 +1057,10 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 
 static void dw_mipi_dsi2_loader_protect(struct dw_mipi_dsi2 *dsi2, bool on)
 {
+	if (dsi2->dcphy)
+		if (!dsi2->c_option)
+			phy_set_mode(dsi2->dcphy, PHY_MODE_MIPI_DPHY);
+
 	if (on) {
 		pm_runtime_get_sync(dsi2->dev);
 		phy_init(dsi2->dcphy);
