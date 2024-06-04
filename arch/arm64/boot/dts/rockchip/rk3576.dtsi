@@ -2777,6 +2777,8 @@
 		rockchip,aclk-reset-mode-rates = <594000000>;
 		rockchip,aclk-advanced-mode-rates = <702000000>;
 		operating-points-v2 = <&vop_opp_table>;
+		rockchip,csu = <&csu CSU_VOP_ACLK>;
+		rockchip,csu-names = "aclk";
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3576_PD_VOP>;
 		rockchip,grf = <&sys_grf>;
