@@ -2943,6 +2943,8 @@ static struct dma_async_tx_descriptor *pl330_prep_interleaved_dma(
 
 #ifdef CONFIG_NO_GKI
 	nump = xt->nump;
+#else
+	nump = xt->sgl[1].size;
 #endif
 	numf = xt->numf;
 	size = xt->sgl[0].size;
