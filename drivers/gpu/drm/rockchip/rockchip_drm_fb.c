@@ -200,7 +200,8 @@ static int rockchip_drm_aclk_adjust(struct drm_device *dev,
 		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];
 		if (funcs && funcs->set_aclk) {
 			if (vop_bw_info->plane_num_4k || crtc_num > 1 ||
-			    crtc->state->adjusted_mode.crtc_hdisplay > 4096) {
+			    crtc->state->adjusted_mode.crtc_hdisplay > 2560 ||
+			    crtc->state->adjusted_mode.crtc_vdisplay > 2560) {
 				funcs->set_aclk(crtc, ROCKCHIP_VOP_ACLK_ADVANCED_MODE);
 				priv->aclk_adjust_frame_num = 2;
 			} else {

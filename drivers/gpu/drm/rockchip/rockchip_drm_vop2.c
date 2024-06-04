@@ -7720,7 +7720,7 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 
 		act_w = drm_rect_width(&pstate->src) >> 16;
 		act_h = drm_rect_height(&pstate->src) >> 16;
-		if (pstate->fb->format->is_yuv && (act_w >= 3840 || act_h >= 3840))
+		if (pstate->fb->format->is_yuv && (act_w > 2560 || act_h > 2560))
 			vop_bw_info->plane_num_4k++;
 
 		bpp = rockchip_drm_get_bpp(pstate->fb->format);
