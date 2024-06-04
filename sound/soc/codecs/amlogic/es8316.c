@@ -696,7 +696,7 @@ static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 			    ES8316_CLKMGR_DAC_MCLK_MASK,
 			    ES8316_CLKMGR_MCLK_DIV_NML |
 			    ES8316_CLKMGR_DAC_MCLK_EN);
-	es8316->pwr_count++;
+	//es8316->pwr_count++;
 
 	if (playback) {
 		snd_soc_component_write(component, ES8316_SYS_LP1_REG0E, 0x3F);
@@ -738,6 +738,7 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+return;
 
 	if (playback) {
 		snd_soc_component_write(component, ES8316_CPHP_OUTEN_REG17, 0x00);
@@ -1079,14 +1080,21 @@ static void hp_det_work(struct work_struct *work)
 {
 	struct es8316_adc_hp_det *hp;
 	int value;
+	static int num = 0;
 	
 	hp = container_of(work, struct es8316_adc_hp_det, work.work);
 	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
 		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
-		    hdmitx_ext_set_audio_output(1);
+			if(1 == num){
+				hdmitx_ext_set_audio_output(1);
+				num = 0;
+			}
 			es8316_use->hp_inserted = false;
         }else{
-			hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+			if(0 == num){
+				hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+				num = 1;
+			}
 			es8316_use->hp_inserted = true;
 		}
 	}
