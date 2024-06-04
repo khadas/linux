@@ -968,6 +968,8 @@ struct vop2 {
 	u32 aclk_mode_rate[ROCKCHIP_VOP_ACLK_MAX_MODE];
 #endif
 
+	/* aclk auto cs div */
+	u32 csu_div;
 	/* must put at the end of the struct */
 	struct vop2_win win[];
 };
@@ -1016,7 +1018,6 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 };
 
 static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
-static int vop2_devfreq_set_aclk(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode);
 
 static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
 {
@@ -1304,6 +1305,99 @@ static struct drm_crtc *vop2_find_crtc_by_plane_mask(struct vop2 *vop2, uint8_t 
 	}
 
 	return NULL;
+}
+
+static u32 rk3562_vop2_get_csu_div(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	unsigned long aclk_rate = 0, dclk_rate = 0;
+	u32 csu_div;
+
+	aclk_rate = clk_get_rate(vp->vop2->aclk);
+	dclk_rate = clk_get_rate(vp->dclk);
+	if (!dclk_rate)
+		return 0;
+
+	/* aclk > 1/2 * dclk */
+	csu_div = (aclk_rate - 1) * 2 / dclk_rate;
+
+	return csu_div;
+}
+
+static u32 rk3576_vop2_get_csu_div(struct drm_crtc *crtc, struct dmcfreq_vop_info *vop_bw_info)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	u32 csu_div;
+
+	if (vp->vop2->aclk_mode == ROCKCHIP_VOP_ACLK_NORMAL_MODE) {
+		if (adjusted_mode->crtc_clock < 250000) {
+			if (vop_bw_info->plane_num == 1)
+				csu_div = 3;
+			else if (vop_bw_info->plane_num == 2)
+				csu_div = 2;
+			else
+				csu_div = 1;
+		} else {
+			csu_div = 1;
+		}
+	} else {
+		csu_div = 1;
+	}
+
+	return csu_div;
+}
+
+static int vop2_set_aclk_rate(struct drm_crtc *crtc,
+			      enum rockchip_drm_vop_aclk_mode aclk_mode,
+			      struct dmcfreq_vop_info *vop_bw_info)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc *first_active_crtc = NULL;
+	int i = 0, ret = 0;
+	u32 csu_div = 0;
+
+	/* all vp/crtc share one vop aclk, so only need to set once */
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		if (vop2->vps[i].rockchip_crtc.crtc.state &&
+		    vop2->vps[i].rockchip_crtc.crtc.state->active) {
+			first_active_crtc = &vop2->vps[i].rockchip_crtc.crtc;
+			break;
+		}
+	}
+	if (first_active_crtc != crtc)
+		return 0;
+
+	vop2->aclk_target_freq = vop2->aclk_mode_rate[aclk_mode];
+
+#ifdef CONFIG_PM_DEVFREQ
+	if (vop2->devfreq) {
+		mutex_lock(&vop2->devfreq->lock);
+		ret = update_devfreq(vop2->devfreq);
+		mutex_unlock(&vop2->devfreq->lock);
+		if (ret)
+			dev_err(vop2->dev, "failed to set rate %lu\n", vop2->aclk_target_freq);
+	}
+#endif
+	vop2->aclk_mode = aclk_mode;
+
+	if (vop2->csu_aclk && vop_bw_info) {
+		if (vop2->version == VOP_VERSION_RK3562)
+			csu_div = rk3562_vop2_get_csu_div(crtc);
+		else
+			csu_div = rk3576_vop2_get_csu_div(crtc, vop_bw_info);
+		if (csu_div != vop2->csu_div) {
+			rockchip_csu_set_div(vop2->csu_aclk, csu_div);
+			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CLK,
+					 "Set aclk auto cs div from %d to %d, aclk rate:%ld, aclk mode:%d\n",
+					 vop2->csu_div, csu_div, clk_get_rate(vop2->aclk),
+					 vop2->aclk_mode);
+		}
+		vop2->csu_div = csu_div;
+	}
+
+	return 0;
 }
 
 static int vop2_clk_reset(struct reset_control *rstc)
@@ -4453,7 +4547,7 @@ static void vop2_disable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop2, dma_stop, 1);
 		if (vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE] &&
 		    clk_get_rate(vop2->aclk) > vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE])
-			vop2_devfreq_set_aclk(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE);
+			vop2_set_aclk_rate(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE, NULL);
 		rockchip_drm_dma_detach_device(vop2->drm_dev, vop2->dev);
 		vop2->is_iommu_enabled = false;
 	}
@@ -6949,27 +7043,6 @@ static int vop2_crtc_get_inital_acm_info(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void vop2_crtc_csu_set_rate(struct drm_crtc *crtc)
-{
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2 *vop2 = vp->vop2;
-	unsigned long aclk_rate = 0, dclk_rate = 0;
-	u32 csu_div = 0;
-
-	if (!vop2->csu_aclk)
-		return;
-
-	aclk_rate = clk_get_rate(vop2->aclk);
-	dclk_rate = clk_get_rate(vp->dclk);
-	if (!dclk_rate || !aclk_rate)
-		return;
-
-	/* aclk > 1/2 * dclk */
-	csu_div = (aclk_rate - 1) * 2 / dclk_rate;
-
-	rockchip_csu_set_div(vop2->csu_aclk, csu_div);
-}
-
 static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -7049,8 +7122,6 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 			cubic_lut_mst = cubic_lut->offset + private->cubic_lut_dma_addr;
 			VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 		}
-
-		vop2_crtc_csu_set_rate(crtc);
 	} else {
 		vop2_crtc_atomic_disable(crtc, NULL);
 	}
@@ -7847,7 +7918,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.crtc_output_post_enable = vop2_crtc_output_post_enable,
 	.crtc_output_pre_disable = vop2_crtc_output_pre_disable,
 	.crtc_set_color_bar = vop2_crtc_set_color_bar,
-	.set_aclk = vop2_devfreq_set_aclk,
+	.set_aclk = vop2_set_aclk_rate,
 	.get_crc = vop2_crtc_get_crc,
 };
 
@@ -9482,7 +9553,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	if (is_vop3(vop2))
 		vop3_setup_pipe_dly(vp, NULL);
 
-	vop2_crtc_csu_set_rate(crtc);
 	vop2_crtc_setup_output_mode(crtc);
 
 	vop2_cfg_done(crtc);
@@ -11719,12 +11789,12 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 			VOP_CTRL_SET(vop2, dma_stop, 1);
 		if (vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE] &&
 		    clk_get_rate(vop2->aclk) > vop2->aclk_mode_rate[ROCKCHIP_VOP_ACLK_RESET_MODE]) {
-			vop2_devfreq_set_aclk(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE);
+			vop2_set_aclk_rate(crtc, ROCKCHIP_VOP_ACLK_RESET_MODE, NULL);
 			enter_vop_aclk_reset_mode = true;
 		}
 		ret = rockchip_drm_dma_attach_device(vop2->drm_dev, vop2->dev);
 		if (enter_vop_aclk_reset_mode)
-			vop2_devfreq_set_aclk(crtc, aclk_mode);
+			vop2_set_aclk_rate(crtc, aclk_mode, NULL);
 		if (ret) {
 			vop2->is_iommu_enabled = false;
 			vop2_disable_all_planes_for_crtc(crtc);
@@ -13892,39 +13962,6 @@ static struct devfreq_governor devfreq_vop2_ondemand = {
 	.event_handler = devfreq_vop2_ondemand_handler,
 };
 
-static int vop2_devfreq_set_aclk(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode)
-{
-	struct vop2_video_port *vp = to_vop2_video_port(crtc);
-	struct vop2 *vop2 = vp->vop2;
-	struct drm_crtc *first_active_crtc = NULL;
-	int i = 0, ret = 0;
-
-	if (!vop2->devfreq)
-		return 0;
-
-	/* all vp/crtc share one vop aclk, so only need to set once */
-	for (i = 0; i < vop2->data->nr_vps; i++) {
-		if (vop2->vps[i].rockchip_crtc.crtc.state &&
-		    vop2->vps[i].rockchip_crtc.crtc.state->active) {
-			first_active_crtc = &vop2->vps[i].rockchip_crtc.crtc;
-			break;
-		}
-	}
-	if (first_active_crtc != crtc)
-		return 0;
-
-	vop2->aclk_target_freq = vop2->aclk_mode_rate[aclk_mode];
-
-	mutex_lock(&vop2->devfreq->lock);
-	ret = update_devfreq(vop2->devfreq);
-	mutex_unlock(&vop2->devfreq->lock);
-	if (ret)
-		dev_err(vop2->dev, "failed to set rate %lu\n", vop2->aclk_target_freq);
-	vop2->aclk_mode = aclk_mode;
-
-	return 0;
-}
-
 static int vop2_devfreq_target(struct device *dev, unsigned long *freq,
 			       u32 flags)
 {
@@ -14074,11 +14111,6 @@ static void rockchip_vop2_devfreq_uninit(struct vop2 *vop2)
 	rockchip_uninit_opp_table(vop2->dev, &vop2->opp_info);
 }
 #else
-static inline int vop2_devfreq_set_aclk(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode)
-{
-	return 0;
-}
-
 static inline int rockchip_vop2_devfreq_init(struct vop2 *vop2)
 {
 	return 0;
