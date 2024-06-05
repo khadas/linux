@@ -1594,6 +1594,8 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 			RK3576_PMU_CLKGATE_CON(4), 2, GFLAGS),
 	GATE(PCLK_PMUPHY_ROOT, "pclk_pmuphy_root", "pclk_pmu1_root", CLK_IS_CRITICAL,
 			RK3576_PMU_CLKGATE_CON(5), 0, GFLAGS),
+	GATE(PCLK_HDPTX_APB, "pclk_hdptx_apb", "pclk_pmuphy_root", 0,
+			RK3576_PMU_CLKGATE_CON(0), 1, GFLAGS),
 	GATE(PCLK_MIPI_DCPHY, "pclk_mipi_dcphy", "pclk_pmuphy_root", 0,
 			RK3576_PMU_CLKGATE_CON(0), 2, GFLAGS),
 	GATE(PCLK_CSIDPHY, "pclk_csidphy", "pclk_pmuphy_root", 0,

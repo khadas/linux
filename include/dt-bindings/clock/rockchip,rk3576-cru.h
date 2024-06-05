@@ -557,6 +557,7 @@
 #define CLK_AUDIO_FRAC_1_SRC		555
 #define CLK_AUDIO_FRAC_2_SRC		556
 #define CLK_AUDIO_FRAC_3_SRC		557
+#define PCLK_HDPTX_APB			558
 
 /* secure clk */
 #define CLK_STIMER0_ROOT		600
