@@ -1781,7 +1781,8 @@
 			<&cru CLK_UART_FRAC_1>, <&cru CLK_UART_FRAC_2>,
 			<&cru CLK_AUDIO_FRAC_0>, <&cru CLK_AUDIO_FRAC_1>,
 			<&cru CLK_CPLL_DIV2>, <&cru CLK_CPLL_DIV4>,
-			<&cru CLK_CPLL_DIV10>, <&cru FCLK_DDR_CM0_CORE>;
+			<&cru CLK_CPLL_DIV10>, <&cru FCLK_DDR_CM0_CORE>,
+			<&cru ACLK_PHP_ROOT>;
 		assigned-clock-parents = <&cru PLL_AUPLL>;
 		assigned-clock-rates =
 			<0>,
@@ -1790,7 +1791,8 @@
 			<96000000>, <128000000>,
 			<45158400>, <49152000>,
 			<500000000>, <250000000>,
-			<100000000>, <500000000>;
+			<100000000>, <500000000>,
+			<250000000>;
 	};
 
 	i2c0: i2c@27300000 {
