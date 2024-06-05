@@ -1013,7 +1013,6 @@ static int rk_pwm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int remotectl_suspend(struct device *dev)
 {
 	int cpu = 0;
@@ -1031,6 +1030,7 @@ static int remotectl_suspend(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int remotectl_resume(struct device *dev)
 {
 	struct cpumask cpumask;
@@ -1066,6 +1066,11 @@ static const struct dev_pm_ops remotectl_pm_ops = {
 };
 #endif
 
+static void rk_pwm_remotectl_shutdown(struct platform_device *pdev)
+{
+	remotectl_suspend(&pdev->dev);
+}
+
 static struct platform_driver rk_pwm_driver = {
 	.driver = {
 		.name = "remotectl-pwm",
@@ -1075,6 +1080,7 @@ static struct platform_driver rk_pwm_driver = {
 #endif
 	},
 	.remove = rk_pwm_remove,
+	.shutdown = rk_pwm_remotectl_shutdown,
 };
 
 module_platform_driver_probe(rk_pwm_driver, rk_pwm_probe);
