@@ -1464,9 +1464,6 @@ static void vop_crtc_load_lut(struct drm_crtc *crtc)
 	if (!vop->is_enabled || !vop->lut || !vop->lut_regs)
 		return;
 
-	if (WARN_ON(!drm_modeset_is_locked(&crtc->mutex)))
-		return;
-
 	if (!VOP_CTRL_SUPPORT(vop, update_gamma_lut)) {
 		spin_lock(&vop->reg_lock);
 		VOP_CTRL_SET(vop, dsp_lut_en, 0);
