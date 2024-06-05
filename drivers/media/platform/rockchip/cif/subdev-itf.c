@@ -770,6 +770,7 @@ static void sditf_enable_immediately(struct sditf_priv *priv)
 static void sditf_check_capture_mode(struct rkcif_device *cif_dev)
 {
 	struct rkcif_device *dev = NULL;
+	struct sditf_priv *priv = cif_dev->sditf[0];
 	int i = 0;
 	int toisp_cnt = 0;
 
@@ -781,6 +782,10 @@ static void sditf_check_capture_mode(struct rkcif_device *cif_dev)
 	if (cif_dev->is_thunderboot && toisp_cnt == 1)
 		cif_dev->is_rdbk_to_online = true;
 	else
+		cif_dev->is_rdbk_to_online = false;
+
+	if (cif_dev->chip_id == CHIP_RV1106_CIF &&
+	    priv->toisp_inf.link_mode == TOISP_UNITE)
 		cif_dev->is_rdbk_to_online = false;
 }
 
