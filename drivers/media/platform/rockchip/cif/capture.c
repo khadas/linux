@@ -911,7 +911,7 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 			csi_info->vc = 0;
 			break;
 		default:
-			csi_info->vc = 0xff;
+			csi_info->vc = pad_id;
 		}
 		if (ch_info.bus_fmt == MEDIA_BUS_FMT_SPD_2X8 ||
 		    ch_info.bus_fmt == MEDIA_BUS_FMT_EBD_1X8) {
@@ -925,7 +925,7 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 		else
 			fmt.format.field = ch_info.field;
 	} else {
-		csi_info->vc = 0xff;
+		csi_info->vc = pad_id;
 	}
 
 	v4l2_dbg(1, rkcif_debug, sd->v4l2_dev,
