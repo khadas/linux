@@ -28,7 +28,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -2262,9 +2262,7 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 		return ret;
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&os04a10->mutex);
 	ret = __v4l2_ctrl_handler_setup(&os04a10->ctrl_handler);
-	mutex_lock(&os04a10->mutex);
 	if (ret)
 		return ret;
 

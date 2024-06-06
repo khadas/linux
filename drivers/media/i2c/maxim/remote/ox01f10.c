@@ -24,7 +24,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -495,9 +495,7 @@ static int __ox01f10_start_stream(struct ox01f10 *ox01f10)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&ox01f10->mutex);
-	ret = v4l2_ctrl_handler_setup(&ox01f10->ctrl_handler);
-	mutex_lock(&ox01f10->mutex);
+	ret = __v4l2_ctrl_handler_setup(&ox01f10->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -580,9 +578,7 @@ static int ox01f10_g_frame_interval(struct v4l2_subdev *sd,
 	struct ox01f10 *ox01f10 = v4l2_get_subdevdata(sd);
 	const struct ox01f10_mode *mode = ox01f10->cur_mode;
 
-	mutex_lock(&ox01f10->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ox01f10->mutex);
 
 	return 0;
 }

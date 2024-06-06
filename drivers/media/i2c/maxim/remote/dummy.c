@@ -26,7 +26,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -360,9 +360,7 @@ static int __sensor_start_stream(struct sensor *sensor)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&sensor->mutex);
-	ret = v4l2_ctrl_handler_setup(&sensor->ctrl_handler);
-	mutex_lock(&sensor->mutex);
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -717,9 +715,7 @@ static int sensor_g_frame_interval(struct v4l2_subdev *sd,
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
 	const struct sensor_mode *mode = sensor->cur_mode;
 
-	mutex_lock(&sensor->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&sensor->mutex);
 
 	return 0;
 }
