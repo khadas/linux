@@ -125,6 +125,9 @@ install_linux_image () {
 			Edge-V)
 				DTB=rk3399-khadas-edge-v.dtb
 				;;
+			Edge2)
+				DTB=rk3588s-khadas-edge2.dtb
+				;;
 			Captain)
 				DTB=rk3399-khadas-edge-captain.dtb
 				;;
