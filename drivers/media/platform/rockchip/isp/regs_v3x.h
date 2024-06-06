@@ -1897,7 +1897,7 @@
 
 #define ISP3X_SW_CMSK_FORCE_UPD		BIT(31)
 
-#define ISP3X_SW_CMSK_ORDER_MODE	BIT(1)
+#define ISP3X_SW_CMSK_ORDER_MODE	BIT(6)
 
 #define ISP3X_SW_CMSK_YUV(x, y, z)	(((x) & 0xff) | ((y) & 0xff) << 8 | ((z) & 0xff) << 16)
 
