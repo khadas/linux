@@ -107,6 +107,8 @@
 
 #define OS04A10_NAME			"os04a10"
 
+#define USED_SYS_DEBUG
+
 #define OS04A10_FLIP_REG		0x3820
 #define MIRROR_BIT_MASK			BIT(1)
 #define FLIP_BIT_MASK			BIT(2)
@@ -3028,7 +3030,7 @@ err_destroy_mutex:
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int os04a10_remove(struct i2c_client *client)
 #else
-static int os04a10_remove(struct i2c_client *client)
+static void os04a10_remove(struct i2c_client *client)
 #endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
