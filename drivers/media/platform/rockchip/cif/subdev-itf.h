@@ -124,6 +124,7 @@ struct sditf_priv {
 	u32 cur_time;
 	u32 cur_gain;
 	int one_to_multi_id;
+	bool is_toisp_off;
 };
 
 extern struct platform_driver rkcif_subdev_driver;

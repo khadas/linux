@@ -5542,9 +5542,12 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			}
 		}
 		stream->stopping = true;
-		ret = wait_event_timeout(stream->wq_stopped,
-					 stream->state != RKCIF_STATE_STREAMING,
-					 msecs_to_jiffies(500));
+		if (mode == RKCIF_STREAM_MODE_TOISP && dev->sditf[0]->is_toisp_off)
+			ret = 0;
+		else
+			ret = wait_event_timeout(stream->wq_stopped,
+						 stream->state != RKCIF_STATE_STREAMING,
+						 msecs_to_jiffies(500));
 		if (!ret) {
 			rkcif_stream_stop(stream);
 			stream->stopping = false;
