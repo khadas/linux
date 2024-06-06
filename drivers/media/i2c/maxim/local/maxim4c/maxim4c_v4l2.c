@@ -580,9 +580,7 @@ static int __maxim4c_start_stream(maxim4c_t *maxim4c)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&maxim4c->mutex);
-	ret = v4l2_ctrl_handler_setup(&maxim4c->ctrl_handler);
-	mutex_lock(&maxim4c->mutex);
+	ret = __v4l2_ctrl_handler_setup(&maxim4c->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -710,9 +708,7 @@ static int maxim4c_g_frame_interval(struct v4l2_subdev *sd,
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
 
-	mutex_lock(&maxim4c->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&maxim4c->mutex);
 
 	return 0;
 }

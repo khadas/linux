@@ -24,7 +24,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -495,9 +495,7 @@ static int __sc320at_start_stream(struct sc320at *sc320at)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&sc320at->mutex);
-	ret = v4l2_ctrl_handler_setup(&sc320at->ctrl_handler);
-	mutex_lock(&sc320at->mutex);
+	ret = __v4l2_ctrl_handler_setup(&sc320at->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -580,9 +578,7 @@ static int sc320at_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc320at *sc320at = v4l2_get_subdevdata(sd);
 	const struct sc320at_mode *mode = sc320at->cur_mode;
 
-	mutex_lock(&sc320at->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&sc320at->mutex);
 
 	return 0;
 }

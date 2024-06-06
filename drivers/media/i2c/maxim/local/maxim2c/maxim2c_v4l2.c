@@ -580,9 +580,7 @@ static int __maxim2c_start_stream(maxim2c_t *maxim2c)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&maxim2c->mutex);
-	ret = v4l2_ctrl_handler_setup(&maxim2c->ctrl_handler);
-	mutex_lock(&maxim2c->mutex);
+	ret = __v4l2_ctrl_handler_setup(&maxim2c->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -710,9 +708,7 @@ static int maxim2c_g_frame_interval(struct v4l2_subdev *sd,
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 
-	mutex_lock(&maxim2c->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&maxim2c->mutex);
 
 	return 0;
 }
@@ -816,10 +812,7 @@ static int maxim2c_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
-		if (fmt->pad < PAD_MAX && fmt->pad >= PAD0)
-			fmt->reserved[0] = mode->vc[fmt->pad];
-		else
-			fmt->reserved[0] = mode->vc[PAD0];
+		fmt->reserved[0] = mode->vc[fmt->pad];
 	}
 	mutex_unlock(&maxim2c->mutex);
 
@@ -966,6 +959,17 @@ static int maxim2c_g_mbus_config(struct v4l2_subdev *sd,
 }
 #endif /* LINUX_VERSION_CODE */
 
+static int maxim2c_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				    struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_HOT_PLUG:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	default:
+		return -EINVAL;
+	}
+}
+
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_internal_ops maxim2c_internal_ops = {
 	.open = maxim2c_open,
@@ -974,6 +978,8 @@ static const struct v4l2_subdev_internal_ops maxim2c_internal_ops = {
 
 static const struct v4l2_subdev_core_ops maxim2c_core_ops = {
 	.s_power = maxim2c_s_power,
+	.subscribe_event = maxim2c_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.ioctl = maxim2c_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = maxim2c_compat_ioctl32,
@@ -1103,7 +1109,7 @@ int maxim2c_v4l2_subdev_init(maxim2c_t *maxim2c)
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &maxim2c_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)

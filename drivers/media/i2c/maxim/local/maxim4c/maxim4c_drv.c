@@ -66,6 +66,10 @@
  *     2. support remote raw sensor s_power and s_stream control by cif
  *     3. support vicap multi channel to multi ISP mode
  *
+ * V3.05.00
+ *     1. unified use __v4l2_ctrl_handler_setup in the xxx_start_stream
+ *     2. support subscribe hot plug detect v4l2 event
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -93,7 +97,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x04, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x05, 0x00)
 
 #define MAXIM4C_NAME			"maxim4c"
 
