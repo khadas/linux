@@ -2,7 +2,7 @@
 /*
  * GC2145 CMOS Image Sensor driver
  *
- * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
  *
  * V1.0X00.0X00 support for rockchip serdes
  */
@@ -1751,7 +1751,18 @@ static int gc2145_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
+				struct v4l2_mbus_config *config)
+{
+	struct gc2145 *gc2145 = to_gc2145(sd);
+
+	config->type = V4L2_MBUS_PARALLEL;
+	config->bus.parallel = gc2145->bus_cfg.bus.parallel;
+
+	return 0;
+}
+#elif KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
@@ -1780,9 +1791,7 @@ static int gc2145_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
 
-	mutex_lock(&gc2145->lock);
 	fi->interval = gc2145->frame_size->max_fps;
-	mutex_unlock(&gc2145->lock);
 
 	return 0;
 }
@@ -2168,7 +2177,11 @@ static int gc2145_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 gc2145->module_index, facing,
 		 DRIVER_NAME, dev_name(sd->dev));
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	ret = v4l2_async_register_subdev_sensor(sd);
+#else
 	ret = v4l2_async_register_subdev_sensor_common(sd);
+#endif
 	if (ret)
 		goto error;
 
@@ -2202,7 +2215,11 @@ error:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int gc2145_remove(struct i2c_client *client)
+#else
+static void gc2145_remove(struct i2c_client *client)
+#endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc2145 *gc2145 = to_gc2145(sd);
@@ -2219,7 +2236,9 @@ static int gc2145_remove(struct i2c_client *client)
 		__gc2145_power_off(gc2145);
 	pm_runtime_set_suspended(&client->dev);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id gc2145_of_match[] = {

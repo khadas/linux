@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
  *
- * V1.00.00 rockchip serdes dummy sensor driver framework.
+ * Author: Cai Wenzhong <cwz@rock-chips.com>
  *
  */
 
@@ -26,7 +26,7 @@
 
 #include "rkser_dev.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -161,19 +161,13 @@ static const struct sensor_mode supported_modes[] = {
 		.hts_def = 0x10fe,
 		.vts_def = 0x0337,
 		.bpp = 12,
-		.link_freq_idx = 5,
+		.link_freq_idx = 0,
 		.hdr_mode = NO_HDR,
 		.reg_list = sensor_1920x1080_30fps_init_regs,
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 		.vc[PAD0] = 0,
-		.vc[PAD1] = 1,
-		.vc[PAD2] = 2,
-		.vc[PAD3] = 3,
 #else
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
 #endif /* LINUX_VERSION_CODE */
 	},
 };
@@ -366,9 +360,7 @@ static int __sensor_start_stream(struct sensor *sensor)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&sensor->mutex);
-	ret = v4l2_ctrl_handler_setup(&sensor->ctrl_handler);
-	mutex_lock(&sensor->mutex);
+	ret = __v4l2_ctrl_handler_setup(&sensor->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -726,9 +718,7 @@ static int sensor_g_frame_interval(struct v4l2_subdev *sd,
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
 	const struct sensor_mode *mode = sensor->cur_mode;
 
-	mutex_lock(&sensor->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&sensor->mutex);
 
 	return 0;
 }
@@ -976,13 +966,15 @@ static int sensor_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 {
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct sensor_mode *mode = sensor->cur_mode;
 	u8 data_lanes = sensor->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
 
-	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+	for (i = 0; i < PAD_MAX; i++)
+		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
@@ -995,13 +987,15 @@ static int sensor_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct sensor *sensor = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct sensor_mode *mode = sensor->cur_mode;
 	u8 data_lanes = sensor->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
 
-	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+	for (i = 0; i < PAD_MAX; i++)
+		val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 	config->type = V4L2_MBUS_CSI2;
 	config->flags = val;

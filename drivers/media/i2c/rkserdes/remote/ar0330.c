@@ -634,9 +634,7 @@ static int __ar0330_start_stream(struct ar0330 *ar0330)
 		return ret;
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&ar0330->mutex);
-	ret = v4l2_ctrl_handler_setup(&ar0330->ctrl_handler);
-	mutex_lock(&ar0330->mutex);
+	ret = __v4l2_ctrl_handler_setup(&ar0330->ctrl_handler);
 	if (ret)
 		return ret;
 
@@ -731,9 +729,7 @@ static int ar0330_g_frame_interval(struct v4l2_subdev *sd,
 	struct ar0330 *ar0330 = to_ar0330(sd);
 	const struct ar0330_mode *mode = ar0330->cur_mode;
 
-	mutex_lock(&ar0330->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ar0330->mutex);
 
 	return 0;
 }

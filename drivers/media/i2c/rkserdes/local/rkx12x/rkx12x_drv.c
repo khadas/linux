@@ -19,6 +19,11 @@
  *     2. support mipi txphy dlane timing property parsing
  *     3. support rk3588 dcphy parameter setting
  *
+ * V1.03.00
+ *     1. unified use __v4l2_ctrl_handler_setup in the xxx_start_stream
+ *     2. g_mbus_config fix config->flags channels setting error
+ *     3. fix kernel-6.1 compile error
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -45,7 +50,7 @@
 #include "rkx12x_api.h"
 #include "rkx12x_remote.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(1, 0x02, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(1, 0x03, 0x00)
 
 #define RKX12X_NAME		"rkx12x"
 
@@ -1979,7 +1984,9 @@ static void rkx12x_i2c_remove(struct i2c_client *client)
 		rkx12x_device_power_off(rkx12x);
 	pm_runtime_set_suspended(&client->dev);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id rkx12x_of_match[] = {

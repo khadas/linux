@@ -64,14 +64,8 @@ static const struct rkx12x_mode rkx12x_def_mode = {
 	.bpp = 12,
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 	.vc[PAD0] = 0,
-	.vc[PAD1] = 1,
-	.vc[PAD2] = 2,
-	.vc[PAD3] = 3,
 #else
 	.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
-	.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
-	.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
-	.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
 #endif /* LINUX_VERSION_CODE */
 	/* crop rect */
 	.crop_rect = {
@@ -514,9 +508,7 @@ static int __rkx12x_start_stream(struct rkx12x *rkx12x)
 	}
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&rkx12x->mutex);
-	ret = v4l2_ctrl_handler_setup(&rkx12x->ctrl_handler);
-	mutex_lock(&rkx12x->mutex);
+	ret = __v4l2_ctrl_handler_setup(&rkx12x->ctrl_handler);
 	if (ret) {
 		dev_err(dev, "%s: setup v4l2 control handler error\n", __func__);
 		return ret;
@@ -711,10 +703,7 @@ static int rkx12x_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
-		if (fmt->pad < PAD_MAX && fmt->pad >= PAD0)
-			fmt->reserved[0] = mode->vc[fmt->pad];
-		else
-			fmt->reserved[0] = mode->vc[PAD0];
+		fmt->reserved[0] = mode->vc[fmt->pad];
 	}
 	mutex_unlock(&rkx12x->mutex);
 
@@ -817,9 +806,7 @@ static int rkx12x_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 		config->bus.mipi_csi2 = rkx12x->bus_cfg.bus.mipi_csi2;
 	} else if (rkx12x->bus_cfg.bus_type == V4L2_MBUS_PARALLEL) {
 		config->type = V4L2_MBUS_PARALLEL;
-		config->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
-				V4L2_MBUS_VSYNC_ACTIVE_LOW |
-				V4L2_MBUS_PCLK_SAMPLE_RISING;
+		config->bus.parallel = rkx12x->bus_cfg.bus.parallel;
 	} else {
 		v4l2_err(sd, "unknown mbus type\n");
 	}
@@ -832,14 +819,16 @@ static int rkx12x_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 {
 	struct rkx12x *rkx12x = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct rkx12x_mode *mode = rkx12x->cur_mode;
 	u8 data_lanes = rkx12x->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	if (rkx12x->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 		val |= (1 << (data_lanes - 1));
 
-		val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-		       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+		for (i = 0; i < PAD_MAX; i++)
+			val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 		config->type = V4L2_MBUS_CSI2_DPHY;
 		config->flags = val;
@@ -860,14 +849,16 @@ static int rkx12x_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct rkx12x *rkx12x = v4l2_get_subdevdata(sd);
 	u32 val = 0;
+	const struct rkx12x_mode *mode = rkx12x->cur_mode;
 	u8 data_lanes = rkx12x->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int i = 0;
 
 	if (rkx12x->bus_cfg.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 		val |= (1 << (data_lanes - 1));
 
-		val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
-		       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+		for (i = 0; i < PAD_MAX; i++)
+			val |= (mode->vc[i] & V4L2_MBUS_CSI2_CHANNELS);
 
 		config->type = V4L2_MBUS_CSI2;
 		config->flags = val;

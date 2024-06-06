@@ -2,7 +2,9 @@
 /*
  * rockchip serdes os04a10 sensor driver
  *
- * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
+ *
+ * Author: Cai Wenzhong <cwz@rock-chips.com>
  *
  */
 
@@ -27,7 +29,7 @@
 
 #include "rkser_dev.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x00, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -45,7 +47,7 @@
 
 #define OS04A10_XVCLK_FREQ		24000000
 
-#define CHIP_ID				0x530441
+#define OS04A10_CHIP_ID			0x530441
 #define OS04A10_REG_CHIP_ID		0x300a
 
 #define OS04A10_REG_CTRL_MODE		0x0100
@@ -93,12 +95,16 @@
 
 #define REG_NULL			0xFFFF
 
+/* I2C default address */
+#define OS04A10_I2C_ADDR_DEF		0x36
+
+/* register address: 16bit */
+#define OS04A10_REG_ADDR_16BITS		2
+
+/* register value: 8bit or 16bit or 24bit */
 #define OS04A10_REG_VALUE_08BIT		1
 #define OS04A10_REG_VALUE_16BIT		2
 #define OS04A10_REG_VALUE_24BIT		3
-
-#define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
-#define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define OS04A10_NAME			"os04a10"
 
@@ -148,13 +154,16 @@ struct os04a10 {
 	struct mutex			mutex;
 	bool				streaming;
 	bool				power_on;
+
 	const struct os04a10_mode	*supported_modes;
 	const struct os04a10_mode	*cur_mode;
 	u32				cfg_num;
+
 	u32				module_index;
 	const char			*module_facing;
 	const char			*module_name;
 	const char			*len_name;
+
 	bool				long_hcg;
 	bool				middle_hcg;
 	bool				short_hcg;
@@ -199,9 +208,9 @@ static const struct regval os04a10_global_regs_4lane[] = {
 	{0x340c, 0x0c},
 	{0x340d, 0xb0},
 	{0x3425, 0x51},
-	{0x3426, 0x50},
-	{0x3427, 0x15},
-	{0x3428, 0x50},
+	{0x3426, 0x10},
+	{0x3427, 0x14},
+	{0x3428, 0x10},
 	{0x3429, 0x10},
 	{0x342a, 0x10},
 	{0x342b, 0x04},
@@ -878,6 +887,10 @@ static const struct os04a10_mode supported_modes_2lane[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	MIPI_FREQ_360M,
 	MIPI_FREQ_648M,
@@ -892,8 +905,7 @@ static const char * const os04a10_test_pattern_menu[] = {
 	"Vertical Color Bar Type 4"
 };
 
-static int os04a10_check_sensor_id(struct os04a10 *os04a10,
-				struct i2c_client *client);
+static int os04a10_check_sensor_id(struct os04a10 *os04a10);
 static int os04a10_get_dcg_ratio(struct os04a10 *os04a10);
 
 /* Write registers up to 4 at a time */
@@ -1109,11 +1121,9 @@ static int os04a10_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_mbus_code_enum *code)
 #endif
 {
-	struct os04a10 *os04a10 = to_os04a10(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = os04a10->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1166,9 +1176,7 @@ static int os04a10_g_frame_interval(struct v4l2_subdev *sd,
 	struct os04a10 *os04a10 = to_os04a10(sd);
 	const struct os04a10_mode *mode = os04a10->cur_mode;
 
-	mutex_lock(&os04a10->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&os04a10->mutex);
 
 	return 0;
 }
@@ -1416,7 +1424,7 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 		return ret;
 	}
 
-	ret = os04a10_check_sensor_id(os04a10, client);
+	ret = os04a10_check_sensor_id(os04a10);
 	if (ret)
 		return ret;
 
@@ -1445,8 +1453,9 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 	if (ret)
 		return ret;
 
+	/* streaming control register */
 	ret = os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
-		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
+			OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
 	if (ret) {
 		dev_err(dev, "%s: os04a10 start stream error\n", __func__);
 		return ret;
@@ -1470,7 +1479,7 @@ static int __os04a10_stop_stream(struct os04a10 *os04a10)
 	dev_info(dev, "os04a10 device stop stream\n");
 
 	ret = os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
-		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_SW_STANDBY);
+			OS04A10_REG_VALUE_08BIT, OS04A10_MODE_SW_STANDBY);
 	if (ret) {
 		dev_err(dev, "%s: os04a10 stop stream error\n", __func__);
 		return ret;
@@ -1926,23 +1935,35 @@ err_free_handler:
 	return ret;
 }
 
-static int os04a10_check_sensor_id(struct os04a10 *os04a10,
-				struct i2c_client *client)
+static int os04a10_check_sensor_id(struct os04a10 *os04a10)
 {
-	struct device *dev = &os04a10->client->dev;
-	u32 id = 0;
-	int ret;
+	struct i2c_client *client = os04a10->client;
+	struct device *dev = &client->dev;
+	u32 sensor_id = 0;
+	int ret = 0, loop = 0;
 
-	ret = os04a10_read_reg(client, OS04A10_REG_CHIP_ID,
-			       OS04A10_REG_VALUE_24BIT, &id);
-	if (id != CHIP_ID) {
-		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
-		return -ENODEV;
+	for (loop = 0; loop < 3; loop++) {
+		if (loop != 0) {
+			dev_info(dev, "check sensor id retry (%d)", loop);
+			msleep(10);
+		}
+
+		ret = os04a10_read_reg(client, OS04A10_REG_CHIP_ID,
+					OS04A10_REG_VALUE_24BIT, &sensor_id);
+		if (ret == 0) {
+			if (sensor_id != OS04A10_CHIP_ID) {
+				dev_err(dev, "Unexpected sensor id(0x%02x)\n", sensor_id);
+				return -ENODEV;
+			} else {
+				dev_info(dev, "Detected OV%06x sensor\n", OS04A10_CHIP_ID);
+				return 0;
+			}
+		}
 	}
 
-	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
+	dev_err(dev, "Check sensor id error, ret = %d\n", ret);
 
-	return 0;
+	return -ENODEV;
 }
 
 static int os04a10_get_dcg_ratio(struct os04a10 *os04a10)
@@ -1975,7 +1996,7 @@ static int os04a10_probe(struct i2c_client *client,
 	serializer_t *serializer = NULL;
 	struct device_node *endpoint = NULL;
 	char facing[2];
-	u32 hdr_mode = 0;
+	u32 i = 0, hdr_mode = 0;
 	int ret = 0;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
@@ -1986,6 +2007,9 @@ static int os04a10_probe(struct i2c_client *client,
 	os04a10 = devm_kzalloc(dev, sizeof(*os04a10), GFP_KERNEL);
 	if (!os04a10)
 		return -ENOMEM;
+
+	os04a10->client = client;
+	os04a10->cam_i2c_addr_map = client->addr;
 
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &os04a10->module_index);
@@ -2000,39 +2024,6 @@ static int os04a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE,
-			&hdr_mode);
-	if (ret) {
-		hdr_mode = NO_HDR;
-		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
-	}
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!endpoint) {
-		dev_err(dev, "Failed to get endpoint\n");
-		return -EINVAL;
-	}
-
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
-		&os04a10->bus_cfg);
-	if (ret) {
-		dev_err(dev, "Failed to get bus config\n");
-		return -EINVAL;
-	}
-	if (os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
-		os04a10->supported_modes = supported_modes_4lane;
-		os04a10->cfg_num = ARRAY_SIZE(supported_modes_4lane);
-		dev_info(dev, "detect os04a10 lane %d\n",
-				 os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes);
-	} else {
-		os04a10->supported_modes = supported_modes_2lane;
-		os04a10->cfg_num = ARRAY_SIZE(supported_modes_2lane);
-		dev_info(dev, "detect os04a10 lane %d\n",
-				 os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes);
-	}
-	os04a10->cur_mode = &os04a10->supported_modes[0];
-	os04a10->client = client;
-	os04a10->cam_i2c_addr_map = client->addr;
-
 	/* poc regulator */
 	os04a10->poc_regulator = devm_regulator_get(dev, "poc");
 	if (IS_ERR(os04a10->poc_regulator)) {
@@ -2045,6 +2036,48 @@ static int os04a10_probe(struct i2c_client *client,
 		ret = PTR_ERR(os04a10->poc_regulator);
 
 		return ret;
+	}
+
+	/* hdr mode */
+	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE,
+			&hdr_mode);
+	if (ret) {
+		hdr_mode = NO_HDR;
+		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
+	}
+
+	/* mipi data lanes */
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+		&os04a10->bus_cfg);
+	if (ret) {
+		dev_err(dev, "Failed to get bus config\n");
+		return -EINVAL;
+	}
+
+	/* supported modes */
+	if (os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
+		os04a10->supported_modes = supported_modes_4lane;
+		os04a10->cfg_num = ARRAY_SIZE(supported_modes_4lane);
+		dev_info(dev, "detect os04a10 lane %d\n",
+				 os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes);
+	} else {
+		os04a10->supported_modes = supported_modes_2lane;
+		os04a10->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+		dev_info(dev, "detect os04a10 lane %d\n",
+				 os04a10->bus_cfg.bus.mipi_csi2.num_data_lanes);
+	}
+
+	for (i = 0; i < os04a10->cfg_num; i++) {
+		if (hdr_mode == os04a10->supported_modes[i].hdr_mode) {
+			os04a10->cur_mode = &os04a10->supported_modes[i];
+			break;
+		}
 	}
 
 	mutex_init(&os04a10->mutex);
@@ -2124,7 +2157,7 @@ err_destroy_mutex:
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int os04a10_remove(struct i2c_client *client)
 #else
-static int os04a10_remove(struct i2c_client *client)
+static void os04a10_remove(struct i2c_client *client)
 #endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
