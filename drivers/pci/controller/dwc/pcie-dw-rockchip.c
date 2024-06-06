@@ -1202,6 +1202,12 @@ retry_regulator:
 
 	reset_control_deassert(rk_pcie->rsts);
 
+	ret = rk_pcie_clk_init(rk_pcie);
+	if (ret) {
+		dev_err(dev, "clock init failed\n");
+		goto disable_phy;
+	}
+
 	/*
 	 * Misc interrupts was masked by default. However, they will be
 	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
@@ -1213,16 +1219,10 @@ retry_regulator:
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
 		dev_err(dev, "pcie irq init failed\n");
-		goto disable_phy;
+		goto disable_clk;
 	}
 
 	platform_set_drvdata(pdev, rk_pcie);
-
-	ret = rk_pcie_clk_init(rk_pcie);
-	if (ret) {
-		dev_err(dev, "clock init failed\n");
-		goto disable_phy;
-	}
 
 	dw_pcie_dbi_ro_wr_en(pci);
 
@@ -1337,10 +1337,11 @@ remove_rst_wq:
 remove_irq_domain:
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);
+disable_clk:
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_phy:
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
-	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
 release_driver:
