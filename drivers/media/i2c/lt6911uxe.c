@@ -13,6 +13,7 @@
  * V0.0X01.0X04
  *  1.fix some errors.
  *  2.add dphy timing reg.
+ * V0.0X01.0X05 add dual mipi mode support
  *
  */
 // #define DEBUG
@@ -40,7 +41,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -185,6 +186,8 @@ struct lt6911uxe {
 	const char *len_name;
 	const struct lt6911uxe_mode *cur_mode;
 	const struct lt6911uxe_mode *support_modes;
+	struct rkmodule_multi_dev_info multi_dev_info;
+	struct rkmodule_csi_dphy_param dphy_param;
 	u32 cfg_num;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	bool nosignal;
@@ -196,6 +199,7 @@ struct lt6911uxe {
 	u32 module_index;
 	u32 audio_sampling_rate;
 	int lane_in_use;
+	bool dual_mipi_port;
 };
 
 static const struct v4l2_dv_timings_cap lt6911uxe_timings_cap = {
@@ -1090,12 +1094,6 @@ static int lt6911uxe_s_dv_timings(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (!v4l2_valid_dv_timings(timings,
-				&lt6911uxe_timings_cap, NULL, NULL)) {
-		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
-		return -ERANGE;
-	}
-
 	lt6911uxe->timings = *timings;
 
 	enable_stream(sd, false);
@@ -1375,6 +1373,7 @@ static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 	long ret = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1395,6 +1394,17 @@ static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&lt6911uxe->i2c_client->dev,
 			"sensor get dphy param\n");
+		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = (struct rkmodule_capture_info *)arg;
+		if (lt6911uxe->dual_mipi_port) {
+			v4l2_dbg(1, debug, sd, "enable dual mipi mode\n");
+			capture_info->mode = RKMODULE_MULTI_DEV_COMBINE_ONE;
+			capture_info->multi_dev = lt6911uxe->multi_dev_info;
+		} else {
+			capture_info->mode = 0;
+			capture_info->multi_dev = lt6911uxe->multi_dev_info;
+		}
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1434,6 +1444,7 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 	long ret;
 	int *seq;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1494,6 +1505,21 @@ static long lt6911uxe_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CAPTURE_MODE:
+		capture_info = kzalloc(sizeof(*capture_info), GFP_KERNEL);
+		if (!capture_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = lt6911uxe_ioctl(sd, cmd, capture_info);
+		if (!ret) {
+			ret = copy_to_user(up, capture_info, sizeof(*capture_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(capture_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1763,6 +1789,39 @@ static int lt6911uxe_check_chip_id(struct lt6911uxe *lt6911uxe)
 	return ret;
 }
 
+static int lt6911uxe_get_multi_dev_info(struct lt6911uxe *lt6911uxe)
+{
+	struct device *dev = &lt6911uxe->i2c_client->dev;
+	struct device_node *node = dev->of_node;
+	struct device_node *multi_info_np;
+
+	lt6911uxe->dual_mipi_port = false;
+	multi_info_np = of_get_child_by_name(node, "multi-dev-info");
+	if (!multi_info_np) {
+		dev_info(dev, "failed to get multi dev info\n");
+		return -EINVAL;
+	}
+
+	of_property_read_u32(multi_info_np, "dev-idx-l",
+			&lt6911uxe->multi_dev_info.dev_idx[0]);
+	of_property_read_u32(multi_info_np, "dev-idx-r",
+			&lt6911uxe->multi_dev_info.dev_idx[1]);
+	of_property_read_u32(multi_info_np, "combine-idx",
+			&lt6911uxe->multi_dev_info.combine_idx[0]);
+	of_property_read_u32(multi_info_np, "pixel-offset",
+			&lt6911uxe->multi_dev_info.pixel_offset);
+	of_property_read_u32(multi_info_np, "dev-num",
+			&lt6911uxe->multi_dev_info.dev_num);
+
+	lt6911uxe->dual_mipi_port = true;
+	dev_info(dev,
+		"multi dev left: mipi%d, multi dev right: mipi%d, combile mipi%d, dev num: %d\n",
+		lt6911uxe->multi_dev_info.dev_idx[0], lt6911uxe->multi_dev_info.dev_idx[1],
+		lt6911uxe->multi_dev_info.combine_idx[0], lt6911uxe->multi_dev_info.dev_num);
+
+	return 0;
+}
+
 static int lt6911uxe_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -1795,6 +1854,11 @@ static int lt6911uxe_probe(struct i2c_client *client,
 
 	lt6911uxe->timings = default_timing;
 	lt6911uxe->cur_mode = &lt6911uxe->support_modes[0];
+
+	err = lt6911uxe_get_multi_dev_info(lt6911uxe);
+	if (err)
+		v4l2_info(sd, "get multi dev info failed, not use dual mipi mode\n");
+
 	err = lt6911uxe_check_chip_id(lt6911uxe);
 	if (err < 0)
 		return err;
