@@ -5242,7 +5242,7 @@
 	};
 
 	mipidcphy0: phy@2b020000 {
-		compatible = "rockchip,rk3588-mipi-dcphy";
+		compatible = "rockchip,rk3576-mipi-dcphy";
 		reg = <0x0 0x2b020000 0x0 0x10000>;
 		rockchip,grf = <&mipidcphy0_grf>;
 		clocks = <&cru PCLK_MIPI_DCPHY>,
