@@ -48,11 +48,11 @@
 #define MCU_FAN_TEST_LOOP_SECS          (5 * HZ)  // 5 seconds
 #define MCU_FAN_LOOP_NODELAY_SECS       0
 #define MCU_FAN_SPEED_OFF               0
-#define MCU_FAN_SPEED_1              1
-#define MCU_FAN_SPEED_2              3
-#define MCU_FAN_SPEED_3              5
-#define MCU_FAN_SPEED_4              7
-#define MCU_FAN_SPEED_5              9
+#define MCU_FAN_SPEED_1              0x23
+#define MCU_FAN_SPEED_2              0x33
+#define MCU_FAN_SPEED_3              0x43
+#define MCU_FAN_SPEED_4              0x53
+#define MCU_FAN_SPEED_5              0x63
 #define MCU_FAN_SPEED_LOW_V2            0x32
 #define MCU_FAN_SPEED_MID_V2            0x48
 #define MCU_FAN_SPEED_HIGH_V2           0x64
