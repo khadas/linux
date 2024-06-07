@@ -213,6 +213,28 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 			dev_info(dev, "vc-array[%d] property: 0x%x\n", i, vc_array[i]);
 			mode->vc[i] = vc_array[i];
 		}
+	} else {
+		/* default vc config */
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		for (i = 0; i < PAD_MAX; i++)
+			mode->vc[i] = i;
+#else
+		switch (PAD_MAX) {
+		case 4:
+			mode->vc[3] = V4L2_MBUS_CSI2_CHANNEL_3;
+			fallthrough;
+		case 3:
+			mode->vc[2] = V4L2_MBUS_CSI2_CHANNEL_2;
+			fallthrough;
+		case 2:
+			mode->vc[1] = V4L2_MBUS_CSI2_CHANNEL_1;
+			fallthrough;
+		case 1:
+		default:
+			mode->vc[0] = V4L2_MBUS_CSI2_CHANNEL_0;
+			break;
+		}
+#endif
 	}
 	for (i = 0; i < PAD_MAX; i++)
 		dev_info(dev, "support mode: vc[%d] = 0x%x\n", i, mode->vc[i]);
