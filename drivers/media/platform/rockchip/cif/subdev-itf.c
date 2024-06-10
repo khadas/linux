@@ -708,13 +708,6 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	return 0;
 }
 
-static void sditf_channel_disable(struct sditf_priv *priv, int user)
-{
-	priv->toisp_inf.ch_info[0].is_valid = false;
-	priv->toisp_inf.ch_info[1].is_valid = false;
-	priv->toisp_inf.ch_info[2].is_valid = false;
-}
-
 void sditf_change_to_online(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
@@ -754,7 +747,8 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 		rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
 	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 		rkcif_write_register_and(cif_dev, CIF_REG_TOISP0_CTRL, ~ctrl_val);
-		rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
+		if (priv->cif_dev->chip_id == CHIP_RK3588_CIF)
+			rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
 	}
 	priv->is_toisp_off = true;
 }
@@ -767,7 +761,8 @@ static void sditf_enable_immediately(struct sditf_priv *priv)
 		sditf_channel_enable(priv, 1);
 	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 		sditf_channel_enable(priv, 0);
-		sditf_channel_enable(priv, 1);
+		if (priv->cif_dev->chip_id == CHIP_RK3588_CIF)
+			sditf_channel_enable(priv, 1);
 	}
 	priv->is_toisp_off = false;
 }
@@ -800,14 +795,7 @@ static int sditf_start_stream(struct sditf_priv *priv)
 	sditf_check_capture_mode(cif_dev);
 	sditf_get_set_fmt(&priv->sd, NULL, &fmt);
 	if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
-		if (priv->toisp_inf.link_mode == TOISP0) {
-			sditf_channel_enable(priv, 0);
-		} else if (priv->toisp_inf.link_mode == TOISP1) {
-			sditf_channel_enable(priv, 1);
-		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
-			sditf_channel_enable(priv, 0);
-			sditf_channel_enable(priv, 1);
-		}
+		sditf_enable_immediately(priv);
 		mode = RKCIF_STREAM_MODE_TOISP;
 	} else if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 		mode = RKCIF_STREAM_MODE_TOISP_RDBK;
@@ -851,14 +839,10 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 	for (i = 0; i < stream_cnt; i++)
 		rkcif_do_stop_stream(&cif_dev->stream[i], mode);
 
-	if (priv->toisp_inf.link_mode == TOISP0) {
-		sditf_channel_disable(priv, 0);
-	} else if (priv->toisp_inf.link_mode == TOISP1) {
-		sditf_channel_disable(priv, 1);
-	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
-		sditf_channel_disable(priv, 0);
-		sditf_channel_disable(priv, 1);
-	}
+	sditf_disable_immediately(priv);
+	priv->toisp_inf.ch_info[0].is_valid = false;
+	priv->toisp_inf.ch_info[1].is_valid = false;
+	priv->toisp_inf.ch_info[2].is_valid = false;
 	return 0;
 }
 
