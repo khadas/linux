@@ -4848,19 +4848,25 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 			  __func__, __LINE__, stream->state, stream->curr_buf, stream->next_buf);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+
+	spin_lock_irqsave(&stream->fps_lock, flags);
 	if (stream->to_en_dma) {
 		rkcif_enable_dma_capture(stream, true);
-		spin_lock_irqsave(&stream->fps_lock, flags);
 		if (dev->is_sensor_off) {
 			dev->is_sensor_off = false;
-			spin_unlock_irqrestore(&stream->fps_lock, flags);
 			rkcif_dphy_quick_stream(dev, on);
 			v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
 					 RKMODULE_SET_QUICK_STREAM, &on);
-		} else {
-			spin_unlock_irqrestore(&stream->fps_lock, flags);
 		}
+	} else if (!stream->is_finish_single_cap && stream->is_wait_single_cap &&
+		   (dev->hdr.hdr_mode == NO_HDR ||
+		    (dev->hdr.hdr_mode == HDR_X2 && stream->id == 1) ||
+		    (dev->hdr.hdr_mode == HDR_X3 && stream->id == 2))) {
+		rkcif_quick_stream_on(dev);
+		stream->is_finish_single_cap = true;
+		stream->is_wait_single_cap = false;
 	}
+	spin_unlock_irqrestore(&stream->fps_lock, flags);
 }
 
 /*
