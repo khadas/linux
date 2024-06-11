@@ -93,6 +93,7 @@ static int rkx12x_support_mode_init(struct rkx12x *rkx12x)
 	struct device_node *node = NULL;
 	struct rkx12x_mode *mode = NULL;
 	u32 value = 0, vc_array[PAD_MAX], crop_array[4];
+	struct rkx12x_vc_info vc_info[PAD_MAX];
 	int ret = 0, i = 0, array_size = 0;
 
 	dev_info(dev, "=== rkx12x support mode init ===\n");
@@ -226,6 +227,41 @@ static int rkx12x_support_mode_init(struct rkx12x *rkx12x)
 	for (i = 0; i < PAD_MAX; i++)
 		dev_info(dev, "support mode: vc[%d] = 0x%x\n", i, mode->vc[i]);
 
+	/* vc info */
+	array_size = of_property_count_u32_elems(node, "vc-info");
+	if ((array_size > 0) &&
+			(array_size % sizeof(struct rkx12x_vc_info) == 0) &&
+			(array_size <= sizeof(struct rkx12x_vc_info) * PAD_MAX)) {
+
+		memset((char *)vc_info, 0, sizeof(vc_info));
+
+		ret = of_property_read_u32_array(node, "vc-info", (u32 *)vc_info, array_size);
+		if (ret == 0) {
+			/* <enable width height bus_fmt data_type data_bit> */
+			for (i = 0; i < PAD_MAX; i++) {
+				dev_info(dev, "vc-info[%d] property:\n", i);
+				dev_info(dev, "    vc-info[%d].enable = %d:\n", i, vc_info[i].enable);
+
+				dev_info(dev, "    vc-info[%d].width = %d:\n", i, vc_info[i].width);
+				dev_info(dev, "    vc-info[%d].height = %d:\n", i, vc_info[i].height);
+				dev_info(dev, "    vc-info[%d].bus_fmt = %d:\n", i, vc_info[i].bus_fmt);
+
+				dev_info(dev, "    vc-info[%d].data_type = %d:\n", i, vc_info[i].data_type);
+				dev_info(dev, "    vc-info[%d].data_bit = %d:\n", i, vc_info[i].data_bit);
+
+				mode->vc_info[i].enable = vc_info[i].enable;
+
+				mode->vc_info[i].width = vc_info[i].width;
+				mode->vc_info[i].height = vc_info[i].height;
+				mode->vc_info[i].bus_fmt = vc_info[i].bus_fmt;
+
+				mode->vc_info[i].data_type = vc_info[i].data_type;
+				mode->vc_info[i].data_bit = vc_info[i].data_bit;
+
+			}
+		}
+	}
+
 	/* crop rect */
 	array_size = of_property_read_variable_u32_array(node,
 				"crop-rect", crop_array, 1, 4);
@@ -345,10 +381,51 @@ static void rkx12x_set_vicap_rst_inf(struct rkx12x *rkx12x,
 	rkx12x->is_reset = rst_info.is_reset;
 }
 
+static int rkx12x_get_channel_info(struct rkx12x *rkx12x, struct rkmodule_channel_info *ch_info)
+{
+	const struct rkx12x_mode *mode = rkx12x->cur_mode;
+	struct device *dev = &rkx12x->client->dev;
+
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+
+	if (mode->vc_info[ch_info->index].enable) {
+		ch_info->vc = mode->vc[ch_info->index];
+
+		ch_info->width = mode->vc_info[ch_info->index].width;
+		ch_info->height = mode->vc_info[ch_info->index].height;
+		ch_info->bus_fmt = mode->vc_info[ch_info->index].bus_fmt;
+
+		/* optional parameters, default 0: invalid parameter */
+		ch_info->data_type = mode->vc_info[ch_info->index].data_type;
+		ch_info->data_bit = mode->vc_info[ch_info->index].data_bit;
+	} else {
+		ch_info->vc = mode->vc[ch_info->index];
+
+		ch_info->width = mode->width;
+		ch_info->height = mode->height;
+		ch_info->bus_fmt = mode->bus_fmt;
+	}
+
+	dev_info(dev, "get channel info, ch_info->index = %d\n", ch_info->index);
+
+	dev_info(dev, "    ch_info->vc = 0x%x\n", ch_info->vc);
+
+	dev_info(dev, "    ch_info->width = %d\n", ch_info->width);
+	dev_info(dev, "    ch_info->height = %d\n", ch_info->height);
+	dev_info(dev, "    ch_info->bus_fmt = 0x%x\n", ch_info->bus_fmt);
+
+	dev_info(dev, "    ch_info->data_type = 0x%x:\n", ch_info->data_type);
+	dev_info(dev, "    ch_info->data_bit = %d\n", ch_info->data_bit);
+
+	return 0;
+}
+
 static long rkx12x_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkx12x *rkx12x = v4l2_get_subdevdata(sd);
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 
 	dev_dbg(&rkx12x->client->dev, "ioctl cmd = 0x%08x\n", cmd);
@@ -375,6 +452,10 @@ static long rkx12x_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*dphy_param = rk3588_dcphy_param;
 		dev_info(&rkx12x->client->dev, "get dcphy parameter\n");
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = rkx12x_get_channel_info(rkx12x, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -391,6 +472,7 @@ static long rkx12x_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_vicap_reset_info *vicap_rst_inf;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 
 	switch (cmd) {
@@ -466,6 +548,21 @@ static long rkx12x_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 				ret = -EFAULT;
 		}
 		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = rkx12x_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -805,8 +902,18 @@ static int rkx12x_get_selection(struct v4l2_subdev *sd,
 #endif
 {
 	struct rkx12x *rkx12x = v4l2_get_subdevdata(sd);
+	int i = 0;
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		/* if multiple channel info enable, get_selection isn't support */
+		for (i = 0; i < PAD_MAX; i++) {
+			if (rkx12x->cur_mode->vc_info[i].enable) {
+				v4l2_warn(sd,
+					"Multi-channel enable, get_selection isn't support\n");
+				return -EINVAL;
+			}
+		}
+
 		sel->r.left = rkx12x->cur_mode->crop_rect.left;
 		sel->r.width = rkx12x->cur_mode->crop_rect.width;
 		sel->r.top = rkx12x->cur_mode->crop_rect.top;

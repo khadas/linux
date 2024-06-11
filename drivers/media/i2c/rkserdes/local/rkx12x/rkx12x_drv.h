@@ -70,6 +70,21 @@ struct rkx12x_i2c_mux {
 	bool mux_disable;
 };
 
+struct rkx12x_vc_info {
+	u32 enable; // 0: disable, !0: enable
+
+	u32 width;
+	u32 height;
+	u32 bus_fmt;
+
+	/*
+	 * the following are optional parameters, user-defined data types
+	 *   default 0: invalid parameter
+	 */
+	u32 data_type;
+	u32 data_bit;
+};
+
 /* rkx12x support mode */
 struct rkx12x_mode {
 	u32 width;
@@ -82,6 +97,7 @@ struct rkx12x_mode {
 	u32 bus_fmt;
 	u32 bpp;
 	u32 vc[PAD_MAX];
+	struct rkx12x_vc_info vc_info[PAD_MAX];
 	struct v4l2_rect crop_rect;
 };
 

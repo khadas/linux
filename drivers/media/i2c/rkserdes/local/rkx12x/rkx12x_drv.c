@@ -24,6 +24,10 @@
  *     2. g_mbus_config fix config->flags channels setting error
  *     3. fix kernel-6.1 compile error
  *
+ * V1.04.00
+ *     1. support multi-channel information configuration
+ *     2. mode vc initialization when vc-array isn't configured
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -50,7 +54,7 @@
 #include "rkx12x_api.h"
 #include "rkx12x_remote.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(1, 0x03, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(1, 0x04, 0x00)
 
 #define RKX12X_NAME		"rkx12x"
 
