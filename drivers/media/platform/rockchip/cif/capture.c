@@ -11483,22 +11483,17 @@ static bool rkcif_check_buffer_prepare(struct rkcif_stream *stream)
 bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw)
 {
 	struct rkcif_device *cif_dev = NULL;
-	struct rkcif_stream *stream = NULL;
-	int i = 0, j = 0;
+	struct v4l2_subdev *sd = NULL;
+	int i = 0;
 	int stream_cnt = 0;
 
 	if (hw->dev_num == 1)
 		return true;
 	for (i = 0; i < hw->dev_num; i++) {
 		cif_dev = hw->cif_dev[i];
-		for (j = 0; j < RKCIF_MAX_STREAM_MIPI; j++) {
-			stream = &cif_dev->stream[j];
-			if (stream->state == RKCIF_STATE_STREAMING ||
-			    stream->state ==  RKCIF_STATE_RESET_IN_STREAMING) {
-				stream_cnt++;
-				break;
-			}
-		}
+		sd = get_rkisp_sd(cif_dev->sditf[0]);
+		if (sd)
+			stream_cnt++;
 	}
 	if (stream_cnt > 1)
 		return false;
