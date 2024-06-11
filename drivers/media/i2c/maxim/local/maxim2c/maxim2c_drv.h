@@ -49,6 +49,21 @@ struct maxim2c_hot_plug_work {
 	u32 hot_plug_state;
 };
 
+struct maxim2c_vc_info {
+	u32 enable; // 0: disable, !0: enable
+
+	u32 width;
+	u32 height;
+	u32 bus_fmt;
+
+	/*
+	 * the following are optional parameters, user-defined data types
+	 *   default 0: invalid parameter
+	 */
+	u32 data_type;
+	u32 data_bit;
+};
+
 struct maxim2c_mode {
 	u32 width;
 	u32 height;
@@ -61,6 +76,7 @@ struct maxim2c_mode {
 	u32 bpp;
 	const struct regval *reg_list;
 	u32 vc[PAD_MAX];
+	struct maxim2c_vc_info vc_info[PAD_MAX];
 	struct v4l2_rect crop_rect;
 };
 

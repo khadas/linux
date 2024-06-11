@@ -70,6 +70,11 @@
  *     1. unified use __v4l2_ctrl_handler_setup in the xxx_start_stream
  *     2. support subscribe hot plug detect v4l2 event
  *
+ * V3.06.00
+ *     1. support multi-channel information configuration
+ *     2. mode vc initialization when vc-array isn't configured
+ *     3. fix the issue of mutex deadlock during hot plug
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -97,7 +102,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x05, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x06, 0x00)
 
 #define MAXIM4C_NAME			"maxim4c"
 
