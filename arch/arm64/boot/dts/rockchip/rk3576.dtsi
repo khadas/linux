@@ -5199,7 +5199,7 @@
 	hdptxphy_hdmi: hdmiphy@2b000000 {
 		compatible = "rockchip,rk3576-hdptx-phy-hdmi", "rockchip,rk3588-hdptx-phy-hdmi";
 		reg = <0x0 0x2b000000 0x0 0x2000>;
-		clocks = <&cru CLK_PHY_REF_SRC>, <&cru PCLK_PMUPHY_ROOT>;
+		clocks = <&cru CLK_PHY_REF_SRC>, <&cru PCLK_HDPTX_APB>;
 		clock-names = "ref", "apb";
 		clock-output-names = "clk_hdmiphy_pixel0";
 		#clock-cells = <0>;
