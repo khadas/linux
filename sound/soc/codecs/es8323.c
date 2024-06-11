@@ -770,17 +770,17 @@ static int es8323_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x06, 0xC3);
 	snd_soc_component_write(component, 0x19, 0x02);
 	snd_soc_component_write(component, 0x09, 0x00);
-	snd_soc_component_write(component, 0x0A, 0x00);
-	snd_soc_component_write(component, 0x0B, 0x02);
-	snd_soc_component_write(component, 0x0C, 0x4C);
+	snd_soc_component_write(component, 0x0A, 0xf8);
+	snd_soc_component_write(component, 0x0B, 0x82);
+	snd_soc_component_write(component, 0x0C, 0x0C);
 	snd_soc_component_write(component, 0x0D, 0x02);
 	snd_soc_component_write(component, 0x10, 0x00);
 	snd_soc_component_write(component, 0x11, 0x00);
-	snd_soc_component_write(component, 0x12, 0xea);
+	snd_soc_component_write(component, 0x12, 0x00);
 	snd_soc_component_write(component, 0x13, 0xc0);
 	snd_soc_component_write(component, 0x14, 0x05);
 	snd_soc_component_write(component, 0x15, 0x06);
-	snd_soc_component_write(component, 0x16, 0x53);
+	snd_soc_component_write(component, 0x16, 0x52);
 
 	snd_soc_component_write(component, 0x17, 0x18);
 	snd_soc_component_write(component, 0x18, 0x02);
