@@ -2214,11 +2214,11 @@ isp_hdrdrc_config(struct rkisp_isp_params_vdev *params_vdev,
 		(arg->lpdetail_ratio & 0xFFF);
 	isp3_param_write(params_vdev, value, ISP3X_DRC_LPRATIO, id);
 
-	value = arg->weicur_pix << 24 | !!arg->thumb_thd_enable |
+	value = arg->weicur_pix << 24 | !!arg->thumb_thd_enable << 23 |
 		(arg->thumb_thd_neg & 0x1ff) << 8 | arg->bilat_wt_off;
 	isp3_param_write(params_vdev, value, ISP39_DRC_BILAT0, id);
 
-	value = (arg->drc_gas_t & 0x3ff) << 16 | !!arg->cmps_fixbit_mode |
+	value = (arg->drc_gas_t & 0x3ff) << 16 | !!arg->cmps_fixbit_mode << 4 |
 		(arg->cmps_offset_bits_int & 0xf);
 	isp3_param_write(params_vdev, value, ISP39_DRC_BILAT1, id);
 
@@ -3332,7 +3332,7 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, value, ISP39_BAY3D_TNRKEEP, id);
 
 	value = (arg->tnr_pix_max & 0xfff) | (arg->lowgt_ctrl & 0x3) << 16 |
-			(arg->lowgt_offint & 0x3ff) << 18;
+		(arg->lowgt_offint & 0x3ff) << 18;
 	isp3_param_write(params_vdev, value, ISP39_BAY3D_PIXMAX, id);
 
 	value = arg->tnr_auto_sigma_count_th;

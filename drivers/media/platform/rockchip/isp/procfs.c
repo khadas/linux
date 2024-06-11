@@ -837,9 +837,11 @@ static void isp39_show(struct rkisp_device *dev, struct seq_file *p)
 	u32 val, val1, val2;
 
 	val = rkisp_read(dev, ISP3X_GIC_CONTROL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "GIC", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "GIC", (val & (BIT(0) | BIT(31))) ? "ON" : "OFF",
+		   val, (val == BIT(31)) ? 1 : !!(val & BIT(1)));
 	val = rkisp_read(dev, ISP3X_CAC_CTRL, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "CAC", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "CAC", (val & (BIT(0) | BIT(31))) ? "ON" : "OFF",
+		   val, !!(val & (BIT(1) | BIT(30))));
 	val = rkisp_read(dev, ISP3X_ISP_CTRL0, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "SDG", (val & BIT(6)) ? "ON" : "OFF", val);
 	seq_printf(p, "%-10s %s(0x%x) (gain0:0x%08x 0x%08x gain1:0x%x 0x%x)\n", "AWBGAIN",
@@ -868,7 +870,8 @@ static void isp39_show(struct rkisp_device *dev, struct seq_file *p)
 	seq_printf(p, "%-10s %s(0x%x) (effect: %s)\n", "IE", (val & 1) ? "ON" : "OFF",
 		   val, effect[!!val]);
 	val = rkisp_read(dev, ISP3X_DRC_CTRL0, false);
-	seq_printf(p, "%-10s %s(0x%x)\n", "HDRDRC", (val & 1) ? "ON" : "OFF", val);
+	seq_printf(p, "%-10s %s(0x%x) bypass:%d\n", "HDRDRC", (val & 1) ? "ON" : "OFF",
+		   val, !!(val & BIT(1)));
 	val = rkisp_read(dev, ISP3X_HDRMGE_CTRL, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "HDRMGE", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_DHAZ_CTRL, false);
