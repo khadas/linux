@@ -19,7 +19,10 @@
 		pinctrl-0 = <&uart7m1_xfer>;
 
 		amp-cpu-aff-maskbits = /bits/ 64 <0x0 0x1 0x1 0x2 0x2 0x4 0x3 0x8>;
-		amp-irqs = /bits/ 64 <GIC_AMP_IRQ_CFG_ROUTE(147, 0xd0, CPU_GET_AFFINITY(3, 0))>;
+		amp-irqs = /bits/ 64 <
+			GIC_AMP_IRQ_CFG_ROUTE(69, 0xd0, CPU_GET_AFFINITY(3, 0))   // UART7_IRQn
+			GIC_AMP_IRQ_CFG_ROUTE(147, 0xd0, CPU_GET_AFFINITY(3, 0))  // MBOX_BB_IRQn
+		>;
 
 		status = "okay";
 	};
