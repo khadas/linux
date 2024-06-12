@@ -307,6 +307,7 @@ static void husb311_remove(struct i2c_client *client)
 	struct husb311_chip *chip = i2c_get_clientdata(client);
 
 	device_init_wakeup(chip->dev, false);
+	disable_irq(client->irq);
 	cancel_delayed_work_sync(&chip->pm_work);
 	tcpci_unregister_port(chip->tcpci);
 }
@@ -317,6 +318,7 @@ static void husb311_shutdown(struct i2c_client *client)
 
 	husb311_set_vbus(chip->tcpci, &chip->data, false, false);
 
+	disable_irq(client->irq);
 	cancel_delayed_work_sync(&chip->pm_work);
 	tcpci_unregister_port(chip->tcpci);
 }
