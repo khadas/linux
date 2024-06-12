@@ -9395,6 +9395,16 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	 */
 	if (vop2->version == VOP_VERSION_RK3588)
 		VOP_MODULE_SET(vop2, vp, dsp_background, 0x80000000);
+
+	/*
+	 * For RK3576 VP0 enable ACM[bypass = 0] will lead to timing error,
+	 * so enable ACM by default.
+	 */
+	if (vop2->version <= VOP_VERSION_RK3576 &&
+	    vp_data->feature & VOP_FEATURE_POST_ACM) {
+		writel(0, vop2->acm_regs + RK3528_ACM_CTRL);
+		VOP_MODULE_SET(vop2, vp, acm_bypass_en, 0);
+	}
 	if (is_vop3(vop2))
 		vop3_setup_pipe_dly(vp, NULL);
 
