@@ -93,6 +93,15 @@ static int rkisp_params_unsubs_evt(struct v4l2_fh *fh,
 	return v4l2_event_unsubscribe(fh, sub);
 }
 
+static int rkisp_get_params(struct rkisp_isp_params_vdev *params_vdev, void *arg)
+{
+	int ret = -EINVAL;
+
+	if (params_vdev->dev->isp_ver == ISP_V39)
+		ret = rkisp_get_params_v39(params_vdev, arg);
+	return ret;
+}
+
 static long rkisp_params_ioctl_default(struct file *file, void *fh,
 				       bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -101,7 +110,10 @@ static long rkisp_params_ioctl_default(struct file *file, void *fh,
 
 	switch (cmd) {
 	case RKISP_CMD_SET_EXPANDER:
-		rkisp_expander_config(params->dev, arg, true);
+		ret = rkisp_expander_config(params->dev, arg, true);
+		break;
+	case RKISP_CMD_GET_PARAMS_V39:
+		ret = rkisp_get_params(params, arg);
 		break;
 	default:
 		ret = -EINVAL;

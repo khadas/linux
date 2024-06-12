@@ -587,8 +587,8 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	} else {
 		if (dev->hw_dev->is_single)
 			isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
-		params_rec->others.lsc_cfg = *arg;
 	}
+	params_rec->others.lsc_cfg = *arg;
 	for (i = 0; i < ISP39_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
 		data = CIF_ISP_LSC_SECT_SIZE(arg->x_size_tbl[i * 2], arg->x_size_tbl[i * 2 + 1]);
@@ -1922,8 +1922,7 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (params_vdev->dev->hw_dev->is_single)
 		isp_rawawb_cfg_sram(params_vdev, arg, false, id);
-	else
-		memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w, ISP39_RAWAWB_WEIGHT_NUM);
+	memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w, ISP39_RAWAWB_WEIGHT_NUM);
 
 	/* avoid to override the old enable value */
 	value = isp3_param_read_cache(params_vdev, ISP3X_RAWAWB_CTRL, id);
@@ -5166,3 +5165,2936 @@ void rkisp_uninit_params_vdev_v39(struct rkisp_isp_params_vdev *params_vdev)
 		params_vdev->priv_val = NULL;
 	}
 }
+
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V39_DBG)
+static void rkisp_get_params_rawaf(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp39_rawaf_meas_cfg *arg = &params->meas.rawaf;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWAF;
+	arg->gamma_en = !!(val & BIT(1));
+	arg->gaus_en = !!(val & BIT(2));
+	arg->h1_fv_mode = !!(val & BIT(8));
+	arg->h2_fv_mode = !!(val & BIT(9));
+	arg->v1_fv_mode = !!(val & BIT(10));
+	arg->v2_fv_mode = !!(val & BIT(11));
+	arg->ae_mode = !!(val & BIT(12));
+	arg->y_mode = !!(val & BIT(13));
+	arg->vldg_sel = !!(val & BIT(14));
+	arg->v_dnscl_mode = (val >> 16) & 0x3;
+	arg->from_ynr = !!(val & BIT(19));
+	arg->ae_config_use = !!(val & BIT(20));
+	arg->hiir_left_border_mode = !!(val & BIT(21));
+	arg->avg_ds_en = !!(val & BIT(22));
+	arg->avg_ds_mode = !!(val & BIT(23));
+	arg->h1_acc_mode = !!(val & BIT(24));
+	arg->h2_acc_mode = !!(val & BIT(25));
+	arg->v1_acc_mode = !!(val & BIT(26));
+	arg->v2_acc_mode = !!(val & BIT(27));
+
+	val = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH, 0);
+	arg->bnr2af_sel = !!(val & BIT(28));
+	arg->rawaf_sel = (val >> 18) & 0x3;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_OFFSET_WINA, 0);
+	arg->win[0].v_offs = (val & 0x1fff);
+	arg->win[0].h_offs = (val >> 16) & 0x1fff;
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_SIZE_WINA, 0);
+	arg->win[0].v_size = (val & 0x1fff);
+	arg->win[0].h_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_OFFSET_WINB, 0);
+	arg->win[1].v_offs = (val & 0x1fff);
+	arg->win[1].h_offs = (val >> 16) & 0x1fff;
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_SIZE_WINB, 0);
+	arg->win[1].v_size = (val & 0x1fff);
+	arg->win[1].h_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP32L_RAWAF_CTRL1, 0);
+	arg->bls_offset = val & 0x1ff;
+	arg->bls_en = !!(val & BIT(12));
+	arg->aehgl_en = !!(val & BIT(13));
+	arg->hldg_dilate_num = (val >> 16) & 0x7;
+	arg->tnrin_shift = (val >> 20) & 0xf;
+
+	for (i = 0; i < ISP39_RAWAF_GAMMA_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_GAMMA_Y0 + i * 4, 0);
+		arg->gamma_y[2 * i] = val & 0x3ff;
+		arg->gamma_y[2 * i + 1] = (val >> 16) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_GAMMA_Y8, 0);
+	arg->gamma_y[16] = val & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_RAWAF_HVIIR_VAR_SHIFT, 0);
+	arg->h1iir_shift_wina = val & 0x7;
+	arg->h2iir_shift_wina = (val >> 4) & 0x7;
+	arg->v1iir_shift_wina = (val >> 8) & 0x7;
+	arg->v2iir_shift_wina = (val >> 12) & 0x7;
+	arg->h1iir_shift_winb = (val >> 16) & 0xf;
+	arg->h2iir_shift_winb = (val >> 20) & 0xf;
+	arg->v1iir_shift_winb = (val >> 24) & 0xf;
+	arg->v2iir_shift_winb = (val >> 28) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_HIIR_THRESH, 0);
+	arg->h_fv_thresh = val & 0xffff;
+	arg->v_fv_thresh = (val >> 16) & 0xfff;
+
+	for (i = 0; i < ISP39_RAWAF_VFIR_COE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP32_RAWAF_V_FIR_COE0 + i * 4, 0);
+		arg->v1fir_coe[i] = val & 0xfff;
+		arg->v2fir_coe[i] = (val >> 16) & 0xfff;
+	}
+
+	for (i = 0; i < ISP39_RAWAF_GAUS_COE_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP32_RAWAF_GAUS_COE03 + i * 4, 0);
+		arg->gaus_coe[i * 4] = val & 0xff;
+		arg->gaus_coe[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->gaus_coe[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->gaus_coe[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP32_RAWAF_GAUS_COE8, 0);
+	arg->gaus_coe[ISP32_RAWAF_GAUS_COE_NUM - 1] = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAF_HIGHLIT_THRESH, 0);
+	arg->highlit_thresh = val & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP32L_RAWAF_CORING_H, 0);
+	arg->h_fv_limit = val & 0x3ff;
+	arg->h_fv_slope = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP32L_RAWAF_CORING_V, 0);
+	arg->v_fv_limit = val & 0x3ff;
+	arg->v_fv_slope = (val >> 16) & 0x1ff;
+
+	for (i = 0; i < ISP39_RAWAF_HIIR_COE_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_H1_IIR1_COE01 + i * 4, 0);
+		arg->h1iir1_coe[i * 2] = val & 0xfff;
+		arg->h1iir1_coe[i * 2 + 1] = (val >> 16) & 0xfff;
+
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_H1_IIR2_COE01 + i * 4, 0);
+		arg->h1iir2_coe[i * 2] = val & 0xfff;
+		arg->h1iir2_coe[i * 2 + 1] = (val >> 16) & 0xfff;
+
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_H2_IIR1_COE01 + i * 4, 0);
+		arg->h2iir1_coe[i * 2] = val & 0xfff;
+		arg->h2iir1_coe[i * 2 + 1] = (val >> 16) & 0xfff;
+
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_H2_IIR2_COE01 + i * 4, 0);
+		arg->h2iir2_coe[i * 2] = val & 0xfff;
+		arg->h2iir2_coe[i * 2 + 1] = (val >> 16) & 0xfff;
+	}
+
+	for (i = 0; i < ISP39_RAWAF_VIIR_COE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_V_IIR_COE0 + i * 4, 0);
+		arg->v1iir_coe[i] = val & 0xfff;
+		arg->v2iir_coe[i] = (val >> 16) & 0xfff;
+	}
+
+	for (i = 0; i < ISP39_RAWAF_CURVE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_H_CURVEL + i * 16, 0);
+		arg->curve_h[i].ldg_lumth = val & 0xff;
+		arg->curve_h[i].ldg_gain = (val >> 8) & 0xff;
+		arg->curve_h[i].ldg_gslp = (val >> 16) & 0x1fff;
+
+		val = isp3_param_read(params_vdev, ISP3X_RAWAF_V_CURVEL + i * 16, 0);
+		arg->curve_v[i].ldg_lumth = val & 0xff;
+		arg->curve_v[i].ldg_gain = (val >> 8) & 0xff;
+		arg->curve_v[i].ldg_gslp = (val >> 16) & 0x1fff;
+	}
+}
+
+static void rkisp_get_params_rawawb(struct rkisp_isp_params_vdev *params_vdev,
+				    struct isp39_isp_params_cfg *params)
+{
+	struct isp39_rawawb_meas_cfg *arg = &params->meas.rawawb;
+	struct isp39_rawawb_meas_cfg *arg_rec = &params_vdev->isp39_params->meas.rawawb;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWAWB;
+	arg->uv_en0 = !!(val & BIT(1));
+	arg->xy_en0 = !!(val & BIT(2));
+	arg->yuv3d_en0 = !!(val & BIT(3));
+	arg->yuv3d_ls_idx0 = (val >> 4) & 0x7;
+	arg->yuv3d_ls_idx1 = (val >> 7) & 0x7;
+	arg->yuv3d_ls_idx2 = (val >> 10) & 0x7;
+	arg->yuv3d_ls_idx3 = (val >> 13) & 0x7;
+	arg->in_rshift_to_12bit_en = !!(val & BIT(16));
+	arg->in_overexposure_check_en = !!(val & BIT(17));
+	arg->wind_size = !!(val & BIT(18));
+	arg->rawlsc_bypass_en = !!(val & BIT(19));
+	arg->light_num = (val >> 20) & 0x7;
+	arg->uv_en1 = !!(val & BIT(24));
+	arg->xy_en1 = !!(val & BIT(25));
+	arg->yuv3d_en1 = !!(val & BIT(26));
+	arg->low12bit_val = !!(val & BIT(28));
+
+	val = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH, 0);
+	arg->rawawb_sel = (val >> 20) & 0x3;
+	arg->bnr2awb_sel = !!(val & BIT(26));
+	arg->drc2awb_sel = !!(val & BIT(27));
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_BLK_CTRL, 0);
+	arg->blk_measure_enable = !!(val & BIT(0));
+	arg->blk_measure_mode = !!(val & BIT(1));
+	arg->blk_measure_xytype = !!(val & BIT(2));
+	arg->blk_rtdw_measure_en = !!(val & BIT(3));
+	arg->blk_measure_illu_idx = (val >> 4) & 0x7;
+	arg->ds16x8_mode_en = !!(val & BIT(7));
+	arg->blk_with_luma_wei_en = !!(val & BIT(8));
+	arg->in_overexposure_threshold = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_WIN_OFFS, 0);
+	arg->h_offs = val & 0x1fff;
+	arg->v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_WIN_SIZE, 0);
+	arg->h_size = val & 0x1fff;
+	arg->v_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_LIMIT_RG_MAX, 0);
+	arg->r_max = val & 0xfff;
+	arg->g_max = (val >> 16) & 0xfff;
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_LIMIT_BY_MAX, 0);
+	arg->b_max = val & 0xfff;
+	arg->y_max = (val >> 16) & 0xfff;
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_LIMIT_RG_MIN, 0);
+	arg->r_min = val & 0xfff;
+	arg->g_min = (val >> 16) & 0xfff;
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_LIMIT_BY_MIN, 0);
+	arg->b_min = val & 0xfff;
+	arg->y_min = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_WEIGHT_CURVE_CTRL, 0);
+	arg->wp_luma_wei_en0 = !!(val & BIT(0));
+	arg->wp_luma_wei_en1 = !!(val & BIT(1));
+	arg->wp_blk_wei_en0 = !!(val & BIT(2));
+	arg->wp_blk_wei_en1 = !!(val & BIT(3));
+	arg->wp_hist_xytype = !!(val & BIT(4));
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_XCOOR03, 0);
+	arg->wp_luma_weicurve_y0 = val & 0xff;
+	arg->wp_luma_weicurve_y1 = (val >> 8) & 0xff;
+	arg->wp_luma_weicurve_y2 = (val >> 16) & 0xff;
+	arg->wp_luma_weicurve_y3 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_XCOOR47, 0);
+	arg->wp_luma_weicurve_y4 = val & 0xff;
+	arg->wp_luma_weicurve_y5 = (val >> 8) & 0xff;
+	arg->wp_luma_weicurve_y6 = (val >> 16) & 0xff;
+	arg->wp_luma_weicurve_y7 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_XCOOR8, 0);
+	arg->wp_luma_weicurve_y8 = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_YCOOR03, 0);
+	arg->wp_luma_weicurve_w0 = val & 0x3f;
+	arg->wp_luma_weicurve_w1 = (val >> 8) & 0x3f;
+	arg->wp_luma_weicurve_w2 = (val >> 16) & 0x3f;
+	arg->wp_luma_weicurve_w3 = (val >> 24) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_YCOOR47, 0);
+	arg->wp_luma_weicurve_w4 = val & 0x3f;
+	arg->wp_luma_weicurve_w5 = (val >> 8) & 0x3f;
+	arg->wp_luma_weicurve_w6 = (val >> 16) & 0x3f;
+	arg->wp_luma_weicurve_w7 = (val >> 24) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YWEIGHT_CURVE_YCOOR8, 0);
+	arg->wp_luma_weicurve_w8 = val & 0x3f;
+	arg->pre_wbgain_inv_r = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_PRE_WBGAIN_INV, 0);
+	arg->pre_wbgain_inv_g = val & 0x1fff;
+	arg->pre_wbgain_inv_b = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX0_0, 0);
+	arg->vertex0_u_0 = val & 0x1ff;
+	arg->vertex0_v_0 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX1_0, 0);
+	arg->vertex1_u_0 = val & 0x1ff;
+	arg->vertex1_v_0 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX2_0, 0);
+	arg->vertex2_u_0 = val & 0x1ff;
+	arg->vertex2_v_0 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX3_0, 0);
+	arg->vertex3_u_0 = val & 0x1ff;
+	arg->vertex3_v_0 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE01_0, 0);
+	arg->islope01_0 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE12_0, 0);
+	arg->islope12_0 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE23_0, 0);
+	arg->islope23_0 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE30_0, 0);
+	arg->islope30_0 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX0_1, 0);
+	arg->vertex0_u_1 = val & 0x1ff;
+	arg->vertex0_v_1 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX1_1, 0);
+	arg->vertex1_u_1 = val & 0x1ff;
+	arg->vertex1_v_1 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX2_1, 0);
+	arg->vertex2_u_1 = val & 0x1ff;
+	arg->vertex2_v_1 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX3_1, 0);
+	arg->vertex3_u_1 = val & 0x1ff;
+	arg->vertex3_v_1 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE01_1, 0);
+	arg->islope01_1 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE12_1, 0);
+	arg->islope12_1 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE23_1, 0);
+	arg->islope23_1 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE30_1, 0);
+	arg->islope30_1 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX0_2, 0);
+	arg->vertex0_u_2 = val & 0x1ff;
+	arg->vertex0_v_2 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX1_2, 0);
+	arg->vertex1_u_2 = val & 0x1ff;
+	arg->vertex1_v_2 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX2_2, 0);
+	arg->vertex2_u_2 = val & 0x1ff;
+	arg->vertex2_v_2 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX3_2, 0);
+	arg->vertex3_u_2 = val & 0x1ff;
+	arg->vertex3_v_2 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE01_2, 0);
+	arg->islope01_2 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE12_2, 0);
+	arg->islope12_2 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE23_2, 0);
+	arg->islope23_2 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE30_2, 0);
+	arg->islope30_2 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX0_3, 0);
+	arg->vertex0_u_3 = val & 0x1ff;
+	arg->vertex0_v_3 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX1_3, 0);
+	arg->vertex1_u_3 = val & 0x1ff;
+	arg->vertex1_v_3 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX2_3, 0);
+	arg->vertex2_u_3 = val & 0x1ff;
+	arg->vertex2_v_3 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_VERTEX3_3, 0);
+	arg->vertex3_u_3 = val & 0x1ff;
+	arg->vertex3_v_3 = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE01_3, 0);
+	arg->islope01_3 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE12_3, 0);
+	arg->islope12_3 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE23_3, 0);
+	arg->islope23_3 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_UV_DETC_ISLOPE30_3, 0);
+	arg->islope30_3 = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTY_0, 0);
+	arg->rgb2ryuvmat0_y = val & 0x3ff;
+	arg->rgb2ryuvmat1_y = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTY_1, 0);
+	arg->rgb2ryuvmat2_y = val & 0x3ff;
+	arg->rgb2ryuvofs_y = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTU_0, 0);
+	arg->rgb2ryuvmat0_u = val & 0x3ff;
+	arg->rgb2ryuvmat1_u = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTU_1, 0);
+	arg->rgb2ryuvmat2_u = val & 0x3ff;
+	arg->rgb2ryuvofs_u = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTV_0, 0);
+	arg->rgb2ryuvmat0_v = val & 0x3ff;
+	arg->rgb2ryuvmat1_v = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_RGB2ROTV_1, 0);
+	arg->rgb2ryuvmat2_v = val & 0x3ff;
+	arg->rgb2ryuvofs_v = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_Y_0, 0);
+	arg->coor_x1_ls0_y = val & 0xfff;
+	arg->vec_x21_ls0_y = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_U_0, 0);
+	arg->coor_x1_ls0_u = val & 0xfff;
+	arg->vec_x21_ls0_u = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_V_0, 0);
+	arg->coor_x1_ls0_v = val & 0xfff;
+	arg->vec_x21_ls0_v = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X1X2_DIS_0, 0);
+	arg->dis_x1x2_ls0 = val & 0x1f;
+	arg->rotu0_ls0 = (val >> 16) & 0xff;
+	arg->rotu1_ls0 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_UCOOR_0, 0);
+	arg->rotu2_ls0 = val & 0xff;
+	arg->rotu3_ls0 = (val >> 8) & 0xff;
+	arg->rotu4_ls0 = (val >> 16) & 0xff;
+	arg->rotu5_ls0 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH0_0, 0);
+	arg->th0_ls0 = val & 0xfff;
+	arg->th1_ls0 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH1_0, 0);
+	arg->th2_ls0 = val & 0xfff;
+	arg->th3_ls0 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH2_0, 0);
+	arg->th4_ls0 = val & 0xfff;
+	arg->th5_ls0 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_Y_1, 0);
+	arg->coor_x1_ls1_y = val & 0xfff;
+	arg->vec_x21_ls1_y = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_U_1, 0);
+	arg->coor_x1_ls1_u = val & 0xfff;
+	arg->vec_x21_ls1_u = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_V_1, 0);
+	arg->coor_x1_ls1_v = val & 0xfff;
+	arg->vec_x21_ls1_v = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X1X2_DIS_1, 0);
+	arg->dis_x1x2_ls1 = val & 0x1f;
+	arg->rotu0_ls1 = (val >> 16) & 0xff;
+	arg->rotu1_ls1 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_UCOOR_1, 0);
+	arg->rotu2_ls1 = val & 0xff;
+	arg->rotu3_ls1 = (val >> 8) & 0xff;
+	arg->rotu4_ls1 = (val >> 16) & 0xff;
+	arg->rotu5_ls1 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH0_1, 0);
+	arg->th0_ls1 = val & 0xfff;
+	arg->th1_ls1 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH1_1, 0);
+	arg->th2_ls1 = val & 0xfff;
+	arg->th3_ls1 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH2_1, 0);
+	arg->th4_ls1 = val & 0xfff;
+	arg->th5_ls1 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_Y_2, 0);
+	arg->coor_x1_ls2_y = val & 0xfff;
+	arg->vec_x21_ls2_y = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_U_2, 0);
+	arg->coor_x1_ls2_u = val & 0xfff;
+	arg->vec_x21_ls2_u = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_V_2, 0);
+	arg->coor_x1_ls2_v = val & 0xfff;
+	arg->vec_x21_ls2_v = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X1X2_DIS_2, 0);
+	arg->dis_x1x2_ls2 = val & 0x1f;
+	arg->rotu0_ls2 = (val >> 16) & 0xff;
+	arg->rotu1_ls2 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_UCOOR_2, 0);
+	arg->rotu2_ls2 = val & 0xff;
+	arg->rotu3_ls2 = (val >> 8) & 0xff;
+	arg->rotu4_ls2 = (val >> 16) & 0xff;
+	arg->rotu5_ls2 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH0_2, 0);
+	arg->th0_ls2 = val & 0xfff;
+	arg->th1_ls2 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH1_2, 0);
+	arg->th2_ls2 = val & 0xfff;
+	arg->th3_ls2 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH2_2, 0);
+	arg->th4_ls2 = val & 0xfff;
+	arg->th5_ls2 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_Y_3, 0);
+	arg->coor_x1_ls3_y = val & 0xfff;
+	arg->vec_x21_ls3_y = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_U_3, 0);
+	arg->coor_x1_ls3_u = val & 0xfff;
+	arg->vec_x21_ls3_u = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X_COOR_V_3, 0);
+	arg->coor_x1_ls3_v = val & 0xfff;
+	arg->vec_x21_ls3_v = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_X1X2_DIS_3, 0);
+	arg->dis_x1x2_ls3 = val & 0x1f;
+	arg->rotu0_ls3 = (val >> 16) & 0xff;
+	arg->rotu1_ls3 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_UCOOR_3, 0);
+	arg->rotu2_ls3 = val & 0xff;
+	arg->rotu3_ls3 = (val >> 8) & 0xff;
+	arg->rotu4_ls3 = (val >> 16) & 0xff;
+	arg->rotu5_ls3 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH0_3, 0);
+	arg->th0_ls3 = val & 0xfff;
+	arg->th1_ls3 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH1_3, 0);
+	arg->th2_ls3 = val & 0xfff;
+	arg->th3_ls3 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_YUV_INTERP_CURVE_TH2_3, 0);
+	arg->th4_ls3 = val & 0xfff;
+	arg->th5_ls3 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_RGB2XY_WT01, 0);
+	arg->wt0 = val & 0xfff;
+	arg->wt1 = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_RGB2XY_WT2, 0);
+	arg->wt2 = val & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_RGB2XY_MAT0_XY, 0);
+	arg->mat0_x = val & 0x7fff;
+	arg->mat0_y = (val >> 16) & 0x7fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_RGB2XY_MAT1_XY, 0);
+	arg->mat1_x = val & 0x7fff;
+	arg->mat1_y = (val >> 16) & 0x7fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_RGB2XY_MAT2_XY, 0);
+	arg->mat2_x = val & 0x7fff;
+	arg->mat2_y = (val >> 16) & 0x7fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_X_0, 0);
+	arg->nor_x0_0 = val & 0x3fff;
+	arg->nor_x1_0 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_Y_0, 0);
+	arg->nor_y0_0 = val & 0x3fff;
+	arg->nor_y1_0 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_X_0, 0);
+	arg->big_x0_0 = val & 0x3fff;
+	arg->big_x1_0 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_Y_0, 0);
+	arg->big_y0_0 = val & 0x3fff;
+	arg->big_y1_0 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_X_1, 0);
+	arg->nor_x0_1 = val & 0x3fff;
+	arg->nor_x1_1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_Y_1, 0);
+	arg->nor_y0_1 = val & 0x3fff;
+	arg->nor_y1_1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_X_1, 0);
+	arg->big_x0_1 = val & 0x3fff;
+	arg->big_x1_1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_Y_1, 0);
+	arg->big_y0_1 = val & 0x3fff;
+	arg->big_y1_1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_X_2, 0);
+	arg->nor_x0_2 = val & 0x3fff;
+	arg->nor_x1_2 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_Y_2, 0);
+	arg->nor_y0_2 = val & 0x3fff;
+	arg->nor_y1_2 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_X_2, 0);
+	arg->big_x0_2 = val & 0x3fff;
+	arg->big_x1_2 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_Y_2, 0);
+	arg->big_y0_2 = val & 0x3fff;
+	arg->big_y1_2 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_X_3, 0);
+	arg->nor_x0_3 = val & 0x3fff;
+	arg->nor_x1_3 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_NOR_Y_3, 0);
+	arg->nor_y0_3 = val & 0x3fff;
+	arg->nor_y1_3 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_X_3, 0);
+	arg->big_x0_3 = val & 0x3fff;
+	arg->big_x1_3 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_XY_DETC_BIG_Y_3, 0);
+	arg->big_y0_3 = val & 0x3fff;
+	arg->big_y1_3 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW_EXC_CTRL, 0);
+	arg->exc_wp_region0_excen = val & 0x3;
+	arg->exc_wp_region0_measen = !!(val & BIT(2));
+	arg->exc_wp_region0_domain = !!(val & BIT(3));
+	arg->exc_wp_region1_excen = (val >> 4) & 0x3;
+	arg->exc_wp_region1_measen = !!(val & BIT(6));
+	arg->exc_wp_region1_domain = !!(val & BIT(7));
+	arg->exc_wp_region2_excen = (val >> 8) & 0x3;
+	arg->exc_wp_region2_measen = !!(val & BIT(10));
+	arg->exc_wp_region2_domain = !!(val & BIT(11));
+	arg->exc_wp_region3_excen = (val >> 12) & 0x3;
+	arg->exc_wp_region3_measen = !!(val & BIT(14));
+	arg->exc_wp_region3_domain = !!(val & BIT(15));
+	arg->exc_wp_region4_excen = (val >> 16) & 0x3;
+	arg->exc_wp_region4_domain = !!(val & BIT(19));
+	arg->exc_wp_region5_excen = (val >> 20) & 0x3;
+	arg->exc_wp_region5_domain = !!(val & BIT(23));
+	arg->exc_wp_region6_excen = (val >> 24) & 0x3;
+	arg->exc_wp_region6_domain = !!(val & BIT(27));
+	arg->multiwindow_en = !!(val & BIT(31));
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW0_OFFS, 0);
+	arg->multiwindow0_h_offs = val & 0x1fff;
+	arg->multiwindow0_v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW0_SIZE, 0);
+	arg->multiwindow0_h_size = val & 0x1fff;
+	arg->multiwindow0_v_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW1_OFFS, 0);
+	arg->multiwindow1_h_offs = val & 0x1fff;
+	arg->multiwindow1_v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW1_SIZE, 0);
+	arg->multiwindow1_h_size = val & 0x1fff;
+	arg->multiwindow1_v_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW2_OFFS, 0);
+	arg->multiwindow2_h_offs = val & 0x1fff;
+	arg->multiwindow2_v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW2_SIZE, 0);
+	arg->multiwindow2_h_size = val & 0x1fff;
+	arg->multiwindow2_v_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW3_OFFS, 0);
+	arg->multiwindow3_h_offs = val & 0x1fff;
+	arg->multiwindow3_v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_MULTIWINDOW3_SIZE, 0);
+	arg->multiwindow3_h_size = val & 0x1fff;
+	arg->multiwindow3_v_size = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION0_XU, 0);
+	arg->exc_wp_region0_xu0 = val & 0x3fff;
+	arg->exc_wp_region0_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION0_YV, 0);
+	arg->exc_wp_region0_yv0 = val & 0x3fff;
+	arg->exc_wp_region0_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION1_XU, 0);
+	arg->exc_wp_region1_xu0 = val & 0x3fff;
+	arg->exc_wp_region1_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION1_YV, 0);
+	arg->exc_wp_region1_yv0 = val & 0x3fff;
+	arg->exc_wp_region1_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION2_XU, 0);
+	arg->exc_wp_region2_xu0 = val & 0x3fff;
+	arg->exc_wp_region2_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION2_YV, 0);
+	arg->exc_wp_region2_yv0 = val & 0x3fff;
+	arg->exc_wp_region2_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION3_XU, 0);
+	arg->exc_wp_region3_xu0 = val & 0x3fff;
+	arg->exc_wp_region3_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION3_YV, 0);
+	arg->exc_wp_region3_yv0 = val & 0x3fff;
+	arg->exc_wp_region3_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION4_XU, 0);
+	arg->exc_wp_region4_xu0 = val & 0x3fff;
+	arg->exc_wp_region4_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION4_YV, 0);
+	arg->exc_wp_region4_yv0 = val & 0x3fff;
+	arg->exc_wp_region4_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION5_XU, 0);
+	arg->exc_wp_region5_xu0 = val & 0x3fff;
+	arg->exc_wp_region5_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION5_YV, 0);
+	arg->exc_wp_region5_yv0 = val & 0x3fff;
+	arg->exc_wp_region5_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION6_XU, 0);
+	arg->exc_wp_region6_xu0 = val & 0x3fff;
+	arg->exc_wp_region6_xu1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_RAWAWB_EXC_WP_REGION6_YV, 0);
+	arg->exc_wp_region6_yv0 = val & 0x3fff;
+	arg->exc_wp_region6_yv1 = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP32_RAWAWB_EXC_WP_WEIGHT0_3, 0);
+	arg->exc_wp_region0_weight = val & 0x3f;
+	arg->exc_wp_region1_weight = (val >> 8) & 0x3f;
+	arg->exc_wp_region2_weight = (val >> 16) & 0x3f;
+	arg->exc_wp_region3_weight = (val >> 24) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP32_RAWAWB_EXC_WP_WEIGHT4_6, 0);
+	arg->exc_wp_region4_weight = val & 0x3f;
+	arg->exc_wp_region5_weight = (val >> 8) & 0x3f;
+	arg->exc_wp_region6_weight = (val >> 16) & 0x3f;
+
+	memcpy(arg->wp_blk_wei_w, arg_rec->wp_blk_wei_w, ISP39_RAWAWB_WEIGHT_NUM);
+}
+
+static void rkisp_get_params_rawae0(struct rkisp_isp_params_vdev *params_vdev,
+				    struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_rawaebig_meas_cfg *arg = &params->meas.rawae0;
+	const u32 ae_wnd_num[] = {1, 5, 15, 15};
+	u32 addr = ISP3X_RAWAE_LITE_BASE, i, val;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWAE0;
+	arg->wnd_num = (val >> 1) & 0x3;
+	arg->subwin_en[0] = !!(val & BIT(4));
+	arg->subwin_en[1] = !!(val & BIT(5));
+	arg->subwin_en[2] = !!(val & BIT(6));
+	arg->subwin_en[3] = !!(val & BIT(7));
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_OFFSET, 0);
+	arg->win.h_offs = val & 0x1fff;
+	arg->win.v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_BLK_SIZE, 0);
+	arg->win.h_size = (val & 0x1fff) * ae_wnd_num[arg->wnd_num];
+	arg->win.v_size = ((val >> 16) & 0x1fff) * ae_wnd_num[arg->wnd_num];
+
+	for (i = 0; i < ISP39_RAWAEBIG_SUBWIN_NUM; i++) {
+		val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_WND1_OFFSET + 8 * i, 0);
+		arg->subwin[i].h_offs = val & 0x1fff;
+		arg->subwin[i].v_offs = (val >> 16) & 0x1fff;
+
+		val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_WND1_SIZE + 8 * i, 0);
+		arg->subwin[i].h_size = (val & 0x1fff) - arg->subwin[i].h_offs;
+		arg->subwin[i].v_size = ((val >> 16) & 0x1fff) - arg->subwin[i].v_offs;
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH, 0);
+	arg->rawae_sel = (val >> 22) & 0x3;
+	if (val & BIT(30))
+		arg->rawae_sel |= ISP39_BNR2AE0_SEL_EN;
+}
+
+static void rkisp_get_params_rawae3(struct rkisp_isp_params_vdev *params_vdev,
+				    struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_rawaebig_meas_cfg *arg = &params->meas.rawae3;
+	const u32 ae_wnd_num[] = {1, 5, 15, 15};
+	u32 addr = ISP3X_RAWAE_BIG1_BASE, i, val;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWAE3;
+	arg->wnd_num = (val >> 1) & 0x3;
+	arg->subwin_en[0] = !!(val & BIT(4));
+	arg->subwin_en[1] = !!(val & BIT(5));
+	arg->subwin_en[2] = !!(val & BIT(6));
+	arg->subwin_en[3] = !!(val & BIT(7));
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_OFFSET, 0);
+	arg->win.h_offs = val & 0x1fff;
+	arg->win.v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_BLK_SIZE, 0);
+	arg->win.h_size = (val & 0x1fff) * ae_wnd_num[arg->wnd_num];
+	arg->win.v_size = ((val >> 16) & 0x1fff) * ae_wnd_num[arg->wnd_num];
+
+	for (i = 0; i < ISP39_RAWAEBIG_SUBWIN_NUM; i++) {
+		val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_WND1_OFFSET + 8 * i, 0);
+		arg->subwin[i].h_offs = val & 0x1fff;
+		arg->subwin[i].v_offs = (val >> 16) & 0x1fff;
+
+		val = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_WND1_SIZE + 8 * i, 0);
+		arg->subwin[i].h_size = (val & 0x1fff) - arg->subwin[i].h_offs;
+		arg->subwin[i].v_size = ((val >> 16) & 0x1fff) - arg->subwin[i].v_offs;
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH, 0);
+	arg->rawae_sel = (val >> 16) & 0x3;
+	if (val & BIT(29))
+		arg->rawae_sel |= ISP39_BNR2AEBIG_SEL_EN;
+}
+
+static void rkisp_get_params_rawhist0(struct rkisp_isp_params_vdev *params_vdev,
+				      struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_rawhistbig_cfg *arg = &params->meas.rawhist0;
+	struct isp2x_rawhistbig_cfg *arg_rec = &params_vdev->isp39_params->meas.rawhist0;
+	const u32 hist_wnd_num[] = {5, 5, 15, 15};
+	u32 addr = ISP3X_RAWHIST_LITE_BASE, val;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWHIST0;
+	arg->stepsize = (val >> 1) & 0x7;
+	arg->mode = (val >> 8) & 0x7;
+	arg->waterline = (val >> 12) & 0xfff;
+	arg->data_sel = (val >> 24) & 0x7;
+	arg->wnd_num = (val >> 28) & 0x3;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_OFFS, 0);
+	arg->win.h_offs = val & 0x1fff;
+	arg->win.v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_SIZE, 0);
+	arg->win.h_size = (val & 0x1fff) * hist_wnd_num[arg->wnd_num];
+	arg->win.v_size = ((val >> 16) & 0x1fff) * hist_wnd_num[arg->wnd_num];
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_RAW2Y_CC, 0);
+	arg->rcc = val & 0xff;
+	arg->gcc = (val >> 8) & 0xff;
+	arg->bcc = (val >> 16) & 0xff;
+	arg->off = (val >> 24) & 0xff;
+
+	memcpy(arg->weight, arg_rec->weight, ISP2X_RAWHISTBIG_SUBWIN_NUM);
+}
+
+static void rkisp_get_params_rawhist3(struct rkisp_isp_params_vdev *params_vdev,
+				      struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_rawhistbig_cfg *arg = &params->meas.rawhist3;
+	struct isp2x_rawhistbig_cfg *arg_rec = &params_vdev->isp39_params->meas.rawhist3;
+	const u32 hist_wnd_num[] = {5, 5, 15, 15};
+	u32 addr = ISP3X_RAWHIST_BIG1_BASE, val;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RAWHIST3;
+	arg->stepsize = (val >> 1) & 0x7;
+	arg->mode = (val >> 8) & 0x7;
+	arg->waterline = (val >> 12) & 0xfff;
+	arg->data_sel = (val >> 24) & 0x7;
+	arg->wnd_num = (val >> 28) & 0x3;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_OFFS, 0);
+	arg->win.h_offs = val & 0x1fff;
+	arg->win.v_offs = (val >> 16) & 0x1fff;
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_SIZE, 0);
+	arg->win.h_size = (val & 0x1fff) * hist_wnd_num[arg->wnd_num];
+	arg->win.v_size = ((val >> 16) & 0x1fff) * hist_wnd_num[arg->wnd_num];
+
+	val = isp3_param_read(params_vdev, addr + ISP3X_RAWHIST_BIG_RAW2Y_CC, 0);
+	arg->rcc = val & 0xff;
+	arg->gcc = (val >> 8) & 0xff;
+	arg->bcc = (val >> 16) & 0xff;
+	arg->off = (val >> 24) & 0xff;
+
+	memcpy(arg->weight, arg_rec->weight, ISP2X_RAWHISTBIG_SUBWIN_NUM);
+}
+
+static void rkisp_get_params_bls(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp32_bls_cfg *arg = &params->others.bls_cfg;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_BLS_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_BLS;
+	arg->enable_auto = !!(val & BIT(1));
+	arg->en_windows = (val >> 2) & 0x3;
+	arg->bls1_en = !!(val & BIT(4));
+	params->meas.rawawb.bls2_en = !!(val & BIT(5));
+
+	switch (params_vdev->raw_type) {
+	case RAW_BGGR:
+		val = isp3_param_read(params_vdev, ISP3X_BLS_D_FIXED, 0);
+		arg->fixed_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_C_FIXED, 0);
+		arg->fixed_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_B_FIXED, 0);
+		arg->fixed_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_A_FIXED, 0);
+		arg->fixed_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_D_FIXED, 0);
+		arg->bls1_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_C_FIXED, 0);
+		arg->bls1_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_B_FIXED, 0);
+		arg->bls1_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_A_FIXED, 0);
+		arg->bls1_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP32_BLS2_D_FIXED, 0);
+		params->meas.rawawb.bls2_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_C_FIXED, 0);
+		params->meas.rawawb.bls2_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_B_FIXED, 0);
+		params->meas.rawawb.bls2_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_A_FIXED, 0);
+		params->meas.rawawb.bls2_val.b = (val & 0x1fff);
+		break;
+	case RAW_GBRG:
+		val = isp3_param_read(params_vdev, ISP3X_BLS_C_FIXED, 0);
+		arg->fixed_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_D_FIXED, 0);
+		arg->fixed_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_A_FIXED, 0);
+		arg->fixed_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_B_FIXED, 0);
+		arg->fixed_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_C_FIXED, 0);
+		arg->bls1_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_D_FIXED, 0);
+		arg->bls1_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_A_FIXED, 0);
+		arg->bls1_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_B_FIXED, 0);
+		arg->bls1_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP32_BLS2_C_FIXED, 0);
+		params->meas.rawawb.bls2_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_D_FIXED, 0);
+		params->meas.rawawb.bls2_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_A_FIXED, 0);
+		params->meas.rawawb.bls2_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_B_FIXED, 0);
+		params->meas.rawawb.bls2_val.b = (val & 0x1fff);
+		break;
+	case RAW_GRBG:
+		val = isp3_param_read(params_vdev, ISP3X_BLS_B_FIXED, 0);
+		arg->fixed_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_A_FIXED, 0);
+		arg->fixed_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_D_FIXED, 0);
+		arg->fixed_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_C_FIXED, 0);
+		arg->fixed_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_B_FIXED, 0);
+		arg->bls1_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_A_FIXED, 0);
+		arg->bls1_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_D_FIXED, 0);
+		arg->bls1_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_C_FIXED, 0);
+		arg->bls1_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP32_BLS2_B_FIXED, 0);
+		params->meas.rawawb.bls2_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_A_FIXED, 0);
+		params->meas.rawawb.bls2_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_D_FIXED, 0);
+		params->meas.rawawb.bls2_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_C_FIXED, 0);
+		params->meas.rawawb.bls2_val.b = (val & 0x1fff);
+		break;
+	case RAW_RGGB:
+	default:
+		val = isp3_param_read(params_vdev, ISP3X_BLS_A_FIXED, 0);
+		arg->fixed_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_B_FIXED, 0);
+		arg->fixed_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_C_FIXED, 0);
+		arg->fixed_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS_D_FIXED, 0);
+		arg->fixed_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_A_FIXED, 0);
+		arg->bls1_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_B_FIXED, 0);
+		arg->bls1_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_C_FIXED, 0);
+		arg->bls1_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP3X_BLS1_D_FIXED, 0);
+		arg->bls1_val.b = (val & 0x1fff);
+
+		val = isp3_param_read(params_vdev, ISP32_BLS2_A_FIXED, 0);
+		params->meas.rawawb.bls2_val.r = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_B_FIXED, 0);
+		params->meas.rawawb.bls2_val.gr = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_C_FIXED, 0);
+		params->meas.rawawb.bls2_val.gb = (val & 0x1fff);
+		val = isp3_param_read(params_vdev, ISP32_BLS2_D_FIXED, 0);
+		params->meas.rawawb.bls2_val.b = (val & 0x1fff);
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_BLS_SAMPLES, 0);
+	arg->bls_samples = val & 0x1f;
+
+	val = isp3_param_read(params_vdev, ISP3X_BLS_H1_START, 0);
+	arg->bls_window1.h_offs = val & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_H1_STOP, 0);
+	arg->bls_window1.h_size = (val - arg->bls_window1.h_offs) & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_V1_START, 0);
+	arg->bls_window1.v_offs = val & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_V1_STOP, 0);
+	arg->bls_window1.v_size = (val - arg->bls_window1.v_offs) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP3X_BLS_H2_START, 0);
+	arg->bls_window2.h_offs = val & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_H2_STOP, 0);
+	arg->bls_window2.h_size = (val - arg->bls_window2.h_offs) & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_V2_START, 0);
+	arg->bls_window2.v_offs = val & 0x3fff;
+	val = isp3_param_read(params_vdev, ISP3X_BLS_V2_STOP, 0);
+	arg->bls_window2.v_size = (val - arg->bls_window2.v_offs) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP32_BLS_ISP_OB_OFFSET, 0);
+	arg->isp_ob_offset = val & 0x1ff;
+	val = isp3_param_read(params_vdev, ISP32_BLS_ISP_OB_PREDGAIN, 0);
+	arg->isp_ob_predgain = val & 0xffff;
+	val = isp3_param_read(params_vdev, ISP32_BLS_ISP_OB_MAX, 0);
+	arg->isp_ob_max = val & 0xfffff;
+}
+
+static void rkisp_get_params_dpcc(struct rkisp_isp_params_vdev *params_vdev,
+				  struct isp39_isp_params_cfg *params)
+{
+	struct isp39_dpcc_cfg *arg = &params->others.dpcc_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_MODE, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_DPCC;
+	arg->grayscale_mode = !!(val & BIT(1));
+	arg->stage1_enable = !!(val & BIT(2));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_OUTPUT_MODE, 0);
+	arg->stage1_incl_green_center = !!(val & BIT(0));
+	arg->stage1_incl_rb_center = !!(val & BIT(1));
+	arg->stage1_g_3x3 = !!(val & BIT(2));
+	arg->stage1_rb_3x3 = !!(val & BIT(3));
+	arg->sw_dpcc_output_sel = !!(val & BIT(4));
+	arg->sw_rk_out_sel = (val >> 5) & 0x3;
+	arg->border_bypass_mode = !!(val & BIT(8));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_SET_USE, 0);
+	arg->stage1_use_set_1 = !!(val & BIT(0));
+	arg->stage1_use_set_2 = !!(val & BIT(1));
+	arg->stage1_use_set_3 = !!(val & BIT(2));
+	arg->stage1_use_fix_set = !!(val & BIT(3));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_METHODS_SET_1, 0);
+	arg->pg_green1_enable = !!(val & BIT(0));
+	arg->lc_green1_enable = !!(val & BIT(1));
+	arg->ro_green1_enable = !!(val & BIT(2));
+	arg->rnd_green1_enable = !!(val & BIT(3));
+	arg->rg_green1_enable = !!(val & BIT(4));
+	arg->sw_rk_green1_en = !!(val & BIT(5));
+	arg->pg_red_blue1_enable = !!(val & BIT(8));
+	arg->lc_red_blue1_enable = !!(val & BIT(9));
+	arg->ro_red_blue1_enable = !!(val & BIT(10));
+	arg->rnd_red_blue1_enable = !!(val & BIT(11));
+	arg->rg_red_blue1_enable = !!(val & BIT(12));
+	arg->sw_rk_red_blue1_en = !!(val & BIT(13));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_METHODS_SET_2, 0);
+	arg->pg_green2_enable = !!(val & BIT(0));
+	arg->lc_green2_enable = !!(val & BIT(1));
+	arg->ro_green2_enable = !!(val & BIT(2));
+	arg->rnd_green2_enable = !!(val & BIT(3));
+	arg->rg_green2_enable = !!(val & BIT(4));
+	arg->sw_rk_green2_en = !!(val & BIT(5));
+	arg->pg_red_blue2_enable = !!(val & BIT(8));
+	arg->lc_red_blue2_enable = !!(val & BIT(9));
+	arg->ro_red_blue2_enable = !!(val & BIT(10));
+	arg->rnd_red_blue2_enable = !!(val & BIT(11));
+	arg->rg_red_blue2_enable = !!(val & BIT(12));
+	arg->sw_rk_red_blue2_en = !!(val & BIT(13));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_METHODS_SET_3, 0);
+	arg->pg_green3_enable = !!(val & BIT(0));
+	arg->lc_green3_enable = !!(val & BIT(1));
+	arg->ro_green3_enable = !!(val & BIT(2));
+	arg->rnd_green3_enable = !!(val & BIT(3));
+	arg->rg_green3_enable = !!(val & BIT(4));
+	arg->sw_rk_green3_en = !!(val & BIT(5));
+	arg->pg_red_blue3_enable = !!(val & BIT(8));
+	arg->lc_red_blue3_enable = !!(val & BIT(9));
+	arg->ro_red_blue3_enable = !!(val & BIT(10));
+	arg->rnd_red_blue3_enable = !!(val & BIT(11));
+	arg->rg_red_blue3_enable = !!(val & BIT(12));
+	arg->sw_rk_red_blue3_en = !!(val & BIT(13));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_THRESH_1, 0);
+	arg->line_thr_1_g = val & 0xff;
+	arg->line_thr_1_rb = (val >> 8) & 0xff;
+	arg->sw_mindis1_g = (val >> 16) & 0xff;
+	arg->sw_mindis1_rb = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_MAD_FAC_1, 0);
+	arg->line_mad_fac_1_g = val & 0xff;
+	arg->line_mad_fac_1_rb = (val >> 8) & 0xff;
+	arg->sw_dis_scale_max1 = (val >> 16) & 0xff;
+	arg->sw_dis_scale_min1 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PG_FAC_1, 0);
+	arg->pg_fac_1_g = val & 0xff;
+	arg->pg_fac_1_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RND_THRESH_1, 0);
+	arg->rnd_thr_1_g = val & 0xff;
+	arg->rnd_thr_1_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RG_FAC_1, 0);
+	arg->rg_fac_1_g = val & 0xff;
+	arg->rg_fac_1_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_THRESH_2, 0);
+	arg->line_thr_2_g = val & 0xff;
+	arg->line_thr_2_rb = (val >> 8) & 0xff;
+	arg->sw_mindis2_g = (val >> 16) & 0xff;
+	arg->sw_mindis2_rb = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_MAD_FAC_2, 0);
+	arg->line_mad_fac_2_g = val & 0xff;
+	arg->line_mad_fac_2_rb = (val >> 8) & 0xff;
+	arg->sw_dis_scale_max2 = (val >> 16) & 0xff;
+	arg->sw_dis_scale_min2 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PG_FAC_2, 0);
+	arg->pg_fac_2_g = val & 0xff;
+	arg->pg_fac_2_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RND_THRESH_2, 0);
+	arg->rnd_thr_2_g = val & 0xff;
+	arg->rnd_thr_2_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RG_FAC_2, 0);
+	arg->rg_fac_2_g = val & 0xff;
+	arg->rg_fac_2_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_THRESH_3, 0);
+	arg->line_thr_3_g = val & 0xff;
+	arg->line_thr_3_rb = (val >> 8) & 0xff;
+	arg->sw_mindis3_g = (val >> 16) & 0xff;
+	arg->sw_mindis3_rb = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_LINE_MAD_FAC_3, 0);
+	arg->line_mad_fac_3_g = val & 0xff;
+	arg->line_mad_fac_3_rb = (val >> 8) & 0xff;
+	arg->sw_dis_scale_max3 = (val >> 16) & 0xff;
+	arg->sw_dis_scale_min3 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PG_FAC_3, 0);
+	arg->pg_fac_3_g = val & 0xff;
+	arg->pg_fac_3_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RND_THRESH_3, 0);
+	arg->rnd_thr_3_g = val & 0xff;
+	arg->rnd_thr_3_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RG_FAC_3, 0);
+	arg->rg_fac_3_g = val & 0xff;
+	arg->rg_fac_3_rb = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RO_LIMITS, 0);
+	arg->ro_lim_1_g = val & 0x3;
+	arg->ro_lim_1_rb = (val >> 2) & 0x3;
+	arg->ro_lim_2_g = (val >> 4) & 0x3;
+	arg->ro_lim_2_rb = (val >> 6) & 0x3;
+	arg->ro_lim_3_g = (val >> 8) & 0x3;
+	arg->ro_lim_3_rb = (val >> 10) & 0x3;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_RND_OFFS, 0);
+	arg->rnd_offs_1_g = val & 0x3;
+	arg->rnd_offs_1_rb = (val >> 2) & 0x3;
+	arg->rnd_offs_2_g = (val >> 4) & 0x3;
+	arg->rnd_offs_2_rb = (val >> 6) & 0x3;
+	arg->rnd_offs_3_g = (val >> 8) & 0x3;
+	arg->rnd_offs_3_rb = (val >> 10) & 0x3;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_EN, 0);
+	arg->sw_pdaf_en = !!(val & BIT(0));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_POINT_EN, 0);
+	for (i = 0; i < ISP39_DPCC_PDAF_POINT_NUM; i++)
+		arg->pdaf_point_en[i] = !!(val & BIT(i));
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_OFFSET, 0);
+	arg->pdaf_offsetx = val & 0xffff;
+	arg->pdaf_offsety = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_WRAP, 0);
+	arg->pdaf_wrapx = val & 0xffff;
+	arg->pdaf_wrapy = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP_DPCC0_PDAF_SCOPE, 0);
+	arg->pdaf_wrapx_num = val & 0xffff;
+	arg->pdaf_wrapy_num = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_DPCC_PDAF_POINT_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_POINT_0 + 4 * i, 0);
+		arg->point[2 * i].x = val & 0xff;
+		arg->point[2 * i].y = (val >> 8) & 0xff;
+		arg->point[2 * i + 1].x = (val >> 16) & 0xff;
+		arg->point[2 * i + 1].y = (val >> 24) & 0xff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_DPCC0_PDAF_FORWARD_MED, 0);
+	arg->pdaf_forward_med = !!(val & BIT(0));
+}
+
+static void rkisp_get_params_lsc(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp3x_lsc_cfg *arg = &params->others.lsc_cfg;
+	struct isp3x_lsc_cfg *arg_rec = &params_vdev->isp39_params->others.lsc_cfg;
+	u32 val, i;
+
+	val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_LSC;
+	arg->sector_16x16 = !!(val & BIT(2));
+
+	for (i = 0; i < ISP39_LSC_SIZE_TBL_SIZE / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_LSC_XSIZE_01 + i * 4, 0);
+		arg->x_size_tbl[i * 2] = val & 0xffff;
+		arg->x_size_tbl[i * 2 + 1] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_XSIZE_89 + i * 4, 0);
+		arg->x_size_tbl[i * 2 + 8] = val & 0xffff;
+		arg->x_size_tbl[i * 2 + 9] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_XGRAD_01 + i * 4, 0);
+		arg->x_grad_tbl[i * 2] = val & 0xffff;
+		arg->x_grad_tbl[i * 2 + 1] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_XGRAD_89 + i * 4, 0);
+		arg->x_grad_tbl[i * 2 + 8] = val & 0xffff;
+		arg->x_grad_tbl[i * 2 + 9] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_YSIZE_01 + i * 4, 0);
+		arg->y_size_tbl[i * 2] = val & 0xffff;
+		arg->y_size_tbl[i * 2 + 1] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_YSIZE_89 + i * 4, 0);
+		arg->y_size_tbl[i * 2 + 8] = val & 0xffff;
+		arg->y_size_tbl[i * 2 + 9] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_YGRAD_01 + i * 4, 0);
+		arg->y_grad_tbl[i * 2] = val & 0xffff;
+		arg->y_grad_tbl[i * 2 + 1] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_LSC_YGRAD_89 + i * 4, 0);
+		arg->y_grad_tbl[i * 2 + 8] = val & 0xffff;
+		arg->y_grad_tbl[i * 2 + 9] = (val >> 16) & 0xffff;
+	}
+	memcpy(arg->r_data_tbl, arg_rec->r_data_tbl, ISP3X_LSC_DATA_TBL_SIZE);
+	memcpy(arg->gr_data_tbl, arg_rec->gr_data_tbl, ISP3X_LSC_DATA_TBL_SIZE);
+	memcpy(arg->gb_data_tbl, arg_rec->gb_data_tbl, ISP3X_LSC_DATA_TBL_SIZE);
+	memcpy(arg->b_data_tbl, arg_rec->b_data_tbl, ISP3X_LSC_DATA_TBL_SIZE);
+}
+
+static void rkisp_get_params_awbgain(struct rkisp_isp_params_vdev *params_vdev,
+				     struct isp39_isp_params_cfg *params)
+{
+	struct isp32_awb_gain_cfg *arg = &params->others.awb_gain_cfg;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_CTRL0, 0);
+	if (!(val & CIF_ISP_CTRL_ISP_AWB_ENA))
+		return;
+	params->module_ens |= ISP39_MODULE_AWB_GAIN;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN0_G, 0);
+	arg->gain0_green_b = val & 0xffff;
+	arg->gain0_green_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN0_RB, 0);
+	arg->gain0_blue = val & 0xffff;
+	arg->gain0_red = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN1_G, 0);
+	arg->gain1_green_b = val & 0xffff;
+	arg->gain1_green_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN1_RB, 0);
+	arg->gain1_blue = val & 0xffff;
+	arg->gain1_red = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN2_G, 0);
+	arg->gain2_green_b = val & 0xffff;
+	arg->gain2_green_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_AWB_GAIN2_RB, 0);
+	arg->gain2_blue = val & 0xffff;
+	arg->gain2_red = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP32_ISP_AWB1_GAIN_G, 0);
+	arg->awb1_gain_gb = val & 0xffff;
+	arg->awb1_gain_gr = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP32_ISP_AWB1_GAIN_RB, 0);
+	arg->awb1_gain_b = val & 0xffff;
+	arg->awb1_gain_r = (val >> 16) & 0xffff;
+}
+
+static void rkisp_get_params_gic(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp39_gic_cfg *arg = &params->others.gic_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_CONTROL, 0);
+	if (!(val & (ISP39_MODULE_EN | BIT(31))))
+		return;
+	params->module_ens |= ISP39_MODULE_GIC;
+	arg->bypass_en = (val == BIT(31)) ? 1 : !!(val & BIT(1));
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_DIFF_PARA1, 0);
+	arg->regminbusythre = val & 0x3ff;
+	arg->regmingradthrdark1 = (val >> 10) & 0x3ff;
+	arg->regmingradthrdark2 = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_DIFF_PARA2, 0);
+	arg->regdarktthrehi = val & 0x7ff;
+	arg->regmaxcorvboth = (val >> 11) & 0x3ff;
+	arg->regdarkthre = (val >> 21) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_DIFF_PARA3, 0);
+	arg->reggbthre = val & 0xf;
+	arg->regkgrad1 = (val >> 4) & 0xf;
+	arg->regkgrad2 = (val >> 8) & 0xf;
+	arg->regdarkthrestep = (val >> 12) & 0xf;
+	arg->regstrengthglobal_fix = (val >> 16) & 0xff;
+	arg->regkgrad1dark = (val >> 24) & 0xf;
+	arg->regkgrad2dark = (val >> 28) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_DIFF_PARA4, 0);
+	arg->regmingradthr1 = val & 0x3ff;
+	arg->regmingradthr2 = (val >> 10) & 0x3ff;
+	arg->regmaxcorv = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_NOISE_PARA1, 0);
+	arg->noise_base = val & 0xfff;
+	arg->noise_scale = (val >> 12) & 0x7f;
+	arg->gr_ratio = (val >> 28) & 0x3;
+
+	val = isp3_param_read(params_vdev, ISP3X_GIC_NOISE_PARA2, 0);
+	arg->diff_clip = val & 0x7fff;
+
+	for (i = 0; i < ISP39_GIC_SIGMA_Y_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_GIC_SIGMA_VALUE0 + 4 * i, 0);
+		arg->sigma_y[2 * i] = val & 0xffff;
+		arg->sigma_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_GIC_SIGMA_VALUE0 + 4 * i, 0);
+	arg->sigma_y[2 * i] = val & 0xffff;
+}
+
+static void rkisp_get_params_debayer(struct rkisp_isp_params_vdev *params_vdev,
+				     struct isp39_isp_params_cfg *params)
+{
+	struct isp39_debayer_cfg *arg = &params->others.debayer_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_DEBAYER_CONTROL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_DEBAYER;
+	arg->filter_g_en = !!(val & BIT(4));
+	arg->filter_c_en = !!(val & BIT(8));
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_LUMA_DX, 0);
+	arg->luma_dx[0] = val & 0xf;
+	arg->luma_dx[1] = (val >> 4) & 0xf;
+	arg->luma_dx[2] = (val >> 8) & 0xf;
+	arg->luma_dx[3] = (val >> 12) & 0xf;
+	arg->luma_dx[4] = (val >> 16) & 0xf;
+	arg->luma_dx[5] = (val >> 20) & 0xf;
+	arg->luma_dx[6] = (val >> 24) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_INTERP, 0);
+	arg->clip_en = !!(val & BIT(0));
+	arg->dist_scale = (val >> 4) & 0xf;
+	arg->thed0 = (val >> 8) & 0xf;
+	arg->thed1 = (val >> 12) & 0xf;
+	arg->select_thed = (val >> 16) & 0xff;
+	arg->max_ratio = (val >> 24) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_INTERP_FILTER1, 0);
+	arg->filter1_coe1 = val & 0x1f;
+	arg->filter1_coe2 = (val >> 8) & 0x1f;
+	arg->filter1_coe3 = (val >> 16) & 0x1f;
+	arg->filter1_coe4 = (val >> 24) & 0x1f;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_INTERP_FILTER2, 0);
+	arg->filter2_coe1 = val & 0x1f;
+	arg->filter2_coe2 = (val >> 8) & 0x1f;
+	arg->filter2_coe3 = (val >> 16) & 0x1f;
+	arg->filter2_coe4 = (val >> 24) & 0x1f;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_INTERP_OFFSET_ALPHA, 0);
+	arg->gain_offset = val & 0xfff;
+	arg->gradloflt_alpha = (val >> 16) & 0x7f;
+	arg->wgt_alpha = (val >> 24) & 0x7f;
+
+	for (i = 0; i < ISP39_DEBAYER_DRCT_OFFSET_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_INTERP_DRCT_OFFSET0 + i * 4, 0);
+		arg->drct_offset[i * 2] = val & 0xffff;
+		arg->drct_offset[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_FILTER_MODE_OFFSET, 0);
+	arg->gfilter_mode = !!(val & BIT(0));
+	arg->bf_ratio = (val >> 4) & 0xfff;
+	arg->offset = (val >> 16) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_FILTER_FILTER, 0);
+	arg->filter_coe0 = val & 0xff;
+	arg->filter_coe1 = (val >> 8) & 0xff;
+	arg->filter_coe2 = (val >> 16) & 0xff;
+
+	for (i = 0; i < ISP39_DEBAYER_VSIGMA_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DEBAYER_G_FILTER_VSIGMA0 + i * 4, 0);
+		arg->vsigma[i * 2] = val & 0xffff;
+		arg->vsigma[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_GUIDE_GAUS, 0);
+	arg->guid_gaus_coe0 = val & 0xff;
+	arg->guid_gaus_coe1 = (val >> 8) & 0xff;
+	arg->guid_gaus_coe2 = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_CE_GAUS, 0);
+	arg->ce_gaus_coe0 = val & 0xff;
+	arg->ce_gaus_coe1 = (val >> 8) & 0xff;
+	arg->ce_gaus_coe2 = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_ALPHA_GAUS, 0);
+	arg->alpha_gaus_coe0 = val & 0xff;
+	arg->alpha_gaus_coe1 = (val >> 8) & 0xff;
+	arg->alpha_gaus_coe2 = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_LOG_OFFSET, 0);
+	arg->loghf_offset = val & 0x1fff;
+	arg->loggd_offset = (val >> 16) & 0xfff;
+	arg->log_en = !!(val & BIT(31));
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_ALPHA, 0);
+	arg->alpha_offset = val & 0xfff;
+	arg->alpha_scale = (val >> 12) & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_EDGE, 0);
+	arg->edge_offset = val & 0xfff;
+	arg->edge_scale = (val >> 12) & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_IIR_0, 0);
+	arg->ce_sgm = val & 0xff;
+	arg->exp_shift = (val >> 8) & 0x3f;
+	arg->wgtslope = (val >> 16) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_IIR_1, 0);
+	arg->wet_clip = val & 0x7f;
+	arg->wet_ghost = (val >> 8) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP39_DEBAYER_C_FILTER_BF, 0);
+	arg->bf_sgm = val & 0xffff;
+	arg->bf_clip = (val >> 16) & 0x7f;
+	arg->bf_curwgt = (val >> 24) & 0x7f;
+}
+
+static void rkisp_get_params_ccm(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp39_ccm_cfg *arg = &params->others.ccm_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_CCM;
+	arg->highy_adjust_dis = !!(val & BIT(1));
+	arg->enh_adj_en = !!(val & BIT(2));
+	arg->asym_adj_en = !!(val & BIT(3));
+	arg->sat_decay_en = !!(val & BIT(4));
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF0_R, 0);
+	arg->coeff0_r = val & 0xffff;
+	arg->coeff1_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF1_R, 0);
+	arg->coeff2_r = val & 0xffff;
+	arg->offset_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF0_G, 0);
+	arg->coeff0_g = val & 0xffff;
+	arg->coeff1_g = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF1_G, 0);
+	arg->coeff2_g = val & 0xffff;
+	arg->offset_g = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF0_B, 0);
+	arg->coeff0_b = val & 0xffff;
+	arg->coeff1_b = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF1_B, 0);
+	arg->coeff2_b = val & 0xffff;
+	arg->offset_b = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF0_Y, 0);
+	arg->coeff0_y = val & 0xffff;
+	arg->coeff1_y = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_COEFF1_Y, 0);
+	arg->coeff2_y = val & 0xffff;
+
+	for (i = 0; i < ISP39_CCM_CURVE_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_CCM_ALP_Y0 + 4 * i, 0);
+		arg->alp_y[2 * i] = val & 0xffff;
+		arg->alp_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_CCM_BOUND_BIT, 0);
+	arg->bound_bit = val & 0xf;
+	arg->right_bit = (val >> 4) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP32_CCM_ENHANCE0, 0);
+	arg->color_coef0_r2y = val & 0x7ff;
+	arg->color_coef1_g2y = (val >> 16) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP32_CCM_ENHANCE1, 0);
+	arg->color_coef2_b2y = val & 0x7ff;
+	arg->color_enh_rat_max = (val >> 16) & 0x3fff;
+
+	val = isp3_param_read(params_vdev, ISP39_CCM_HF_THD, 0);
+	arg->hf_low = val & 0xff;
+	arg->hf_up = (val >> 8) & 0xff;
+	arg->hf_scale = (val >> 16) & 0x3fff;
+
+	for (i = 0; i < ISP39_CCM_HF_FACTOR_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_HF_FACTOR0 + i * 4, 0);
+		arg->hf_factor[i * 2] = val & 0xffff;
+		arg->hf_factor[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_HF_FACTOR0 + i * 4, 0);
+	arg->hf_factor[i * 2] = val & 0xffff;
+}
+
+static void rkisp_get_params_gammaout(struct rkisp_isp_params_vdev *params_vdev,
+				      struct isp39_isp_params_cfg *params)
+{
+	struct isp3x_gammaout_cfg *arg = &params->others.gammaout_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_GAMMA_OUT_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_GOC;
+	arg->equ_segm = !!(val & BIT(1));
+	arg->finalx4_dense_en = !!(val & BIT(2));
+
+	val = isp3_param_read(params_vdev, ISP3X_GAMMA_OUT_OFFSET, 0);
+	arg->offset = val & 0xffff;
+
+	for (i = 0; i < ISP39_GAMMA_OUT_MAX_SAMPLES / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_GAMMA_OUT_Y0 + i * 4, 0);
+		arg->gamma_y[2 * i] = val & 0xffff;
+		arg->gamma_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_GAMMA_OUT_Y0 + i * 4, 0);
+	arg->gamma_y[2 * i] = val & 0xffff;
+}
+
+static void rkisp_get_params_cproc(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_cproc_cfg *arg = &params->others.cproc_cfg;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_CPROC_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_CPROC;
+	arg->y_out_range = !!(val & BIT(1));
+	arg->y_in_range = !!(val & BIT(2));
+	arg->c_out_range = !!(val & BIT(3));
+
+	val = isp3_param_read(params_vdev, ISP3X_CPROC_CONTRAST, 0);
+	arg->contrast = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CPROC_HUE, 0);
+	arg->hue = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CPROC_SATURATION, 0);
+	arg->sat = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CPROC_BRIGHTNESS, 0);
+	arg->brightness = val & 0xff;
+}
+
+static void rkisp_get_params_sdg(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_sdg_cfg *arg = &params->others.sdg_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_CTRL0, 0);
+	if (!(val & CIF_ISP_CTRL_ISP_GAMMA_IN_ENA))
+		return;
+	params->module_ens |= ISP39_MODULE_SDG;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_GAMMA_DX_LO, 0);
+	arg->xa_pnts.gamma_dx0 = val;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_GAMMA_DX_HI, 0);
+	arg->xa_pnts.gamma_dx1 = val;
+
+	for (i = 0; i < ISP39_DEGAMMA_CURVE_SIZE; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_ISP_GAMMA_R_Y_0 + i * 4, 0);
+		arg->curve_r.gamma_y[i] = val & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_ISP_GAMMA_G_Y_0 + i * 4, 0);
+		arg->curve_g.gamma_y[i] = val & 0xffff;
+		val = isp3_param_read(params_vdev, ISP3X_ISP_GAMMA_B_Y_0 + i * 4, 0);
+		arg->curve_b.gamma_y[i] = val & 0xffff;
+	}
+}
+
+static void rkisp_get_params_drc(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp39_drc_cfg *arg = &params->others.drc_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_DRC_CTRL0, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_DRC;
+	arg->bypass_en = !!(val & BIT(1));
+	arg->cmps_byp_en = !!(val & BIT(2));
+	arg->gainx32_en = !!(val & BIT(3));
+	arg->raw_dly_dis = !!(val & BIT(29));
+
+	val = isp3_param_read(params_vdev, ISP3X_DRC_CTRL1, 0);
+	arg->position = val & 0x3fff;
+	arg->compres_scl = (val >> 14) & 0x1fff;
+	arg->offset_pow2 = (val >> 28) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP3X_DRC_LPRATIO, 0);
+	arg->lpdetail_ratio = val & 0xfff;
+	arg->hpdetail_ratio = (val >> 12) & 0xfff;
+	arg->delta_scalein = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DRC_BILAT0, 0);
+	arg->bilat_wt_off = val & 0xff;
+	arg->thumb_thd_neg = (val >> 8) & 0x1ff;
+	arg->thumb_thd_enable = !!(val & BIT(23));
+	arg->weicur_pix = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DRC_BILAT1, 0);
+	arg->cmps_offset_bits_int = val & 0xf;
+	arg->cmps_fixbit_mode = !!(val & BIT(4));
+	arg->drc_gas_t = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DRC_BILAT2, 0);
+	arg->thumb_clip = val & 0xfff;
+	arg->thumb_scale = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_DRC_BILAT3, 0);
+	arg->range_sgm_inv0 = val & 0x3ff;
+	arg->range_sgm_inv1 = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DRC_BILAT4, 0);
+	arg->weig_bilat = val & 0x1f;
+	arg->weight_8x8thumb = (val >> 8) & 0xff;
+	arg->bilat_soft_thd = (val >> 16) & 0x7ff;
+	arg->enable_soft_thd = !!(val & BIT(31));
+
+	for (i = 0; i < ISP39_DRC_Y_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_DRC_GAIN_Y0 + 4 * i, 0);
+		arg->gain_y[2 * i] = val & 0xffff;
+		arg->gain_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_DRC_GAIN_Y0 + 4 * i, 0);
+	arg->gain_y[2 * i] = val & 0xffff;
+
+	for (i = 0; i < ISP39_DRC_Y_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_DRC_COMPRES_Y0 + 4 * i, 0);
+		arg->compres_y[2 * i] = val & 0xffff;
+		arg->compres_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_DRC_COMPRES_Y0 + 4 * i, 0);
+	arg->compres_y[2 * i] = val & 0xffff;
+
+	for (i = 0; i < ISP39_DRC_Y_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_DRC_SCALE_Y0 + 4 * i, 0);
+		arg->scale_y[2 * i] = val & 0xffff;
+		arg->scale_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP3X_DRC_SCALE_Y0 + 4 * i, 0);
+	arg->scale_y[2 * i] = val & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DRC_IIRWG_GAIN, 0);
+	arg->min_ogain = val & 0xffff;
+
+	for (i = 0; i < ISP39_DRC_Y_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DRC_SFTHD_Y0 + 4 * i, 0);
+		arg->sfthd_y[2 * i] = val & 0xffff;
+		arg->sfthd_y[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DRC_SFTHD_Y0 + 4 * i, 0);
+	arg->sfthd_y[2 * i] = val & 0xffff;
+}
+
+static void rkisp_get_params_hdrmge(struct rkisp_isp_params_vdev *params_vdev,
+				    struct isp39_isp_params_cfg *params)
+{
+	struct isp32_hdrmge_cfg *arg = &params->others.hdrmge_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_HDRMGE;
+	arg->s_base = !!(val & BIT(1));
+	arg->mode = (val >> 2) & 0x3;
+	arg->dbg_mode = (val >> 4) & 0x3;
+	arg->each_raw_en = !!(val & BIT(6));
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_GAIN0, 0);
+	arg->gain0 = val & 0xffff;
+	arg->gain0_inv = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_GAIN1, 0);
+	arg->gain1 = val & 0xffff;
+	arg->gain1_inv = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_GAIN2, 0);
+	arg->gain2 = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_LIGHTZ, 0);
+	arg->ms_dif_0p8 = val & 0xff;
+	arg->ms_diff_0p15 = (val >> 8) & 0xff;
+	arg->lm_dif_0p9 = (val >> 16) & 0xff;
+	arg->lm_dif_0p15 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_MS_DIFF, 0);
+	arg->ms_scl = val & 0x7ff;
+	arg->ms_thd0 = (val >> 12) & 0x3ff;
+	arg->ms_thd1 = (val >> 22) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_HDRMGE_LM_DIFF, 0);
+	arg->lm_scl = val & 0x7ff;
+	arg->lm_thd0 = (val >> 12) & 0x3ff;
+	arg->lm_thd1 = (val >> 22) & 0x3ff;
+
+	for (i = 0; i < ISP39_HDRMGE_L_CURVE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_HDRMGE_DIFF_Y0 + 4 * i, 0);
+		arg->curve.curve_0[i] = val & 0xffff;
+		arg->curve.curve_1[i] = (val >> 16) & 0xffff;
+	}
+
+	for (i = 0; i < ISP39_HDRMGE_E_CURVE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_HDRMGE_OVER_Y0 + 4 * i, 0);
+		arg->e_y[i] = val & 0x3ff;
+		arg->l_raw0[i] = (val >> 10) & 0x3ff;
+		arg->l_raw1[i] = (val >> 20) & 0x3ff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP32_HDRMGE_EACH_GAIN, 0);
+	arg->each_raw_gain0 = val & 0xffff;
+	arg->each_raw_gain1 = (val >> 16) & 0xffff;
+}
+
+static void rkisp_get_params_dhaz(struct rkisp_isp_params_vdev *params_vdev,
+				  struct isp39_isp_params_cfg *params)
+{
+	struct isp39_dhaz_cfg *arg = &params->others.dhaz_cfg;
+	struct isp39_dhaz_cfg *arg_rec = &params_vdev->isp39_params->others.dhaz_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_DHAZ;
+	arg->dc_en = !!(val & BIT(4));
+	arg->hist_en = !!(val & BIT(8));
+	arg->map_mode = !!(val & BIT(9));
+	arg->mem_mode = !!(val & BIT(10));
+	arg->mem_force = !!(val & BIT(11));
+	arg->air_lc_en = !!(val & BIT(16));
+	arg->enhance_en = !!(val & BIT(20));
+	arg->soft_wr_en = !!(val & BIT(25));
+	arg->round_en = !!(val & BIT(26));
+	arg->color_deviate_en = !!(val & BIT(27));
+	arg->enh_luma_en = !!(val & BIT(28));
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_ADP0, 0);
+	arg->dc_min_th = val & 0xff;
+	arg->dc_max_th = (val >> 8) & 0xff;
+	arg->yhist_th = (val >> 16) & 0xff;
+	arg->yblk_th = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_ADP1, 0);
+	arg->bright_min = val & 0xff;
+	arg->bright_max = (val >> 8) & 0xff;
+	arg->wt_max = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_ADP2, 0);
+	arg->air_min = val & 0xff;
+	arg->air_max = (val >> 8) & 0xff;
+	arg->dark_th = (val >> 16) & 0xff;
+	arg->tmax_base = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_DHAZ_ADP_TMAX, 0);
+	arg->tmax_off = val & 0xffff;
+	arg->tmax_max = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ENHANCE, 0);
+	arg->enhance_chroma = val & 0xffff;
+	arg->enhance_value = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_IIR0, 0);
+	arg->stab_fnum = val & 0x1f;
+	arg->iir_sigma = (val >> 8) & 0xff;
+	arg->iir_wt_sigma = (val >> 16) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_IIR1, 0);
+	arg->iir_air_sigma = val & 0xff;
+	arg->iir_tmax_sigma = (val >> 8) & 0x7ff;
+	arg->iir_pre_wet = (val >> 24) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_SOFT_CFG0, 0);
+	arg->cfg_alpha = val & 0xff;
+	arg->cfg_air = (val >> 8) & 0xff;
+	arg->cfg_wt = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_SOFT_CFG1, 0);
+	arg->cfg_tmax = val & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_BF_SIGMA, 0);
+	arg->space_sigma_cur = val & 0xff;
+	arg->space_sigma_pre = (val >> 8) & 0xff;
+	arg->range_sima = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_BF_WET, 0);
+	arg->bf_weight = val & 0xffff;
+	arg->dc_weitcur = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_DHAZ_ENH_CURVE_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DHAZ_ENH_CURVE0 + 4 * i, 0);
+		arg->enh_curve[3 * i] = val & 0x3ff;
+		arg->enh_curve[3 * i + 1] = (val >> 10) & 0x3ff;
+		arg->enh_curve[3 * i + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ENH_CURVE0 + 4 * i, 0);
+	arg->enh_curve[3 * i] = val & 0x3ff;
+	arg->enh_curve[3 * i + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_GAUS, 0);
+	arg->gaus_h0 = val & 0x3f;
+	arg->gaus_h1 = (val >> 8) & 0x3f;
+	arg->gaus_h2 = (val >> 16) & 0x3f;
+
+	for (i = 0; i < ISP39_DHAZ_ENH_LUMA_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DHAZ_ENH_LUMA0 + i * 4, 0);
+		arg->enh_luma[3 * i] = val & 0x3ff;
+		arg->enh_luma[3 * i + 1] = (val >> 10) & 0x3ff;
+		arg->enh_luma[3 * i + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ENH_LUMA0 + i * 4, 0);
+	arg->enh_luma[3 * i] = val & 0x3ff;
+	arg->enh_luma[3 * i + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ADP_WR0, 0);
+	arg->adp_wt_wr = val & 0x1ff;
+	arg->adp_air_wr = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ADP_WR1, 0);
+	arg->adp_tmax_wr = val & 0x1fff;
+
+	for (i = 0; i < ISP39_DHAZ_SIGMA_IDX_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DHAZ_GAIN_IDX0 + i * 4, 0);
+		arg->sigma_idx[i * 4] = val & 0xff;
+		arg->sigma_idx[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->sigma_idx[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->sigma_idx[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_GAIN_IDX0 + i * 4, 0);
+	arg->sigma_idx[i * 4] = val & 0xff;
+	arg->sigma_idx[i * 4 + 1] = (val >> 8) & 0xff;
+	arg->sigma_idx[i * 4 + 2] = (val >> 16) & 0xff;
+
+	for (i = 0; i < ISP39_DHAZ_SIGMA_LUT_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DHAZ_GAIN_LUT0 + i * 4, 0);
+		arg->sigma_lut[3 * i] = val & 0x3ff;
+		arg->sigma_lut[3 * i + 1] = (val >> 10) & 0x3ff;
+		arg->sigma_lut[3 * i + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_GAIN_LUT0 + i * 4, 0);
+	arg->sigma_lut[3 * i] = val & 0x3ff;
+	arg->sigma_lut[3 * i + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_GAIN_FUSE, 0);
+	arg->gain_fuse_alpha = val & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_ADP_HF, 0);
+	arg->hist_k = val & 0x1f;
+	arg->hist_th_off = (val >> 8) & 0xff;
+	arg->hist_min = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_HIST_CFG, 0);
+	arg->cfg_k_alpha = val & 0x1ff;
+	arg->cfg_k = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_HIST_GAIN, 0);
+	arg->k_gain = val & 0x7ff;
+
+	for (i = 0; i < ISP39_DHAZ_BLEND_WET_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_DHAZ_BLEND_WET0 + 4 * i, 0);
+		arg->blend_wet[3 * i] = val & 0x1ff;
+		arg->blend_wet[3 * i + 1] = (val >> 9) & 0x1ff;
+		arg->blend_wet[3 * i + 2] = (val >> 18) & 0x1ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_BLEND_WET0 + 4 * i, 0);
+	arg->blend_wet[3 * i] = val & 0x1ff;
+	arg->blend_wet[3 * i + 1] = (val >> 9) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_BLOCK_SIZE, 0);
+	arg->blk_het = val & 0xffff;
+	arg->blk_wid = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_DHAZ_THUMB_SIZE, 0);
+	arg->thumb_row = val & 0xff;
+	arg->thumb_col = (val >> 8) & 0xff;
+
+	memcpy(arg->hist_iir, arg_rec->hist_iir, sizeof(arg_rec->hist_iir));
+}
+
+static void rkisp_get_params_3dlut(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp2x_3dlut_cfg *arg = &params->others.isp3dlut_cfg;
+	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
+	u32 i, val, *data;
+
+	val = isp3_param_read(params_vdev, ISP3X_3DLUT_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_3DLUT;
+
+	val = isp3_param_read(params_vdev, ISP3X_MI_LUT_3D_RD_WSIZE, 0);
+	arg->actual_size = val & 0xfff;
+
+	val = priv_val->buf_3dlut_idx[0];
+	if (!priv_val->buf_3dlut[0][val].vaddr)
+		return;
+	data = priv_val->buf_3dlut[0][val].vaddr;
+	for (i = 0; i < arg->actual_size; i++) {
+		arg->lut_b[i] = data[i] & 0x3ff;
+		arg->lut_g[i] = (data[i] >> 10) & 0x3ff;
+		arg->lut_r[i] = (data[i] >> 22) & 0x3ff;
+	}
+}
+
+static void rkisp_get_params_ldch(struct rkisp_isp_params_vdev *params_vdev,
+				  struct isp39_isp_params_cfg *params)
+{
+	struct isp39_ldch_cfg *arg = &params->others.ldch_cfg;
+	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_LDCH_STS, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_LDCH;
+	arg->frm_end_dis = !!(val & BIT(1));
+	arg->sample_avr_en = !!(val & BIT(3));
+	arg->bic_mode_en = !!(val & BIT(4));
+	arg->force_map_en = !!(val & BIT(6));
+	arg->map13p3_en = !!(val & BIT(7));
+
+	for (i = 0; i < ISP39_LDCH_BIC_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP32_LDCH_BIC_TABLE0 + i * 4, 0);
+		arg->bicubic[i * 4] = val & 0xff;
+		arg->bicubic[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->bicubic[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->bicubic[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP3X_MI_LUT_LDCH_RD_H_WSIZE, 0);
+	arg->hsize = val & 0xfff;
+	val = isp3_param_read(params_vdev, ISP3X_MI_LUT_LDCH_RD_V_SIZE, 0);
+	arg->vsize = val & 0xffff;
+
+	val = priv_val->buf_ldch_idx[0];
+	arg->buf_fd = priv_val->buf_ldch[0][val].dma_fd;
+}
+
+static void rkisp_get_params_bay3d(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp39_bay3d_cfg *arg = &params->others.bay3d_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_BAY3D;
+	arg->bypass_en = !!(val & BIT(1));
+	arg->iirsparse_en = !!(val & BIT(2));
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CTRL1, 0);
+	arg->transf_bypass_en = !!(val & BIT(0));
+	arg->sigma_curve_double_en = !!(val & BIT(1));
+	arg->cur_spnr_bypass_en = !!(val & BIT(2));
+	arg->cur_spnr_sigma_idxfilt_bypass_en = !!(val & BIT(3));
+	arg->cur_spnr_sigma_curve_double_en = !!(val & BIT(4));
+	arg->pre_spnr_bypass_en = !!(val & BIT(5));
+	arg->pre_spnr_sigma_idxfilt_bypass_en = !!(val & BIT(6));
+	arg->pre_spnr_sigma_curve_double_en = !!(val & BIT(7));
+	arg->lpf_hi_bypass_en = !!(val & BIT(8));
+	arg->lo_diff_vfilt_bypass_en = !!(val & BIT(9));
+	arg->lpf_lo_bypass_en = !!(val & BIT(10));
+	arg->lo_wgt_hfilt_en = !!(val & BIT(11));
+	arg->lo_diff_hfilt_en = !!(val & BIT(12));
+	arg->sig_hfilt_en = !!(val & BIT(13));
+	arg->spnr_pre_sigma_use_en = !!(val & BIT(15));
+	arg->lo_detection_mode = (val >> 16) & 0x3;
+	arg->md_wgt_out_en = !!(val & BIT(18));
+	arg->md_bypass_en = !!(val & BIT(19));
+	arg->iirspnr_out_en = !!(val & BIT(20));
+	arg->lomdwgt_dbg_en = !!(val & BIT(21));
+	arg->curdbg_out_en = !!(val & BIT(22));
+	arg->noisebal_mode = !!(val & BIT(23));
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CTRL2, 0);
+	arg->transf_mode = !!(val & BIT(0));
+	arg->wgt_cal_mode = !!(val & BIT(1));
+	arg->mge_wgt_ds_mode = !!(val & BIT(2));
+	arg->kalman_wgt_ds_mode = !!(val & BIT(3));
+	arg->mge_wgt_hdr_sht_thred = (val >> 16) & 0x3f;
+	arg->sigma_calc_mge_wgt_hdr_sht_thred = (val >> 24) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TRANS0, 0);
+	arg->transf_mode_offset = val & 0x1fff;
+	arg->transf_mode_scale = !!(val & BIT(15));
+	arg->itransf_mode_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TRANS1, 0);
+	arg->transf_data_max_limit = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CURDGAIN, 0);
+	arg->cur_spnr_sigma_hdr_sht_scale = val & 0xffff;
+	arg->cur_spnr_sigma_scale = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_BAY3D_XY_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_CURSIG_X0 + i * 4, 0);
+		arg->cur_spnr_luma_sigma_x[i * 2] = val & 0xffff;
+		arg->cur_spnr_luma_sigma_x[i * 2 + 1] = (val >> 16) & 0xffff;
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_CURSIG_Y0 + i * 4, 0);
+		arg->cur_spnr_luma_sigma_y[i * 2] = val & 0xffff;
+		arg->cur_spnr_luma_sigma_y[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CURGAIN_OFF, 0);
+	arg->cur_spnr_sigma_rgain_offset = val & 0xffff;
+	arg->cur_spnr_sigma_bgain_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CURSIG_OFF, 0);
+	arg->cur_spnr_sigma_hdr_sht_offset = val & 0xffff;
+	arg->cur_spnr_sigma_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CURWTH, 0);
+	arg->cur_spnr_pix_diff_max_limit = val & 0xffff;
+	arg->cur_spnr_wgt_cal_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_CURBFALP, 0);
+	arg->cur_spnr_wgt = val & 0xffff;
+	arg->pre_spnr_wgt = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_BAY3D_WD_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_CURWDC0 + i * 4, 0);
+		arg->cur_spnr_space_rb_wgt[i * 3] = val & 0x3ff;
+		arg->cur_spnr_space_rb_wgt[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->cur_spnr_space_rb_wgt[i * 3 + 2] = (val >> 20) & 0x3ff;
+
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_CURWDY0 + i * 4, 0);
+		arg->cur_spnr_space_gg_wgt[i * 3] = val & 0x3ff;
+		arg->cur_spnr_space_gg_wgt[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->cur_spnr_space_gg_wgt[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRDGAIN, 0);
+	arg->pre_spnr_sigma_hdr_sht_scale = val & 0xffff;
+	arg->pre_spnr_sigma_scale = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_BAY3D_XY_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRSIG_X0 + i * 4, 0);
+		arg->pre_spnr_luma_sigma_x[i * 2] = val & 0xffff;
+		arg->pre_spnr_luma_sigma_x[i * 2 + 1] = (val >> 16) & 0xffff;
+
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRSIG_Y0 + i * 4, 0);
+		arg->cur_spnr_luma_sigma_y[i * 2] = val & 0xffff;
+		arg->cur_spnr_luma_sigma_y[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRGAIN_OFF, 0);
+	arg->pre_spnr_sigma_rgain_offset = val & 0xffff;
+	arg->pre_spnr_sigma_bgain_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRSIG_OFF, 0);
+	arg->pre_spnr_sigma_hdr_sht_offset = val & 0xffff;
+	arg->pre_spnr_sigma_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRWTH, 0);
+	arg->pre_spnr_pix_diff_max_limit = val & 0xffff;
+	arg->pre_spnr_wgt_cal_offset = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_BAY3D_WD_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRWDC0 + i * 4, 0);
+		arg->pre_spnr_space_rb_wgt[i * 3] = val & 0x3ff;
+		arg->pre_spnr_space_rb_wgt[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->pre_spnr_space_rb_wgt[i * 3 + 2] = (val >> 20) & 0x3ff;
+
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_IIRWDY0 + i * 4, 0);
+		arg->pre_spnr_space_gg_wgt[i * 3] = val & 0x3ff;
+		arg->pre_spnr_space_gg_wgt[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->pre_spnr_space_gg_wgt[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_BFCOEF, 0);
+	arg->cur_spnr_wgt_cal_scale = val & 0xffff;
+	arg->pre_spnr_wgt_cal_scale = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_BAY3D_TNRSIG_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRSIG_X0 + i * 4, 0);
+		arg->tnr_luma_sigma_x[i * 2] = val & 0xffff;
+		arg->tnr_luma_sigma_x[i * 2 + 1] = (val >> 16) & 0xffff;
+
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRSIG_Y0 + i * 4, 0);
+		arg->tnr_luma_sigma_y[i * 2] = val & 0xffff;
+		arg->tnr_luma_sigma_y[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	for (i = 0; i < ISP39_BAY3D_COEFF_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRHIW0 + i * 4, 0);
+		arg->tnr_lpf_hi_coeff[i * 3] = val & 0x3ff;
+		arg->tnr_lpf_hi_coeff[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->tnr_lpf_hi_coeff[i * 3 + 2] = (val >> 20) & 0x3ff;
+
+		val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRLOW0 + i * 4, 0);
+		arg->tnr_lpf_lo_coeff[i * 3] = val & 0x3ff;
+		arg->tnr_lpf_lo_coeff[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->tnr_lpf_lo_coeff[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRGF3, 0);
+	arg->tnr_wgt_filt_coeff0 = val & 0x3ff;
+	arg->tnr_wgt_filt_coeff1 = (val >> 10) & 0x3ff;
+	arg->tnr_wgt_filt_coeff2 = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRSIGSCL, 0);
+	arg->tnr_sigma_scale = val & 0xffff;
+	arg->tnr_sigma_hdr_sht_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRVIIR, 0);
+	arg->tnr_sig_vfilt_wgt = val & 0xf;
+	arg->tnr_lo_diff_vfilt_wgt = (val >> 4) & 0xf;
+	arg->tnr_lo_wgt_vfilt_wgt = (val >> 8) & 0xf;
+	arg->tnr_sig_first_line_scale = (val >> 16) & 0x1f;
+	arg->tnr_lo_diff_first_line_scale = (val >> 24) & 0x1f;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRLFSCL, 0);
+	arg->tnr_lo_wgt_cal_offset = val & 0xffff;
+	arg->tnr_lo_wgt_cal_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRLFSCLTH, 0);
+	arg->tnr_low_wgt_cal_max_limit = val & 0xffff;
+	arg->tnr_mode0_base_ratio = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRDSWGTSCL, 0);
+	arg->tnr_lo_diff_wgt_cal_offset = val & 0xffff;
+	arg->tnr_lo_diff_wgt_cal_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWLSTSCL, 0);
+	arg->tnr_lo_mge_pre_wgt_offset = val & 0xffff;
+	arg->tnr_lo_mge_pre_wgt_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWGT0SCL0, 0);
+	arg->tnr_mode0_lo_wgt_scale = val & 0xffff;
+	arg->tnr_mode0_lo_wgt_hdr_sht_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWGT1SCL1, 0);
+	arg->tnr_mode1_lo_wgt_scale = val & 0xffff;
+	arg->tnr_mode1_lo_wgt_hdr_sht_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWGT1SCL2, 0);
+	arg->tnr_mode1_wgt_scale = val & 0xffff;
+	arg->tnr_mode1_wgt_hdr_sht_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWGTOFF, 0);
+	arg->tnr_mode1_lo_wgt_offset = val & 0xffff;
+	arg->tnr_mode1_lo_wgt_hdr_sht_offset = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWGT1OFF, 0);
+	arg->tnr_auto_sigma_count_wgt_thred = val & 0x3ff;
+	arg->tnr_mode1_wgt_min_limit = (val >> 10) & 0x3ff;
+	arg->tnr_mode1_wgt_offset = (val >> 20) & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRSIGORG, 0);
+	arg->tnr_out_sigma_sq = val;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWLO_THL, 0);
+	arg->tnr_lo_wgt_clip_min_limit = val & 0xffff;
+	arg->tnr_lo_wgt_clip_hdr_sht_min_limit = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWLO_THH, 0);
+	arg->tnr_lo_wgt_clip_max_limit = val & 0xffff;
+	arg->tnr_lo_wgt_clip_hdr_sht_max_limit = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWHI_THL, 0);
+	arg->tnr_hi_wgt_clip_min_limit = val & 0xffff;
+	arg->tnr_hi_wgt_clip_hdr_sht_min_limit = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRWHI_THH, 0);
+	arg->tnr_hi_wgt_clip_max_limit = val & 0xffff;
+	arg->tnr_hi_wgt_clip_hdr_sht_max_limit = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRKEEP, 0);
+	arg->tnr_cur_spnr_hi_wgt_min_limit = val & 0xff;
+	arg->tnr_pre_spnr_hi_wgt_min_limit = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_PIXMAX, 0);
+	arg->tnr_pix_max = val & 0xfff;
+	arg->lowgt_ctrl = (val >> 16) & 0x3;
+	arg->lowgt_offint = (val >> 18) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_SIGNUMTH, 0);
+	arg->tnr_auto_sigma_count_th = val;
+
+	val = isp3_param_read(params_vdev, ISP39_BAY3D_TNRMO_STR, 0);
+	arg->tnr_motion_nr_strg = val & 0x7ff;
+	arg->tnr_gain_max = (val >> 16) & 0xff;
+}
+
+static void rkisp_get_params_ynr(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp39_ynr_cfg *arg = &params->others.ynr_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_GLOBAL_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_YNR;
+	arg->lospnr_bypass = !!(val & BIT(1));
+	arg->hispnr_bypass = !!(val & BIT(2));
+	arg->exgain_bypass = !!(val & BIT(3));
+	arg->global_set_gain = (val >> 8) & 0x3ff;
+	arg->gain_merge_alpha = (val >> 20) & 0xf;
+	arg->rnr_en = !!(val & BIT(26));
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_RNR_MAX_R, 0);
+	arg->rnr_max_radius = val & 0xffff;
+	arg->local_gain_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_RNR_CENTER_COOR, 0);
+	arg->rnr_center_coorh = val & 0xffff;
+	arg->rnr_center_coorv = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_LOWNR_CTRL0, 0);
+	arg->ds_filt_soft_thred_scale = val & 0x1ff;
+	arg->ds_img_edge_scale = (val >> 10) & 0x1f;
+	arg->ds_filt_wgt_thred_scale = (val >> 16) & 0x1ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_LOWNR_CTRL1, 0);
+	arg->ds_filt_local_gain_alpha = val & 0x1f;
+	arg->ds_iir_init_wgt_scale = (val >> 8) & 0x3f;
+	arg->ds_filt_center_wgt = (val >> 16) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_LOWNR_CTRL2, 0);
+	arg->ds_filt_inv_strg = val & 0xffff;
+	arg->lospnr_wgt = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_LOWNR_CTRL3, 0);
+	arg->lospnr_center_wgt = val & 0xffff;
+	arg->lospnr_strg = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_YNR_LOWNR_CTRL4, 0);
+	arg->lospnr_dist_vstrg_scale = val & 0xffff;
+	arg->lospnr_dist_hstrg_scale = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_GAUSS_COEFF, 0);
+	arg->pre_filt_coeff0 = val & 0xff;
+	arg->pre_filt_coeff1 = (val >> 8) & 0xff;
+	arg->pre_filt_coeff2 = (val >> 16) & 0xff;
+
+	for (i = 0; i < ISP39_YNR_LOW_GAIN_ADJ_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP39_YNR_LOW_GAIN_ADJ_0_3 + i * 4, 0);
+		arg->lospnr_gain2strg_val[i * 4] = val & 0xff;
+		arg->lospnr_gain2strg_val[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->lospnr_gain2strg_val[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->lospnr_gain2strg_val[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_YNR_LOW_GAIN_ADJ_0_3 + i * 4, 0);
+	arg->lospnr_gain2strg_val[i * 4] = val & 0xff;
+
+	for (i = 0; i < ISP39_YNR_XY_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_YNR_SGM_DX_0_1 + 4 * i, 0);
+		arg->luma2sima_idx[2 * i] = val & 0xffff;
+		arg->luma2sima_idx[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_YNR_SGM_DX_0_1 + 4 * i, 0);
+	arg->luma2sima_idx[2 * i] = val & 0xffff;
+
+	for (i = 0; i < ISP39_YNR_XY_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_YNR_LSGM_Y_0_1 + 4 * i, 0);
+		arg->luma2sima_val[2 * i] = val & 0xffff;
+		arg->luma2sima_val[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_YNR_LSGM_Y_0_1 + 4 * i, 0);
+	arg->luma2sima_val[2 * i] = val & 0xffff;
+
+	for (i = 0; i < ISP39_YNR_XY_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP39_YNR_RNR_STRENGTH03 + 4 * i, 0);
+		arg->radius2strg_val[4 * i] = val & 0xff;
+		arg->radius2strg_val[4 * i + 1] = (val >> 8) & 0xff;
+		arg->radius2strg_val[4 * i + 2] = (val >> 16) & 0xff;
+		arg->radius2strg_val[4 * i + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_YNR_RNR_STRENGTH03 + 4 * i, 0);
+	arg->radius2strg_val[4 * i] = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_NLM_STRONG_EDGE, 0);
+	arg->hispnr_strong_edge = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_NLM_SIGMA_GAIN, 0);
+	arg->hispnr_sigma_min_limit = val & 0x7ff;
+	arg->hispnr_local_gain_alpha = (val >> 11) & 0x1f;
+	arg->hispnr_strg = (val >> 16) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_NLM_COE, 0);
+	arg->hispnr_filt_coeff[0] = val & 0xf;
+	arg->hispnr_filt_coeff[1] = (val >> 4) & 0xf;
+	arg->hispnr_filt_coeff[2] = (val >> 8) & 0xf;
+	arg->hispnr_filt_coeff[3] = (val >> 12) & 0xf;
+	arg->hispnr_filt_coeff[4] = (val >> 16) & 0xf;
+	arg->hispnr_filt_coeff[5] = (val >> 20) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_NLM_WEIGHT, 0);
+	arg->hispnr_filt_wgt_offset = val & 0x3ff;
+	arg->hispnr_filt_center_wgt = (val >> 10) & 0x3ffff;
+
+	val = isp3_param_read(params_vdev, ISP39_YNR_NLM_NR_WEIGHT, 0);
+	arg->hispnr_filt_wgt = val & 0x7ff;
+	arg->hispnr_gain_thred = (val >> 16) & 0x3ff;
+}
+
+static void rkisp_get_params_cnr(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp39_cnr_cfg *arg = &params->others.cnr_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_CNR_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_CNR;
+	arg->exgain_bypass = !!(val & BIT(1));
+	arg->yuv422_mode = !!(val & BIT(2));
+	arg->thumb_mode = (val >> 4) & 0x3;
+	arg->hiflt_wgt0_mode = !!(val & BIT(8));
+	arg->loflt_coeff = (val >> 12) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP3X_CNR_EXGAIN, 0);
+	arg->global_gain = val & 0x3ff;
+	arg->global_gain_alpha = (val >> 12) & 0xf;
+	arg->local_gain_scale = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_THUMB1, 0);
+	arg->lobfflt_vsigma_uv = val & 0xffff;
+	arg->lobfflt_vsigma_y = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_THUMB_BF_RATIO, 0);
+	arg->lobfflt_alpha = val & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_LBF_WEITD, 0);
+	arg->thumb_bf_coeff0 = val & 0xff;
+	arg->thumb_bf_coeff1 = (val >> 8) & 0xff;
+	arg->thumb_bf_coeff2 = (val >> 16) & 0xff;
+	arg->thumb_bf_coeff3 = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_IIR_PARA1, 0);
+	arg->loflt_uv_gain = val & 0xf;
+	arg->loflt_vsigma = (val >> 4) & 0xff;
+	arg->exp_x_shift_bit = (val >> 12) & 0x3f;
+	arg->loflt_wgt_slope = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_IIR_PARA2, 0);
+	arg->loflt_wgt_min_thred = val & 0x3f;
+	arg->loflt_wgt_max_limit = (val >> 8) & 0x7f;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_GAUS_COE1, 0);
+	arg->gaus_flt_coeff[0] = val & 0xff;
+	arg->gaus_flt_coeff[1] = (val >> 8) & 0xff;
+	arg->gaus_flt_coeff[2] = (val >> 16) & 0xff;
+	arg->gaus_flt_coeff[3] = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_GAUS_COE2, 0);
+	arg->gaus_flt_coeff[4] = val & 0xff;
+	arg->gaus_flt_coeff[5] = (val >> 8) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_GAUS_RATIO, 0);
+	arg->gaus_flt_alpha = val & 0x7ff;
+	arg->hiflt_wgt_min_limit = (val >> 12) & 0xff;
+	arg->hiflt_alpha = (val >> 20) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_BF_PARA1, 0);
+	arg->hiflt_uv_gain = val & 0x7f;
+	arg->hiflt_global_vsigma = (val >> 8) & 0x3fff;
+	arg->hiflt_cur_wgt = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_BF_PARA2, 0);
+	arg->adj_offset = val & 0x1ff;
+	arg->adj_scale = (val >> 16) & 0x7fff;
+
+	for (i = 0; i < ISP39_CNR_SIGMA_Y_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP32_CNR_SIGMA0 + i * 4, 0);
+		arg->sgm_ratio[i * 4] = val & 0xff;
+		arg->sgm_ratio[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->sgm_ratio[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->sgm_ratio[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP32_CNR_SIGMA0 + i * 4, 0);
+	arg->sgm_ratio[i * 4] = val & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_CNR_IIR_GLOBAL_GAIN, 0);
+	arg->loflt_global_sgm_ratio = val & 0xff;
+	arg->loflt_global_sgm_ratio_alpha = (val >> 8) & 0xff;
+
+	for (i = 0; i < ISP39_CNR_WGT_SIGMA_Y_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP39_CNR_WGT_SIGMA0 + i * 4, 0);
+		arg->cur_wgt[i * 4] = val & 0xff;
+		arg->cur_wgt[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->cur_wgt[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->cur_wgt[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_CNR_WGT_SIGMA0 + i * 4, 0);
+	arg->cur_wgt[i * 4] = val & 0xff;
+
+	for (i = 0; i < ISP39_CNR_GAUS_SIGMAR_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_CNR_GAUS_X_SIGMAR0 + i * 4, 0);
+		arg->hiflt_vsigma_idx[i * 3] = val & 0x3ff;
+		arg->hiflt_vsigma_idx[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->hiflt_vsigma_idx[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_CNR_GAUS_X_SIGMAR0 + i * 4, 0);
+	arg->hiflt_vsigma_idx[i * 3] = val & 0x3ff;
+	arg->hiflt_vsigma_idx[i * 3 + 1] = (val >> 20) & 0x3ff;
+
+	for (i = 0; i < ISP39_CNR_GAUS_SIGMAR_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_CNR_GAUS_Y_SIGMAR0 + i * 4, 0);
+		arg->hiflt_vsigma[i * 2] = val & 0xffff;
+		arg->hiflt_vsigma[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+}
+
+static void rkisp_get_params_sharp(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp39_sharp_cfg *arg = &params->others.sharp_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_EN, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_SHARP;
+	arg->bypass = !!(val & BIT(1));
+	arg->center_mode = !!(val & BIT(2));
+	arg->local_gain_bypass = !!(val & BIT(3));
+	arg->radius_step_mode = !!(val & BIT(4));
+	arg->noise_clip_mode = !!(val & BIT(5));
+	arg->clipldx_sel = !!(val & BIT(6));
+	arg->baselmg_sel = !!(val & BIT(7));
+	arg->noise_filt_sel = !!(val & BIT(8));
+	arg->tex2wgt_en = !!(val & BIT(9));
+
+	val = isp3_param_read(params_vdev, ISP39_SHARP_ALPHA, 0);
+	arg->pre_bifilt_alpha = val & 0xff;
+	arg->guide_filt_alpha = (val >> 8) & 0xff;
+	arg->detail_bifilt_alpha = (val >> 16) & 0xff;
+	arg->global_sharp_strg = (val >> 24) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_LUMA_DX, 0);
+	arg->luma2table_idx[0] = val & 0xf;
+	arg->luma2table_idx[1] = (val >> 4) & 0xf;
+	arg->luma2table_idx[2] = (val >> 8) & 0xf;
+	arg->luma2table_idx[3] = (val >> 12) & 0xf;
+	arg->luma2table_idx[4] = (val >> 16) & 0xf;
+	arg->luma2table_idx[5] = (val >> 20) & 0xf;
+	arg->luma2table_idx[6] = (val >> 24) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_PBF_SIGMA_INV_0, 0);
+	arg->pbf_sigma_inv[0] = val & 0x3ff;
+	arg->pbf_sigma_inv[1] = (val >> 10) & 0x3ff;
+	arg->pbf_sigma_inv[2] = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_PBF_SIGMA_INV_1, 0);
+	arg->pbf_sigma_inv[3] = val & 0x3ff;
+	arg->pbf_sigma_inv[4] = (val >> 10) & 0x3ff;
+	arg->pbf_sigma_inv[5] = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_PBF_SIGMA_INV_2, 0);
+	arg->pbf_sigma_inv[6] = val & 0x3ff;
+	arg->pbf_sigma_inv[7] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_BF_SIGMA_INV_0, 0);
+	arg->bf_sigma_inv[0] = val & 0x3ff;
+	arg->bf_sigma_inv[1] = (val >> 10) & 0x3ff;
+	arg->bf_sigma_inv[2] = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_BF_SIGMA_INV_1, 0);
+	arg->bf_sigma_inv[3] = val & 0x3ff;
+	arg->bf_sigma_inv[4] = (val >> 10) & 0x3ff;
+	arg->bf_sigma_inv[5] = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_BF_SIGMA_INV_2, 0);
+	arg->bf_sigma_inv[6] = val & 0x3ff;
+	arg->bf_sigma_inv[7] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_SIGMA_SHIFT, 0);
+	arg->pbf_sigma_shift = val & 0xf;
+	arg->bf_sigma_shift = (val >> 4) & 0xf;
+
+	for (i = 0; i < ISP39_SHARP_Y_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_SHARP_LOCAL_STRG_0 + i * 4, 0);
+		arg->luma2strg_val[i * 3] = val & 0x3ff;
+		arg->luma2strg_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->luma2strg_val[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_SHARP_LOCAL_STRG_0 + i * 4, 0);
+	arg->luma2strg_val[i * 3] = val & 0x3ff;
+	arg->luma2strg_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+
+	for (i = 0; i < ISP39_SHARP_Y_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_SHARP_POS_CLIP_0 + i * 4, 0);
+		arg->luma2posclip_val[i * 3] = val & 0x3ff;
+		arg->luma2posclip_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->luma2posclip_val[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_SHARP_POS_CLIP_0 + i * 4, 0);
+	arg->luma2posclip_val[i * 3] = val & 0x3ff;
+	arg->luma2posclip_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_PBF_COEF, 0);
+	arg->pbf_coef0 = val & 0xff;
+	arg->pbf_coef1 = (val >> 8) & 0xff;
+	arg->pbf_coef2 = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP39_SHARP_DETAILBF_COEF, 0);
+	arg->bf_coef0 = val & 0xff;
+	arg->bf_coef1 = (val >> 8) & 0xff;
+	arg->bf_coef2 = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_IMGLPF_COEF_0, 0);
+	arg->img_lpf_coeff[0] = val & 0xff;
+	arg->img_lpf_coeff[1] = (val >> 8) & 0xff;
+	arg->img_lpf_coeff[2] = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP3X_SHARP_IMGLPF_COEF_1, 0);
+	arg->img_lpf_coeff[3] = val & 0xff;
+	arg->img_lpf_coeff[4] = (val >> 8) & 0xff;
+	arg->img_lpf_coeff[5] = (val >> 16) & 0xff;
+
+	val = isp3_param_read(params_vdev, ISP32_SHARP_GAIN, 0);
+	arg->global_gain = val & 0x3ff;
+	arg->gain_merge_alpha = (val >> 16) & 0xf;
+	arg->local_gain_scale = (val >> 24) & 0xff;
+
+	for (i = 0; i < ISP39_SHARP_GAIN_ADJ_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP32_SHARP_GAIN_ADJUST0 + i * 4, 0);
+		arg->gain2strg_val[i * 2] = val & 0xffff;
+		arg->gain2strg_val[i * 2 + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP32_SHARP_CENTER, 0);
+	arg->center_x = val & 0xffff;
+	arg->center_y = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_SHARP_STRENGTH_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP32_SHARP_GAIN_DIS_STRENGTH0 + i * 4, 0);
+		arg->distance2strg_val[i * 4] = val & 0xff;
+		arg->distance2strg_val[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->distance2strg_val[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->distance2strg_val[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+	val = isp3_param_read(params_vdev, ISP32_SHARP_GAIN_DIS_STRENGTH0 + i * 4, 0);
+	arg->distance2strg_val[i * 4] = val & 0xff;
+	arg->distance2strg_val[i * 4 + 1] = (val >> 8) & 0xff;
+
+	for (i = 0; i < ISP39_SHARP_Y_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_SHARP_CLIP_NEG_0 + i * 4, 0);
+		arg->luma2neg_clip_val[i * 3] = val & 0x3ff;
+		arg->luma2neg_clip_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->luma2neg_clip_val[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_SHARP_CLIP_NEG_0 + i * 4, 0);
+	arg->luma2neg_clip_val[i * 3] = val & 0x3ff;
+	arg->luma2neg_clip_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_SHARP_TEXTURE0, 0);
+	arg->noise_max_limit = val & 0x3ff;
+	arg->tex_reserve_level = (val >> 12) & 0xf;
+
+	val = isp3_param_read(params_vdev, ISP39_SHARP_TEXTURE1, 0);
+	arg->tex_wet_scale = val & 0x7fff;
+	arg->noise_norm_bit = (val >> 16) & 0xf;
+	arg->tex_wgt_mode = (val >> 20) & 0x3;
+
+	for (i = 0; i < ISP39_SHARP_TEX_WET_LUT_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_SHARP_TEXTURE_LUT0 + i * 4, 0);
+		arg->tex2wgt_val[i * 3] = val & 0x3ff;
+		arg->tex2wgt_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->tex2wgt_val[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_SHARP_TEXTURE_LUT0 + i * 4, 0);
+	arg->tex2wgt_val[i * 3] = val & 0x3ff;
+	arg->tex2wgt_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_SHARP_TEXTURE2, 0);
+	arg->noise_strg = val;
+
+	for (i = 0; i < ISP39_SHARP_DETAIL_STRG_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP39_SHARP_DETAIL_STRG_LUT0 + i * 4, 0);
+		arg->detail2strg_val[i * 2] = val & 0x7ff;
+		arg->detail2strg_val[i * 2 + 1] = (val >> 16) & 0x7ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_SHARP_DETAIL_STRG_LUT0 + i * 4, 0);
+	arg->detail2strg_val[i * 2] = val & 0x7ff;
+}
+
+static void rkisp_get_params_cac(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp32_cac_cfg *arg = &params->others.cac_cfg;
+	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP3X_CAC_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_CAC;
+	arg->bypass_en = !!(val & (BIT(1) | BIT(30)));
+	arg->center_en = !!(val & BIT(3));
+	arg->clip_g_mode = (val >> 5) & 0x3;
+	arg->edge_detect_en = !!(val & BIT(7));
+	arg->neg_clip0_en = !!(val & BIT(9));
+
+	val = isp3_param_read(params_vdev, ISP3X_CAC_PSF_PARA, 0);
+	arg->psf_sft_bit = val & 0xff;
+	arg->cfg_num = (val >> 8) & 0x7ff;
+
+	val = isp3_param_read(params_vdev, ISP3X_CAC_STRENGTH_CENTER, 0);
+	arg->center_width = val & 0xffff;
+	arg->center_height = (val >> 16) & 0xffff;
+
+	for (i = 0; i < ISP39_CAC_STRENGTH_NUM / 2; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_CAC_STRENGTH0 + i * 4, 0);
+		arg->strength[2 * i] = val & 0xffff;
+		arg->strength[2 * i + 1] = (val >> 16) & 0xffff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_FLAT_THED, 0);
+	arg->flat_thed_b = val & 0x1f;
+	arg->flat_thed_r = (val >> 8) & 0x1f;
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_OFFSET, 0);
+	arg->offset_b = val & 0xffff;
+	arg->offset_r = (val >> 16) & 0xffff;
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_EXPO_THED_B, 0);
+	arg->expo_thed_b = val & 0x1fffff;
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_EXPO_THED_R, 0);
+	arg->expo_thed_r = val & 0x1fffff;
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_EXPO_ADJ_B, 0);
+	arg->expo_adj_b = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP32_CAC_EXPO_ADJ_R, 0);
+	arg->expo_adj_r = val & 0xfffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_MI_LUT_CAC_RD_H_WSIZE, 0);
+	arg->hsize = val & 0xffff;
+	val = isp3_param_read(params_vdev,  ISP3X_MI_LUT_CAC_RD_V_SIZE, 0);
+	arg->vsize = val & 0xffff;
+
+	val = priv_val->buf_cac_idx[0];
+	arg->buf_fd = priv_val->buf_cac[0][val].dma_fd;
+}
+
+static void rkisp_get_params_gain(struct rkisp_isp_params_vdev *params_vdev,
+				  struct isp39_isp_params_cfg *params)
+{
+	struct isp3x_gain_cfg *arg = &params->others.gain_cfg;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_GAIN_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_GAIN;
+
+	val = isp3_param_read(params_vdev, ISP3X_GAIN_G0, 0);
+	arg->g0 = val & 0x3ffff;
+
+	val = isp3_param_read(params_vdev, ISP3X_GAIN_G1_G2, 0);
+	arg->g1 = val & 0xffff;
+	arg->g2 = (val >> 16) & 0xffff;
+}
+
+static void rkisp_get_params_csm(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp21_csm_cfg *arg = &params->others.csm_cfg;
+	u32 i, val;
+
+	for (i = 0; i < ISP39_CSM_COEFF_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP3X_ISP_CC_COEFF_0 + i * 4, 0);
+		if (i == 0) {
+			arg->csm_c_offset = (val >> 16) & 0xff;
+			arg->csm_y_offset = (val >> 24) & 0x3f;
+		}
+		arg->csm_coeff[i] = val & 0x1ff;
+	}
+}
+
+static void rkisp_get_params_cgc(struct rkisp_isp_params_vdev *params_vdev,
+				 struct isp39_isp_params_cfg *params)
+{
+	struct isp21_cgc_cfg *arg = &params->others.cgc_cfg;
+	u32 val;
+
+	val = isp3_param_read(params_vdev, ISP3X_ISP_CTRL0, 0);
+	arg->yuv_limit = !!(val & ISP3X_SW_CGC_YUV_LIMIT);
+	arg->ratio_en = !!(val & ISP3X_SW_CGC_RATIO_EN);
+}
+
+static void rkisp_get_params_ie(struct rkisp_isp_params_vdev *params_vdev,
+				struct isp39_isp_params_cfg *params)
+{
+	u32 val = isp3_param_read(params_vdev, ISP3X_IMG_EFF_CTRL, 0);
+
+	if (val & ISP39_MODULE_EN)
+		params->module_ens |= ISP39_MODULE_IE;
+}
+
+static void rkisp_get_params_yuvme(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp39_yuvme_cfg *arg = &params->others.yuvme_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP39_YUVME_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_YUVME;
+	arg->bypass = !!(val & BIT(1));
+	arg->tnr_wgt0_en = !!(val & BIT(4));
+
+	val = isp3_param_read(params_vdev, ISP39_YUVME_PARA0, 0);
+	arg->global_nr_strg = val & 0xff;
+	arg->wgt_fact3 = (val >> 8) & 0xff;
+	arg->search_range_mode = (val >> 16) & 0xf;
+	arg->static_detect_thred = (val >> 20) & 0x3f;
+
+	val = isp3_param_read(params_vdev, ISP39_YUVME_PARA1, 0);
+	arg->time_relevance_offset = val & 0xf;
+	arg->space_relevance_offset = (val >> 4) & 0xf;
+	arg->nr_diff_scale = (val >> 8) & 0xff;
+	arg->nr_fusion_limit = (val >> 20) & 0x3ff;
+
+	val = isp3_param_read(params_vdev, ISP39_YUVME_PARA2, 0);
+	arg->nr_static_scale = val & 0xff;
+	arg->nr_motion_scale = (val >> 8) & 0x1ff;
+	arg->nr_fusion_mode = (val >> 17) & 0x3;
+	arg->cur_weight_limit = (val >> 20) & 0x7ff;
+
+	for (i = 0; i < ISP39_YUVME_SIGMA_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_YUVME_SIGMA0 + i * 4, 0);
+		arg->nr_luma2sigma_val[i * 3] = val & 0x3ff;
+		arg->nr_luma2sigma_val[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->nr_luma2sigma_val[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_YUVME_SIGMA0 + i * 4, 0);
+	arg->nr_luma2sigma_val[i * 3] = val & 0x3ff;
+}
+
+static void rkisp_get_params_ldcv(struct rkisp_isp_params_vdev *params_vdev,
+				  struct isp39_isp_params_cfg *params)
+{
+	struct isp39_ldcv_cfg *arg = &params->others.ldcv_cfg;
+	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP39_LDCV_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_LDCV;
+	arg->thumb_mode = !!(val & BIT(1));
+	arg->dth_bypass = !!(val & BIT(6));
+	arg->force_map_en = !!(val & BIT(8));
+	arg->map13p3_en = !!(val & BIT(9));
+
+	for (i = 0; i < ISP39_LDCV_BIC_NUM / 4; i++) {
+		val = isp3_param_read(params_vdev, ISP39_LDCV_BIC_TABLE0 + i * 4, 0);
+		arg->bicubic[i * 4] = val & 0xff;
+		arg->bicubic[i * 4 + 1] = (val >> 8) & 0xff;
+		arg->bicubic[i * 4 + 2] = (val >> 16) & 0xff;
+		arg->bicubic[i * 4 + 3] = (val >> 24) & 0xff;
+	}
+
+	val = isp3_param_read(params_vdev, ISP32L_IRLDCV_RD_H_WSIZE, 0);
+	arg->hsize = val & 0xffff;
+	val = isp3_param_read(params_vdev, ISP32L_IRLDCV_RD_V_SIZE, 0);
+	arg->vsize = val & 0xffff;
+
+	arg->out_vsize = priv_val->ldcv_out_vsize;
+	val = priv_val->buf_ldcv_idx[0];
+	arg->buf_fd = priv_val->buf_ldcv[0][val].dma_fd;
+}
+
+static void rkisp_get_params_rgbir(struct rkisp_isp_params_vdev *params_vdev,
+				   struct isp39_isp_params_cfg *params)
+{
+	struct isp39_rgbir_cfg *arg = &params->others.rgbir_cfg;
+	u32 i, val;
+
+	val = isp3_param_read(params_vdev, ISP39_RGBIR_CTRL, 0);
+	if (!(val & ISP39_MODULE_EN))
+		return;
+	params->module_ens |= ISP39_MODULE_RGBIR;
+
+	val = isp3_param_read(params_vdev, ISP39_RGBIR_THETA, 0);
+	arg->coe_theta = val & 0xfff;
+
+	val = isp3_param_read(params_vdev, ISP39_RGBIR_DELTA, 0);
+	arg->coe_delta = val & 0x3fff;
+
+	for (i = 0; i < ISP39_RGBIR_SCALE_NUM; i++) {
+		val = isp3_param_read(params_vdev, ISP39_RGBIR_SCALE0 + i * 4, 0);
+		arg->scale[i] = val & 0x1ff;
+	}
+
+	for (i = 0; i < ISP39_RGBIR_LUMA_POINT_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_RGBIR_LUMA_POINT0 + i * 4, 0);
+		arg->luma_point[i * 3] = val & 0x3ff;
+		arg->luma_point[i * 3 + 1] = (val >> 10) & 0x3ff;
+		arg->luma_point[i * 3 + 2] = (val >> 20) & 0x3ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_RGBIR_LUMA_POINT0 + i * 4, 0);
+	arg->luma_point[i * 3] = val & 0x3ff;
+	arg->luma_point[i * 3 + 1] = (val >> 10) & 0x7ff;
+
+	for (i = 0; i < ISP39_RGBIR_SCALE_MAP_NUM / 3; i++) {
+		val = isp3_param_read(params_vdev, ISP39_RGBIR_SCALE_MAP0 + i * 4, 0);
+		arg->scale_map[i * 3] = val & 0x1ff;
+		arg->scale_map[i * 3 + 1] = (val >> 9) & 0x1ff;
+		arg->scale_map[i * 3 + 2] = (val >> 18) & 0x1ff;
+	}
+	val = isp3_param_read(params_vdev, ISP39_RGBIR_SCALE_MAP0 + i * 4, 0);
+	arg->scale_map[i * 3] = val & 0x1ff;
+	arg->scale_map[i * 3 + 1] = (val >> 9) & 0x1ff;
+}
+
+int rkisp_get_params_v39(struct rkisp_isp_params_vdev *params_vdev, void *arg)
+{
+	struct isp39_isp_params_cfg *params = arg;
+
+	if (!params)
+		return -EINVAL;
+	memset(params, 0, sizeof(struct isp39_isp_params_cfg));
+	rkisp_get_params_rawaf(params_vdev, params);
+	rkisp_get_params_rawawb(params_vdev, params);
+	rkisp_get_params_rawae0(params_vdev, params);
+	rkisp_get_params_rawae3(params_vdev, params);
+	rkisp_get_params_rawhist0(params_vdev, params);
+	rkisp_get_params_rawhist3(params_vdev, params);
+
+	rkisp_get_params_bls(params_vdev, params);
+	rkisp_get_params_dpcc(params_vdev, params);
+	rkisp_get_params_lsc(params_vdev, params);
+	rkisp_get_params_awbgain(params_vdev, params);
+	rkisp_get_params_gic(params_vdev, params);
+	rkisp_get_params_debayer(params_vdev, params);
+	rkisp_get_params_ccm(params_vdev, params);
+	rkisp_get_params_gammaout(params_vdev, params);
+	rkisp_get_params_cproc(params_vdev, params);
+	rkisp_get_params_sdg(params_vdev, params);
+	rkisp_get_params_drc(params_vdev, params);
+	rkisp_get_params_hdrmge(params_vdev, params);
+	rkisp_get_params_dhaz(params_vdev, params);
+	rkisp_get_params_3dlut(params_vdev, params);
+	rkisp_get_params_ldch(params_vdev, params);
+	rkisp_get_params_bay3d(params_vdev, params);
+	rkisp_get_params_ynr(params_vdev, params);
+	rkisp_get_params_cnr(params_vdev, params);
+	rkisp_get_params_sharp(params_vdev, params);
+	rkisp_get_params_cac(params_vdev, params);
+	rkisp_get_params_gain(params_vdev, params);
+	rkisp_get_params_csm(params_vdev, params);
+	rkisp_get_params_cgc(params_vdev, params);
+	rkisp_get_params_ie(params_vdev, params);
+	rkisp_get_params_yuvme(params_vdev, params);
+	rkisp_get_params_ldcv(params_vdev, params);
+	rkisp_get_params_rgbir(params_vdev, params);
+	return 0;
+}
+#endif
