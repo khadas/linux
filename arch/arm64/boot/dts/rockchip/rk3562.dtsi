@@ -3048,7 +3048,7 @@
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk3562";
 		status = "disabled";
-		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-debug-en = <0>;
 		rockchip,sleep-mode-config = <
 			(0
 			| RKPM_SLP_DEEP1_MODE
