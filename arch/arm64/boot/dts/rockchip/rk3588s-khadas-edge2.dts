@@ -77,6 +77,14 @@
 		};
 	};
 
+	bluetooth-rfkill {
+		compatible = "rfkill-gpio";
+		label = "rfkill-bluetooth";
+		radio-type = "bluetooth";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_reset_pin>;
+	};
+
 	vcc3v3_pcie_wl: vcc3v3-pcie-wl-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -750,8 +758,15 @@
 
 &uart9 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn>;
+	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		pinctrl-names = "default";
+		shutdown-gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&bt_reset_pin &bt_wake_host_irq &bt_wake_pin>;
+	};
 };
 
 &u2phy0 {
