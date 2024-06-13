@@ -796,8 +796,8 @@ static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
 	 */
 	hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PH2_1);
 	val = hdmirx_readl(hdmirx_dev, PKTDEC_AVIIF_PB3_0);
-	EC2_0 = (val & EXTEND_COLORIMETRY) >> 20;
-	C1_C0 = (val & COLORIMETRY_MASK) >> 14;
+	EC2_0 = (val & EXTEND_COLORIMETRY) >> 28;
+	C1_C0 = (val & COLORIMETRY_MASK) >> 22;
 	if (hdmirx_dev->pix_fmt == HDMIRX_RGB888) {
 		if (EC2_0 == HDMIRX_ADOBE_RGB ||
 		    EC2_0 == HDMIRX_BT2020_RGB_OR_YCC)
@@ -827,14 +827,14 @@ static void hdmirx_get_color_space(struct rk_hdmirx_dev *hdmirx_dev)
 
 static bool IsColorRangeLimitFormat(uint32_t width, uint32_t height, bool interlace)
 {
-	if (((width == 720) && (height == 240) && (interlace == false)) \
-	 || ((width == 720) && (height == 1201) && (interlace == false)) \
-	 || ((width == 720) && (height == 480) && (interlace == true)) \
-	 || ((width == 720) && (height == 576) && (interlace == true)) \
-	 || ((width == 1440) && (height == 480) && (interlace == true)) \
-	 || ((width == 1440) && (height == 576) && (interlace == true)) \
-	 || ((width == 1920) && (height == 1080) && (interlace == true)) \
-	 || ((width == 2880) && (height == 480) && (interlace == true)) \
+	if (((width == 720) && (height == 240) && (interlace == false))
+	 || ((width == 720) && (height == 1201) && (interlace == false))
+	 || ((width == 720) && (height == 480) && (interlace == true))
+	 || ((width == 720) && (height == 576) && (interlace == true))
+	 || ((width == 1440) && (height == 480) && (interlace == true))
+	 || ((width == 1440) && (height == 576) && (interlace == true))
+	 || ((width == 1920) && (height == 1080) && (interlace == true))
+	 || ((width == 2880) && (height == 480) && (interlace == true))
 	 || ((width == 3840) && (height == 2160) && (interlace == false))) {
 		return true;
 	} else {
