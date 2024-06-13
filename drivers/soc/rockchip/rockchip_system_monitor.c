@@ -65,6 +65,7 @@ struct system_monitor_attr {
 
 struct system_monitor {
 	struct device *dev;
+	struct cpumask early_suspend_offline_cpus;
 	struct cpumask video_4k_offline_cpus;
 	struct cpumask status_offline_cpus;
 	struct cpumask temp_offline_cpus;
@@ -823,7 +824,9 @@ static int monitor_device_parse_status_config(struct device_node *np,
 {
 	int ret;
 
-	ret = of_property_read_u32(np, "rockchip,video-4k-freq",
+	ret = of_property_read_u32(np, "rockchip,early-suspend-freq",
+				   &info->early_suspend_freq);
+	ret &= of_property_read_u32(np, "rockchip,video-4k-freq",
 				   &info->video_4k_freq);
 	ret &= of_property_read_u32(np, "rockchip,reboot-freq",
 				    &info->reboot_freq);
@@ -1452,6 +1455,11 @@ static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 	struct device_node *np = monitor->dev->of_node;
 	const char *tz_name, *buf = NULL;
 
+	if (of_property_read_string(np, "rockchip,early-suspend-offline-cpus", &buf))
+		cpumask_clear(&monitor->early_suspend_offline_cpus);
+	else
+		cpulist_parse(buf, &monitor->early_suspend_offline_cpus);
+
 	if (of_property_read_string(np, "rockchip,video-4k-offline-cpus", &buf))
 		cpumask_clear(&monitor->video_4k_offline_cpus);
 	else
@@ -1605,6 +1613,9 @@ static void rockchip_system_status_cpu_limit_freq(struct monitor_dev_info *info,
 		return;
 	}
 
+	if (info->early_suspend_freq && (status & SYS_STATUS_SUSPEND))
+		target_freq = info->early_suspend_freq;
+
 	if (info->video_4k_freq && (status & SYS_STATUS_VIDEO_4K))
 		target_freq = info->video_4k_freq;
 
@@ -1635,11 +1646,15 @@ static void rockchip_system_status_cpu_on_off(unsigned long status)
 {
 	struct cpumask offline_cpus;
 
-	if (cpumask_empty(&system_monitor->video_4k_offline_cpus))
+	if (cpumask_empty(&system_monitor->video_4k_offline_cpus) &&
+	    cpumask_empty(&system_monitor->early_suspend_offline_cpus))
 		return;
 
 	cpumask_clear(&offline_cpus);
-	if (status & SYS_STATUS_VIDEO_4K)
+	if (status & SYS_STATUS_SUSPEND)
+		cpumask_copy(&offline_cpus,
+			     &system_monitor->early_suspend_offline_cpus);
+	else if (status & SYS_STATUS_VIDEO_4K)
 		cpumask_copy(&offline_cpus,
 			     &system_monitor->video_4k_offline_cpus);
 	if (cpumask_equal(&offline_cpus, &system_monitor->status_offline_cpus))
