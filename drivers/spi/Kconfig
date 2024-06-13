@@ -772,6 +772,16 @@ config SPI_ROCKCHIP_MISCDEV
 	  for each spi controller and support to get the controller register
 	  resource by calling mmap.
 
+config SPI_ROCKCHIP_FLEXBUS_FSPI
+	tristate "Rockchip Flexbus controller under SPI transmission protocol"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM && HAS_DMA
+	select MFD_ROCKCHIP_FLEXBUS
+	help
+	  This enables support for Rockchip Flexbus controller under SPI
+	  transmission protocol. This is a specialized controller used to access
+	  SPI flash on some Rockchip SOCs.
+
 config SPI_ROCKCHIP_SFC
 	tristate "Rockchip Serial Flash Controller (SFC)"
 	imply ROCKCHIP_MTD_VENDOR_STORAGE
