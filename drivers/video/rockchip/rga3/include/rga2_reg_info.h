@@ -123,6 +123,8 @@
 #define m_RGA2_CMD_CTRL_INCR_VALID_P			(0x1 << 1)
 #define m_RGA2_CMD_CTRL_CMD_LINE_ST_P			(0x1 << 0)
 
+#define s_RGA2_CMD_CTRL_INCR_NUM(x)			((x & 0x3ff) << 3)
+
 /* RGA_STATUS1 */
 #define m_RGA2_STATUS1_SW_CMD_TOTAL_NUM			(0xfff << 8)
 #define m_RGA2_STATUS1_SW_CMD_CUR_NUM			(0xfff << 8)

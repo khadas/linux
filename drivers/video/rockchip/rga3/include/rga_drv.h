@@ -87,7 +87,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		3
-#define DRIVER_REVISION_VERSION		3
+#define DRIVER_REVISION_VERSION		4
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -337,8 +337,11 @@ struct rga_scheduler_t {
 	struct list_head todo_list;
 	spinlock_t irq_lock;
 	wait_queue_head_t job_done_wq;
+
 	const struct rga_backend_ops *ops;
 	const struct rga_hw_data *data;
+	unsigned long hw_issues_mask;
+
 	int job_count;
 	int irq;
 	struct rga_version_t version;
