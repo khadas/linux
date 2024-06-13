@@ -2195,6 +2195,7 @@ static void hdmirx_free_fence(struct rk_hdmirx_dev *hdmirx_dev)
 	unsigned long lock_flags = 0;
 	struct hdmirx_fence *vb_fence, *done_fence;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	struct files_struct *files = current->files;
 	LIST_HEAD(local_list);
 
 	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
@@ -2216,7 +2217,8 @@ static void hdmirx_free_fence(struct rk_hdmirx_dev *hdmirx_dev)
 		v4l2_dbg(2, debug, v4l2_dev, "%s: free qbuf_fence fd:%d\n",
 			 __func__, vb_fence->fence_fd);
 		dma_fence_put(vb_fence->fence);
-		put_unused_fd(vb_fence->fence_fd);
+		if (files)
+			put_unused_fd(vb_fence->fence_fd);
 		kfree(vb_fence);
 	}
 
@@ -2229,7 +2231,8 @@ static void hdmirx_free_fence(struct rk_hdmirx_dev *hdmirx_dev)
 		v4l2_dbg(2, debug, v4l2_dev, "%s: free done_fence fd:%d\n",
 			 __func__, done_fence->fence_fd);
 		dma_fence_put(done_fence->fence);
-		put_unused_fd(done_fence->fence_fd);
+		if (files)
+			put_unused_fd(done_fence->fence_fd);
 		kfree(done_fence);
 	}
 }
