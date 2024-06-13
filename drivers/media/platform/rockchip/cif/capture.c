@@ -12356,10 +12356,12 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			}
 
 			if (stream->is_finish_stop_dma && stream->is_wait_stop_complete) {
-				stream->is_finish_stop_dma = false;
 				stream->is_wait_stop_complete = false;
 				complete(&stream->stop_complete);
 			}
+
+			if (stream->is_finish_stop_dma)
+				stream->is_finish_stop_dma = false;
 
 			if (stream->crop_dyn_en)
 				rkcif_dynamic_crop(stream);
