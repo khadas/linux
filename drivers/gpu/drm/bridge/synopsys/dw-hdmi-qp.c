@@ -18,6 +18,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
+#include <linux/debugfs.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
