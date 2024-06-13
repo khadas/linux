@@ -925,12 +925,6 @@ static int lt7911uxc_s_dv_timings(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (!v4l2_valid_dv_timings(timings,
-				&lt7911uxc_timings_cap, NULL, NULL)) {
-		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
-		return -ERANGE;
-	}
-
 	lt7911uxc->timings = *timings;
 
 	enable_stream(sd, false);

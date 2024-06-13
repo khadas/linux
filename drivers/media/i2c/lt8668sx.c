@@ -892,12 +892,6 @@ static int lt8668sx_s_dv_timings(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (!v4l2_valid_dv_timings(timings,
-				&lt8668sx_timings_cap, NULL, NULL)) {
-		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
-		return -ERANGE;
-	}
-
 	lt8668sx->timings = *timings;
 	lt8668sx->last_framerate = lt8668sx->cur_framerate;
 
