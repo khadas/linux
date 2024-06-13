@@ -189,6 +189,7 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_BIT_VAL_H264		0
 #define RKVENC2_BIT_VAL_H265		1
 #define RKVENC2_BIT_SLEN_FIFO		BIT(30)
+#define RKVENC2_BIT_REC_FBC_DIS		BIT(31)
 
 #define RKVENC2_REG_SLI_SPLIT		(56)
 #define RKVENC510_REG_SLI_SPLIT		(60)
@@ -270,6 +271,7 @@ struct rkvenc_task {
 	/* jpege bitstream */
 	struct mpp_dma_buffer *bs_buf;
 	u32 offset_bs;
+	u32 rec_fbc_dis;
 };
 
 #define RKVENC_MAX_RCB_NUM		(4)
@@ -1112,6 +1114,16 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	task->clk_mode = CLK_MODE_NORMAL;
 	rkvenc2_check_split_task(mpp, task);
 
+	/* check whether the current task is rec_fbc_dis = 1 */
+	if (task->hw_info->vepu_type == RKVENC_VEPU_510) {
+		if (task->reg[RKVENC_CLASS_PIC].valid) {
+			u32 *reg = task->reg[RKVENC_CLASS_PIC].data;
+
+			task->rec_fbc_dis = reg[RKVENC510_REG_ENC_PIC] & RKVENC2_BIT_REC_FBC_DIS;
+			reg[RKVENC510_REG_ENC_PIC] &= ~(RKVENC2_BIT_REC_FBC_DIS);
+		}
+	}
+
 	mpp_debug_leave();
 
 	return mpp_task;
@@ -1423,6 +1435,9 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 
 	if (hw->vepu_type == RKVENC_VEPU_510) {
+		u32 rec_fbc_dis = task->rec_fbc_dis;
+		u32 enc_pic = mpp_read(mpp, 0x300);
+
 		/*
 		 * Config dvbm special reg to expected that
 		 * vepu will hold when the encoding finish.
@@ -1431,7 +1446,20 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		mpp_write(mpp, 0x308, BIT(18) | BIT(16));
 		/* Enable slice done interrupt and slice fifo info. */
 		mpp_write(mpp, 0x20, mpp_read(mpp, 0x20) | BIT(3));
-		mpp_write(mpp, 0x300, mpp_read(mpp, 0x300) | BIT(30));
+		/*
+		 * Fix bug:
+		 * Writing reg 0x300 BIT(31) may cause the DMA module to falsely
+		 * trigger writing data. It will case enc err.
+		 * So we need to disable the core clock before writing reg 0x300,
+		 * and re-enable the core clock after writing reg 0x300.
+		 */
+		if (rec_fbc_dis) {
+			mpp_clk_safe_disable(enc->core_clk_info.clk);
+			mpp_write(mpp, 0x300, enc_pic | BIT(30) | BIT(31));
+			mpp_clk_safe_enable(enc->core_clk_info.clk);
+		} else {
+			mpp_write(mpp, 0x300, enc_pic | BIT(30));
+		}
 	}
 
 	/* Flush the register before the start the device */
