@@ -12,17 +12,6 @@
 	model = "Rockchip RV1106G EVB2 V12 Board";
 	compatible = "rockchip,rv1106g-evb2-v12-wakeup", "rockchip,rv1106";
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		rtos: rtos@40000 {
-			reg = <0x40000 0x3c000>;
-		};
-
-	};
-
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -128,7 +117,6 @@
 };
 
 &fiq_debugger {
-	rockchip,baudrate = <1500000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2m1_xfer>;
 };
