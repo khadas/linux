@@ -99,7 +99,7 @@ install_linux_image () {
 	##
 	sed -e "s/exit 0//g" -i $pdir/DEBIAN/postinst
 	cat >> $pdir/DEBIAN/postinst <<-EOT
-	ln -sf $(basename $installed_image_path) /boot/zImage 2> /dev/null || mv /$installed_image_path /boot/zImage
+	ln -sf $(basename $installed_image_path) /boot/Image 2> /dev/null || mv /$installed_image_path /boot/Image
 	touch /boot/.next
 
 	cd /boot
