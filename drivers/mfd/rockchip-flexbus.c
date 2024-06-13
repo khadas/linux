@@ -21,13 +21,6 @@
 #include <dt-bindings/mfd/rockchip-flexbus.h>
 #include <linux/mfd/rockchip-flexbus.h>
 
-enum rockchip_flexbus_tx_rx_mode {
-	FLEXBUS_TX_AND_RX = 0x0,
-	FLEXBUS_TX_ONLY = 0x1,
-	FLEXBUS_RX_ONLY = 0x2,
-	FLEXBUS_TX_THEN_RX = 0x3,
-};
-
 unsigned int rockchip_flexbus_readl(struct rockchip_flexbus *rkfb, unsigned int reg)
 {
 	return readl_relaxed(rkfb->base + reg);
