@@ -424,6 +424,7 @@
 			495000	4
 		>;
 		intermediate-threshold-freq = <816000>;
+		rockchip,early-suspend-freq = <1800000>;
 		rockchip,reboot-freq = <1416000>;
 
 		rockchip,temp-hysteresis = <5000>;
@@ -542,6 +543,7 @@
 			495000	4
 		>;
 		intermediate-threshold-freq = <816000>;
+		rockchip,early-suspend-freq = <408000>;
 		rockchip,reboot-freq = <1608000>;
 
 		rockchip,temp-hysteresis = <5000>;
@@ -1335,6 +1337,7 @@
 		compatible = "rockchip,system-monitor";
 
 		rockchip,thermal-zone = "little-core-thermal";
+		rockchip,early-suspend-offline-cpus = "4-7";
 	};
 
 	thermal_zones: thermal-zones {
