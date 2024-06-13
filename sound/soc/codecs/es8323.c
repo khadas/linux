@@ -144,6 +144,10 @@ static const char * const es8323_diff_sel[] = {
 	"Line 1", "Line 2"
 };
 
+static const char * const es8323_adc_data_sel[] = {
+	"Left Right", "Left Left", "Right Right", "Right Left"
+};
+
 SOC_VALUE_ENUM_SINGLE_DECL(es8323_left_dac_enum, ES8323_ADCCONTROL2, 6, 3, es8323_pga_sell, es8323_line_values);
 SOC_VALUE_ENUM_SINGLE_DECL(es8323_right_dac_enum, ES8323_ADCCONTROL2, 4, 3, es8323_pga_selr, es8323_line_values);
 static SOC_ENUM_SINGLE_DECL(es8323_diff_enum, ES8323_ADCCONTROL3, 7, es8323_diff_sel);
@@ -163,6 +167,7 @@ static const struct soc_enum es8323_enum[] = {
 	SOC_ENUM_SINGLE(ES8323_ADCCONTROL6, 6, 4, adcpol_txt),
 	SOC_ENUM_SINGLE(ES8323_ADCCONTROL3, 3, 3, es8323_mono_mux),
 	SOC_ENUM_SINGLE(ES8323_ADCCONTROL3, 7, 2, es8323_diff_sel),
+	SOC_ENUM_SINGLE(ES8323_ADCCONTROL4, 6, 4, es8323_adc_data_sel),
 };
 
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -9600, 50, 1);
@@ -208,6 +213,7 @@ static const struct snd_kcontrol_new es8323_snd_controls[] = {
 			 ES8323_DACCONTROL25, 0, 33, 0, out_tlv),
 	SOC_DOUBLE_R_TLV("Output 2 Playback Volume", ES8323_DACCONTROL26,
 			 ES8323_DACCONTROL27, 0, 33, 0, out_tlv),
+	SOC_ENUM("ADC Data Select", es8323_enum[11]),
 };
 
 static const struct snd_kcontrol_new es8323_left_line_controls =
