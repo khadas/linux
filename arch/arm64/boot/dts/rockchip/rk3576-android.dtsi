@@ -81,3 +81,7 @@
 &vop {
 	support-multi-area;
 };
+
+&wdt {
+	status= "okay";
+};
