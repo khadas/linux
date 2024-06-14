@@ -95,7 +95,7 @@ struct rk_crypto_dev {
 
 	struct timer_list		timer;
 	bool				busy;
-	void (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
+	int (*request_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
 	void (*release_crypto)(struct rk_crypto_dev *rk_dev, const char *name);
 	int (*load_data)(struct rk_crypto_dev *rk_dev,
 			 struct scatterlist *sg_src,

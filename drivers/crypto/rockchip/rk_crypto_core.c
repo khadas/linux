@@ -515,7 +515,9 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 
 	algs_name = soc_data->valid_algs_name;
 
-	rk_dev->request_crypto(rk_dev, __func__);
+	err = rk_dev->request_crypto(rk_dev, __func__);
+	if (err)
+		return err;
 
 	for (i = 0; i < soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
@@ -622,11 +624,11 @@ static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 	rk_dev->release_crypto(rk_dev, __func__);
 }
 
-static void rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
+static int rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
 {
 	CRYPTO_TRACE("Crypto is requested by %s\n", name);
 
-	rk_crypto_enable_clk(rk_dev);
+	return rk_crypto_enable_clk(rk_dev);
 }
 
 static void rk_crypto_release(struct rk_crypto_dev *rk_dev, const char *name)
