@@ -807,8 +807,10 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 			/* if vic is VESA mode, then here will automatically calculate the clks */
 			if (vic < HDMITX_VESA_OFFSET) {
 				pr_info("Not find VIC = %d for hpll setting\n", vic);
-				return;
 			}
+			else
+				pr_info("VESA mode automatic calculate clks VIC = %d\n", vic);
+			return;
 		}
 	} else if (cd == COLORDEPTH_30B) {
 		p_enc = &setting_enc_clk_val_30[0];

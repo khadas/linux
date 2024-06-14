@@ -176,10 +176,17 @@ const struct hdmi_timing *hdmitx21_match_dtd_timing(struct dtd *t)
 		    t->h_sync_offset == timing->h_front &&
 		    t->h_sync == timing->h_sync &&
 		    t->v_sync_offset == timing->v_front &&
-		    t->v_sync == timing->v_sync)
-			return timing;
+//		    t->v_sync == timing->v_sync)
+//			return timing;
+			t->v_sync == timing->v_sync) {
+				pr_info("zhou:%s[%d],VIC:%d\n", __func__, __LINE__, timing->vic);
+				return timing;
+			}
+		//pr_info("zhou:timng++ %s[%d],VIC:%d\n", __func__, __LINE__, timing->vic);
+
 		timing++;
 	}
+	//pr_info("zhou:none timing %s[%d]\n", __func__, __LINE__);
 	return NULL;
 }
 
