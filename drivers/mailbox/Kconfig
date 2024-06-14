@@ -8,6 +8,12 @@ menuconfig MAILBOX
 
 if MAILBOX
 
+config MAILBOX_POLL_PERIOD_US
+	bool "Mailbox TX Done Poll in Microseconds"
+	help
+	  Say Y if you want to set Mailbox TX Done H/R timer polling
+	  period from millisecond to microseconds.
+
 config APPLE_MAILBOX
 	tristate "Apple Mailbox driver"
 	depends on ARCH_APPLE || (ARM64 && COMPILE_TEST)
