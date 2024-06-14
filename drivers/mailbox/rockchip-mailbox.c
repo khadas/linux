@@ -340,8 +340,22 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	spin_lock_init(&mb->cfg_lock);
 
 	mb->mbox.txdone_poll = true;
-	ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms", &txpoll_period);
-	mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+	if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US)) {
+		ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-us",
+					       &txpoll_period);
+		if (!ret) {
+			mb->mbox.txpoll_period = txpoll_period;
+		} else {
+			ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms",
+						       &txpoll_period);
+			mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+			mb->mbox.txpoll_period *= 1000U; /* Convert to us */
+		}
+	} else {
+		ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms",
+					       &txpoll_period);
+		mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+	}
 
 	if (device_property_present(&pdev->dev, "rockchip,enable-cmd-trigger"))
 		mb->trigger_method = 0;

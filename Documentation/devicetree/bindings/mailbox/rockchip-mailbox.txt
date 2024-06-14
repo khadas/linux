@@ -21,6 +21,8 @@ Required properties:
 Optional properties :
 
  - wakeup-source: Mailbox irq can be used as a wakeup source.
+ - rockchip,txpoll-period-us: TX Done polling interval in microseconds,
+	only support when CONFIG_MAILBOX_POLL_PERIOD_US is selected.
  - rockchip,txpoll-period-ms: TX Done polling interval in milliseconds.
  - rockchip,enable-cmd-trigger: Enable write cmd register to trigger interrupt.
 	This is only support from rockchip,rk3576-mbox.

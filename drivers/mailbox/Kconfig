@@ -98,6 +98,7 @@ config OMAP_MBOX_KFIFO_SIZE
 config ROCKCHIP_MBOX
 	tristate "Rockchip Soc Integrated Mailbox Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select MAILBOX_POLL_PERIOD_US if NO_GKI
 	help
 	  This driver provides support for inter-processor communication
 	  between CPU cores and MCU processor on Some Rockchip SOCs.
