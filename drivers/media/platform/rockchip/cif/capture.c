@@ -8189,6 +8189,8 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 		for (i = 0; i < stream_num; i++) {
 			dev->stream[i].cur_skip_frame = dev->stream[i].skip_frame;
 			dev->stream[i].is_single_cap = true;
+			stream->is_finish_single_cap = false;
+			stream->is_wait_single_cap = true;
 		}
 		if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 			for (i = 0; i < stream_num - 1; i++) {
