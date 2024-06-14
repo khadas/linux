@@ -3,7 +3,7 @@
 
 #ifndef _RKVPSS_OFFLINE_H
 #define _RKVPSS_OFFLINE_H
-#define DEV_NUM_MAX 10
+#define DEV_NUM_MAX 256
 #define UNITE_ENLARGE 16
 #define UNITE_LEFT_ENLARGE 16
 

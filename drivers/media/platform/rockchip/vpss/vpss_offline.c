@@ -1700,6 +1700,14 @@ static int rkvpss_check_params(struct file *file, struct rkvpss_frame_cfg *cfg, 
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
 	int i, ret = 0, tile_num = 0;
 
+	/* check dev id out of range */
+	if (cfg->dev_id >= DEV_NUM_MAX) {
+		v4l2_err(&ofl->v4l2_dev, "dev_id:%d is out of range. range[0, %d]\n",
+			 cfg->dev_id, DEV_NUM_MAX);
+		ret = -EINVAL;
+		goto end;
+	}
+
 	/* set unite mode */
 	if (cfg->input.width > RKVPSS_MAX_WIDTH)
 		*unite = true;
