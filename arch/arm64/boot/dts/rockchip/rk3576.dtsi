@@ -4157,6 +4157,11 @@
 			status = "disabled";
 		};
 
+		flexbus_cif: cif {
+			compatible = "rockchip,flexbus-cif-rk3576";
+			status = "disabled";
+		};
+
 		flexbus_dac: dac {
 			compatible = "rockchip,flexbus-dac";
 			#io-channel-cells = <0>;
