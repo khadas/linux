@@ -783,7 +783,7 @@ static int rk_pcie_request_sys_irq(struct rk_pcie *rk_pcie,
 }
 
 static const struct rk_pcie_of_data rk3528_pcie_rc_of_data = {
-	.msi_vector_num = 8,
+	.msi_vector_num = 32,
 };
 
 static const struct of_device_id rk_pcie_of_match[] = {
