@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 obj-y += cif/
+obj-y += flexbus_cif/
 obj-y += isp1/
 obj-y += isp/
 obj-y += ispp/
