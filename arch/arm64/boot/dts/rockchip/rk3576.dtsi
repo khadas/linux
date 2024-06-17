@@ -3960,6 +3960,13 @@
 			rockchip,dfs = <16>;
 			status = "disabled";
 		};
+
+		flexbus_fspi: fspi {
+			compatible = "rockchip,flexbus-fspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	sfc1: spi@2a300000 {
