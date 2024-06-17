@@ -569,6 +569,35 @@ static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 	return 0;
 }
 
+static int analogix_dp_encoder_late_register(struct drm_encoder *encoder)
+{
+	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
+	struct device *dev = dp->dev;
+
+	if (dp->data->audio) {
+		struct hdmi_codec_pdata codec_data = {
+			.ops = &rockchip_dp_audio_codec_ops,
+			.spdif = 1,
+			.i2s = 1,
+			.max_i2s_channels = 8,
+		};
+
+		dp->audio_pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
+							       PLATFORM_DEVID_AUTO,
+							       &codec_data,
+							       sizeof(codec_data));
+		if (IS_ERR(dp->audio_pdev))
+			dev_warn(dev, "failed to initialize audio\n");
+	}
+
+	return 0;
+}
+
+static const struct drm_encoder_funcs analogix_dp_encoder_func = {
+	.destroy = drm_encoder_cleanup,
+	.late_register = analogix_dp_encoder_late_register,
+};
+
 static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 {
 	struct drm_encoder *encoder = &dp->encoder.encoder;
@@ -580,8 +609,8 @@ static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 								      dev->of_node);
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
-	ret = drm_simple_encoder_init(drm_dev, encoder,
-				      DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(drm_dev, encoder, &analogix_dp_encoder_func,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret) {
 		DRM_ERROR("failed to initialize encoder with drm\n");
 		return ret;
@@ -611,25 +640,6 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		dp->plat_data.encoder = &dp->encoder.encoder;
 	}
 
-	if (dp->data->audio) {
-		struct hdmi_codec_pdata codec_data = {
-			.ops = &rockchip_dp_audio_codec_ops,
-			.spdif = 1,
-			.i2s = 1,
-			.max_i2s_channels = 8,
-		};
-
-		dp->audio_pdev =
-			platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
-						      PLATFORM_DEVID_AUTO,
-						      &codec_data,
-						      sizeof(codec_data));
-		if (IS_ERR(dp->audio_pdev)) {
-			ret = PTR_ERR(dp->audio_pdev);
-			goto err_cleanup_encoder;
-		}
-	}
-
 	ret = analogix_dp_bind(dp->adp, drm_dev);
 	if (ret)
 		goto err_unregister_audio_pdev;
@@ -639,8 +649,6 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 err_unregister_audio_pdev:
 	if (dp->audio_pdev)
 		platform_device_unregister(dp->audio_pdev);
-err_cleanup_encoder:
-	dp->encoder.encoder.funcs->destroy(&dp->encoder.encoder);
 	return ret;
 }
 
