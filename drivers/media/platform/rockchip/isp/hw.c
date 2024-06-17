@@ -573,6 +573,11 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		writel(val, base + ISP_MPFBC_HEAD_PTR);
 		val = rkisp_read_reg_cache(isp, MI_SWS_3A_WR_BASE);
 		writel(val, base + MI_SWS_3A_WR_BASE);
+		/* force for cac to read lut */
+		if (dev->isp_ver >= ISP_V33) {
+			val = rkisp_read_reg_cache(isp, ISP3X_CAC_BASE);
+			writel(val, base + ISP3X_CAC_BASE);
+		}
 	}
 
 	if (dev->is_single) {
