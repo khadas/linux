@@ -65,6 +65,43 @@ void rockchip_flexbus_clrsetbits(struct rockchip_flexbus *rkfb, unsigned int reg
 }
 EXPORT_SYMBOL_GPL(rockchip_flexbus_clrsetbits);
 
+static struct rockchip_flexbus_dfs_reg rockchip_flexbus_dfs_reg_v0 = {
+	.dfs_2bit	= 0x0,
+	.dfs_4bit	= 0x1,
+	.dfs_8bit	= 0x2,
+	.dfs_16bit	= 0x3,
+	.dfs_mask	= 0x3,
+};
+
+static struct rockchip_flexbus_dfs_reg rockchip_flexbus_dfs_reg_v1 = {
+	.dfs_1bit	= (0x0 << 29),
+	.dfs_2bit	= (0x1 << 29),
+	.dfs_4bit	= (0x2 << 29),
+	.dfs_8bit	= (0x3 << 29),
+	.dfs_16bit	= (0x4 << 29),
+	.dfs_mask	= (0x7 << 29),
+};
+
+#define RK3506_GRF_SOC_CON1	0x0004
+static void rk3506_flexbus_init_config(struct rockchip_flexbus *rkfb)
+{
+	regmap_write(rkfb->regmap_grf, RK3506_GRF_SOC_CON1, BIT(4 + 16));
+}
+
+static void rk3506_flexbus_grf_config(struct rockchip_flexbus *rkfb, bool slave_mode, bool cpol,
+				      bool cpha)
+{
+	u32 val = 0x3 << 16;
+
+	if (slave_mode) {
+		if ((!cpol && cpha) || (cpol && !cpha))
+			val |= BIT(1);
+	} else {
+		val |= BIT(0);
+	}
+	regmap_write(rkfb->regmap_grf, RK3506_GRF_SOC_CON1, val);
+}
+
 #define RK3576_VCCIO_IOC_MISC_CON0	0x6400
 static void rk3576_flexbus_grf_config(struct rockchip_flexbus *rkfb, bool slave_mode, bool cpol,
 				      bool cpha)
@@ -146,8 +183,10 @@ static int rockchip_flexbus_probe(struct platform_device *pdev)
 
 	rkfb->regmap_grf = syscon_regmap_lookup_by_phandle_optional(pdev->dev.of_node,
 								    "rockchip,grf");
-	if (!rkfb->regmap_grf)
-		dev_warn(&pdev->dev, "failed to get rockchip,grf node.\n");
+	if (!rkfb->regmap_grf) {
+		dev_err(&pdev->dev, "failed to get rockchip,grf node.\n");
+		return -ENODEV;
+	}
 
 	rkfb->num_clks = devm_clk_bulk_get_all(&pdev->dev, &rkfb->clks);
 	if (rkfb->num_clks <= 0) {
@@ -166,6 +205,9 @@ static int rockchip_flexbus_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (rkfb->config->init_config)
+		rkfb->config->init_config(rkfb);
+
 	if (rkfb->opmode0 != ROCKCHIP_FLEXBUS0_OPMODE_NULL &&
 	    rkfb->opmode1 != ROCKCHIP_FLEXBUS1_OPMODE_NULL)
 		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_TX_AND_RX);
@@ -174,15 +216,35 @@ static int rockchip_flexbus_probe(struct platform_device *pdev)
 	else
 		rockchip_flexbus_writel(rkfb, FLEXBUS_COM_CTL, FLEXBUS_RX_ONLY);
 
+	switch (rockchip_flexbus_readl(rkfb, FLEXBUS_REVISION) >> 24 & 0xff) {
+	case 0x0:
+		rkfb->dfs_reg = &rockchip_flexbus_dfs_reg_v0;
+		break;
+	case 0x1:
+		rkfb->dfs_reg = &rockchip_flexbus_dfs_reg_v1;
+		break;
+	default:
+		dev_err(&pdev->dev, "failed to get large version.\n");
+		return -EINVAL;
+	}
+
 	return devm_of_platform_populate(&pdev->dev);
 }
 
+static const struct rockchip_flexbus_config rk3506_flexbus_config = {
+	.init_config =		rk3506_flexbus_init_config,
+	.grf_config =		rk3506_flexbus_grf_config,
+	.txwat_start_max =	255,
+};
+
 static const struct rockchip_flexbus_config rk3576_flexbus_config = {
-	.grf_config = rk3576_flexbus_grf_config,
-	.txwat_start_max = 511,
+	.init_config =		NULL,
+	.grf_config =		rk3576_flexbus_grf_config,
+	.txwat_start_max =	511,
 };
 
 static const struct of_device_id rockchip_flexbus_of_match[] = {
+	{ .compatible = "rockchip,rk3506-flexbus", .data = &rk3506_flexbus_config},
 	{ .compatible = "rockchip,rk3576-flexbus", .data = &rk3576_flexbus_config},
 	{ /* sentinel */ }
 };

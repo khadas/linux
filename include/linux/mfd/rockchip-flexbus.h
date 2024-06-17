@@ -79,7 +79,6 @@
 #define FLEXBUS_CONTINUE_MODE		BIT(4)
 #define FLEXBUS_CPOL			BIT(3)
 #define FLEXBUS_CPHA			BIT(2)
-#define FLEXBUS_DFS_SHIFT		0
 
 /* Bit fields in TX_CTL */
 #define FLEXBUS_TX_CTL_MSB		BIT(13)
@@ -113,7 +112,17 @@
 
 struct rockchip_flexbus;
 
+struct rockchip_flexbus_dfs_reg {
+	u32 dfs_1bit;
+	u32 dfs_2bit;
+	u32 dfs_4bit;
+	u32 dfs_8bit;
+	u32 dfs_16bit;
+	u32 dfs_mask;
+};
+
 struct rockchip_flexbus_config {
+	void (*init_config)(struct rockchip_flexbus *rkfb);
 	void (*grf_config)(struct rockchip_flexbus *rkfb, bool slave_mode, bool cpol, bool cpha);
 	u32 txwat_start_max;
 };
@@ -130,14 +139,8 @@ struct rockchip_flexbus {
 	void			*fb1_data;
 	void (*fb0_isr)(struct rockchip_flexbus *rkfb, u32 isr);
 	void (*fb1_isr)(struct rockchip_flexbus *rkfb, u32 isr);
+	struct rockchip_flexbus_dfs_reg		*dfs_reg;
 	const struct rockchip_flexbus_config	*config;
-};
-
-enum rockchip_flexbus_dfs {
-	FLEXBUS_DFS_2BIT = 0x0,
-	FLEXBUS_DFS_4BIT,
-	FLEXBUS_DFS_8BIT,
-	FLEXBUS_DFS_16BIT,
 };
 
 unsigned int rockchip_flexbus_readl(struct rockchip_flexbus *rkfb, unsigned int reg);
