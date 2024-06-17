@@ -2102,7 +2102,7 @@ static enum vop2_data_format vop2_convert_format(uint32_t format)
 	case DRM_FORMAT_UYVY:
 		return VOP2_FMT_YUYV422;
 	default:
-		DRM_ERROR("unsupported format[%08x]\n", format);
+		DRM_ERROR("unsupported format %p4cc\n", &format);
 		return -EINVAL;
 	}
 }
@@ -2142,7 +2142,7 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 
 		/* either of the below should not be reachable */
 	default:
-		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
+		DRM_WARN_ONCE("unsupported AFBC format %p4cc\n", &format);
 		return VOP2_AFBC_FMT_INVALID;
 	}
 
@@ -2168,7 +2168,7 @@ static enum vop2_tiled_format vop2_convert_tiled_format(uint32_t format)
 	case DRM_FORMAT_NV30:
 		return VOP2_TILED_8X8_FMT_YUV444SP_10;
 	default:
-		DRM_WARN_ONCE("unsupported tiled format[%08x]\n", format);
+		DRM_WARN_ONCE("unsupported tiled format %p4cc\n", &format);
 		return VOP2_TILED_FMT_INVALID;
 	}
 
@@ -2200,7 +2200,7 @@ static enum vop3_tiled_format vop3_convert_tiled_format(uint32_t format, uint32_
 		return tile_mode == ROCKCHIP_TILED_BLOCK_SIZE_8x8 ?
 				VOP3_TILED_8X8_FMT_YUV444SP_10 : VOP3_TILED_4X4_FMT_YUV444SP_10;
 	default:
-		DRM_WARN_ONCE("unsupported tiled format[%08x]\n", format);
+		DRM_WARN_ONCE("unsupported tiled format %p4cc\n", &format);
 		return VOP3_TILED_FMT_INVALID;
 	}
 
@@ -2219,7 +2219,7 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 	case DRM_FORMAT_NV12:
 		return VOP2_WB_YUV420SP;
 	default:
-		DRM_ERROR("unsupported wb format[%08x]\n", format);
+		DRM_ERROR("unsupported wb format %p4cc\n", &format);
 		return VOP2_WB_INVALID;
 	}
 }
@@ -8958,6 +8958,70 @@ static void vop2_crtc_setup_output_mode(struct drm_crtc *crtc)
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 }
 
+/* VOP_OUTPUT_IF_* */
+static const char *const vop2_output_if_name_list[] = {
+	"RGB",
+	"BT1120",
+	"BT656",
+	"LVDS0",
+	"LVDS1",
+	"MIPI0",
+	"MIPI1",
+	"eDP0",
+	"eDP1",
+	"DP0",
+	"DP1",
+	"HDMI0",
+	"HDMI1",
+	"DP2",
+};
+
+static char *vop2_bitmask_to_string(unsigned long mask, const char *const *name_list, int size)
+{
+	size_t len = 0;
+	bool first = true;
+	char *buf, *p;
+	int bit;
+
+	/* concat string with " | " */
+	for_each_set_bit(bit, &mask, size) {
+		if (!first)
+			len += 3; /* strlen(" | ") */
+		len += strlen(name_list[bit]);
+		first = false;
+	}
+
+	buf = kzalloc(len + 1, GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	p = buf;
+	first = true;
+	for_each_set_bit(bit, &mask, size) {
+		if (!first) {
+			*p++ = ' ';
+			*p++ = '|';
+			*p++ = ' ';
+		}
+
+		len = strlen(name_list[bit]);
+		memcpy(p, name_list[bit], len);
+		p += len;
+
+		first = false;
+	}
+
+	*p = '\0';
+
+	return buf;
+}
+
+static inline char *vop2_output_if_to_string(unsigned long inf)
+{
+	return vop2_bitmask_to_string(inf, vop2_output_if_name_list,
+				      ARRAY_SIZE(vop2_output_if_name_list));
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -8992,6 +9056,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	int splice_en = 0;
 	int port_mux;
 	int ret;
+	char *output_if_string;
 
 	if (old_cstate && old_cstate->self_refresh_active) {
 		vop2_crtc_atomic_exit_psr(crtc, old_cstate);
@@ -9003,12 +9068,16 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	vop2_set_system_status(vop2, true);
 	rockchip_request_late_resume();
 
+	output_if_string = vop2_output_if_to_string(vcstate->output_if);
 	vop2_lock(vop2);
-	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x, flag:0x%x) for vp%d dclk: %llu\n",
+	DRM_DEV_INFO(vop2->dev,
+		     "Update mode to %dx%d%s%d, type: %d(if:%s, flag:0x%x) for vp%d dclk: %llu\n",
 		     hdisplay, adjusted_mode->vdisplay, interlaced ? "i" : "p",
 		     drm_mode_vrefresh(adjusted_mode),
-		     vcstate->output_type, vcstate->output_if, vcstate->output_flags,
-		     vp->id, (unsigned long long)adjusted_mode->crtc_clock * 1000);
+		     vcstate->output_type, output_if_string,
+		     vcstate->output_flags, vp->id,
+		     (unsigned long long)adjusted_mode->crtc_clock * 1000);
+	kfree(output_if_string);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 		vcstate->splice_mode = true;
@@ -13667,9 +13736,38 @@ static void post_buf_empty_work_event(struct work_struct *work)
 	}
 }
 
+/* vop2_layer_phy_id */
+static const char *const vop2_layer_name_list[] = {
+	"Cluster0",
+	"Cluster1",
+	"Esmart0",
+	"Esmart1",
+	"Smart0",
+	"Smart1",
+	"Cluster2",
+	"Cluster3",
+	"Esmart2",
+	"Esmart3",
+};
+
+static char *vop2_plane_mask_to_string(unsigned long mask)
+{
+	return vop2_bitmask_to_string(mask, vop2_layer_name_list,
+				      ARRAY_SIZE(vop2_layer_name_list));
+}
+
+static inline const char *vop2_plane_id_to_string(unsigned long phy)
+{
+	if (WARN_ON(phy >= ARRAY_SIZE(vop2_layer_name_list)))
+		return NULL;
+
+	return vop2_layer_name_list[phy];
+}
+
 static bool vop2_plane_mask_check(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
+	char *full_plane, *current_plane;
 	u32 plane_mask = 0;
 	int i;
 
@@ -13690,8 +13788,12 @@ static bool vop2_plane_mask_check(struct vop2 *vop2)
 
 	if (hweight32(plane_mask) != vop2_data->nr_layers ||
 	    plane_mask != vop2_data->plane_mask_base) {
-		DRM_WARN("all windows should be assigned, full plane mask: 0x%x, current plane mask: 0x%x\n",
-			 vop2_data->plane_mask_base, plane_mask);
+		full_plane = vop2_plane_mask_to_string(vop2_data->plane_mask_base);
+		current_plane = vop2_plane_mask_to_string(plane_mask);
+		DRM_WARN("all windows should be assigned, full plane mask: %s[0x%x], current plane mask: %s[0x%x\n]",
+			 full_plane, vop2_data->plane_mask_base, current_plane, plane_mask);
+		kfree(full_plane);
+		kfree(current_plane);
 		return false;
 	}
 
@@ -14079,6 +14181,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	struct device_node *vop_out_node;
 	struct device_node *mcu_timing_node;
 	u8 enabled_vp_mask = 0;
+	char *plane_mask_string;
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
@@ -14277,9 +14380,12 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		}
 
 		for (i = 0; i < vop2->data->nr_vps; i++) {
-			DRM_DEV_INFO(dev, "vp%d assign plane mask: 0x%x, primary plane phy id: %d\n",
-				     i, vop2->vps[i].plane_mask,
+			plane_mask_string = vop2_plane_mask_to_string(vop2->vps[i].plane_mask);
+			DRM_DEV_INFO(dev, "vp%d assign plane mask: %s[0x%x], primary plane phy id: %s[%d]\n",
+				     i, plane_mask_string, vop2->vps[i].plane_mask,
+				     vop2_plane_id_to_string(vop2->vps[i].primary_plane_phy_id),
 				     vop2->vps[i].primary_plane_phy_id);
+			kfree(plane_mask_string);
 		}
 	}
 
