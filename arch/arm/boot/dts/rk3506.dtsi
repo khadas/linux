@@ -17,6 +17,8 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -706,6 +708,100 @@
 			     &dsm_audm0_rp_pins>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
+	};
+
+	gmac0: ethernet@ff4c8000 {
+		compatible = "rockchip,rk3506-gmac", "snps,dwmac-4.20a";
+		reg = <0xff4c8000 0x2000>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&grf>;
+		clocks = <&cru CLK_MAC0>, <&cru CLK_MAC0_PTP>,
+			 <&cru PCLK_MAC0>, <&cru ACLK_MAC0>;
+		clock-names = "stmmaceth", "ptp_ref",
+			      "pclk_mac", "aclk_mac";
+		resets = <&cru SRST_A_MAC0>;
+		reset-names = "stmmaceth";
+
+		snps,mixed-burst;
+		snps,tso;
+
+		snps,axi-config = <&gmac0_stmmac_axi_setup>;
+		snps,mtl-rx-config = <&gmac0_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac0_mtl_tx_setup>;
+
+		phy-mode = "rmii";
+		status = "disabled";
+
+		mdio0: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac0_stmmac_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+			snps,blen = <0 0 0 0 16 8 4>;
+		};
+
+		gmac0_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <1>;
+			queue0 {};
+		};
+
+		gmac0_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <1>;
+			queue0 {};
+		};
+	};
+
+	gmac1: ethernet@ff4d0000 {
+		compatible = "rockchip,rk3506-gmac", "snps,dwmac-4.20a";
+		reg = <0xff4d0000 0x2000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		rockchip,grf = <&grf>;
+		clocks = <&cru CLK_MAC1>, <&cru CLK_MAC1_PTP>,
+			 <&cru PCLK_MAC1>, <&cru ACLK_MAC1>;
+		clock-names = "stmmaceth", "ptp_ref",
+			      "pclk_mac", "aclk_mac";
+		resets = <&cru SRST_A_MAC1>;
+		reset-names = "stmmaceth";
+
+		snps,mixed-burst;
+		snps,tso;
+
+		snps,axi-config = <&gmac1_stmmac_axi_setup>;
+		snps,mtl-rx-config = <&gmac1_mtl_rx_setup>;
+		snps,mtl-tx-config = <&gmac1_mtl_tx_setup>;
+
+		phy-mode = "rmii";
+		status = "disabled";
+
+		mdio1: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+		};
+
+		gmac1_stmmac_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <4>;
+			snps,rd_osr_lmt = <8>;
+			snps,blen = <0 0 0 0 16 8 4>;
+		};
+
+		gmac1_mtl_rx_setup: rx-queues-config {
+			snps,rx-queues-to-use = <1>;
+			queue0 {};
+		};
+
+		gmac1_mtl_tx_setup: tx-queues-config {
+			snps,tx-queues-to-use = <1>;
+			queue0 {};
+		};
 	};
 
 	ioc_grf: syscon@ff4d8000 {
