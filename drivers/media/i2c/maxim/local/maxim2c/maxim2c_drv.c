@@ -52,6 +52,10 @@
  *     2. mode vc initialization when vc-array isn't configured
  *     3. fix the issue of mutex deadlock during hot plug
  *
+ * V3.07.00
+ *     1. v4l2 ioctl add command to support quick stream setting
+ *     2. dev_pm_ops add suspend and resume for system sleep
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -79,7 +83,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x06, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x07, 0x00)
 
 #define MAXIM2C_NAME			"maxim2c"
 
@@ -420,9 +424,43 @@ static int maxim2c_runtime_suspend(struct device *dev)
 #endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 }
 
+static int __maybe_unused maxim2c_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
+	int ret = 0;
+
+	dev_info(dev, "maxim2c resume\n");
+
+#if (MAXIM2C_LOCAL_DES_ON_OFF_EN == 0)
+#if MAXIM2C_TEST_PATTERN
+	ret = maxim2c_pattern_hw_init(maxim2c);
+	if (ret) {
+		dev_err(dev, "test pattern hw init error\n");
+		return ret;
+	}
+#else
+	ret = maxim2c_module_hw_init(maxim2c);
+	if (ret) {
+		dev_err(dev, "maxim2c module hw init error\n");
+		return ret;
+	}
+#endif /* MAXIM2C_TEST_PATTERN */
+#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
+
+	return 0;
+}
+
+static int __maybe_unused maxim2c_suspend(struct device *dev)
+{
+	return 0;
+}
+
 static const struct dev_pm_ops maxim2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(
 		maxim2c_runtime_suspend, maxim2c_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(maxim2c_suspend, maxim2c_resume)
 };
 
 static void maxim2c_module_data_init(maxim2c_t *maxim2c)

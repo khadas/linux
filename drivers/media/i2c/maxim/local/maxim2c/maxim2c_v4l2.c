@@ -436,6 +436,7 @@ static long maxim2c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info *capture_info;
 	struct rkmodule_channel_info *ch_info;
+	u32 stream = 0;
 	long ret = 0;
 
 	dev_dbg(&maxim2c->client->dev, "ioctl cmd = 0x%08x\n", cmd);
@@ -473,6 +474,17 @@ static long maxim2c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		ch_info = (struct rkmodule_channel_info *)arg;
 		ret = maxim2c_get_channel_info(maxim2c, ch_info);
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = maxim2c_mipi_csi_output(maxim2c, true);
+		else
+			ret = maxim2c_mipi_csi_output(maxim2c, false);
+
+		dev_info(&maxim2c->client->dev,
+			"set quick stream = %d: mipi csi output ret = %ld\n", stream, ret);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -491,6 +503,7 @@ static long maxim2c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
 	struct rkmodule_channel_info *ch_info;
+	u32 stream = 0;
 	long ret = 0;
 
 	switch (cmd) {
@@ -597,6 +610,13 @@ static long maxim2c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 				ret = -EFAULT;
 		}
 		kfree(ch_info);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = maxim2c_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
