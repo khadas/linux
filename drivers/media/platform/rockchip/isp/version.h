@@ -504,6 +504,24 @@
  * 17.add ioctl to get bay3d buf
  * 18.fix isp32 lite frame buffer data read
  * 19.support 8k for isp32 lite
+ *
+ * v2.5.1
+ * 1.rockit buf add offset
+ * 2.support multi wrap channel
+ * 3.fix waiting for isp end
+ * 4.fix isp32 bp no output if suspend
+ * 5.fix params buffersize for tb case
+ * 6.skip s_stream of sensor while connect to vicap sditf
+ * 7.open to wait thunderboot ready
+ * 8.default readback mode for multi sensor
+ * 9.rdbk_auto mode stop to clean buf list
+ * 10.fix dmarx deadlock
+ * 11.fix dmatx config
+ * 12.fix cac repeat enable
+ * 13.skip mbus if link to vicap
+ * 14.fix rockit switch resolution
+ * 15.fix cmsk mp can't disable
+ * 16.fix cac for multi sensor
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
