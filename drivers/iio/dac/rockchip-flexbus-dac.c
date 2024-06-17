@@ -288,13 +288,13 @@ static int rockchip_flexbus_dac_init(struct rockchip_flexbus_dac *rkfb_dac)
 
 	switch (rkfb_dac->dfs) {
 	case 4:
-		val = FLEXBUS_DFS_4BIT;
+		val = rkfb->dfs_reg->dfs_4bit;
 		break;
 	case 8:
-		val = FLEXBUS_DFS_8BIT;
+		val = rkfb->dfs_reg->dfs_8bit;
 		break;
 	case 16:
-		val = FLEXBUS_DFS_16BIT;
+		val = rkfb->dfs_reg->dfs_16bit;
 		break;
 	default:
 		return -EINVAL;
