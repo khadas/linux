@@ -580,6 +580,36 @@
 		      <0xff814000 0x1000>;
 	};
 
+	flexbus: flexbus@ff880000 {
+		compatible = "rockchip,rk3506-flexbus";
+		reg = <0xff880000 0x200>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_FLEXBUS_TX>, <&cru CLK_FLEXBUS_RX>,
+			 <&cru ACLK_FLEXBUS>, <&cru HCLK_FLEXBUS>;
+		clock-names = "tx_clk_flexbus", "rx_clk_flexbus",
+			      "aclk_flexbus", "hclk_flexbus";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		flexbus_adc: adc {
+			compatible = "rockchip,flexbus-adc";
+			#io-channel-cells = <0>;
+			rockchip,slave-mode;
+			rockchip,free-sclk;
+			rockchip,auto-pad;
+			rockchip,dfs = <16>;
+			status = "disabled";
+		};
+
+		flexbus_dac: dac {
+			compatible = "rockchip,flexbus-dac";
+			#io-channel-cells = <0>;
+			rockchip,free-sclk;
+			rockchip,dfs = <16>;
+			status = "disabled";
+		};
+	};
+
 	grf_pmu: syscon@ff910000 {
 		compatible = "rockchip,rk3506-grf-pmu", "syscon";
 		reg = <0xff910000 0x4000>;
