@@ -23,6 +23,8 @@
 #include <sound/tlv.h>
 #include "rk_dsm.h"
 
+#define RK3506_GRF_SOC_CON0		(0x0)
+#define RK3506_DSM_SEL			(9)
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
 #define RK3576_SYS_GRF_SOC_CON2		(0x0008)
 #define RK3576_DSM_SEL			(0x0)
@@ -460,6 +462,27 @@ static const struct regmap_config rd_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static int rk3506_soc_init(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	/* enable internal codec to sai3 */
+	return regmap_write(rd->grf, RK3506_GRF_SOC_CON0,
+			    BIT(RK3506_DSM_SEL) << 16 | BIT(RK3506_DSM_SEL));
+}
+
+static void rk3506_soc_deinit(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	regmap_write(rd->grf, RK3506_GRF_SOC_CON0, BIT(RK3506_DSM_SEL) << 16);
+}
+
+static const struct rk_dsm_soc_data rk3506_data = {
+	.init = rk3506_soc_init,
+	.deinit = rk3506_soc_deinit,
+};
+
 static int rk3562_soc_init(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
@@ -504,6 +527,7 @@ static const struct rk_dsm_soc_data rk3576_data = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id rd_of_match[] = {
+	{ .compatible = "rockchip,rk3506-dsm", .data = &rk3506_data },
 	{ .compatible = "rockchip,rk3562-dsm", .data = &rk3562_data },
 	{ .compatible = "rockchip,rk3576-dsm", .data = &rk3576_data },
 	{},
