@@ -479,6 +479,26 @@
 		status = "disabled";
 	};
 
+	pdm: pdm@ff380000 {
+		compatible = "rockchip,rk3506-pdm", "rockchip,rk3576-pdm";
+		reg = <0xff380000 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>, <&cru CLKOUT_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_out";
+		dmas = <&dmac1 9>;
+		dma-names = "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io0_pdm_clk0
+			     &rm_io0_pdm_clk1
+			     &rm_io0_pdm_sdi0
+			     &rm_io0_pdm_sdi1
+			     &rm_io0_pdm_sdi2
+			     &rm_io0_pdm_sdi3>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "PDM0";
+		status = "disabled";
+	};
+
 	fspi: spi@ff488000 {
 		compatible = "rockchip,fspi";
 		reg = <0xff488000 0x4000>;
@@ -487,6 +507,23 @@
 		clock-names = "clk_sfc", "hclk_sfc";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	acdcdig_dsm: acdcdig-dsm@ff4b0000 {
+		compatible = "rockchip,rk3506-dsm";
+		reg = <0xff4b0000 0x1000>;
+		clocks = <&cru MCLK_DSM>, <&cru HCLK_DSM>;
+		clock-names = "dac", "pclk";
+		resets = <&cru SRST_M_DSM>;
+		reset-names = "reset" ;
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dsm_audm0_ln_pins
+			     &dsm_audm0_lp_pins
+			     &dsm_audm0_rn_pins
+			     &dsm_audm0_rp_pins>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
