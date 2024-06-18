@@ -274,6 +274,12 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>;
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+	};
+
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
@@ -1050,6 +1056,37 @@
 		resets = <&cru SRST_P_SARADC>;
 		reset-names = "saradc-apb";
 		status = "disabled";
+	};
+
+	otp: otp@ff4f0000 {
+		compatible = "rockchip,rk3506-otp";
+		reg = <0xff4f0000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru CLK_USER_OTPC_NS>, <&cru CLK_SBPI_OTPC_NS>,
+			 <&cru PCLK_OTPC_NS>;
+		clock-names = "usr", "sbpi", "apb";
+		resets = <&cru SRST_USER_OTPC_NS>, <&cru SRST_SBPI_OTPC_NS>,
+			 <&cru SRST_P_OTPC_NS>;
+		reset-names = "usr", "sbpi", "apb";
+
+		/* Data cells */
+		cpu_code: cpu-code@2 {
+			reg = <0x02 0x2>;
+		};
+		otp_cpu_version: cpu-version@5 {
+			reg = <0x05 0x1>;
+			bits = <3 3>;
+		};
+		otp_id: id@a {
+			reg = <0x0a 0x10>;
+		};
+		cpu_leakage: cpu-leakage@1e {
+			reg = <0x1e 0x1>;
+		};
+		log_leakage: log-leakage@1f {
+			reg = <0x1f 0x1>;
+		};
 	};
 
 	audio_codec: audio-codec@ff4f8000 {
