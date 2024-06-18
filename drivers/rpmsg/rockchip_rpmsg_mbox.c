@@ -43,7 +43,8 @@ struct rk_rpmsg_dev {
 	unsigned int link_id;
 	int first_notify;
 	u32 flags;
-	struct mbox_client mbox_cl;
+	struct mbox_client mbox_rx_cl;
+	struct mbox_client mbox_tx_cl;
 	struct mbox_chan *mbox_rx_chan;
 	struct mbox_chan *mbox_tx_chan;
 	struct rk_virtio_dev *rpvdev[RPMSG_MAX_INSTANCE_NUM];
@@ -55,20 +56,46 @@ struct rk_rpmsg_vq_info {
 	struct rk_rpmsg_dev *rpdev;
 };
 
+static void rk_rpmsg_tx_callback(struct mbox_client *client, void *message)
+{
+	struct rk_virtio_dev *rpvdev;
+	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_tx_cl);
+	struct platform_device *pdev = rpdev->pdev;
+	struct device *dev = &pdev->dev;
+	struct rockchip_mbox_msg *rx_msg = message;
+
+	dev_dbg(dev, "rpmsg master tx cb: receive cmd=0x%x data=0x%x\n",
+		rx_msg->cmd, rx_msg->data);
+
+	if (rx_msg->data != RPMSG_MBOX_MAGIC)
+		dev_err(dev, "rpmsg master tx cb: mailbox data error 0x%8x!\n",
+			rx_msg->data);
+
+	/* TODO: only support one remote core now */
+	rpvdev = rpdev->rpvdev[0];
+
+	/*
+	 *  Recv TX CONSUME message
+	 *  Enabled RL_ALLOW_CONSUMED_BUFFERS_NOTIFICATION in rpmsg-lite
+	 */
+	vring_interrupt(0, rpvdev->vq[1]);
+}
+
 static void rk_rpmsg_rx_callback(struct mbox_client *client, void *message)
 {
 	u32 link_id;
 	struct rk_virtio_dev *rpvdev;
-	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_cl);
+	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_rx_cl);
 	struct platform_device *pdev = rpdev->pdev;
 	struct device *dev = &pdev->dev;
 	struct rockchip_mbox_msg *rx_msg;
 
 	rx_msg = message;
-	dev_dbg(dev, "rpmsg master: receive cmd=0x%x data=0x%x\n",
+	dev_dbg(dev, "rpmsg master rx cb: receive cmd=0x%x data=0x%x\n",
 		rx_msg->cmd, rx_msg->data);
 	if (rx_msg->data != RPMSG_MBOX_MAGIC)
-		dev_err(dev, "rpmsg master: mailbox data error!\n");
+		dev_err(dev, "rpmsg master rx cb: mailbox data error 0x%8x!\n",
+			rx_msg->data);
 	link_id = rx_msg->cmd & 0xFFU;
 	/* TODO: only support one remote core now */
 	rpvdev = rpdev->rpvdev[0];
@@ -300,10 +327,10 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dev_info(dev, "rockchip rpmsg platform probe.\n");
+
 	rpdev->pdev = pdev;
 	rpdev->first_notify = 0;
-
-	cl = &rpdev->mbox_cl;
+	cl = &rpdev->mbox_rx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_rx_callback;
 
@@ -313,6 +340,11 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request mbox rx chan, ret %d\n", ret);
 		return ret;
 	}
+
+	cl = &rpdev->mbox_tx_cl;
+	cl->dev = dev;
+	cl->rx_callback = rk_rpmsg_tx_callback;
+
 	rpdev->mbox_tx_chan = mbox_request_channel_byname(cl, "rpmsg-tx");
 	if (IS_ERR(rpdev->mbox_tx_chan)) {
 		ret = PTR_ERR(rpdev->mbox_tx_chan);
