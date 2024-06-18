@@ -866,6 +866,12 @@ static const struct of_device_id rockchip_otp_match[] = {
 		.data = (void *)&px30s_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3506
+	{
+		.compatible = "rockchip,rk3506-otp",
+		.data = (void *)&rk3528_data,
+	},
+#endif
 #ifdef CONFIG_CPU_RK3528
 	{
 		.compatible = "rockchip,rk3528-otp",
