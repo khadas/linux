@@ -12,8 +12,8 @@ config CRYPTO_DEV_ROCKCHIP_V2
 	default y
 
 config CRYPTO_DEV_ROCKCHIP_V3
-	bool "crypto v3/v4 for RV1106/RK3528/RK3562/RK3576"
-	depends on CPU_RV1106 || CPU_RK3528 || CPU_RK3562 || CPU_RK3576
+	bool "crypto v3/v4 for RV1106/RK3506/RK3528/RK3562/RK3576"
+	depends on CPU_RV1106 || CPU_RK3506 || CPU_RK3528 || CPU_RK3562 || CPU_RK3576
 	default y
 
 endif
