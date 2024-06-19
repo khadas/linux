@@ -4922,7 +4922,9 @@ static const struct vop_dump_regs rk3576_dump_regs[] = {
 	{ RK3568_ESMART1_CTRL0, "Esmart1", VOP_REG(RK3568_ESMART1_REGION0_CTRL, 0x1, 0), 1, 0x100 },
 	{ RK3568_SMART0_CTRL0, "Esmart2", VOP_REG(RK3568_SMART0_REGION0_CTRL, 0x1, 0), 1, 0x100 },
 	{ RK3568_SMART1_CTRL0, "Esmart3", VOP_REG(RK3568_SMART1_REGION0_CTRL, 0x1, 0), 1, 0x100 },
-	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0x100 },
+	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0x240 },
+	{ RK3528_ACM_CTRL, "ACM", VOP_REG(RK3528_ACM_CTRL, 0x1, 0), 1, 0x7d8 },
+	{ RK3576_SHARP_CTRL, "SHARP", VOP_REG(RK3576_SHARP_CTRL, 0x1, 0), 1, 0x2b4 },
 };
 
 static const struct vop_dump_regs rk3588_dump_regs[] = {

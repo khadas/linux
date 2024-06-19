@@ -1885,6 +1885,9 @@
 #define RK3528_ACM_YHS_DEL_HGAIN_SEG0		0x06d8
 #define RK3528_ACM_YHS_DEL_HGAIN_SEG64		0x07d8
 
+/* RK3576 SHARP register definition */
+#define RK3576_SHARP_CTRL			0x0000
+
 /* RK3576 EBC VOP register definition */
 #define EBC_CONFIG_DONE				0x0050
 #define EBC_WIN_MST2				0x0058
