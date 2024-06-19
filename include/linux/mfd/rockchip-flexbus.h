@@ -76,13 +76,16 @@
 #define FLEXBUS_CLK1_IN			BIT(0)
 
 /* Bit fields in TX_CTL and RX_CTL */
-#define FLEXBUS_MSB			BIT(15)
 #define FLEXBUS_CONTINUE_MODE		BIT(4)
 #define FLEXBUS_CPOL			BIT(3)
 #define FLEXBUS_CPHA			BIT(2)
 #define FLEXBUS_DFS_SHIFT		0
 
+/* Bit fields in TX_CTL */
+#define FLEXBUS_TX_CTL_MSB		BIT(13)
+
 /* Bit fields in RX_CTL */
+#define FLEXBUS_RX_CTL_MSB		BIT(15)
 #define FLEXBUS_AUTOPAD			BIT(14)
 #define FLEXBUS_RXD_DY			BIT(5)
 

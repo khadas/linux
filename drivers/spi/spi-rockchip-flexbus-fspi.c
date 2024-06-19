@@ -185,7 +185,7 @@ static int rk_flexbus_fspi_init(struct rk_flexbus_fspi *fspi)
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_SRC_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_DST_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
 
-	ctrl = FLEXBUS_MSB | (1 << FLEXBUS_DFS_SHIFT);
+	ctrl = FLEXBUS_TX_CTL_MSB | (1 << FLEXBUS_DFS_SHIFT);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_CTL, ctrl);
 
 	/* Using internal clk as sample clock */
@@ -279,8 +279,7 @@ static int rk_flexbus_fspi_send_then_recv_114(struct rk_flexbus_fspi *fspi,
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_CMD1, ((u32 *)fspi->tx_buf)[1]);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_NUM, cfg->cmd_cycles);
 
-	ctrl = FLEXBUS_RXD_DY | FLEXBUS_AUTOPAD |
-		FLEXBUS_MSB | 1;
+	ctrl = FLEXBUS_RXD_DY | FLEXBUS_AUTOPAD | FLEXBUS_RX_CTL_MSB | 1;
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_RX_CTL, ctrl);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_RX_NUM, cfg->buf_cycles);
 
