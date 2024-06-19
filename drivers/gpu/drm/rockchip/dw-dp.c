@@ -449,6 +449,7 @@ struct dw_dp {
 	struct work_struct hpd_work;
 	struct gpio_desc *hpd_gpio;
 	bool force_hpd;
+	bool dynamic_pd_ctrl;
 	struct dw_dp_hotplug hotplug;
 	struct mutex irq_lock;
 
@@ -1126,7 +1127,7 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 	return true;
 }
 
-static bool dw_dp_detect(struct dw_dp *dp)
+static bool dw_dp_detect_no_power(struct dw_dp *dp)
 {
 	u32 value;
 	int ret;
@@ -1143,6 +1144,20 @@ static bool dw_dp_detect(struct dw_dp *dp)
 	}
 
 	return FIELD_GET(HPD_STATE, value) == SOURCE_STATE_PLUG;
+}
+
+static bool dw_dp_detect(struct dw_dp *dp)
+{
+	bool detected;
+
+	pm_runtime_get_sync(dp->dev);
+
+	detected = dw_dp_detect_no_power(dp);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
+
+	return detected;
 }
 
 static enum drm_connector_status
@@ -2840,7 +2855,7 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 
 static void dw_dp_hpd_init(struct dw_dp *dp)
 {
-	dp->hotplug.status = dw_dp_detect(dp);
+	dp->hotplug.status = dw_dp_detect_no_power(dp);
 
 	if (dp->hpd_gpio || dp->force_hpd) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
@@ -3077,19 +3092,23 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
+	pm_runtime_get_sync(dp->dev);
+	phy_set_mode_ext(dp->phy, PHY_MODE_DP, 0);
+
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
 	case DP_AUX_I2C_WRITE_STATUS_UPDATE:
 		ret = dw_dp_aux_write_data(dp, msg->buffer, msg->size);
 		if (ret < 0)
-			return ret;
+			goto out;
 		break;
 	case DP_AUX_NATIVE_READ:
 	case DP_AUX_I2C_READ:
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (msg->size > 0)
@@ -3103,12 +3122,15 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	status = wait_for_completion_timeout(&dp->complete, timeout);
 	if (!status) {
 		dev_dbg(dp->dev, "timeout waiting for AUX reply\n");
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto out;
 	}
 
 	regmap_read(dp->regmap, DPTX_AUX_STATUS, &value);
-	if (value & AUX_TIMEOUT)
-		return -ETIMEDOUT;
+	if (value & AUX_TIMEOUT) {
+		ret = -ETIMEDOUT;
+		goto out;
+	}
 
 	msg->reply = FIELD_GET(AUX_STATUS, value);
 
@@ -3116,14 +3138,20 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 		if (msg->request & DP_AUX_I2C_READ) {
 			size_t count = FIELD_GET(AUX_BYTES_READ, value) - 1;
 
-			if (count != msg->size)
-				return -EBUSY;
+			if (count != msg->size) {
+				ret = -EBUSY;
+				goto out;
+			}
 
 			ret = dw_dp_aux_read_data(dp, msg->buffer, count);
 			if (ret < 0)
-				return ret;
+				goto out;
 		}
 	}
+
+out:
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 
 	return ret;
 }
@@ -3688,6 +3716,8 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 	int ret;
 	bool first_mst_stream;
 
+	pm_runtime_get_sync(dp->dev);
+
 	drm_mode_copy(m, &crtc_state->adjusted_mode);
 
 	first_mst_stream = dp->active_mst_links == 0;
@@ -3846,6 +3876,8 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 		dw_dp_reset(dp);
 	}
 
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 }
 
 static int dw_dp_mst_encoder_atomic_check(struct drm_encoder *encoder,
@@ -4302,6 +4334,8 @@ static void dw_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	struct drm_crtc_state *crtc_state = bridge->encoder->crtc->state;
 	struct drm_display_mode *m = &video->mode;
 
+	pm_runtime_get_sync(dp->dev);
+
 	drm_mode_copy(m, &crtc_state->adjusted_mode);
 
 	if (dp->split_mode || dp->dual_connector_split)
@@ -4319,6 +4353,9 @@ dw_dp_bridge_atomic_post_disable(struct drm_bridge *bridge,
 
 	if (dp->panel)
 		drm_panel_unprepare(dp->panel);
+
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 }
 
 static bool dw_dp_needs_link_retrain(struct dw_dp *dp)
@@ -5081,6 +5118,7 @@ static int dw_dp_audio_hw_params(struct device *dev, void *data,
 	clk_prepare_enable(audio->spdif_clk);
 	clk_prepare_enable(audio->i2s_clk);
 
+	pm_runtime_get_sync(dp->dev);
 	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1_N(audio->id),
 			   AUDIO_DATA_IN_EN | NUM_CHANNELS | AUDIO_DATA_WIDTH |
 			   AUDIO_INF_SELECT,
@@ -5088,6 +5126,8 @@ static int dw_dp_audio_hw_params(struct device *dev, void *data,
 			   FIELD_PREP(NUM_CHANNELS, num_channels) |
 			   FIELD_PREP(AUDIO_DATA_WIDTH, params->sample_width) |
 			   FIELD_PREP(AUDIO_INF_SELECT, audio_inf_select));
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 
 	/* Wait for inf switch */
 	usleep_range(20, 40);
@@ -5148,7 +5188,9 @@ static int dw_dp_audio_startup(struct device *dev, void *data)
 {
 	struct dw_dp *dp = dev_get_drvdata(dev);
 	struct dw_dp_audio *audio = (struct dw_dp_audio *)data;
+	int ret = 0;
 
+	pm_runtime_get_sync(dp->dev);
 	regmap_update_bits(dp->regmap, DPTX_SDP_VERTICAL_CTRL_N(audio->id),
 			   EN_AUDIO_STREAM_SDP | EN_AUDIO_TIMESTAMP_SDP,
 			   FIELD_PREP(EN_AUDIO_STREAM_SDP, 1) |
@@ -5156,8 +5198,11 @@ static int dw_dp_audio_startup(struct device *dev, void *data)
 	regmap_update_bits(dp->regmap, DPTX_SDP_HORIZONTAL_CTRL_N(audio->id),
 			   EN_AUDIO_STREAM_SDP,
 			   FIELD_PREP(EN_AUDIO_STREAM_SDP, 1));
+	ret =  dw_dp_audio_infoframe_send(dp, audio);
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 
-	return dw_dp_audio_infoframe_send(dp, audio);
+	return ret;
 }
 
 static void dw_dp_audio_shutdown(struct device *dev, void *data)
@@ -5165,8 +5210,11 @@ static void dw_dp_audio_shutdown(struct device *dev, void *data)
 	struct dw_dp *dp = dev_get_drvdata(dev);
 	struct dw_dp_audio *audio = (struct dw_dp_audio *)data;
 
+	pm_runtime_get_sync(dp->dev);
 	regmap_update_bits(dp->regmap, DPTX_AUD_CONFIG1_N(audio->id), AUDIO_DATA_IN_EN,
 			   FIELD_PREP(AUDIO_DATA_IN_EN, 0));
+	pm_runtime_mark_last_busy(dp->dev);
+	pm_runtime_put_autosuspend(dp->dev);
 
 	if (audio->format == AFMT_SPDIF)
 		clk_disable_unprepare(audio->spdif_clk);
@@ -5448,8 +5496,11 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 		dp->aux.transfer = dw_dp_sim_aux_transfer;
 	}
 
+	pm_runtime_use_autosuspend(dp->dev);
+	pm_runtime_set_autosuspend_delay(dp->dev, 500);
 	pm_runtime_enable(dp->dev);
-	pm_runtime_get_sync(dp->dev);
+	if (!dp->dynamic_pd_ctrl)
+		pm_runtime_get_sync(dp->dev);
 
 	enable_irq(dp->irq);
 	if (dp->hpd_gpio)
@@ -5472,7 +5523,9 @@ static void dw_dp_unbind(struct device *dev, struct device *master, void *data)
 		disable_irq(dp->hpd_irq);
 	disable_irq(dp->irq);
 
-	pm_runtime_put(dp->dev);
+	if (!dp->dynamic_pd_ctrl)
+		pm_runtime_put(dp->dev);
+	pm_runtime_dont_use_autosuspend(dp->dev);
 	pm_runtime_disable(dp->dev);
 
 	drm_encoder_cleanup(&dp->encoder);
@@ -5717,6 +5770,9 @@ static int dw_dp_probe(struct platform_device *pdev)
 	ret = dw_dp_get_audio_clk(dp);
 	if (ret)
 		return ret;
+
+	if (dp->hpd_gpio || dp->force_hpd)
+		dp->dynamic_pd_ctrl = true;
 
 	dp->irq = platform_get_irq(pdev, 0);
 	if (dp->irq < 0)
