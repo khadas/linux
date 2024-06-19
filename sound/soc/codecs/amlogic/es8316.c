@@ -1081,7 +1081,6 @@ static void hp_det_work(struct work_struct *work)
 	struct es8316_adc_hp_det *hp;
 	int value;
 	static int num = 0;
-	
 	hp = container_of(work, struct es8316_adc_hp_det, work.work);
 	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
 		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
@@ -1090,13 +1089,23 @@ static void hp_det_work(struct work_struct *work)
 				num = 0;
 			}
 			es8316_use->hp_inserted = false;
+			//printk("%s %d\n",__func__,__LINE__);
+        }else if((value >= 360 - hp->tolerance) && (value <= 360 + hp->tolerance)) {//kuoban
+			if(1 == num){
+				hdmitx_ext_set_audio_output(1);
+				num = 0;
+			}
+			es8316_use->hp_inserted = false;
+			//printk("%s %d\n",__func__,__LINE__);
         }else{
 			if(0 == num){
 				hdmitx_ext_set_audio_output(0);//disable hdmi audio output
 				num = 1;
 			}
 			es8316_use->hp_inserted = true;
+			//printk("%s %d\n",__func__,__LINE__);
 		}
+		//printk("hlm value===%d\n",value);
 	}
     queue_delayed_work(system_wq, &hp->work,msecs_to_jiffies(500));
 }
@@ -1158,6 +1167,25 @@ static void es8316_remove(struct snd_soc_component *component)
 	es8316_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
+static const struct regmap_range es8316_volatile_ranges[] = {
+	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
+};
+
+static const struct regmap_access_table es8316_volatile_table = {
+	.yes_ranges	= es8316_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
+};
+
+const struct regmap_config es8316_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.max_register	= ES8316_TEST3_REG53,
+	.cache_type	= REGCACHE_RBTREE,
+	.reg_defaults = es8316_reg_defaults,
+	.volatile_table	= &es8316_volatile_table,
+	.num_reg_defaults = ARRAY_SIZE(es8316_reg_defaults),
+};
+
 static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.probe =	es8316_probe,
 	.remove =	es8316_remove,
@@ -1170,23 +1198,6 @@ static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.num_dapm_widgets = ARRAY_SIZE(es8316_dapm_widgets),
 	.dapm_routes = es8316_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(es8316_dapm_routes),
-};
-
-static const struct regmap_range es8316_volatile_ranges[] = {
-	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
-};
-
-static const struct regmap_access_table es8316_volatile_table = {
-	.yes_ranges	= es8316_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
-};
-
-static const struct regmap_config es8316_regmap = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = 0x53,
-	.volatile_table	= &es8316_volatile_table,
-	.cache_type = REGCACHE_RBTREE,
 };
 
 static int es8316_adc_hp_det_get_devtree_pdata(struct device *dev,
@@ -1298,7 +1309,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	struct es8316_priv *es8316;
 	struct es8316_adc_hp_det *hp;
 	int ret = -1;
-	int error = -1;
+	//int error = -1;
 	int hpret = -1;
 	//int hp_irq;
 	//enum of_gpio_flags flags;
@@ -1316,16 +1327,16 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	es8316->pwr_count = 0;
 	es8316->hp_inserted = false;
 	es8316->muted = true;
-	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap);
+	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap_config);
 	if (IS_ERR(es8316->regmap)) {
 		ret = PTR_ERR(es8316->regmap);
 		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
 		return ret;
 	}
 
-	error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
-	if (error)
-		return error;
+	//error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
+    //if (error)
+    //	return error;
 	i2c_set_clientdata(i2c, es8316);
 	
 	/*es8316->spk_mute_gpio = of_get_named_gpio_flags(np,
@@ -1395,7 +1406,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_component(&i2c->dev,
 				     &soc_component_dev_es8316,
 				     &es8316_dai, 1);
-	printk("es8316_i2c_probe %d\n",__LINE__);
+
 	hpret = es8316_adc_hp_det_get_devtree_pdata(&i2c->dev,hp);
 	if(hpret == 0) {
 	INIT_DELAYED_WORK(&hp->work, hp_det_work);
@@ -1404,6 +1415,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	}
 	create_es8316_attrs();
 	es8316_use = es8316;
+	printk("es8316_i2c_probe\n");
 	return ret;
 }
 
