@@ -581,9 +581,19 @@ static int udphy_dplane_select(struct rockchip_udphy *udphy)
 	}
 
 	regmap_write(udphy->vogrf, cfg->vogrfcfg[udphy->id].dp_lane_reg,
-		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
+		     (DP_LANE_SEL_ALL << 16) | value);
+
+	return 0;
+}
+
+static int udphy_dpaux_select(struct rockchip_udphy *udphy)
+{
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+
+	regmap_write(udphy->vogrf, cfg->vogrfcfg[udphy->id].dp_lane_reg,
+		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL) << 16) |
 		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
-		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
+		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel));
 
 	return 0;
 }
@@ -1118,8 +1128,6 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 	if (ret)
 		goto unlock;
 
-	ret = udphy_dplane_select(udphy);
-
 unlock:
 	mutex_unlock(&udphy->mutex);
 	/*
@@ -1240,6 +1248,8 @@ static int rockchip_dp_phy_configure(struct phy *phy,
 	if (ret)
 		return ret;
 
+	udphy_dplane_select(udphy);
+
 	if (dp->set_rate) {
 		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
 				   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
@@ -1306,10 +1316,18 @@ static int rockchip_dp_phy_configure(struct phy *phy,
 	return 0;
 }
 
+static int rockchip_dp_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+{
+	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+
+	return udphy_dpaux_select(udphy);
+}
+
 static const struct phy_ops rockchip_dp_phy_ops = {
 	.power_on	= rockchip_dp_phy_power_on,
 	.power_off	= rockchip_dp_phy_power_off,
 	.configure	= rockchip_dp_phy_configure,
+	.set_mode	= rockchip_dp_phy_set_mode,
 	.owner		= THIS_MODULE,
 };
 
