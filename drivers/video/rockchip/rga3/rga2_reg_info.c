@@ -251,6 +251,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	u8 src0_cbcr_swp = 0;
 	u8 pixel_width = 1;
+	u8 plane_width = 0;
 	u32 stride = 0;
 	u32 uv_stride = 0;
 	u32 mask_stride = 0;
@@ -507,44 +508,52 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_422_SP:
 		src0_format = 0x8;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 1;
 		break;
 	case RGA_FORMAT_YCbCr_422_P:
 		src0_format = 0x9;
+		plane_width = 1;
 		xdiv = 2;
 		ydiv = 1;
 		break;
 	case RGA_FORMAT_YCbCr_420_SP:
 		src0_format = 0xa;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 2;
 		break;
 	case RGA_FORMAT_YCbCr_420_P:
 		src0_format = 0xb;
+		plane_width = 1;
 		xdiv = 2;
 		ydiv = 2;
 		break;
 	case RGA_FORMAT_YCrCb_422_SP:
 		src0_format = 0x8;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
 		break;
 	case RGA_FORMAT_YCrCb_422_P:
 		src0_format = 0x9;
+		plane_width = 1;
 		xdiv = 2;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
 		break;
 	case RGA_FORMAT_YCrCb_420_SP:
 		src0_format = 0xa;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
 		break;
 	case RGA_FORMAT_YCrCb_420_P:
 		src0_format = 0xb;
+		plane_width = 1;
 		xdiv = 2;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
@@ -552,26 +561,30 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_420_SP_10B:
 		src0_format = 0xa;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 2;
 		yuv10 = 1;
 		break;
 	case RGA_FORMAT_YCrCb_420_SP_10B:
 		src0_format = 0xa;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
 		yuv10 = 1;
 		break;
 	case RGA_FORMAT_YCbCr_422_SP_10B:
 		src0_format = 0x8;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 1;
 		yuv10 = 1;
 		break;
 	case RGA_FORMAT_YCrCb_422_SP_10B:
 		src0_format = 0x8;
-		xdiv = 1;
+		plane_width = 2;
+		xdiv = 2;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
 		yuv10 = 1;
@@ -587,11 +600,13 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_444_SP:
 		src0_format = 0x3;
+		plane_width = 2;
 		xdiv = 1;
 		ydiv = 1;
 		break;
 	case RGA_FORMAT_YCrCb_444_SP:
 		src0_format = 0x3;
+		plane_width = 2;
 		xdiv = 1;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
@@ -601,10 +616,11 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	switch (msg->src.rd_mode) {
 	case RGA_RASTER_MODE:
 		stride = ALIGN(msg->src.vir_w * pixel_width, 4);
-		uv_stride = ALIGN(msg->src.vir_w / xdiv, 4);
+		uv_stride = ALIGN(msg->src.vir_w / xdiv * plane_width, 4);
 
 		yrgb_offset = msg->src.y_offset * stride + msg->src.x_offset * pixel_width;
-		uv_offset = (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv);
+		uv_offset = (msg->src.y_offset / ydiv) * uv_stride +
+			    (msg->src.x_offset / xdiv * plane_width);
 		v_offset = uv_offset;
 
 		break;
@@ -854,6 +870,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	u32 reg = 0;
 	u8 spw, dpw;
+	u8 plane_width = 0;
 	u8 bbp_shift = 0;
 	u32 s_stride = 0, d_stride = 0;
 	u32 x_mirr, y_mirr, rot_90_flag;
@@ -1110,45 +1127,53 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_422_SP:
 		dst_format = 0x8;
-		x_div = 1;
+		plane_width = 2;
+		x_div = 2;
 		y_div = 1;
 		break;
 	case RGA_FORMAT_YCbCr_422_P:
 		dst_format = 0x9;
+		plane_width = 1;
 		x_div = 2;
 		y_div = 1;
 		break;
 	case RGA_FORMAT_YCbCr_420_SP:
 		dst_format = 0xa;
-		x_div = 1;
+		plane_width = 2;
+		x_div = 2;
 		y_div = 2;
 		break;
 	case RGA_FORMAT_YCbCr_420_P:
 		dst_format = 0xb;
 		dst_cbcr_swp = 1;
+		plane_width = 1;
 		x_div = 2;
 		y_div = 2;
 		break;
 	case RGA_FORMAT_YCrCb_422_SP:
 		dst_format = 0x8;
 		dst_cbcr_swp = 1;
-		x_div = 1;
+		plane_width = 2;
+		x_div = 2;
 		y_div = 1;
 		break;
 	case RGA_FORMAT_YCrCb_422_P:
 		dst_format = 0x9;
 		dst_cbcr_swp = 1;
+		plane_width = 1;
 		x_div = 2;
 		y_div = 1;
 		break;
 	case RGA_FORMAT_YCrCb_420_SP:
 		dst_format = 0xa;
 		dst_cbcr_swp = 1;
-		x_div = 1;
+		plane_width = 2;
+		x_div = 2;
 		y_div = 2;
 		break;
 	case RGA_FORMAT_YCrCb_420_P:
 		dst_format = 0xb;
+		plane_width = 1;
 		x_div = 2;
 		y_div = 2;
 		break;
@@ -1215,11 +1240,13 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	case RGA_FORMAT_YCbCr_444_SP:
 		dst_format = 0x3;
+		plane_width = 2;
 		x_div = 1;
 		y_div = 1;
 		break;
 	case RGA_FORMAT_YCrCb_444_SP:
 		dst_format = 0x3;
+		plane_width = 2;
 		x_div = 1;
 		y_div = 1;
 		dst_cbcr_swp = 1;
@@ -1348,10 +1375,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		/* Y4 output will HALF */
 		if (dst_fmt_y4_en)
 			d_stride = ALIGN(d_stride, 2) >> 1;
-		d_uv_stride = ALIGN(d_stride / x_div, 4);
+		d_uv_stride = ALIGN(d_stride / x_div * plane_width, 4);
 
 		yrgb_offset = msg->dst.y_offset * d_stride + msg->dst.x_offset * dpw;
-		uv_offset = (msg->dst.y_offset / y_div) * d_uv_stride + (msg->dst.x_offset / x_div);
+		uv_offset = (msg->dst.y_offset / y_div) * d_uv_stride +
+			    (msg->dst.x_offset / x_div * plane_width);
 		v_offset = uv_offset;
 
 		yrgb_addr = (u32)msg->dst.yrgb_addr + yrgb_offset;
@@ -1388,11 +1416,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		u_ld_addr = u_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
 		v_ld_addr = v_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
 
-		u_rt_addr = u_addr + (msg->dst.act_w / x_div) - 1;
-		v_rt_addr = v_addr + (msg->dst.act_w / x_div) - 1;
+		u_rt_addr = u_addr + (msg->dst.act_w / x_div * plane_width) - 1;
+		v_rt_addr = v_addr + (msg->dst.act_w / x_div * plane_width) - 1;
 
-		u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div) - 1;
-		v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div) - 1;
+		u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div * plane_width) - 1;
+		v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div * plane_width) - 1;
 
 		break;
 
