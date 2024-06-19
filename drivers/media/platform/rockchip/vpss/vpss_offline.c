@@ -268,7 +268,11 @@ static void poly_phase_scale(struct rkvpss_frame_cfg *frame_cfg,
 	if (in_w == out_w && in_h == out_w) {
 		rkvpss_hw_write(hw, RKVPSS_ZME_Y_SCL_CTRL, 0);
 		rkvpss_hw_write(hw, RKVPSS_ZME_UV_SCL_CTRL, 0);
+		rkvpss_hw_clear_bits(hw, RKVPSS_VPSS_CLK_GATE, RKVPSS_SCL0_CKG_DIS);
 		goto end;
+	} else {
+		rkvpss_hw_set_bits(hw, RKVPSS_VPSS_CLK_GATE, RKVPSS_SCL0_CKG_DIS,
+				   RKVPSS_SCL0_CKG_DIS);
 	}
 
 	/* TODO diff for input and output format */
@@ -422,22 +426,31 @@ static void bilinear_scale(struct rkvpss_frame_cfg *frame_cfg,
 	struct rkvpss_hw_dev *hw = ofl->hw;
 	u32 in_w = cfg->crop_width, in_h = cfg->crop_height;
 	u32 out_w = cfg->scl_width, out_h = cfg->scl_height;
-	u32 reg_base, in_div, out_div, val, ctrl = 0;
+	u32 reg_base, in_div, out_div, val, ctrl = 0, clk_mask = 0;
 	bool yuv420_in = false, yuv422_to_420 = false;
 
 	switch (idx) {
 	case RKVPSS_OUTPUT_CH1:
 		reg_base = RKVPSS_SCALE1_BASE;
+		clk_mask = RKVPSS_SCL1_CKG_DIS;
 		break;
 	case RKVPSS_OUTPUT_CH2:
 		reg_base = RKVPSS_SCALE2_BASE;
+		clk_mask = RKVPSS_SCL2_CKG_DIS;
 		break;
 	case RKVPSS_OUTPUT_CH3:
 		reg_base = RKVPSS_SCALE3_BASE;
+		clk_mask = RKVPSS_SCL3_CKG_DIS;
 		break;
 	default:
 		return;
 	}
+
+	/*config scl clk gate*/
+	if (in_w == out_w && in_h == out_h)
+		rkvpss_hw_clear_bits(hw, RKVPSS_VPSS_CLK_GATE, clk_mask);
+	else
+		rkvpss_hw_set_bits(hw, RKVPSS_VPSS_CLK_GATE, clk_mask, clk_mask);
 
 	if (!unite) {
 		if (in_w == out_w && in_h == out_w)
