@@ -237,6 +237,12 @@ static const struct snd_kcontrol_new es8323_right_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Right Bypass Switch", ES8323_DACCONTROL20, 6, 1, 0),
 };
 
+static const struct snd_kcontrol_new es8323_out1_switch =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
+static const struct snd_kcontrol_new es8323_out2_switch =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
+
 static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINPUT1"),
 	SND_SOC_DAPM_INPUT("LINPUT2"),
@@ -286,6 +292,8 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("LAMP", ES8323_ADCCONTROL1, 4, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("RAMP", ES8323_ADCCONTROL1, 0, 0, NULL, 0),
 
+	SND_SOC_DAPM_SWITCH("OUT1", SND_SOC_NOPM, 0, 0, &es8323_out1_switch),
+	SND_SOC_DAPM_SWITCH("OUT2", SND_SOC_NOPM, 0, 0, &es8323_out2_switch),
 	SND_SOC_DAPM_OUTPUT("LOUT1"),
 	SND_SOC_DAPM_OUTPUT("ROUT1"),
 	SND_SOC_DAPM_OUTPUT("LOUT2"),
@@ -341,14 +349,20 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Right Mixer", "Right Bypass Switch", "Right Line Mux"},
 
 	{"Left Out 1", NULL, "Left Mixer"},
-	{"LOUT1", NULL, "Left Out 1"},
+	{"OUT1", "Switch", "Left Out 1"},
+	{"LOUT1", NULL, "OUT1"},
+
 	{"Right Out 1", NULL, "Right Mixer"},
-	{"ROUT1", NULL, "Right Out 1"},
+	{"OUT1", "Switch", "Right Out 1"},
+	{"ROUT1", NULL, "OUT1"},
 
 	{"Left Out 2", NULL, "Left Mixer"},
-	{"LOUT2", NULL, "Left Out 2"},
+	{"OUT2", "Switch", "Left Out 2"},
+	{"LOUT2", NULL, "OUT2"},
+
 	{"Right Out 2", NULL, "Right Mixer"},
-	{"ROUT2", NULL, "Right Out 2"},
+	{"OUT2", "Switch", "Right Out 2"},
+	{"ROUT2", NULL, "OUT2"},
 };
 
 struct _coeff_div {
