@@ -83,7 +83,9 @@ struct mbox_controller {
 				      const struct of_phandle_args *sp);
 	/* Internal to API */
 	struct hrtimer poll_hrt;
+#ifdef CONFIG_NO_GKI
 	spinlock_t poll_hrt_lock;
+#endif
 	struct list_head node;
 };
 

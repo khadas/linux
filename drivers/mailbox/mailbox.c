@@ -84,9 +84,13 @@ exit:
 
 	if (!err && (chan->txdone_method & TXDONE_BY_POLL)) {
 		/* kick start the timer immediately to avoid delays */
+#if IS_REACHABLE(CONFIG_NO_GKI)
 		spin_lock_irqsave(&chan->mbox->poll_hrt_lock, flags);
+#endif
 		hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
+#if IS_REACHABLE(CONFIG_NO_GKI)
 		spin_unlock_irqrestore(&chan->mbox->poll_hrt_lock, flags);
+#endif
 	}
 }
 
@@ -120,7 +124,9 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 		container_of(hrtimer, struct mbox_controller, poll_hrt);
 	bool txdone, resched = false;
 	int i;
+#if IS_REACHABLE(CONFIG_NO_GKI)
 	unsigned long flags;
+#endif
 
 	for (i = 0; i < mbox->num_chans; i++) {
 		struct mbox_chan *chan = &mbox->chans[i];
@@ -135,10 +141,14 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 	}
 
 	if (resched) {
+#if IS_REACHABLE(CONFIG_NO_GKI)
 		spin_lock_irqsave(&mbox->poll_hrt_lock, flags);
+#endif
 		if (!hrtimer_is_queued(hrtimer))
 			hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
+#if IS_REACHABLE(CONFIG_NO_GKI)
 		spin_unlock_irqrestore(&mbox->poll_hrt_lock, flags);
+#endif
 
 		return HRTIMER_RESTART;
 	}
@@ -506,7 +516,9 @@ int mbox_controller_register(struct mbox_controller *mbox)
 		hrtimer_init(&mbox->poll_hrt, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		mbox->poll_hrt.function = txdone_hrtimer;
+#if IS_REACHABLE(CONFIG_NO_GKI)
 		spin_lock_init(&mbox->poll_hrt_lock);
+#endif
 	}
 
 	for (i = 0; i < mbox->num_chans; i++) {
