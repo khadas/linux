@@ -352,7 +352,7 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child_node;
-	struct device_node *slave_np, *dsmc_slave_np;
+	struct device_node *slave_np, *dsmc_slave_np, *psram_np, *lb_slave_np;
 	struct dsmc_ctrl_config *cfg = &dsmc->cfg;
 	struct dsmc_map *region_map;
 	char slave_name[16];
@@ -371,10 +371,10 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 		goto release_slave_node;
 	}
 
-	ret = of_property_read_u64_array(slave_np, "map,ranges",
+	ret = of_property_read_u64_array(slave_np, "rockchip,ranges",
 					 mem_ranges, ARRAY_SIZE(mem_ranges));
 	if (ret) {
-		dev_err(dev, "Failed to read map,ranges!\n");
+		dev_err(dev, "Failed to read rockchip,ranges!\n");
 		ret = -ENODEV;
 		goto release_slave_node;
 	}
@@ -390,6 +390,12 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 		goto release_dsmc_slave_node;
 	}
 
+	psram_np = of_get_child_by_name(dsmc_slave_np, "psram");
+	if (!psram_np) {
+		dev_err(dev, "Failed to get psram node\n");
+		ret = -ENODEV;
+		goto release_dsmc_slave_node;
+	}
 	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
 		region_map = &dsmc->cs_map[cs].region_map[0];
 		region_map->phys = mem_ranges[0] + cs * mem_ranges[1];
@@ -398,7 +404,7 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 		cfg->cs_cfg[cs].dll_num[1] = dqs_dll[2 * cs + 1];
 
 		snprintf(slave_name, sizeof(slave_name), "psram%d", cs);
-		child_node = of_get_child_by_name(dsmc_slave_np, slave_name);
+		child_node = of_get_child_by_name(psram_np, slave_name);
 		if (child_node) {
 			if (of_device_is_available(child_node)) {
 				cfg->cs_cfg[cs].device_type = OPI_XCCELA_PSRAM;
@@ -408,8 +414,20 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 			}
 			of_node_put(child_node);
 		}
-		snprintf(slave_name, sizeof(slave_name), "lb_slave%d", cs);
-		child_node = of_get_child_by_name(dsmc_slave_np, slave_name);
+	}
+
+	if (psram)
+		goto release_psram_node;
+
+	lb_slave_np = of_get_child_by_name(dsmc_slave_np, "lb-slave");
+	if (!lb_slave_np) {
+		dev_err(dev, "Failed to get lb_slave node\n");
+		ret = -ENODEV;
+		goto release_psram_node;
+	}
+	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+		snprintf(slave_name, sizeof(slave_name), "lb-slave%d", cs);
+		child_node = of_get_child_by_name(lb_slave_np, slave_name);
 		if (child_node) {
 			if (of_device_is_available(child_node)) {
 				cfg->cs_cfg[cs].device_type = DSMC_LB_DEVICE;
@@ -418,25 +436,30 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 							  &cfg->cs_cfg[cs])) {
 					ret = -ENODEV;
 					of_node_put(child_node);
-					goto release_dsmc_slave_node;
+					goto release_lb_node;
 				}
 				dsmc_lb_memory_get(&cfg->cs_cfg[cs], &dsmc->cs_map[cs]);
 			}
 			of_node_put(child_node);
 		}
 	}
+
 	if (psram && lb_slave) {
 		dev_err(dev, "Can't have both psram and lb_slave\n");
 		ret = -ENODEV;
-		goto release_dsmc_slave_node;
+		goto release_lb_node;
 	} else if (!(psram || lb_slave)) {
 		dev_err(dev, "psram or lb_slave need open in dts\n");
 		ret = -ENODEV;
-		goto release_dsmc_slave_node;
+		goto release_lb_node;
 	}
 
 	ret = dsmc_reg_remap(dev, cfg, dsmc, mem_ranges, dqs_dll);
 
+release_lb_node:
+	of_node_put(lb_slave_np);
+release_psram_node:
+	of_node_put(psram_np);
 release_dsmc_slave_node:
 	of_node_put(dsmc_slave_np);
 release_slave_node:
