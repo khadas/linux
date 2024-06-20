@@ -7408,7 +7408,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
 				 ret);
-			goto destroy_buf;
+			goto disable_tasklet;
 		}
 
 		/*
@@ -7421,7 +7421,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		    rkmodule_stream_seq == RKMODULE_START_STREAM_FRONT) {
 			ret = dev->pipe.set_stream(&dev->pipe, true);
 			if (ret < 0)
-				goto destroy_buf;
+				goto disable_tasklet;
 		}
 		ret = v4l2_subdev_call(terminal_sensor->sd,
 				       core, ioctl,
@@ -7445,7 +7445,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		ret = rkcif_stream_start(stream, mode);
 	}
 	if (ret < 0)
-		goto destroy_buf;
+		goto disable_tasklet;
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE &&
 	    dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP &&
 	    stream->id == 0) {
@@ -7507,9 +7507,10 @@ stop_stream:
 pipe_stream_off:
 	dev->pipe.set_stream(&dev->pipe, false);
 
-destroy_buf:
+disable_tasklet:
 	if (mode == RKCIF_STREAM_MODE_CAPTURE)
 		tasklet_disable(&stream->vb_done_tasklet);
+destroy_buf:
 	if (stream->curr_buf)
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
 	if (stream->next_buf &&
