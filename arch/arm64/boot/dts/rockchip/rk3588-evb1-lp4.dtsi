@@ -256,6 +256,7 @@
 
 &dp0 {
 	status = "okay";
+	svid = <0xff01>;
 };
 
 &dp0_in_vp2 {
@@ -436,6 +437,7 @@
 				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
 			source-pdos =
 				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			mode-switch = <&dp0>;
 
 			altmodes {
 				#address-cells = <1>;
