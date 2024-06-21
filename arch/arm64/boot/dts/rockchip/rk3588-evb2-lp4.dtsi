@@ -37,6 +37,8 @@
 		poll-interval = <100>;
 		spk-con-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
 		hp-con-gpio = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
 		rockchip,cpu = <&i2s0_8ch>;
