@@ -5416,8 +5416,8 @@ int rk_iomux_set(int bank, int pin, int mux)
 	mutex_lock(&iomux_lock);
 	for (i = 0; i < info->ngroups; i++) {
 		grp = &info->groups[i];
-		for (j = 0; j < grp->npins; i++) {
-			if (grp->pins[i] == (gpio->pin_base + pin)) {
+		for (j = 0; j < grp->npins; j++) {
+			if (grp->pins[j] == (gpio->pin_base + pin)) {
 				cfg = grp->data;
 				break;
 			}
