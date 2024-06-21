@@ -1125,6 +1125,7 @@ static const struct dev_pm_ops rockchip_sfc_pm_ops = {
 };
 
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
+	{ .compatible = "rockchip,fspi"},
 	{ .compatible = "rockchip,sfc"},
 	{ /* sentinel */ }
 };
