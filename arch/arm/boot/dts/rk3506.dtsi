@@ -40,6 +40,9 @@
 
 	clocks {
 		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
 
 		clk_rc: clk-rc {
 			compatible = "fixed-clock";
@@ -60,6 +63,70 @@
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 			clock-output-names = "xin32k";
+		};
+
+		mclkin_sai0: mclkin-sai0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "sai0_mclk_in";
+		};
+
+		mclkin_sai1: mclkin-sai1 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "sai1_mclk_in";
+		};
+
+		mclkin_sai2: mclkin-sai2 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "sai2_mclk_in";
+		};
+
+		mclkin_sai3: mclkin-sai3 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "sai3_mclk_in";
+		};
+
+		mclkout_sai0: mclkout-sai0@ff910004 {
+			compatible = "rockchip,clk-out";
+			reg = <0xff910004 0x4>;
+			clocks = <&cru MCLK_OUT_SAI0>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai0_to_io";
+			rockchip,bit-shift = <8>;
+		};
+
+		mclkout_sai1: mclkout-sai1@ff910004 {
+			compatible = "rockchip,clk-out";
+			reg = <0xff910004 0x4>;
+			clocks = <&cru MCLK_OUT_SAI1>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai1_to_io";
+			rockchip,bit-shift = <9>;
+		};
+
+		mclkout_sai2: mclkout-sai2@ff288004 {
+			compatible = "rockchip,clk-out";
+			reg = <0xff288004 0x4>;
+			clocks = <&cru MCLK_OUT_SAI2>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai2_to_io";
+			rockchip,bit-shift = <2>;
+		};
+
+		mclkout_sai3: mclkout-sai3@ff288004 {
+			compatible = "rockchip,clk-out";
+			reg = <0xff288004 0x4>;
+			clocks = <&cru MCLK_OUT_SAI3>;
+			#clock-cells = <0>;
+			clock-output-names = "mclk_sai3_to_io";
+			rockchip,bit-shift = <3>;
 		};
 	};
 
