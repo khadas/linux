@@ -39,6 +39,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
+#include <linux/usb/typec_dp.h>
+#include <linux/usb/typec_mux.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -449,6 +451,7 @@ struct dw_dp {
 	struct work_struct hpd_work;
 	struct gpio_desc *hpd_gpio;
 	bool force_hpd;
+	bool usbdp_hpd;
 	bool dynamic_pd_ctrl;
 	struct dw_dp_hotplug hotplug;
 	struct mutex irq_lock;
@@ -501,6 +504,7 @@ struct dw_dp {
 	struct rockchip_dp_aux_client *aux_client;
 
 	struct drm_info_list *debugfs_files;
+	struct typec_mux_dev *mux;
 };
 
 struct dw_dp_state {
@@ -1134,6 +1138,9 @@ static bool dw_dp_detect_no_power(struct dw_dp *dp)
 
 	if (dp->hpd_gpio)
 		return gpiod_get_value_cansleep(dp->hpd_gpio);
+
+	if (dp->usbdp_hpd)
+		return dp->hotplug.status;
 
 	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, value,
 				       FIELD_GET(HPD_STATE, value) != SOURCE_STATE_UNPLUG,
@@ -2857,7 +2864,7 @@ static void dw_dp_hpd_init(struct dw_dp *dp)
 {
 	dp->hotplug.status = dw_dp_detect_no_power(dp);
 
-	if (dp->hpd_gpio || dp->force_hpd) {
+	if (dp->hpd_gpio || dp->force_hpd || dp->usbdp_hpd) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
 				   FIELD_PREP(FORCE_HPD, 1));
 		return;
@@ -5501,6 +5508,8 @@ static int dw_dp_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_enable(dp->dev);
 	if (!dp->dynamic_pd_ctrl)
 		pm_runtime_get_sync(dp->dev);
+	else
+		phy_set_mode_ext(dp->phy, PHY_MODE_DP, 1);
 
 	enable_irq(dp->irq);
 	if (dp->hpd_gpio)
@@ -5650,6 +5659,65 @@ static int dw_dp_get_port_node(struct dw_dp *dp)
 	return 0;
 }
 
+static int dw_dp_typec_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
+{
+	struct dw_dp *dp = typec_mux_get_drvdata(mux);
+
+	mutex_lock(&dp->irq_lock);
+	if (state->alt && state->alt->svid == USB_TYPEC_DP_SID) {
+		struct typec_displayport_data *data = state->data;
+
+		if (!data) {
+			dev_dbg(dp->dev, "hotunplug from the usbdp\n");
+			dp->hotplug.long_hpd = true;
+			dp->hotplug.status = false;
+			schedule_work(&dp->hpd_work);
+		} else if (data->status & DP_STATUS_IRQ_HPD) {
+			dev_dbg(dp->dev, "IRQ from the usbdp\n");
+			dp->hotplug.long_hpd = false;
+			dp->hotplug.status = true;
+			schedule_work(&dp->hpd_work);
+		} else if (data->status & DP_STATUS_HPD_STATE) {
+			dev_dbg(dp->dev, "hotplug from the usbdp\n");
+			dp->hotplug.long_hpd = true;
+			dp->hotplug.status = true;
+			schedule_work(&dp->hpd_work);
+		} else {
+			dev_dbg(dp->dev, "hotunplug from the usbdp\n");
+			dp->hotplug.long_hpd = true;
+			dp->hotplug.status = false;
+			schedule_work(&dp->hpd_work);
+		}
+	}
+	mutex_unlock(&dp->irq_lock);
+
+	return 0;
+}
+
+static int dw_dp_setup_typec_mux(struct dw_dp *dp)
+{
+	struct typec_mux_desc mux_desc = {};
+
+	mux_desc.drvdata = dp;
+	mux_desc.fwnode = dev_fwnode(dp->dev);
+	mux_desc.set = dw_dp_typec_mux_set;
+
+	dp->mux = typec_mux_register(dp->dev, &mux_desc);
+	if (IS_ERR(dp->mux)) {
+		dev_err(dp->dev, "Error register typec mux: %ld\n", PTR_ERR(dp->mux));
+		return PTR_ERR(dp->mux);
+	}
+
+	return 0;
+}
+
+static void dw_dp_typec_mux_unregister(void *data)
+{
+	struct dw_dp *dp = data;
+
+	typec_mux_unregister(dp->mux);
+}
+
 static int dw_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -5771,7 +5839,18 @@ static int dw_dp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (dp->hpd_gpio || dp->force_hpd)
+	if (device_property_present(dev, "svid")) {
+		ret = dw_dp_setup_typec_mux(dp);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, dw_dp_typec_mux_unregister, dp);
+		if (ret)
+			return ret;
+		dp->usbdp_hpd = true;
+	}
+
+	if (dp->hpd_gpio || dp->force_hpd || dp->usbdp_hpd)
 		dp->dynamic_pd_ctrl = true;
 
 	dp->irq = platform_get_irq(pdev, 0);
