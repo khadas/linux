@@ -1032,6 +1032,17 @@
 		status = "disabled";
 	};
 
+	audio_codec: audio-codec@ff4f8000 {
+		compatible = "rockchip,rk3506-codec";
+		reg = <0xff4f8000 0x1000>;
+		#sound-dai-cells = <0>;
+		clocks = <&cru PCLK_AUDIO_ADC>, <&cru MCLK_AUDIO_ADC>;
+		clock-names = "pclk", "mclk";
+		resets = <&cru SRST_M_AUDIO_ADC>;
+		reset-names = "rst";
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@ff581000 {
 		compatible = "arm,gic-400";
 		reg = <0xff581000 0x1000>,
