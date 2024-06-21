@@ -70,6 +70,8 @@ struct multicodecs_data {
 	u32 num_keys;
 	u32 last_key;
 	u32 keyup_voltage;
+	u32 pre_poweron_delayms;
+	u32 post_powerdown_delayms;
 	const struct adc_keys_button *map;
 	struct input_dev *input;
 	struct input_dev_poller *poller;
@@ -274,10 +276,14 @@ static int mc_hp_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		if (mc_data->pre_poweron_delayms)
+			msleep(mc_data->pre_poweron_delayms);
 		gpiod_set_value_cansleep(mc_data->hp_ctl_gpio, 1);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		gpiod_set_value_cansleep(mc_data->hp_ctl_gpio, 0);
+		if (mc_data->post_powerdown_delayms)
+			msleep(mc_data->post_powerdown_delayms);
 		break;
 	default:
 		return 0;
@@ -295,10 +301,14 @@ static int mc_spk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		if (mc_data->pre_poweron_delayms)
+			msleep(mc_data->pre_poweron_delayms);
 		gpiod_set_value_cansleep(mc_data->spk_ctl_gpio, 1);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		gpiod_set_value_cansleep(mc_data->spk_ctl_gpio, 0);
+		if (mc_data->post_powerdown_delayms)
+			msleep(mc_data->post_powerdown_delayms);
 		break;
 	default:
 		return 0;
@@ -699,6 +709,10 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->mclk_fs = DEFAULT_MCLK_FS;
 	if (!of_property_read_u32(np, "rockchip,mclk-fs", &val))
 		mc_data->mclk_fs = val;
+	if (!of_property_read_u32(np, "rockchip,pre-power-on-delay-ms", &val))
+		mc_data->pre_poweron_delayms = val;
+	if (!of_property_read_u32(np, "rockchip,post-power-down-delay-ms", &val))
+		mc_data->post_powerdown_delayms = val;
 
 	mc_data->codec_hp_det =
 		of_property_read_bool(np, "rockchip,codec-hp-det");
