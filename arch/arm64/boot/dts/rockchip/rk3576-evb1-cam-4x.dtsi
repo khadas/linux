@@ -140,7 +140,7 @@
 		pinctrl-0 = <&cam_clk1m0_clk1>;
 		avdd-supply = <&vcc_mipicsi0>;
 		pwdn-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT1980-PX1";
 		rockchip,camera-module-lens-name = "SHG102";
@@ -162,7 +162,7 @@
 		pinctrl-names = "default";
 		avdd-supply = <&vcc_mipicsi0>;
 		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;/* hw not connect as default */
-		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT1980-PX1";
 		rockchip,camera-module-lens-name = "SHG102";
