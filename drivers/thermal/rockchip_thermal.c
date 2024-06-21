@@ -271,6 +271,8 @@ struct rockchip_thermal_data {
 #define TSADCV6_AUTO_PERIOD_HT_TIME		5000 /* 2.5ms */
 #define TSADCV7_AUTO_PERIOD_TIME		3000 /* 2.5ms */
 #define TSADCV7_AUTO_PERIOD_HT_TIME		3000 /* 2.5ms */
+#define TSADCV9_AUTO_PERIOD_TIME		250000 /* 250ms */
+#define TSADCV9_AUTO_PERIOD_HT_TIME		50000 /* 50ms */
 #define TSADCV12_AUTO_PERIOD_TIME		3000 /* 2.5ms */
 #define TSADCV12_AUTO_PERIOD_HT_TIME		3000 /* 2.5ms */
 #define TSADCV3_Q_MAX_VAL			0x7ff /* 11bit 2047 */
@@ -1119,8 +1121,8 @@ static void rk_tsadcv9_initialize(struct regmap *grf, void __iomem *regs,
 	regmap_write(grf, RV1106_VOGRF_TSADC_CON, RV1106_VOGRF_TSADC_ANA);
 	udelay(100);
 
-	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME, regs + TSADCV3_AUTO_PERIOD);
-	writel_relaxed(TSADCV2_AUTO_PERIOD_TIME,
+	writel_relaxed(TSADCV9_AUTO_PERIOD_TIME, regs + TSADCV3_AUTO_PERIOD);
+	writel_relaxed(TSADCV9_AUTO_PERIOD_TIME,
 		       regs + TSADCV3_AUTO_PERIOD_HT);
 	writel_relaxed(TSADCV2_HIGHT_INT_DEBOUNCE_COUNT,
 		       regs + TSADCV3_HIGHT_INT_DEBOUNCE);
