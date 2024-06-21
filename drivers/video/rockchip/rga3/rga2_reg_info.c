@@ -2889,7 +2889,6 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
-	int cur_num;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
 	uint32_t *cmd;
@@ -2930,10 +2929,8 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		 *   when RGA is running continuously, disabling auto_rst
 		 * requires resetting core_clk.
 		 */
-		cur_num = (rga_read(RGA2_STATUS1, scheduler) & m_RGA2_STATUS1_SW_CMD_CUR_NUM) >> 8;
-		if (cur_num > 0)
-			rga_write(m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_CCLK_SRESET_P,
-				  RGA2_SYS_CTRL, scheduler);
+		rga_write(m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_CCLK_SRESET_P,
+			  RGA2_SYS_CTRL, scheduler);
 	} else {
 		sys_ctrl |= m_RGA2_SYS_CTRL_AUTO_RST;
 	}
@@ -2966,8 +2963,6 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		for (i = 0; i <= 32; i++)
 			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
-		rga_write(rga_read(RGA2_CMD_CTRL, scheduler) | m_RGA2_CMD_CTRL_CMD_LINE_ST_P,
-			  RGA2_CMD_CTRL, scheduler);
 		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
 	}
 
