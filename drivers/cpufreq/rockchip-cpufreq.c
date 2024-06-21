@@ -408,6 +408,7 @@ static const struct rockchip_opp_data rk3588_cpu_opp_data = {
 
 static const struct rockchip_opp_data rk3576_cpu_opp_data = {
 	.set_read_margin = rk3576_cpu_set_read_margin,
+	.set_soc_info = rockchip_opp_set_low_length,
 	.config_regulators = cpu_opp_config_regulators,
 };
 
