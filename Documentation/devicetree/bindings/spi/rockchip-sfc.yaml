@@ -15,11 +15,15 @@ allOf:
 
 properties:
   compatible:
-    const: rockchip,sfc
+    enum:
+      - rockchip,fspi
+      - rockchip,sfc
+
     description:
       The rockchip sfc controller is a standalone IP with version register,
       and the driver can handle all the feature difference inside the IP
       depending on the version register.
+      The rockchip flexible spi controller is the next generation IP of sfc.
 
   reg:
     maxItems: 1
