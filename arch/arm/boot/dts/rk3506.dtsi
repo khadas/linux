@@ -627,6 +627,20 @@
 		status = "disabled";
 	};
 
+	mmc: mmc@ff480000 {
+		compatible = "rockchip,rk3506-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0xff480000 0x4000>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <150000000>;
+		bus-width = <4>;
+		clocks = <&cru HCLK_SDMMC>, <&cru CCLK_SRC_SDMMC>;
+		clock-names = "biu", "ciu";
+		fifo-depth = <0x100>;
+		resets = <&cru SRST_H_SDMMC>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	fspi: spi@ff488000 {
 		compatible = "rockchip,fspi";
 		reg = <0xff488000 0x4000>;
