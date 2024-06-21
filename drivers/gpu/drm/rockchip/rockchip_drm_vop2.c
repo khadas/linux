@@ -13828,6 +13828,9 @@ static char *vop2_plane_mask_to_string(unsigned long mask)
 
 static inline const char *vop2_plane_id_to_string(unsigned long phy)
 {
+	if (phy == ROCKCHIP_VOP2_PHY_ID_INVALID)
+		return "INVALID";
+
 	if (WARN_ON(phy >= ARRAY_SIZE(vop2_layer_name_list)))
 		return NULL;
 
