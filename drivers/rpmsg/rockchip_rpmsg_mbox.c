@@ -104,6 +104,12 @@ static void rk_rpmsg_rx_callback(struct mbox_client *client, void *message)
 	vring_interrupt(0, rpvdev->vq[0]);
 }
 
+static void rk_rpmsg_xfer_done(struct mbox_client *cl, void *mssg, int r)
+{
+	if (!r)
+		kfree(mssg);
+}
+
 static bool rk_rpmsg_notify(struct virtqueue *vq)
 {
 	struct rk_rpmsg_vq_info *rpvq = vq->priv;
@@ -112,15 +118,12 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 	struct device *dev = &pdev->dev;
 	u32 link_id;
 	int ret;
-	struct rockchip_mbox_msg tx_msg;
+	struct rockchip_mbox_msg *tx_msg;
 
-	memset(&tx_msg, 0, sizeof(tx_msg));
 	dev_dbg(dev, "queue_id-0x%x virt_vring_addr 0x%p\n",
 		rpvq->queue_id, rpvq->vring_addr);
 
 	link_id = rpdev->link_id;
-	tx_msg.cmd = link_id & 0xFFU;
-	tx_msg.data = RPMSG_MBOX_MAGIC;
 
 	if ((rpdev->first_notify == 0) && (rpvq->queue_id % 2 == 0)) {
 		/* first_notify is used in the master init handshake phase. */
@@ -130,7 +133,16 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 		/* tx done is not supported, so ignored */
 		return true;
 	}
-	ret = mbox_send_message(rpdev->mbox_tx_chan, &tx_msg);
+
+	tx_msg = kzalloc(sizeof(*tx_msg), GFP_KERNEL);
+	if (!tx_msg) {
+		dev_err(dev, "Can not get memory for tx_msg\n");
+		return false;
+	}
+	tx_msg->cmd = link_id & 0xFFU;
+	tx_msg->data = RPMSG_MBOX_MAGIC;
+
+	ret = mbox_send_message(rpdev->mbox_tx_chan, tx_msg);
 	if (ret < 0) {
 		dev_err(dev, "mbox send failed!\n");
 		return false;
@@ -333,6 +345,7 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 	cl = &rpdev->mbox_rx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_rx_callback;
+	cl->tx_done = rk_rpmsg_xfer_done;
 
 	rpdev->mbox_rx_chan = mbox_request_channel_byname(cl, "rpmsg-rx");
 	if (IS_ERR(rpdev->mbox_rx_chan)) {
@@ -344,6 +357,7 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 	cl = &rpdev->mbox_tx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_tx_callback;
+	cl->tx_done = rk_rpmsg_xfer_done;
 
 	rpdev->mbox_tx_chan = mbox_request_channel_byname(cl, "rpmsg-tx");
 	if (IS_ERR(rpdev->mbox_tx_chan)) {
