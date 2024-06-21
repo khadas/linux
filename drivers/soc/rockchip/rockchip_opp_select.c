@@ -2202,6 +2202,46 @@ int rockchip_set_intermediate_rate(struct device *dev,
 }
 EXPORT_SYMBOL(rockchip_set_intermediate_rate);
 
+int rockchip_opp_set_low_length(struct device *dev, struct device_node *np,
+				struct rockchip_opp_info *opp_info)
+{
+	struct clk *clk;
+	unsigned long old_rate;
+	unsigned int low_len_sel;
+	u32 opp_flag = 0;
+	int ret = 0;
+
+	if (opp_info->volt_sel < 0)
+		return 0;
+
+	clk = clk_get(dev, NULL);
+	if (IS_ERR(clk)) {
+		dev_warn(dev, "failed to get cpu clk\n");
+		return PTR_ERR(clk);
+	}
+
+	/* low speed grade should change to low length */
+	if (of_property_read_u32(np, "rockchip,pvtm-low-len-sel",
+				 &low_len_sel))
+		goto out;
+	if (opp_info->volt_sel > low_len_sel)
+		goto out;
+	opp_flag = OPP_LENGTH_LOW;
+
+	old_rate = clk_get_rate(clk);
+	ret = clk_set_rate(clk, old_rate | opp_flag);
+	if (ret) {
+		dev_err(dev, "failed to change length\n");
+		goto out;
+	}
+	clk_set_rate(clk, old_rate);
+out:
+	clk_put(clk);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_opp_set_low_length);
+
 static int rockchip_opp_set_volt(struct device *dev, struct regulator *reg,
 				 struct dev_pm_opp_supply *supply, char *reg_name)
 {
