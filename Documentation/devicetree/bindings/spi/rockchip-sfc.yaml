@@ -48,6 +48,12 @@ properties:
     description: Disable DMA and utilize FIFO mode only
     type: boolean
 
+  rockchip,sclk-x2-bypass:
+    description:
+      Turn off the internal 2 frequency division logic of the controller clock,
+      and the interface clock is 1:1 with the controller working clock.
+    type: boolean
+
 patternProperties:
   "^flash@[0-3]$":
     type: object
