@@ -181,6 +181,7 @@ struct rockchip_udphy {
 	u32 dp_aux_din_sel;
 	bool dp_sink_hpd_sel;
 	bool dp_sink_hpd_cfg;
+	bool dp_hpd_disabled;
 	u8 bw;
 	int id;
 	int dp_lanes;
@@ -625,7 +626,8 @@ static int udphy_dp_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd)
 	udphy->dp_sink_hpd_sel = true;
 	udphy->dp_sink_hpd_cfg = hpd;
 
-	grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
+	if (!udphy->dp_hpd_disabled)
+		grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
 
 	return 0;
 }
@@ -1319,8 +1321,20 @@ static int rockchip_dp_phy_configure(struct phy *phy,
 static int rockchip_dp_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
+	int ret = 0;
 
-	return udphy_dpaux_select(udphy);
+	switch (submode) {
+	case 0:
+		ret = udphy_dpaux_select(udphy);
+		break;
+	case 1:
+		udphy->dp_hpd_disabled = true;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static const struct phy_ops rockchip_dp_phy_ops = {
