@@ -22,6 +22,8 @@
 		keyup-threshold-microvolt = <1800000>;
 		poll-interval = <100>;
 		hp-con-gpio = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
 		rockchip,cpu = <&sai1>;
