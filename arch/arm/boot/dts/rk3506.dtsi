@@ -128,6 +128,15 @@
 			clock-output-names = "mclk_sai3_to_io";
 			rockchip,bit-shift = <3>;
 		};
+
+		pvtpll_core: pvtpll-core@ff840000 {
+			compatible = "rockchip,rk3506-core-pvtpll", "syscon";
+			reg = <0xff840000 0x100>;
+			#clock-cells = <0>;
+			clock-output-names = "clk_core_pvtpll";
+			assigned-clocks = <&pvtpll_core>;
+			assigned-clock-rates = <1200000000>;
+		};
 	};
 
 	cpus {
@@ -139,6 +148,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0xf00>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu1: cpu@f01 {
@@ -146,6 +157,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0xf01>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu2: cpu@f02 {
@@ -153,6 +166,102 @@
 			compatible = "arm,cortex-a7";
 			reg = <0xf02>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLK>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: cpu0-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,pvtm-voltage-sel = <
+			0	1584	0
+			1585	1619	1
+			1620	1654	2
+			1655	1689	3
+			1690	1724	4
+			1725	1759	5
+			1760	1794	6
+			1795	9999	7
+		>;
+		rockchip,pvtm-pvtpll;
+		rockchip,pvtm-offset = <0x18>;
+		rockchip,pvtm-sample-time = <500>;
+		rockchip,pvtm-freq = <1608000>;
+		rockchip,pvtm-volt = <1000000>;
+		rockchip,pvtm-ref-temp = <40>;
+		rockchip,pvtm-temp-prop = <0 0>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+		rockchip,grf = <&pvtpll_core>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
+
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			opp-microvolt-L0 = <875000 875000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			opp-microvolt-L0 = <875000 875000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1296000000 {
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <900000 900000 1000000>;
+			opp-microvolt-L0 = <900000 900000 1000000>;
+			opp-microvolt-L1 = <887500 887500 1000000>;
+			opp-microvolt-L2 = <875000 875000 1000000>;
+			opp-microvolt-L3 = <862500 862500 1000000>;
+			opp-microvolt-L4 = <850000 850000 1000000>;
+			opp-microvolt-L5 = <850000 850000 1000000>;
+			opp-microvolt-L6 = <850000 850000 1000000>;
+			opp-microvolt-L7 = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <937500 937500 1000000>;
+			opp-microvolt-L0 = <937500 937500 1000000>;
+			opp-microvolt-L1 = <925000 925000 1000000>;
+			opp-microvolt-L2 = <912500 912500 1000000>;
+			opp-microvolt-L3 = <900000 900000 1000000>;
+			opp-microvolt-L4 = <887500 887500 1000000>;
+			opp-microvolt-L5 = <875000 875000 1000000>;
+			opp-microvolt-L6 = <862500 862500 1000000>;
+			opp-microvolt-L7 = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1512000000 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <975000 975000 1000000>;
+			opp-microvolt-L0 = <975000 975000 1000000>;
+			opp-microvolt-L1 = <962500 962500 1000000>;
+			opp-microvolt-L2 = <950000 950000 1000000>;
+			opp-microvolt-L3 = <937500 937500 1000000>;
+			opp-microvolt-L4 = <925000 925000 1000000>;
+			opp-microvolt-L5 = <912500 912000 1000000>;
+			opp-microvolt-L6 = <900000 900000 1000000>;
+			opp-microvolt-L7 = <887500 887500 1000000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -173,6 +282,12 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	rockchip_system_monitor: rockchip-system-monitor {
+		compatible = "rockchip,system-monitor";
+
+		rockchip,thermal-zone = "soc-thermal";
 	};
 
 	thermal_zones: thermal-zones {
