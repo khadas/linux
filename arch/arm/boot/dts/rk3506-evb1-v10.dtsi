@@ -3,6 +3,8 @@
  * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/mfd/rockchip-flexbus.h>
+
 / {
 	model = "Rockchip RK3506 EVB1 V10 Board";
 	compatible = "rockchip,rk3506-evb1-v10", "rockchip,rk3506";
@@ -75,6 +77,33 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
+};
+
+&flexbus {
+	rockchip,flexbus0-opmode = <ROCKCHIP_FLEXBUS0_OPMODE_DAC>;
+	rockchip,flexbus1-opmode = <ROCKCHIP_FLEXBUS1_OPMODE_ADC>;
+	status = "disabled";
+};
+
+&flexbus_adc {
+	pinctrl-names = "default";
+	/* 12bit ADC device */
+	pinctrl-0 = <&flexbus1_clk_pins
+		     &flexbus1_d0_pins &flexbus1_d1_pins &flexbus1_d2_pins &flexbus1_d3_pins
+		     &flexbus1_d4_pins &flexbus1_d5_pins &flexbus1_d6_pins &flexbus1_d7_pins
+		     &flexbus1_d8_pins &flexbus1_d9_pins &flexbus1_d10_pins &flexbus1_d11_pins>;
+	status = "disabled";
+};
+
+&flexbus_dac {
+	pinctrl-names = "default";
+	/* 14bit DAC device */
+	pinctrl-0 = <&flexbus0_clk_pins
+		     &flexbus0_d0_pins &flexbus0_d1_pins &flexbus0_d2_pins &flexbus0_d3_pins
+		     &flexbus0_d4_pins &flexbus0_d5_pins &flexbus0_d6_pins &flexbus0_d7_pins
+		     &flexbus0_d8_pins &flexbus0_d9_pins &flexbus0_d10_pins &flexbus0_d11_pins
+		     &flexbus0_d12_pins &flexbus0_d13_pins>;
+	status = "disabled";
 };
 
 &fspi {
