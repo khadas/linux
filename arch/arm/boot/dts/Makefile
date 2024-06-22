@@ -1224,6 +1224,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3503g-evb1-v10.dtb \
 	rk3506b-evb1-v10.dtb \
 	rk3506g-evb1-v10.dtb \
+	rk3506g-evb1-v10-mcu-k350c4516t.dtb \
 	rk3506g-evb1-v10-rgb-Q7050ITH2641AA1T.dtb \
 	rk3506g-iotest-v10.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
