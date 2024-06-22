@@ -122,6 +122,7 @@
 #define  SFC_VER_5			0x5
 #define  SFC_VER_6			0x6
 #define  SFC_VER_8			0x8
+#define  SFC_VER_9			0x9
 
 /* Ext ctrl */
 #define SFC_EXT_CTRL			0x34
@@ -999,6 +1000,8 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	sfc->version = rockchip_sfc_get_version(sfc);
+	if (sfc->version == SFC_VER_9)
+		sfc->version = SFC_VER_6;
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 
 	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
