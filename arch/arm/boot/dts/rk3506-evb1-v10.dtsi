@@ -273,3 +273,12 @@
 	pinctrl-0 = <&uart5m0_xfer_pins &uart5m0_ctsn_pins>;
 	status = "okay";
 };
+
+&usb20_otg0 {
+	status = "okay";
+};
+
+&usb20_otg1 {
+	dr_mode = "host";
+	status = "okay";
+};
