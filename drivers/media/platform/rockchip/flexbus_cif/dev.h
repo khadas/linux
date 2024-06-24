@@ -82,6 +82,7 @@ enum flexbus_cif_crop_src {
 
 enum flexbus_cif_chip_id {
 	RK_FLEXBUS_CIF_RK3576,
+	RK_FLEXBUS_CIF_RK3506,
 };
 
 struct flexbus_cif_match_data {

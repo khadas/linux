@@ -1037,7 +1037,7 @@ static int flexbus_cif_stream_start(struct flexbus_cif_stream *stream)
 	flexbus_cif_write_register(dev, FLEXBUS_SLAVE_MODE, BIT(1) | BIT(0));
 	val = flexbus_cif_read_register(dev, FLEXBUS_RX_CTL);
 	val &= ~FLEXBUS_DST_WAT_LVL_MASK;
-	val |= FLEXBUS_DFS_8BIT;
+	val |= dev->fb_dev->dfs_reg->dfs_8bit;
 	val |= FLEXBUS_CONTINUE_MODE;
 	val |= FLEXBUS_AUTOPAD;
 	flexbus_cif_write_register(dev, FLEXBUS_RX_CTL, val);
@@ -1047,6 +1047,17 @@ static int flexbus_cif_stream_start(struct flexbus_cif_stream *stream)
 
 	flexbus_cif_write_register(dev, FLEXBUS_DVP_ORDER, stream->cif_fmt_in->cif_yuv_order |
 					stream->cif_fmt_out->cif_yuv_order);
+
+	if (dev->chip_id == RK_FLEXBUS_CIF_RK3506) {
+		if (stream->cif_fmt_out->fourcc == V4L2_PIX_FMT_RGB24)
+			flexbus_cif_write_register(dev, FLEXBUS_DVP_YUV2RGB,
+						   CIF_YUV2RGB_ENABLE | CIF_YUV2RGB_B_LSB | CIF_YUV2RGB_BT601_FULL);
+		else if (stream->cif_fmt_out->fourcc == V4L2_PIX_FMT_BGR24)
+			flexbus_cif_write_register(dev, FLEXBUS_DVP_YUV2RGB,
+						   CIF_YUV2RGB_ENABLE | CIF_YUV2RGB_BT601_FULL);
+		else
+			flexbus_cif_write_register(dev, FLEXBUS_DVP_YUV2RGB, 0);
+	}
 
 	flexbus_cif_write_register_or(dev, FLEXBUS_IMR, CIF_FIFO_OVERFLOW |
 					 CIF_BANDWIDTH_LACK |

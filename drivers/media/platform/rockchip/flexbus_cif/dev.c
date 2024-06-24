@@ -513,14 +513,22 @@ static int flexbus_cif_plat_uninit(struct flexbus_cif_device *cif_dev)
 	return 0;
 }
 
-static const struct flexbus_cif_match_data cif_match_data = {
+static const struct flexbus_cif_match_data rk3576_cif_match_data = {
 	.chip_id = RK_FLEXBUS_CIF_RK3576,
+};
+
+static const struct flexbus_cif_match_data rk3506_cif_match_data = {
+	.chip_id = RK_FLEXBUS_CIF_RK3506,
 };
 
 static const struct of_device_id flexbus_cif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,flexbus-cif-rk3576",
-		.data = &cif_match_data,
+		.data = &rk3576_cif_match_data,
+	},
+	{
+		.compatible = "rockchip,flexbus-cif-rk3506",
+		.data = &rk3506_cif_match_data,
 	},
 	{},
 };
