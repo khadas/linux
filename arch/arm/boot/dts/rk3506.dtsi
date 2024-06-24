@@ -1071,6 +1071,11 @@
 				reg = <0>;
 				remote-endpoint = <&rgb_in_vop>;
 			};
+
+			vop_out_dsi: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dsi_in_vop>;
+			};
 		};
 	};
 
@@ -1082,6 +1087,38 @@
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_CORE_RGA>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 		status = "disabled";
+	};
+
+	dsi: dsi@ff640000 {
+		compatible = "rockchip,rk3506-mipi-dsi";
+		reg = <0xff640000 0x10000>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_DSI_HOST>;
+		clock-names = "pclk";
+		resets = <&cru SRST_P_DSI_HOST>;
+		reset-names = "apb";
+		phys = <&dsi_dphy>;
+		phy-names = "dphy";
+		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi_in: port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				dsi_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_dsi>;
+					status = "disabled";
+				};
+			};
+		};
 	};
 
 	tsadc: tsadc@ff650000 {
@@ -1105,6 +1142,21 @@
 	ioc1: syscon@ff660000 {
 		compatible = "rockchip,rk3506-ioc1", "syscon";
 		reg = <0xff660000 0x10000>;
+	};
+
+	dsi_dphy: phy@ff670000 {
+		compatible = "rockchip,rk3506-dsi-dphy";
+		reg = <0xff670000 0x10000>,
+		      <0xff640000 0x10000>;
+		reg-names = "phy", "host";
+		clocks = <&cru CLK_REF_DPHY_TOP>,
+			 <&cru PCLK_DPHY>, <&cru PCLK_DSI_HOST>;
+		clock-names = "ref", "pclk", "pclk_host";
+		#clock-cells = <0>;
+		resets = <&cru SRST_P_DPHY>;
+		reset-names = "apb";
+		#phy-cells = <0>;
+		status = "disabled";
 	};
 
 	crypto: crypto@ff700000 {
