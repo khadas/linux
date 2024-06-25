@@ -1224,7 +1224,7 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 	if (pc->freq_res_valid) {
 		freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
 		freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
-		*freq_hz = DIV_ROUND_CLOSEST_ULL(pc->clk_rate * freq_res, freq_timer);
+		*freq_hz = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * freq_res, freq_timer);
 		if (!*freq_hz)
 			return -EINVAL;
 
@@ -1765,7 +1765,7 @@ static int rockchip_pwm_get_biphasic_result_v4(struct pwm_chip *chip, struct pwm
 			if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
 				val = *biphasic_res;
 				biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
-				*biphasic_res = DIV_ROUND_CLOSEST_ULL(pc->clk_rate * val,
+				*biphasic_res = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * val,
 								      biphasic_timer);
 			}
 
