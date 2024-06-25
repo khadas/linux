@@ -243,6 +243,28 @@ static int write_room(struct platform_device *pdev)
 	return (TTY_FIFO_SIZE - kfifo_len(&tty_fifo));
 }
 
+#define console_poll(cond, count, us) \
+do { \
+	if (!IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && CONFIG_HZ < 1000 && us < 1000) { \
+		if (!(cond)) { \
+			ktime_t timeout = ktime_add_us(ktime_get(), us * count); \
+			int oldnice = task_nice(current); \
+			if (!(cond)) { \
+				set_user_nice(current, MAX_NICE); \
+				while (!(cond)) { \
+					if (ktime_compare(ktime_get(), timeout) > 0) \
+						break; \
+					schedule(); \
+				} \
+				set_user_nice(current, oldnice); \
+			} \
+		} \
+	} else { \
+		while (!(cond) && count--) \
+			usleep_range(us, us + us / 20); \
+	} \
+} while (0)
+
 static void console_putc(struct platform_device *pdev, unsigned int c)
 {
 	struct rk_fiq_debugger *t;
@@ -254,9 +276,7 @@ static void console_putc(struct platform_device *pdev, unsigned int c)
 	if (t->baudrate == 115200)
 		us = 5160;	/* the time to send 60 byte for baudrate 115200 */
 
-	while (!(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL) &&
-	       count--)
-		usleep_range(us, us + us / 20);
+	console_poll(rk_fiq_read(t, UART_USR) & UART_USR_TX_FIFO_NOT_FULL, count, us);
 
 	rk_fiq_write(t, c, UART_TX);
 }
