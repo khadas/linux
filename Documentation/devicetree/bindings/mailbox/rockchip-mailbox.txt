@@ -26,6 +26,8 @@ Optional properties :
  - rockchip,txpoll-period-ms: TX Done polling interval in milliseconds.
  - rockchip,enable-cmd-trigger: Enable write cmd register to trigger interrupt.
 	This is only support from rockchip,rk3576-mbox.
+ - rockchip,txdone-ack: Enable if the mailbox client use ACK to check TX_DONE.
+ - rockchip,txdone-irq: Enable if the controller can trigger TX_DONE interrupt.
 
 Example:
 --------
