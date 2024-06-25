@@ -1842,7 +1842,7 @@ static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
 
 	if (pc->main_version >= 4) {
 		regs_start = (u32)pc->res->start;
-		for (i = 0; i < 0x80; i += 4) {
+		for (i = 0; i < 0x90; i += 4) {
 			seq_printf(s, "%08x:  %08x %08x %08x %08x\n", regs_start + i * 4,
 				   readl_relaxed(pc->base + (4 * i)),
 				   readl_relaxed(pc->base + (4 * (i + 1))),
