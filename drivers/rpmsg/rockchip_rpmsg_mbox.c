@@ -41,7 +41,7 @@ struct rk_rpmsg_dev {
 	struct platform_device *pdev;
 	int vdev_nums;
 	unsigned int link_id;
-	int first_notify;
+	bool need_notify;
 	u32 flags;
 	struct mbox_client mbox_rx_cl;
 	struct mbox_client mbox_tx_cl;
@@ -125,14 +125,27 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 
 	link_id = rpdev->link_id;
 
-	if ((rpdev->first_notify == 0) && (rpvq->queue_id % 2 == 0)) {
-		/* first_notify is used in the master init handshake phase. */
-		dev_dbg(dev, "rpmsg first_notify\n");
-		rpdev->first_notify++;
+	if ((!rpdev->need_notify) && (rpvq->queue_id % 2 == 0)) {
+		/* first notify is used in the master init handshake phase. */
+		dev_dbg(dev, "rpmsg handshake notify\n");
 	} else if (rpvq->queue_id % 2 == 0) {
 		/* tx done is not supported, so ignored */
 		return true;
 	}
+
+	if (!rpdev->mbox_tx_chan->mbox->ops->last_tx_done(rpdev->mbox_tx_chan)) {
+		/*
+		 * Mailbox BUSY means remote side has not processed previous
+		 * notification. The remote side will process all availd
+		 * messages after meeting the last notification.
+		 */
+		return true;
+	}
+
+	if (rpdev->need_notify)
+		mbox_client_txdone(rpdev->mbox_tx_chan, 0);
+	else
+		rpdev->need_notify = true;
 
 	tx_msg = kzalloc(sizeof(*tx_msg), GFP_KERNEL);
 	if (!tx_msg) {
@@ -341,7 +354,7 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 	dev_info(dev, "rockchip rpmsg platform probe.\n");
 
 	rpdev->pdev = pdev;
-	rpdev->first_notify = 0;
+	rpdev->need_notify = false;
 	cl = &rpdev->mbox_rx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_rx_callback;
@@ -358,6 +371,7 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_tx_callback;
 	cl->tx_done = rk_rpmsg_xfer_done;
+	cl->knows_txdone = true;
 
 	rpdev->mbox_tx_chan = mbox_request_channel_byname(cl, "rpmsg-tx");
 	if (IS_ERR(rpdev->mbox_tx_chan)) {
