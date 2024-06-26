@@ -2620,14 +2620,22 @@ static uint32_t vop2_afbc_transform_offset(struct vop2 *vop2, struct vop2_plane_
 
 	if (is_vop3(vop2) && vop2->version != VOP_VERSION_RK3528) {
 		uint32_t vir_height = fb->height;
-		u8 block_w;
+		u8 block_w, block_h;
 
-		if (IS_ROCKCHIP_RFBC_MOD(fb->modifier))
+		if (IS_ROCKCHIP_RFBC_MOD(fb->modifier)) {
 			block_w = 64;
-		else if (fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+			block_h = 4;
+		} else if (fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_32x8) {
 			block_w = 32;
-		else
+			block_h = 8;
+		} else {
 			block_w = 16;
+			block_h = 16;
+		}
+		if (!IS_ALIGNED(vir_height, block_h)) {
+			DRM_WARN("FBC fb vir height[%d] should aligned as block height[%d]", vir_height, block_h);
+			vir_height = ALIGN(vir_height, block_h);
+		}
 
 		if (vpstate->xmirror_en) {
 			transform_tmp = ALIGN(act_xoffset + width, block_w);
@@ -2636,11 +2644,14 @@ static uint32_t vop2_afbc_transform_offset(struct vop2 *vop2, struct vop2_plane_
 			transform_xoffset = act_xoffset % block_w;
 		}
 
+		if (vpstate->afbc_half_block_en)
+			block_h /= 2;
+
 		if (vpstate->ymirror_en) {
 			transform_tmp = vir_height - act_yoffset - height;
-			transform_yoffset = transform_tmp % 4;
+			transform_yoffset = transform_tmp % block_h;
 		} else {
-			transform_yoffset = act_yoffset % 4;
+			transform_yoffset = act_yoffset % block_h;
 		}
 
 		return (transform_xoffset & 0x3f) | ((transform_yoffset & 0x3f) << 16);
