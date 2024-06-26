@@ -213,9 +213,19 @@ struct rk_cipher_ctx {
 
 struct rk_rsa_ctx {
 	struct rk_alg_ctx		algs_ctx;
-	struct rk_bignum *n;
-	struct rk_bignum *e;
-	struct rk_bignum *d;
+	struct rk_bignum		*n;
+	struct rk_bignum		*e;
+	struct rk_bignum		*d;
+
+	struct rk_crypto_dev		*rk_dev;
+};
+
+struct rk_ecc_ctx {
+	struct rk_alg_ctx		algs_ctx;
+	uint32_t			group_id;
+	uint32_t			nbits;
+	bool				pub_key_set;
+	struct rk_ecp_point		*point_Q;
 
 	struct rk_crypto_dev		*rk_dev;
 };
@@ -243,6 +253,15 @@ struct rk_crypto_algt {
 	char				*name;
 	bool				use_soft_aes192;
 	bool				valid_flag;
+};
+
+enum rk_asym_algo {
+	ASYM_ALGO_RSA,
+	ASYM_ALGO_ECC_P192,
+	ASYM_ALGO_ECC_P224,
+	ASYM_ALGO_ECC_P256,
+	ASYM_ALGO_SM2,
+	ASYM_ALGO_MAX,
 };
 
 enum rk_hash_algo {
@@ -436,6 +455,27 @@ enum rk_cipher_mode {
 				.cra_module = THIS_MODULE,\
 			} \
 		} \
+	} \
+}
+
+#define RK_ASYM_ECC_INIT(key_bits) {\
+	.name = "ecc-" #key_bits, \
+	.type = ALG_TYPE_ASYM, \
+	.algo = ASYM_ALGO_ECC_P##key_bits, \
+	.alg.asym = { \
+		.verify = rk_ecc_verify, \
+		.set_pub_key = rk_ecc_set_pub_key, \
+		.max_size = rk_ecc_max_size, \
+		.init = rk_ecc_init_tfm, \
+		.exit = rk_ecc_exit_tfm, \
+		.reqsize = 64, \
+		.base = { \
+			.cra_name = "ecdsa-nist-p" #key_bits, \
+			.cra_driver_name = "ecdsa-nist-p" #key_bits "-rk", \
+			.cra_priority = RK_CRYPTO_PRIORITY, \
+			.cra_module = THIS_MODULE, \
+			.cra_ctxsize = sizeof(struct rk_ecc_ctx), \
+		},\
 	} \
 }
 

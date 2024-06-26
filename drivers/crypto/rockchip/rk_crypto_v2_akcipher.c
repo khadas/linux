@@ -8,13 +8,18 @@
  *
  * Some ideas are from marvell/cesa.c and s5p-sss.c driver.
  */
-
+#include <linux/module.h>
+#include <linux/asn1_decoder.h>
 #include <linux/slab.h>
+#include <linux/scatterlist.h>
 
 #include "rk_crypto_core.h"
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v2_reg.h"
 #include "rk_crypto_v2_pka.h"
+#include "rk_crypto_ecc.h"
+#include "rk_sm2signature.asn1.h"
+#include "rk_ecdsasignature.asn1.h"
 
 #define BG_WORDS2BYTES(words)	((words) * sizeof(u32))
 #define BG_BYTES2WORDS(bytes)	(((bytes) + sizeof(u32) - 1) / sizeof(u32))
@@ -294,12 +299,16 @@ static void rk_rsa_exit_tfm(struct crypto_akcipher *tfm)
 
 	rk_rsa_clear_ctx(ctx);
 
-	ctx->rk_dev->release_crypto(ctx->rk_dev, "rsa");
+	if (ctx->rk_dev && ctx->rk_dev->release_crypto)
+		ctx->rk_dev->release_crypto(ctx->rk_dev, "rsa");
+
+	memset(ctx, 0x00, sizeof(*ctx));
 }
 
 struct rk_crypto_algt rk_v2_asym_rsa = {
 	.name = "rsa",
 	.type = ALG_TYPE_ASYM,
+	.algo = ASYM_ALGO_RSA,
 	.alg.asym = {
 		.encrypt = rk_rsa_enc,
 		.decrypt = rk_rsa_dec,
@@ -319,3 +328,241 @@ struct rk_crypto_algt rk_v2_asym_rsa = {
 	},
 };
 
+int rk_ecc_get_signature_r(void *context, size_t hdrlen, unsigned char tag,
+			   const void *value, size_t vlen)
+{
+	struct rk_ecp_point *sig = context;
+	const uint8_t *tmp_value = value;
+
+	if (!value || !vlen)
+		return -EINVAL;
+
+	/* skip first zero */
+	if (tmp_value[0] == 0x00) {
+		tmp_value += 1;
+		vlen -= 1;
+	}
+
+	return rk_bn_set_data(sig->x, tmp_value, vlen, RK_BG_BIG_ENDIAN);
+}
+
+int rk_ecc_get_signature_s(void *context, size_t hdrlen, unsigned char tag,
+			   const void *value, size_t vlen)
+{
+	struct rk_ecp_point *sig = context;
+	const uint8_t *tmp_value = value;
+
+	if (!value || !vlen)
+		return -EINVAL;
+
+	/* skip first zero */
+	if (tmp_value[0] == 0x00) {
+		tmp_value += 1;
+		vlen -= 1;
+	}
+
+	return rk_bn_set_data(sig->y, tmp_value, vlen, RK_BG_BIG_ENDIAN);
+}
+
+static int rk_ecc_verify(struct akcipher_request *req)
+{
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct rk_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	size_t keylen = ctx->nbits / 8;
+	struct rk_ecp_point *sig_point = NULL;
+	u8 rawhash[RK_ECP_MAX_BYTES];
+	unsigned char *buffer;
+	ssize_t diff;
+	int ret;
+
+	if (unlikely(!ctx->pub_key_set))
+		return -EINVAL;
+
+	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	sig_point = rk_ecc_alloc_point_zero(RK_ECP_MAX_BYTES);
+	if (!sig_point) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	sg_pcopy_to_buffer(req->src, sg_nents_for_len(req->src, req->src_len + req->dst_len),
+			   buffer, req->src_len + req->dst_len, 0);
+
+	CRYPTO_DUMPHEX("total signture:", buffer, req->src_len);
+
+	if (ctx->group_id == RK_ECP_DP_SM2P256V1)
+		ret = asn1_ber_decoder(&rk_sm2signature_decoder, sig_point, buffer, req->src_len);
+	else
+		ret = asn1_ber_decoder(&rk_ecdsasignature_decoder, sig_point, buffer, req->src_len);
+	if (ret < 0)
+		goto exit;
+
+	CRYPTO_DUMPHEX("bn r value = ", sig_point->x->data, BG_WORDS2BYTES(sig_point->x->n_words));
+	CRYPTO_DUMPHEX("bn s value = ", sig_point->y->data, BG_WORDS2BYTES(sig_point->y->n_words));
+
+	/* if the hash is shorter then we will add leading zeros to fit to ndigits */
+	memset(rawhash, 0x00, sizeof(rawhash));
+	diff = keylen - req->dst_len;
+	if (diff >= 0) {
+		if (diff)
+			memset(rawhash, 0, diff);
+		memcpy(&rawhash[diff], buffer + req->src_len, req->dst_len);
+	} else if (diff < 0) {
+		/* given hash is longer, we take the left-most bytes */
+		memcpy(&rawhash, buffer + req->src_len, keylen);
+	}
+
+	CRYPTO_DUMPHEX("rawhash:", rawhash, sizeof(rawhash));
+
+	mutex_lock(&akcipher_mutex);
+
+	ret = rockchip_ecc_verify(ctx->group_id, rawhash, keylen, ctx->point_Q, sig_point);
+
+	mutex_unlock(&akcipher_mutex);
+exit:
+	kfree(buffer);
+	rk_ecc_free_point(sig_point);
+
+	CRYPTO_TRACE("ret = %d\n", ret);
+
+	return ret;
+}
+
+/*
+ * Set the public key given the raw uncompressed key data from an X509
+ * certificate. The key data contain the concatenated X and Y coordinates of
+ * the public key.
+ */
+static int rk_ecc_set_pub_key(struct crypto_akcipher *tfm, const void *key, unsigned int keylen)
+{
+	struct rk_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct rk_ecp_point *pub_Q = ctx->point_Q;
+	const unsigned char *d = key;
+	uint32_t nbytes;
+
+	CRYPTO_TRACE();
+
+	CRYPTO_DUMPHEX("key = ", key, keylen);
+
+	if (keylen < 1 || (((keylen - 1) >> 1) % sizeof(u32)) != 0)
+		return -EINVAL;
+
+	/* we only accept uncompressed format indicated by '4' */
+	if (d[0] != 4)
+		return -EINVAL;
+
+	keylen--;
+	d++;
+
+	nbytes = keylen / 2;
+
+	CRYPTO_TRACE("keylen = %u, nbytes = %u, group_id = %u, curve_byte = %u\n",
+		     keylen, nbytes, ctx->group_id,
+		     rockchip_ecc_get_curve_nbits(ctx->group_id) / 8);
+
+	if (nbytes != rockchip_ecc_get_curve_nbits(ctx->group_id) / 8)
+		return -EINVAL;
+
+	rk_bn_set_data(pub_Q->x, d, nbytes, RK_BG_BIG_ENDIAN);
+	rk_bn_set_data(pub_Q->y, d + nbytes, nbytes, RK_BG_BIG_ENDIAN);
+
+	CRYPTO_DUMPHEX("Qx = ", pub_Q->x->data, BG_WORDS2BYTES(pub_Q->x->n_words));
+	CRYPTO_DUMPHEX("Qy = ", pub_Q->y->data, BG_WORDS2BYTES(pub_Q->y->n_words));
+
+	if (rk_ecp_point_is_zero(pub_Q))
+		return -EINVAL;
+
+	ctx->pub_key_set = true;
+
+	return 0;
+}
+
+static unsigned int rk_ecc_max_size(struct crypto_akcipher *tfm)
+{
+	CRYPTO_TRACE();
+
+	return rockchip_ecc_get_max_size();
+}
+
+static int rk_ecc_init_tfm(struct crypto_akcipher *tfm)
+{
+	struct rk_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
+	struct rk_crypto_algt *algt;
+	struct rk_crypto_dev *rk_dev;
+
+	CRYPTO_TRACE();
+
+	if (!ctx)
+		return -EINVAL;
+
+	memset(ctx, 0x00, sizeof(*ctx));
+
+	algt = container_of(alg, struct rk_crypto_algt, alg.asym);
+	rk_dev = algt->rk_dev;
+
+	if (!rk_dev->request_crypto)
+		return -EFAULT;
+
+	rk_dev->request_crypto(rk_dev, algt->name);
+
+	ctx->rk_dev   = rk_dev;
+	ctx->group_id = rockchip_ecc_get_group_id(algt->algo);
+	ctx->nbits    = rockchip_ecc_get_curve_nbits(ctx->group_id);
+	ctx->point_Q  = rk_ecc_alloc_point_zero(RK_ECP_MAX_BYTES);
+
+	rockchip_ecc_init(ctx->rk_dev->pka_reg);
+
+	return 0;
+}
+
+static void rk_ecc_exit_tfm(struct crypto_akcipher *tfm)
+{
+	struct rk_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct akcipher_alg *alg = __crypto_akcipher_alg(tfm->base.__crt_alg);
+	struct rk_crypto_algt *algt;
+
+	CRYPTO_TRACE();
+
+	if (!ctx)
+		return;
+
+	rk_ecc_free_point(ctx->point_Q);
+
+	rockchip_ecc_deinit();
+
+	algt = container_of(alg, struct rk_crypto_algt, alg.asym);
+
+	if (ctx->rk_dev && ctx->rk_dev->release_crypto)
+		ctx->rk_dev->release_crypto(ctx->rk_dev, algt->name);
+
+	memset(ctx, 0x00, sizeof(*ctx));
+}
+
+struct rk_crypto_algt rk_asym_ecc_p192 = RK_ASYM_ECC_INIT(192);
+struct rk_crypto_algt rk_asym_ecc_p224 = RK_ASYM_ECC_INIT(224);
+struct rk_crypto_algt rk_asym_ecc_p256 = RK_ASYM_ECC_INIT(256);
+
+struct rk_crypto_algt rk_asym_sm2 = {
+	.name = "sm2",
+	.type = ALG_TYPE_ASYM,
+	.algo = ASYM_ALGO_SM2,
+	.alg.asym = {
+		.verify = rk_ecc_verify,
+		.set_pub_key = rk_ecc_set_pub_key,
+		.max_size = rk_ecc_max_size,
+		.init = rk_ecc_init_tfm,
+		.exit = rk_ecc_exit_tfm,
+		.reqsize = 64,
+		.base = {
+			.cra_name = "sm2",
+			.cra_driver_name = "sm2-rk",
+			.cra_priority = RK_CRYPTO_PRIORITY,
+			.cra_module = THIS_MODULE,
+			.cra_ctxsize = sizeof(struct rk_ecc_ctx),
+		},
+	}
+};

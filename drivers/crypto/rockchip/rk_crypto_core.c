@@ -672,7 +672,7 @@ static char *crypto_full_algs_name[] = {
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha224", "sha256", "sha384", "sha512", "md5", "sm3",
 	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
-	"rsa"
+	"rsa", "ecc-192", "ecc-224", "ecc-256", "sm2",
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =

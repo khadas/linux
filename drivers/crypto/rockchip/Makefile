@@ -11,12 +11,19 @@ rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V1) += \
 		rk_crypto_v1_ahash.o \
 		rk_crypto_v1_skcipher.o
 
+$(obj)/rk_sm2signature.asn1.o: $(obj)/rk_sm2signature.asn1.c $(obj)/rk_sm2signature.asn1.h
+$(obj)/rk_ecdsasignature.asn1.o: $(obj)/rk_ecdsasignature.asn1.c $(obj)/rk_ecdsasignature.asn1.h
+$(obj)/rk_crypto_ecc.o: $(obj)/rk_sm2signature.asn1.h $(obj)/rk_ecdsasignature.asn1.h
+
 rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V2) += \
 		rk_crypto_v2.o \
 		rk_crypto_v2_ahash.o \
 		rk_crypto_v2_skcipher.o \
 		rk_crypto_v2_akcipher.o \
 		rk_crypto_v2_pka.o \
+		rk_crypto_ecc.o \
+		rk_sm2signature.asn1.o \
+		rk_ecdsasignature.asn1.o \
 		rk_crypto_bignum.o
 
 rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V3) += \
@@ -25,6 +32,9 @@ rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V3) += \
 		rk_crypto_v3_skcipher.o \
 		rk_crypto_v2_akcipher.o \
 		rk_crypto_v2_pka.o \
+		rk_crypto_ecc.o \
+		rk_sm2signature.asn1.o \
+		rk_ecdsasignature.asn1.o \
 		rk_crypto_bignum.o
 
 obj-$(CONFIG_CRYPTO_DEV_ROCKCHIP_DEV) += cryptodev_linux/

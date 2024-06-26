@@ -72,6 +72,10 @@ extern struct rk_crypto_algt rk_v3_hmac_sm3;
 
 /* Shared v2 version implementation */
 extern struct rk_crypto_algt rk_v2_asym_rsa;
+extern struct rk_crypto_algt rk_asym_ecc_p192;
+extern struct rk_crypto_algt rk_asym_ecc_p224;
+extern struct rk_crypto_algt rk_asym_ecc_p256;
+extern struct rk_crypto_algt rk_asym_sm2;
 
 int rk_hw_crypto_v3_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v3_deinit(struct device *dev, void *hw_info);
