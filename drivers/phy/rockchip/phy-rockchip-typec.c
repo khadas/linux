@@ -1467,9 +1467,8 @@ static const struct phy_ops rockchip_usb3_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int rockchip_dp_phy_power_on(struct phy *phy)
+static int _rockchip_dp_phy_power_on(struct rockchip_typec_phy *tcphy)
 {
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
 	int new_mode, ret = 0;
 	u32 val;
@@ -1529,6 +1528,24 @@ power_on_finish:
 		tcphy_phy_deinit(tcphy);
 unlock_ret:
 	mutex_unlock(&tcphy->lock);
+	return ret;
+}
+
+static int rockchip_dp_phy_power_on(struct phy *phy)
+{
+	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
+	int ret;
+	int tries;
+
+	for (tries = 0; tries < POWER_ON_TRIES; tries++) {
+		ret = _rockchip_dp_phy_power_on(tcphy);
+		if (!ret)
+			break;
+	}
+
+	if (tries && !ret)
+		dev_info(tcphy->dev, "Needed %d loops to turn on dp phy\n", tries);
+
 	return ret;
 }
 
