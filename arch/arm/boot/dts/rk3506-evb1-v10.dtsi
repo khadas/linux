@@ -62,6 +62,53 @@
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	vcc12v_dc: vcc12v-dc {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc12v_dc";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dc>;
+	};
+
+	vcc3v3_stb: vcc3v3-stb {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_stb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_stb>;
+	};
+
+	vcc_ddr: vcc-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc_sys>;
+	};
+
 	vdd_arm: vdd-arm {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0_4ch_0 0 5000 1>;
@@ -72,6 +119,20 @@
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc_sys>;
+	};
+
+	vcc0v9_stb: vcc0v9-stb {
+		compatible = "pwm-regulator";
+		pwms = <&pwm0_4ch_1 0 5000 1>;
+		regulator-name = "vcc0v9_stb";
+		regulator-min-microvolt = <810000>;
+		regulator-max-microvolt = <1006000>;
+		regulator-init-microvolt = <900000>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-settling-time-up-us = <250>;
+		pwm-supply = <&vcc_sys>;
 	};
 };
 
@@ -116,6 +177,18 @@
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
 	};
+};
+
+&pwm0_4ch_0 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io21_pwm0_ch0>;
+	status = "okay";
+};
+
+&pwm0_4ch_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io20_pwm0_ch1>;
+	status = "okay";
 };
 
 &pwm0_4ch_2 {
