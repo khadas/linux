@@ -30,6 +30,9 @@
 
 #define QUIRK_ALWAYS_ON			BIT(0)
 
+#define RK3506_PDM			0x2311
+#define RK3576_PDM			0x2302
+
 struct rk_pdm_v2_clkref {
 	unsigned int sr;
 	unsigned int clk;
@@ -65,6 +68,7 @@ struct rk_pdm_v2_dev {
 	unsigned int start_delay_ms;
 	unsigned int clk_ref_frq;
 	unsigned int quirks;
+	unsigned int version;
 };
 
 static int get_pdm_v2_clkref(struct rk_pdm_v2_dev *pdm, unsigned int sr)
@@ -205,9 +209,18 @@ static int rockchip_pdm_v2_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_update_bits(pdm->regmap, PDM_V2_CTRL,
 			   PDM_V2_SJM_SEL_MSK, PDM_V2_SJM_SEL_L);
-	regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL,
-			   PDM_V2_HPF_R_MSK | PDM_V2_HPF_L_MSK | PDM_V2_HPF_FREQ_MSK,
-			   PDM_V2_HPF_R_EN | PDM_V2_HPF_L_EN | PDM_V2_HPF_FREQ_60);
+	if (pdm->version == RK3506_PDM) {
+		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL,
+				   PDM_V2_HPF_V2_R_MSK | PDM_V2_HPF_V2_L_MSK |
+				   PDM_V2_HPF_V2_FREQ_MSK,
+				   PDM_V2_HPF_V2_R_EN | PDM_V2_HPF_V2_L_EN |
+				   PDM_V2_HPF_V2_FREQ_60);
+	} else if (pdm->version == RK3576_PDM) {
+		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL,
+				   PDM_V2_HPF_R_MSK | PDM_V2_HPF_L_MSK | PDM_V2_HPF_FREQ_MSK,
+				   PDM_V2_HPF_R_EN | PDM_V2_HPF_L_EN | PDM_V2_HPF_FREQ_60);
+	}
+
 	rockchip_pdm_v2_set_samplerate(pdm, params_rate(params));
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -317,11 +330,19 @@ static int rockchip_pdm_v2_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const struct snd_kcontrol_new rk3506_controls[];
+static const struct snd_kcontrol_new rk3576_controls[];
+
 static int rockchip_pdm_v2_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_pdm_v2_dev *pdm = to_info(dai);
 
 	dai->capture_dma_data = &pdm->capture_dma_data;
+
+	if (pdm->version == RK3506_PDM)
+		snd_soc_add_component_controls(dai->component, rk3506_controls, 1);
+	else if (pdm->version == RK3576_PDM)
+		snd_soc_add_component_controls(dai->component, rk3576_controls, 1);
 
 	return 0;
 }
@@ -411,9 +432,16 @@ static const char * const hpf_cutoff_text[] = {
 	"3.79Hz", "60Hz", "243Hz", "493Hz",
 };
 
+static const char * const hpf_v2_cutoff_text[] = {
+	"0.234Hz", "0.468Hz", "0.937Hz", "1.875Hz", "3.75Hz",
+	"7.5Hz", "15Hz", "30Hz", "60Hz", "122Hz", "251Hz",
+	"528Hz", "1183Hz", "3152Hz",
+};
+
 static SOC_ENUM_SINGLE_DECL(hpf_cutoff_enum, PDM_V2_FILTER_CTRL,
 			    19, hpf_cutoff_text);
-
+static SOC_ENUM_SINGLE_DECL(hpf_v2_cutoff_enum, PDM_V2_FILTER_CTRL,
+			    21, hpf_v2_cutoff_text);
 static const DECLARE_TLV_DB_SCALE(pdm_v2_digtal_gain_tlv, -6563, 75, 0);
 
 static const struct snd_kcontrol_new rockchip_pdm_v2_controls[] = {
@@ -422,17 +450,6 @@ static const struct snd_kcontrol_new rockchip_pdm_v2_controls[] = {
 	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
 	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
 
-	SOC_ENUM("HPF Cutoff", hpf_cutoff_enum),
-	SOC_SINGLE("HPFL Switch", PDM_V2_FILTER_CTRL, 22, 1, 0),
-	SOC_SINGLE("HPFR Switch", PDM_V2_FILTER_CTRL, 21, 1, 0),
-
-	SOC_SINGLE_RANGE_TLV("Gain Volume",
-			     PDM_V2_FILTER_CTRL,
-			     PDM_V2_GAIN_CTRL_SHIFT,
-			     PDM_V2_GAIN_MIN,
-			     PDM_V2_GAIN_MAX,
-			     0, pdm_v2_digtal_gain_tlv),
-
 	SOC_SINGLE_EXT("Start Delay Ms", 0, 0, PDM_V2_START_DELAY_MS_MAX, 0,
 			rockchip_pdm_v2_start_delay_get,
 			rockchip_pdm_v2_start_delay_put),
@@ -440,6 +457,30 @@ static const struct snd_kcontrol_new rockchip_pdm_v2_controls[] = {
 	SOC_SINGLE_EXT("Reference Clock Frequency", 0, 0, PDM_V2_REF_CLK_MAX, 0,
 			rockchip_pdm_v2_clk_ref_frq_get,
 			rockchip_pdm_v2_clk_ref_frq_put),
+};
+
+static const struct snd_kcontrol_new rk3506_controls[] = {
+	SOC_SINGLE_RANGE_TLV("Gain Volume",
+			     PDM_V2_GAIN_CTRL,
+			     PDM_V2_GAIN_CTRL_SHIFT,
+			     PDM_V2_GAIN_CTRL_MIN,
+			     PDM_V2_GAIN_CTRL_MAX,
+			     0, pdm_v2_digtal_gain_tlv),
+	SOC_ENUM("HPF Cutoff", hpf_v2_cutoff_enum),
+	SOC_SINGLE("HPFL Switch", PDM_V2_FILTER_CTRL, 20, 1, 0),
+	SOC_SINGLE("HPFR Switch", PDM_V2_FILTER_CTRL, 19, 1, 0),
+};
+
+static const struct snd_kcontrol_new rk3576_controls[] = {
+	SOC_SINGLE_RANGE_TLV("Gain Volume",
+			     PDM_V2_FILTER_CTRL,
+			     PDM_V2_GAIN_SHIFT,
+			     PDM_V2_GAIN_MIN,
+			     PDM_V2_GAIN_MAX,
+			     0, pdm_v2_digtal_gain_tlv),
+	SOC_ENUM("HPF Cutoff", hpf_cutoff_enum),
+	SOC_SINGLE("HPFL Switch", PDM_V2_FILTER_CTRL, 22, 1, 0),
+	SOC_SINGLE("HPFR Switch", PDM_V2_FILTER_CTRL, 21, 1, 0),
 };
 
 static const struct snd_soc_component_driver rockchip_pdm_v2_component = {
@@ -534,6 +575,7 @@ static bool rockchip_pdm_v2_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case PDM_V2_FIFO_CTRL:
 	case PDM_V2_RXFIFO_DATA:
+	case PDM_V2_VERSION:
 		return true;
 	default:
 		return false;
@@ -553,7 +595,6 @@ static bool rockchip_pdm_v2_precious_reg(struct device *dev, unsigned int reg)
 static const struct reg_default rockchip_pdm_v2_reg_defaults[] = {
 	{ PDM_V2_SYSCONFIG, 0x00000002 },
 	{ PDM_V2_CTRL, 0x001C8797 },
-	{ PDM_V2_FILTER_CTRL, 0x57800000 },
 	{ PDM_V2_FIFO_CTRL, 0x0003E000 },
 };
 
@@ -561,7 +602,7 @@ static const struct regmap_config rockchip_pdm_v2_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.max_register = PDM_V2_VERSION,
+	.max_register = PDM_V2_GAIN_CTRL,
 	.reg_defaults = rockchip_pdm_v2_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rockchip_pdm_v2_reg_defaults),
 	.writeable_reg = rockchip_pdm_v2_wr_reg,
@@ -572,6 +613,7 @@ static const struct regmap_config rockchip_pdm_v2_regmap_config = {
 };
 
 static const struct of_device_id rockchip_pdm_v2_match[] __maybe_unused = {
+	{ .compatible = "rockchip,rk3506-pdm", },
 	{ .compatible = "rockchip,rk3576-pdm", },
 	{},
 };
@@ -723,6 +765,15 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 
 	rockchip_pdm_v2_set_samplerate(pdm, PDM_V2_DEFAULT_RATE);
 	rockchip_pdm_v2_rxctrl(pdm, 0);
+	regmap_read(pdm->regmap, PDM_V2_VERSION, &pdm->version);
+	/*
+	 * The pdm version rule:
+	 * Low 16bit is soc number.
+	 * High 16bit is PDM release time.
+	 * The Only soc number is changed with every chips. So use the
+	 * release time here.
+	 */
+	pdm->version = (pdm->version >> 16) & 0xffff;
 	/*
 	 * Set the default gain 24dB, this parameter can get better
 	 * performance if the voice energy is lower. In other words this
@@ -732,8 +783,13 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	 * If you want to record stronger sound intensity, you must set
 	 * PDM gain register but not soft gain-controller.
 	 */
-	regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL, PDM_V2_GAIN_CTRL_MSK,
-			   PDM_V2_GAIN_24DB);
+	if (pdm->version == RK3506_PDM) {
+		regmap_update_bits(pdm->regmap, PDM_V2_GAIN_CTRL, PDM_V2_GAIN_CTRL_MSK,
+				   PDM_V2_GAIN_CTRL_24DB);
+	} else if (pdm->version == RK3576_PDM) {
+		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL, PDM_V2_GAIN_MSK,
+				   PDM_V2_GAIN_24DB);
+	}
 
 	ret = rockchip_pdm_v2_path_parse(pdm, node);
 	if (ret != 0 && ret != -ENOENT)
