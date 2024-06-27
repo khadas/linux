@@ -12179,11 +12179,10 @@ static void rkcif_sensor_quick_streaming_cb(void *data)
 			 RKMODULE_SET_QUICK_STREAM, &on);
 }
 
-static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
+static int rkcif_terminal_sensor_set_stream(struct rkcif_device *cif_dev, int on)
 {
 	struct rkcif_pipeline *p = &cif_dev->pipe;
 	struct rkcif_sensor_info *terminal_sensor = &cif_dev->terminal_sensor;
-	struct sditf_priv *priv = cif_dev->sditf[0];
 	int i = 0;
 	int ret = 0;
 
@@ -12214,6 +12213,15 @@ static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
 		}
 	}
 
+	return ret;
+}
+
+static int rkcif_sditf_sensor_set_stream(struct rkcif_device *cif_dev, int on)
+{
+	struct sditf_priv *priv = cif_dev->sditf[0];
+	int i = 0;
+	int ret = 0;
+
 	if (priv && cif_dev->sditf_cnt > 1) {
 		if (cif_dev->is_camera_over_bridge) {
 			for (i = 0; i < cif_dev->sditf_cnt; i++) {
@@ -12241,6 +12249,22 @@ static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
 			}
 		}
 	}
+
+	return ret;
+}
+
+static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
+{
+	int ret = 0;
+
+	if (on) {
+		ret |= rkcif_terminal_sensor_set_stream(cif_dev, on);
+		ret |= rkcif_sditf_sensor_set_stream(cif_dev, on);
+	} else {
+		ret |= rkcif_sditf_sensor_set_stream(cif_dev, on);
+		ret |= rkcif_terminal_sensor_set_stream(cif_dev, on);
+	}
+
 	return ret;
 }
 
