@@ -51,6 +51,7 @@
 			248 249 250 251 252 253 254 255
 		>;
 		default-brightness-level = <200>;
+		status = "okay";
 	};
 
 	fiq_debugger: fiq-debugger {
@@ -172,6 +173,10 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
+};
+
+&display_subsystem {
+	status = "okay";
 };
 
 &flexbus {
