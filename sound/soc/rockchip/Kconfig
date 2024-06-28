@@ -139,7 +139,7 @@ config SND_SOC_ROCKCHIP_MAX98090
 
 config SND_SOC_ROCKCHIP_MULTICODECS
 	tristate "ASoC support for Rockchip multicodecs"
-	depends on SND_SOC_ROCKCHIP && HAVE_CLK
+	depends on SND_SOC_ROCKCHIP && HAVE_CLK && INPUT && EXTCON
 	help
 	  Say Y or M here if you want to add support for SoC audio on Rockchip
 	  boards using multicodecs, such as RK3308 boards.
