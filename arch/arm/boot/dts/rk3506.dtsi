@@ -1118,6 +1118,8 @@
 		reg-names = "regs";
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
 		status = "disabled";
 
 		vop_out: port {
