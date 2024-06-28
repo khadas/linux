@@ -8,6 +8,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip,boot-mode.h>
 
 / {
 	#address-cells = <1>;
@@ -1533,8 +1534,22 @@
 	};
 
 	grf_pmu: syscon@ff910000 {
-		compatible = "rockchip,rk3506-grf-pmu", "syscon";
+		compatible = "rockchip,rk3506-grf-pmu", "syscon", "simple-mfd";
 		reg = <0xff910000 0x4000>;
+
+		reboot_mode: reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x200>;
+			mode-bootloader = <BOOT_BL_DOWNLOAD>;
+			mode-charge = <BOOT_CHARGING>;
+			mode-fastboot = <BOOT_FASTBOOT>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-ums = <BOOT_UMS>;
+			mode-panic = <BOOT_PANIC>;
+			mode-watchdog = <BOOT_WATCHDOG>;
+		};
 	};
 
 	pwm0_4ch_0: pwm@ff930000 {
