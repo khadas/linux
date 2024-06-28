@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/input/rk-input.h>
 #include <dt-bindings/mfd/rockchip-flexbus.h>
 
 / {
@@ -12,6 +13,38 @@
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=4 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
+	};
+
+	adc_keys: adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <16000>;
+		};
+
+		vol-down-key {
+			label = "volume down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <420000>;
+		};
+
+		menu-key {
+			label = "menu";
+			linux,code = <KEY_MENU>;
+			press-threshold-microvolt = <800000>;
+		};
+
+		esc-key {
+			label = "esc";
+			linux,code = <KEY_ESC>;
+			press-threshold-microvolt = <1200000>;
+		};
 	};
 
 	backlight: backlight {
@@ -85,6 +118,19 @@
 		rockchip,irq-mode-enable = <1>;
 		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_wake_up>;
+
+		wake_up: wake-up {
+			label = "Wake-up";
+			gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
 	};
 
 	vcc12v_dc: vcc12v-dc {
@@ -580,6 +626,12 @@
 };
 
 &pinctrl {
+	gpio-keys {
+		key_wake_up: key-wake-up {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -630,6 +682,11 @@
 		     &rm_io10_sai1_lrck
 		     &rm_io11_sai1_sdi
 		     &rm_io12_sai1_sdo0>;
+};
+
+&saradc {
+	vref-supply = <&vcc_1v8>;
+	status = "okay";
 };
 
 &tsadc {
