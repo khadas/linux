@@ -55,6 +55,29 @@
 		status = "okay";
 	};
 
+	es8388_sound: es8388-sound {
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8388";
+		spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai1>;
+		rockchip,codec = <&es8388>;
+		rockchip,audio-routing =
+			"Speaker", "LOUT1",
+			"Speaker", "ROUT1",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"LINPUT1", "Main Mic",
+			"LINPUT2", "Main Mic",
+			"RINPUT1", "Main Mic",
+			"RINPUT2", "Main Mic";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spk_ctrl>;
+	};
+
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <0>;
@@ -508,6 +531,26 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io13_i2c0_scl
+		     &rm_io14_i2c0_sda>;
+
+	es8388: es8388@11 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8388", "everest,es8323";
+		reg = <0x11>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io8_sai1_mclk>;
+	};
+};
+
 &mdio0 {
 	rmii_phy0: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
@@ -532,6 +575,12 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	speaker {
+		spk_ctrl: spk-ctrl {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -564,6 +613,15 @@
 	pinctrl-names = "active";
 	pinctrl-0 = <&rm_io3_pwm0_ch2>;
 	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io9_sai1_sclk
+		     &rm_io10_sai1_lrck
+		     &rm_io11_sai1_sdi
+		     &rm_io12_sai1_sdo0>;
 };
 
 &tsadc {
