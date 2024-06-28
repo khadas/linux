@@ -633,6 +633,8 @@
 	cap-sd-highspeed;
 	no-sd;
 	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins>;
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	non-removable;
