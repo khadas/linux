@@ -164,6 +164,24 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		cma: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x800000>;
+			linux,cma-default;
+		};
+
+		drm_logo: drm-logo@0 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
+	};
+
 	vcc12v_dc: vcc12v-dc {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dc";
@@ -289,6 +307,7 @@
 };
 
 &display_subsystem {
+	logo-memory-region = <&drm_logo>;
 	status = "okay";
 };
 
