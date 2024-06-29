@@ -13,7 +13,7 @@ rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V1) += \
 
 $(obj)/rk_sm2signature.asn1.o: $(obj)/rk_sm2signature.asn1.c $(obj)/rk_sm2signature.asn1.h
 $(obj)/rk_ecdsasignature.asn1.o: $(obj)/rk_ecdsasignature.asn1.c $(obj)/rk_ecdsasignature.asn1.h
-$(obj)/rk_crypto_ecc.o: $(obj)/rk_sm2signature.asn1.h $(obj)/rk_ecdsasignature.asn1.h
+$(obj)/rk_crypto_v2_akcipher.o: $(obj)/rk_sm2signature.asn1.h $(obj)/rk_ecdsasignature.asn1.h
 
 rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V2) += \
 		rk_crypto_v2.o \
