@@ -1228,7 +1228,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506g-evb1-v10-rgb-Q7050ITH2641AA1T.dtb \
 	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
 	rk3506g-evb1-v10-sii9022-rgb2hdmi.dtb \
-	rk3506g-iotest-v10.dtb
+	rk3506g-iotest-v10.dtb \
+	rk3506g-iotest-v10-pdm.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
