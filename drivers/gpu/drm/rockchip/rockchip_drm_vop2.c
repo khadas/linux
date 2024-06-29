@@ -5802,20 +5802,6 @@ static void rk3588_vop2_win_cfg_axi(struct vop2_win *win)
 	VOP_WIN_SET(vop2, win, axi_uv_id, win->axi_uv_id);
 }
 
-static const char *modifier_to_string(uint64_t modifier)
-{
-	switch (modifier) {
-	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_8x8):
-		return "[TILE_8x8]";
-	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0):
-		return "[TILE_4x4_M0]";
-	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1):
-		return "[TILE_4x4_M1]";
-	default:
-		return drm_is_afbc(modifier) ? "[AFBC]" : IS_ROCKCHIP_RFBC_MOD(modifier) ? "[RFBC]" : "";
-	}
-}
-
 static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpstate)
 {
 	struct drm_plane_state *pstate = &vpstate->base;
@@ -6065,7 +6051,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 			 vp->id, win->name,
 			 actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
 			 dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
-			 &fb->format->format, modifier_to_string(fb->modifier),
+			 &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
 			 &vpstate->yrgb_mst, vpstate->fb_size, current->comm);
 
 	if (vop2->version != VOP_VERSION_RK3568)
@@ -6319,7 +6305,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 				 drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
 				 vpstate->dest.x1, vpstate->dest.y1, vpstate->zpos,
 				 &fb->format->format,
-				 modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
+				 rockchip_drm_modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
 				 vpstate->fb_size, current->comm);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
@@ -7110,7 +7096,7 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	DEBUG_PRINT("\twin_id: %d\n", win->win_id);
 
 	DEBUG_PRINT("\tformat: %p4cc%s pixel_blend_mode[%d] glb_alpha[0x%x]\n",
-		    &fb->format->format, modifier_to_string(fb->modifier),
+		    &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
 		    pstate->pixel_blend_mode, vpstate->global_alpha);
 	DEBUG_PRINT("\tcolor: %s[%d] color-encoding[%s] color-range[%s]\n",
 		    vpstate->eotf ? "HDR" : "SDR", vpstate->eotf,

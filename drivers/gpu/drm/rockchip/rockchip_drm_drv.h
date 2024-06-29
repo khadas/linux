@@ -643,6 +643,7 @@ long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long r
 int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
 bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
+const char *rockchip_drm_modifier_to_string(uint64_t modifier);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,

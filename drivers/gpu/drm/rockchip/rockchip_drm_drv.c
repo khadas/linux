@@ -136,6 +136,21 @@ bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier)
 }
 EXPORT_SYMBOL(rockchip_drm_is_rfbc);
 
+const char *rockchip_drm_modifier_to_string(uint64_t modifier)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_8x8):
+		return "_TILE-8x8";
+	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE0):
+		return "_TILE-4x4-M0";
+	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1):
+		return "_TILE-4x4-M1";
+	default:
+		return drm_is_afbc(modifier) ? "_AFBC" : IS_ROCKCHIP_RFBC_MOD(modifier) ? "_RFBC" : "";
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_modifier_to_string);
+
 /**
  * rockchip_drm_wait_vact_end
  * @crtc: CRTC to enable line flag
