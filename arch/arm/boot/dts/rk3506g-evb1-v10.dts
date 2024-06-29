@@ -12,6 +12,14 @@
 	model = "Rockchip RK3506G(QFN128) EVB1 V10 Board";
 	compatible = "rockchip,rk3506g-evb1-v10", "rockchip,rk3506";
 
+	extcon_usb: extcon-usb {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpio = <&gpio1 RK_PC5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_extcon_vbus>;
+		status = "okay";
+	};
+
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -30,7 +38,8 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
-		gpio = <&gpio1 RK_PC5 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc5v0_otg0_en>;
 	};
@@ -44,6 +53,7 @@
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
 		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_sys>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc5v0_otg1_en>;
 	};
@@ -72,12 +82,32 @@
 
 &pinctrl {
 	usb {
-		vcc5v0_otg0_en: vcc5v0-otg0-en {
+		usb_extcon_vbus: usb-extcon-vbus {
 			rockchip,pins = <1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_otg0_en: vcc5v0-otg0-en {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		vcc5v0_otg1_en: vcc5v0-otg1-en {
 			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&u2phy_otg0 {
+	vbus-supply = <&vcc5v0_otg0>;
+	rockchip,gpio-vbus-det;
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	phy-supply = <&vcc5v0_otg1>;
+	status = "okay";
+};
+
+&usb2phy {
+	extcon = <&extcon_usb>;
+	status = "okay";
 };
