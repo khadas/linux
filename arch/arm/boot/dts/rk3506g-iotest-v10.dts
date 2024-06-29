@@ -53,6 +53,28 @@
 		vin-supply = <&vcc_sys>;
 	};
 
+	vcc3v3_sd: vcc3v3-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwren>;
+	};
+
+	vccio_sd: vccio-sd {
+		compatible = "regulator-gpio";
+		regulator-name = "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		states = <3300000 1
+			  1800000 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_volt>;
+	};
+
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -107,6 +129,52 @@
 		spi-max-frequency = <80000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
+	};
+};
+
+&mmc {
+	/* For SDMMC */
+	no-sdio;
+	no-mmc;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	cd-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	sd-uhs-sdr104;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins &sdmmc_det>;
+	vqmmc-supply = <&vccio_sd>;
+	vmmc-supply = <&vcc3v3_sd>;
+
+	/* For eMMC
+	 * no-sdio;
+	 * no-sd;
+	 * cap-mmc-highspeed;
+	 * cap-sd-highspeed;
+	 * non-removable;
+	 * mmc-hs200-1_8v;
+	 * pinctrl-names = "default";
+	 * pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins>;
+	 * vqmmc-supply = <&vccio_sd>;
+	 * vmmc-supply = <&vcc3v3_sd>;
+	 */
+	status = "okay";
+};
+
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		sdmmc_volt: sdmmc-volt {
+			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		sdmmc_det: sdmmc-det {
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
 	};
 };
 
