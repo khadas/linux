@@ -808,7 +808,6 @@ static int es8323_probe(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x1B, 0x00);
 	snd_soc_component_write(component, 0x27, 0xB8);
 	snd_soc_component_write(component, 0x2A, 0xB8);
-	snd_soc_component_write(component, 0x35, 0xA0);
 	usleep_range(18000, 20000);
 	snd_soc_component_write(component, 0x2E, 0x1E);
 	snd_soc_component_write(component, 0x2F, 0x1E);
