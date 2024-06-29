@@ -3144,7 +3144,7 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 	vop = to_vop(crtc);
 	adjusted_mode = &crtc->state->adjusted_mode;
 
-	if (vop->version == VOP_VERSION(2, 0xd)) {
+	if (vop->version >= VOP_VERSION(2, 0xd)) {
 		/*
 		 * 1.set mcu bypass mode timing.
 		 * 2.set dclk rate to 150M.
@@ -3176,7 +3176,7 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 	}
 	mutex_unlock(&vop->vop_lock);
 
-	if (vop->version == VOP_VERSION(2, 0xd)) {
+	if (vop->version >= VOP_VERSION(2, 0xd)) {
 		/*
 		 * 1.restore mcu data mode timing.
 		 * 2.restore dclk rate to crtc_clock.
@@ -3497,7 +3497,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		vop_crtc_load_lut(crtc);
 
 	if (vop->mcu_timing.mcu_pix_total) {
-		if (vop->version == VOP_VERSION(2, 0xd))
+		if (vop->version >= VOP_VERSION(2, 0xd))
 			vop_set_out_mode(vop, s->output_mode);
 		else
 			vop_set_out_mode(vop, ROCKCHIP_OUT_MODE_P888);
