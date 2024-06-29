@@ -24,6 +24,23 @@
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	pdmics: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	pdm_mic_array: pdm-mic-array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&pdmics>;
+		};
+	};
+
 	vcc12v_dc: vcc12v-dc {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dc";
@@ -158,6 +175,10 @@
 	 * vqmmc-supply = <&vccio_sd>;
 	 * vmmc-supply = <&vcc3v3_sd>;
 	 */
+	status = "okay";
+};
+
+&pdm {
 	status = "okay";
 };
 
