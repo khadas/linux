@@ -15,6 +15,7 @@
 #define PHY_ID_YT8511		0x0000010a
 #define PHY_ID_YT8512		0x00000118
 #define PHY_ID_YT8512B		0x00000128
+#define PHY_ID_YT8522		0x4f51e928
 #define PHY_ID_YT8531S		0x4f51e91a
 #define PHY_ID_YT8531		0x4f51e91b
 
@@ -43,7 +44,7 @@ struct yt8011_priv {
 #define REG_DEBUG_ADDR_OFFSET		0x1e
 #define REG_DEBUG_DATA			0x1f
 #define REG_MII_MMD_CTRL		0x0D  /* MMD access control register */
-#define REG_MII_MMD_DATA		0x0E  /* MMD access data register    */
+#define REG_MII_MMD_DATA		0x0E  /* MMD access data register */
 
 #define YT8511_PAGE_SELECT	0x1e
 #define YT8511_PAGE		0x1f
@@ -99,6 +100,22 @@ struct yt8011_priv {
 #define YT8512_DUPLEX_BIT		13
 #define YT8512_EN_SLEEP_SW_BIT		15
 
+#define YT8522_TX_CLK_DELAY             0x4210
+#define YT8522_ANAGLOG_IF_CTRL          0x4008
+#define YT8522_DAC_CTRL                 0x2057
+#define YT8522_INTERPOLATOR_FILTER_1    0x14
+#define YT8522_INTERPOLATOR_FILTER_2    0x15
+#define YT8522_EXTENDED_COMBO_CTRL_1    0x4000
+
+#define YTXXXX_SPEED_MODE               0xc000
+#define YTXXXX_DUPLEX                   0x2000
+#define YTXXXX_SPEED_MODE_BIT           14
+#define YTXXXX_DUPLEX_BIT               13
+#define YTXXXX_AUTO_NEGOTIATION_BIT     12
+#define YTXXXX_ASYMMETRIC_PAUSE_BIT     11
+#define YTXXXX_PAUSE_BIT                10
+#define YTXXXX_LINK_STATUS_BIT          10
+
 /* if system depends on ethernet packet to restore from sleep,
  * please define this macro to 1 otherwise, define it to 0.
  */
@@ -113,6 +130,11 @@ struct yt8011_priv {
 #undef SYS_WAKEUP_BASED_ON_ETH_PKT
 #define SYS_WAKEUP_BASED_ON_ETH_PKT	1
 #endif
+
+struct yt8xxx_priv {
+	u8 polling_mode;
+	u8 chip_mode;
+};
 
 /* for YT8531 package A xtal init config */
 #define YTPHY8531A_XTAL_INIT		0
@@ -913,6 +935,109 @@ static int yt8521_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int yt8522_read_status(struct phy_device *phydev)
+{
+	int speed, speed_mode, duplex, val;
+
+	genphy_read_status(phydev);
+	val = phy_read(phydev, REG_PHY_SPEC_STATUS);
+	if (val < 0)
+		return val;
+
+	/* link up */
+	if ((val & BIT(10)) >> YTXXXX_LINK_STATUS_BIT) {
+		duplex = (val & BIT(13)) >> YTXXXX_DUPLEX_BIT;
+		speed_mode = (val & (BIT(15) | BIT(14))) >> YTXXXX_SPEED_MODE_BIT;
+		switch (speed_mode) {
+		case 0:
+			speed = SPEED_10;
+			break;
+		case 1:
+			speed = SPEED_100;
+			break;
+		case 2:
+		case 3:
+		default:
+			speed = SPEED_UNKNOWN;
+			break;
+		}
+
+		phydev->link = 1;
+		phydev->speed = speed;
+		phydev->duplex = duplex;
+
+		return 0;
+	}
+
+	phydev->link = 0;
+
+	return 0;
+}
+
+static int yt8522_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct yt8xxx_priv *priv;
+	int chip_config;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	chip_config = ytphy_read_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1);
+
+	priv->chip_mode = ((chip_config & BIT(3)) >> 3);
+
+	return 0;
+}
+
+static int yt8522_config_init(struct phy_device *phydev)
+{
+	struct yt8xxx_priv *priv = phydev->priv;
+	int ret;
+	int val;
+
+	/* UTP */
+	if (!priv->chip_mode) {
+		val = ytphy_write_ext(phydev, YT8522_TX_CLK_DELAY, 0);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_ANAGLOG_IF_CTRL, 0xbf2a);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_DAC_CTRL, 0x297f);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_INTERPOLATOR_FILTER_1, 0x1FE);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_INTERPOLATOR_FILTER_2, 0x1FE);
+		if (val < 0)
+			return val;
+
+		/* disable auto sleep */
+		val = ytphy_read_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1);
+		if (val < 0)
+			return val;
+
+		val &= (~BIT(YT8512_EN_SLEEP_SW_BIT));
+
+		ret = ytphy_write_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1, val);
+		if (ret < 0)
+			return ret;
+
+		ytphy_soft_reset(phydev);
+	}
+
+	return 0;
+}
+
 static int yt8531_rxclk_duty_init(struct phy_device *phydev)
 {
 	unsigned int value = 0x9696;
@@ -1045,6 +1170,17 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	}, {
+		PHY_ID_MATCH_EXACT(PHY_ID_YT8522),
+		.name           = "YT8522 100M Ethernet",
+		.features       = PHY_BASIC_FEATURES,
+		.probe          = yt8522_probe,
+		.soft_reset     = ytphy_soft_reset,
+		.config_aneg    = genphy_config_aneg,
+		.config_init    = yt8522_config_init,
+		.read_status    = yt8522_read_status,
+		.suspend        = genphy_suspend,
+		.resume         = genphy_resume,
+	},  {
 		/* same as 8521 */
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),
 		.name          = "YT8531S Gigabit Ethernet",
@@ -1084,6 +1220,7 @@ static const struct mdio_device_id __maybe_unused motorcomm_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8511) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8512) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8512B) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8522) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531S) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531) },
 	{ /* sentinal */ }
