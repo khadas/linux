@@ -12,7 +12,7 @@
 	compatible = "rockchip,rk3506-evb1-v10", "rockchip,rk3506";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
+		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=4 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
 	};
 
 	fiq_debugger: fiq-debugger {
