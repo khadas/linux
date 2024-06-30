@@ -605,6 +605,22 @@
 	};
 };
 
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io4_i2c2_scl &rm_io5_i2c2_sda>;
+	status = "okay";
+
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		reg = <0x14>;
+		gtp_ics_slot_report;
+		goodix,rst-gpio = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		status = "disabled";
+	};
+};
+
 &mdio0 {
 	rmii_phy0: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
