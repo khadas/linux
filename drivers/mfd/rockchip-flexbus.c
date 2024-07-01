@@ -95,9 +95,9 @@ static void rk3506_flexbus_grf_config(struct rockchip_flexbus *rkfb, bool slave_
 
 	if (slave_mode) {
 		if ((!cpol && cpha) || (cpol && !cpha))
-			val |= BIT(1);
+			val |= BIT(0);
 	} else {
-		val |= BIT(0);
+		val |= BIT(1);
 	}
 	regmap_write(rkfb->regmap_grf, RK3506_GRF_SOC_CON1, val);
 }

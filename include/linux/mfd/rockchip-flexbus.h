@@ -81,9 +81,12 @@
 #define FLEXBUS_CPHA			BIT(2)
 
 /* Bit fields in TX_CTL */
+#define FLEXBUS_TX_CTL_UNIT_BYTE	BIT(14)
 #define FLEXBUS_TX_CTL_MSB		BIT(13)
 
 /* Bit fields in RX_CTL */
+#define FLEXBUS_RX_CTL_FILL_DUMMY	BIT(17)
+#define FLEXBUS_RX_CTL_UNIT_BYTE	BIT(16)
 #define FLEXBUS_RX_CTL_MSB		BIT(15)
 #define FLEXBUS_AUTOPAD			BIT(14)
 #define FLEXBUS_RXD_DY			BIT(5)
