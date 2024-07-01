@@ -490,16 +490,16 @@ static ssize_t pwm_rockchip_test_write(struct file *file, const char __user *buf
 
 		msleep(timeout_ms);
 
-		ret = rockchip_pwm_set_counter(pdev, 0, false);
+		ret = rockchip_pwm_get_counter_result(pdev, &counter_res, true);
 		if (ret) {
-			pr_err("failed to disable %s mode for pwm%d_%d\n",
+			pr_err("failed to get %s mode result for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
 			return -EINVAL;
 		}
 
-		ret = rockchip_pwm_get_counter_result(pdev, &counter_res, true);
+		ret = rockchip_pwm_set_counter(pdev, 0, false);
 		if (ret) {
-			pr_err("failed to get %s mode result for pwm%d_%d\n",
+			pr_err("failed to disable %s mode for pwm%d_%d\n",
 			       cmd, controller_id, channel_id);
 			return -EINVAL;
 		}
