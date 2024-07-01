@@ -728,6 +728,10 @@
 	status = "okay";
 };
 
+&rga2 {
+	status = "okay";
+};
+
 &sai1 {
 	status = "okay";
 	pinctrl-names = "default";
