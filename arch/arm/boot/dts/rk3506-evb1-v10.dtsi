@@ -15,6 +15,21 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff0a0000 console=ttyFIQ0 ubi.mtd=4 ubi.block=0,rootfs root=/dev/ubiblock0_0 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1";
 	};
 
+	acodec_sound: acodec-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <1024>;
+		simple-audio-card,bitclock-master = <&codec_master>;
+		simple-audio-card,frame-master = <&codec_master>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai4>;
+		};
+		codec_master: simple-audio-card,codec {
+			sound-dai = <&audio_codec>;
+		};
+	};
+
 	adc_keys: adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
@@ -86,6 +101,22 @@
 		>;
 		default-brightness-level = <200>;
 		status = "okay";
+	};
+
+	dsm_sound: dsm-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,dsm-sound";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&acdcdig_dsm>;
+		};
 	};
 
 	es8388_sound: es8388-sound {
@@ -239,6 +270,10 @@
 		WIFI,host_wake_irq = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&audio_codec {
+	status = "okay";
 };
 
 &can0 {
@@ -700,6 +735,10 @@
 		     &rm_io10_sai1_lrck
 		     &rm_io11_sai1_sdi
 		     &rm_io12_sai1_sdo0>;
+};
+
+&sai4 {
+	status = "okay";
 };
 
 &saradc {
