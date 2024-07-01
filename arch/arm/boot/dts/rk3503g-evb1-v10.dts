@@ -12,3 +12,15 @@
 	model = "Rockchip RK3503G(QFN88) EVB1 V10 Board";
 	compatible = "rockchip,rk3503g-evb1-v10", "rockchip,rk3506";
 };
+
+&acdcdig_dsm {
+	status = "okay";
+};
+
+&dsm_sound {
+	status = "okay";
+};
+
+&sai3 {
+	status = "okay";
+};
