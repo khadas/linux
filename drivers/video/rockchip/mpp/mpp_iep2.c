@@ -36,6 +36,9 @@
 #define MVL			28
 #define MVR			27
 
+#define IOMMU_GET_BUS_ID(x)	(((x) >> 6) & 0x1f)
+#define AUX_PAGE_SIZE		SZ_4K
+
 enum rockchip_iep2_fmt {
 	ROCKCHIP_IEP2_FMT_YUV422 = 2,
 	ROCKCHIP_IEP2_FMT_YUV420
@@ -193,6 +196,12 @@ struct iep2_output {
 	u32 y_end[8];
 };
 
+struct iep2_session_priv {
+	/* workaround for pagefault */
+	unsigned long aux_iova;
+	struct page *aux_page;
+};
+
 struct iep_task {
 	struct mpp_task mpp_task;
 	struct mpp_hw_info *hw_info;
@@ -247,6 +256,8 @@ static int iep2_process_reg_fd(struct mpp_session *session,
 		ARRAY_SIZE(task->params.dst) * 3 + 2;
 
 	u32 *paddr = &task->params.src[0].y;
+	struct mpp_dev *mpp = session->mpp;
+	struct iep2_session_priv *priv = session->priv;
 
 	for (i = 0; i < addr_num; ++i) {
 		int usr_fd;
@@ -279,6 +290,27 @@ static int iep2_process_reg_fd(struct mpp_session *session,
 		mpp_debug(DEBUG_IOMMU, "reg[%3d]: %3d => %pad + offset %u\n",
 			  iep2_addr_rnum[i], usr_fd, &mem_region->iova, offset);
 		paddr[i] = mem_region->iova + offset;
+
+		/* workaround for invalid access to src image */
+		if (task->params.dil_mode == ROCKCHIP_IEP2_DIL_MODE_I1O1T &&
+			iep2_addr_rnum[i] == 24 && priv->aux_page) {
+			int ret = 0;
+			unsigned long page_iova = mem_region->iova + mem_region->len;
+
+			if (priv->aux_iova != -1) {
+				iommu_unmap(mpp->iommu_info->domain, priv->aux_iova, AUX_PAGE_SIZE);
+				priv->aux_iova = -1;
+			}
+
+			page_iova = round_down(page_iova, AUX_PAGE_SIZE);
+			ret = iommu_map(mpp->iommu_info->domain, page_iova,
+					page_to_phys(priv->aux_page), AUX_PAGE_SIZE,
+					IOMMU_READ);
+			if (!ret) {
+				priv->aux_iova = page_iova;
+				mpp_debug(DEBUG_IOMMU, "aux iova %lx\n", page_iova);
+			}
+		}
 	}
 
 	return 0;
@@ -765,6 +797,12 @@ static int iep2_free_task(struct mpp_session *session,
 			  struct mpp_task *mpp_task)
 {
 	struct iep_task *task = to_iep_task(mpp_task);
+	struct iep2_session_priv *priv = session->priv;
+
+	if (priv->aux_iova != -1) {
+		iommu_unmap(session->mpp->iommu_info->domain, priv->aux_iova, AUX_PAGE_SIZE);
+		priv->aux_iova = -1;
+	}
 
 	mpp_task_finalize(session, mpp_task);
 	kfree(task);
@@ -928,6 +966,55 @@ static int iep2_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int iep2_init_session(struct mpp_session *session)
+{
+	struct iep2_session_priv *priv;
+
+	if (!session) {
+		mpp_err("session is null\n");
+		return -EINVAL;
+	}
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	/* warkaround for mmu pagefault */
+	priv->aux_iova = -1;
+	priv->aux_page = alloc_page(GFP_KERNEL);
+	if (!priv->aux_page) {
+		dev_err(session->mpp->dev, "allocate a page for auxiliary usage\n");
+		priv->aux_page = NULL;
+	}
+
+	session->priv = priv;
+
+	return 0;
+}
+
+static int iep2_free_session(struct mpp_session *session)
+{
+	if (session && session->priv) {
+		struct iep2_session_priv *priv = session->priv;
+		struct mpp_dev *mpp = session->mpp;
+
+		if (priv->aux_iova != -1) {
+			iommu_unmap(mpp->iommu_info->domain, priv->aux_iova, AUX_PAGE_SIZE);
+			priv->aux_iova = -1;
+		}
+
+		if (priv->aux_page) {
+			__free_page(priv->aux_page);
+			priv->aux_page = NULL;
+		}
+
+		kfree(session->priv);
+		session->priv = NULL;
+	}
+
+	return 0;
+}
+
 static struct mpp_hw_ops iep_v2_hw_ops = {
 	.init = iep2_init,
 	.clk_on = iep2_clk_on,
@@ -944,6 +1031,8 @@ static struct mpp_dev_ops iep_v2_dev_ops = {
 	.finish = iep2_finish,
 	.result = iep2_result,
 	.free_task = iep2_free_task,
+	.init_session = iep2_init_session,
+	.free_session = iep2_free_session,
 };
 
 static struct mpp_hw_info iep2_hw_info = {
