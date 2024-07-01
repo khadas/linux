@@ -590,6 +590,22 @@
 	status = "disabled";
 };
 
+&flexbus_fspi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&flexbus0m1_pins &flexbus0_clk_pins
+		     &flexbus0_d0_pins &flexbus0_d1_pins
+		     &flexbus0_d2_pins &flexbus0_d3_pins>;
+	status = "disabled";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
 &fspi {
 	status = "okay";
 
