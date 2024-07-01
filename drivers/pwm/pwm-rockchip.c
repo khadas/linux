@@ -1084,9 +1084,11 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 		return -EBUSY;
 	}
 
-	ret = clk_enable(pc->pclk);
-	if (ret)
-		return ret;
+	if (enable) {
+		ret = clk_enable(pc->pclk);
+		if (ret)
+			return ret;
+	}
 
 	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
 	if (ret) {
@@ -1101,8 +1103,14 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm,
 		goto err_disable_pclk;
 	}
 
+	if (!enable)
+		clk_disable(pc->pclk);
+
+	return ret;
+
 err_disable_pclk:
-	clk_disable(pc->pclk);
+	if (enable)
+		clk_disable(pc->pclk);
 
 	return ret;
 }
@@ -1146,19 +1154,12 @@ int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
-	ret = clk_enable(pc->pclk);
-	if (ret)
-		return ret;
-
 	ret = pc->data->funcs.get_counter_result(chip, pwm, counter_res, is_clear);
 	if (ret) {
 		dev_err(chip->dev, "Failed to get counter result for PWM%d\n",
 			pc->channel_id);
-		goto err_disable_pclk;
+		return ret;
 	}
-
-err_disable_pclk:
-	clk_disable(pc->pclk);
 
 	return ret;
 }
