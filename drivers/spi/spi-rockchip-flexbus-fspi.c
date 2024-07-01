@@ -178,6 +178,8 @@ static int rk_flexbus_fspi_init(struct rk_flexbus_fspi *fspi)
 {
 	u32 ctrl;
 
+	fspi->fb->config->grf_config(fspi->fb, false, 0, 0);
+
 	fspi->version = rockchip_flexbus_readl(fspi->fb, FLEXBUS_REVISION) >> 16;
 	fspi->max_iosize = FLEXBUS_MAX_IOSIZE;
 
@@ -185,7 +187,10 @@ static int rk_flexbus_fspi_init(struct rk_flexbus_fspi *fspi)
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_SRC_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_DST_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
 
-	ctrl = FLEXBUS_TX_CTL_MSB | (1 << FLEXBUS_DFS_SHIFT);
+	if (fspi->version == FLEXBUS_REVISION_V9)
+		ctrl = FLEXBUS_TX_CTL_MSB | fspi->fb->dfs_reg->dfs_4bit;
+	else
+		ctrl = FLEXBUS_TX_CTL_UNIT_BYTE | FLEXBUS_TX_CTL_MSB | fspi->fb->dfs_reg->dfs_1bit;
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_CTL, ctrl);
 
 	/* Using internal clk as sample clock */
@@ -262,7 +267,8 @@ static int rk_flexbus_fspi_send(struct rk_flexbus_fspi *fspi, struct rk_flexbus_
 }
 
 static int rk_flexbus_fspi_send_then_recv_114(struct rk_flexbus_fspi *fspi,
-					      struct rk_flexbus_fspi_xfer *cfg)
+					      struct rk_flexbus_fspi_xfer *cfg,
+					      bool trick)
 {
 	int ret = 0, timeout_ms = FLEXBUS_DMA_TIMEOUT_MS;
 	u32 ctrl;
@@ -279,7 +285,9 @@ static int rk_flexbus_fspi_send_then_recv_114(struct rk_flexbus_fspi *fspi,
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_CMD1, ((u32 *)fspi->tx_buf)[1]);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TX_NUM, cfg->cmd_cycles);
 
-	ctrl = FLEXBUS_RXD_DY | FLEXBUS_AUTOPAD | FLEXBUS_RX_CTL_MSB | 1;
+	ctrl = FLEXBUS_RXD_DY | FLEXBUS_AUTOPAD | FLEXBUS_RX_CTL_MSB | fspi->fb->dfs_reg->dfs_4bit;
+	if (!trick)
+		ctrl |= FLEXBUS_RX_CTL_UNIT_BYTE | FLEXBUS_RX_CTL_FILL_DUMMY;
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_RX_CTL, ctrl);
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_RX_NUM, cfg->buf_cycles);
 
@@ -307,6 +315,7 @@ static int rk_flexbus_fspi_exec_mem(struct rk_flexbus_fspi *fspi, const struct s
 	struct rk_flexbus_fspi_xfer cfg = { 0 };
 	u32 cmd_cycles, data_cycles;
 	int ret;
+	bool format_trick;
 
 	/* format cmd_addr_dummy */
 	switch (op->addr.nbytes) {
@@ -340,11 +349,27 @@ static int rk_flexbus_fspi_exec_mem(struct rk_flexbus_fspi *fspi, const struct s
 		dev_err(fspi->fb->dev, "op->addr.nbytes %d not support!\n", op->addr.nbytes);
 		return -EINVAL;
 	}
-
-	/* format data */
 	data_cycles = op->data.nbytes * 8 / op->data.buswidth;
-	if (op->data.buf.out) {
-		if (fspi->version == FLEXBUS_REVISION_V9) {
+
+	/*
+	 * format data:
+	 *   V9:
+	 *     rx protocol 111 send_then_recv_114(trick!), then re-format data 4-to-1(trick!)
+	 *     rx protocol 114 send_then_recv_114, then re-order data 4-to-4(trick!)
+	 *     tx protocol 111 re-format data 1-to-4, then send(114 trick!)
+	 *   New version:
+	 *     rx protocol 111 send_then_recv_114(trick!), then re-format data 4-to-1(trick!)
+	 *     rx protocol 114 send_then_recv_114
+	 *     tx protocol 111 send(111)
+	 */
+	if ((fspi->version == FLEXBUS_REVISION_V9) ||
+	    (op->data.dir == SPI_MEM_DATA_IN && op->data.buswidth == 1))
+		format_trick = true;
+	else
+		format_trick = false;
+
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
+		if (format_trick) {
 			flexbus_fspi_data_format(fspi, op->data.buf.out, 1, fspi->temp_buf, 4,
 						 data_cycles, fspi->switch_buf);
 			dma_sync_single_for_device(fspi->fb->dev, fspi->dma_temp_buf,
@@ -362,7 +387,7 @@ static int rk_flexbus_fspi_exec_mem(struct rk_flexbus_fspi *fspi, const struct s
 	cfg.buf_addr = fspi->dma_temp_buf;
 
 	if (op->data.dir == SPI_MEM_DATA_IN)
-		ret = rk_flexbus_fspi_send_then_recv_114(fspi, &cfg);
+		ret = rk_flexbus_fspi_send_then_recv_114(fspi, &cfg, format_trick);
 	else
 		ret = rk_flexbus_fspi_send(fspi, &cfg);
 	if (ret) {
@@ -371,11 +396,11 @@ static int rk_flexbus_fspi_exec_mem(struct rk_flexbus_fspi *fspi, const struct s
 		return ret;
 	}
 
-	if (op->data.buf.in) {
+	if (op->data.dir == SPI_MEM_DATA_IN) {
 		if (op->data.buswidth == 4) {
 			dma_sync_single_for_cpu(fspi->fb->dev, fspi->dma_temp_buf,
 						op->data.nbytes, DMA_FROM_DEVICE);
-			if (fspi->version == FLEXBUS_REVISION_V9)
+			if (format_trick)
 				flexbus_data_format_order(fspi, fspi->temp_buf,
 							  op->data.buf.in, op->data.nbytes);
 			else
@@ -387,6 +412,7 @@ static int rk_flexbus_fspi_exec_mem(struct rk_flexbus_fspi *fspi, const struct s
 						 data_cycles, fspi->switch_buf);
 		}
 	}
+	dev_dbg(fspi->fb->dev, "cmd=%x addr=%llx nbytes=%x\n", op->cmd.opcode, op->addr.val, op->data.nbytes);
 
 	return ret;
 }
