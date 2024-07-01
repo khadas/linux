@@ -38,6 +38,7 @@
 		spi0 = &spi0;
 		spi1 = &spi1;
 		spi2 = &fspi;
+		spi3 = &flexbus_fspi;
 	};
 
 	clocks {
@@ -1314,6 +1315,13 @@
 			#io-channel-cells = <0>;
 			rockchip,free-sclk;
 			rockchip,dfs = <16>;
+			status = "disabled";
+		};
+
+		flexbus_fspi: fspi {
+			compatible = "rockchip,flexbus-fspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 	};
