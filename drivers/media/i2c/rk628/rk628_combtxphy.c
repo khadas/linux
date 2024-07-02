@@ -114,7 +114,7 @@ void rk628_txphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		unsigned int flags = bus_width & 0xff;
 
 		fhsc = fin * (fhsc / fin);
-		if (fhsc < 80 || fhsc > 1800)
+		if (fhsc < 80 || fhsc > 2000)
 			return;
 		else if (fhsc < 375)
 			txphy->rate_div = 4;
