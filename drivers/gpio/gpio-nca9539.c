@@ -298,10 +298,7 @@ static int nca9539_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops nca9539_dev_pm_ops = {
-	.suspend = nca9539_suspend,
-	.resume = nca9539_resume,
-	.freeze = nca9539_suspend,
-	.restore = nca9539_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(nca9539_suspend, nca9539_resume)
 };
 #endif
 
