@@ -182,7 +182,7 @@ config ROCKCHIP_CLK_PVTM
 
 config ROCKCHIP_CLK_PVTPLL
 	tristate "Rockchip Clk Pvtpll"
-	default y if CPU_RV1103B
+	default y if CPU_RV1103B || CPU_RK3506
 	help
 	  Say y here to enable clk pvtpll.
 

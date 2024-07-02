@@ -28,6 +28,15 @@
 #define RV1103B_GCK_RING_SEL_OFFSET		10
 #define RV1103B_GCK_RING_SEL_MASK		0x07
 
+#define RK3506_GRF_CORE_PVTPLL_CON0_L		0x00
+#define RK3506_GRF_CORE_PVTPLL_CON0_H		0x04
+#define RK3506_OSC_RING_SEL_OFFSET		8
+#define RK3506_OSC_RING_SEL_MASK		0x03
+#define RK3506_OSC_EN				BIT(1)
+#define RK3506_START				BIT(0)
+#define RK3506_RING_LENGTH_SEL_OFFSET		0
+#define RK3506_RING_LENGTH_SEL_MASK		0x7f
+
 static DEFINE_MUTEX(pvtpll_reg_mutex);
 
 struct rockchip_clock_pvtpll;
@@ -84,6 +93,16 @@ static struct pvtpll_table rv1103b_npu_pvtpll_table[] = {
 	ROCKCHIP_PVTPLL(700000000, 1, 36),
 };
 
+static struct pvtpll_table rk3506_core_pvtpll_table[] = {
+	/* rate_hz, ring_sel, length */
+	ROCKCHIP_PVTPLL(1608000000, 0, 6),
+	ROCKCHIP_PVTPLL(1512000000, 0, 6),
+	ROCKCHIP_PVTPLL(1416000000, 0, 6),
+	ROCKCHIP_PVTPLL(1296000000, 0, 6),
+	ROCKCHIP_PVTPLL(1200000000, 0, 8),
+	ROCKCHIP_PVTPLL(1008000000, 0, 15),
+};
+
 static struct pvtpll_table
 *rockchip_get_pvtpll_settings(struct rockchip_clock_pvtpll *pvtpll,
 			      unsigned long rate)
@@ -124,6 +143,33 @@ static int rv1103b_pvtpll_configs(struct rockchip_clock_pvtpll *pvtpll,
 
 	ret = regmap_write(pvtpll->regmap, RV1103B_PVTPLL_GCK_CFG,
 			   RV1103B_GCK_START | (RV1103B_GCK_START << 16));
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int rk3506_pvtpll_configs(struct rockchip_clock_pvtpll *pvtpll,
+				  struct pvtpll_table *table)
+{
+	u32 val;
+	int ret = 0;
+
+	val = HIWORD_UPDATE(table->ring_sel, RK3506_OSC_RING_SEL_MASK,
+			    RK3506_OSC_RING_SEL_OFFSET);
+	ret = regmap_write(pvtpll->regmap, RK3506_GRF_CORE_PVTPLL_CON0_L, val);
+	if (ret)
+		return ret;
+
+	val = HIWORD_UPDATE(table->length, RK3506_RING_LENGTH_SEL_MASK,
+			    RK3506_RING_LENGTH_SEL_OFFSET);
+	ret = regmap_write(pvtpll->regmap, RK3506_GRF_CORE_PVTPLL_CON0_H, val);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(pvtpll->regmap, RK3506_GRF_CORE_PVTPLL_CON0_L,
+			   RK3506_START | (RK3506_START << 16) |
+			   RK3506_OSC_EN | (RK3506_OSC_EN << 16));
 	if (ret)
 		return ret;
 
@@ -227,6 +273,12 @@ static const struct rockchip_clock_pvtpll_info rv1103b_npu_pvtpll_data = {
 	.table = rv1103b_npu_pvtpll_table,
 };
 
+static const struct rockchip_clock_pvtpll_info rk3506_core_pvtpll_data = {
+	.config = rk3506_pvtpll_configs,
+	.table_size = ARRAY_SIZE(rk3506_core_pvtpll_table),
+	.table = rk3506_core_pvtpll_table,
+};
+
 static const struct of_device_id rockchip_clock_pvtpll_match[] = {
 	{
 		.compatible = "rockchip,rv1103b-core-pvtpll",
@@ -235,6 +287,10 @@ static const struct of_device_id rockchip_clock_pvtpll_match[] = {
 	{
 		.compatible = "rockchip,rv1103b-npu-pvtpll",
 		.data = (void *)&rv1103b_npu_pvtpll_data,
+	},
+	{
+		.compatible = "rockchip,rk3506-core-pvtpll",
+		.data = (void *)&rk3506_core_pvtpll_data,
 	},
 	{}
 };
