@@ -31,11 +31,14 @@
 #define NCA9539_REG_CONFIG_PORT0 (NCA9539_REG_CONFIG_BASE + 0x0)
 #define NCA9539_REG_CONFIG_PORT1 (NCA9539_REG_CONFIG_BASE + 0x1)
 
+#define NCA9539_MAX_REGS 8
+
 struct nca9539_chip {
 	struct gpio_chip gpio_chip;
 	struct regmap *regmap;
 	struct regulator *regulator;
 	unsigned int ngpio;
+	u8 backup_regs[NCA9539_MAX_REGS];
 };
 
 static int nca9539_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
@@ -78,8 +81,7 @@ static int nca9539_gpio_direction_input(struct gpio_chip *gc, unsigned int offse
 	return ret;
 }
 
-static int nca9539_gpio_direction_output(struct gpio_chip *gc, unsigned int offset,
-					 int val)
+static int nca9539_gpio_direction_output(struct gpio_chip *gc, unsigned int offset, int val)
 {
 	struct nca9539_chip *priv = gpiochip_get_data(gc);
 	unsigned int port = offset / 8;
@@ -233,11 +235,82 @@ static const struct gpio_chip template_chip = {
 	.can_sleep = true,
 };
 
+#ifdef CONFIG_PM
+static int nca9539_suspend(struct device *dev)
+{
+	struct nca9539_chip *priv = dev_get_drvdata(dev);
+	unsigned int offset = 0;
+	unsigned int value = 0;
+	int ret = 0;
+
+	dev_info(dev, "%s: registers backup", __func__);
+
+	for (offset = 0; offset < priv->gpio_chip.ngpio / 2; offset++) {
+		value = nca9539_regmap_default[offset].def;
+		ret = regmap_read(priv->regmap, offset, &value);
+		if (ret < 0) {
+			dev_err(dev, "%s offset(%d) read reg failed",
+				__func__, offset);
+		}
+		priv->backup_regs[offset] = (u8)(value);
+	}
+
+	return 0;
+}
+
+static int nca9539_resume(struct device *dev)
+{
+	struct nca9539_chip *priv = dev_get_drvdata(dev);
+	unsigned int offset = 0;
+	unsigned int value = 0;
+	int ret = 0;
+
+	dev_info(dev, "%s: registers recovery", __func__);
+
+	for (offset = 0; offset < 2; offset++) {
+		value = priv->backup_regs[NCA9539_REG_CONFIG_BASE + offset];
+		ret = regmap_write(priv->regmap,
+				   NCA9539_REG_CONFIG_BASE + offset, value);
+		if (ret < 0) {
+			dev_err(dev, "%s offset(%d) write reg %d failed",
+				__func__, offset, value);
+		}
+
+		value = priv->backup_regs[NCA9539_REG_POLARITY_BASE + offset];
+		ret = regmap_write(priv->regmap,
+				   NCA9539_REG_POLARITY_BASE + offset, value);
+		if (ret < 0) {
+			dev_err(dev, "%s offset(%d) write reg %d failed",
+				__func__, offset, value);
+		}
+
+		value = priv->backup_regs[NCA9539_REG_OUTPUT_PORT_BASE + offset];
+		ret = regmap_write(priv->regmap,
+				   NCA9539_REG_OUTPUT_PORT_BASE + offset,
+				   value);
+		if (ret < 0) {
+			dev_err(dev, "%s offset(%d) write reg %d failed",
+				__func__, offset, value);
+		}
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops nca9539_dev_pm_ops = {
+	.suspend = nca9539_suspend,
+	.resume = nca9539_resume,
+	.freeze = nca9539_suspend,
+	.restore = nca9539_resume,
+};
+#endif
+
 static int nca9539_probe(struct i2c_client *client)
 {
 	struct nca9539_chip *chip;
 	struct regulator *reg;
 	int ret;
+	int i;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -248,6 +321,9 @@ static int nca9539_probe(struct i2c_client *client)
 	chip->gpio_chip.parent = &client->dev;
 	chip->ngpio = (uintptr_t)of_device_get_match_data(&client->dev);
 	chip->gpio_chip.ngpio = chip->ngpio;
+
+	for (i = 0; i < NCA9539_MAX_REGS; i++)
+		chip->backup_regs[i] = nca9539_regmap_default[i].def;
 
 	reg = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(reg))
@@ -318,9 +394,12 @@ static struct i2c_driver nca9539_driver = {
 	.driver = {
 		.name		= "nca9539-gpio",
 		.of_match_table	= nca9539_gpio_of_match_table,
+#ifdef CONFIG_PM
+		.pm		= &nca9539_dev_pm_ops,
+#endif
 	},
 	.probe_new	= nca9539_probe,
-	.remove	= nca9539_remove,
+	.remove		= nca9539_remove,
 	.id_table	= nca9539_gpio_id_table,
 };
 module_i2c_driver(nca9539_driver);
