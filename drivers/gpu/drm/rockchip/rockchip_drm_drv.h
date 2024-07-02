@@ -177,7 +177,7 @@ struct rockchip_crtc {
 	struct list_head vop_dump_list_head;
 	bool vop_dump_list_init_flag;
 	int vop_dump_times;
-	int frame_count;
+	int vop_dump_frame_count;
 #endif
 };
 
