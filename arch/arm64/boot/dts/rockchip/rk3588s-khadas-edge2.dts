@@ -53,6 +53,26 @@
 		};
 	};
 
+	bt-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+				sound-dai = <&i2s2_2ch>;
+		};
+		simple-audio-card,codec {
+				sound-dai = <&bt_sco>;
+		};
+	};
+
+	bt_sco: bt-sco {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
@@ -145,6 +165,10 @@
 &backlight_mipi0 {
 	pwms = <&pwm12 0 25000 0>;
 	power-supply = <&vcc3v3_lcd_en>;
+	status = "okay";
+};
+
+&i2s2_2ch {
 	status = "okay";
 };
 
