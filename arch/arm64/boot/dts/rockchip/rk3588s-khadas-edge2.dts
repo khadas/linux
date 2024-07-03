@@ -36,6 +36,23 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
+	es8316_sound: es8316-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,es8316-codec";
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s0_8ch>;
+			};
+			codec {
+				sound-dai = <&es8316>;
+			};
+		};
+	};
+
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
@@ -268,6 +285,21 @@
 		layout = <0>;
 		status = "okay";
 	};
+
+	es8316: es8316@10 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8316";
+		reg = <0x10>;
+		clocks = <&cru I2S0_8CH_MCLKOUT>;
+		clock-names = "mclk";
+		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default","hp_det","spk_con";
+		pinctrl-0 = <&i2s0_mclk>,<&hp_det>,<&spk_con>;
+		spk-con-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &i2c4 {
@@ -402,6 +434,14 @@
 };
 
 &pinctrl {
+	audio {
+		hp_det: hp-det {
+			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		spk_con: spk-con {
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
