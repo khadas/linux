@@ -96,6 +96,10 @@
 	};
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &u2phy_otg0 {
 	vbus-supply = <&vcc5v0_otg0>;
 	rockchip,gpio-vbus-det;
