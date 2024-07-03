@@ -96,7 +96,7 @@
 			mipidphy0_in_ucam0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415c_out0>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 
 			mipidphy0_in_ucam1: endpoint@2 {
@@ -298,7 +298,7 @@
 		port {
 			imx415c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
