@@ -410,6 +410,12 @@
 	};
 };
 
+&ufs {
+	vcc-supply = <&vcc_ufs_s0>;
+	vccq-supply = <&vcc1v2_ufs_vccq_s0>;
+	vccq2-supply = <&vcc1v8_ufs_vccq2_s0>;
+};
+
 &u2phy0 {
 	status = "okay";
 };
