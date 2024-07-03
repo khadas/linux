@@ -798,6 +798,18 @@
 	status = "okay";
 };
 
+&u2phy_otg0 {
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	status = "okay";
+};
+
+&usb2phy {
+	status = "okay";
+};
+
 &usb20_otg0 {
 	status = "okay";
 };
