@@ -344,7 +344,7 @@ static int s35390a_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 		return err;
 
 	if (alm->enabled)
-		sts = S35390A_INT2_MODE_ALARM;
+		sts = S35390A_INT2_MODE_ALARM | S35390A_INT2_MODE_32K;
 	else
 		sts = S35390A_INT2_MODE_NOINTR;
 
