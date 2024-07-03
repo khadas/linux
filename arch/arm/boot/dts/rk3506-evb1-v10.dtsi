@@ -767,6 +767,10 @@
 	status = "okay";
 };
 
+&rng {
+	status = "okay";
+};
+
 &sai1 {
 	status = "okay";
 	pinctrl-names = "default";
