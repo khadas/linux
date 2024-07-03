@@ -529,6 +529,11 @@ config VCPU_STALL_DETECTOR
 
 	  If you do not intend to run this kernel as a guest, say N.
 
+config KHADAS_MCU
+        tristate "Khadas MCU control driver"
+        help
+          This driver allow to control MCU
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
