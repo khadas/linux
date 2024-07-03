@@ -14,5 +14,6 @@ struct device_node *mpp_dev_of_node(struct device *dev);
 void mpp_pm_relax(struct device *dev);
 void mpp_pm_stay_awake(struct device *dev);
 int mpp_device_init_wakeup(struct device *dev, bool enable);
+void mpp_device_add_driver(void *dev, void *drv);
 
 #endif
