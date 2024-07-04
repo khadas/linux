@@ -720,6 +720,10 @@
 	status = "okay";
 };
 
+&reboot_mode {
+	mode-reboot_test = <BOOT_REBOOT_TEST>;
+};
+
 &u2phy0_otg {
 	rockchip,typec-vbus-det;
 };
