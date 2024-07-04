@@ -263,12 +263,14 @@ static void do_kernel_restart_prepare(void)
  *	Shutdown everything and perform a clean reboot.
  *	This is not safe to call in interrupt context.
  */
+extern int mcu_reboot_boot_mode(void);
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
 	do_kernel_restart_prepare();
 	migrate_to_reboot_cpu();
 	syscore_shutdown();
+	mcu_reboot_boot_mode();
 	if (!cmd)
 		pr_emerg("Restarting system\n");
 	else
