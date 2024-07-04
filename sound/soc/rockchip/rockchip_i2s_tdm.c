@@ -1370,6 +1370,7 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 		}
 
 		val = ret;
+		ret = 0;
 		regmap_update_bits(i2s_tdm->regmap, I2S_TXCR, mask, val);
 		regmap_update_bits(i2s_tdm->regmap, I2S_RXCR, mask, val);
 	}
@@ -1679,8 +1680,20 @@ static bool is_params_dirty(struct snd_pcm_substream *substream,
 	if (last_div_bclk != div_bclk)
 		return true;
 
-	regmap_read(i2s_tdm->regmap, I2S_CKR, &val);
-	last_div_lrck = ((val & I2S_CKR_TSD_MASK) >> I2S_CKR_TSD_SHIFT) + 1;
+	if (i2s_tdm->tdm_mode) {
+		regmap_read(i2s_tdm->regmap,
+			    substream->stream ? I2S_TDM_RXCR : I2S_TDM_TXCR, &val);
+		last_div_lrck = TDM_FRAME_WIDTH_V(val);
+
+		regmap_read(i2s_tdm->regmap,
+			    substream->stream ? I2S_RXCR : I2S_TXCR, &val);
+		val &= I2S_TXCR_TFS_MASK;
+		if (val == I2S_TXCR_TFS_TDM_I2S && !i2s_tdm->tdm_fsync_half_frame)
+			last_div_lrck <<= 1;
+	} else {
+		regmap_read(i2s_tdm->regmap, I2S_CKR, &val);
+		last_div_lrck = I2S_CKR_TSD_V(val);
+	}
 	if (last_div_lrck != div_lrck)
 		return true;
 
@@ -2824,6 +2837,9 @@ static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
 	unsigned int div_lrck = i2s_tdm->frame_width;
 	unsigned int div_bclk;
 	int ret;
+
+	if (mclk_rate < bclk_rate)
+		mclk_rate = bclk_rate;
 
 	div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
 
