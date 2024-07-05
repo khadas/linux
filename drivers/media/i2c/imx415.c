@@ -2463,6 +2463,11 @@ int __imx415_power_on(struct imx415 *imx415)
 		goto err_pinctrl;
 	}
 
+	/* export gpio */
+	if (!IS_ERR(imx415->reset_gpio))
+		gpiod_export(imx415->reset_gpio, false);
+	if (!IS_ERR(imx415->power_gpio))
+		gpiod_export(imx415->power_gpio, false);
 	/* At least 20us between XCLR and I2C communication */
 	usleep_range(20*1000, 30*1000);
 
@@ -3017,7 +3022,7 @@ static int imx415_probe(struct i2c_client *client,
 	imx415->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(imx415->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
-	imx415->power_gpio = devm_gpiod_get(dev, "power", GPIOD_ASIS);
+	imx415->power_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(imx415->power_gpio))
 		dev_warn(dev, "Failed to get power-gpios\n");
 	imx415->pinctrl = devm_pinctrl_get(dev);
