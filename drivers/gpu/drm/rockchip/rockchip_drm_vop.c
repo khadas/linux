@@ -2119,7 +2119,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 			dsp_h = 4;
 		actual_h = dsp_h * actual_h / drm_rect_height(dest);
 	}
-	if ((vop->version == VOP_VERSION(2, 2) || vop->version == VOP_VERSION(2, 0xd)) &&
+	if ((vop->version == VOP_VERSION(2, 2) || vop->version >= VOP_VERSION(2, 0xd)) &&
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_h = dsp_h / 2;
 
@@ -2134,7 +2134,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	dsp_stx = dest->x1 + mode->crtc_htotal - mode->crtc_hsync_start;
 	dsp_sty = dest->y1 + mode->crtc_vtotal - mode->crtc_vsync_start;
-	if ((vop->version == VOP_VERSION(2, 2) || vop->version == VOP_VERSION(2, 0xd)) &&
+	if ((vop->version == VOP_VERSION(2, 2) || vop->version >= VOP_VERSION(2, 0xd)) &&
 	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_sty = dest->y1 / 2 + mode->crtc_vtotal - mode->crtc_vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
