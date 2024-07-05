@@ -124,6 +124,15 @@
 		};
 	};
 
+	pdm_mic_array: pdm-mic-array {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,pdm-mic-array";
+		rockchip,cpu = <&pdm>;
+		rockchip,codec = <&es7202_0>, <&es7202_1>,
+				 <&es7202_2>, <&es7202_3>;
+	};
+
 	/* SAI0 1TX + 4RX */
 	sai0_es8388x4_sound: sai0-es8388x4-sound {
 		compatible = "rockchip,multicodecs-card";
@@ -326,6 +335,38 @@
 	pinctrl-0 = <&rm_io18_i2c0_scl
 		     &rm_io19_i2c0_sda>;
 
+	es7202_0: es7202@30 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x30>;
+		sound-name-prefix = "ES7202-0";
+	};
+
+	es7202_1: es7202@31 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x31>;
+		sound-name-prefix = "ES7202-1";
+	};
+
+	es7202_2: es7202@32 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x32>;
+		sound-name-prefix = "ES7202-2";
+	};
+
+	es7202_3: es7202@34 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7202_PDM_ADC_1";
+		reg = <0x34>;
+		sound-name-prefix = "ES7202-3";
+	};
+
 	es8388_0: es8388@11 {
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8388", "everest,es8323";
@@ -409,6 +450,16 @@
 		assigned-clock-rates = <12288000>;
 		sound-name-prefix = "ES8388-5";
 	};
+};
+
+&pdm {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io11_pdm_clk0
+		     &rm_io12_pdm_sdi0
+		     &rm_io13_pdm_sdi1
+		     &rm_io14_pdm_sdi2
+		     &rm_io15_pdm_sdi3>;
 };
 
 &pinctrl {
