@@ -232,8 +232,8 @@ static void debug_flush(struct platform_device *pdev)
 #ifdef CONFIG_RK_CONSOLE_THREAD
 #define FIFO_SIZE SZ_64K
 #define TTY_FIFO_SIZE SZ_64K
-static DEFINE_KFIFO(fifo, unsigned char, FIFO_SIZE);
-static DEFINE_KFIFO(tty_fifo, unsigned char, TTY_FIFO_SIZE);
+static struct kfifo fifo;
+static struct kfifo tty_fifo;
 static bool console_thread_stop; /* write on console_write */
 static bool console_thread_running; /* write on console_thread */
 static unsigned int console_dropped_messages;
@@ -1110,7 +1110,17 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 		pr_err("fiq-debugger get clock fail\n");
 		return -EINVAL;
 	}
+#ifdef CONFIG_RK_CONSOLE_THREAD
+	if (kfifo_alloc(&fifo, FIFO_SIZE, GFP_KERNEL)) {
+		pr_err("fiq-debugger alloc fifo fail\n");
+		return -ENOMEM;
+	}
 
+	if (kfifo_alloc(&tty_fifo, TTY_FIFO_SIZE, GFP_KERNEL)) {
+		pr_err("fiq-debugger alloc tty_fifo fail\n");
+		return -ENOMEM;
+	}
+#endif
 	clk_prepare_enable(clk);
 	clk_prepare_enable(pclk);
 
