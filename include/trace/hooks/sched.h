@@ -60,6 +60,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_finish_prio_fork,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_rtmutex_force_update,
+	TP_PROTO(struct task_struct *p, struct task_struct *pi_task, int *update),
+	TP_ARGS(p, pi_task, update), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_rtmutex_prepare_setprio,
 	TP_PROTO(struct task_struct *p, struct task_struct *pi_task),
 	TP_ARGS(p, pi_task), 1);
@@ -427,6 +431,10 @@ DECLARE_HOOK(android_vh_sched_setaffinity_early,
 DECLARE_RESTRICTED_HOOK(android_rvh_update_rt_rq_load_avg,
 	TP_PROTO(u64 now, struct rq *rq, struct task_struct *tsk, int running),
 	TP_ARGS(now, rq, tsk, running), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_set_task_comm,
+	TP_PROTO(struct task_struct *tsk, bool exec),
+	TP_ARGS(tsk, exec), 1);
 
 DECLARE_HOOK(android_vh_mmput,
 	TP_PROTO(struct mm_struct *mm),

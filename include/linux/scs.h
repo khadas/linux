@@ -17,7 +17,7 @@
 
 #define SCS_ORDER		0
 #ifdef CONFIG_AMLOGIC_MEMORY_OPT
-#define SCS_SIZE		SZ_1K
+#define SCS_SIZE		(SZ_2K)
 #else
 #define SCS_SIZE		(PAGE_SIZE << SCS_ORDER)
 #endif

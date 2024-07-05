@@ -128,11 +128,6 @@ KVM_NVHE_ALIAS(__hyp_rodata_end);
 /* pKVM static key */
 KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
 
-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-KVM_NVHE_ALIAS(pstore_io_save);
-KVM_NVHE_ALIAS(vabits_actual);
-#endif
-
 #endif /* CONFIG_KVM */
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */

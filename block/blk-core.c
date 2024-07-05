@@ -44,6 +44,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/block.h>
 
 #include "blk.h"
 #include "blk-mq.h"
@@ -412,8 +414,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	if (q->elevator)
 		blk_mq_sched_free_requests(q);
 	mutex_unlock(&q->sysfs_lock);
-
-	percpu_ref_exit(&q->q_usage_counter);
 
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
@@ -1266,6 +1266,7 @@ void blk_account_io_done(struct request *req, u64 now)
 	 * normal IO on queueing nor completion.  Accounting the
 	 * containing request is enough.
 	 */
+	trace_android_vh_blk_account_io_done(req);
 	if (req->part && blk_do_io_stat(req) &&
 	    !(req->rq_flags & RQF_FLUSH_SEQ)) {
 		const int sgrp = op_stat_group(req_op(req));

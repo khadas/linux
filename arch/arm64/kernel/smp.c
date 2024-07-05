@@ -705,7 +705,7 @@ static void __init of_parse_and_init_cpus(void)
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 #ifdef CONFIG_AMLOGIC_APU
-		if (cpu_count == apu_id) {
+		if (cpu_count == apu_id && hwid != apu_hwid) {
 			set_cpu_logical_map(cpu_count, apu_hwid);
 			early_map_cpu_to_node(cpu_count, 0);
 			cpu_count++;
@@ -713,7 +713,6 @@ static void __init of_parse_and_init_cpus(void)
 				apu_enable, apu_id, apu_hwid);
 		}
 #endif
-
 		if (hwid == INVALID_HWID)
 			goto next;
 
@@ -1161,10 +1160,8 @@ void crash_smp_send_stop(void)
 	 * If this cpu is the only one alive at this point in time, online or
 	 * not, there are no stop messages to be sent around, so just back out.
 	 */
-	if (num_other_online_cpus() == 0) {
-		sdei_mask_local_cpu();
-		return;
-	}
+	if (num_other_online_cpus() == 0)
+		goto skip_ipi;
 
 	cpumask_copy(&mask, cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), &mask);
@@ -1183,7 +1180,9 @@ void crash_smp_send_stop(void)
 		pr_warn("SMP: failed to stop secondary CPUs %*pbl\n",
 			cpumask_pr_args(&mask));
 
+skip_ipi:
 	sdei_mask_local_cpu();
+	sdei_handler_abort();
 }
 
 bool smp_crash_stop_failed(void)

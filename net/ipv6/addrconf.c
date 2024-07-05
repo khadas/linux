@@ -325,9 +325,8 @@ static void addrconf_del_dad_work(struct inet6_ifaddr *ifp)
 static void addrconf_mod_rs_timer(struct inet6_dev *idev,
 				  unsigned long when)
 {
-	if (!timer_pending(&idev->rs_timer))
+	if (!mod_timer(&idev->rs_timer, jiffies + when))
 		in6_dev_hold(idev);
-	mod_timer(&idev->rs_timer, jiffies + when);
 }
 
 static void addrconf_mod_dad_work(struct inet6_ifaddr *ifp,
@@ -1371,7 +1370,7 @@ retry:
 	 * idev->desync_factor if it's larger
 	 */
 	cnf_temp_preferred_lft = READ_ONCE(idev->cnf.temp_prefered_lft);
-	max_desync_factor = min_t(__u32,
+	max_desync_factor = min_t(long,
 				  idev->cnf.max_desync_factor,
 				  cnf_temp_preferred_lft - regen_advance);
 
@@ -2588,12 +2587,18 @@ static void manage_tempaddrs(struct inet6_dev *idev,
 			ipv6_ifa_notify(0, ift);
 	}
 
-	if ((create || list_empty(&idev->tempaddr_list)) &&
-	    idev->cnf.use_tempaddr > 0) {
+	/* Also create a temporary address if it's enabled but no temporary
+	 * address currently exists.
+	 * However, we get called with valid_lft == 0, prefered_lft == 0, create == false
+	 * as part of cleanup (ie. deleting the mngtmpaddr).
+	 * We don't want that to result in creating a new temporary ip address.
+	 */
+	if (list_empty(&idev->tempaddr_list) && (valid_lft || prefered_lft))
+		create = true;
+
+	if (create && idev->cnf.use_tempaddr > 0) {
 		/* When a new public address is created as described
 		 * in [ADDRCONF], also create a new temporary address.
-		 * Also create a temporary address if it's enabled but
-		 * no temporary address currently exists.
 		 */
 		read_unlock_bh(&idev->lock);
 		ipv6_create_tempaddr(ifp, false);
@@ -2750,6 +2755,9 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 				    dev->name);
 		return;
 	}
+
+	if (valid_lft != 0 && valid_lft < ACCEPT_RA_MIN_LFT(in6_dev->cnf))
+		goto put;
 
 	/*
 	 *	Two things going on here:
@@ -6252,6 +6260,28 @@ static int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
 	return proc_dointvec_minmax(&lctl, write, buffer, lenp, ppos);
 }
 
+static int addrconf_sysctl_accept_ra_min_lft(struct ctl_table *ctl, int write,
+					     void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tmp = *ctl;
+	unsigned int min = 0, max = 65535U, val;
+	u16 *data = ctl->data;
+	int res;
+
+	tmp.maxlen = sizeof(val);
+	tmp.data = &val;
+	tmp.extra1 = &min;
+	tmp.extra2 = &max;
+	val = READ_ONCE(*data);
+
+	res = proc_douintvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (res)
+		return res;
+	if (write)
+		WRITE_ONCE(*data, val);
+	return 0;
+}
+
 static void dev_disable_change(struct inet6_dev *idev)
 {
 	struct netdev_notifier_info info;
@@ -6800,6 +6830,13 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "accept_ra_min_lft",
+		.data		= &ACCEPT_RA_MIN_LFT(ipv6_devconf),
+		.maxlen		= sizeof(u16),
+		.mode		= 0644,
+		.proc_handler	= addrconf_sysctl_accept_ra_min_lft,
+	},
+	{
 		.procname	= "accept_ra_pinfo",
 		.data		= &ipv6_devconf.accept_ra_pinfo,
 		.maxlen		= sizeof(int),
@@ -7250,6 +7287,10 @@ int __init addrconf_init(void)
 {
 	struct inet6_dev *idev;
 	int i, err;
+
+	/* 0 initialize slot for accept_ra_min_lft */
+	ACCEPT_RA_MIN_LFT(ipv6_devconf) = 0;
+	ACCEPT_RA_MIN_LFT(ipv6_devconf_dflt) = 0;
 
 	err = ipv6_addr_label_init();
 	if (err < 0) {

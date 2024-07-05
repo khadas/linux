@@ -41,6 +41,11 @@
 #define PRG_ETH0_EXT_RGMII_MODE		1
 #define PRG_ETH0_EXT_RMII_MODE		4
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#define PRG_ETH0_MAC_ENABLE_RX		BIT(2)
+#define PRG_ETH0_MAC_ENABLE_TX		BIT(3)
+#endif
+
 /* mux to choose between fclk_div2 (bit unset) and mpll2 (bit set) */
 #define PRG_ETH0_CLK_M250_SEL_MASK	GENMASK(4, 4)
 
@@ -458,6 +463,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
 	if (internal_phy == 2) {
+		ndev->wol_enabled = false;
 		if (of_property_read_u32(np, "cali_val", &cali_val) != 0)
 			pr_err("set default cali_val as 0\n");
 		writel(cali_val, dwmac->regs + PRG_ETH1);
@@ -691,23 +697,13 @@ static int meson8b_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	struct phy_device *phydev = ndev->phydev;
-
 	int ret;
 
 	/*open wol, shutdown phy when not link*/
 	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
 		set_wol_notify_bl30(dwmac, true);
-		priv->wolopts = 0x1 << 5;
-		/*phy is 100M, change to 10M*/
-		if (phydev->speed != 10) {
-			pr_info("link 100M -> 10M\n");
-			backup_adv = phy_read(phydev, MII_ADVERTISE);
-			phy_write(phydev, MII_ADVERTISE, 0x61);
-			mii_lpa_to_linkmode_lpa_t(phydev->advertising, 0x61);
-			genphy_restart_aneg(phydev);
-			msleep(3000);
-		}
+		priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {
@@ -732,7 +728,6 @@ static int meson8b_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
 	int ret;
-	struct phy_device *phydev = ndev->phydev;
 
 	priv->wolopts = 0;
 
@@ -748,16 +743,11 @@ static int meson8b_resume(struct device *dev)
 				EV_KEY, KEY_POWER, 0);
 			input_sync(dwmac->input_dev);
 		}
-
-		if (backup_adv != 0) {
-			phy_write(phydev, MII_ADVERTISE, backup_adv);
-			mii_lpa_to_linkmode_lpa_t(phydev->advertising, backup_adv);
-			genphy_restart_aneg(phydev);
-			backup_adv = 0;
-		}
 		/*RTC wait linkup*/
 		pr_info("eth hold wakelock 5s\n");
 		pm_wakeup_event(dev, 5000);
+		priv->amlogic_task_action = 100;
+		stmmac_trigger_amlogic_task(priv);
 	} else {
 		if (internal_phy != 2) {
 			if (dwmac->data->resume)

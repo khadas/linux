@@ -2255,12 +2255,20 @@ void *__symbol_get(const char *symbol)
 	};
 
 	preempt_disable();
-	if (!find_symbol(&fsa) || strong_try_module_get(fsa.owner)) {
-		preempt_enable();
-		return NULL;
+	if (!find_symbol(&fsa))
+		goto fail;
+	if (fsa.license != GPL_ONLY) {
+		pr_warn("failing symbol_get of non-GPLONLY symbol %s.\n",
+			symbol);
+		goto fail;
 	}
+	if (strong_try_module_get(fsa.owner))
+		goto fail;
 	preempt_enable();
 	return (void *)kernel_symbol_value(fsa.sym);
+fail:
+	preempt_enable();
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(__symbol_get);
 
@@ -2457,7 +2465,7 @@ static long get_offset(struct module *mod, unsigned int *size,
 	return ret;
 }
 
-static bool module_init_layout_section(const char *sname)
+bool module_init_layout_section(const char *sname)
 {
 #ifndef CONFIG_MODULE_UNLOAD
 	if (module_exit_section(sname))
@@ -2722,15 +2730,21 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 	    || !src->st_name)
 		return false;
 
+#ifndef CONFIG_AMLOGIC_KALLSYM_OPT
 #ifdef CONFIG_KALLSYMS_ALL
 	if (src->st_shndx == pcpundx)
 		return true;
 #endif
+#endif
 
 	sec = sechdrs + src->st_shndx;
 	if (!(sec->sh_flags & SHF_ALLOC)
+#ifdef CONFIG_AMLOGIC_KALLSYM_OPT
+	    || !(sec->sh_flags & SHF_EXECINSTR)
+#else
 #ifndef CONFIG_KALLSYMS_ALL
 	    || !(sec->sh_flags & SHF_EXECINSTR)
+#endif
 #endif
 	    || (sec->sh_entsize & INIT_OFFSET_MASK))
 		return false;

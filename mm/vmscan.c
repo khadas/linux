@@ -68,6 +68,7 @@
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(mm_vmscan_direct_reclaim_begin);
 EXPORT_TRACEPOINT_SYMBOL_GPL(mm_vmscan_direct_reclaim_end);
+EXPORT_TRACEPOINT_SYMBOL_GPL(mm_vmscan_kswapd_wake);
 
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/vmscan.h>
@@ -1267,12 +1268,16 @@ static enum page_references page_check_references(struct page *page,
 	unsigned long vm_flags;
 	bool should_protect = false;
 	bool trylock_fail = false;
+	int ret = 0;
 
 	trace_android_vh_page_should_be_protected(page, &should_protect);
 	if (unlikely(should_protect))
 		return PAGEREF_ACTIVATE;
 
 	trace_android_vh_page_trylock_set(page);
+	trace_android_vh_check_page_look_around_ref(page, &ret);
+	if (ret)
+		return ret;
 	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
 					  &vm_flags);
 	referenced_page = TestClearPageReferenced(page);
@@ -1404,6 +1409,17 @@ static unsigned int demote_page_list(struct list_head *demote_pages,
 	return nr_succeeded;
 }
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+static int can_unmap_files(struct scan_control *sc, struct page *page)
+{
+	if (!current_is_kswapd())
+		return 1;
+	if (page_mapcount(page) > 1)
+		return 0;
+	return 1;
+}
+#endif
+
 /*
  * shrink_page_list() returns the number of reclaimed pages
  */
@@ -1451,7 +1467,11 @@ retry:
 		if (unlikely(!page_evictable(page)))
 			goto activate_locked;
 
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		if (!can_unmap_files(sc, page))
+	#else
 		if (!sc->may_unmap && page_mapped(page))
+	#endif
 			goto keep_locked;
 
 		/* page_update_gen() tried to promote this page? */
@@ -1979,14 +1999,14 @@ static __always_inline void update_lru_sizes(struct lruvec *lruvec,
  */
 static bool skip_cma(struct page *page, struct scan_control *sc)
 {
-       return !current_is_kswapd() &&
-                       gfp_migratetype(sc->gfp_mask) != MIGRATE_MOVABLE &&
-                       get_pageblock_migratetype(page) == MIGRATE_CMA;
+	return !current_is_kswapd() &&
+			gfp_migratetype(sc->gfp_mask) != MIGRATE_MOVABLE &&
+			get_pageblock_migratetype(page) == MIGRATE_CMA;
 }
 #else
 static bool skip_cma(struct page *page, struct scan_control *sc)
 {
-       return false;
+	return false;
 }
 #endif
 
@@ -4177,7 +4197,7 @@ static void inc_max_seq(struct lruvec *lruvec, bool can_swap, bool full_scan)
 	int prev, next;
 	int type, zone;
 	struct lru_gen_struct *lrugen = &lruvec->lrugen;
-
+restart:
 	spin_lock_irq(&lruvec->lru_lock);
 
 	VM_WARN_ON_ONCE(!seq_is_valid(lruvec));
@@ -4193,6 +4213,13 @@ static void inc_max_seq(struct lruvec *lruvec, bool can_swap, bool full_scan)
 			cond_resched();
 			spin_lock_irq(&lruvec->lru_lock);
 		}
+		if (inc_min_seq(lruvec, type, can_swap))
+			continue;
+
+		spin_unlock_irq(&lruvec->lru_lock);
+		cond_resched();
+		goto restart;
+
 	}
 
 	/*
@@ -4448,6 +4475,7 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 	int young = 0;
 	unsigned long bitmap[BITS_TO_LONGS(MIN_LRU_BATCH)] = {};
 	struct page *page = pvmw->page;
+	bool can_swap = !page_is_file_lru(page);
 	struct mem_cgroup *memcg = page_memcg(page);
 	struct pglist_data *pgdat = page_pgdat(page);
 	struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
@@ -4492,7 +4520,7 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 		if (!pte_young(pte[i]))
 			continue;
 
-		page = get_pfn_page(pfn, memcg, pgdat, !walk || walk->can_swap);
+		page = get_pfn_page(pfn, memcg, pgdat, can_swap);
 		if (!page)
 			continue;
 
@@ -4562,7 +4590,8 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
  *                          the eviction
  ******************************************************************************/
 
-static bool sort_page(struct lruvec *lruvec, struct page *page, int tier_idx)
+static bool sort_page(struct lruvec *lruvec, struct page *page, struct scan_control *sc,
+		       int tier_idx)
 {
 	bool success;
 	int gen = page_lru_gen(page);
@@ -4609,6 +4638,13 @@ static bool sort_page(struct lruvec *lruvec, struct page *page, int tier_idx)
 
 		WRITE_ONCE(lrugen->protected[hist][type][tier - 1],
 			   lrugen->protected[hist][type][tier - 1] + delta);
+		return true;
+	}
+
+	/* ineligible */
+	if (zone > sc->reclaim_idx || skip_cma(page, sc)) {
+		gen = page_inc_gen(lruvec, page, false);
+		list_move_tail(&page->lru, &lrugen->lists[gen][type][zone]);
 		return true;
 	}
 
@@ -4664,7 +4700,8 @@ static bool isolate_page(struct lruvec *lruvec, struct page *page, struct scan_c
 static int scan_pages(struct lruvec *lruvec, struct scan_control *sc,
 		      int type, int tier, struct list_head *list)
 {
-	int gen, zone;
+	int i;
+	int gen;
 	enum vm_event_item item;
 	int sorted = 0;
 	int scanned = 0;
@@ -4680,9 +4717,10 @@ static int scan_pages(struct lruvec *lruvec, struct scan_control *sc,
 
 	gen = lru_gen_from_seq(lrugen->min_seq[type]);
 
-	for (zone = sc->reclaim_idx; zone >= 0; zone--) {
+	for (i = MAX_NR_ZONES; i > 0; i--) {
 		LIST_HEAD(moved);
 		int skipped = 0;
+		int zone = (sc->reclaim_idx + i) % MAX_NR_ZONES;
 		struct list_head *head = &lrugen->lists[gen][type][zone];
 
 		while (!list_empty(head)) {
@@ -4696,7 +4734,7 @@ static int scan_pages(struct lruvec *lruvec, struct scan_control *sc,
 
 			scanned += delta;
 
-			if (sort_page(lruvec, page, tier))
+			if (sort_page(lruvec, page, sc, tier))
 				sorted += delta;
 			else if (isolate_page(lruvec, page, sc)) {
 				list_add(&page->lru, list);
@@ -7190,6 +7228,8 @@ kswapd_try_sleep:
 						alloc_order);
 		reclaim_order = balance_pgdat(pgdat, alloc_order,
 						highest_zoneidx);
+		trace_android_vh_vmscan_kswapd_done(pgdat->node_id, highest_zoneidx,
+						alloc_order, reclaim_order);
 		if (reclaim_order < alloc_order)
 			goto kswapd_try_sleep;
 	}

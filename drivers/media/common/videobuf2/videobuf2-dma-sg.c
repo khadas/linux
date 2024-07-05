@@ -57,7 +57,7 @@ struct vb2_dma_sg_buf {
 
 static void vb2_dma_sg_put(void *buf_priv);
 
-#ifdef CONFIG_AMLOGIC_MEDIA_COMMON
+#ifdef CONFIG_AMLOGIC_MEDIA_V4L2
 #define low_order_gfp_flags(gfp_flags)	((gfp_flags) | (GFP_KERNEL) | (__GFP_ZERO))
 #define mid_order_gfp_flags(gfp_flags)	((gfp_flags) | (GFP_KERNEL) | (__GFP_ZERO) | \
 				(__GFP_NOWARN) | (__GFP_NORETRY))
@@ -84,7 +84,7 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 
 		pages = NULL;
 		while (!pages) {
-#ifdef CONFIG_AMLOGIC_MEDIA_COMMON
+#ifdef CONFIG_AMLOGIC_MEDIA_V4L2
 			gfp_t flags = gfp_flags;
 
 			if (order >= 3)

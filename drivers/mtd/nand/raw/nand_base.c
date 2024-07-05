@@ -4895,7 +4895,12 @@ static bool find_full_id_nand(struct nand_chip *chip,
 
 	memorg = nanddev_get_memorg(&chip->base);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND)
+	if (!memcmp(type->id, id_data, type->id_len)) {
+#else
 	if (!strncmp(type->id, id_data, type->id_len)) {
+#endif
+
 		memorg->pagesize = type->pagesize;
 		mtd->writesize = memorg->pagesize;
 		memorg->pages_per_eraseblock = type->erasesize /
