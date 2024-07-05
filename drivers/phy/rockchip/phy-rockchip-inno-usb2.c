@@ -248,6 +248,7 @@ struct rockchip_usb2phy_cfg {
  * @suspended: phy suspended flag.
  * @typec_vbus_det: Type-C otg vbus detect.
  * @gpio_vbus_det: gpio otg vbus detect.
+ * @gpio_id_det: gpio otg id detect.
  * @utmi_avalid: utmi avalid status usage flag.
  *	true	- use avalid to get vbus status
  *	false	- use bvalid to get vbus status
@@ -271,7 +272,8 @@ struct rockchip_usb2phy_cfg {
  * @sw: orientation switch, communicate with TCPM (Type-C Port Manager).
  * @port_cfg: port register configuration, assigned by driver data.
  * @event_nb: hold event notification callback.
- * @gpio_extcon_nb: hold extcon usb gpio notification callback.
+ * @gpio_vbus_nb: hold extcon usb gpio vbus notification callback.
+ * @gpio_id_nb: hold extcon usb gpio id notification callback.
  * @state: define OTG enumeration states before device reset.
  * @mode: the dr_mode of the controller.
  */
@@ -285,6 +287,7 @@ struct rockchip_usb2phy_port {
 	bool		suspended;
 	bool		typec_vbus_det;
 	bool		gpio_vbus_det;
+	bool		gpio_id_det;
 	bool		utmi_avalid;
 	bool		vbus_attached;
 	bool		vbus_always_on;
@@ -305,7 +308,8 @@ struct rockchip_usb2phy_port {
 	struct		typec_switch_dev *sw;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
 	struct notifier_block	event_nb;
-	struct notifier_block	gpio_extcon_nb;
+	struct notifier_block	gpio_vbus_nb;
+	struct notifier_block	gpio_id_nb;
 	struct wake_lock	wakelock;
 	enum usb_otg_state	state;
 	enum usb_dr_mode	mode;
@@ -2060,12 +2064,16 @@ static void rockchip_usb2phy_usb_bvalid_enable(struct rockchip_usb2phy_port *rpo
 		property_enable(rphy->grf, &cfg->bvalid_grf_con, enable);
 }
 
-static int rockchip_usb2phy_gpio_extcon_notifier(struct notifier_block *nb,
-						  unsigned long event, void *ptr)
+static int rockchip_usb2phy_gpio_vbus_notifier(struct notifier_block *nb,
+					       unsigned long event, void *ptr)
 {
 	struct rockchip_usb2phy_port *rport =
-		container_of(nb, struct rockchip_usb2phy_port, gpio_extcon_nb);
+		container_of(nb, struct rockchip_usb2phy_port, gpio_vbus_nb);
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+
+	/* no need to control bvalid if USB_HOST state is true */
+	if (extcon_get_state(rphy->edev, EXTCON_USB_HOST) > 0)
+		return NOTIFY_DONE;
 
 	rockchip_usb2phy_usb_bvalid_enable(rport,
 					   extcon_get_state(rphy->edev, EXTCON_USB));
@@ -2073,17 +2081,67 @@ static int rockchip_usb2phy_gpio_extcon_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int rockchip_usb2phy_gpio_id_notifier(struct notifier_block *nb,
+					     unsigned long event, void *ptr)
+{
+	struct rockchip_usb2phy_port *rport =
+		container_of(nb, struct rockchip_usb2phy_port, gpio_id_nb);
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	struct regmap *base = get_reg_base(rphy);
+	int state = extcon_get_state(rphy->edev, EXTCON_USB_HOST);
+	bool iddig_output = property_enabled(base, &rport->port_cfg->iddig_output);
+	bool iddig_en = property_enabled(base, &rport->port_cfg->iddig_en);
+
+	if (state < 0)
+		state = 0;
+
+	dev_dbg(rphy->dev, "gpio id extcon state: %d\n", state);
+
+	if (iddig_en && ((state && !iddig_output) || (!state && iddig_output)))
+		goto out;
+
+	if (state) {
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST, 0);
+		property_enable(base, &rport->port_cfg->iddig_output, false);
+		property_enable(base, &rport->port_cfg->iddig_en, true);
+	} else {
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_DEVICE, 0);
+		property_enable(base, &rport->port_cfg->iddig_output, true);
+		property_enable(base, &rport->port_cfg->iddig_en, true);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
 static int rockchip_usb2phy_gpio_extcon_register_notifier(struct rockchip_usb2phy *rphy)
 {
 	struct rockchip_usb2phy_port *rport = &rphy->ports[USB2PHY_PORT_OTG];
 	struct extcon_dev *edev = rphy->edev;
+	struct regmap *base = get_reg_base(rphy);
 	int ret;
 
-	rport->gpio_extcon_nb.notifier_call = rockchip_usb2phy_gpio_extcon_notifier;
-	ret = devm_extcon_register_notifier(rphy->dev, edev, EXTCON_USB,
-					    &rport->gpio_extcon_nb);
-	if (ret)
-		return ret;
+	if (rport->gpio_vbus_det) {
+		rport->gpio_vbus_nb.notifier_call = rockchip_usb2phy_gpio_vbus_notifier;
+		ret = devm_extcon_register_notifier(rphy->dev, edev, EXTCON_USB,
+						    &rport->gpio_vbus_nb);
+		if (ret)
+			return ret;
+	}
+
+	if (rport->gpio_id_det) {
+		rport->gpio_id_nb.notifier_call = rockchip_usb2phy_gpio_id_notifier;
+		ret = devm_extcon_register_notifier(rphy->dev, edev, EXTCON_USB_HOST,
+						    &rport->gpio_id_nb);
+		if (ret)
+			return ret;
+
+		if (extcon_get_state(rphy->edev, EXTCON_USB_HOST) > 0) {
+			rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST, 0);
+			property_enable(base, &rport->port_cfg->iddig_output, false);
+			property_enable(base, &rport->port_cfg->iddig_en, true);
+		}
+	}
 
 	return 0;
 }
@@ -2221,6 +2279,9 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->gpio_vbus_det =
 		of_property_read_bool(child_np, "rockchip,gpio-vbus-det");
 
+	rport->gpio_id_det =
+		of_property_read_bool(child_np, "rockchip,gpio-id-det");
+
 	rport->sel_pipe_phystatus =
 		of_property_read_bool(child_np, "rockchip,sel-pipe-phystatus");
 
@@ -2234,14 +2295,6 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		}
 	}
 
-	if (rport->gpio_vbus_det) {
-		ret = rockchip_usb2phy_gpio_extcon_register_notifier(rphy);
-		if (ret) {
-			dev_err(rphy->dev, "failed to register gpio extcon notifier\n");
-			return ret;
-		}
-	}
-
 	/* Get Vbus regulators */
 	rport->vbus = devm_regulator_get_optional(&rport->phy->dev, "vbus");
 	if (IS_ERR(rport->vbus)) {
@@ -2252,6 +2305,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (rport->mode == USB_DR_MODE_OTG)
 			dev_warn(&rport->phy->dev, "No vbus specified for otg port\n");
 		rport->vbus = NULL;
+	}
+
+	if (rport->gpio_vbus_det || rport->gpio_id_det) {
+		ret = rockchip_usb2phy_gpio_extcon_register_notifier(rphy);
+		if (ret) {
+			dev_err(rphy->dev, "failed to register gpio extcon notifier\n");
+			return ret;
+		}
 	}
 
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
