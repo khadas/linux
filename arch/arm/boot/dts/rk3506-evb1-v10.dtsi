@@ -120,6 +120,7 @@
 	};
 
 	es8388_sound: es8388-sound {
+		status = "disabled";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip-es8388";
 		spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -673,7 +674,7 @@
 		     &rm_io14_i2c0_sda>;
 
 	es8388: es8388@11 {
-		status = "okay";
+		status = "disabled";
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8388", "everest,es8323";
 		reg = <0x11>;
@@ -783,7 +784,6 @@
 };
 
 &sai1 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io9_sai1_sclk
 		     &rm_io10_sai1_lrck
