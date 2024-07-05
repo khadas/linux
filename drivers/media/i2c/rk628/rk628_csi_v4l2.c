@@ -274,6 +274,15 @@ static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 
 static const struct rk628_csi_mode supported_modes[] = {
 	{
+		.width = 4096,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 4400,
+		.vts_def = 2250,
+	}, {
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
