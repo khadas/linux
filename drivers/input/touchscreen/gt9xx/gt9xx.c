@@ -66,6 +66,10 @@ static u8 gtp_change_x2y = TRUE;
 static u8 gtp_x_reverse = FALSE;
 static u8 gtp_y_reverse = TRUE;
 
+
+static struct input_dev *wake_key_dev = NULL;
+static bool is_sleeped;
+
 static const char *goodix_ts_name = "goodix-ts";
 static struct workqueue_struct *goodix_wq;
 struct i2c_client * gtp_i2c_connect_client = NULL; 
@@ -145,6 +149,26 @@ static s8 gtp_enter_doze(struct goodix_ts_data *ts);
 
 static u8 grp_cfg_version = 0;
 
+static void wake_system(void)
+{
+   if(wake_key_dev!=NULL)
+   {
+       input_event(wake_key_dev, EV_KEY, 116, 1);
+       input_sync(wake_key_dev);
+       input_event(wake_key_dev, EV_KEY, 116, 0);
+       input_sync(wake_key_dev);
+   }
+}
+
+void tp101_into_suspend(void)
+{
+    struct goodix_ts_data *ts = NULL;
+    ts = i2c_get_clientdata(gtp_i2c_connect_client);
+    if(NULL != ts){
+        ts->gtp_is_suspend = 1;
+        is_sleeped = true;
+    }
+}
 /*******************************************************
 Function:
     Read data from the i2c slave device.
@@ -1015,6 +1039,16 @@ static void goodix_ts_work_func(struct work_struct *work)
         input_sync(ts->input_dev);
     }
 
+    if(is_sleeped){
+        if(ts->gtp_is_suspend == 1){
+            ts->gtp_is_suspend = 0;
+            wake_system();
+            is_sleeped=false;
+        }
+    }else{
+        is_sleeped=false;
+    }
+
 exit_work_func:
     if(!ts->gtp_rawdiff_mode)
     {
@@ -1069,7 +1103,7 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
     struct goodix_ts_data *ts = dev_id;
 
     GTP_DEBUG_FUNC();
- 
+
     gtp_irq_disable(ts);
 
     if (device_can_wakeup(&ts->client->dev))
@@ -1887,7 +1921,6 @@ static s8 gtp_request_irq(struct goodix_ts_data *ts)
 
     GTP_DEBUG_FUNC();
     GTP_DEBUG("INT trigger type:%x", ts->int_trigger_type);
-    
     ts->irq=gpio_to_irq(ts->irq_pin);       //If not defined in client
     if (ts->irq)
     {
@@ -1953,6 +1986,10 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
 
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
+    if (device_may_wakeup(&ts->client->dev)){
+        enable_irq_wake(ts->irq);
+    }
+return 0;
 
     GTP_INFO("System suspend.");
 
@@ -2004,6 +2041,11 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
     int reg = 0;
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
+    ts->gtp_is_suspend = 0;
+    if (device_may_wakeup(&ts->client->dev)){
+        disable_irq_wake(ts->irq);
+    }
+return 0;
 
     GTP_INFO("System resume.");
 
@@ -2611,6 +2653,7 @@ Output:
 static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
     s32 ret = -1;
+    s32 dev = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
     int reg = 0;
@@ -2730,8 +2773,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     }
     ts->pendown =PEN_RELEASE;
     ts->client = client;
-    
-    
+
     INIT_WORK(&ts->work, goodix_ts_work_func);
     ts->client = client;
     spin_lock_init(&ts->irq_lock);          // 2.6.39 later
@@ -2847,6 +2889,15 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
     if (of_property_read_bool(np, "wakeup-source"))
     {
+        wake_key_dev = input_allocate_device();
+        wake_key_dev->name = "touch101_key";
+        wake_key_dev->evbit[0] = BIT(EV_KEY);
+        set_bit(116,  wake_key_dev->keybit);
+        dev = input_register_device(wake_key_dev);
+        if (dev)
+        {
+            return -ENODEV;
+        }
         device_init_wakeup(&client->dev, 1);
         enable_irq_wake(ts->irq);
     }
