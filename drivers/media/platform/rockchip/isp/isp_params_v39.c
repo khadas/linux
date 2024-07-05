@@ -2367,9 +2367,7 @@ isp_dhaz_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (arg->hist_iir_wr) {
 		for (i = 0; i < priv_val->dhaz_blk_num; i++) {
-			val = ISP39_DHAZ_IIR_WR_ID(i);
-			if (!i)
-				val |= ISP39_DHAZ_IIR_WR_CLEAR;
+			val = ISP39_DHAZ_IIR_WR_ID(i) | ISP39_DHAZ_IIR_WR_CLEAR;
 			isp3_param_write_direct(params_vdev, val, ISP39_DHAZ_HIST_RW);
 			for (j = 0; j < ISP39_DHAZ_HIST_IIR_NUM / 2; j++) {
 				val = ISP_PACK_2SHORT(arg->hist_iir[i][2 * j], arg->hist_iir[i][2 * j + 1]);
