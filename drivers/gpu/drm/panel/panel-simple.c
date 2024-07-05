@@ -5335,9 +5335,9 @@ err_did_platform_register:
 static char lcd_propname[1] = "0";
 static int __init khadas_mipi_id_para_setup(char *str)
 {
-        if (str != NULL) {
-                sprintf(lcd_propname, "%s", str);
-		}
+	if (str != NULL) {
+		sprintf(lcd_propname, "%s", str);
+
 		if(!strcmp(lcd_propname, "3")) {
 			khadas_mipi_id = 3;
 		} else if(!strcmp(lcd_propname, "2")) {
@@ -5347,8 +5347,9 @@ static int __init khadas_mipi_id_para_setup(char *str)
 		} else {
 			khadas_mipi_id = 0;
 		}
-        printk("lcd_propname: %s  khadas_mipi_id: %d\n", lcd_propname, khadas_mipi_id);
-        return 0;
+	}
+	printk("lcd_propname: %s  khadas_mipi_id: %d\n", lcd_propname, khadas_mipi_id);
+	return 0;
 }
 __setup("khadas_mipi_id=", khadas_mipi_id_para_setup);
 
