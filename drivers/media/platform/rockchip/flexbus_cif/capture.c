@@ -1174,10 +1174,7 @@ static int flexbus_cif_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = stream;
 	q->ops = &flexbus_cif_vb2_ops;
-	if (stream->cif_dev->is_dma_sg_ops)
-		q->mem_ops = &vb2_cma_sg_memops;
-	else
-		q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = &vb2_cma_sg_memops;
 	q->buf_struct_size = sizeof(struct flexbus_cif_buffer);
 	q->min_buffers_needed = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
