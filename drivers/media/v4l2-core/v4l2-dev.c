@@ -1091,6 +1091,7 @@ void video_unregister_device(struct video_device *vdev)
 	mutex_unlock(&videodev_lock);
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
 		v4l2_event_wake_all(vdev);
+	devnode_clear(vdev);
 	device_unregister(&vdev->dev);
 }
 EXPORT_SYMBOL(video_unregister_device);
