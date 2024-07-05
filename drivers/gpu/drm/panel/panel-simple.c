@@ -188,6 +188,7 @@ struct panel_desc {
 	int (*spi_read)(struct device *dev, const u8 cmd, u8 *val);
 	int (*spi_write)(struct device *dev, const u8 *data, size_t len, u8 type);
 };
+extern void lcd_reset_pin_reset(void);
 
 struct panel_simple {
 	struct drm_panel base;
@@ -580,6 +581,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	}
 
 	//gpiod_direction_output(p->reset_gpio, 0);
+	lcd_reset_pin_reset();
 	gpiod_direction_output(p->enable_gpio, 0);
 
 	panel_simple_regulator_disable(p);
