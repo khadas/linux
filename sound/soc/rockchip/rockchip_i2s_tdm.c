@@ -1024,6 +1024,9 @@ static void rockchip_i2s_tdm_xfer_stop(struct rk_i2s_tdm_dev *i2s_tdm,
 	udelay(150);
 
 	rockchip_i2s_tdm_clear(i2s_tdm, clr);
+
+	dev_dbg(i2s_tdm->dev, "%s: stream: %d force: %d\n",
+		__func__, stream, force);
 }
 
 static void rockchip_i2s_tdm_xfer_trcm_start(struct rk_i2s_tdm_dev *i2s_tdm,
@@ -2261,6 +2264,24 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 
 	regmap_update_bits(i2s_tdm->regmap, I2S_TXCR, mask, val);
 	regmap_update_bits(i2s_tdm->regmap, I2S_RXCR, mask, val);
+	/*
+	 * TDM mode use all FIFOs, the max burst is 16 word of DMAC,
+	 * so we used the max FIFO to cover DDR dmc windows.
+	 *
+	 * 4 FIFOs controller:
+	 *
+	 * TDL:
+	 *
+	 * 16 word: WL = ((32 * 4) - 16) / 4 = 28
+	 *
+	 * RDL:
+	 *
+	 * 16 word: WL = 16 / 4 = 4
+	 */
+	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
+			   I2S_DMACR_TDL(28));
+	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
+			   I2S_DMACR_RDL(4));
 
 	pm_runtime_put(dai->dev);
 
