@@ -111,6 +111,8 @@ void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 					mask |= (RKVPSS_ISP2VPSS_CHN0_SEL(3) << j * 2);
 				}
 				*val |= (readl(base + i) & mask);
+			} else {
+				*val |= readl(base + i);
 			}
 		}
 		writel(*val, base + i);
