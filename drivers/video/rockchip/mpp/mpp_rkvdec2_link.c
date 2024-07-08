@@ -1620,6 +1620,7 @@ static int rkvdec2_ccu_power_off(struct mpp_taskqueue *queue,
 static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 {
 	struct mpp_task *mpp_task = NULL, *n;
+	unsigned long flags;
 
 	mpp_debug_enter();
 
@@ -1665,7 +1666,9 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
 			/* free task */
+			spin_lock_irqsave(&queue->running_lock, flags);
 			list_del_init(&mpp_task->queue_link);
+			spin_unlock_irqrestore(&queue->running_lock, flags);
 			kref_put(&mpp_task->ref, mpp_free_task);
 		} else {
 			/* NOTE: break when meet not finish */
@@ -1829,6 +1832,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 	struct mpp_task *mpp_task = NULL, *n;
 	struct rkvdec2_dev *dec;
 	u32 err_task_iova;
+	unsigned long flags;
 
 	mpp_debug_enter();
 
@@ -1843,6 +1847,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 	dev_err(mpp->dev, "core %d err task iova %#08x\n", mpp->core_id, err_task_iova);
 	rockchip_iommu_mask_irq(mpp->dev);
 
+	spin_lock_irqsave(&queue->running_lock, flags);
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
 		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 
@@ -1852,6 +1857,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 			break;
 		}
 	}
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 	atomic_inc(&mpp->queue->reset_request);
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 
@@ -2213,6 +2219,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 	struct mpp_task *mpp_task = NULL, *n;
 	u32 dump_reg = 0;
 	u32 dequeue_none = 0;
+	unsigned long flags;
 
 	mpp_debug_enter();
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
@@ -2260,9 +2267,11 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 				}
 				dump_reg = 1;
 			}
+			spin_lock_irqsave(&queue->running_lock, flags);
 			list_move_tail(&task->table->link, &ccu->unused_list);
 			/* free task */
 			list_del_init(&mpp_task->queue_link);
+			spin_unlock_irqrestore(&queue->running_lock, flags);
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
 			if ((irq_status & hw->err_mask) || timeout_flag) {
