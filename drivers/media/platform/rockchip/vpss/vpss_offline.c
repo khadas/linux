@@ -1573,6 +1573,9 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 	if (ret < 0)
 		return ret;
 
+	if (unite && left)
+		calc_unite_scl_params(file, cfg);
+
 	if (unite && cfg->mirror)
 		left_tmp = !left;
 	else
@@ -1977,7 +1980,6 @@ static int rkvpss_prepare_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 		if (ret < 0)
 			goto end;
 	} else {
-		calc_unite_scl_params(file, cfg);
 		ret = rkvpss_ofl_run(file, cfg, true, true);
 		if (ret < 0) {
 			v4l2_err(&ofl->v4l2_dev, "unite left error\n");
