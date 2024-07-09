@@ -102,6 +102,14 @@ typedef struct mali_plat_info_t {
 
 	/* for boost up gpu by user. */
 	void (*plat_preheat)(void);
+#ifdef CONFIG_MALI_DEVFREQ
+	enum preheat_status{
+		PREHEAT_NULL,
+		PREHEAT_START,
+		PREHEAT_DOING,
+		PREHEAT_END
+	}status;
+#endif
 
 	struct platform_device *pdev;
 	void __iomem *reg_base_hiubus;

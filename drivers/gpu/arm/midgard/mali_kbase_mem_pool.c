@@ -863,7 +863,7 @@ static void kbase_mem_pool_add_array(struct kbase_mem_pool *pool,
 
 	/* Zero/sync pages first without holding the pool lock */
 	for (i = 0; i < nr_pages; i++) {
-		if (unlikely(!as_phys_addr_t(pages[i])))
+		if (unlikely(!is_valid_addr(pages[i])))
 			continue;
 
 		if (is_huge_head(pages[i]) || !is_huge(pages[i])) {
@@ -876,7 +876,7 @@ static void kbase_mem_pool_add_array(struct kbase_mem_pool *pool,
 			list_add(&p->lru, &new_page_list);
 			nr_to_pool++;
 		}
-		pages[i] = as_tagged(0);
+		pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 	}
 
 	/* Add new page list to pool */
@@ -905,7 +905,7 @@ static void kbase_mem_pool_add_array_locked(struct kbase_mem_pool *pool,
 
 	/* Zero/sync pages first */
 	for (i = 0; i < nr_pages; i++) {
-		if (unlikely(!as_phys_addr_t(pages[i])))
+		if (unlikely(!is_valid_addr(pages[i])))
 			continue;
 
 		if (is_huge_head(pages[i]) || !is_huge(pages[i])) {
@@ -918,7 +918,7 @@ static void kbase_mem_pool_add_array_locked(struct kbase_mem_pool *pool,
 			list_add(&p->lru, &new_page_list);
 			nr_to_pool++;
 		}
-		pages[i] = as_tagged(0);
+		pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 	}
 
 	/* Add new page list to pool */
@@ -962,17 +962,17 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 
 	/* Free any remaining pages to kernel */
 	for (; i < nr_pages; i++) {
-		if (unlikely(!as_phys_addr_t(pages[i])))
+		if (unlikely(!is_valid_addr(pages[i])))
 			continue;
 
 		if (is_huge(pages[i]) && !is_huge_head(pages[i])) {
-			pages[i] = as_tagged(0);
+			pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 			continue;
 		}
 		p = as_page(pages[i]);
 
 		kbase_mem_pool_free_page(pool, p);
-		pages[i] = as_tagged(0);
+		pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 		pages_released = true;
 	}
 
@@ -1011,18 +1011,18 @@ void kbase_mem_pool_free_pages_locked(struct kbase_mem_pool *pool,
 
 	/* Free any remaining pages to kernel */
 	for (; i < nr_pages; i++) {
-		if (unlikely(!as_phys_addr_t(pages[i])))
+		if (unlikely(!is_valid_addr(pages[i])))
 			continue;
 
 		if (is_huge(pages[i]) && !is_huge_head(pages[i])) {
-			pages[i] = as_tagged(0);
+			pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 			continue;
 		}
 
 		p = as_page(pages[i]);
 
 		kbase_mem_pool_free_page(pool, p);
-		pages[i] = as_tagged(0);
+		pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 		pages_released = true;
 	}
 

@@ -47,7 +47,7 @@ static const struct kbase_pm_policy *const all_policy_list[] = {
 
 void kbase_pm_policy_init(struct kbase_device *kbdev)
 {
-	const struct kbase_pm_policy *default_policy = all_policy_list[0];
+	const struct kbase_pm_policy *default_policy = all_policy_list[1];
 	struct device_node *np = kbdev->dev->of_node;
 	const char *power_policy_name;
 	unsigned long flags;

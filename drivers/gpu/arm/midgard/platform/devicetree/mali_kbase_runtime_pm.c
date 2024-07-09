@@ -68,7 +68,7 @@ static void  Mali_pwr_on_with_kdev( struct kbase_device *kbdev, uint32_t  mask)
 	shader_present = Mali_RdReg(0x100);
 	tiler_present  = Mali_RdReg(0x110);
 	l2_present     = Mali_RdReg(0x120);
-	dev_info(kbdev->dev, "shader_present=%d, tiler_present=%d, l2_present=%d\n",
+	dev_dbg(kbdev->dev, "shader_present=%d, tiler_present=%d, l2_present=%d\n",
 	shader_present, tiler_present, l2_present);
 
 	if (  mask == 0 ) {
@@ -201,12 +201,12 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 	if (first == 0) goto out;
 	if (!pm_runtime_enabled(kbdev->dev)) {
 		pm_runtime_enable(kbdev->dev);
-		dev_info(kbdev->dev, "pm_runtime not enabled, enable it here\n");
+		dev_dbg(kbdev->dev, "pm_runtime not enabled, enable it here\n");
 		ret = pm_runtime_get_sync(kbdev->dev);
 		udelay(100);
-		dev_info(kbdev->dev, "pm_runtime_get_sync returned %d\n", ret);
+		dev_dbg(kbdev->dev, "pm_runtime_get_sync returned %d\n", ret);
 	} else {
-		dev_info(kbdev->dev, "pm_runtime enabled\n");
+		dev_dbg(kbdev->dev, "pm_runtime enabled\n");
 	}
 
 	first = 0;
@@ -231,31 +231,31 @@ static int kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	int ret = 0;
 
-	dev_info(kbdev->dev, "kbase_device_runtime_init\n");
+	dev_dbg(kbdev->dev, "kbase_device_runtime_init\n");
 	pm_runtime_enable(kbdev->dev);
 	ret = pm_runtime_get_sync(kbdev->dev);
-	dev_info(kbdev->dev, "pm_runtime_get_sync ret=%d\n", ret);
+	dev_dbg(kbdev->dev, "pm_runtime_get_sync ret=%d\n", ret);
 
 	return ret;
 }
 
 static void kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
-	dev_info(kbdev->dev, "kbase_device_runtime_disable\n");
+	dev_dbg(kbdev->dev, "kbase_device_runtime_disable\n");
 	pm_runtime_disable(kbdev->dev);
 }
 #endif
 
 static int pm_callback_runtime_on(struct kbase_device *kbdev)
 {
-	dev_info(kbdev->dev, "pm_callback_runtime_on\n");
+	dev_dbg(kbdev->dev, "pm_callback_runtime_on\n");
 
 	return 0;
 }
 
 static void pm_callback_runtime_off(struct kbase_device *kbdev)
 {
-	dev_info(kbdev->dev, "pm_callback_runtime_off\n");
+	dev_dbg(kbdev->dev, "pm_callback_runtime_off\n");
 }
 
 /*
@@ -271,7 +271,7 @@ static void pm_callback_resume(struct kbase_device *kbdev)
 	struct mali_plat_info_t *mpdata;
 	struct clk *clk_mali;
 
-	dev_info(kbdev->dev, "pm_callback_resume in\n");
+	dev_dbg(kbdev->dev, "pm_callback_resume in\n");
 	/* clock resume avoid clk be changed by system */
 	mpdata  = (struct mali_plat_info_t *) kbdev->platform_context;
 	clk_mali = mpdata->clk_mali;
@@ -284,20 +284,20 @@ static void pm_callback_resume(struct kbase_device *kbdev)
 	dev_dbg(kbdev->dev, "mali clock resume done\n");
 	if (!pm_runtime_enabled(kbdev->dev)) {
 		pm_runtime_enable(kbdev->dev);
-		dev_info(kbdev->dev, "pm_runtime not enable, enable here\n");
+		dev_dbg(kbdev->dev, "pm_runtime not enable, enable here\n");
 	} else {
-		dev_info(kbdev->dev, "pm_runtime enabled already\n");
+		dev_dbg(kbdev->dev, "pm_runtime enabled already\n");
 	}
 	ret = pm_runtime_get_sync(kbdev->dev);
-	dev_info(kbdev->dev, "pm_runtime_get_sync ret=%d\n", ret);
+	dev_dbg(kbdev->dev, "pm_runtime_get_sync ret=%d\n", ret);
 	Mali_WrReg(GPU_CONTROL_REG(PWR_KEY), 0x2968A819);
 	pwr_override1 = Mali_RdReg(GPU_CONTROL_REG(PWR_OVERRIDE1));
 	if (!pwr_override1) {
-		dev_info(kbdev->dev, "pwr_override1=0,need do once init\n");
+		dev_dbg(kbdev->dev, "pwr_override1=0,need do once init\n");
 		mali_hw_init(kbdev);
 	}
 	ret = pm_callback_runtime_on(kbdev);
-	dev_info(kbdev->dev, "pm_callback_resume out\n");
+	dev_dbg(kbdev->dev, "pm_callback_resume out\n");
 }
 
 /* the out power of gpu on t7 will be power off by platform when suspend */
@@ -306,7 +306,7 @@ static void pm_callback_suspend(struct kbase_device *kbdev)
 	struct mali_plat_info_t *mpdata;
 	struct clk *clk_mali;
 
-	dev_info(kbdev->dev, "pm_callback_suspend in\n");
+	dev_dbg(kbdev->dev, "pm_callback_suspend in\n");
 	pm_callback_runtime_off(kbdev);
 	pm_runtime_put_sync(kbdev->dev);
 	pm_runtime_disable(kbdev->dev);
@@ -315,11 +315,11 @@ static void pm_callback_suspend(struct kbase_device *kbdev)
 	clk_mali = mpdata->clk_mali;
 	if (__clk_is_enabled(clk_mali)) {
 		clk_disable_unprepare(clk_mali);
-		dev_info(kbdev->dev, "disable gpu clk done\n");
+		dev_dbg(kbdev->dev, "disable gpu clk done\n");
 	} else {
-		dev_info(kbdev->dev, "gpu clk have disable before\n");
+		dev_dbg(kbdev->dev, "gpu clk have disable before\n");
 	}
-	dev_info(kbdev->dev, "pm_callback_suspend out\n");
+	dev_dbg(kbdev->dev, "pm_callback_suspend out\n");
 }
 
 struct kbase_pm_callback_conf pm_callbacks = {

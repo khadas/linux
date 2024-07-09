@@ -48,6 +48,8 @@ struct tagged_addr { phys_addr_t tagged_addr; };
 #define HUGE_HEAD    (1u << 1)
 #define FROM_PARTIAL (1u << 2)
 
+#define KBASE_INVALID_PHYSICAL_ADDRESS (~(phys_addr_t)0 & PAGE_MASK)
+
 #define NUM_4K_PAGES_IN_2MB_PAGE (SZ_2M / SZ_4K)
 
 /*
@@ -174,6 +176,18 @@ static inline unsigned int index_in_large_page(struct tagged_addr t)
 	WARN_ON(!is_huge(t));
 
 	return (PFN_DOWN(as_phys_addr_t(t)) & (NUM_4K_PAGES_IN_2MB_PAGE - 1));
+}
+
+/**
+ * is_valid_addr() - Check if the physical page has a valid address
+ *
+ * @t: tagged address storing the tag in the lower order bits.
+ *
+ * Return: true if page has valid physical address, or false
+ */
+static inline bool is_valid_addr(struct tagged_addr t)
+{
+	return (as_phys_addr_t(t) != KBASE_INVALID_PHYSICAL_ADDRESS);
 }
 
 #endif /* _KBASE_LOWLEVEL_H */

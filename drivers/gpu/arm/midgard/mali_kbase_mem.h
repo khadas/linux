@@ -887,6 +887,7 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(
 	struct kbase_mem_phy_alloc *alloc;
 	size_t alloc_size = sizeof(*alloc) + sizeof(*alloc->pages) * nr_pages;
 	size_t per_page_size = sizeof(*alloc->pages);
+	size_t i;
 
 	/* Imported pages may have page private data already in use */
 	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF) {
@@ -905,12 +906,14 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(
 
 	/* Allocate based on the size to reduce internal fragmentation of vmem */
 	if (alloc_size > KBASE_MEM_PHY_ALLOC_LARGE_THRESHOLD)
-		alloc = vzalloc(alloc_size);
+		alloc = vmalloc(alloc_size);
 	else
-		alloc = kzalloc(alloc_size, GFP_KERNEL);
+		alloc = kmalloc(alloc_size, GFP_KERNEL);
 
 	if (!alloc)
 		return ERR_PTR(-ENOMEM);
+
+	memset(alloc, 0, sizeof(struct kbase_mem_phy_alloc));
 
 	if (type == KBASE_MEM_TYPE_NATIVE) {
 		alloc->imported.native.nr_struct_pages =
@@ -928,6 +931,9 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(
 	atomic_set(&alloc->kernel_mappings, 0);
 	alloc->nents = 0;
 	alloc->pages = (void *)(alloc + 1);
+	/* fill pages with invalid address value */
+	for (i = 0; i < nr_pages; i++)
+		alloc->pages[i] = as_tagged(KBASE_INVALID_PHYSICAL_ADDRESS);
 	INIT_LIST_HEAD(&alloc->mappings);
 	alloc->type = type;
 	alloc->group_id = group_id;

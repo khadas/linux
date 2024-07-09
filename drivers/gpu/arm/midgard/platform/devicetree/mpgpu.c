@@ -62,7 +62,6 @@ static ssize_t domain_stat_read(struct class *class,
 #define BSTGPU_CMD "bstgpu"  /* bstgpu [0-256] */
 #define BSTPP_CMD "bstpp"  /* bstpp [0-256] */
 #define LIMIT_CMD "lmt"  /* lmt [0 or 1] */
-#define MAX_TOKEN 20
 #define FULL_UTILIZATION 256
 
 static ssize_t mpgpu_write(struct class *class,
@@ -77,11 +76,11 @@ static ssize_t mpgpu_write(struct class *class,
 	if (strlen(pstart) < 1)
 		goto quit;
 
-	if (!strncmp(pstart, PREHEAT_CMD, MAX_TOKEN)) {
+	if (!strncmp(pstart, PREHEAT_CMD, strlen(PREHEAT_CMD))) {
 		if (pmali_plat->plat_preheat) {
 			pmali_plat->plat_preheat();
 		}
-	} else if (!strncmp(pstart, PLL2_CMD, MAX_TOKEN)) {
+	} else if (!strncmp(pstart, PLL2_CMD, strlen(PLL2_CMD))) {
 		int base = 10;
 		if ((strlen(cprt) > 2) && (cprt[0] == '0') &&
 				(cprt[1] == 'x' || cprt[1] == 'X'))
@@ -94,25 +93,25 @@ static ssize_t mpgpu_write(struct class *class,
 			pmali_plat->cfg_clock = pmali_plat->turbo_clock;
 		pmali_plat->scale_info.maxclk = pmali_plat->cfg_clock;
 		set_str_src(val);
-	} else if (!strncmp(pstart, SCMPP_CMD, MAX_TOKEN)) {
+	} else if (!strncmp(pstart, SCMPP_CMD, strlen(SCMPP_CMD))) {
 		if ((kstrtouint(cprt, 10, &val) <0) || pmali_plat == NULL)
 			goto quit;
 		if ((val > 0) && (val < pmali_plat->cfg_pp)) {
 			pmali_plat->sc_mpp = val;
 		}
-	} else if (!strncmp(pstart, BSTGPU_CMD, MAX_TOKEN)) {
+	} else if (!strncmp(pstart, BSTGPU_CMD, strlen(BSTGPU_CMD))) {
 		if ((kstrtouint(cprt, 10, &val) <0) || pmali_plat == NULL)
 			goto quit;
 		if ((val > 0) && (val < FULL_UTILIZATION)) {
 			pmali_plat->bst_gpu = val;
 		}
-	} else if (!strncmp(pstart, BSTPP_CMD, MAX_TOKEN)) {
+	} else if (!strncmp(pstart, BSTPP_CMD, strlen(BSTPP_CMD))) {
 		if ((kstrtouint(cprt, 10, &val) <0) || pmali_plat == NULL)
 			goto quit;
 		if ((val > 0) && (val < FULL_UTILIZATION)) {
 			pmali_plat->bst_pp = val;
 		}
-	} else if (!strncmp(pstart, LIMIT_CMD, MAX_TOKEN)) {
+	} else if (!strncmp(pstart, LIMIT_CMD, strlen(LIMIT_CMD))) {
 		if ((kstrtouint(cprt, 10, &val) <0) || pmali_plat == NULL)
 			goto quit;
 

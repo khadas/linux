@@ -34,6 +34,12 @@
 #include <linux/pm_opp.h>
 #include "mali_kbase_devfreq.h"
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <platform/devicetree/mali_scaling.h>
+
+struct devfreq_simple_ondemand_data data;
+#endif
+
 /**
  * get_voltage() - Get the voltage value corresponding to the nominal frequency
  *                 used by devfreq.
@@ -122,8 +128,32 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	unsigned long volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	unsigned int i;
 	u64 core_mask;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct devfreq_dev_profile *dp;
+	mali_plat_info_t* pmali_plat = get_mali_plat_data();
+#endif
 
 	nominal_freq = *target_freq;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	dp = &kbdev->devfreq_profile;
+	switch (pmali_plat->status) {
+		case PREHEAT_NULL:
+			break;
+		case PREHEAT_START:
+			dp->polling_ms = 2000;
+			nominal_freq = kbdev->devfreq->scaling_max_freq;
+			pmali_plat->status = PREHEAT_DOING;
+			break;
+		case PREHEAT_DOING:
+			nominal_freq = kbdev->devfreq->scaling_max_freq;
+			pmali_plat->status = PREHEAT_END;
+			break;
+		case PREHEAT_END:
+			dp->polling_ms = 100;
+			pmali_plat->status = PREHEAT_NULL;
+			break;
+	}
+#endif
 
 #if KERNEL_VERSION(4, 11, 0) > LINUX_VERSION_CODE
 	rcu_read_lock();
@@ -256,11 +286,6 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	struct kbasep_pm_metrics diff;
-#if !defined(CONFIG_MALI_MIDGARD_DVFS) && defined(CONFIG_AMLOGIC_MODIFY)
-	int utilisation, util_gl_share;
-	int util_cl_share[2];
-	int busy;
-#endif
 
 	kbase_pm_get_dvfs_metrics(kbdev, &kbdev->last_devfreq_metrics, &diff);
 
@@ -271,18 +296,6 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 
 #if MALI_USE_CSF && defined CONFIG_DEVFREQ_THERMAL
 	kbase_ipa_reset_data(kbdev);
-#endif
-
-#if !defined(CONFIG_MALI_MIDGARD_DVFS) && defined(CONFIG_AMLOGIC_MODIFY)
-	utilisation = (100 * diff.time_busy) /
-			max(diff.time_busy + diff.time_idle, 1u);
-
-	busy = max(diff.busy_gl + diff.busy_cl[0] + diff.busy_cl[1], 1u);
-	util_gl_share = (100 * diff.busy_gl) / busy;
-	util_cl_share[0] = (100 * diff.busy_cl[0]) / busy;
-	util_cl_share[1] = (100 * diff.busy_cl[1]) / busy;
-
-	kbase_platform_dvfs_event(kbdev, utilisation, util_gl_share, util_cl_share);
 #endif
 
 	return 0;
@@ -677,6 +690,10 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	dp->get_dev_status = kbase_devfreq_status;
 	dp->get_cur_freq = kbase_devfreq_cur_freq;
 	dp->exit = kbase_devfreq_exit;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	data.upthreshold = 30;
+	data.downdifferential = 5;
+#endif
 
 	if (kbase_devfreq_init_freq_table(kbdev, dp))
 		return -EFAULT;
@@ -699,8 +716,13 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	if (err)
 		goto init_core_mask_table_failed;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp,
+				"simple_ondemand", &data);
+#else
 	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp,
 				"simple_ondemand", NULL);
+#endif
 	if (IS_ERR(kbdev->devfreq)) {
 		err = PTR_ERR(kbdev->devfreq);
 		kbdev->devfreq = NULL;

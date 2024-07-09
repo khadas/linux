@@ -1104,6 +1104,21 @@ kbase_rb_atom_might_depend(const struct kbase_jd_atom *katom_a,
 					KBASE_KATOM_FLAG_FAIL_BLOCKER)));
 }
 
+static inline void kbase_gpu_remove_atom(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
+					 u32 action, bool disjoint)
+{
+	struct kbase_context *kctx = katom->kctx;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	katom->event_code = BASE_JD_EVENT_REMOVED_FROM_NEXT;
+	kbase_gpu_mark_atom_for_return(kbdev, katom);
+	kbase_jsctx_slot_prio_blocked_set(kctx, katom->slot_nr, katom->sched_priority);
+
+	if (disjoint)
+		kbase_job_check_enter_disjoint(kbdev, action, katom->core_req, katom);
+}
+
 /**
  * kbase_gpu_irq_evict - evict a slot's JSn_HEAD_NEXT atom from the HW if it is
  *                       related to a failed JSn_HEAD atom
@@ -1154,9 +1169,9 @@ bool kbase_gpu_irq_evict(struct kbase_device *kbdev, unsigned int js, u32 comple
 	     kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_HEAD_NEXT_HI)) != 0)) {
 		kbase_reg_write(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT),
 				JS_COMMAND_NOP);
-		next_katom->gpu_rb_state = KBASE_ATOM_GPU_RB_READY;
 
 		if (completion_code == BASE_JD_EVENT_STOPPED) {
+			kbase_gpu_remove_atom(kbdev, next_katom, JS_COMMAND_SOFT_STOP, false);
 			KBASE_TLSTREAM_TL_NRET_ATOM_LPU(kbdev, next_katom,
 				&kbdev->gpu_props.props.raw_props.js_features
 					[next_katom->slot_nr]);
@@ -1165,10 +1180,11 @@ bool kbase_gpu_irq_evict(struct kbase_device *kbdev, unsigned int js, u32 comple
 			KBASE_TLSTREAM_TL_NRET_CTX_LPU(kbdev, next_katom->kctx,
 				&kbdev->gpu_props.props.raw_props.js_features
 					[next_katom->slot_nr]);
+		} else {
+			next_katom->gpu_rb_state = KBASE_ATOM_GPU_RB_READY;
+			if (next_katom->core_req & BASE_JD_REQ_PERMON)
+				kbase_pm_release_gpu_cycle_counter_nolock(kbdev);
 		}
-
-		if (next_katom->core_req & BASE_JD_REQ_PERMON)
-			kbase_pm_release_gpu_cycle_counter_nolock(kbdev);
 
 		/* On evicting the next_katom, the last submission kctx on the
 		 * given job slot then reverts back to the one that owns katom.
@@ -1552,25 +1568,6 @@ static inline void kbase_gpu_stop_atom(struct kbase_device *kbdev, unsigned int 
 	kbasep_job_slot_soft_or_hard_stop_do_action(kbdev, js, hw_action,
 							katom->core_req, katom);
 	kbase_jsctx_slot_prio_blocked_set(kctx, js, katom->sched_priority);
-}
-
-static inline void kbase_gpu_remove_atom(struct kbase_device *kbdev,
-						struct kbase_jd_atom *katom,
-						u32 action,
-						bool disjoint)
-{
-	struct kbase_context *kctx = katom->kctx;
-
-	lockdep_assert_held(&kbdev->hwaccess_lock);
-
-	katom->event_code = BASE_JD_EVENT_REMOVED_FROM_NEXT;
-	kbase_gpu_mark_atom_for_return(kbdev, katom);
-	kbase_jsctx_slot_prio_blocked_set(kctx, katom->slot_nr,
-					  katom->sched_priority);
-
-	if (disjoint)
-		kbase_job_check_enter_disjoint(kbdev, action, katom->core_req,
-									katom);
 }
 
 static int should_stop_x_dep_slot(struct kbase_jd_atom *katom)

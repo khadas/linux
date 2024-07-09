@@ -2074,6 +2074,7 @@ static int kbase_do_syncset(struct kbase_context *kctx,
 	u64 page_off, page_count;
 	u64 i;
 	u64 offset;
+	size_t sz;
 
 	kbase_os_mem_map_lock(kctx);
 	kbase_gpu_vm_lock(kctx);
@@ -2126,29 +2127,39 @@ static int kbase_do_syncset(struct kbase_context *kctx,
 		goto out_unlock;
 	}
 
-	/* Sync first page */
-	if (as_phys_addr_t(cpu_pa[page_off])) {
-		size_t sz = MIN(((size_t) PAGE_SIZE - offset), size);
+	if (page_off >= reg->gpu_alloc->nents) {
+		/* Start of sync range is outside the physically backed region
+		 * so nothing to do
+		 */
+		goto out_unlock;
+	}
 
-		kbase_sync_single(kctx, cpu_pa[page_off], gpu_pa[page_off],
-				offset, sz, sync_fn);
+	/* Sync first page */
+	sz = MIN(((size_t) PAGE_SIZE - offset), size);
+
+	kbase_sync_single(kctx, cpu_pa[page_off], gpu_pa[page_off],
+			offset, sz, sync_fn);
+
+	/* Calculate the size for last page */
+	sz = ((start + size - 1) & ~PAGE_MASK) + 1;
+
+	/* Limit the sync range to the physically backed region */
+	if (page_off + page_count > reg->gpu_alloc->nents) {
+		page_count = reg->gpu_alloc->nents - page_off;
+		/* Since we limit the pages then size for last page
+		 * is the whole page
+		 */
+		sz = PAGE_SIZE;
 	}
 
 	/* Sync middle pages (if any) */
 	for (i = 1; page_count > 2 && i < page_count - 1; i++) {
-		/* we grow upwards, so bail on first non-present page */
-		if (!as_phys_addr_t(cpu_pa[page_off + i]))
-			break;
-
 		kbase_sync_single(kctx, cpu_pa[page_off + i],
 				gpu_pa[page_off + i], 0, PAGE_SIZE, sync_fn);
 	}
 
 	/* Sync last page (if any) */
-	if (page_count > 1 &&
-	    as_phys_addr_t(cpu_pa[page_off + page_count - 1])) {
-		size_t sz = ((start + size - 1) & ~PAGE_MASK) + 1;
-
+	if (page_count > 1) {
 		kbase_sync_single(kctx, cpu_pa[page_off + page_count - 1],
 				gpu_pa[page_off + page_count - 1], 0, sz,
 				sync_fn);
