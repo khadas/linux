@@ -181,6 +181,25 @@ static struct i2s_of_quirks {
 	},
 };
 
+static bool rockchip_i2s_tdm_stream_valid(struct snd_pcm_substream *substream,
+					  struct snd_soc_dai *dai)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+
+	if (!substream)
+		return false;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    i2s_tdm->has_playback)
+		return true;
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
+	    i2s_tdm->has_capture)
+		return true;
+
+	return false;
+}
+
 static int to_ch_num(unsigned int val)
 {
 	switch (val) {
@@ -1843,6 +1862,9 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int val = 0;
 	unsigned int mclk_rate, bclk_rate, lrck_rate, div_bclk = 4, div_lrck = 64;
 
+	if (!rockchip_i2s_tdm_stream_valid(substream, dai))
+		return 0;
+
 #ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
 	if (i2s_tdm->is_tdm_multi_lanes)
 		rockchip_i2s_tdm_multi_lanes_set_clk(substream, params, dai);
@@ -1908,6 +1930,9 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 static int rockchip_i2s_tdm_hw_free(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
+	if (!rockchip_i2s_tdm_stream_valid(substream, dai))
+		return 0;
+
 	rockchip_utils_put_performance(substream, dai);
 
 	return 0;
@@ -1917,6 +1942,9 @@ static int rockchip_i2s_tdm_trigger(struct snd_pcm_substream *substream,
 				    int cmd, struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
+
+	if (!rockchip_i2s_tdm_stream_valid(substream, dai))
+		return 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -2307,6 +2335,9 @@ static int rockchip_i2s_tdm_startup(struct snd_pcm_substream *substream,
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
 	int stream = substream->stream;
 
+	if (!rockchip_i2s_tdm_stream_valid(substream, dai))
+		return 0;
+
 	if (i2s_tdm->substreams[stream])
 		return -EBUSY;
 
@@ -2322,6 +2353,9 @@ static void rockchip_i2s_tdm_shutdown(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
+
+	if (!rockchip_i2s_tdm_stream_valid(substream, dai))
+		return;
 
 	i2s_tdm->substreams[substream->stream] = NULL;
 }
