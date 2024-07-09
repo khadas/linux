@@ -72,8 +72,8 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
-#define EDT_DEFAULT_NUM_X		1024
-#define EDT_DEFAULT_NUM_Y		1024
+//#define EDT_DEFAULT_NUM_X		1024
+//#define EDT_DEFAULT_NUM_Y		1024
 
 #define TP_CHANGE_X2Y        1
 #define TP_X_REVERSE_ENABLE     0
@@ -1016,14 +1016,14 @@ static void edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	if (reg_addr->reg_report_rate != NO_REGISTER)
 		tsdata->report_rate = edt_ft5x06_register_read(tsdata,
 						reg_addr->reg_report_rate);
-	tsdata->num_x = EDT_DEFAULT_NUM_X;
-	if (reg_addr->reg_num_x != NO_REGISTER)
-		tsdata->num_x = edt_ft5x06_register_read(tsdata,
-							 reg_addr->reg_num_x);
-	tsdata->num_y = EDT_DEFAULT_NUM_Y;
-	if (reg_addr->reg_num_y != NO_REGISTER)
-		tsdata->num_y = edt_ft5x06_register_read(tsdata,
-							 reg_addr->reg_num_y);
+	//tsdata->num_x = EDT_DEFAULT_NUM_X;
+	//if (reg_addr->reg_num_x != NO_REGISTER)
+	//	tsdata->num_x = edt_ft5x06_register_read(tsdata,
+	//						 reg_addr->reg_num_x);
+	//tsdata->num_y = EDT_DEFAULT_NUM_Y;
+	//if (reg_addr->reg_num_y != NO_REGISTER)
+	//	tsdata->num_y = edt_ft5x06_register_read(tsdata,
+	//						 reg_addr->reg_num_y);
 }
 
 static void edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
