@@ -297,7 +297,7 @@
 	//pinctrl-names = "default";
 	//pinctrl-0 = <&lcd_rst_gpio>;
 
-	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
 
 	slice-width = <720>;
 	slice-height = <65>;

@@ -46,7 +46,7 @@
 /delete-node/ &dsi0_panel;
 
 &dsi1_panel {
-	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_NO_EOT_PACKET)>;
 	panel-init-sequence = [];
 	panel-exit-sequence = [];
 };
