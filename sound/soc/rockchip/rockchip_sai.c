@@ -87,6 +87,25 @@ static const struct sai_of_quirks {
 	},
 };
 
+static bool rockchip_sai_stream_valid(struct snd_pcm_substream *substream,
+				      struct snd_soc_dai *dai)
+{
+	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+
+	if (!substream)
+		return false;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    sai->has_playback)
+		return true;
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
+	    sai->has_capture)
+		return true;
+
+	return false;
+}
+
 static int rockchip_sai_fsync_lost_detect(struct rk_sai_dev *sai, bool en)
 {
 	unsigned int fw, cnt;
@@ -524,6 +543,9 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ch_per_lane, lanes, slot_width;
 	unsigned int val, fscr, reg, fifo;
 
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return 0;
+
 	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 	dma_data->maxburst = MAXBURST_PER_FIFO * params_channels(params) / 2;
 
@@ -621,6 +643,9 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 static int rockchip_sai_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return 0;
+
 	rockchip_utils_put_performance(substream, dai);
 
 	return 0;
@@ -630,6 +655,9 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return 0;
 
 	if (sai->is_master_mode) {
 		/*
@@ -759,6 +787,9 @@ static int rockchip_sai_trigger(struct snd_pcm_substream *substream,
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
+
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -934,6 +965,9 @@ static int rockchip_sai_startup(struct snd_pcm_substream *substream,
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
 	int stream = substream->stream;
 
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return 0;
+
 	if (sai->substreams[stream])
 		return -EBUSY;
 
@@ -949,6 +983,9 @@ static void rockchip_sai_shutdown(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+
+	if (!rockchip_sai_stream_valid(substream, dai))
+		return;
 
 	sai->substreams[substream->stream] = NULL;
 }
