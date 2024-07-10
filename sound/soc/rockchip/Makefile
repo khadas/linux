@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # ROCKCHIP Platform Support
 snd-soc-rockchip-objs := rockchip_utils.o
+snd-soc-rockchip-asrc-objs := rockchip_asrc.o
 snd-soc-rockchip-dlp-objs := rockchip_dlp.o
 snd-soc-rockchip-dlp-pcm-objs := rockchip_dlp_pcm.o
 snd-soc-rockchip-i2s-objs := rockchip_i2s.o
@@ -21,6 +22,7 @@ snd-soc-rockchip-vad-$(CONFIG_ARM) += vad_preprocess_arm.o
 endif
 
 obj-$(CONFIG_SND_SOC_ROCKCHIP) += snd-soc-rockchip.o
+obj-$(CONFIG_SND_SOC_ROCKCHIP_ASRC) += snd-soc-rockchip-asrc.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_DLP) += snd-soc-rockchip-dlp.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_DLP_PCM) += snd-soc-rockchip-dlp-pcm.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_I2S) += snd-soc-rockchip-i2s.o

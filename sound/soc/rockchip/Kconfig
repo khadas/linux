@@ -7,6 +7,13 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_SOC_ROCKCHIP_ASRC
+	tristate "Rockchip Asynchronous Sampling Rate Converter Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for ASRC driver for
+	  Rockchip.
+
 config SND_SOC_ROCKCHIP_DLP
 	tristate
 
