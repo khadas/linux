@@ -132,11 +132,13 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 
 static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
 {
-	struct evl_rq *this_rq;
+	struct evl_rq *this_rq = container_of(timer, struct evl_rq, rrbtimer);
 
-	this_rq = container_of(timer, struct evl_rq, rrbtimer);
 	raw_spin_lock(&this_rq->lock);
-	evl_sched_tick(this_rq);
+
+	if (this_rq->curr->state & EVL_T_RRB)
+		evl_sched_yield(this_rq);
+
 	raw_spin_unlock(&this_rq->lock);
 }
 

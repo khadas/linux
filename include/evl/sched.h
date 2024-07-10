@@ -120,7 +120,7 @@ struct evl_sched_class {
 	void (*sched_dequeue)(struct evl_thread *thread);
 	void (*sched_requeue)(struct evl_thread *thread);
 	struct evl_thread *(*sched_pick)(struct evl_rq *rq);
-	void (*sched_tick)(struct evl_rq *rq);
+	void (*sched_yield)(struct evl_thread *thread);
 	void (*sched_migrate)(struct evl_thread *thread,
 			      struct evl_rq *rq);
 	/*
@@ -468,7 +468,7 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 }
 
 /* rq->lock held, hard irqs off */
-static inline void evl_sched_tick(struct evl_rq *rq)
+static inline void evl_sched_yield(struct evl_rq *rq)
 {
 	struct evl_thread *curr = rq->curr;
 	struct evl_sched_class *sched_class = curr->sched_class;
@@ -476,15 +476,16 @@ static inline void evl_sched_tick(struct evl_rq *rq)
 	assert_hard_lock(&rq->lock);
 
 	/*
-	 * A thread that undergoes round-robin scheduling only
-	 * consumes its time slice when it runs within its own
-	 * scheduling class, which excludes temporary PI boosts.
+	 * A thread may yield the CPU manually only when 1) it is
+	 * currently unblocked, 2) it runs within its own scheduling
+	 * class which excludes temporary PI boosts, 3) preemption is
+	 * enabled.
 	 */
-	if (sched_class == curr->base_class &&
-	    sched_class->sched_tick &&
-	    (curr->state & (EVL_THREAD_BLOCK_BITS|EVL_T_RRB)) == EVL_T_RRB &&
+	if (sched_class->sched_yield &&
+	    !(curr->state & EVL_THREAD_BLOCK_BITS) &&
+	    sched_class == curr->base_class &&
 	    evl_preempt_count() == 0)
-		sched_class->sched_tick(rq);
+		sched_class->sched_yield(curr);
 }
 
 static inline
