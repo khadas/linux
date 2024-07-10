@@ -10362,10 +10362,12 @@ static void vop2_parse_alpha(struct vop2_alpha_config *alpha_config,
 	alpha->src_alpha_ctrl.bits.factor_mode = ALPHA_ONE;
 
 	alpha->dst_alpha_ctrl.bits.alpha_mode = ALPHA_STRAIGHT;
-	if (alpha_config->dst_pixel_alpha_en && !dst_glb_alpha_en)
+	if (alpha_config->dst_pixel_alpha_en && dst_glb_alpha_en)
+		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
+	else if (alpha_config->dst_pixel_alpha_en && !dst_glb_alpha_en)
 		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX;
 	else
-		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX_GLOBAL;
+		alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_GLOBAL;
 	alpha->dst_alpha_ctrl.bits.alpha_cal_mode = ALPHA_NO_SATURATION;
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
@@ -10405,7 +10407,7 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	struct vop2_plane_state *sub_vpstate;
 	struct vop2_plane_state *top_win_vpstate;
 	struct vop2_plane_state *bottom_win_vpstate;
-	bool src_pixel_alpha_en = false;
+	bool src_pixel_alpha_en = false, dst_pixel_alpha_en = false;
 	u16 src_glb_alpha_val = 0xff, dst_glb_alpha_val = 0xff;
 	bool premulti_en = false;
 	bool swap = false;
@@ -10456,10 +10458,11 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	fb = bottom_win_vpstate->base.fb;
 	if (!fb)
 		return;
+	dst_pixel_alpha_en = is_alpha_support(fb->format->format);
 	alpha_config.src_premulti_en = premulti_en;
 	alpha_config.dst_premulti_en = false;
 	alpha_config.src_pixel_alpha_en = src_pixel_alpha_en;
-	alpha_config.dst_pixel_alpha_en = true; /* alpha value need transfer to next mix */
+	alpha_config.dst_pixel_alpha_en = dst_pixel_alpha_en; /* alpha value need transfer to next mix */
 	alpha_config.src_glb_alpha_value = src_glb_alpha_val;
 	alpha_config.dst_glb_alpha_value = dst_glb_alpha_val;
 	vop2_parse_alpha(&alpha_config, &alpha);
@@ -10702,7 +10705,8 @@ static void rk3576_extra_alpha(struct vop2_video_port *vp, const struct vop2_zpo
 
 		vop2_writel(vop2, 0x500, 1);/* enable port0_extra_alpha_en */
 	} else {
-		alpha_config.dst_pixel_alpha_en = false;
+		/* alpha value need transfer to next mix, and the data from last mix is at bottom layer */
+		alpha_config.dst_pixel_alpha_en = true;
 		alpha_config.dst_premulti_en = false;
 		alpha_config.src_pixel_alpha_en = false;
 		alpha_config.src_glb_alpha_value =  0xff;
