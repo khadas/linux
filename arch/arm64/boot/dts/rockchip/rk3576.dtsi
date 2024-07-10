@@ -4602,6 +4602,78 @@
 		status = "disabled";
 	};
 
+	asrc0: asrc@2a690000 {
+		compatible = "rockchip,rk3576-asrc";
+		reg = <0x0 0x2a690000 0x0 0x1000>;
+		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_ASRC_4CH_0>, <&cru HCLK_ASRC_4CH_0>,
+			 <&cru LCLK_ASRC_SRC_0>, <&cru LCLK_ASRC_SRC_1>;
+		clock-names = "mclk", "hclk", "cru_src0", "cru_src1";
+		dmas = <&dmac2 17>, <&dmac2 18>;
+		dma-names = "rx", "tx";
+		power-domains = <&power RK3576_PD_AUDIO>;
+		rockchip,grf = <&sys_grf>;
+		resets = <&cru SRST_ASRC_4CH_0>, <&cru SRST_H_ASRC_4CH_0>;
+		reset-names = "m", "h";
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "ASRC0";
+		status = "disabled";
+	};
+
+	asrc1: asrc@2a6a0000 {
+		compatible = "rockchip,rk3576-asrc";
+		reg = <0x0 0x2a6a0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_ASRC_4CH_1>, <&cru HCLK_ASRC_4CH_1>,
+			 <&cru LCLK_ASRC_SRC_0>, <&cru LCLK_ASRC_SRC_1>;
+		clock-names = "mclk", "hclk", "cru_src0", "cru_src1";
+		dmas = <&dmac2 25>, <&dmac2 26>;
+		dma-names = "rx", "tx";
+		power-domains = <&power RK3576_PD_AUDIO>;
+		rockchip,grf = <&sys_grf>;
+		resets = <&cru SRST_ASRC_4CH_1>, <&cru SRST_H_ASRC_4CH_1>;
+		reset-names = "m", "h";
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "ASRC1";
+		status = "disabled";
+	};
+
+	asrc2: asrc@2a6b0000 {
+		compatible = "rockchip,rk3576-asrc";
+		reg = <0x0 0x2a6b0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_ASRC_2CH_0>, <&cru HCLK_ASRC_2CH_0>,
+			 <&cru LCLK_ASRC_SRC_0>, <&cru LCLK_ASRC_SRC_1>;
+		clock-names = "mclk", "hclk", "cru_src0", "cru_src1";
+		dmas = <&dmac0 27>, <&dmac0 28>;
+		dma-names = "rx", "tx";
+		power-domains = <&power RK3576_PD_AUDIO>;
+		rockchip,grf = <&sys_grf>;
+		resets = <&cru SRST_ASRC_2CH_0>, <&cru SRST_H_ASRC_2CH_0>;
+		reset-names = "m", "h";
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "ASRC2";
+		status = "disabled";
+	};
+
+	asrc3: asrc@2a6c0000 {
+		compatible = "rockchip,rk3576-asrc";
+		reg = <0x0 0x2a6c0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_ASRC_2CH_1>, <&cru HCLK_ASRC_2CH_1>,
+			 <&cru LCLK_ASRC_SRC_0>, <&cru LCLK_ASRC_SRC_1>;
+		clock-names = "mclk", "hclk", "cru_src0", "cru_src1";
+		dmas = <&dmac1 27>, <&dmac1 28>;
+		dma-names = "rx", "tx";
+		power-domains = <&power RK3576_PD_AUDIO>;
+		rockchip,grf = <&sys_grf>;
+		resets = <&cru SRST_ASRC_2CH_1>, <&cru SRST_H_ASRC_2CH_1>;
+		reset-names = "m", "h";
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "ASRC3";
+		status = "disabled";
+	};
+
 	acdcdig_dsm: acdcdig-dsm@2a6d0000 {
 		compatible = "rockchip,rk3576-dsm";
 		reg = <0x0 0x2a6d0000 0x0 0x1000>;
