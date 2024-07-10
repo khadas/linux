@@ -2000,7 +2000,7 @@ static int set_time_slice(struct evl_thread *thread, ktime_t quantum)
 		if (quantum <= evl_get_clock_gravity(&evl_mono_clock, user))
 			return -EINVAL;
 
-		if (thread->base_class->sched_tick == NULL)
+		if (thread->base_class->sched_yield == NULL)
 			return -EINVAL;
 
 		thread->state |= EVL_T_RRB;

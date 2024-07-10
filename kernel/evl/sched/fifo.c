@@ -12,16 +12,9 @@ static void evl_fifo_init(struct evl_rq *rq)
 	evl_init_schedq(&rq->fifo.runnable);
 }
 
-static void evl_fifo_tick(struct evl_rq *rq)
+static void evl_fifo_yield(struct evl_thread *thread)
 {
-	/*
-	 * The round-robin time credit is only consumed by a running
-	 * thread that neither holds the scheduler lock nor was
-	 * blocked before entering this callback. As the time slice is
-	 * exhausted for the running thread, move it back to the
-	 * run queue at the end of its priority group.
-	 */
-	evl_putback_thread(rq->curr);
+	evl_putback_thread(thread);
 }
 
 static int evl_fifo_chkparam(struct evl_thread *thread,
@@ -73,7 +66,7 @@ static ssize_t evl_fifo_show(struct evl_thread *thread,
 struct evl_sched_class evl_sched_fifo = {
 	.sched_init		=	evl_fifo_init,
 	.sched_pick		=	NULL, /* not used (see __pick_next_thread()) */
-	.sched_tick		=	evl_fifo_tick,
+	.sched_yield		=	evl_fifo_yield,
 	.sched_chkparam		=	evl_fifo_chkparam,
 	.sched_setparam		=	evl_fifo_setparam,
 	.sched_trackprio	=	evl_fifo_trackprio,
