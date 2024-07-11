@@ -8,6 +8,7 @@
  * V0.0X01.0X01 update sensor driver.
  * 1. adjust power sequence to suit spec.
  * 2. fix bayer pattern to suit setting.
+ * V0.0X01.0X02 add mirror & flip support.
  */
 
 #include <linux/clk.h>
@@ -81,6 +82,10 @@
 #define GC05A2_REG_VTS_H		0x0340
 #define GC05A2_REG_VTS_L		0x0341
 
+#define GC05A2_FLIP_MIRROR_REG		0x0101
+#define MIRROR_BIT_MASK			BIT(0)
+#define FLIP_BIT_MASK			BIT(1)
+
 #define REG_NULL				0xFFFF
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
@@ -139,6 +144,9 @@ struct gc05a2 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*link_freq;
+	struct v4l2_ctrl	*h_flip;
+	struct v4l2_ctrl	*v_flip;
+	u8			flip_mirror;
 	struct mutex		mutex;
 	bool			streaming;
 	unsigned int		lane_num;
@@ -156,49 +164,6 @@ struct gc05a2 {
 };
 
 #define to_gc05a2(sd) container_of(sd, struct gc05a2, subdev)
-
-#undef GC05A2_MIRROR_NORMAL
-#undef GC05A2_MIRROR_H
-#undef GC05A2_MIRROR_V
-#undef GC05A2_MIRROR_HV
-
-/* SENSOR MIRROR FLIP INFO */
-#define GC05A2_MIRROR_NORMAL	0
-#define GC05A2_MIRROR_H		1
-#define GC05A2_MIRROR_V		0
-#define GC05A2_MIRROR_HV	0
-
-#if GC05A2_MIRROR_NORMAL
-	#define GC05A2_MIRROR	0x00
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x03
-#elif GC05A2_MIRROR_H
-	#define GC05A2_MIRROR	0x01
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x09
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x04
-#elif GC05A2_MIRROR_V
-	#define GC05A2_MIRROR	0x02
-	#define FULL_STARTY	0x07
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x04
-	#define BINNING_STARTX	0x03
-#elif GC05A2_MIRROR_HV
-	#define GC05A2_MIRROR	0x03
-	#define FULL_STARTY	0x07
-	#define FULL_STARTX	0x09
-	#define BINNING_STARTY	0x04
-	#define BINNING_STARTX	0x04
-#else
-	#define GC05A2_MIRROR	0x00
-	#define FULL_STARTY	0x06
-	#define FULL_STARTX	0x08
-	#define BINNING_STARTY	0x03
-	#define BINNING_STARTX	0x03
-#endif
 
 /*
  * Xclk 24Mhz
@@ -1136,6 +1101,7 @@ static int gc05a2_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
+		gc05a2->flip_mirror = 0;
 		ret = gc05a2_write_array(gc05a2->client, gc05a2->cur_mode->global_reg_list);
 		if (ret) {
 			v4l2_err(sd, "could not set init registers\n");
@@ -1421,15 +1387,15 @@ static int gc05a2_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
-		dev_info(&client->dev, "set exposure value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
 		ret = gc05a2_set_exposure_reg(gc05a2, ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		dev_info(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		ret = gc05a2_set_gain_reg(gc05a2, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
-		dev_info(&client->dev, "set vb value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set vb value 0x%x\n", ctrl->val);
 		ret = gc05a2_write_reg(gc05a2->client,
 					GC05A2_REG_VTS_H,
 					(ctrl->val + gc05a2->cur_mode->height)
@@ -1438,6 +1404,27 @@ static int gc05a2_set_ctrl(struct v4l2_ctrl *ctrl)
 					GC05A2_REG_VTS_L,
 					(ctrl->val + gc05a2->cur_mode->height)
 					& 0xff);
+		break;
+	case V4L2_CID_HFLIP:
+		dev_dbg(&client->dev, "set mirror value 0x%x\n", ctrl->val);
+
+		if (ctrl->val)
+			gc05a2->flip_mirror |= MIRROR_BIT_MASK;
+		else
+			gc05a2->flip_mirror &= ~MIRROR_BIT_MASK;
+
+		ret |= gc05a2_write_reg(gc05a2->client, GC05A2_FLIP_MIRROR_REG,
+					 gc05a2->flip_mirror);
+		break;
+	case V4L2_CID_VFLIP:
+		dev_dbg(&client->dev, "set flip value 0x%x\n", ctrl->val);
+		if (ctrl->val)
+			gc05a2->flip_mirror |= FLIP_BIT_MASK;
+		else
+			gc05a2->flip_mirror &= ~FLIP_BIT_MASK;
+
+		ret |= gc05a2_write_reg(gc05a2->client, GC05A2_FLIP_MIRROR_REG,
+					 gc05a2->flip_mirror);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1501,6 +1488,11 @@ static int gc05a2_initialize_controls(struct gc05a2 *gc05a2)
 				V4L2_CID_ANALOGUE_GAIN, GC05A2_AGAIN_MIN,
 				GC05A2_AGAIN_MAX, GC05A2_AGAIN_STEP,
 				GC05A2_AGAIN_DEFAULT);
+	gc05a2->h_flip = v4l2_ctrl_new_std(handler, &gc05a2_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	gc05a2->v_flip = v4l2_ctrl_new_std(handler, &gc05a2_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (handler->error) {
 		ret = handler->error;
