@@ -16,7 +16,7 @@
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip-es8388";
-		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
+		hp-det-gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		io-channels = <&saradc 3>;
 		io-channel-names = "adc-detect";
 		keyup-threshold-microvolt = <1800000>;
@@ -415,6 +415,8 @@
 
 &sai1 {
 	status = "okay";
+	rockchip,sai-rx-route = <1 0 2 3>;
+	rockchip,sai-tx-route = <1 0 2 3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck
 		     &sai1m0_sclk
@@ -505,7 +507,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
