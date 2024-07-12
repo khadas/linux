@@ -23,6 +23,8 @@
 #include <linux/file.h>
 #include <linux/capability.h>
 #include <linux/cred.h>
+#include <linux/kthread.h>
+#include <linux/wait.h>
 #include <linux/dovetail.h>
 #include <evl/assert.h>
 #include <evl/file.h>
@@ -54,6 +56,12 @@ static struct evl_factory *factories[] = {
 	(ARRAY_SIZE(early_factories) + ARRAY_SIZE(factories))
 
 static dev_t factory_rdev;
+
+static struct task_struct flusher_kthread;
+
+static wait_queue_head_t flusher_wait;
+
+static LIST_HEAD(flusher_queue);
 
 int evl_init_element(struct evl_element *e,
 		struct evl_factory *fac, int clone_flags)
@@ -204,41 +212,73 @@ static void __do_put_element(struct evl_element *e)
 	fac->dispose(e);
 }
 
-static void do_put_element_work(struct work_struct *work)
-{
-	struct evl_element *e;
-
-	e = container_of(work, struct evl_element, work);
-	__do_put_element(e);
-}
-
 static void do_put_element_irq(struct irq_work *work)
 {
 	struct evl_element *e;
+	unsigned long flags;
 
 	e = container_of(work, struct evl_element, irq_work);
-	INIT_WORK(&e->work, do_put_element_work);
-	schedule_work(&e->work);
+
+	/*
+	 * Queue the flushable element then wake the flusher up if
+	 * need be.
+	 */
+	spin_lock_irqsave(&flusher_wait.lock, flags);
+
+	list_add(&e->flush, &flusher_queue);
+	if (list_is_singular(&flusher_queue))
+		wake_up_locked(&flusher_wait);
+
+	spin_unlock_irqrestore(&flusher_wait.lock, flags);
 }
 
 void __evl_put_element(struct evl_element *e)
 {
 	/*
-	 * These trampolines may look like a bit cheesy but we have no
-	 * choice but offloading the disposal to an in-band task
-	 * context. In (the rare) case the last ref. to an element was
-	 * dropped from OOB(-protected) context or while hard irqs
-	 * were off, we need to go via an irq_work->workqueue chain in
-	 * order to run __do_put_element() eventually.
+	 * Element disposal is a bit tricky:
 	 *
-	 * NOTE: irq_work_queue() does not synchronize the interrupt
-	 * log when called with hard irqs off.
+	 * 1. this must happen from an inband task context which is
+	 * NOT a work queue callback since dispose() handlers might
+	 * want to call flush_work(), which might in turn lead to a
+	 * deadlock in the workqueue synchronization code if so. Our
+	 * flusher kthread provides such workqueue-independent task
+	 * context when the disposal routine runs from a work handler.
+	 *
+	 * 2. however, we want dependent create->delete->create
+	 * sequences to be preserved when issued from the same context
+	 * on any given CPU, e.g. the following must work:
+	 *
+	 * struct evl_clone_req req = { .name_ptr = __evl_ptr64("foo") };
+	 * CPU0: ioctl(..., EVL_IOC_CLONE, &req);
+	 * CPU0: close(req.efd);
+	 * CPU0: efd = ioctl(..., EVL_IOC_CLONE, &req);
+	 *
+	 * In this case, the disposal request never runs from a worker
+	 * context, so we can and must call dispose() immediately from
+	 * the calling context to provide the guarantee above
+	 * (i.e. fully synchronous path).
+	 *
+	 * 3. the last reference to an element might be dropped either
+	 * from oob context or inband while hard irqs are off. To
+	 * address this we need an irq work trampoline for queuing the
+	 * element to the flush queue. Note that irq_work_queue() does
+	 * not synchronize the interrupt log when called with hard
+	 * irqs off.
 	 */
 	if (unlikely(running_oob() || hard_irqs_disabled())) {
 		init_irq_work(&e->irq_work, do_put_element_irq);
 		irq_work_queue(&e->irq_work);
 	} else {
-		__do_put_element(e);
+		/*
+		 * If the calling context is a workqueue worker, we
+		 * must go through the flusher kthread to prevent any
+		 * workqueue synchronization woes. Otherwise, we may
+		 * (and must) run the disposal code directly.
+		 */
+		if (current_work())
+			do_put_element_irq(&e->irq_work);
+		else
+			__do_put_element(e);
 	}
 }
 EXPORT_SYMBOL_GPL(__evl_put_element);
@@ -819,6 +859,40 @@ static char *evl_devnode(const struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "evl/%s", dev_name(dev));
 }
 
+static int factory_flusher(void *arg)
+{
+	struct wait_queue_entry wq_entry;
+	struct evl_element *e, *tmp;
+	unsigned long flags;
+	LIST_HEAD(list);
+
+	init_wait_entry(&wq_entry, 0);
+
+	for (;;) {
+		if (kthread_should_stop())
+			break;
+
+		spin_lock_irqsave(&flusher_wait.lock, flags);
+
+		if (!list_empty(&flusher_queue)) {
+			list_splice_init(&flusher_queue, &list);
+			spin_unlock_irqrestore(&flusher_wait.lock, flags);
+			list_for_each_entry_safe(e, tmp, &list, flush) {
+				list_del(&e->flush);
+				__do_put_element(e);
+			}
+		} else {
+			if (list_empty(&wq_entry.entry))
+				__add_wait_queue(&flusher_wait, &wq_entry);
+			set_current_state(TASK_INTERRUPTIBLE);
+			spin_unlock_irqrestore(&flusher_wait.lock, flags);
+			schedule();
+		}
+	}
+
+	return 0;
+}
+
 static int __init
 create_core_factories(struct evl_factory **factories, int nr)
 {
@@ -850,6 +924,7 @@ delete_core_factories(struct evl_factory **factories, int nr)
 
 int __init evl_early_init_factories(void)
 {
+	struct task_struct *p;
 	int ret;
 
 	evl_class = class_create("evl");
@@ -860,17 +935,29 @@ int __init evl_early_init_factories(void)
 
 	ret = alloc_chrdev_region(&factory_rdev, 0, NR_FACTORIES,
 				"evl_factory");
-	if (ret) {
-		class_destroy(evl_class);
-		return ret;
+	if (ret)
+		goto fail_region;
+
+	init_waitqueue_head(&flusher_wait);
+	p = kthread_run(factory_flusher, &flusher_kthread, "evl_flusher");
+	if (IS_ERR(p)) {
+		ret = PTR_ERR(p);
+		goto fail_kthread;
 	}
 
 	ret = create_core_factories(early_factories,
 			ARRAY_SIZE(early_factories));
-	if (ret) {
-		unregister_chrdev_region(factory_rdev, NR_FACTORIES);
-		class_destroy(evl_class);
-	}
+	if (ret)
+		goto fail_factories;
+
+	return 0;
+
+fail_factories:
+	kthread_stop(&flusher_kthread);
+fail_kthread:
+	unregister_chrdev_region(factory_rdev, NR_FACTORIES);
+fail_region:
+	class_destroy(evl_class);
 
 	return ret;
 }
@@ -879,6 +966,8 @@ void __init evl_early_cleanup_factories(void)
 {
 	delete_core_factories(early_factories, ARRAY_SIZE(early_factories));
 	unregister_chrdev_region(factory_rdev, NR_FACTORIES);
+	kthread_stop(&flusher_kthread);
+	wake_up(&flusher_wait);
 	class_destroy(evl_class);
 }
 

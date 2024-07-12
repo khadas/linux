@@ -15,7 +15,6 @@
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
-#include <linux/workqueue.h>
 #include <linux/irq_work.h>
 #include <linux/mutex.h>
 #include <linux/hashtable.h>
@@ -86,7 +85,7 @@ struct evl_element {
 	int clone_flags;
 	struct rb_node index_node;
 	struct irq_work irq_work;
-	struct work_struct work;
+	struct list_head flush;
 	struct hlist_node hash;
 	struct {
 		struct file *filp;
