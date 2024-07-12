@@ -12039,7 +12039,6 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 			intstat_glb);
 		return 0;
 	}
-	rkcif_irq_handle_scale(cif_dev, intstat_glb);
 	return intstat_glb;
 }
 
