@@ -4293,7 +4293,13 @@ static void vop2_initial(struct drm_crtc *crtc)
 		 */
 		if (vop2->version == VOP_VERSION_RK3588) {
 			struct vop2_power_domain *esmart_pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
+			u32 pd_offset = esmart_pd->data->regs->pd.offset;
 
+			/*
+			 * Get power_ctrl default value and backup to regsbak,
+			 * so we can config pd register correctly as expected.
+			 */
+			vop2->regsbak[pd_offset >> 2] = vop2_readl(vop2, pd_offset);
 			if (vop2_power_domain_status(esmart_pd))
 				esmart_pd->on = true;
 			else
@@ -4302,10 +4308,14 @@ static void vop2_initial(struct drm_crtc *crtc)
 			struct vop2_power_domain *pd, *n;
 
 			list_for_each_entry_safe_reverse(pd, n, &vop2->pd_list_head, list) {
-				if (vop2_power_domain_status(pd))
+				if (vop2_power_domain_status(pd)) {
 					pd->on = true;
-				else
+				} else {
+					u32 pd_offset = pd->data->regs->pd.offset;
+
+					vop2->regsbak[pd_offset >> 2] = vop2_readl(vop2, pd_offset);
 					vop2_power_domain_on(pd);
+				}
 			}
 		}
 
