@@ -484,6 +484,49 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m2_xfer>;
 
+	fp9931: fp9931@18 {
+		compatible = "fitipower,fp9931-pmic";
+		reg = <0x18>;
+		status = "disabled";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&fp9931_default>;
+
+		/* fp9931 EN_TS(pin15) and external power control pin */
+		power-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>, <&gpio3 RK_PB2 GPIO_ACTIVE_HIGH>;
+		/* fp9931 EN(pin16) */
+		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+
+		thermal-zone = "fp9931-pmic-thermal";
+		#thermal-sensor-cells = <0>;
+
+		regulators {
+			compatible = "fp9931-regulator";
+			fp9931_vcom: vcom {
+				regulator-name = "vcom";
+				regulator-min-microvolt = <0>;
+				regulator-max-microvolt = <5000000>;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			fp9931_vpos_vneg: vpos_vneg {
+				regulator-name = "vpos_vneg";
+				regulator-init-microvolt = <15060000>;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+
+		fp9931_thermal: fp9931-thermal {
+			compatible = "fp9931-thermal";
+		};
+	};
+
 	sy7636a: sy7636a@62 {
 		compatible = "silergy,sy7636a-pmic";
 		reg = <0x62>;
@@ -724,6 +767,15 @@
 		};
 	};
 
+	fp9931 {
+		fp9931_default: fp9931-default {
+			rockchip,pins =
+					<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
+					<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	hall {
 		mh248_irq_gpio: mh248-irq-gpio {
 			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
@@ -897,6 +949,20 @@
 
 		trips {
 			sy7636a_dummy_trip: sy7636a-dummy-trip {
+				temperature = <100000>;
+				hysteresis = <0>;
+				type = "hot";
+			};
+		};
+	};
+
+	fp9931_pmic_thermal: fp9931-pmic-thermal {
+		polling-delay = <0>;
+		polling-delay-passive = <0>;
+		thermal-sensors = <&fp9931>;
+
+		trips {
+			fp9931_dummy_trip: fp9931-dummy-trip {
 				temperature = <100000>;
 				hysteresis = <0>;
 				type = "hot";
