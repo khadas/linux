@@ -4428,7 +4428,9 @@ static void vop2_initial(struct drm_crtc *crtc)
 					if (!dsc->pd)
 						continue;
 
-					if (!vop2_power_domain_status(dsc->pd))
+					/* To access dsc register must after enable dsc pd and release reset */
+					if (!vop2_power_domain_status(dsc->pd) ||
+					    !VOP_MODULE_GET(vop2, dsc, rst_deassert))
 						continue;
 
 					dsc->enabled = VOP_MODULE_GET(vop2, dsc, dsc_en);
