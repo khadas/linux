@@ -58,6 +58,9 @@ struct cdn_dp_port {
 	u8 lanes;
 	bool phy_enabled;
 	u8 id;
+
+	struct gpio_desc *hpd_gpio;
+	int hpd_irq;
 };
 
 struct cdn_dp_device {
