@@ -24,7 +24,7 @@
 
 int rkvpss_debug;
 module_param_named(debug, rkvpss_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-3)");
+MODULE_PARM_DESC(debug, "Debug level (0-6)");
 
 static bool rkvpss_clk_dbg;
 module_param_named(clk_dbg, rkvpss_clk_dbg, bool, 0644);
@@ -33,6 +33,30 @@ MODULE_PARM_DESC(clk_dbg, "rkvpss clk set by user");
 static char rkvpss_version[RKVPSS_VERNO_LEN];
 module_param_string(version, rkvpss_version, RKVPSS_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
+
+int rkvpss_cfginfo_num = 5;
+
+static int rkvpss_get_cfginfo_num(const char *val, const struct kernel_param *kp)
+{
+	int num, ret;
+
+	ret = kstrtoint(val, 10, &num);
+	if (ret)
+		return ret;
+	if (num < 0 || num > 50) {
+		pr_info("rkvpss_cfginfo_num must be range of 0 to 50");
+		return -EINVAL;
+	}
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops cfginfo_num_ops = {
+	.set = rkvpss_get_cfginfo_num,
+	.get = param_get_int,
+};
+module_param_cb(cfginfo_num, &cfginfo_num_ops, &rkvpss_cfginfo_num, 0644);
+MODULE_PARM_DESC(cfginfo_num, "rkvpss offline cfginfo number");
 
 void rkvpss_set_clk_rate(struct clk *clk, unsigned long rate)
 {

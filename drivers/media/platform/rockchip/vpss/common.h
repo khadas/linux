@@ -90,6 +90,7 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 
 extern int rkvpss_debug;
 extern struct platform_driver rkvpss_plat_drv;
+extern int rkvpss_cfginfo_num;
 
 void rkvpss_idx_write(struct rkvpss_device *dev, u32 reg, u32 val, int idx);
 void rkvpss_unite_write(struct rkvpss_device *dev, u32 reg, u32 val);

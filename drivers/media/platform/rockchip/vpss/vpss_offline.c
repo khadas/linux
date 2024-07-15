@@ -148,7 +148,8 @@ static struct rkvpss_offline_buf *buf_add(struct file *file, int id, int fd, int
 		buf->alloc = false;
 		list_add_tail(&buf->list, &ofl->list);
 		v4l2_dbg(1, rkvpss_debug, &ofl->v4l2_dev,
-			 "%s file:%p dev_id:%d fd:%d dbuf:%p\n", __func__, file, id, fd, dbuf);
+			 "%s file:%p dev_id:%d fd:%d dbuf:%p size:%d\n", __func__,
+			 file, id, fd, dbuf, size);
 	} else {
 		dma_buf_put(dbuf);
 	}
@@ -417,6 +418,13 @@ static void poly_phase_scale(struct rkvpss_frame_cfg *frame_cfg,
 end:
 	val = RKVPSS_ZME_GEN_UPD | RKVPSS_ZME_FORCE_UPD;
 	rkvpss_hw_write(hw, RKVPSS_ZME_UPDATE, val);
+
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s unite:%d left:%d hw ctrl:0x%x y_src_size:0x%x y_dst_size:0x%x\n",
+		 __func__, unite, left,
+		 rkvpss_hw_read(hw, RKVPSS_ZME_CTRL),
+		 rkvpss_hw_read(hw, RKVPSS_ZME_Y_SRC_SIZE),
+		 rkvpss_hw_read(hw, RKVPSS_ZME_Y_DST_SIZE));
 }
 
 static void bilinear_scale(struct rkvpss_frame_cfg *frame_cfg,
@@ -537,6 +545,13 @@ end:
 	rkvpss_hw_write(hw, reg_base, ctrl);
 	val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
 	rkvpss_hw_write(hw, reg_base + 0x4, val);
+
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s unite:%d left:%d hw ch:%d ctrl:0x%x y_src_size:0x%x y_dst_size:0x%x\n",
+		 __func__, unite, left, idx,
+		 rkvpss_hw_read(hw, reg_base),
+		 rkvpss_hw_read(hw, reg_base + 0x8),
+		 rkvpss_hw_read(hw, reg_base + 0xc));
 }
 
 static void scale_config(struct file *file,
@@ -556,7 +571,7 @@ static void scale_config(struct file *file,
 	}
 }
 
-static void cmsc_config(struct rkvpss_offline_dev *ofl,
+static int cmsc_config(struct rkvpss_offline_dev *ofl,
 			struct rkvpss_frame_cfg *cfg, bool unite, bool left)
 {
 	struct rkvpss_hw_dev *hw = ofl->hw;
@@ -568,9 +583,10 @@ static void cmsc_config(struct rkvpss_offline_dev *ofl,
 	u32 ch_win_mode[RKVPSS_OUTPUT_MAX];
 	u32 win_color[RKVPSS_CMSC_WIN_MAX];
 	u32 val, slope, hor, mask, mosaic_block = 0, ctrl = 0;
+	u32 hw_in_w, hw_in_h;
 
 	if (!hw->is_ofl_cmsc)
-		return;
+		return 0;
 
 	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
 		if (!cfg->output[i].enable)
@@ -597,14 +613,8 @@ static void cmsc_config(struct rkvpss_offline_dev *ofl,
 					cfg->output[i].cmsc.win[j].cover_color_a = 15;
 				win_color[j] |= RKVPSS_CMSC_WIN_ALPHA(cfg->output[i].cmsc.win[j].cover_color_a);
 			}
-			for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+			for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++)
 				tmp_cfg.win[j].point[k] = cmsc_cfg->win[j].point[k];
-				v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
-					 "%s input params dev_id:%d, unite:%d left:%d ch:%d win:%d point:%d x:%u y:%u",
-					 __func__, cfg->dev_id, unite, left, i, j, k,
-					 tmp_cfg.win[j].point[k].x,
-					 tmp_cfg.win[j].point[k].y);
-			}
 		}
 	}
 
@@ -705,10 +715,23 @@ static void cmsc_config(struct rkvpss_offline_dev *ofl,
 		}
 		rkvpss_hw_write(hw, RKVPSS_CMSC_CHN0_WIN + i * 4, ch_win_en[i]);
 		rkvpss_hw_write(hw, RKVPSS_CMSC_CHN0_MODE + i * 4, ch_win_mode[i]);
+		hw_in_w = rkvpss_hw_read(hw, RKVPSS_MI_RD_Y_WIDTH);
+		hw_in_h = rkvpss_hw_read(hw, RKVPSS_MI_RD_Y_HEIGHT);
 		for (j = 0; j < RKVPSS_CMSC_WIN_MAX; j++) {
 			if (!(ch_win_en[i] & BIT(j)))
 				continue;
 			for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+				if (tmp_cfg.win[j].point[k].x > hw_in_w ||
+				    tmp_cfg.win[j].point[k].y > hw_in_h) {
+					v4l2_err(&ofl->v4l2_dev,
+						 "%s cmsc coordinate error dev_id:%d unite:%u left:%u ch:%d win:%d point:%d x:%u y:%u hw_in_w:%u hw_in_h:%u\n",
+						 __func__, cfg->dev_id, unite, left,
+						 i, j, k,
+						 tmp_cfg.win[j].point[k].x,
+						 tmp_cfg.win[j].point[k].y,
+						 hw_in_w, hw_in_w);
+					return -EINVAL;
+				}
 				val = RKVPSS_CMSC_WIN_VTX(tmp_cfg.win[j].point[k].x,
 							  tmp_cfg.win[j].point[k].y);
 				rkvpss_hw_write(hw, RKVPSS_CMSC_WIN0_L0_VTX + k * 8 + j * 32, val);
@@ -718,7 +741,7 @@ static void cmsc_config(struct rkvpss_offline_dev *ofl,
 						 &slope, &hor);
 				val = RKVPSS_CMSC_WIN_SLP(slope, hor);
 				rkvpss_hw_write(hw, RKVPSS_CMSC_WIN0_L0_SLP + k * 8 + j * 32, val);
-				v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+				v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
 					 "%s dev_id:%d, unite:%d left:%d ch:%d win:%d point:%d x:%u y:%u",
 					 __func__, cfg->dev_id, unite, left, i, j, k,
 					 tmp_cfg.win[j].point[k].x,
@@ -736,9 +759,11 @@ static void cmsc_config(struct rkvpss_offline_dev *ofl,
 	val = RKVPSS_CMSC_GEN_UPD | RKVPSS_CMSC_FORCE_UPD;
 	rkvpss_hw_write(hw, RKVPSS_CMSC_UPDATE, val);
 
-	v4l2_dbg(4, rkvpss_debug, &ofl->v4l2_dev,
-		 "%s dev_id:%d, unite:%d left:%d ctrl:0x%x update_val:0x%x",
+	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+		 "%s dev_id:%d, unite:%d left:%d hw ctrl:0x%x update_val:0x%x",
 		 __func__, cfg->dev_id, unite, left, ctrl, val);
+
+	return 0;
 }
 
 static void aspt_config(struct file *file,
@@ -789,6 +814,14 @@ static void aspt_config(struct file *file,
 		rkvpss_hw_write(hw, reg_base, RKVPSS_RATIO_EN);
 		val = RKVPSS_RATIO_FORCE_UPD | RKVPSS_RATIO_GEN_UPD;
 		rkvpss_hw_write(hw, reg_base + 0x4, val);
+
+		v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s hw ch:%d ctrl:0x%x in_size:0x%x out_size:0x%x offset:0x%x\n",
+			 __func__, i,
+			 rkvpss_hw_read(hw, reg_base),
+			 rkvpss_hw_read(hw, reg_base + 0x10),
+			 rkvpss_hw_read(hw, reg_base + 0x14),
+			 rkvpss_hw_read(hw, reg_base + 0x18));
 	}
 }
 
@@ -821,14 +854,16 @@ static void add_cfginfo(struct rkvpss_offline_dev *ofl, struct rkvpss_frame_cfg 
 	list_for_each_entry(cfginfo, &ofl->cfginfo_list, list) {
 		count++;
 	}
-	if (count >= 5) {
+	while (count >= rkvpss_cfginfo_num && count != 0) {
 		first_cfg = list_first_entry(&ofl->cfginfo_list, struct rkvpss_ofl_cfginfo, list);
 		list_del_init(&first_cfg->list);
 		kfree(first_cfg);
-		list_add_tail(&new_cfg->list, &ofl->cfginfo_list);
-	} else {
-		list_add_tail(&new_cfg->list, &ofl->cfginfo_list);
+		count--;
 	}
+	if (rkvpss_cfginfo_num)
+		list_add_tail(&new_cfg->list, &ofl->cfginfo_list);
+	else
+		kfree(new_cfg);
 	mutex_unlock(&ofl->ofl_lock);
 }
 
@@ -1028,7 +1063,7 @@ static int read_config(struct file *file, struct rkvpss_frame_cfg *cfg, bool uni
 	}
 
 	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
-		 "%s unite:%d left:%d width:%d height:%d y_base:0x%x\n",
+		 "%s unite:%d left:%d hw width:%d height:%d y_base:0x%x\n",
 		 __func__, unite, left,
 		 rkvpss_hw_read(hw, RKVPSS_MI_RD_Y_WIDTH),
 		 rkvpss_hw_read(hw, RKVPSS_MI_RD_Y_HEIGHT),
@@ -1144,13 +1179,17 @@ static void crop_config(struct file *file, struct rkvpss_frame_cfg *cfg, bool un
 	rkvpss_hw_write(hw, RKVPSS_CROP0_CTRL, crop_en);
 	rkvpss_hw_write(hw, RKVPSS_CROP0_UPDATE, RKVPSS_CROP_FORCE_UPD);
 
-	v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
-		 "%s unite:%d left:%d h_offs:%d v_offs:%d width:%d height:%d\n",
-		 __func__, unite, left,
-		 rkvpss_hw_read(hw, RKVPSS_CROP0_0_H_OFFS),
-		 rkvpss_hw_read(hw, RKVPSS_CROP0_0_V_OFFS),
-		 rkvpss_hw_read(hw, RKVPSS_CROP0_0_H_SIZE),
-		 rkvpss_hw_read(hw, RKVPSS_CROP0_0_V_SIZE));
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		if (!cfg->output[i].enable)
+			continue;
+		v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
+			 "%s unite:%d left:%d hw ch:%d h_offs:%d v_offs:%d width:%d height:%d\n",
+			 __func__, unite, left, i,
+			 rkvpss_hw_read(hw, RKVPSS_CROP0_0_H_OFFS + i * 0x10),
+			 rkvpss_hw_read(hw, RKVPSS_CROP0_0_V_OFFS + i * 0x10),
+			 rkvpss_hw_read(hw, RKVPSS_CROP0_0_H_SIZE + i * 0x10),
+			 rkvpss_hw_read(hw, RKVPSS_CROP0_0_V_SIZE + i * 0x10));
+	}
 }
 
 static int write_config(struct file *file, struct rkvpss_frame_cfg *cfg, bool unite, bool left)
@@ -1375,7 +1414,7 @@ static int write_config(struct file *file, struct rkvpss_frame_cfg *cfg, bool un
 		mi_update |= (RKVPSS_MI_CHN0_FORCE_UPD << i);
 
 		v4l2_dbg(3, rkvpss_debug, &ofl->v4l2_dev,
-		 "%s unite:%d left:%d ch:%d y_size:%d y_stride:%d y_pic_size:%d y_base:0x%x",
+		 "%s unite:%d left:%d hw ch:%d y_size:%d y_stride:%d y_pic_size:%d y_base:0x%x",
 		 __func__, unite, left, i,
 		 rkvpss_hw_read(hw, RKVPSS_MI_CHN0_WR_Y_SIZE + i * 100),
 		 rkvpss_hw_read(hw, RKVPSS_MI_CHN0_WR_Y_STRIDE + i * 100),
@@ -1505,22 +1544,22 @@ static void calc_unite_scl_params(struct file *file, struct rkvpss_frame_cfg *cf
 		params->scl_in_crop_w_y = right_y_crop_total - params->quad_crop_w;
 		params->scl_in_crop_w_c = right_c_crop_total - params->quad_crop_w;
 
-		if (rkvpss_debug >= 2) {
+		if (rkvpss_debug >= 4) {
 			v4l2_info(&ofl->v4l2_dev,
 				  "%s dev_id:%d seq:%d ch:%d y_w_fac:%u c_w_fac:%u y_h_fac:%u c_h_fac:%u\n",
 				  __func__, cfg->dev_id, cfg->sequence, i, params->y_w_fac,
 				  params->c_w_fac, params->y_h_fac, params->c_h_fac);
 			v4l2_info(&ofl->v4l2_dev,
-				  "\t%s unite_right_enlarge:%u",
-				  __func__, ofl->unite_right_enlarge);
+				  "\t\t\t\t\t\t unite_right_enlarge:%u",
+				  ofl->unite_right_enlarge);
 			v4l2_info(&ofl->v4l2_dev,
-				  "\t%s y_w_phase:%u c_w_phase:%u quad_crop_w:%u scl_in_crop_w_y:%u scl_in_crop_w_c:%u\n",
-				  __func__, params->y_w_phase, params->c_w_phase,
+				  "\t\t\t\t\t\t y_w_phase:%u c_w_phase:%u quad_crop_w:%u scl_in_crop_w_y:%u scl_in_crop_w_c:%u\n",
+				  params->y_w_phase, params->c_w_phase,
 				  params->quad_crop_w,
 				  params->scl_in_crop_w_y, params->scl_in_crop_w_c);
 			v4l2_info(&ofl->v4l2_dev,
-				  "\t%s right_scl_need_size_y:%u right_scl_need_size_c:%u\n",
-				  __func__, params->right_scl_need_size_y,
+				  "\t\t\t\t\t\t right_scl_need_size_y:%u right_scl_need_size_c:%u\n",
+				  params->right_scl_need_size_y,
 				  params->right_scl_need_size_c);
 		}
 	}
@@ -1531,40 +1570,11 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
 	struct rkvpss_hw_dev *hw = ofl->hw;
 	u32 update, val, mask;
-	ktime_t t = 0;
-	s64 us = 0;
 	int ret, i;
-	u64 ns;
 	bool left_tmp;
-
-	if (rkvpss_debug >= 2) {
-		v4l2_info(&ofl->v4l2_dev,
-			  "%s dev_id:%d seq:%d mirror:%d input:%dx%d buffd:%d format:%c%c%c%c\n",
-			  __func__, cfg->dev_id, cfg->sequence, cfg->mirror,
-			  cfg->input.width, cfg->input.height, cfg->input.buf_fd,
-			  cfg->input.format, cfg->input.format >> 8,
-			  cfg->input.format >> 16, cfg->input.format >> 24);
-		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
-			if (!cfg->output[i].enable)
-				continue;
-			v4l2_info(&ofl->v4l2_dev,
-				  "\t\t\tch%d crop:(%d,%d)/%dx%d scl:%dx%d flip:%d buffd:%d format:%c%c%c%c\n",
-				  i, cfg->output[i].crop_h_offs, cfg->output[i].crop_v_offs,
-				  cfg->output[i].crop_width, cfg->output[i].crop_height,
-				  cfg->output[i].scl_width, cfg->output[i].scl_height,
-				  cfg->output[i].flip, cfg->output[i].buf_fd,
-				  cfg->output[i].format, cfg->output[i].format >> 8,
-				  cfg->output[i].format >> 16, cfg->output[i].format >> 24);
-		}
-		t = ktime_get();
-	}
 
 	if (!unite || left)
 		add_cfginfo(ofl, cfg);
-
-	ns = ktime_get_ns();
-	ofl->dev_rate[cfg->dev_id].in_rate = ns - ofl->dev_rate[cfg->dev_id].in_timestamp;
-	ofl->dev_rate[cfg->dev_id].in_timestamp = ns;
 
 	init_completion(&ofl->cmpl);
 	ofl->mode_sel_en = false;
@@ -1581,7 +1591,9 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 	else
 		left_tmp = left;
 
-	cmsc_config(ofl, cfg, unite, left_tmp);
+	ret = cmsc_config(ofl, cfg, unite, left_tmp);
+	if (ret)
+		return ret;
 	crop_config(file, cfg, unite, left_tmp);
 	scale_config(file, cfg, unite, left_tmp);
 	if (!unite)
@@ -1614,20 +1626,6 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 	rkvpss_hw_write(hw, RKVPSS_VPSS_UPDATE, update);
 	rkvpss_hw_set_bits(hw, RKVPSS_VPSS_IMSC, 0, RKVPSS_ALL_FRM_END);
 
-	if (rkvpss_debug >=5) {
-		v4l2_info(&ofl->v4l2_dev,
-			  "%s dev_id%d unite:%d left:%d\n",
-			  __func__, cfg->dev_id, unite, left);
-		for (i = 0; i < 16128; i += 16) {
-			printk("%04x: %08x %08x %08x %08x\n",
-			       i,
-			       rkvpss_hw_read(hw, i),
-			       rkvpss_hw_read(hw, i + 4),
-			       rkvpss_hw_read(hw, i + 8),
-			       rkvpss_hw_read(hw, i + 12));
-		}
-	}
-
 	rkvpss_hw_write(hw, RKVPSS_MI_RD_START, RKVPSS_MI_RD_ST);
 
 	ret = wait_for_completion_timeout(&ofl->cmpl, msecs_to_jiffies(500));
@@ -1637,19 +1635,6 @@ static int rkvpss_ofl_run(struct file *file, struct rkvpss_frame_cfg *cfg, bool 
 	} else {
 		ret = 0;
 	}
-
-	if (rkvpss_debug >= 2) {
-		us = ktime_us_delta(ktime_get(), t);
-		v4l2_info(&ofl->v4l2_dev,
-			  "%s end, time:%lldus\n", __func__, us);
-	}
-
-	ns = ktime_get_ns();
-	ofl->dev_rate[cfg->dev_id].out_rate = ns - ofl->dev_rate[cfg->dev_id].out_timestamp;
-	ofl->dev_rate[cfg->dev_id].out_timestamp = ns;
-	ofl->dev_rate[cfg->dev_id].sequence = cfg->sequence;
-	ofl->dev_rate[cfg->dev_id].delay = ofl->dev_rate[cfg->dev_id].out_timestamp -
-					   ofl->dev_rate[cfg->dev_id].in_timestamp;
 
 	return ret;
 }
@@ -1970,10 +1955,82 @@ static int rkvpss_prepare_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 	struct rkvpss_offline_dev *ofl = video_drvdata(file);
 	int ret = 0;
 	bool unite;
+	int i, j, k;
+	s64 us = 0;
+	u64 ns;
+	ktime_t t = 0;
+
+	ns = ktime_get_ns();
+	ofl->dev_rate[cfg->dev_id].in_rate = ns - ofl->dev_rate[cfg->dev_id].in_timestamp;
+	ofl->dev_rate[cfg->dev_id].in_timestamp = ns;
 
 	ret = rkvpss_check_params(file, cfg, &unite);
 	if (ret < 0)
 		goto end;
+
+	/******** show cfg info ********/
+	if (rkvpss_debug >= 2) {
+		t = ktime_get();
+
+		v4l2_info(&ofl->v4l2_dev,
+			  "%s dev_id:%d seq:%d mirror:%d input:%dx%d buffd:%d format:%c%c%c%c stride:%d rotate:%d\n",
+			  __func__, cfg->dev_id, cfg->sequence, cfg->mirror,
+			  cfg->input.width, cfg->input.height, cfg->input.buf_fd,
+			  cfg->input.format, cfg->input.format >> 8,
+			  cfg->input.format >> 16, cfg->input.format >> 24,
+			  cfg->input.stride, cfg->input.rotate);
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			v4l2_info(&ofl->v4l2_dev,
+				  "\t\t\tch%d enable:%d crop:(%d,%d)/%dx%d scl:%dx%d flip:%d buffd:%d format:%c%c%c%c stride:%d\n",
+				  i, cfg->output[i].enable,
+				  cfg->output[i].crop_h_offs, cfg->output[i].crop_v_offs,
+				  cfg->output[i].crop_width, cfg->output[i].crop_height,
+				  cfg->output[i].scl_width, cfg->output[i].scl_height,
+				  cfg->output[i].flip, cfg->output[i].buf_fd,
+				  cfg->output[i].format, cfg->output[i].format >> 8,
+				  cfg->output[i].format >> 16, cfg->output[i].format >> 24,
+				  cfg->output[i].stride);
+			if (rkvpss_debug < 4)
+				break;
+			if (!cfg->output[i].enable)
+				continue;
+			v4l2_info(&ofl->v4l2_dev,
+				  "\t\t\tcmsc mosaic_block:%d width_ro:%d height_ro:%d\n",
+				  cfg->output[i].cmsc.mosaic_block,
+				  cfg->output[i].cmsc.width_ro,
+				  cfg->output[i].cmsc.height_ro);
+			for (j = 0; j < RKVPSS_CMSC_WIN_MAX; j++) {
+				if (!cfg->output[i].cmsc.win[j].win_en)
+					continue;
+				v4l2_info(&ofl->v4l2_dev,
+					  "\t\t\t\twin:%d win_en:%u mode:%u color_y:%u color_u:%u color_v:%u color_a:%u\n",
+					  j,
+					  cfg->output[i].cmsc.win[j].win_en,
+					  cfg->output[i].cmsc.win[j].mode,
+					  cfg->output[i].cmsc.win[j].cover_color_y,
+					  cfg->output[i].cmsc.win[j].cover_color_u,
+					  cfg->output[i].cmsc.win[j].cover_color_v,
+					  cfg->output[i].cmsc.win[j].cover_color_a);
+				for (k = 0; k < RKVPSS_CMSC_POINT_MAX; k++) {
+					v4l2_info(&ofl->v4l2_dev,
+						  "\t\t\t\t\tpoint:%d x:%d y:%d\n",
+						  k,
+						  cfg->output[i].cmsc.win[j].point[k].x,
+						  cfg->output[i].cmsc.win[j].point[k].y);
+				}
+			}
+			v4l2_info(&ofl->v4l2_dev,
+				  "\t\t\taspt_en:%d w:%d h:%d h_offs:%d v_offs:%d color_y:%d color_u:%d color_v:%d\n",
+				  cfg->output[i].aspt.enable,
+				  cfg->output[i].aspt.width,
+				  cfg->output[i].aspt.height,
+				  cfg->output[i].aspt.h_offs,
+				  cfg->output[i].aspt.v_offs,
+				  cfg->output[i].aspt.color_y,
+				  cfg->output[i].aspt.color_u,
+				  cfg->output[i].aspt.color_v);
+		}
+	}
 
 	if (!unite) {
 		ret = rkvpss_ofl_run(file, cfg, false, false);
@@ -1991,6 +2048,19 @@ static int rkvpss_prepare_run(struct file *file, struct rkvpss_frame_cfg *cfg)
 			goto end;
 		}
 	}
+
+	if (rkvpss_debug >= 2) {
+		us = ktime_us_delta(ktime_get(), t);
+		v4l2_info(&ofl->v4l2_dev,
+			  "%s end, time:%lldus\n", __func__, us);
+	}
+
+	ns = ktime_get_ns();
+	ofl->dev_rate[cfg->dev_id].out_rate = ns - ofl->dev_rate[cfg->dev_id].out_timestamp;
+	ofl->dev_rate[cfg->dev_id].out_timestamp = ns;
+	ofl->dev_rate[cfg->dev_id].sequence = cfg->sequence;
+	ofl->dev_rate[cfg->dev_id].delay = ofl->dev_rate[cfg->dev_id].out_timestamp -
+					   ofl->dev_rate[cfg->dev_id].in_timestamp;
 
 end:
 	return ret;
