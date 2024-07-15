@@ -388,12 +388,9 @@
 		     &sai1m0_sclk
 		     &sai1m0_sdi0
 		     &sai1m0_sdi1
-		     &sai1m0_sdi2
-		     &sai1m0_sdi3
 		     &sai1m0_sdo0
 		     &sai1m0_sdo1
-		     &sai1m0_sdo2
-		     &sai1m0_sdo3>;
+		     &sai1m0_sdo2>;
 };
 
 &sdmmc {
