@@ -1806,6 +1806,101 @@ static void typec_phy_pre_init(struct rockchip_typec_phy *tcphy)
 	tcphy->mode = MODE_DISCONNECT;
 }
 
+static int tcphy_parse_lane_mux_data(struct rockchip_typec_phy *tcphy, struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct property *prop;
+	int ret, len, num_lanes;
+	u32 dp_lane_sel[4];
+
+	prop = of_find_property(np, "rockchip,dp-lane-mux", &len);
+	if (!prop) {
+		dev_dbg(dev, "failed to find dp lane mux, following dp alt mode\n");
+		return 0;
+	}
+
+	num_lanes = len / sizeof(u32);
+
+	if (num_lanes != 2 && num_lanes != 4) {
+		dev_err(dev, "invalid number of lane mux\n");
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32_array(np, "rockchip,dp-lane-mux", dp_lane_sel, num_lanes);
+	if (ret) {
+		dev_err(dev, "get dp lane mux failed\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * if all 4 lane assignment for dp function, define rockchip,dp-lane-mux = <x x x x>;
+	 * only the 2 mapping support as follow:
+	 * ---------------------------------------------------------------------------
+	 *                        A2-A3         B11-B10     A11/A10       B2/B3
+	 * rockchip,dp-lane-mux   ln0(tx)       ln1(tx/rx)  ln2(tx/rx)    ln3(tx/rx)
+	 * <2 3 0 1>              ML2           ML3         ML0           ML1
+	 * <1 0 3 2>              ML1           ML0         ML3           ML2
+	 * ---------------------------------------------------------------------------
+	 * if 2 lane for dp function, 2 lane for usb function, define rockchip,dp-lane-mux = <x x>;
+	 * only the 2 mapping support as follow:
+	 * ---------------------------------------------------------------------------
+	 *                        A2-A3         B11-B10     A11/A10       B2/B3
+	 * rockchip,dp-lane-mux   ln0(tx)       ln1(tx/rx)  ln2(tx/rx)    ln3(tx)
+	 * <2 3>                  SSTX          SSRX        ML0           ML1
+	 * <1 0>                  ML1           ML0         SSTX          SSRX
+	 */
+
+	if (num_lanes == 4) {
+		tcphy->new_mode = MODE_DFP_DP;
+
+		if ((dp_lane_sel[0] == 2) && (dp_lane_sel[1] == 3) &&
+		    (dp_lane_sel[2] == 0) && (dp_lane_sel[3] == 1))
+			tcphy->flip = false;
+		else if ((dp_lane_sel[0] == 1) && (dp_lane_sel[1] == 0) &&
+		    (dp_lane_sel[2] == 3) && (dp_lane_sel[3] == 2))
+			tcphy->flip = true;
+		else
+			ret = -EINVAL;
+
+	} else if (num_lanes == 2) {
+		tcphy->new_mode = MODE_DFP_DP | MODE_DFP_USB;
+
+		if ((dp_lane_sel[0] == 2) && (dp_lane_sel[1] == 3))
+			tcphy->flip = false;
+		else if ((dp_lane_sel[0] == 1) && (dp_lane_sel[1] == 0))
+			tcphy->flip = true;
+		else
+			ret = -EINVAL;
+	} else {
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		dev_info(dev, "get the phy mode:%x, flip:%s\n", tcphy->new_mode,
+			 tcphy->flip ? "true" : "false");
+
+	return ret;
+}
+
+static int typec_dp_lane_get(struct rockchip_typec_phy *tcphy)
+{
+	int dp_lanes;
+
+	switch (tcphy->new_mode) {
+	case MODE_DFP_DP:
+		dp_lanes = 4;
+		break;
+	case MODE_DFP_DP | MODE_DFP_USB:
+		dp_lanes = 2;
+		break;
+	default:
+		dp_lanes = 0;
+		break;
+	}
+
+	return dp_lanes;
+}
+
 static int rockchip_typec_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1860,6 +1955,10 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	typec_phy_pre_init(tcphy);
 
+	ret = tcphy_parse_lane_mux_data(tcphy, dev);
+	if (ret)
+		return ret;
+
 	if (device_property_present(dev, "orientation-switch")) {
 		ret = tcphy_setup_orien_switch(tcphy);
 		if (ret)
@@ -1896,6 +1995,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 				goto error;
 			}
 			tcphy->phys[TYPEC_PHY_DP] = phy;
+			phy_set_bus_width(phy, typec_dp_lane_get(tcphy));
 		} else if (!of_node_cmp(child_np->name, "usb3-port")) {
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_usb3_phy_ops);
