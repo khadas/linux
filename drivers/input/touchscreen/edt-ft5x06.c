@@ -111,7 +111,6 @@ struct edt_ft5x06_ts_data {
 	u16 num_y;
 	struct regulator *iovcc;
 
-	bool is_sleeped;
 	int gtp_is_suspend;
 
 	struct gpio_desc *reset_gpio;
@@ -215,7 +214,6 @@ void tp_into_suspend(void)
 {
        if(NULL != ts_hlm){
                ts_hlm->gtp_is_suspend = 1;
-			   ts_hlm->is_sleeped = true;
                printk("ts_hlm->gtp_is_suspend=1\n");
        }
 }
@@ -251,18 +249,10 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		goto out;
 	}
     /*For externel touch device to wake the device*/
-	if(tsdata->is_sleeped)
-    {
-        if(ts_hlm->gtp_is_suspend == 1){
-            //printk("wake dev\n");
-            ts_hlm->gtp_is_suspend = 0;
-            wake_system();
-           tsdata->is_sleeped=false;
-        }
-    }else{
-        tsdata->is_sleeped=false;
-    }
-
+	if(ts_hlm->gtp_is_suspend == 1){
+		ts_hlm->gtp_is_suspend = 0;
+		wake_system();
+	}
 	memset(rdbuf, 0, sizeof(rdbuf));
 	datalen = tplen * tsdata->max_support_points + offset + crclen;
 
