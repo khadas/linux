@@ -1142,6 +1142,9 @@ static bool dw_dp_detect_no_power(struct dw_dp *dp)
 	if (dp->usbdp_hpd)
 		return dp->hotplug.status;
 
+	if (dp->force_hpd)
+		return true;
+
 	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, value,
 				       FIELD_GET(HPD_STATE, value) != SOURCE_STATE_UNPLUG,
 				       100, 3000);
