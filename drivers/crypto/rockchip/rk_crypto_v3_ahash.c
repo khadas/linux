@@ -21,11 +21,6 @@
 #define RK_POLL_PERIOD_US	100
 #define RK_POLL_TIMEOUT_US	50000
 
-struct rk_ahash_expt_ctx {
-	struct rk_ahash_ctx	ctx;
-	u8			lastc[RK_DMA_ALIGNMENT];
-};
-
 struct rk_hash_mid_data {
 	u32 valid_flag;
 	u32 hash_ctl;
@@ -267,7 +262,7 @@ static void clean_hash_setting(struct rk_crypto_dev *rk_dev)
 
 static int rk_ahash_import(struct ahash_request *req, const void *in)
 {
-	struct rk_ahash_expt_ctx state;
+	struct rk_ahash_ctx state;
 
 	/* 'in' may not be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
@@ -279,7 +274,7 @@ static int rk_ahash_import(struct ahash_request *req, const void *in)
 
 static int rk_ahash_export(struct ahash_request *req, void *out)
 {
-	struct rk_ahash_expt_ctx state;
+	struct rk_ahash_ctx state;
 
 	/* Don't let anything leak to 'out' */
 	memset(&state, 0, sizeof(state));
@@ -441,7 +436,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm), sizeof(struct rk_ahash_rctx));
 
-	algt->alg.hash.halg.statesize = sizeof(struct rk_ahash_expt_ctx);
+	algt->alg.hash.halg.statesize = sizeof(struct rk_ahash_ctx);
 
 	return 0;
 }
