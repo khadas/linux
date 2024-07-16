@@ -42,7 +42,8 @@
 #define RK_BUFFER_ORDER			3
 #define RK_BUFFER_SIZE			(PAGE_SIZE << RK_BUFFER_ORDER)
 
-#define RK_DMA_ALIGNMENT		128
+#define RK_HASH_RESERVE_BLOCK		128
+
 #define sha384_state			sha512_state
 #define sha224_state			sha256_state
 
@@ -175,7 +176,7 @@ struct rk_ahash_ctx {
 	bool				hash_tmp_mapped;
 	u32				calc_cnt;
 
-	u8				lastc[RK_DMA_ALIGNMENT];
+	u8				lastc[RK_HASH_RESERVE_BLOCK];
 	u32				lastc_len;
 
 	void				*priv;

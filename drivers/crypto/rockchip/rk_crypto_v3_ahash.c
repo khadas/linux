@@ -300,9 +300,9 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	CRYPTO_TRACE("ctx->calc_cnt = %u, count %u Byte, is_final = %d",
 		     ctx->calc_cnt, alg_ctx->count, is_final);
 
-	if (alg_ctx->count % RK_DMA_ALIGNMENT && !is_final) {
+	if (alg_ctx->count % rk_hash_reserve_block && !is_final) {
 		dev_err(rk_dev->dev, "count = %u is not aligned with [%u]\n",
-			alg_ctx->count, RK_DMA_ALIGNMENT);
+			alg_ctx->count, rk_hash_reserve_block);
 		return -EINVAL;
 	}
 
@@ -400,12 +400,14 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 
 	CRYPTO_TRACE();
 
+	rk_hash_reserve_block = 64;
+
 	memset(ctx, 0x00, sizeof(*ctx));
 
 	if (!rk_dev->request_crypto)
 		return -EFAULT;
 
-	alg_ctx->align_size     = RK_DMA_ALIGNMENT;
+	alg_ctx->align_size     = 64;
 
 	alg_ctx->ops.start      = rk_ahash_start;
 	alg_ctx->ops.update     = rk_ahash_crypto_rx;

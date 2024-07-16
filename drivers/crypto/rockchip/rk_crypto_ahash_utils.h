@@ -10,6 +10,8 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_utils.h"
 
+extern uint32_t rk_hash_reserve_block;
+
 struct rk_alg_ctx *rk_ahash_alg_ctx(struct rk_crypto_dev *rk_dev);
 
 struct rk_crypto_algt *rk_ahash_get_algt(struct crypto_ahash *tfm);
