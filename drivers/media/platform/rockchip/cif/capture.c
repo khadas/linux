@@ -4661,15 +4661,27 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 			rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(id), val);
 		}
 
-		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT,
-					CSI_START_INTSTAT(id) |
-					CSI_DMA_END_INTSTAT(id) |
-					CSI_LINE_INTSTAT(id));
+		val = CSI_DMA_END_INTSTAT(id);
+		if (cif_dev->chip_id >= CHIP_RK3576_CIF)
+			val |= CSI_START_INTSTAT_RK3576(id);
+		else
+			val |= CSI_START_INTSTAT(id);
+		if (cif_dev->chip_id >= CHIP_RK3588_CIF)
+			val |= CSI_LINE_INTSTAT_V1(id);
+		else
+			val |= CSI_LINE_INTSTAT(id);
+		rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTSTAT, val);
 
-		rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
-					 ~(CSI_START_INTEN(id) |
-					   CSI_DMA_END_INTEN(id) |
-					   CSI_LINE_INTEN(id)));
+		val = CSI_DMA_END_INTEN(id);
+		if (cif_dev->chip_id >= CHIP_RK3576_CIF)
+			val |= CSI_START_INTEN_RK3576(id);
+		else
+			val |= CSI_START_INTEN(id);
+		if (cif_dev->chip_id >= CHIP_RK3588_CIF)
+			val |= CSI_LINE_INTEN_RK3588(id);
+		else
+			val |= CSI_LINE_INTEN(id);
+		rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN, ~val);
 
 		if (stream->cifdev->chip_id < CHIP_RK3588_CIF) {
 			rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
