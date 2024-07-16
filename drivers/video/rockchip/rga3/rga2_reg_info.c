@@ -252,9 +252,11 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u8 src0_cbcr_swp = 0;
 	u8 pixel_width = 1;
 	u8 plane_width = 0;
+	u8 pixel_depth = 8;
 	u32 stride = 0;
 	u32 uv_stride = 0;
 	u32 mask_stride = 0;
+	u32 byte_stride = 0;
 	u32 ydiv = 1, xdiv = 2;
 	u8 yuv10 = 0;
 
@@ -562,6 +564,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_YCbCr_420_SP_10B:
 		src0_format = 0xa;
 		plane_width = 2;
+		pixel_depth = 10;
 		xdiv = 2;
 		ydiv = 2;
 		yuv10 = 1;
@@ -569,6 +572,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_YCrCb_420_SP_10B:
 		src0_format = 0xa;
 		plane_width = 2;
+		pixel_depth = 10;
 		xdiv = 2;
 		ydiv = 2;
 		src0_cbcr_swp = 1;
@@ -577,6 +581,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_YCbCr_422_SP_10B:
 		src0_format = 0x8;
 		plane_width = 2;
+		pixel_depth = 10;
 		xdiv = 2;
 		ydiv = 1;
 		yuv10 = 1;
@@ -584,6 +589,7 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_YCrCb_422_SP_10B:
 		src0_format = 0x8;
 		plane_width = 2;
+		pixel_depth = 10;
 		xdiv = 2;
 		ydiv = 1;
 		src0_cbcr_swp = 1;
@@ -615,12 +621,25 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	switch (msg->src.rd_mode) {
 	case RGA_RASTER_MODE:
-		stride = ALIGN(msg->src.vir_w * pixel_width, 4);
+		if (msg->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
+		    msg->src.format == RGA_FORMAT_YCrCb_420_SP_10B ||
+		    msg->src.format == RGA_FORMAT_YCbCr_422_SP_10B ||
+		    msg->src.format == RGA_FORMAT_YCrCb_422_SP_10B)
+			/*
+			 * Legacy: implicit semantics exist here, 10bit format
+			 * width_stride equals byte_stride.
+			 */
+			byte_stride = msg->src.vir_w;
+		else
+			byte_stride = msg->src.vir_w * pixel_width * pixel_depth / 8;
+
+		stride = ALIGN(byte_stride, 4);
 		uv_stride = ALIGN(msg->src.vir_w / xdiv * plane_width, 4);
 
-		yrgb_offset = msg->src.y_offset * stride + msg->src.x_offset * pixel_width;
+		yrgb_offset = msg->src.y_offset * stride +
+			msg->src.x_offset * pixel_width * pixel_depth / 8;
 		uv_offset = (msg->src.y_offset / ydiv) * uv_stride +
-			    (msg->src.x_offset / xdiv * plane_width);
+			    (msg->src.x_offset / xdiv * plane_width * pixel_depth / 8);
 		v_offset = uv_offset;
 
 		break;
