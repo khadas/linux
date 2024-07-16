@@ -75,7 +75,7 @@ DECLARE_EVENT_CLASS(wchan_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, wchan->name);
+		__assign_str(name);
 	),
 
 	TP_printk("wchan=%s", __get_str(name))
@@ -196,7 +196,7 @@ DECLARE_EVENT_CLASS(evl_clock_timespec,
 
 	TP_fast_assign(
 		__assign_timespec(val, val);
-		__assign_str(name, clock->name);
+		__assign_str(name);
 	),
 
 	TP_printk("clock=%s timeval=(%lld.%09lld)",
@@ -212,7 +212,7 @@ DECLARE_EVENT_CLASS(evl_clock_ident,
 		__string(name, name)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("name=%s", __get_str(name))
 );
@@ -255,7 +255,7 @@ TRACE_EVENT(evl_pick_thread,
 	),
 
 	TP_fast_assign(
-		__assign_str(next_name, next->name);
+		__assign_str(next_name);
 		__entry->next_pid = evl_get_inband_pid(next);
 	),
 
@@ -283,8 +283,8 @@ TRACE_EVENT(evl_switch_context,
 		__entry->prev_state = prev->state;
 		__entry->next_pid = evl_get_inband_pid(next);
 		__entry->next_prio = next->cprio;
-		__assign_str(prev_name, prev->name);
-		__assign_str(next_name, next->name);
+		__assign_str(prev_name);
+		__assign_str(next_name);
 	),
 
 	TP_printk("{ %s[%d] prio=%d, state=%#x } => { %s[%d] prio=%d }",
@@ -303,7 +303,7 @@ TRACE_EVENT(evl_switch_tail,
 	),
 
 	TP_fast_assign(
-		__assign_str(curr_name, curr->name);
+		__assign_str(curr_name);
 		__entry->curr_pid = evl_get_inband_pid(curr);
 	),
 
@@ -328,9 +328,9 @@ TRACE_EVENT(evl_init_thread,
 
 	TP_fast_assign(
 		__entry->thread = thread;
-		__assign_str(thread_name, thread->name);
+		__assign_str(thread_name);
 		__entry->flags = iattr->flags | (iattr->observable ? EVL_T_OBSERV : 0);
-		__assign_str(class_name, iattr->sched_class->name);
+		__assign_str(class_name);
 		__entry->cprio = thread->cprio;
 		__entry->status = status;
 	),
@@ -360,8 +360,8 @@ TRACE_EVENT(evl_sleep_on,
 		__entry->timeout = timeout;
 		__entry->timeout_mode = timeout_mode;
 		__entry->wchan = wchan;
-		__assign_str(clock_name, clock ? clock->name : "none");
-		__assign_str(wchan_name, wchan ? wchan->name : "none");
+		__assign_str(clock_name);
+		__assign_str(wchan_name);
 	),
 
 	TP_printk("pid=%d timeout=%Lu timeout_mode=%d clock=%s wchan=%s(%p)",
@@ -384,7 +384,7 @@ TRACE_EVENT(evl_wakeup_thread,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, thread->name);
+		__assign_str(name);
 		__entry->pid = evl_get_inband_pid(thread);
 		__entry->mask = mask;
 		__entry->info = info;
@@ -406,7 +406,7 @@ TRACE_EVENT(evl_hold_thread,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, thread->name);
+		__assign_str(name);
 		__entry->pid = evl_get_inband_pid(thread);
 		__entry->mask = mask;
 	),
@@ -427,7 +427,7 @@ TRACE_EVENT(evl_release_thread,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, thread->name);
+		__assign_str(name);
 		__entry->pid = evl_get_inband_pid(thread);
 		__entry->mask = mask;
 		__entry->info = info;
@@ -691,8 +691,8 @@ TRACE_EVENT(evl_timer_move,
 
 	TP_fast_assign(
 		__entry->cpu = cpu;
-		__assign_str(timer_name, timer->name);
-		__assign_str(clock_name, clock->name);
+		__assign_str(timer_name);
+		__assign_str(clock_name);
 	),
 
 	TP_printk("timer=%s clock=%s cpu=%u",
@@ -718,7 +718,7 @@ TRACE_EVENT(evl_timer_shot,
 		__entry->delta = delta;
 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
 					    NSEC_PER_SEC, &__entry->nsecs);
-		__assign_str(name, timer->name);
+		__assign_str(name);
 	),
 
 	TP_printk("%s at %Lu.%06u (delay: %Ld us, %Lu cycles)",
@@ -872,7 +872,7 @@ TRACE_EVENT(evl_clock_adjtime,
 
 	TP_fast_assign(
 		__entry->tx = tx;
-		__assign_str(name, clock->name);
+		__assign_str(name);
 	),
 
 	TP_printk("clock=%s timex=%p",
@@ -902,7 +902,7 @@ TRACE_EVENT(evl_trace,
 		__string(msg, msg)
 	),
 	TP_fast_assign(
-		__assign_str(msg, msg);
+		__assign_str(msg);
 	),
 	TP_printk("%s", __get_str(msg))
 );
@@ -942,7 +942,7 @@ TRACE_EVENT(evl_trigger,
 		__string(issuer, issuer)
 	),
 	TP_fast_assign(
-		__assign_str(issuer, issuer);
+		__assign_str(issuer);
 	),
 	TP_printk("%s", __get_str(issuer))
 );
