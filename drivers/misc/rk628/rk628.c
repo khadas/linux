@@ -383,19 +383,19 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 static void rk628_power_on(struct rk628 *rk628, bool on)
 {
 	if (!rk628->display_enabled && on) {
-		gpiod_set_value(rk628->enable_gpio, 1);
+		gpiod_direction_output(rk628->enable_gpio, 1);
 		usleep_range(10000, 11000);
-		gpiod_set_value(rk628->reset_gpio, 0);
+		gpiod_direction_output(rk628->reset_gpio, 0);
 		usleep_range(10000, 11000);
-		gpiod_set_value(rk628->reset_gpio, 1);
+		gpiod_direction_output(rk628->reset_gpio, 1);
 		usleep_range(10000, 11000);
-		gpiod_set_value(rk628->reset_gpio, 0);
+		gpiod_direction_output(rk628->reset_gpio, 0);
 		usleep_range(10000, 11000);
 	}
 
 	if (!on) {
-		gpiod_set_value(rk628->reset_gpio, 1);
-		gpiod_set_value(rk628->enable_gpio, 0);
+		gpiod_direction_output(rk628->reset_gpio, 1);
+		gpiod_direction_output(rk628->enable_gpio, 0);
 	}
 }
 
@@ -494,6 +494,9 @@ static void rk628_set_hdmirx_irq(struct rk628 *rk628, u32 reg, bool enable)
 
 static void rk628_pwr_consumption_init(struct rk628 *rk628)
 {
+	if (rk628->display_enabled)
+		return;
+
 	/* set pin as int function to allow output interrupt */
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
 
@@ -1329,6 +1332,32 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 	rk628_hdmitx_create_debugfs_file(rk628);
 }
 
+static void rk628_loader_protect(struct rk628 *rk628)
+{
+	u32 enabled;
+	int ret;
+
+	ret = rk628_i2c_read(rk628, GRF_SCALER_CON0, &enabled);
+	if (ret || !(enabled & SCL_EN(1)))
+		return;
+
+	if (rk628_input_is_rgb(rk628) || rk628_input_is_bt1120(rk628))
+		rk628->display_enabled = true;
+
+	if (rk628_input_is_hdmi(rk628)) {
+		if (!rk628_hdmirx_boot_state_init(rk628))
+			rk628->display_enabled = true;
+	}
+
+	if (rk628->display_enabled && rk628->panel && rk628->panel->supply) {
+		ret = regulator_enable(rk628->panel->supply);
+		if (ret)
+			dev_info(rk628->dev, "failed to enable panel power supply\n");
+
+		dev_info(rk628->dev, "%s:%d show uboot logo\n", __func__, __LINE__);
+	}
+}
+
 static int
 rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1373,14 +1402,14 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	clk_prepare_enable(rk628->soc_24M);
 
 	rk628->enable_gpio = devm_gpiod_get_optional(dev, "enable",
-						     GPIOD_OUT_LOW);
+						     GPIOD_ASIS);
 	if (IS_ERR(rk628->enable_gpio)) {
 		ret = PTR_ERR(rk628->enable_gpio);
 		dev_err(dev, "failed to request enable GPIO: %d\n", ret);
 		goto err_clk;
 	}
 
-	rk628->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	rk628->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(rk628->reset_gpio)) {
 		ret = PTR_ERR(rk628->reset_gpio);
 		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
@@ -1394,8 +1423,6 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ret = PTR_ERR(rk628->plugin_det_gpio);
 		goto err_clk;
 	}
-
-	rk628_power_on(rk628, true);
 
 	for (i = 0; i < RK628_DEV_MAX; i++) {
 		const struct regmap_config *config = &rk628_regmap_config[i];
@@ -1411,6 +1438,9 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto err_clk;
 		}
 	}
+
+	rk628_loader_protect(rk628);
+	rk628_power_on(rk628, true);
 
 	ret = rk628_version_info(rk628);
 	if (ret)
@@ -1531,6 +1561,13 @@ static int rk628_i2c_remove(struct i2c_client *client)
 #endif
 }
 
+static void rk628_i2c_shutdown(struct i2c_client *client)
+{
+	struct rk628 *rk628 = i2c_get_clientdata(client);
+
+	rk628_power_on(rk628, false);
+}
+
 #ifndef CONFIG_FB
 #ifdef CONFIG_PM_SLEEP
 static int rk628_suspend(struct device *dev)
@@ -1602,6 +1639,7 @@ static struct i2c_driver rk628_i2c_driver = {
 	.probe = rk628_i2c_probe,
 	.remove = rk628_i2c_remove,
 	.id_table = rk628_i2c_id,
+	.shutdown = rk628_i2c_shutdown,
 };
 
 
