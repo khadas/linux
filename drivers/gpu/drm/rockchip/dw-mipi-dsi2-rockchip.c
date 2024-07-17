@@ -287,6 +287,7 @@ struct dw_mipi_dsi2 {
 	u32 split_area;
 };
 
+struct dw_mipi_dsi2 *mdsi1 = NULL;
 struct dw_mipi_dsi2 *mdsi2 = NULL;
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -1496,20 +1497,41 @@ encoder_cleanup:
 }
 
 void lcd_reset_pin_reset(void){
-	if(mdsi2 == NULL)
-		return;
-//printk("%s: dsi2->reset_gpio: %d dsi2->reset_ms=%d\n", __func__, mdsi2->reset_gpio,mdsi2->reset_ms);
-	gpiod_set_value_cansleep(mdsi2->reset_gpio, 0);
-	mdelay(mdsi2->reset_ms);
+	static bool first_num = 0;
+	if(mdsi1 == NULL) {
+		printk("%s: mdsi1 == NULL\n", __func__);
+		first_num = 1;
+	} else if(!first_num) {
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 0);
+		mdelay(mdsi1->reset_ms);
 
-	gpiod_set_value_cansleep(mdsi2->reset_gpio, 1);
-	mdelay(mdsi2->reset_ms);
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 1);
+		mdelay(mdsi1->reset_ms);
 
-	gpiod_set_value_cansleep(mdsi2->reset_gpio, 0);
-	mdelay(mdsi2->reset_ms);
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 0);
+		mdelay(mdsi1->reset_ms);
 
-	gpiod_set_value_cansleep(mdsi2->reset_gpio, 1);
-	mdelay(mdsi2->reset_ms);
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 1);
+		mdelay(mdsi1->reset_ms);
+	}
+
+	if(mdsi2 == NULL) {
+		printk("%s: mdsi2 == NULL\n", __func__);
+		first_num = 1;
+	} else if(first_num) {
+		gpiod_set_value_cansleep(mdsi2->reset_gpio, 0);
+		mdelay(mdsi2->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi2->reset_gpio, 1);
+		mdelay(mdsi2->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi2->reset_gpio, 0);
+		mdelay(mdsi2->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi2->reset_gpio, 1);
+		mdelay(mdsi2->reset_ms);
+	}
+	first_num = !first_num;
 };
 
 static void dw_mipi_dsi2_unbind(struct device *dev, struct device *master,
@@ -1736,6 +1758,7 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int id;
 	int ret;
+	static bool first_flag = 0;
 
 	dsi2 = devm_kzalloc(dev, sizeof(*dsi2), GFP_KERNEL);
 	if (!dsi2)
@@ -1861,7 +1884,12 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		DRM_DEV_ERROR(dev, "Failed to register MIPI host: %d\n", ret);
 		return ret;
 	}
-	mdsi2 = dsi2;
+	if(first_flag){
+		mdsi2 = dsi2;
+	} else {
+		first_flag = 1;
+		mdsi1 = dsi2;
+	}
 
 	return component_add(&pdev->dev, &dw_mipi_dsi2_ops);
 }
