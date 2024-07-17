@@ -160,6 +160,16 @@ properties:
        description: when set, check the vbus status from grf con for Type-C
          interface. It's used when the vbusdet pin is always pulled up.
 
+     rockchip,gpio-vbus-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg port will use a gpio
+         for USB vbus detection.
+
+     rockchip,gpio-id-det:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg port will use a gpio
+         for USB id detection.
+
      rockchip,sel-pipe-phystatus:
        $ref: /schemas/types.yaml#/definitions/flag
        description: when set, select the pipe phy status from grf for usb
