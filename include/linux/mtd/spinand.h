@@ -283,6 +283,7 @@ extern const struct spinand_manufacturer unim_zl_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
 extern const struct spinand_manufacturer xincun_spinand_manufacturer;
 extern const struct spinand_manufacturer xtx_spinand_manufacturer;
+extern const struct spinand_manufacturer zbit_spinand_manufacturer;
 
 /**
  * struct spinand_op_variants - SPI NAND operation variants
