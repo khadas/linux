@@ -109,7 +109,7 @@ struct edt_ft5x06_ts_data {
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
-	struct regulator *iovcc;
+	//struct regulator *iovcc;
 
 	int gtp_is_suspend;
 
@@ -1082,20 +1082,20 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 
 	tsdata->max_support_points = chip_data->max_support_points;
 
-	tsdata->iovcc = devm_regulator_get(&client->dev, "iovcc");
-	if (IS_ERR(tsdata->iovcc)) {
-		error = PTR_ERR(tsdata->iovcc);
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"failed to request iovcc regulator: %d\n", error);
-		return error;
-	}
+	//tsdata->iovcc = devm_regulator_get(&client->dev, "iovcc");
+	//if (IS_ERR(tsdata->iovcc)) {
+	//	error = PTR_ERR(tsdata->iovcc);
+	//	if (error != -EPROBE_DEFER)
+	//		dev_err(&client->dev,
+	//			"failed to request iovcc regulator: %d\n", error);
+	//	return error;
+	//}
 
-	error = regulator_enable(tsdata->iovcc);
-	if (error < 0) {
-		dev_err(&client->dev, "failed to enable iovcc: %d\n", error);
-		return error;
-	}
+	//error = regulator_enable(tsdata->iovcc);
+	//if (error < 0) {
+	//	dev_err(&client->dev, "failed to enable iovcc: %d\n", error);
+	//	return error;
+	//}
 
 	/* Delay enabling VCC for > 10us (T_ivd) after IOVCC */
 	usleep_range(10, 100);
