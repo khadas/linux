@@ -393,6 +393,10 @@ config MALI_TRACE_POWER_GPU_WORK_PERIOD
 
 	  If unsure, say N.
 
+config MALI_CSF_INCLUDE_FW
+	depends on MALI_BIFROST && MALI_CSF_SUPPORT
+	bool "Whether to include CSF firmware into driver"
+	default y
 
 # source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/bifrost/tests/Kconfig"
 
