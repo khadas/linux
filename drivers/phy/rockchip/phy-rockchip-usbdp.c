@@ -780,6 +780,11 @@ static int udphy_status_check(struct rockchip_udphy *udphy)
 			if (ret)
 				dev_notice(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
 		}
+
+		if (ret) {
+			udphy_u3_port_disable(udphy, true);
+			dev_warn(udphy->dev, "disable u3 port because udphy not ready\n");
+		}
 	}
 
 	return 0;
