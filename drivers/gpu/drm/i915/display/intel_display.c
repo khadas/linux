@@ -6481,6 +6481,17 @@ static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
 		return -EINVAL;
 	}
 
+	/*
+	 * FIXME: Bigjoiner+async flip is busted currently.
+	 * Remove this check once the issues are fixed.
+	 */
+	if (new_crtc_state->bigjoiner_pipes) {
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] async flip disallowed with bigjoiner\n",
+			    crtc->base.base.id, crtc->base.name);
+		return -EINVAL;
+	}
+
 	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
 					     new_plane_state, i) {
 		if (plane->pipe != crtc->pipe)
@@ -7123,8 +7134,6 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 
 	intel_fbc_update(state, crtc);
 
-	drm_WARN_ON(&i915->drm, !intel_display_power_is_enabled(i915, POWER_DOMAIN_DC_OFF));
-
 	if (!modeset &&
 	    (new_crtc_state->uapi.color_mgmt_changed ||
 	     new_crtc_state->update_pipe))
@@ -7501,28 +7510,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	drm_atomic_helper_wait_for_dependencies(&state->base);
 	drm_dp_mst_atomic_wait_for_dependencies(&state->base);
 
-	/*
-	 * During full modesets we write a lot of registers, wait
-	 * for PLLs, etc. Doing that while DC states are enabled
-	 * is not a good idea.
-	 *
-	 * During fastsets and other updates we also need to
-	 * disable DC states due to the following scenario:
-	 * 1. DC5 exit and PSR exit happen
-	 * 2. Some or all _noarm() registers are written
-	 * 3. Due to some long delay PSR is re-entered
-	 * 4. DC5 entry -> DMC saves the already written new
-	 *    _noarm() registers and the old not yet written
-	 *    _arm() registers
-	 * 5. DC5 exit -> DMC restores a mixture of old and
-	 *    new register values and arms the update
-	 * 6. PSR exit -> hardware latches a mixture of old and
-	 *    new register values -> corrupted frame, or worse
-	 * 7. New _arm() registers are finally written
-	 * 8. Hardware finally latches a complete set of new
-	 *    register values, and subsequent frames will be OK again
-	 */
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DC_OFF);
+	if (state->modeset)
+		wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 
 	intel_atomic_prepare_plane_clear_colors(state);
 
@@ -7661,8 +7650,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 * the culprit.
 		 */
 		intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
+		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET, wakeref);
 	}
-	intel_display_power_put(dev_priv, POWER_DOMAIN_DC_OFF, wakeref);
 	intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 
 	/*
@@ -8251,6 +8240,16 @@ intel_mode_valid(struct drm_device *dev,
 	    mode->vtotal > vtotal_max)
 		return MODE_V_ILLEGAL;
 
+	return MODE_OK;
+}
+
+enum drm_mode_status intel_cpu_transcoder_mode_valid(struct drm_i915_private *dev_priv,
+						     const struct drm_display_mode *mode)
+{
+	/*
+	 * Additional transcoder timing limits,
+	 * excluding BXT/GLK DSI transcoders.
+	 */
 	if (DISPLAY_VER(dev_priv) >= 5) {
 		if (mode->hdisplay < 64 ||
 		    mode->htotal - mode->hdisplay < 32)

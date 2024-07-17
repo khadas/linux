@@ -40,6 +40,10 @@ static const struct mfd_cell serdes_max96745_devs[] = {
 		.name = "serdes-bridge",
 		.of_compatible = "maxim,max96745-bridge",
 	},
+	{
+		.name = "serdes-bridge-split",
+		.of_compatible = "maxim,max96745-bridge-split",
+	},
 };
 
 static const struct mfd_cell serdes_max96755_devs[] = {
@@ -326,13 +330,6 @@ EXPORT_SYMBOL_GPL(serdes_device_init);
 int serdes_set_pinctrl_default(struct serdes *serdes)
 {
 	int ret = 0;
-
-	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_default))) {
-		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_default);
-		if (ret)
-			dev_err(serdes->dev, "could not set default pins\n");
-		SERDES_DBG_MFD("%s: name=%s default\n", __func__, dev_name(serdes->dev));
-	}
 
 	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_init))) {
 		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_init);

@@ -18,10 +18,12 @@
 #include "rk628_csi.h"
 #include "rk628_dsi.h"
 #include "rk628_hdmirx.h"
+#include "rk628_post_process.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
 	regmap_reg_range(CRU_GPLL_CON0, CRU_GPLL_CON4),
+	regmap_reg_range(CRU_APLL_CON0, CRU_APLL_CON4),
 	regmap_reg_range(CRU_MODE_CON00, CRU_MODE_CON00),
 	regmap_reg_range(CRU_CLKSEL_CON00, CRU_CLKSEL_CON21),
 	regmap_reg_range(CRU_GATE_CON00, CRU_GATE_CON05),
@@ -46,12 +48,12 @@ static const struct regmap_access_table rk628_combrxphy_readable_table = {
 };
 
 static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
-	regmap_reg_range(HDMI_RX_HDMI_SETUP_CTRL, HDMI_RX_HDMI_SETUP_CTRL),
+	regmap_reg_range(HDMI_RX_HDMI_SETUP_CTRL, HDMI_RX_HDMI_TIMER_CTRL),
 	regmap_reg_range(HDMI_RX_HDMI_PCB_CTRL, HDMI_RX_HDMI_PCB_CTRL),
 	regmap_reg_range(HDMI_RX_HDMI_MODE_RECOVER, HDMI_RX_HDMI_ERROR_PROTECT),
 	regmap_reg_range(HDMI_RX_HDMI_SYNC_CTRL, HDMI_RX_HDMI_CKM_RESULT),
 	regmap_reg_range(HDMI_RX_HDMI_RESMPL_CTRL, HDMI_RX_HDMI_RESMPL_CTRL),
-	regmap_reg_range(HDMI_VM_CFG_CH2, HDMI_VM_CFG_CH2),
+	regmap_reg_range(HDMI_VM_CFG_CH0_1, HDMI_VM_CFG_CH2),
 	regmap_reg_range(HDMI_RX_HDCP_CTRL, HDMI_RX_HDCP_SETTINGS),
 	regmap_reg_range(HDMI_RX_HDCP_KIDX, HDMI_RX_HDCP_KIDX),
 	regmap_reg_range(HDMI_RX_HDCP_DBG, HDMI_RX_HDCP_AN0),
@@ -64,9 +66,10 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_AUD_PLL_CTRL, HDMI_RX_AUD_PLL_CTRL),
 	regmap_reg_range(HDMI_RX_AUD_CLK_CTRL, HDMI_RX_AUD_CLK_CTRL),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_CTRL, HDMI_RX_AUD_FIFO_TH),
-	regmap_reg_range(HDMI_RX_AUD_CHEXTR_CTRL, HDMI_RX_AUD_PAO_CTRL),
+	regmap_reg_range(HDMI_RX_AUD_CHEXTR_CTRL, HDMI_RX_AUD_SPARE),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_STS, HDMI_RX_AUD_FIFO_STS),
 	regmap_reg_range(HDMI_RX_AUDPLL_GEN_CTS, HDMI_RX_AUDPLL_GEN_N),
+	regmap_reg_range(HDMI_RX_I2CM_PHYG3_DATAI, HDMI_RX_I2CM_PHYG3_DATAI),
 	regmap_reg_range(HDMI_RX_PDEC_CTRL, HDMI_RX_PDEC_CTRL),
 	regmap_reg_range(HDMI_RX_PDEC_AUDIODET_CTRL, HDMI_RX_PDEC_AUDIODET_CTRL),
 	regmap_reg_range(HDMI_RX_PDEC_ERR_FILTER, HDMI_RX_PDEC_ASP_CTRL),
@@ -76,13 +79,16 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_PDEC_AIF_CTRL, HDMI_RX_PDEC_AIF_PB0),
 	regmap_reg_range(HDMI_RX_PDEC_AVI_PB, HDMI_RX_PDEC_AVI_PB),
 	regmap_reg_range(HDMI_RX_HDMI20_CONTROL, HDMI_RX_CHLOCK_CONFIG),
-	regmap_reg_range(HDMI_RX_SCDC_REGS1, HDMI_RX_SCDC_REGS2),
+	regmap_reg_range(HDMI_RX_SCDC_REGS0, HDMI_RX_SCDC_REGS2),
 	regmap_reg_range(HDMI_RX_SCDC_WRDATA0, HDMI_RX_SCDC_WRDATA0),
+	regmap_reg_range(HDMI_RX_HDMI20_STATUS, HDMI_RX_HDMI20_STATUS),
 	regmap_reg_range(HDMI_RX_PDEC_ISTS, HDMI_RX_PDEC_IEN),
+	regmap_reg_range(HDMI_RX_AUD_CEC_ISTS, HDMI_RX_AUD_CEC_IEN),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_ISTS, HDMI_RX_AUD_FIFO_IEN),
 	regmap_reg_range(HDMI_RX_MD_ISTS, HDMI_RX_MD_IEN),
 	regmap_reg_range(HDMI_RX_HDMI_ISTS, HDMI_RX_HDMI_IEN),
 	regmap_reg_range(HDMI_RX_DMI_DISABLE_IF, HDMI_RX_DMI_DISABLE_IF),
+	regmap_reg_range(HDMI_RX_CEC_CTRL, HDMI_RX_CEC_WAKEUPCTRL),
 };
 
 static const struct regmap_access_table rk628_hdmirx_readable_table = {
@@ -112,6 +118,7 @@ static const struct regmap_range rk628_csi_readable_ranges[] = {
 	regmap_reg_range(CSITX_CONFIG_DONE, CSITX_CSITX_VERSION),
 	regmap_reg_range(CSITX_SYS_CTRL0_IMD, CSITX_TIMING_HPW_PADDING_NUM),
 	regmap_reg_range(CSITX_VOP_PATH_CTRL, CSITX_VOP_PATH_CTRL),
+	regmap_reg_range(CSITX_VOP_FILTER_CTRL, CSITX_VOP_FILTER_CTRL),
 	regmap_reg_range(CSITX_VOP_PATH_PKT_CTRL, CSITX_VOP_PATH_PKT_CTRL),
 	regmap_reg_range(CSITX_CSITX_STATUS0, CSITX_LPDT_DATA_IMD),
 	regmap_reg_range(CSITX_DPHY_CTRL, CSITX_DPHY_CTRL),
@@ -120,6 +127,21 @@ static const struct regmap_range rk628_csi_readable_ranges[] = {
 static const struct regmap_access_table rk628_csi_readable_table = {
 	.yes_ranges     = rk628_csi_readable_ranges,
 	.n_yes_ranges   = ARRAY_SIZE(rk628_csi_readable_ranges),
+};
+
+static const struct regmap_range rk628_csi1_readable_ranges[] = {
+	regmap_reg_range(CSITX1_CONFIG_DONE, CSITX1_CSITX_VERSION),
+	regmap_reg_range(CSITX1_SYS_CTRL0_IMD, CSITX1_TIMING_HPW_PADDING_NUM),
+	regmap_reg_range(CSITX1_VOP_PATH_CTRL, CSITX1_VOP_PATH_CTRL),
+	regmap_reg_range(CSITX1_VOP_FILTER_CTRL, CSITX1_VOP_FILTER_CTRL),
+	regmap_reg_range(CSITX1_VOP_PATH_PKT_CTRL, CSITX1_VOP_PATH_PKT_CTRL),
+	regmap_reg_range(CSITX1_CSITX_STATUS0, CSITX1_LPDT_DATA_IMD),
+	regmap_reg_range(CSITX1_DPHY_CTRL, CSITX1_DPHY_CTRL),
+};
+
+static const struct regmap_access_table rk628_csi1_readable_table = {
+	.yes_ranges     = rk628_csi1_readable_ranges,
+	.n_yes_ranges   = ARRAY_SIZE(rk628_csi1_readable_ranges),
 };
 
 static const struct regmap_range rk628_dsi0_readable_ranges[] = {
@@ -231,7 +253,250 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 		.val_format_endian = REGMAP_ENDIAN_LITTLE,
 		.rd_table = &rk628_csi_readable_table,
 	},
+	[RK628_DEV_CSI1] = {
+		.name = "csi1",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = CSI1_MAX_REGISTER,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_csi1_readable_table,
+	},
 };
+
+int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
+{
+	int region = (reg >> 16) & 0xff;
+	int ret = 0;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = regmap_write(rk628->regmap[region], reg, val);
+	if (ret < 0)
+		dev_err(rk628->dev,
+			"%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_media_i2c_write);
+
+int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
+{
+	int region = (reg >> 16) & 0xff;
+	int ret = 0;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(rk628->regmap[region], reg, val);
+	if (ret < 0)
+		dev_err(rk628->dev,
+			"%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_media_i2c_read);
+
+int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
+					u32 val)
+{
+	int region = (reg >> 16) & 0xff;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+}
+EXPORT_SYMBOL(rk628_media_i2c_update_bits);
+
+static int rk628_reg_show(struct seq_file *s, void *v)
+{
+	const struct regmap_config *reg;
+	struct rk628 *rk628 = s->private;
+	unsigned int i, j;
+	u32 val = 0;
+
+	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		if (!strcmp(reg->name, file_dentry(s->file)->d_iname))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(rk628_regmap_config))
+		return -ENODEV;
+
+	/* grf */
+	if (!reg->rd_table) {
+		for (i = 0; i <= reg->max_register; i += 4) {
+			rk628_i2c_read(rk628, i, &val);
+			if (i % 16 == 0)
+				seq_printf(s, "\n0x%04x:", i);
+			seq_printf(s, " %08x", val);
+		}
+	} else {
+		const struct regmap_range *range_list = reg->rd_table->yes_ranges;
+		const struct regmap_range *range;
+		int range_list_len = reg->rd_table->n_yes_ranges;
+
+		for (i = 0; i < range_list_len; i++) {
+			range = &range_list[i];
+			for (j = range->range_min; j <= range->range_max; j += 4) {
+				rk628_i2c_read(rk628, j, &val);
+				if (j % 16 == 0 || j == range->range_min)
+					seq_printf(s, "\n0x%04x:", j);
+				seq_printf(s, " %08x", val);
+			}
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static ssize_t rk628_reg_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	u32 addr;
+	u32 val;
+	char kbuf[25];
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%x%x", &addr, &val);
+	if (ret != 2)
+		return -EINVAL;
+
+	rk628_i2c_write(rk628, addr, val);
+
+	return count;
+}
+
+static int rk628_reg_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_reg_show, rk628);
+}
+
+static const struct file_operations rk628_reg_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_reg_open,
+	.read           = seq_read,
+	.write          = rk628_reg_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rk628_debugfs_register_create(struct rk628 *rk628)
+{
+	const struct regmap_config *reg;
+	struct dentry *dir;
+	int i;
+
+	dir = debugfs_create_dir("registers", rk628->debug_dir);
+	if (IS_ERR(dir))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		debugfs_create_file(reg->name, 0600, dir, rk628, &rk628_reg_fops);
+	}
+	rk628_hdmirx_phy_debugfs_register_create(rk628, dir);
+}
+
+static int rk628_dbg_en_show(struct seq_file *s, void *v)
+{
+	struct rk628 *rk628 = s->private;
+
+	seq_printf(s, "%d\n", rk628->dbg_en);
+
+	return 0;
+}
+
+static ssize_t rk628_dbg_en_write(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	char kbuf[25];
+	int enable;
+
+	if (!rk628)
+		return -EINVAL;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	if (kstrtoint(kbuf, 10, &enable))
+		return -EINVAL;
+
+	rk628->dbg_en = enable;
+
+	return count;
+}
+
+static int rk628_dbg_en_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_dbg_en_show, rk628);
+}
+
+static const struct file_operations rk628_dbg_en_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_dbg_en_open,
+	.read           = seq_read,
+	.write          = rk628_dbg_en_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rk628_dbg_en_node(struct rk628 *rk628)
+{
+	debugfs_create_file("debug", 0600, rk628->debug_dir, rk628, &rk628_dbg_en_fops);
+}
+
+void rk628_debugfs_create(struct rk628 *rk628)
+{
+	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
+	if (IS_ERR(rk628->debug_dir))
+		return;
+
+	rk628_debugfs_register_create(rk628);
+	rk628_dbg_en_node(rk628);
+	rk628_post_process_pattern_node(rk628);
+}
+EXPORT_SYMBOL(rk628_debugfs_create);
 
 struct rk628 *rk628_i2c_register(struct i2c_client *client)
 {
@@ -259,6 +524,7 @@ struct rk628 *rk628_i2c_register(struct i2c_client *client)
 			return NULL;
 		}
 	}
+	mutex_init(&rk628->rst_lock);
 
 	return rk628;
 }
@@ -307,6 +573,8 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 
 	do_div(t_frm_st, src_pixclock);
 	*dsp_frame_hst = do_div(t_frm_st, src_htotal);
+	if (src->vfront_porch < t_frm_st)
+		t_frm_st = src->vfront_porch;
 	*dsp_frame_vst = t_frm_st;
 }
 
@@ -474,6 +742,29 @@ void rk628_post_process_en(struct rk628 *rk628,
 	rk628_post_process_scaler_init(rk628, src, dst);
 }
 EXPORT_SYMBOL(rk628_post_process_en);
+
+static const char * const rk628_version[] = {
+	"UNKNOWN",
+	"RK628D",
+	"RK628F/H",
+};
+
+void rk628_version_parse(struct rk628 *rk628)
+{
+	u32 version;
+
+	rk628_i2c_read(rk628, GRF_SOC_VERSION, &version);
+	if (version == 0x20200326)
+		rk628->version = RK628D_VERSION;
+	else if (version == 0x20230321)
+		rk628->version = RK628F_VERSION;
+	else
+		rk628->version = RK628_UNKNOWN;
+
+	dev_info(rk628->dev, "rk628 version is: %s (%x)\n",
+		 rk628_version[rk628->version], version);
+}
+EXPORT_SYMBOL(rk628_version_parse);
 
 MODULE_AUTHOR("Shunqing Chen <csq@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip RK628 driver");

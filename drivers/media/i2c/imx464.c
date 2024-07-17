@@ -3041,7 +3041,7 @@ static int IMX464_initialize_controls(struct IMX464 *IMX464)
 	IMX464->link_freq = v4l2_ctrl_new_int_menu(handler,
 				NULL, V4L2_CID_LINK_FREQ,
 				1, 0, link_freq_menu_items);
-	__v4l2_ctrl_s_ctrl(IMX464->link_freq,
+	v4l2_ctrl_s_ctrl(IMX464->link_freq,
 			 IMX464->cur_mode->mipi_freq_idx);
 	pixel_rate = (u32)link_freq_menu_items[mode->mipi_freq_idx] / mode->bpp * 2 *
 		     IMX464->bus_cfg.bus.mipi_csi2.num_data_lanes;

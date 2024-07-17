@@ -5,6 +5,8 @@
 
 #include <dt-bindings/soc/rockchip-amp.h>
 
+#define CPU_GET_AFFINITY(cpu, cluster)		((cpu) << 8)
+
 / {
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";
@@ -16,6 +18,18 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5m0_xfer>;
+
+		amp-irqs = /bits/ 64 <
+			/* GPIO EXT */
+			GIC_AMP_IRQ_CFG_ROUTE(314, 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(315, 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(316, 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(317, 0xd0, CPU_GET_AFFINITY(3, 0))
+			GIC_AMP_IRQ_CFG_ROUTE(318, 0xd0, CPU_GET_AFFINITY(3, 0))
+			/* UART5 */
+			GIC_AMP_IRQ_CFG_ROUTE(368, 0xd0, CPU_GET_AFFINITY(3, 0))
+			/* MAILBOX */
+			GIC_AMP_IRQ_CFG_ROUTE(100, 0xd0, CPU_GET_AFFINITY(3, 0))>;
 
 		status = "okay";
 	};

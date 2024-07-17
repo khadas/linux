@@ -146,10 +146,6 @@ static int g_value;
 /* Addresses to scan -- protected by sense_data_mutex */
 static struct i2c_client *this_client;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static struct early_suspend mc3230_early_suspend;
-#endif
-
 /* status */
 #define MC3230_OPEN           1
 #define MC3230_CLOSE          0
@@ -183,9 +179,12 @@ static int mc3230_active(struct i2c_client *client, int enable);
 static void MC32X0_rbm(struct i2c_client *client, int enable);
 static int init_3230_ctl_data(struct i2c_client *client);
 
-struct file *openFile(const char *path, int flag, int mode)
+static struct file *openFile(const char *path, int flag, int mode)
 {
 	struct file *fp;
+
+	if (!IS_ENABLED(CONFIG_NO_GKI))
+		return NULL;
 
 	fp = filp_open(path, flag, mode);
 	if (IS_ERR(fp) || !fp->f_op)
@@ -1331,7 +1330,7 @@ static const struct i2c_device_id gsensor_mc3230_id[] = {
 
 static struct i2c_driver gsensor_mc3230_driver = {
 	.probe = gsensor_mc3230_probe,
-	.remove = gsensor_mc3230_remove,
+	.remove = (void *)gsensor_mc3230_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_mc3230_id,
 	.driver = {

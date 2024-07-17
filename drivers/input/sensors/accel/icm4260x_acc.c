@@ -218,6 +218,8 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 			"%s: fail to set pwr_mgmt0(%d)\n", __func__, result);
 		return result;
 	}
+	/*set powerdown will make scale change*/
+	sensor_write_reg(client, ICM4260X_ACCEL_CONFIG0, 0x66);
 	usleep_range(250, 260);
 
 	return result;
@@ -231,8 +233,8 @@ static int icm4260x_set_default_register(struct i2c_client *client)
 {
 	int status = 0;
 
-	status |= sensor_write_reg(client, ICM4260X_GYRO_CONFIG0, 0x06);
-	status |= sensor_write_reg(client, ICM4260X_ACCEL_CONFIG0, 0x06);
+	status |= sensor_write_reg(client, ICM4260X_GYRO_CONFIG0, 0x66);
+	status |= sensor_write_reg(client, ICM4260X_ACCEL_CONFIG0, 0x66);
 	status |= sensor_write_reg(client, ICM4260X_APEX_CONFIG0, 0x08);
 	status |= sensor_write_reg(client, ICM4260X_APEX_CONFIG1, 0x02);
 	status |= sensor_write_reg(client, ICM4260X_WOM_CONFIG, 0);
@@ -332,10 +334,8 @@ static int sensor_init(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	/* set Full scale select for accelerometer UI interface output*/
-	value = sensor_read_reg(client, ICM4260X_ACCEL_CONFIG0);
-	value &= ~BIT_ACCEL_FSR;
-	value |= ACCEL_FS_SEL << SHIFT_ACCEL_FS_SEL;
+	/* set +-2g scale select for accelerometer UI interface output*/
+	value = 0x66;
 	ret = sensor_write_reg(client, ICM4260X_ACCEL_CONFIG0, value);
 	if (ret)
 		return ret;
@@ -451,7 +451,7 @@ static const struct i2c_device_id gsensor_icm4260x_id[] = {
 
 static struct i2c_driver gsensor_icm4260x_driver = {
 	.probe = gsensor_icm4260x_probe,
-	.remove = gsensor_icm4260x_remove,
+	.remove = (void *)gsensor_icm4260x_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_icm4260x_id,
 	.driver = {

@@ -26,6 +26,7 @@
 #define GPIO_GROUP_PRIO_MAX		3
 
 #define MAX_GIC_SPI_NUM (1020)
+#define AMP_GIC_INFO_DUMP 0
 #define AMP_GIC_DBG(fmt, arg...)	do { if (0) { pr_warn(fmt, ##arg); } } while (0)
 
 enum amp_cpu_ctrl_status {
@@ -38,6 +39,12 @@ enum amp_cpu_ctrl_status {
 #define AMP_FLAG_CPU_ARM64		BIT(1)
 #define AMP_FLAG_CPU_EL2_HYP		BIT(2)
 #define AMP_FLAG_CPU_ARM32_T		BIT(3)
+
+enum {
+	GPIO_IRQ_GROUP_DISABLE       = 0x0,
+	GPIO_IRQ_GROUP_EN_BANK_TYPE  = 0x1,
+	GPIO_IRQ_GROUP_EN_GROUP_TYPE = 0x2,
+};
 
 struct rkamp_device {
 	struct device *dev;
@@ -54,12 +61,25 @@ static struct {
 	u64 cpu_id;
 } cpu_boot_info[CONFIG_NR_CPUS];
 
-struct amp_gpio_group_s {
-	u32 bank_id;
+struct amp_gpio_group_prio_group_info {
 	u32 prio;
 	u64 irq_aff[AMP_AFF_MAX_CPU];
 	u32 irq_id[AMP_AFF_MAX_CPU];
 	u32 en[AMP_AFF_MAX_CPU];
+};
+
+struct amp_gpio_group_bank_type_info {
+	u32 hw_irq;
+	u32 prio;
+	u64 aff;
+};
+
+struct amp_gpio_group_info_t {
+	u32 group_en;
+	u32 bank_id;
+	struct amp_gpio_group_bank_type_info bank_type_info;
+	struct amp_gpio_group_prio_group_info prio_group[GPIO_GROUP_PRIO_MAX];
+
 };
 
 struct amp_irq_cfg_s {
@@ -78,7 +98,7 @@ static struct amp_gic_ctrl_s {
 		u32 flag;
 	} aff_to_cpumask[AMP_AFF_MAX_CLUSTER][AMP_AFF_MAX_CPU];
 	struct amp_irq_cfg_s irqs_cfg[MAX_GIC_SPI_NUM];
-	struct amp_gpio_group_s gpio_grp[GPIO_BANK_NUM][GPIO_GROUP_PRIO_MAX];
+	struct amp_gpio_group_info_t gpio_grp[GPIO_BANK_NUM];
 	u32 gpio_banks;
 } amp_ctrl;
 
@@ -304,60 +324,103 @@ u64 rockchip_amp_get_irq_aff(u32 irq)
 	return amp_ctrl.irqs_cfg[irq].aff;
 }
 
-static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
-					    struct amp_gic_ctrl_s *amp_ctrl,
-					    int prio_id)
+static int amp_gic_get_gpio_group_bank_type_config(struct device_node *np,
+						   struct amp_gic_ctrl_s *amp_ctrl,
+						   struct amp_gpio_group_info_t *gpio_grp)
 {
-	u32 gpio_bank, prio, irq_id;
+	u32 prio, irq;
 	u64 irq_aff;
-	int i, count0, count1;
-	struct amp_gpio_group_s *gpio_grp;
+	struct amp_gpio_group_bank_type_info *bank_type_info;
 	struct amp_irq_cfg_s *irqs_cfg;
 
-	if (prio_id >= GPIO_GROUP_PRIO_MAX)
+	bank_type_info = &gpio_grp->bank_type_info;
+	if (of_property_read_u32_array(np, "hw-irq", &irq, 1))
 		return -EINVAL;
 
-	if (of_property_read_u32_array(np, "gpio-bank", &gpio_bank, 1))
+	if (of_property_read_u64_array(np, "hw-irq-cpu-aff", &irq_aff, 1))
 		return -EINVAL;
-	if (gpio_bank >= amp_ctrl->gpio_banks)
-		return -EINVAL;
-
-	gpio_grp = &amp_ctrl->gpio_grp[gpio_bank][prio_id];
 
 	if (of_property_read_u32_array(np, "prio", &prio, 1))
 		return -EINVAL;
 
-	if (gpio_bank >= GPIO_BANK_NUM)
+	bank_type_info->aff = irq_aff;
+	bank_type_info->hw_irq = irq;
+	bank_type_info->prio = prio;
+
+	irqs_cfg = &amp_ctrl->irqs_cfg[irq];
+
+	irqs_cfg->prio = prio;
+	irqs_cfg->aff = irq_aff;
+
+	if (amp_ctrl->gic_version == GIC_V2) {
+		irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
+		if (!irqs_cfg->cpumask) {
+			pr_err(" %s: get cpumask error\n", __func__);
+			return -EINVAL;
+		}
+	}
+	irqs_cfg->amp_flag = 1;
+
+	AMP_GIC_DBG(" %s bank-%d: hw-irq-%d  aff-%llx(%x) prio-%x flag-%d\n",
+		    __func__, gpio_grp->bank_id, irq, irqs_cfg->aff,
+		    irqs_cfg->cpumask, irqs_cfg->prio, irqs_cfg->amp_flag);
+
+	return 0;
+}
+
+static int gic_amp_get_gpio_prio_group_config(struct device_node *np,
+					      struct amp_gic_ctrl_s *amp_ctrl,
+					      struct amp_gpio_group_info_t *gpio_grp,
+					      int prio_id)
+{
+	u32 prio, irq_id;
+	u64 irq_aff;
+	int i, count0, count1, count2;
+	struct amp_irq_cfg_s *irqs_cfg;
+	struct amp_gpio_group_prio_group_info *prio_grp;
+
+	if (prio_id >= GPIO_GROUP_PRIO_MAX)
 		return -EINVAL;
 
-	AMP_GIC_DBG("%s: gpio-%d, group prio:%d-%x\n",
-		    __func__, gpio_bank, prio_id, prio);
-
-	count0 = of_property_count_u32_elems(np, "girq-id");
-	count1 = of_property_count_u64_elems(np, "girq-aff");
-
-	if (count0 != count1)
+	if (of_property_read_u32_array(np, "group-prio", &prio, 1))
 		return -EINVAL;
 
-	gpio_grp->prio = prio;
+	prio_grp = &gpio_grp->prio_group[prio_id];
+	prio_grp->prio = prio;
+
+	count0 = of_property_count_u32_elems(np, "group-irq-id");
+	count1 = of_property_count_u64_elems(np, "group-irq-aff");
+	count2 = of_property_count_u32_elems(np, "group-irq-en");
+
+	AMP_GIC_DBG(" %s: bank-%d, group prio [%d]=0x%x\n",
+		    __func__, gpio_grp->bank_id, prio_id, prio);
+
+	if (!(count0 == count1 && count0 == count2 && count0)) {
+		pr_err("%s: group-irq count is error(%d %d %d)\n",
+		       __func__, count0, count1, count2);
+		return -EINVAL;
+	}
+
+	if (count0 >= AMP_AFF_MAX_CPU)
+		pr_err("%s: prio group is overflow\n", __func__);
 
 	for (i = 0; i < count0; i++) {
-		of_property_read_u32_index(np, "girq-id", i, &irq_id);
-		gpio_grp->irq_id[i] = irq_id;
-		of_property_read_u64_index(np, "girq-aff", i, &irq_aff);
+		of_property_read_u32_index(np, "group-irq-id", i, &irq_id);
+		prio_grp->irq_id[i] = irq_id;
 
-		gpio_grp->irq_aff[i] = irq_aff;
+		of_property_read_u64_index(np, "group-irq-aff", i, &irq_aff);
+		prio_grp->irq_aff[i] = irq_aff;
 
-		of_property_read_u32_index(np, "girq-en", i, &gpio_grp->en[i]);
+		of_property_read_u32_index(np, "group-irq-en", i, &prio_grp->en[i]);
 
 		irqs_cfg = &amp_ctrl->irqs_cfg[irq_id];
 
-		AMP_GIC_DBG(" %s: group cpu-%d, irq-%d: prio-%x, aff-%llx en-%d\n",
-			    __func__, i, gpio_grp->irq_id[i], gpio_grp->prio,
-			    gpio_grp->irq_aff[i], gpio_grp->en[i]);
+		AMP_GIC_DBG("   %s: cpu_idx-%d irq-%d: prio-%x aff-%llx grp_en-%d\n",
+			    __func__, i, prio_grp->irq_id[i], prio_grp->prio,
+			    prio_grp->irq_aff[i], prio_grp->en[i]);
 
-		if (gpio_grp->en[i]) {
-			irqs_cfg->prio = gpio_grp->prio;
+		if (prio_grp->en[i]) {
+			irqs_cfg->prio = prio_grp->prio;
 			irqs_cfg->aff = irq_aff;
 			if (amp_ctrl->gic_version == GIC_V2) {
 				irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
@@ -369,17 +432,17 @@ static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
 			irqs_cfg->amp_flag = 1;
 		}
 
-		AMP_GIC_DBG("  %s: prio-%x aff-%llx cpumaks-%x flag-%d\n",
-			    __func__, irqs_cfg->prio, irqs_cfg->aff,
-			    irqs_cfg->cpumask, irqs_cfg->amp_flag);
+		AMP_GIC_DBG("     %s irq-%d: prio-%x aff-%llx(%x) flag-%d\n",
+			    __func__, prio_grp->irq_id[i], irqs_cfg->prio,
+			    irqs_cfg->aff, irqs_cfg->cpumask, irqs_cfg->amp_flag);
 	}
 
 	return 0;
 }
 
-static int gic_amp_gpio_group_get_info(struct device_node *group_node,
-				       struct amp_gic_ctrl_s *amp_ctrl,
-				       int idx)
+static int amp_gic_get_gpio_group_type_config(struct device_node *group_node,
+					      struct amp_gic_ctrl_s *amp_ctrl,
+					      struct amp_gpio_group_info_t *gpio_grp)
 {
 	int i = 0;
 	struct device_node *node;
@@ -388,8 +451,8 @@ static int gic_amp_gpio_group_get_info(struct device_node *group_node,
 		for_each_available_child_of_node(group_node, node) {
 			if (i >= GPIO_GROUP_PRIO_MAX)
 				break;
-			if (!gic_amp_get_gpio_prio_group_info(node, amp_ctrl,
-							      i)) {
+			if (!gic_amp_get_gpio_prio_group_config(node, amp_ctrl,
+								gpio_grp, i)) {
 				i++;
 			}
 		}
@@ -397,27 +460,64 @@ static int gic_amp_gpio_group_get_info(struct device_node *group_node,
 	return 0;
 }
 
-static void gic_of_get_gpio_group(struct device_node *np,
-				  struct amp_gic_ctrl_s *amp_ctrl)
+static void amp_gic_get_gpio_group_config(struct device_node *node,
+					  struct amp_gic_ctrl_s *amp_ctrl)
+{
+	struct device_node *bank_node;
+	struct amp_gpio_group_info_t *gpio_grp;
+	u32 gpio_bank, group_en;
+
+	if (of_property_read_u32_array(node, "gpio-bank-id", &gpio_bank, 1))
+		return;
+
+	if (gpio_bank >= amp_ctrl->gpio_banks)
+		return;
+
+	if (of_property_read_u32_array(node, "group-irq-en", &group_en, 1))
+		return;
+
+	gpio_grp = &amp_ctrl->gpio_grp[gpio_bank];
+	gpio_grp->bank_id = gpio_bank;
+
+	gpio_grp->group_en = group_en;
+
+	AMP_GIC_DBG("%s: bank-%d group-en-%d\n", __func__, gpio_bank, group_en);
+
+	if (group_en == GPIO_IRQ_GROUP_EN_BANK_TYPE) {
+		bank_node = of_get_child_by_name(node, "bank-type-cfg");
+		if (!bank_node) {
+			pr_err("%s: group_irq_en from dtsi is error\n", __func__);
+			return;
+		}
+		amp_gic_get_gpio_group_bank_type_config(bank_node, amp_ctrl, gpio_grp);
+		of_node_put(bank_node);
+	} else if (group_en == GPIO_IRQ_GROUP_EN_GROUP_TYPE) {
+		amp_gic_get_gpio_group_type_config(node, amp_ctrl, gpio_grp);
+	}
+}
+
+static void amp_gic_get_gpios_group_config(struct device_node *np,
+					   struct amp_gic_ctrl_s *amp_ctrl)
 {
 	struct device_node *gpio_group_node, *node;
-	int i = 0;
 
 	if (of_property_read_u32_array(np, "gpio-group-banks",
 				       &amp_ctrl->gpio_banks, 1))
 		return;
 
+	if (amp_ctrl->gpio_banks >= GPIO_BANK_NUM) {
+		pr_err("%s: gpio_banks is overflow\n", __func__);
+		return;
+	}
+
 	gpio_group_node = of_get_child_by_name(np, "gpio-group");
 	if (gpio_group_node) {
 		for_each_available_child_of_node(gpio_group_node, node) {
-			if (i >= amp_ctrl->gpio_banks)
-				break;
-			if (!gic_amp_gpio_group_get_info(node, amp_ctrl, i))
-				i++;
+			amp_gic_get_gpio_group_config(node, amp_ctrl);
 		}
+		of_node_put(gpio_group_node);
 	}
 
-	of_node_put(gpio_group_node);
 }
 
 static int amp_gic_get_cpumask(struct device_node *np, struct amp_gic_ctrl_s *amp_ctrl)
@@ -518,6 +618,22 @@ static void amp_gic_get_irqs_config(struct device_node *np,
 	}
 }
 
+static void amp_gic_irqs_config_dump(struct amp_gic_ctrl_s *amp_ctrl)
+{
+	int irq;
+	struct amp_irq_cfg_s *irqs_cfg;
+
+#if !AMP_GIC_INFO_DUMP
+	return;
+#endif
+	irqs_cfg = amp_ctrl->irqs_cfg;
+	for (irq = 32; irq < MAX_GIC_SPI_NUM; irq++) {
+		AMP_GIC_DBG(" %s: irq-%d aff-%llx(%x) prio-%x flag-%d\n",
+			    __func__, irq, irqs_cfg[irq].aff, irqs_cfg[irq].cpumask,
+			    irqs_cfg[irq].prio, irqs_cfg[irq].amp_flag);
+	}
+}
+
 void rockchip_amp_get_gic_info(u32 spis_num, enum gic_type gic_version)
 {
 	struct device_node *np;
@@ -534,8 +650,9 @@ void rockchip_amp_get_gic_info(u32 spis_num, enum gic_type gic_version)
 		goto exit;
 	}
 
-	gic_of_get_gpio_group(np, &amp_ctrl);
+	amp_gic_get_gpios_group_config(np, &amp_ctrl);
 	amp_gic_get_irqs_config(np, &amp_ctrl);
+	amp_gic_irqs_config_dump(&amp_ctrl);
 
 exit:
 	of_node_put(np);

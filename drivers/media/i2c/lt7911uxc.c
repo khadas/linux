@@ -708,13 +708,11 @@ static void lt7911uxc_cphy_timing_config(struct v4l2_subdev *sd)
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 
 	if (lt7911uxc->bus_cfg.bus_type == V4L2_MBUS_CSI2_CPHY) {
-		lt7911uxc_i2c_enable(sd);
 		while (i2c_rd8(sd, HS_RQST_PRE_REG) != 0x3c) {
 			i2c_wr8(sd, HS_RQST_PRE_REG, 0x3c);
 			usleep_range(500, 600);
 		}
 		// i2c_wr8(sd, HS_TRAIL, 0x0b);
-		lt7911uxc_i2c_disable(sd);
 	}
 
 	v4l2_dbg(1, debug, sd, "%s config timing succeed\n", __func__);
@@ -925,12 +923,6 @@ static int lt7911uxc_s_dv_timings(struct v4l2_subdev *sd,
 	if (lt7911uxc_match_timings(&lt7911uxc->timings, timings)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
-	}
-
-	if (!v4l2_valid_dv_timings(timings,
-				&lt7911uxc_timings_cap, NULL, NULL)) {
-		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
-		return -ERANGE;
 	}
 
 	lt7911uxc->timings = *timings;

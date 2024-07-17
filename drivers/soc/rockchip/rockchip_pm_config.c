@@ -15,6 +15,8 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/reboot.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -40,18 +42,21 @@ enum rk_pm_state {
 	RK_PM_STATE_MAX
 };
 
-#ifndef MODULE
 static const char * const pm_state_str[RK_PM_STATE_MAX] = {
 	[RK_PM_MEM] = "mem",
 	[RK_PM_MEM_LITE] = "mem-lite",
 	[RK_PM_MEM_ULTRA] = "mem-ultra",
 };
 
-static struct rk_on_off_regulator_list {
+static struct rk_on_off_regulator_dev_list {
 	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
-} on_off_regs_list[RK_PM_STATE_MAX];
-#endif
+} on_off_regs_dev_list[RK_PM_STATE_MAX];
+
+static struct rk_regulator {
+	const char *name;
+	struct regulator *reg;
+} on_reg_list_before_mem[MAX_ON_OFF_REG_NUM];
 
 /* rk_tag related defines */
 #define sleep_tag_next(t)	\
@@ -98,7 +103,6 @@ static const struct of_device_id pm_match_table[] = {
 	{ },
 };
 
-#ifndef MODULE
 enum {
 	RK_PM_VIRT_PWROFF_EN = 0,
 	RK_PM_VIRT_PWROFF_IRQ_CFG = 1,
@@ -106,6 +110,11 @@ enum {
 };
 
 static u32 *virtual_pwroff_irqs;
+
+static inline suspend_state_t get_mem_sleep_current(void)
+{
+	return __is_defined(MODULE) ? PM_SUSPEND_MEM : mem_sleep_current;
+}
 
 static int rockchip_pm_virt_pwroff_prepare(struct sys_off_data *data)
 {
@@ -215,9 +224,9 @@ static int parse_sleep_config(struct device_node *node, enum rk_pm_state state)
 	return 0;
 }
 
-static int parse_regulator_list(struct device_node *node,
-				char *prop_name,
-				struct regulator_dev **out_list)
+static int parse_regulator_dev_list(struct device_node *node,
+				    char *prop_name,
+				    struct regulator_dev **out_list)
 {
 	struct device_node *dn;
 	struct regulator_dev *reg;
@@ -244,7 +253,7 @@ static int parse_regulator_list(struct device_node *node,
 	return 0;
 }
 
-static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state state)
+static int parse_on_off_regulator_dev(struct device_node *node, enum rk_pm_state state)
 {
 	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
 	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
@@ -257,15 +266,15 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 	snprintf(off_prop_name, sizeof(off_prop_name),
 		 "rockchip,regulator-off-in-%s", pm_state_str[state]);
 
-	parse_regulator_list(node, on_prop_name, on_off_regs_list[state].on_reg_list);
-	parse_regulator_list(node, off_prop_name, on_off_regs_list[state].off_reg_list);
+	parse_regulator_dev_list(node, on_prop_name, on_off_regs_dev_list[state].on_reg_list);
+	parse_regulator_dev_list(node, off_prop_name, on_off_regs_dev_list[state].off_reg_list);
 
 	return 0;
 }
 
 const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 {
-	suspend_state_t suspend_state = mem_sleep_current;
+	suspend_state_t suspend_state = get_mem_sleep_current();
 	enum rk_pm_state state = suspend_state - PM_SUSPEND_MEM;
 
 	if (state >= RK_PM_STATE_MAX)
@@ -274,7 +283,41 @@ const struct rk_sleep_config *rockchip_get_cur_sleep_config(void)
 	return &sleep_config[state];
 }
 EXPORT_SYMBOL_GPL(rockchip_get_cur_sleep_config);
-#endif
+
+static int parse_regulator_list(struct platform_device *pdev,
+				struct device_node *node,
+				char *prop_name,
+				struct rk_regulator *reg_list)
+{
+	struct device_node *dn;
+	struct regulator *reg;
+	const char *reg_name;
+	int i, j;
+
+	if (of_find_property(node, prop_name, NULL)) {
+		for (i = 0, j = 0;
+		     (dn = of_parse_phandle(node, prop_name, i)) && j < MAX_ON_OFF_REG_NUM;
+		     i++) {
+			if (of_property_read_string(dn, "regulator-name", &reg_name) == 0) {
+				reg = devm_regulator_get(&pdev->dev, reg_name);
+				if (IS_ERR(reg)) {
+					dev_err(&pdev->dev, "failed to get regulator %s for %s\n",
+						reg_name, prop_name);
+				} else {
+					reg_list[j].name = reg_name;
+					reg_list[j].reg = reg;
+					j++;
+				}
+			} else {
+				dev_err(&pdev->dev, "failed to get regulator-name property in %s\n",
+					dn->name);
+			}
+			of_node_put(dn);
+		}
+	}
+
+	return 0;
+}
 
 static int parse_mcu_sleep_config(struct device_node *node)
 {
@@ -417,6 +460,54 @@ out:
 	return ret;
 }
 
+static int parse_pm_domains(struct device *dev)
+{
+	struct device **pd_dev;
+	struct device_link **pd_link;
+	int num_pds, i, ret;
+
+	num_pds = of_count_phandle_with_args(dev->of_node, "power-domains",
+					     "#power-domain-cells");
+	if (num_pds <= 1)
+		return 0;
+
+	pd_dev = devm_kcalloc(dev, num_pds, sizeof(*pd_dev), GFP_KERNEL);
+	if (!pd_dev)
+		return -ENOMEM;
+
+	pd_link = devm_kcalloc(dev, num_pds, sizeof(*pd_link), GFP_KERNEL);
+	if (!pd_link)
+		return -ENOMEM;
+
+	for (i = 0; i < num_pds; i++) {
+		pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
+		if (IS_ERR(pd_dev[i])) {
+			ret = PTR_ERR(pd_dev[i]);
+			goto detach;
+		}
+
+		pd_link[i] = device_link_add(dev, pd_dev[i], DL_FLAG_STATELESS |
+					     DL_FLAG_PM_RUNTIME);
+		if (!pd_link[i]) {
+			ret = -EINVAL;
+			goto detach;
+		}
+	}
+	devm_kfree(dev, pd_link);
+
+	return 0;
+
+detach:
+	for (i = num_pds - 1; i >= 0; i--) {
+		if (pd_link[i])
+			device_link_del(pd_link[i]);
+		if (!IS_ERR_OR_NULL(pd_dev[i]))
+			dev_pm_domain_detach(pd_dev[i], true);
+	}
+
+	return ret;
+}
+
 static int pm_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
@@ -441,7 +532,8 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	sleep_config =
 		devm_kmalloc_array(&pdev->dev, RK_PM_STATE_MAX,
-				   sizeof(*sleep_config), GFP_KERNEL);
+				   sizeof(*sleep_config),
+				   GFP_KERNEL | __GFP_ZERO);
 	if (!sleep_config)
 		return -ENOMEM;
 
@@ -533,24 +625,33 @@ static int pm_config_probe(struct platform_device *pdev)
 
 	parse_io_config(&pdev->dev);
 	parse_mcu_sleep_config(node);
+	parse_regulator_list(pdev, node,
+			     "rockchip,regulator-on-before-mem",
+			     on_reg_list_before_mem);
+	ret = parse_pm_domains(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to parse pm domains, ret=%d\n", ret);
+		return ret;
+	}
+	pm_runtime_enable(&pdev->dev);
 
-#ifndef MODULE
+	if (__is_defined(MODULE))
+		return 0;
+
 	parse_virtual_pwroff_config(pdev, node);
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);
-		parse_on_off_regulator(node, i);
+		parse_on_off_regulator_dev(node, i);
 	}
-#endif
 
 	return 0;
 }
 
-#ifndef MODULE
 static int pm_config_prepare(struct device *dev)
 {
 	int i;
-	suspend_state_t suspend_state = mem_sleep_current;
+	suspend_state_t suspend_state = get_mem_sleep_current();
 	enum rk_pm_state state = suspend_state - PM_SUSPEND_MEM;
 	struct regulator_dev **on_list;
 	struct regulator_dev **off_list;
@@ -579,8 +680,8 @@ static int pm_config_prepare(struct device *dev)
 		sip_smc_set_suspend_mode(WKUP_SOURCE_CONFIG,
 					 def_config->wakeup_config, 0);
 
-	on_list = on_off_regs_list[state].on_reg_list;
-	off_list = on_off_regs_list[state].off_reg_list;
+	on_list = on_off_regs_dev_list[state].on_reg_list;
+	off_list = on_off_regs_dev_list[state].off_reg_list;
 
 	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_list[i]; i++)
 		regulator_suspend_enable(on_list[i], PM_SUSPEND_MEM);
@@ -588,22 +689,51 @@ static int pm_config_prepare(struct device *dev)
 	for (i = 0; i < MAX_ON_OFF_REG_NUM && off_list[i]; i++)
 		regulator_suspend_disable(off_list[i], PM_SUSPEND_MEM);
 
+	return pm_runtime_resume_and_get(dev);
+}
+
+static void pm_config_complete(struct device *dev)
+{
+	pm_runtime_put_sync(dev);
+}
+
+static int pm_config_suspend_late(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_reg_list_before_mem[i].reg; i++)
+		if (regulator_enable(on_reg_list_before_mem[i].reg))
+			dev_err(dev, "fail to enable regulator:%s\n",
+				on_reg_list_before_mem[i].name);
+
+	return 0;
+}
+
+static int pm_config_resume_early(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_reg_list_before_mem[i].reg; i++)
+		if (regulator_disable(on_reg_list_before_mem[i].reg))
+			dev_err(dev, "fail to disable regulator:%s\n",
+				on_reg_list_before_mem[i].name);
+
 	return 0;
 }
 
 static const struct dev_pm_ops rockchip_pm_ops = {
 	.prepare = pm_config_prepare,
+	.complete = pm_config_complete,
+	.suspend_late = pm_config_suspend_late,
+	.resume_early = pm_config_resume_early,
 };
-#endif
 
 static struct platform_driver pm_driver = {
 	.probe = pm_config_probe,
 	.driver = {
 		.name = "rockchip-pm",
 		.of_match_table = pm_match_table,
-#ifndef MODULE
 		.pm = &rockchip_pm_ops,
-#endif
 	},
 };
 

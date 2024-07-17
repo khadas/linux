@@ -198,6 +198,8 @@ config TOUCHSCREEN_CHIPONE_ICN8505
 	  To compile this driver as a module, choose M here: the
 	  module will be called chipone_icn8505.
 
+source "drivers/input/touchscreen/chipone_tddi/Kconfig"
+
 config TOUCHSCREEN_CY8CTMA140
 	tristate "cy8ctma140 touchscreen"
 	depends on I2C
@@ -376,6 +378,14 @@ config TOUCHSCREEN_EXC3000
 
 config TOUCHSCREEN_FTS
 	tristate "Focaltech Touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
+config TOUCHSCREEN_FT5726
+	tristate "Focaltech Touchscreen FT5726"
 	depends on I2C
 	default n
 	help
@@ -782,6 +792,8 @@ config TOUCHSCREEN_HTCPEN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called htcpen.
+
+source "drivers/input/touchscreen/parade/Kconfig"
 
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"

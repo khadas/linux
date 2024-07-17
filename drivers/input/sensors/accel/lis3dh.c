@@ -285,7 +285,7 @@ static const struct i2c_device_id gsensor_lis3dh_id[] = {
 
 static struct i2c_driver gsensor_lis3dh_driver = {
 	.probe = gsensor_lis3dh_probe,
-	.remove = gsensor_lis3dh_remove,
+	.remove = (void *)gsensor_lis3dh_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_lis3dh_id,
 	.driver = {

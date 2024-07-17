@@ -5,6 +5,8 @@
 
 #include <dt-bindings/soc/rockchip-amp.h>
 
+#define CPU_GET_AFFINITY(cpu, cluster) ((cpu) << 0 | ((cluster) << 8))
+
 / {
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";
@@ -29,7 +31,13 @@
 
 		/* remote amp core address */
 		amp_shmem_reserved: amp-shmem@7800000 {
-			reg = <0x0 0x7800000 0x0 0x400000>;
+			reg = <0x0 0x7800000 0x0 0x300000>;
+			no-map;
+		};
+
+		/* mcu address */
+		mcu_reserved: mcu@7b00000 {
+			reg = <0x0 0x7b00000 0x0 0x100000>;
 			no-map;
 		};
 
@@ -43,13 +51,6 @@
 			reg = <0x0 0x08000000 0x0 0x100000>;
 			no-map;
 		};
-
-		/* mcu address */
-		mcu_reserved: mcu@8200000 {
-			reg = <0x0 0x8200000 0x0 0x100000>;
-			no-map;
-		};
-
 	};
 
 	rpmsg: rpmsg@7c00000 {

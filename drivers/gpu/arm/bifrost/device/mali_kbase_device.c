@@ -348,22 +348,26 @@ void kbase_device_misc_term(struct kbase_device *kbdev)
 #if !MALI_USE_CSF
 void kbase_enable_quick_reset(struct kbase_device *kbdev)
 {
-	spin_lock(&kbdev->quick_reset_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->quick_reset_lock, flags);
 
 	kbdev->quick_reset_enabled = true;
 	kbdev->num_of_atoms_hw_completed = 0;
 
-	spin_unlock(&kbdev->quick_reset_lock);
+	spin_unlock_irqrestore(&kbdev->quick_reset_lock, flags);
 }
 
 void kbase_disable_quick_reset(struct kbase_device *kbdev)
 {
-	spin_lock(&kbdev->quick_reset_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&kbdev->quick_reset_lock, flags);
 
 	kbdev->quick_reset_enabled = false;
 	kbdev->num_of_atoms_hw_completed = 0;
 
-	spin_unlock(&kbdev->quick_reset_lock);
+	spin_unlock_irqrestore(&kbdev->quick_reset_lock, flags);
 }
 
 bool kbase_is_quick_reset_enabled(struct kbase_device *kbdev)

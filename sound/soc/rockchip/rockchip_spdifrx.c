@@ -163,6 +163,7 @@ static struct snd_soc_dai_driver rk_spdifrx_dai = {
 
 static const struct snd_soc_component_driver rk_spdifrx_component = {
 	.name = "rockchip-spdifrx",
+	.legacy_dai_naming = 1,
 };
 
 static bool rk_spdifrx_wr_reg(struct device *dev, unsigned int reg)

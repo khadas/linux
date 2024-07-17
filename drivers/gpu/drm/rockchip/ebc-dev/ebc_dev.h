@@ -8,6 +8,7 @@
 #ifndef __EBC_DEV_H__
 #define __EBC_DEV_H__
 
+#include <linux/ebc.h>
 #include <linux/notifier.h>
 
 /*
@@ -24,14 +25,6 @@
 
 #define EBC_SUCCESS		(0)
 #define EBC_ERROR		(-1)
-
-/*
- * ebc status notify
- */
-#define EBC_OFF			(0)
-#define EBC_ON			(1)
-#define EBC_FB_BLANK		(2)
-#define EBC_FB_UNBLANK		(3)
 
 /*
  * ebc system ioctl command
@@ -89,26 +82,5 @@ struct ebc_buf_info {
 	int width_mm;
 	int height_mm;
 };
-
-#if IS_ENABLED(CONFIG_ROCKCHIP_EBC_DEV)
-int ebc_register_notifier(struct notifier_block *nb);
-int ebc_unregister_notifier(struct notifier_block *nb);
-int ebc_notify(unsigned long event);
-#else
-static inline int ebc_register_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int ebc_unregister_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int ebc_notify(unsigned long event)
-{
-	return 0;
-}
-#endif
 
 #endif

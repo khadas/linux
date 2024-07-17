@@ -35,17 +35,25 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	max96722_dphy0_poc: max96722-dphy0-poc {
+	max96722_dphy0_pwdn_regulator: max96722-dphy0-pwdn-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dphy0_pwdn";
+		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_dphy0_pwdn>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
+		vin-supply = <&max96722_dphy0_vcc1v8>;
+	};
+
+	max96722_dphy0_poc_regulator: max96722-dphy0-poc-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "max96722_dphy0_poc";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-		enable-active-high;
 		gpio = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <1050>;
-		off-on-delay-us = <515000>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
 };
@@ -96,19 +104,18 @@
 		clock-names = "xvclk";
 		clocks = <&max96722_dphy0_osc0 0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&max96722_dphy0_pwdn>, <&max96722_dphy0_errb>, <&max96722_dphy0_lock>;
+		pinctrl-0 = <&max96722_dphy0_errb>, <&max96722_dphy0_lock>;
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
-		pwdn-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
-		lock-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
 		vcc1v2-supply = <&max96722_dphy0_vcc1v2>;
 		vcc1v8-supply = <&max96722_dphy0_vcc1v8>;
-		poc-supply = <&max96722_dphy0_poc>;
+		pwdn-supply = <&max96722_dphy0_pwdn_regulator>;
+		lock-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "max96722";
-		rockchip,camera-module-lens-name = "max96722";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 
 		port {
 			max96722_dphy0_out: endpoint {
@@ -128,7 +135,6 @@
 			max-fps-denominator = <300000>;
 			bpp = <16>;
 			link-freq-idx = <20>;
-			vc-array = <0x10 0x20 0x40 0x80>; // VC0~3: bit4~7
 		};
 		/* support mode config end */
 
@@ -152,11 +158,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy0_link0_in: endpoint {
-							remote-endpoint = <&max96722_dphy0_remote0_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy0_cam0>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -183,11 +185,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy0_link1_in: endpoint {
-							remote-endpoint = <&max96722_dphy0_remote1_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy0_cam1>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -214,11 +212,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy0_link2_in: endpoint {
-							remote-endpoint = <&max96722_dphy0_remote2_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy0_cam2>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -245,11 +239,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy0_link3_in: endpoint {
-							remote-endpoint = <&max96722_dphy0_remote3_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy0_cam3>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -469,199 +459,296 @@
 		};
 		/* serdes local device end */
 
-		/* serdes remote device start */
-		serdes-remote-device-0 {
-			compatible = "maxim4c,link0,max96715";
-			status = "okay";
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			remote-id = <0>; // Same as Link ID: 0/1/2/3
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x41>; // 0: disable remap
+				// Note: Serializer node defined before camera node
+				max96722_dphy0_ser0: max96715@41 {
+					compatible = "maxim,ser,max96715";
+					reg = <0x41>;
 
-			port {
-				max96722_dphy0_remote0_out: endpoint {
-					remote-endpoint = <&max96722_dphy0_link0_in>;
+					ser-i2c-addr-def = <0x40>;
+
+					ser-init-sequence {
+						seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							07 84 00 00
+							67 c4 00 00
+							0F bf 00 00
+							3F 08 00 00
+							40 2d 00 00
+							20 10 00 00
+							21 11 00 00
+							22 12 00 00
+							23 13 00 00
+							24 14 00 00
+							25 15 00 00
+							26 16 00 00
+							27 17 00 00
+							30 00 00 00
+							31 01 00 00
+							32 02 00 00
+							33 03 00 00
+							34 04 00 00
+							35 05 00 00
+							36 06 00 00
+							37 07 00 00
+						];
+					};
+				};
+
+				max96722_dphy0_cam0: ox01f10@31 {
+					compatible = "maxim,ovti,ox01f10";
+					reg = <0x31>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dphy0_ser0>; // remote serializer
+
+					poc-supply = <&max96722_dphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy0_cam0_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf */
+							//remote-endpoint = <&mipi_lvds_sditf_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
 
-			remote-init-sequence {
-				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+			i2c@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <1>;
 
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					07 84 00 00
-					67 c4 00 00
-					0F bf 00 00
-					3F 08 00 00
-					40 2d 00 00
-					20 10 00 00
-					21 11 00 00
-					22 12 00 00
-					23 13 00 00
-					24 14 00 00
-					25 15 00 00
-					26 16 00 00
-					27 17 00 00
-					30 00 00 00
-					31 01 00 00
-					32 02 00 00
-					33 03 00 00
-					34 04 00 00
-					35 05 00 00
-					36 06 00 00
-					37 07 00 00
-				];
-			};
-		};
+				// Note: Serializer node defined before camera node
+				max96722_dphy0_ser1: max96715@42 {
+					compatible = "maxim,ser,max96715";
+					reg = <0x42>;
 
-		serdes-remote-device-1 {
-			compatible = "maxim4c,link1,max96715";
-			status = "okay";
+					ser-i2c-addr-def = <0x40>;
 
-			remote-id = <1>; // Same as Link ID: 0/1/2/3
+					ser-init-sequence {
+						seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x42>; // 0: disable remap
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							07 84 00 00
+							67 c4 00 00
+							0F bf 00 00
+							3F 08 00 00
+							40 2d 00 00
+							20 10 00 00
+							21 11 00 00
+							22 12 00 00
+							23 13 00 00
+							24 14 00 00
+							25 15 00 00
+							26 16 00 00
+							27 17 00 00
+							30 00 00 00
+							31 01 00 00
+							32 02 00 00
+							33 03 00 00
+							34 04 00 00
+							35 05 00 00
+							36 06 00 00
+							37 07 00 00
+						];
+					};
+				};
 
-			port {
-				max96722_dphy0_remote1_out: endpoint {
-					remote-endpoint = <&max96722_dphy0_link1_in>;
+				max96722_dphy0_cam1: ox01f10@32 {
+					compatible = "maxim,ovti,ox01f10";
+					reg = <0x32>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dphy0_ser1>; // remote serializer
+
+					poc-supply = <&max96722_dphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy0_cam1_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf_vir1 */
+							//remote-endpoint = <&mipi_lvds_sditf_vir1_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
 
-			remote-init-sequence {
-				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+			i2c@2 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <2>;
 
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					07 84 00 00
-					67 c4 00 00
-					0F bf 00 00
-					3F 08 00 00
-					40 2d 00 00
-					20 10 00 00
-					21 11 00 00
-					22 12 00 00
-					23 13 00 00
-					24 14 00 00
-					25 15 00 00
-					26 16 00 00
-					27 17 00 00
-					30 00 00 00
-					31 01 00 00
-					32 02 00 00
-					33 03 00 00
-					34 04 00 00
-					35 05 00 00
-					36 06 00 00
-					37 07 00 00
-				];
-			};
-		};
+				// Note: Serializer node defined before camera node
+				max96722_dphy0_ser2: max96715@43 {
+					compatible = "maxim,ser,max96715";
+					reg = <0x43>;
 
-		serdes-remote-device-2 {
-			compatible = "maxim4c,link2,max96715";
-			status = "okay";
+					ser-i2c-addr-def = <0x40>;
 
-			remote-id = <2>; // Same as Link ID: 0/1/2/3
+					ser-init-sequence {
+						seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x43>; // 0: disable remap
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							07 84 00 00
+							67 c4 00 00
+							0F bf 00 00
+							3F 08 00 00
+							40 2d 00 00
+							20 10 00 00
+							21 11 00 00
+							22 12 00 00
+							23 13 00 00
+							24 14 00 00
+							25 15 00 00
+							26 16 00 00
+							27 17 00 00
+							30 00 00 00
+							31 01 00 00
+							32 02 00 00
+							33 03 00 00
+							34 04 00 00
+							35 05 00 00
+							36 06 00 00
+							37 07 00 00
+						];
+					};
+				};
 
-			port {
-				max96722_dphy0_remote2_out: endpoint {
-					remote-endpoint = <&max96722_dphy0_link2_in>;
+				max96722_dphy0_cam2: ox01f10@33 {
+					compatible = "maxim,ovti,ox01f10";
+					reg = <0x33>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dphy0_ser2>; // remote serializer
+
+					poc-supply = <&max96722_dphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <2>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy0_cam2_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf_vir2 */
+							//remote-endpoint = <&mipi_lvds_sditf_vir2_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
 
-			remote-init-sequence {
-				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+			i2c@3 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <3>;
 
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					07 84 00 00
-					67 c4 00 00
-					0F bf 00 00
-					3F 08 00 00
-					40 2d 00 00
-					20 10 00 00
-					21 11 00 00
-					22 12 00 00
-					23 13 00 00
-					24 14 00 00
-					25 15 00 00
-					26 16 00 00
-					27 17 00 00
-					30 00 00 00
-					31 01 00 00
-					32 02 00 00
-					33 03 00 00
-					34 04 00 00
-					35 05 00 00
-					36 06 00 00
-					37 07 00 00
-				];
-			};
-		};
+				// Note: Serializer node defined before camera node
+				max96722_dphy0_ser3: max96715@44 {
+					compatible = "maxim,ser,max96715";
+					reg = <0x44>;
 
-		serdes-remote-device-3 {
-			compatible = "maxim4c,link3,max96715";
-			status = "okay";
+					ser-i2c-addr-def = <0x40>;
 
-			remote-id = <3>; // Same as Link ID: 0/1/2/3
+					ser-init-sequence {
+						seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <1>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x44>; // 0: disable remap
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							07 84 00 00
+							67 c4 00 00
+							0F bf 00 00
+							3F 08 00 00
+							40 2d 00 00
+							20 10 00 00
+							21 11 00 00
+							22 12 00 00
+							23 13 00 00
+							24 14 00 00
+							25 15 00 00
+							26 16 00 00
+							27 17 00 00
+							30 00 00 00
+							31 01 00 00
+							32 02 00 00
+							33 03 00 00
+							34 04 00 00
+							35 05 00 00
+							36 06 00 00
+							37 07 00 00
+						];
+					};
+				};
 
-			port {
-				max96722_dphy0_remote3_out: endpoint {
-					remote-endpoint = <&max96722_dphy0_link3_in>;
+				max96722_dphy0_cam3: ox01f10@34 {
+					compatible = "maxim,ovti,ox01f10";
+					reg = <0x34>;
+
+					cam-i2c-addr-def = <0x36>;
+
+					cam-remote-ser = <&max96722_dphy0_ser3>; // remote serializer
+
+					poc-supply = <&max96722_dphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <3>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy0_cam3_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf_vir3 */
+							//remote-endpoint = <&mipi_lvds_sditf_vir3_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
-
-			remote-init-sequence {
-				seq-item-size = <4>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <1>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
-
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					07 84 00 00
-					67 c4 00 00
-					0F bf 00 00
-					3F 08 00 00
-					40 2d 00 00
-					20 10 00 00
-					21 11 00 00
-					22 12 00 00
-					23 13 00 00
-					24 14 00 00
-					25 15 00 00
-					26 16 00 00
-					27 17 00 00
-					30 00 00 00
-					31 01 00 00
-					32 02 00 00
-					33 03 00 00
-					34 04 00 00
-					35 05 00 00
-					36 06 00 00
-					37 07 00 00
-				];
-			};
 		};
-		/* serdes remote device end */
+		/* i2c-mux end */
 	};
 };
 

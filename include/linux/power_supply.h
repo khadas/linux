@@ -193,7 +193,9 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_CP_VBUS_HERROR_STATUS,
 	POWER_SUPPLY_PROP_CP_VBUS_LERROR_STATUS,
 	POWER_SUPPLY_PROP_CP_CHARGING_ENABLED,
+	POWER_SUPPLY_PROP_CP_WORK_MODE,
 	POWER_SUPPLY_PROP_CP_WDT_EN,
+	POWER_SUPPLY_PROP_CP_VOUT,
 	POWER_SUPPLY_PROP_CP_VBUS,
 	POWER_SUPPLY_PROP_CP_IBUS,
 	POWER_SUPPLY_PROP_CP_SWITCHER_EN,
@@ -804,7 +806,7 @@ struct power_supply_battery_info {
 	int bti_resistance_tolerance;
 };
 
-extern struct atomic_notifier_head power_supply_notifier;
+extern struct blocking_notifier_head power_supply_notifier;
 extern int power_supply_reg_notifier(struct notifier_block *nb);
 extern void power_supply_unreg_notifier(struct notifier_block *nb);
 #if IS_ENABLED(CONFIG_POWER_SUPPLY)

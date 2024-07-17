@@ -5,8 +5,10 @@
 
 #include <linux/edac.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
 
 #include "edac_module.h"
@@ -42,6 +44,18 @@
 #define ECC_UNCORR_BANK_MASK			(0x7)
 #define ECC_UNCORR_COL_MASK			(0xfff)
 
+#define DDR_ECC_CE_DATA_POISON			(1)
+#define DDR_ECC_UE_DATA_POISON			(0)
+
+#define DDR_ECC_POISON_EN			(1)
+#define DDR_ECC_POISON_DIS			(0)
+
+/* [15:8]: high version + [7:0]: low version */
+#define DDR_ECC_CFG_VER				(0x100)
+#define DDR_ECC_CFG_VER_V101			(0x101)
+
+#define DDR_ECC_TAG_KERNEL			(0x5588eedd)
+
 /**
  * struct ddr_ecc_error_info - DDR ECC error log information
  * @err_cnt:	error count
@@ -75,6 +89,24 @@ struct ddr_ecc_status {
 };
 
 /**
+ * struct rk_ddr_ecc_cfg - RK DDR ECC config
+ * @ecc_cfg_ver:	version for DDR ECC config
+ * @ecc_poiso_en:	enable ecc data poisoning
+ * @ecc_poison_mode:	corrected/uncorrected data poisoning mode
+ * @ecc_poison_addr:	DDR ECC Data Poisoning Address
+ */
+struct rk_ddr_ecc_cfg {
+	u32 ecc_cfg_ver;
+	u32 ecc_poison_en;
+	u32 ecc_poison_mode;
+	u64 ecc_poison_addr;
+	u64 ce_addr;
+	u64 ue_addr;
+	struct ddr_ecc_error_info poison;
+	u32 kernel_tag;
+};
+
+/**
  * struct rk_edac_priv - RK DDR memory controller private instance data
  * @name:	EDAC name
  * @stat:	DDR ECC status information
@@ -93,6 +125,9 @@ struct rk_edac_priv {
 };
 
 static struct ddr_ecc_status *ddr_edac_info;
+static struct rk_ddr_ecc_cfg *ddr_edac_cfg;
+
+static char edac_poison_mode[4] = "ce";
 
 static inline void opstate_init_int(void)
 {
@@ -139,6 +174,37 @@ static void rockchip_edac_handle_ue_error(struct mem_ctl_info *mci,
 				     p->ueinfo.err_cnt, 0, 0, 0, 0, 0, -1,
 				     mci->ctl_name, "");
 	}
+}
+
+static int rockchip_ddr_ecc_poison(struct rk_ddr_ecc_cfg *cfg)
+{
+	struct arm_smccc_res res;
+
+	cfg->ecc_cfg_ver = DDR_ECC_CFG_VER_V101;
+	cfg->kernel_tag = DDR_ECC_TAG_KERNEL;
+	cfg->ecc_poison_en = DDR_ECC_POISON_EN;
+
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDRECC, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_ECC_POISON);
+	if ((res.a0) || (res.a1)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "ROCKCHIP_SIP_CONFIG_DRAM_ECC_POISON not support: 0x%lx-0x%lx\n",
+			    res.a0, res.a1);
+		return -ENXIO;
+	}
+
+	/* disable ddr ecc poison */
+	cfg->ecc_poison_en = DDR_ECC_POISON_DIS;
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDRECC, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_ECC_POISON);
+	if ((res.a0) || (res.a1)) {
+		edac_printk(KERN_ERR, EDAC_MC,
+			    "ROCKCHIP_SIP_CONFIG_DRAM_ECC_POISON not support: 0x%lx-0x%lx\n",
+			    res.a0, res.a1);
+		return -ENXIO;
+	}
+
+	return 0;
 }
 
 static int rockchip_edac_get_error_info(struct mem_ctl_info *mci)
@@ -205,6 +271,36 @@ static irqreturn_t rockchip_edac_mc_ue_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int rockchip_edac_trigger(const char *val, const struct kernel_param *kp)
+{
+	int ret = 0;
+	unsigned long value, i;
+
+	if (ddr_edac_cfg == NULL)
+		return -1;
+
+	if (kstrtoul(val, 0, &value) < 0)
+		return 0;
+
+	if (!strncmp(edac_poison_mode, "ce", 2)) {
+		ddr_edac_cfg->ecc_poison_mode = DDR_ECC_CE_DATA_POISON;
+	} else if (!strncmp(edac_poison_mode, "ue", 2)) {
+		ddr_edac_cfg->ecc_poison_mode = DDR_ECC_UE_DATA_POISON;
+	} else {
+		ddr_edac_cfg->ecc_poison_mode = DDR_ECC_CE_DATA_POISON;
+		edac_printk(KERN_WARNING, EDAC_MC,
+			    "unknown poison mode, used default mode: ce!\n");
+	}
+
+	for (i = 0; i < value; i++) {
+		rockchip_dmcfreq_lock();
+		ret = rockchip_ddr_ecc_poison(ddr_edac_cfg);
+		rockchip_dmcfreq_unlock();
+	}
+
+	return ret;
+}
+
 static int rockchip_edac_mc_init(struct mem_ctl_info *mci,
 			   struct platform_device *pdev)
 {
@@ -235,6 +331,9 @@ static int rockchip_edac_mc_init(struct mem_ctl_info *mci,
 	}
 	ddr_edac_info = (struct ddr_ecc_status *)res.a1;
 	memset(ddr_edac_info, 0, sizeof(struct ddr_ecc_status));
+
+	ddr_edac_cfg = (struct rk_ddr_ecc_cfg *)(res.a1 + (4096 / 4));
+	memset(ddr_edac_cfg, 0, sizeof(struct rk_ddr_ecc_cfg));
 
 	ret = rockchip_edac_get_error_info(mci);
 	if (ret)
@@ -352,6 +451,13 @@ static struct platform_driver rockchip_edac_driver = {
 	},
 };
 module_platform_driver(rockchip_edac_driver);
+
+module_param_string(edac_poison_mode, edac_poison_mode, sizeof(edac_poison_mode), 0664);
+MODULE_PARM_DESC(edac_poison_mode, "RK EDAC DDR ECC poison mode(ce or ue).");
+
+module_param_call(rockchip_edac_trigger, rockchip_edac_trigger, NULL, NULL, 0664);
+MODULE_PARM_DESC(rockchip_edac_trigger,
+		 "RK EDAC DDR ECC triggered by writing the number of errors(greater than 0).");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("He Zhihuan <huan.he@rock-chips.com>\n");

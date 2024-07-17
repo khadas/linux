@@ -67,7 +67,7 @@ static inline void gpu_metrics_ctx_flag_clear(struct kbase_gpu_metrics_ctx *gpu_
 static inline void validate_tracepoint_data(struct kbase_gpu_metrics_ctx *gpu_metrics_ctx,
 					    u64 start_time, u64 end_time, u64 total_active)
 {
-#ifdef CONFIG_MALI_BIFROST_DEBUG
+#if 0
 	WARN(total_active > NSEC_PER_SEC, "total_active %llu > 1 second for aid %u active_cnt %u",
 	     total_active, gpu_metrics_ctx->aid, gpu_metrics_ctx->active_cnt);
 

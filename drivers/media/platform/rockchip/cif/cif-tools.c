@@ -784,9 +784,9 @@ static void rkcif_tools_work(struct work_struct *work)
 	struct rkcif_tools_vdev *tools_vdev = container_of(work,
 						struct rkcif_tools_vdev,
 						work);
-	if (tools_vdev->stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+	if (tools_vdev->stream->cur_stream_mode & RKCIF_STREAM_MODE_CAPTURE)
 		rkcif_tools_buf_done(tools_vdev);
-	else if (tools_vdev->stream->dma_en & RKCIF_DMAEN_BY_ISP)
+	else if (tools_vdev->stream->cur_stream_mode & RKCIF_STREAM_MODE_TOISP_RDBK)
 		rkcif_tools_buf_done_rdbk(tools_vdev);
 }
 

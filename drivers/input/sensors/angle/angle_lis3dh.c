@@ -322,7 +322,7 @@ static const struct i2c_device_id angle_lis3dh_id[] = {
 
 static struct i2c_driver angle_lis3dh_driver = {
 	.probe = angle_lis3dh_probe,
-	.remove = angle_lis3dh_remove,
+	.remove = (void *)angle_lis3dh_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = angle_lis3dh_id,
 	.driver = {

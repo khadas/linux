@@ -29,10 +29,12 @@
 #include "rk628_gvi.h"
 #include "rk628_csi.h"
 #include "rk628_hdmitx.h"
+#include "rk628_efuse.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
 	regmap_reg_range(CRU_GPLL_CON0, CRU_GPLL_CON4),
+	regmap_reg_range(CRU_APLL_CON0, CRU_APLL_CON4),
 	regmap_reg_range(CRU_MODE_CON00, CRU_MODE_CON00),
 	regmap_reg_range(CRU_CLKSEL_CON00, CRU_CLKSEL_CON21),
 	regmap_reg_range(CRU_GATE_CON00, CRU_GATE_CON05),
@@ -62,6 +64,7 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_HDMI_MODE_RECOVER, HDMI_RX_HDMI_ERROR_PROTECT),
 	regmap_reg_range(HDMI_RX_HDMI_SYNC_CTRL, HDMI_RX_HDMI_CKM_RESULT),
 	regmap_reg_range(HDMI_RX_HDMI_RESMPL_CTRL, HDMI_RX_HDMI_RESMPL_CTRL),
+	regmap_reg_range(HDMI_RX_HDMI_DCM_CTRL, HDMI_RX_HDMI_DCM_CTRL),
 	regmap_reg_range(HDMI_RX_HDMI_VM_CFG_CH2, HDMI_RX_HDMI_STS),
 	regmap_reg_range(HDMI_RX_HDCP_CTRL, HDMI_RX_HDCP_SETTINGS),
 	regmap_reg_range(HDMI_RX_HDCP_KIDX, HDMI_RX_HDCP_KIDX),
@@ -78,6 +81,7 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_AUD_CHEXTR_CTRL, HDMI_RX_AUD_PAO_CTRL),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_STS, HDMI_RX_AUD_FIFO_STS),
 	regmap_reg_range(HDMI_RX_AUDPLL_GEN_CTS, HDMI_RX_AUDPLL_GEN_N),
+	regmap_reg_range(HDMI_RX_I2CM_PHYG3_DATAI, HDMI_RX_I2CM_PHYG3_DATAI),
 	regmap_reg_range(HDMI_RX_PDEC_CTRL, HDMI_RX_PDEC_CTRL),
 	regmap_reg_range(HDMI_RX_PDEC_AUDIODET_CTRL, HDMI_RX_PDEC_AUDIODET_CTRL),
 	regmap_reg_range(HDMI_RX_PDEC_ERR_FILTER, HDMI_RX_PDEC_ASP_CTRL),
@@ -87,7 +91,7 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_PDEC_AIF_CTRL, HDMI_RX_PDEC_AIF_PB0),
 	regmap_reg_range(HDMI_RX_PDEC_AVI_PB, HDMI_RX_PDEC_AVI_PB),
 	regmap_reg_range(HDMI_RX_HDMI20_CONTROL, HDMI_RX_CHLOCK_CONFIG),
-	regmap_reg_range(HDMI_RX_SCDC_REGS1, HDMI_RX_SCDC_REGS2),
+	regmap_reg_range(HDMI_RX_SCDC_REGS0, HDMI_RX_SCDC_REGS2),
 	regmap_reg_range(HDMI_RX_SCDC_WRDATA0, HDMI_RX_SCDC_WRDATA0),
 	regmap_reg_range(HDMI_RX_PDEC_ISTS, HDMI_RX_PDEC_IEN),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_ISTS, HDMI_RX_AUD_FIFO_IEN),
@@ -108,6 +112,15 @@ static const struct regmap_range rk628_key_readable_ranges[] = {
 static const struct regmap_access_table rk628_key_readable_table = {
 	.yes_ranges     = rk628_key_readable_ranges,
 	.n_yes_ranges   = ARRAY_SIZE(rk628_key_readable_ranges),
+};
+
+static const struct regmap_range rk628_efuse_readable_ranges[] = {
+	regmap_reg_range(EFUSE_BASE, EFUSE_BASE + EFUSE_REVISION),
+};
+
+static const struct regmap_access_table rk628_efuse_readable_table = {
+	.yes_ranges     = rk628_efuse_readable_ranges,
+	.n_yes_ranges   = ARRAY_SIZE(rk628_efuse_readable_ranges),
 };
 
 static const struct regmap_range rk628_combtxphy_readable_ranges[] = {
@@ -138,7 +151,7 @@ static const struct regmap_access_table rk628_dsi1_readable_table = {
 };
 
 static const struct regmap_range rk628_gvi_readable_ranges[] = {
-	regmap_reg_range(GVI_BASE, GVI_BASE + GVI_COLOR_BAR_VTIMING1),
+	regmap_reg_range(GVI_BASE, GVI_COLOR_BAR_VTIMING1),
 };
 
 static const struct regmap_access_table rk628_gvi_readable_table = {
@@ -255,6 +268,16 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 		.val_format_endian = REGMAP_ENDIAN_NATIVE,
 		.rd_table = &rk628_key_readable_table,
 	},
+	[RK628_DEV_EFUSE] = {
+		.name = "efuse",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = EFUSE_BASE + EFUSE_REVISION,
+		.reg_format_endian = REGMAP_ENDIAN_NATIVE,
+		.val_format_endian = REGMAP_ENDIAN_NATIVE,
+		.rd_table = &rk628_efuse_readable_table,
+	},
 	[RK628_DEV_COMBTXPHY] = {
 		.name = "combtxphy",
 		.reg_bits = 32,
@@ -357,75 +380,54 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 	},
 };
 
+static void rk628_power_on(struct rk628 *rk628, bool on)
+{
+	if (!rk628->display_enabled && on) {
+		gpiod_set_value(rk628->enable_gpio, 1);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 0);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 1);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 0);
+		usleep_range(10000, 11000);
+	}
+
+	if (!on) {
+		gpiod_set_value(rk628->reset_gpio, 1);
+		gpiod_set_value(rk628->enable_gpio, 0);
+	}
+}
+
 static void rk628_display_disable(struct rk628 *rk628)
 {
 	if (!rk628->display_enabled)
 		return;
 
-	if (rk628->output_mode == OUTPUT_MODE_CSI)
+	if (rk628_output_is_csi(rk628))
 		rk628_csi_disable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_GVI)
+	if (rk628_output_is_gvi(rk628))
 		rk628_gvi_disable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_LVDS)
+	if (rk628_output_is_lvds(rk628))
 		rk628_lvds_disable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI)
+	if (rk628_output_is_dsi(rk628))
 		rk628_dsi_disable(rk628);
+
+	if (rk628_output_is_rgb(rk628))
+		rk628_rgb_tx_disable(rk628);
 
 	rk628_post_process_disable(rk628);
 
-	if (rk628->input_mode == INPUT_MODE_HDMI)
+	if (rk628_input_is_hdmi(rk628))
 		rk628_hdmirx_disable(rk628);
 
+	if (rk628_output_is_hdmi(rk628))
+		rk628_hdmitx_disable(rk628);
+
 	rk628->display_enabled = false;
-}
-
-static void rk628_display_resume(struct rk628 *rk628)
-{
-	u8 ret = 0;
-
-	if (rk628->display_enabled)
-		return;
-
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
-		ret = rk628_hdmirx_enable(rk628);
-		if ((ret == HDMIRX_PLUGOUT) || (ret & HDMIRX_NOSIGNAL)) {
-			rk628_display_disable(rk628);
-			return;
-		}
-	}
-
-	if (rk628->input_mode == INPUT_MODE_RGB)
-		rk628_rgb_rx_enable(rk628);
-
-	if (rk628->input_mode == INPUT_MODE_BT1120)
-		rk628_bt1120_rx_enable(rk628);
-
-	rk628_post_process_init(rk628);
-	rk628_post_process_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
-		rk628_mipi_dsi_pre_enable(rk628);
-		rk628_mipi_dsi_enable(rk628);
-	}
-
-	if (rk628->output_mode == OUTPUT_MODE_LVDS)
-		rk628_lvds_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_GVI)
-		rk628_gvi_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_CSI)
-		rk628_csi_enable(rk628);
-
-#ifdef CONFIG_RK628_MISC_HDMITX
-	if (rk628->output_mode == OUTPUT_MODE_HDMI)
-		rk628_hdmitx_enable(rk628);
-#endif
-
-	rk628->display_enabled = true;
 }
 
 static void rk628_display_enable(struct rk628 *rk628)
@@ -435,19 +437,23 @@ static void rk628_display_enable(struct rk628 *rk628)
 	if (rk628->display_enabled)
 		return;
 
-	if (rk628->input_mode == INPUT_MODE_RGB)
+	if (rk628_input_is_rgb(rk628))
 		rk628_rgb_rx_enable(rk628);
 
-	if (rk628->input_mode == INPUT_MODE_BT1120)
-		rk628_bt1120_rx_enable(rk628);
+	/*
+	 * bt1120 needs to configure the timing register, but hdmitx will modify
+	 * the timing as needed, so the bt1120 enable process is moved to the
+	 * configuration of post_process (function rk628_post_process_enable in
+	 * rk628_post_process.c)
+	 */
 
-	if (rk628->output_mode == OUTPUT_MODE_BT1120)
-		rk628_bt1120_tx_enable(rk628);
+	if (rk628_output_is_rgb(rk628))
+		rk628_rgb_tx_enable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI)
+	if (rk628_output_is_dsi(rk628))
 		queue_delayed_work(rk628->dsi_wq, &rk628->dsi_delay_work, msecs_to_jiffies(10));
 
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
+	if (rk628_input_is_hdmi(rk628)) {
 		ret = rk628_hdmirx_enable(rk628);
 		if ((ret == HDMIRX_PLUGOUT) || (ret & HDMIRX_NOSIGNAL)) {
 			rk628_display_disable(rk628);
@@ -455,27 +461,126 @@ static void rk628_display_enable(struct rk628 *rk628)
 		}
 	}
 
-	if (rk628->output_mode != OUTPUT_MODE_HDMI) {
+	if (rk628_output_is_bt1120(rk628))
+		rk628_bt1120_tx_enable(rk628);
+
+	if (!rk628_output_is_hdmi(rk628)) {
 		rk628_post_process_init(rk628);
 		rk628_post_process_enable(rk628);
 	}
 
-	if (rk628->output_mode == OUTPUT_MODE_LVDS)
+	if (rk628_output_is_lvds(rk628))
 		rk628_lvds_enable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_GVI)
+	if (rk628_output_is_gvi(rk628))
 		rk628_gvi_enable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_CSI)
+	if (rk628_output_is_csi(rk628))
 		rk628_csi_enable(rk628);
 
-#ifdef CONFIG_RK628_MISC_HDMITX
-	if (rk628->output_mode == OUTPUT_MODE_HDMI)
+	if (rk628_output_is_hdmi(rk628))
 		rk628_hdmitx_enable(rk628);
-#endif
 
 	rk628->display_enabled = true;
 }
+
+static void rk628_set_hdmirx_irq(struct rk628 *rk628, u32 reg, bool enable)
+{
+	if (rk628->version != RK628D_VERSION)
+		rk628_i2c_write(rk628, reg, RK628F_HDMIRX_IRQ_EN(enable));
+	else
+		rk628_i2c_write(rk628, reg, RK628D_HDMIRX_IRQ_EN(enable));
+}
+
+static void rk628_pwr_consumption_init(struct rk628 *rk628)
+{
+	/* set pin as int function to allow output interrupt */
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+
+	/*
+	 * set unuse pin as GPIO input and
+	 * pull down to reduce power consumption
+	 */
+	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffff0000);
+	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff0000);
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b0000);
+	rk628_i2c_write(rk628, GRF_GPIO2C_P_CON, 0x3f0015);
+	rk628_i2c_write(rk628, GRF_GPIO3A_P_CON, 0xcc0044);
+
+	if (!rk628_output_is_hdmi(rk628)) {
+		u32 mask = SW_OUTPUT_MODE_MASK;
+		u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_HDMI);
+
+		if (rk628->version == RK628F_VERSION) {
+			mask = SW_HDMITX_EN_MASK;
+			val = SW_HDMITX_EN(1);
+		}
+
+		/* disable clock/data channel and band gap when hdmitx not work */
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
+		rk628_i2c_write(rk628, HDMI_PHY_SYS_CTL, 0x17);
+		rk628_i2c_write(rk628, HDMI_PHY_CHG_PWR, 0x0);
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, 0);
+	}
+}
+
+#ifdef CONFIG_FB
+static int rk628_fb_notifier_callback(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	struct rk628 *rk628 = container_of(nb, struct rk628, fb_nb);
+	struct fb_event *ev_data = data;
+	int *blank;
+
+	if ((event != FB_EVENT_BLANK) || (!ev_data) || (!ev_data->data))
+		return NOTIFY_DONE;
+
+	blank = ev_data->data;
+	if (rk628->old_blank == *blank)
+		return NOTIFY_DONE;
+
+	rk628->old_blank = *blank;
+
+	switch (*blank) {
+	case FB_BLANK_UNBLANK:
+		rk628_power_on(rk628, true);
+		rk628_pwr_consumption_init(rk628);
+		rk628_cru_init(rk628);
+
+		if (rk628_input_is_hdmi(rk628)) {
+			rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, true);
+
+			/*
+			 * make hdmi rx register domain polling
+			 * access to be normal by setting hdmi in
+			 */
+			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+					      SW_INPUT_MODE_MASK,
+					      SW_INPUT_MODE(INPUT_MODE_HDMI));
+
+			queue_delayed_work(rk628->monitor_wq,
+					   &rk628->delay_work,
+					   msecs_to_jiffies(50));
+
+			return NOTIFY_OK;
+		}
+
+		rk628_display_enable(rk628);
+
+		return NOTIFY_OK;
+	case FB_BLANK_POWERDOWN:
+		if (rk628_input_is_hdmi(rk628))
+			cancel_delayed_work_sync(&rk628->delay_work);
+
+		rk628_display_disable(rk628);
+		rk628_power_on(rk628, false);
+
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+#endif
 
 static void rk628_display_work(struct work_struct *work)
 {
@@ -484,8 +589,9 @@ static void rk628_display_work(struct work_struct *work)
 		container_of(work, struct rk628, delay_work.work);
 	int delay = msecs_to_jiffies(2000);
 
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
+	if (rk628_input_is_hdmi(rk628)) {
 		ret = rk628_hdmirx_detect(rk628);
+		dev_info(rk628->dev, "%s: hdmirx detect status:0x%x\n", __func__, ret);
 		if (!(ret & (HDMIRX_CHANGED | HDMIRX_NOLOCK))) {
 			if (!rk628->plugin_det_gpio)
 				queue_delayed_work(rk628->monitor_wq,
@@ -504,7 +610,7 @@ static void rk628_display_work(struct work_struct *work)
 		rk628_display_disable(rk628);
 	}
 
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
+	if (rk628_input_is_hdmi(rk628)) {
 		if (!rk628->plugin_det_gpio) {
 			if (ret & HDMIRX_NOLOCK)
 				delay = msecs_to_jiffies(200);
@@ -527,12 +633,15 @@ static void rk628_dsi_work(struct work_struct *work)
 static irqreturn_t rk628_hdmirx_plugin_irq(int irq, void *dev_id)
 {
 	struct rk628 *rk628 = dev_id;
+	u32 val;
 
 	rk628_hdmirx_enable_interrupts(rk628, false);
-	/* clear interrupts */
-	rk628_i2c_write(rk628, HDMI_RX_MD_ICLR, 0xffffffff);
-	rk628_i2c_write(rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
-	rk628_i2c_write(rk628, GRF_INTR0_CLR_EN, 0x01000100);
+	/* update hdmirx phy lock status */
+	rk628_hdmirx_detect(rk628);
+	rk628_i2c_read(rk628, HDMI_RX_MD_ISTS, &val);
+	dev_dbg(rk628->dev, "HDMI_RX_MD_ISTS:0x%x\n", val);
+	rk628_i2c_write(rk628, HDMI_RX_MD_ICLR, val);
+	rk628_set_hdmirx_irq(rk628, GRF_INTR0_CLR_EN, true);
 
 	/* control hpd after 50ms */
 	schedule_delayed_work(&rk628->delay_work, HZ / 20);
@@ -540,12 +649,83 @@ static irqreturn_t rk628_hdmirx_plugin_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static bool rk628_input_is_rgb(struct rk628 *rk628)
+static bool rk628_display_route_check(struct rk628 *rk628)
 {
-	if (rk628->input_mode == INPUT_MODE_RGB || rk628->input_mode == INPUT_MODE_BT1120)
+	if (!hweight32(rk628->input_mode) || !hweight32(rk628->output_mode))
+		return false;
+
+	/*
+	 * the RGB/BT1120 RX and RGB/BT1120 TX are the same shared IP
+	 * and cannot be used as both input and output simultaneously.
+	 */
+	if ((rk628_input_is_rgb(rk628) || rk628_input_is_bt1120(rk628)) &&
+	    (rk628_output_is_rgb(rk628) || rk628_output_is_bt1120(rk628)))
+		return false;
+
+	if (rk628->version == RK628F_VERSION)
 		return true;
 
-	return false;
+	/* rk628d only support rgb and hdmi output simultaneously */
+	if (hweight32(rk628->output_mode) > 2)
+		return false;
+
+	if (hweight32(rk628->output_mode) == 2 &&
+	    !(rk628_output_is_rgb(rk628) && rk628_output_is_hdmi(rk628)))
+		return false;
+
+	return true;
+}
+
+static void rk628_current_display_route(struct rk628 *rk628, char *input_s,
+					int input_s_len, char *output_s,
+					int output_s_len)
+{
+	*input_s = '\0';
+	*output_s = '\0';
+
+	if (rk628_input_is_rgb(rk628))
+		strlcat(input_s, "RGB", input_s_len);
+	else if (rk628_input_is_bt1120(rk628))
+		strlcat(input_s, "BT1120", input_s_len);
+	else if (rk628_input_is_hdmi(rk628))
+		strlcat(input_s, "HDMI", input_s_len);
+	else
+		strlcat(input_s, "unknown", input_s_len);
+
+	if (rk628_output_is_rgb(rk628))
+		strlcat(output_s, "RGB ", output_s_len);
+
+	if (rk628_output_is_bt1120(rk628))
+		strlcat(output_s, "BT1120 ", output_s_len);
+
+	if (rk628_output_is_gvi(rk628))
+		strlcat(output_s, "GVI ", output_s_len);
+
+	if (rk628_output_is_lvds(rk628))
+		strncat(output_s, "LVDS ", output_s_len);
+
+	if (rk628_output_is_dsi(rk628))
+		strlcat(output_s, "DSI ", output_s_len);
+
+	if (rk628_output_is_csi(rk628))
+		strlcat(output_s, "CSI ", output_s_len);
+
+	if (rk628_output_is_hdmi(rk628))
+		strlcat(output_s, "HDMI ", output_s_len);
+
+	if (!strlen(output_s))
+		strlcat(output_s, "unknown", output_s_len);
+}
+
+static void rk628_show_current_display_route(struct rk628 *rk628)
+{
+	char input_s[10], output_s[30];
+
+	rk628_current_display_route(rk628, input_s, sizeof(input_s),
+				    output_s, sizeof(output_s));
+
+	dev_info(rk628->dev, "input_mode: %s, output_mode: %s\n", input_s,
+		 output_s);
 }
 
 static int rk628_display_route_info_parse(struct rk628 *rk628)
@@ -554,40 +734,58 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 	int ret = 0;
 	u32 val;
 
-	if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-in"))
-		rk628->input_mode = INPUT_MODE_HDMI;
-	else if (of_property_read_bool(rk628->dev->of_node, "rk628,rgb-in"))
-		rk628->input_mode = INPUT_MODE_RGB;
-	else if (of_property_read_bool(rk628->dev->of_node, "rk628,bt1120-in"))
-		rk628->input_mode = INPUT_MODE_BT1120;
-	else
-		rk628->input_mode = INPUT_MODE_RGB;
-
-	if (of_find_node_by_name(rk628->dev->of_node, "rk628-dsi")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-dsi");
-		ret = rk628_dsi_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-lvds")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-lvds");
-		ret = rk628_lvds_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-gvi")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-gvi");
-		ret = rk628_gvi_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-bt1120")) {
-		rk628->output_mode = OUTPUT_MODE_BT1120;
+	if (of_property_read_bool(rk628->dev->of_node, "rk628-hdmi-in") ||
+	    of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-in")) {
+		rk628->input_mode = BIT(INPUT_MODE_HDMI);
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-rgb-in") ||
+		   of_property_read_bool(rk628->dev->of_node, "rk628,rgb-in")) {
+		rk628->input_mode = BIT(INPUT_MODE_RGB);
+		ret = rk628_rgb_parse(rk628, NULL);
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-bt1120-in") ||
+		   of_property_read_bool(rk628->dev->of_node, "rk628,bt1120-in")) {
+		rk628->input_mode = BIT(INPUT_MODE_BT1120);
+		ret = rk628_rgb_parse(rk628, NULL);
 	} else {
-		if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-out"))
-			rk628->output_mode = OUTPUT_MODE_HDMI;
-		else if (of_property_read_bool(rk628->dev->of_node, "rk628,csi-out"))
-			rk628->output_mode = OUTPUT_MODE_CSI;
+		rk628->input_mode = BIT(INPUT_MODE_RGB);
+	}
+
+	if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-gvi-out")) ||
+	    (np = of_get_child_by_name(rk628->dev->of_node, "rk628-gvi"))) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_GVI);
+		ret = rk628_gvi_parse(rk628, np);
+	} else if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-lvds-out")) ||
+		   (np = of_get_child_by_name(rk628->dev->of_node, "rk628-lvds"))) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_LVDS);
+		ret = rk628_lvds_parse(rk628, np);
+	} else if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-dsi-out")) ||
+		   (np = of_get_child_by_name(rk628->dev->of_node, "rk628-dsi"))) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_DSI);
+		ret = rk628_dsi_parse(rk628, np);
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-csi-out") ||
+		   of_property_read_bool(rk628->dev->of_node, "rk628,csi-out")) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_CSI);
+	}
+	if (np)
+		of_node_put(np);
+
+	if (of_property_read_bool(rk628->dev->of_node, "rk628-hdmi-out") ||
+	    of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-out"))
+		rk628->output_mode |= BIT(OUTPUT_MODE_HDMI);
+
+	if (of_property_read_bool(rk628->dev->of_node, "rk628-rgb-out") ||
+	    of_property_read_bool(rk628->dev->of_node, "rk628-rgb")) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_RGB);
+		ret = rk628_rgb_parse(rk628, NULL);
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-bt1120-out") ||
+		   of_property_read_bool(rk628->dev->of_node, "rk628-bt1120")) {
+		rk628->output_mode |= BIT(OUTPUT_MODE_BT1120);
+		ret = rk628_rgb_parse(rk628, NULL);
 	}
 
 	if (of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val) < 0)
 		rk628->sync_pol = MODE_FLAG_PSYNC;
 	else
 		rk628->sync_pol = (!val ? MODE_FLAG_NSYNC : MODE_FLAG_PSYNC);
-
-	if (rk628_input_is_rgb(rk628) && rk628->output_mode == OUTPUT_MODE_RGB)
-		return -EINVAL;
 
 	return ret;
 }
@@ -613,7 +811,7 @@ rk628_display_mode_from_videomode(const struct rk628_videomode *vm,
 static void
 of_parse_rk628_display_timing(struct device_node *np, struct rk628_videomode *vm)
 {
-	u8 val;
+	u32 val;
 
 	of_property_read_u32(np, "clock-frequency", &vm->pixelclock);
 	of_property_read_u32(np, "hactive", &vm->hactive);
@@ -627,10 +825,10 @@ of_parse_rk628_display_timing(struct device_node *np, struct rk628_videomode *vm
 	of_property_read_u32(np, "vsync-len", &vm->vsync_len);
 
 	vm->flags = 0;
-	of_property_read_u8(np, "hsync-active", &val);
+	of_property_read_u32(np, "hsync-active", &val);
 	vm->flags |= val ? DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
-	of_property_read_u8(np, "vsync-active", &val);
+	of_property_read_u32(np, "vsync-active", &val);
 	vm->flags |= val ? DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 }
 
@@ -702,253 +900,116 @@ static int rk628_display_timings_get(struct rk628 *rk628)
 				pr_info(args); \
 		} while (0)
 
-static int rk628_debugfs_dump(struct seq_file *s, void *data)
+static void rk628_show_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	struct rk628_display_mode *src_mode = &rk628->src_mode;
+	u32 src_hactive, src_hs_start, src_hs_end, src_htotal;
+	u32 src_vactive, src_vs_start, src_vs_end, src_vtotal;
+	u32 clk_rx_read;
+	u32 fps;
+
+	/* get timing */
+	clk_rx_read = src_mode->clock;
+	src_hactive = src_mode->hdisplay;
+	src_hs_start = src_mode->hsync_start;
+	src_hs_end = src_mode->hsync_end;
+	src_htotal = src_mode->htotal;
+	src_vactive = src_mode->vdisplay;
+	src_vs_start = src_mode->vsync_start;
+	src_vs_end = src_mode->vsync_end;
+	src_vtotal = src_mode->vtotal;
+
+	/* get fps */
+	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
+
+	/* print */
+	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%u]\n", src_hactive,
+		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("\tH: %d %d %d %d\n", src_hactive, src_hs_start, src_hs_end,
+		    src_htotal);
+	DEBUG_PRINT("\tV: %d %d %d %d\n", src_vactive, src_vs_start, src_vs_end,
+		    src_vtotal);
+}
+
+static void rk628f_show_rgbrx_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	u32 val;
+
+	u64 clk_rx_read;
+	u64 imodet_clk;
+	u32 rgb_rx_eval_time, rgb_rx_clkrate;
+
+	u16 src_hactive = 0, src_vactive = 0;
+	u16 src_htotal, src_vtotal;
+	u32 fps;
+
+	/* get clk rgbrx read */
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS0, &val);
+	rgb_rx_eval_time = (val & RGB_RX_EVAL_TIME_MASK) >> 16;
+
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS2, &val);
+	rgb_rx_clkrate = val & RGB_RX_CLKRATE_MASK;
+
+	imodet_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
+
+	clk_rx_read = imodet_clk * rgb_rx_clkrate;
+	do_div(clk_rx_read, rgb_rx_eval_time + 1);
+	do_div(clk_rx_read, 1000);
+
+	/* get timing */
+	if (rk628_input_is_rgb(rk628)) {
+		rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS4, &val);
+		src_vactive = (val >> 16) & 0xffff;
+		src_hactive = val & 0xffff;
+	} else if (rk628_input_is_bt1120(rk628)) {
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS3, &val);
+		src_vactive = val & DECODER_1120_LAST_LINE_NUM_MASK;
+
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS4, &val);
+		src_hactive = val & DECODER_1120_LAST_PIX_NUM_MASK;
+	}
+
+	rk628_i2c_read(rk628, 0x134, &val);
+	src_htotal = (val & 0xffff0000) >> 16;
+	src_vtotal = val & 0xffff;
+
+	/* get fps */
+	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
+
+	/* print */
+	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n", src_hactive,
+		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("\tH-total: %d\n", src_htotal);
+	DEBUG_PRINT("\tV-total: %d\n", src_vtotal);
+}
+
+static void rk628_show_input_resolution(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
 
+	if ((rk628_input_is_rgb(rk628) || rk628_input_is_bt1120(rk628)) &&
+		rk628->version == RK628F_VERSION)
+		rk628f_show_rgbrx_resolution(s);
+	else
+		rk628_show_resolution(s);
+}
+
+static void rk628_show_output_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
 	u32 val;
+	u64 sclk_vop;
 	u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
 	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
-	u32 src_hactive, src_hoffset, src_htotal, src_hs_end;
-	u32 src_vactive, src_voffset, src_vtotal, src_vs_end;
-
-	u32 input_mode, output_mode;
-	char input_s[10];
-	char output_s[13];
-
-	bool r2y, y2r;
-	char csc_mode_r2y_s[10];
-	char csc_mode_y2r_s[10];
-	u32 csc;
-	enum csc_mode {
-		BT601_L,
-		BT709_L,
-		BT601_F,
-		BT2020
-	};
-
-	int sw_hsync_pol, sw_vsync_pol;
-	u32 dsp_frame_v_start, dsp_frame_h_start;
-
-	int sclk_vop_sel = 0;
-	u32 sclk_vop_div;
-	u64 sclk_vop;
-	u32 reg_v;
 	u32 fps;
 
-	u32 imodet_clk;
-	u32 imodet_clk_sel;
-	u32 imodet_clk_div;
+	/* get sclk_vop */
+	sclk_vop = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
+	do_div(sclk_vop, 1000);
 
-	int clk_rx_read_sel = 0;
-	u32 clk_rx_read_div;
-	u64 clk_rx_read;
-
-	u32 tdms_clk_div;
-	u32 tdms_clk;
-	u32 common_tdms_clk[19] = {
-		25170, 27000, 33750, 40000, 59400,
-		65000, 68250, 74250, 83500, 85500,
-		88750, 92812, 101000, 108000, 119000,
-		135000, 148500, 162000, 297000,
-	};
-
-	//get sclk vop
-	rk628_i2c_read(rk628, 0xc0088, &reg_v);
-	sclk_vop_sel = (reg_v & 0x20) ? 1 : 0;
-	rk628_i2c_read(rk628, 0xc00b4, &reg_v);
-	if (reg_v)
-		sclk_vop_div = reg_v;
-	else
-		sclk_vop_div = 0x10002;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (sclk_vop_sel)
-		sclk_vop = (u64)983040 * ((sclk_vop_div & 0xffff0000) >> 16);
-	else
-		sclk_vop = (u64)1188000 * ((sclk_vop_div & 0xffff0000) >> 16);
-	do_div(sclk_vop, sclk_vop_div & 0xffff);
-
-	//get rx read clk
-	rk628_i2c_read(rk628, 0xc0088, &reg_v);
-	clk_rx_read_sel = (reg_v & 0x10) ? 1 : 0;
-	rk628_i2c_read(rk628, 0xc00b8, &reg_v);
-	if (reg_v)
-		clk_rx_read_div = reg_v;
-	else
-		clk_rx_read_div = 0x10002;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (clk_rx_read_sel)
-		clk_rx_read = (u64)983040 * ((clk_rx_read_div & 0xffff0000) >> 16);
-	else
-		clk_rx_read = (u64)1188000 * ((clk_rx_read_div & 0xffff0000) >> 16);
-	do_div(clk_rx_read, clk_rx_read_div & 0xffff);
-
-	//get imodet clk
-	rk628_i2c_read(rk628, 0xc0094, &reg_v);
-	imodet_clk_sel = (reg_v & 0x20) ? 1 : 0;
-
-	if (reg_v)
-		imodet_clk_div = (reg_v & 0x1f) + 1;
-	else
-		imodet_clk_div = 0x18;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (imodet_clk_sel)
-		imodet_clk = 983040 / imodet_clk_div;
-	else
-		imodet_clk = 1188000 / imodet_clk_div;
-
-	//get input interface type
-	rk628_i2c_read(rk628, GRF_SYSTEM_CON0, &val);
-	input_mode = val & 0x7;
-	output_mode = (val & 0xf8) >> 3;
-	sw_hsync_pol = (val & 0x4000000) ? 1 : 0;
-	sw_vsync_pol = (val & 0x2000000) ? 1 : 0;
-	switch (input_mode) {
-	case 0:
-		strcpy(input_s, "HDMI");
-		break;
-	case 1:
-		strcpy(input_s, "reserved");
-		break;
-	case 2:
-		strcpy(input_s, "BT1120");
-		break;
-	case 3:
-		strcpy(input_s, "RGB");
-		break;
-	case 4:
-		strcpy(input_s, "YUV");
-		break;
-	default:
-		strcpy(input_s, "unknown");
-	}
-	DEBUG_PRINT("input:%s\n", input_s);
-	if (input_mode == 0) {
-		//get tdms clk
-		rk628_i2c_read(rk628, 0x16654, &reg_v);
-		reg_v = (reg_v & 0x3f0000) >> 16;
-		if (reg_v >= 0 && reg_v <= 19)
-			tdms_clk = common_tdms_clk[reg_v];
-		else
-			tdms_clk = 148500;
-
-		rk628_i2c_read(rk628, 0x166a8, &reg_v);
-		reg_v = (reg_v & 0xf00) >> 8;
-		if (reg_v == 0x6)
-			tdms_clk_div = 1;
-		else if (reg_v == 0x0)
-			tdms_clk_div = 2;
-		else
-			tdms_clk_div = 1;
-
-		//get input hdmi timing
-		//get horizon timing
-		rk628_i2c_read(rk628, 0x30150, &reg_v);
-		src_hactive = reg_v & 0xffff;
-
-		rk628_i2c_read(rk628, 0x3014c, &reg_v);
-		src_hoffset = (reg_v & 0xffff);
-
-		src_hactive *= tdms_clk_div;
-		src_hoffset *=  tdms_clk_div;
-
-		src_htotal = (reg_v & 0xffff0000)>>16;
-		src_htotal *= tdms_clk_div;
-
-		rk628_i2c_read(rk628, 0x30148, &reg_v);
-		reg_v = reg_v & 0xffff;
-		src_hs_end = reg_v * tdms_clk * tdms_clk_div / imodet_clk;
-
-		//get vertical timing
-		rk628_i2c_read(rk628, 0x30168, &reg_v);
-		src_vactive = reg_v & 0xffff;
-		rk628_i2c_read(rk628, 0x30170, &reg_v);
-		src_vtotal = reg_v & 0xffff;
-		rk628_i2c_read(rk628, 0x30164, &reg_v);
-		src_voffset = (reg_v & 0xffff);
-
-		rk628_i2c_read(rk628, 0x3015c, &reg_v);
-		reg_v = reg_v & 0xffff;
-		src_vs_end = reg_v * clk_rx_read;
-		do_div(src_vs_end, imodet_clk * src_htotal);
-
-		//get fps and print
-		fps = clk_rx_read * 1000;
-		do_div(fps, src_htotal * src_vtotal);
-		DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu],tdms_clk[%d]\n",
-			    src_hactive, src_vactive, fps, clk_rx_read, tdms_clk);
-
-		DEBUG_PRINT("\tH: %d %d %d %d\n", src_hactive, src_htotal - src_hoffset,
-			    src_htotal - src_hoffset + src_hs_end, src_htotal);
-
-		DEBUG_PRINT("\tV: %d %d %d %d\n", src_vactive,
-			    src_vtotal - src_voffset - src_vs_end,
-			    src_vtotal - src_voffset, src_vtotal);
-	} else if (input_mode == 2 || input_mode == 3 || input_mode == 4) {
-		//get timing
-		rk628_i2c_read(rk628, 0x130, &reg_v);
-		src_hactive = reg_v & 0xffff;
-
-		rk628_i2c_read(rk628, 0x12c, &reg_v);
-		src_vactive = (reg_v & 0xffff);
-
-		rk628_i2c_read(rk628, 0x134, &reg_v);
-		src_htotal = (reg_v & 0xffff0000) >> 16;
-		src_vtotal = reg_v & 0xffff;
-
-		//get fps and print
-		fps = clk_rx_read * 1000;
-		do_div(fps, src_htotal * src_vtotal);
-		DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
-			    src_hactive, src_vactive, fps, clk_rx_read);
-
-		DEBUG_PRINT("\tH-total: %d\n", src_htotal);
-
-		DEBUG_PRINT("\tV-total: %d\n", src_vtotal);
-	}
-	//get output interface type
-	switch (output_mode & 0x7) {
-	case 1:
-		strcpy(output_s, "GVI");
-		break;
-	case 2:
-		strcpy(output_s, "LVDS");
-		break;
-	case 3:
-		strcpy(output_s, "HDMI");
-		break;
-	case 4:
-		strcpy(output_s, "CSI");
-		break;
-	case 5:
-		strcpy(output_s, "DSI");
-		break;
-	default:
-		strcpy(output_s, "");
-	}
-	strcpy(output_s + 4, " ");
-	switch (output_mode >> 2) {
-	case 0:
-		strcpy(output_s + 5, "");
-		break;
-	case 1:
-		strcpy(output_s + 5, "BT1120");
-		break;
-	case 2:
-		strcpy(output_s + 5, "RGB");
-		break;
-	case 3:
-		strcpy(output_s + 5, "YUV");
-		break;
-	default:
-		strcpy(output_s + 5, "unknown");
-	}
-	DEBUG_PRINT("output:%s\n", output_s);
-
-	//get output timing
+	/* get timing */
 	rk628_i2c_read(rk628, GRF_SCALER_CON3, &val);
 	dsp_htotal = val & 0xffff;
 	dsp_hs_end = (val & 0xff0000) >> 16;
@@ -965,20 +1026,40 @@ static int rk628_debugfs_dump(struct seq_file *s, void *data)
 	dsp_vact_st = (val & 0xfff0000) >> 16;
 	dsp_vact_end = val & 0xfff;
 
-	fps = sclk_vop * 1000;
-	do_div(fps, dsp_vtotal * dsp_htotal);
+	/* get fps */
+	fps = sclk_vop * 1000 / (dsp_vtotal * dsp_htotal);
 
+	/* print */
 	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
-		    dsp_hact_end - dsp_hact_st, dsp_vact_end - dsp_vact_st, fps, sclk_vop);
+		    dsp_hact_end - dsp_hact_st, dsp_vact_end - dsp_vact_st, fps,
+		    sclk_vop);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", dsp_hact_end - dsp_hact_st,
-		    dsp_htotal - dsp_hact_st, dsp_htotal - dsp_hact_st + dsp_hs_end, dsp_htotal);
+		    dsp_htotal - dsp_hact_st,
+		    dsp_htotal - dsp_hact_st + dsp_hs_end, dsp_htotal);
 	DEBUG_PRINT("\tV: %d %d %d %d\n", dsp_vact_end - dsp_vact_st,
-		    dsp_vtotal - dsp_vact_st, dsp_vtotal - dsp_vact_st + dsp_vs_end, dsp_vtotal);
+		    dsp_vtotal - dsp_vact_st,
+		    dsp_vtotal - dsp_vact_st + dsp_vs_end, dsp_vtotal);
+}
 
-	//get csc and system information
+static void rk628_show_csc_info(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	u32 val;
+	bool r2y, y2r;
+	char csc_mode_r2y_s[10];
+	char csc_mode_y2r_s[10];
+	u32 csc;
+	enum csc_mode {
+		BT601_L,
+		BT709_L,
+		BT601_F,
+		BT2020
+	};
+
 	rk628_i2c_read(rk628, GRF_CSC_CTRL_CON, &val);
 	r2y = ((val & 0x10) == 0x10);
 	y2r = ((val & 0x1) == 0x1);
+
 	csc = (val & 0xc0) >> 6;
 	switch (csc) {
 	case BT601_L:
@@ -1019,13 +1100,42 @@ static int rk628_debugfs_dump(struct seq_file *s, void *data)
 		DEBUG_PRINT("\ty2r[1],csc mode:%s\n", csc_mode_y2r_s);
 	else
 		DEBUG_PRINT("\tnot open\n");
+}
+
+static int rk628_debugfs_dump(struct seq_file *s, void *data)
+{
+	struct rk628 *rk628 = s->private;
+	char input_s[10], output_s[30];
+	u32 val;
+	int sw_hsync_pol, sw_vsync_pol;
+	u32 dsp_frame_v_start, dsp_frame_h_start;
+
+	rk628_current_display_route(rk628, input_s, sizeof(input_s),
+				    output_s, sizeof(output_s));
+
+	/* show input info */
+	DEBUG_PRINT("input: %s\n", input_s);
+	rk628_show_input_resolution(s);
+
+	/* show output info */
+	DEBUG_PRINT("output: %s\n", output_s);
+	rk628_show_output_resolution(s);
+
+	/* show csc info */
+	rk628_show_csc_info(s);
+
+	/* show other info */
+	rk628_i2c_read(rk628, GRF_SYSTEM_CON0, &val);
+	sw_hsync_pol = (val & 0x4000000) ? 1 : 0;
+	sw_vsync_pol = (val & 0x2000000) ? 1 : 0;
 
 	rk628_i2c_read(rk628, GRF_SCALER_CON2, &val);
 	dsp_frame_h_start = val & 0xffff;
 	dsp_frame_v_start = (val & 0xffff0000) >> 16;
 
 	DEBUG_PRINT("system:\n");
-	DEBUG_PRINT("\tsw_hsync_pol:%d, sw_vsync_pol:%d\n", sw_hsync_pol, sw_vsync_pol);
+	DEBUG_PRINT("\tsw_hsync_pol:%d, sw_vsync_pol:%d\n", sw_hsync_pol,
+		    sw_vsync_pol);
 	DEBUG_PRINT("\tdsp_frame_h_start:%d, dsp_frame_v_start:%d\n",
 		    dsp_frame_h_start, dsp_frame_v_start);
 
@@ -1049,17 +1159,183 @@ static const struct file_operations rk628_debugfs_summary_fops = {
 
 };
 
+static int rk628_version_info(struct rk628 *rk628)
+{
+	int ret;
+	char *version;
+
+	ret = rk628_i2c_read(rk628, GRF_SOC_VERSION, &rk628->version);
+	if (ret) {
+		dev_err(rk628->dev, "failed to access register: %d\n", ret);
+		return ret;
+	}
+
+	switch (rk628->version) {
+	case RK628D_VERSION:
+		version = "D/E";
+		break;
+	case RK628F_VERSION:
+		version = "F/H";
+		break;
+	default:
+		version = "unknown";
+		ret = -EINVAL;
+	}
+
+	dev_info(rk628->dev, "the driver version is %s of RK628-%s\n", DRIVER_VERSION, version);
+
+	return ret;
+}
+
+static int rk628_reg_show(struct seq_file *s, void *v)
+{
+	const struct regmap_config *reg;
+	struct rk628 *rk628 = s->private;
+	unsigned int i, j;
+	u32 val;
+
+	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		if (!strcmp(reg->name, file_dentry(s->file)->d_iname))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(rk628_regmap_config))
+		return -ENODEV;
+
+	/* grf */
+	if (!reg->rd_table) {
+		for (i = 0; i <= reg->max_register; i += 4) {
+			rk628_i2c_read(rk628, i, &val);
+			if (i % 16 == 0)
+				seq_printf(s, "\n0x%04x:", i);
+			seq_printf(s, " %08x", val);
+		}
+	} else {
+		const struct regmap_range *range_list = reg->rd_table->yes_ranges;
+		const struct regmap_range *range;
+		int range_list_len = reg->rd_table->n_yes_ranges;
+
+		for (i = 0; i < range_list_len; i++) {
+			range = &range_list[i];
+			for (j = range->range_min; j <= range->range_max; j += 4) {
+				rk628_i2c_read(rk628, j, &val);
+				if (j % 16 == 0 || j == range->range_min)
+					seq_printf(s, "\n0x%04x:", j);
+				seq_printf(s, " %08x", val);
+			}
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static ssize_t rk628_reg_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	const struct regmap_config *reg;
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	int i;
+	u32 addr;
+	u32 val;
+	char kbuf[25];
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%x%x", &addr, &val);
+	if (ret != 2)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		if (!strcmp(reg->name, file_dentry(file)->d_iname))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(rk628_regmap_config))
+		return -ENODEV;
+
+	rk628_i2c_write(rk628, addr, val);
+
+	return count;
+}
+
+static int rk628_reg_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_reg_show, rk628);
+}
+
+static const struct file_operations rk628_reg_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_reg_open,
+	.read           = seq_read,
+	.write          = rk628_reg_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rk628_debugfs_register_create(struct rk628 *rk628)
+{
+	const struct regmap_config *reg;
+	struct dentry *dir;
+	int i;
+
+	dir = debugfs_create_dir("registers", rk628->debug_dir);
+	if (IS_ERR(dir))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		debugfs_create_file(reg->name, 0600, dir, rk628, &rk628_reg_fops);
+	}
+}
+
+static void rk628_debugfs_create(struct rk628 *rk628)
+{
+	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
+	if (IS_ERR(rk628->debug_dir))
+		return;
+
+	/* path example: /sys/kernel/debug/rk628/2-0050/summary */
+	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628,
+			    &rk628_debugfs_summary_fops);
+
+	rk628_debugfs_register_create(rk628);
+
+	rk628_cru_create_debugfs_file(rk628);
+	rk628_rgb_decoder_create_debugfs_file(rk628);
+	rk628_post_process_create_debugfs_file(rk628);
+	rk628_mipi_dsi_create_debugfs_file(rk628);
+	rk628_gvi_create_debugfs_file(rk628);
+	rk628_hdmitx_create_debugfs_file(rk628);
+}
+
 static int
 rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
 	struct rk628 *rk628;
 	int i, ret;
-	int err;
 	unsigned long irq_flags;
-	struct dentry *debug_dir;
-
-	dev_info(dev, "RK628 misc driver version: %s\n", DRIVER_VERSION);
 
 	rk628 = devm_kzalloc(dev, sizeof(*rk628), GFP_KERNEL);
 	if (!rk628)
@@ -1072,14 +1348,13 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ret = rk628_display_route_info_parse(rk628);
 	if (ret) {
-		dev_err(dev, "display route err\n");
+		dev_err(dev, "display route parse err\n");
 		return ret;
 	}
 
-	if (rk628->output_mode != OUTPUT_MODE_HDMI &&
-	    rk628->output_mode != OUTPUT_MODE_CSI) {
+	if (!rk628_output_is_csi(rk628)) {
 		ret = rk628_display_timings_get(rk628);
-		if (ret) {
+		if (ret && !rk628_output_is_hdmi(rk628)) {
 			dev_info(dev, "display timings err\n");
 			return ret;
 		}
@@ -1102,14 +1377,14 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(rk628->enable_gpio)) {
 		ret = PTR_ERR(rk628->enable_gpio);
 		dev_err(dev, "failed to request enable GPIO: %d\n", ret);
-		return ret;
+		goto err_clk;
 	}
 
 	rk628->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(rk628->reset_gpio)) {
 		ret = PTR_ERR(rk628->reset_gpio);
 		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
-		return ret;
+		goto err_clk;
 	}
 
 	rk628->plugin_det_gpio = devm_gpiod_get_optional(dev, "plugin-det",
@@ -1117,17 +1392,10 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(rk628->plugin_det_gpio)) {
 		dev_err(rk628->dev, "failed to get hdmirx det gpio\n");
 		ret = PTR_ERR(rk628->plugin_det_gpio);
-		return ret;
+		goto err_clk;
 	}
 
-	gpiod_set_value(rk628->enable_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 0);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 0);
-	usleep_range(10000, 11000);
+	rk628_power_on(rk628, true);
 
 	for (i = 0; i < RK628_DEV_MAX; i++) {
 		const struct regmap_config *config = &rk628_regmap_config[i];
@@ -1140,22 +1408,34 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ret = PTR_ERR(rk628->regmap[i]);
 			dev_err(dev, "failed to allocate register map %d: %d\n",
 				i, ret);
-			return ret;
+			goto err_clk;
 		}
 	}
 
-	/* selete int io function */
-	ret = rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
-	if (ret) {
-		dev_err(dev, "failed to access register: %d\n", ret);
-		return ret;
+	ret = rk628_version_info(rk628);
+	if (ret)
+		goto err_clk;
+
+	rk628_show_current_display_route(rk628);
+
+	if (!rk628_display_route_check(rk628)) {
+		dev_err(dev, "display route check err\n");
+		ret = -EINVAL;
+		goto err_clk;
 	}
+
+	rk628_pwr_consumption_init(rk628);
+
+#ifdef CONFIG_FB
+	rk628->fb_nb.notifier_call = rk628_fb_notifier_callback;
+	fb_register_client(&rk628->fb_nb);
+#endif
 
 	rk628->monitor_wq = alloc_ordered_workqueue("%s",
 		WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk628-monitor-wq");
 	INIT_DELAYED_WORK(&rk628->delay_work, rk628_display_work);
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
+	if (rk628_output_is_dsi(rk628)) {
 		rk628->dsi_wq = alloc_ordered_workqueue("%s",
 			WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk628-dsi-wq");
 		INIT_DELAYED_WORK(&rk628->dsi_delay_work, rk628_dsi_work);
@@ -1163,47 +1443,48 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	rk628_cru_init(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_CSI)
+	if (rk628_output_is_csi(rk628))
 		rk628_csi_init(rk628);
 
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
+	if (rk628_input_is_hdmi(rk628)) {
 		if (rk628->plugin_det_gpio) {
 			rk628->plugin_irq = gpiod_to_irq(rk628->plugin_det_gpio);
 			if (rk628->plugin_irq < 0) {
 				dev_err(rk628->dev, "failed to get plugin det irq\n");
-				err = rk628->plugin_irq;
-				return err;
+				ret = rk628->plugin_irq;
+				goto err_clk;
 			}
 
-			err = devm_request_threaded_irq(dev, rk628->plugin_irq, NULL,
-					rk628_hdmirx_plugin_irq, IRQF_TRIGGER_FALLING |
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rk628_hdmirx", rk628);
-			if (err) {
+			ret = devm_request_threaded_irq(dev, rk628->plugin_irq, NULL,
+							rk628_hdmirx_plugin_irq,
+							IRQF_TRIGGER_FALLING |
+							IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+							"rk628_hdmirx", rk628);
+			if (ret) {
 				dev_err(rk628->dev, "failed to register plugin det irq (%d)\n",
-					err);
-				return err;
+					ret);
+				goto err_clk;
 			}
 
 			if (rk628->hdmirx_irq) {
 				irq_flags =
 					irqd_get_trigger_type(irq_get_irq_data(rk628->hdmirx_irq));
 				dev_dbg(rk628->dev, "cfg hdmirx irq, flags: %lu!\n", irq_flags);
-				err = devm_request_threaded_irq(dev, rk628->hdmirx_irq, NULL,
-						rk628_hdmirx_plugin_irq, irq_flags |
-						IRQF_ONESHOT, "rk628", rk628);
-				if (err) {
+				ret = devm_request_threaded_irq(dev, rk628->hdmirx_irq, NULL,
+								rk628_hdmirx_plugin_irq,
+								irq_flags | IRQF_ONESHOT,
+								"rk628", rk628);
+				if (ret) {
 					dev_err(rk628->dev, "request rk628 irq failed! err:%d\n",
-							err);
-					return err;
+						ret);
+					goto err_clk;
 				}
 				/* hdmirx int en */
-				rk628_i2c_write(rk628, GRF_INTR0_EN, 0x01000100);
-				rk628_display_enable(rk628);
+				rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, true);
 				queue_delayed_work(rk628->monitor_wq, &rk628->delay_work,
 						   msecs_to_jiffies(20));
 			}
 		} else {
-			rk628_display_enable(rk628);
 			queue_delayed_work(rk628->monitor_wq, &rk628->delay_work,
 					    msecs_to_jiffies(50));
 		}
@@ -1212,38 +1493,53 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	pm_runtime_enable(dev);
-	debug_dir = debugfs_create_dir(rk628->dev->driver->name, NULL);
-	if (!debug_dir)
-		return 0;
-
-	debugfs_create_file("summary", 0400, debug_dir, rk628, &rk628_debugfs_summary_fops);
+	rk628_debugfs_create(rk628);
 
 	return 0;
+
+err_clk:
+	clk_disable_unprepare(rk628->soc_24M);
+	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void rk628_i2c_remove(struct i2c_client *client)
+#else
 static int rk628_i2c_remove(struct i2c_client *client)
+#endif
 {
 	struct rk628 *rk628 = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
+	debugfs_remove_recursive(rk628->debug_dir);
+
+	if (rk628_output_is_dsi(rk628)) {
 		cancel_delayed_work_sync(&rk628->dsi_delay_work);
 		destroy_workqueue(rk628->dsi_wq);
 	}
 
+#ifdef CONFIG_FB
+	fb_unregister_client(&rk628->fb_nb);
+#endif
+	rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, false);
 	cancel_delayed_work_sync(&rk628->delay_work);
 	destroy_workqueue(rk628->monitor_wq);
 	pm_runtime_disable(dev);
-
+	clk_disable_unprepare(rk628->soc_24M);
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
+#ifndef CONFIG_FB
 #ifdef CONFIG_PM_SLEEP
 static int rk628_suspend(struct device *dev)
 {
 	struct rk628 *rk628 = dev_get_drvdata(dev);
 
+	rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, false);
 	rk628_display_disable(rk628);
+	rk628_power_on(rk628, false);
 
 	return 0;
 }
@@ -1252,18 +1548,39 @@ static int rk628_resume(struct device *dev)
 {
 	struct rk628 *rk628 = dev_get_drvdata(dev);
 
-	rk628_display_resume(rk628);
+	rk628_power_on(rk628, true);
+	rk628_pwr_consumption_init(rk628);
+	rk628_cru_init(rk628);
+
+	if (rk628_input_is_hdmi(rk628)) {
+		rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, true);
+		/*
+		 * make hdmi rx register domain polling
+		 * access to be normal by setting hdmi in
+		 */
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+				      SW_INPUT_MODE_MASK,
+				      SW_INPUT_MODE(INPUT_MODE_HDMI));
+
+		return 0;
+	}
+
+	rk628_display_enable(rk628);
 
 	return 0;
 }
 #endif
+#endif
 
 static const struct dev_pm_ops rk628_pm_ops = {
+#ifndef CONFIG_FB
 #ifdef CONFIG_PM_SLEEP
 	.suspend = rk628_suspend,
 	.resume = rk628_resume,
 #endif
+#endif
 };
+
 static const struct of_device_id rk628_of_match[] = {
 	{ .compatible = "rockchip,rk628", },
 	{}
@@ -1287,23 +1604,26 @@ static struct i2c_driver rk628_i2c_driver = {
 	.id_table = rk628_i2c_id,
 };
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_RK628
+
 static int __init rk628_i2c_driver_init(void)
 {
+	debugfs_create_dir("rk628", NULL);
 	i2c_add_driver(&rk628_i2c_driver);
 
 	return 0;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_RK628
 subsys_initcall_sync(rk628_i2c_driver_init);
+#else
+module_init(rk628_i2c_driver_init);
+#endif
 
 static void __exit rk628_i2c_driver_exit(void)
 {
+	debugfs_remove_recursive(debugfs_lookup("rk628", NULL));
 	i2c_del_driver(&rk628_i2c_driver);
 }
 module_exit(rk628_i2c_driver_exit);
-#else
-module_i2c_driver(rk628_i2c_driver);
-#endif
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip RK628 MFD driver");

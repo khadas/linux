@@ -342,9 +342,30 @@ enum {
 #define HDMI_CEC_BUSFREETIME_L		HDMITX_REG(0xdc)
 #define HDMI_CEC_BUSFREETIME_H		HDMITX_REG(0xdd)
 #define HDMI_CEC_LOGICADDR		HDMITX_REG(0xde)
-
+#define HDMI_COLOR_BAR			HDMITX_REG(0xc9)
+#define VIDEO_BIST_MODE_MASK		GENMASK(7, 6)
+#define VIDEO_BIST_MODE(x)		UPDATE(x, 7, 6)
+#define DISABLE_COLORBAR_BIST_MASK	BIT(4)
+#define DISABLE_COLORBAR_BIST(x)	UPDATE(x, 4, 4)
 #define HDMI_MAX_REG			HDMITX_REG(0xed)
 
+#ifdef CONFIG_RK628_MISC_HDMITX
+void rk628_hdmitx_disable(struct rk628 *rk628);
 int rk628_hdmitx_enable(struct rk628 *rk628);
+void rk628_hdmitx_create_debugfs_file(struct rk628 *rk628);
+#else
+static inline void rk628_hdmitx_disable(struct rk628 *rk628)
+{
+}
+
+static inline int rk628_hdmitx_enable(struct rk628 *rk628)
+{
+	return 0;
+}
+
+static inline void rk628_hdmitx_create_debugfs_file(struct rk628 *rk628)
+{
+}
+#endif
 
 #endif

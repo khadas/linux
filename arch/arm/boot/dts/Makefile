@@ -331,6 +331,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-iconnect.dtb \
 	kirkwood-iomega_ix2_200.dtb \
 	kirkwood-is2.dtb \
+	kirkwood-km_fixedeth.dtb \
 	kirkwood-km_kirkwood.dtb \
 	kirkwood-l-50.dtb \
 	kirkwood-laplug.dtb \
@@ -861,7 +862,10 @@ dtb-$(CONFIG_ARCH_OMAP3) += \
 	am3517-craneboard.dtb \
 	am3517-evm.dtb \
 	am3517_mt_ventoux.dtb \
+	logicpd-torpedo-35xx-devkit.dtb \
 	logicpd-torpedo-37xx-devkit.dtb \
+	logicpd-torpedo-37xx-devkit-28.dtb \
+	logicpd-som-lv-35xx-devkit.dtb \
 	logicpd-som-lv-37xx-devkit.dtb \
 	omap3430-sdp.dtb \
 	omap3-beagle.dtb \
@@ -1134,21 +1138,21 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb1-mcu-display-v20.dtb \
 	rv1106g-evb1-rgb-display-v11.dtb \
 	rv1106g-evb1-v10.dtb \
+	rv1106g-evb1-v10-dual-cam.dtb \
+	rv1106g-evb1-v10-facial-gate.dtb \
+	rv1106g-evb1-v10-spi-nand.dtb \
+	rv1106g-evb1-v10-spi-nor.dtb \
 	rv1106g-evb1-v11.dtb \
 	rv1106g-evb1-v11-4k.dtb \
 	rv1106g-evb1-v11-cvr.dtb \
 	rv1106g-evb1-v11-cvr-dual-cam.dtb \
-	rv1106g-evb1-v11-spi-nand-cvr.dtb \
+	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
+	rv1106g-evb1-v11-dual-cam.dtb \
+	rv1106g-evb1-v11-facial-gate.dtb \
+	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
 	rv1106g-evb1-v11-sii902x-bt11202hdmi.dtb \
 	rv1106g-evb1-v11-sii902x-rgb2hdmi.dtb \
-	rv1106g-evb1-v10-dual-cam.dtb \
-	rv1106g-evb1-v11-dual-cam.dtb \
-	rv1106g-evb1-v10-facial-gate.dtb \
-	rv1106g-evb1-v11-facial-gate.dtb \
-	rv1106g-evb1-v10-spi-nand.dtb \
-	rv1106g-evb1-v10-spi-nor.dtb \
-	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
-	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
+	rv1106g-evb1-v11-spi-nand-cvr.dtb \
 	rv1106g-evb2-v10.dtb \
 	rv1106g-evb2-v10-dual-camera.dtb \
 	rv1106g-evb2-v11-emmc.dtb \
@@ -1158,6 +1162,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb2-v12-nofastae-emmc.dtb \
 	rv1106g-evb2-v12-nofastae-spi-nand.dtb \
 	rv1106g-evb2-v12-nofastae-spi-nor.dtb \
+	rv1106g-evb2-v12-spi-nand-tb.dtb \
 	rv1106g-evb2-v12-wakeup.dtb \
 	rv1106g-smart-door-lock-rmsl-v10.dtb \
 	rv1106g-smart-door-lock-rmsl-v12.dtb \
@@ -1587,6 +1592,8 @@ dtb-$(CONFIG_MACH_ARMADA_38X) += \
 	armada-388-helios4.dtb \
 	armada-388-rd.dtb
 dtb-$(CONFIG_MACH_ARMADA_39X) += \
+	armada-390-db.dtb \
+	armada-395-gp.dtb \
 	armada-398-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
@@ -1616,6 +1623,7 @@ dtb-$(CONFIG_MACH_DOVE) += \
 dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt2701-evb.dtb \
 	mt6580-evbp1.dtb \
+	mt6582-prestigio-pmt5008-3g.dtb \
 	mt6589-aquaris5.dtb \
 	mt6589-fairphone-fp1.dtb \
 	mt6592-evb.dtb \
@@ -1668,6 +1676,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-intel-s2600wf.dtb \
 	aspeed-bmc-inspur-fp5280g2.dtb \
 	aspeed-bmc-inspur-nf5280m6.dtb \
+	aspeed-bmc-inspur-on5263m5.dtb \
 	aspeed-bmc-lenovo-hr630.dtb \
 	aspeed-bmc-lenovo-hr855xg2.dtb \
 	aspeed-bmc-microsoft-olympus.dtb \

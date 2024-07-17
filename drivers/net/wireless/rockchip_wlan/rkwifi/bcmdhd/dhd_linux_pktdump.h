@@ -55,7 +55,8 @@ enum pkt_type {
 	PKT_TYPE_DNS = 4,
 	PKT_TYPE_ARP = 5,
 	PKT_TYPE_EAP = 6,
-	PKT_TYPE_IGMP = 7
+	PKT_TYPE_DHCP6 = 7,
+	PKT_TYPE_DNS6 = 8
 };
 
 #ifdef WL_CFGVENDOR_CUST_ADVLOG
@@ -147,6 +148,16 @@ extern void dhd_dump_eapol_message(dhd_pub_t *dhd, int ifidx,
 static INLINE void dhd_dump_eapol_message(dhd_pub_t *dhd, int ifidx,
         uint8 *pktdata, uint32 pktlen, bool tx, uint32 *pkthash, uint16 *pktfate) { }
 #endif /* DHD_8021X_DUMP */
+#ifdef DHD_IPV6_DUMP
+extern void dhd_dhcp6_dump(dhd_pub_t *dhdp, int ifidx, uint8 *pktdata, bool tx,
+	uint32 *pkthash, uint16 *pktfate);
+extern void dhd_icmpv6_dump(dhd_pub_t *dhdp, int ifidx, uint8 *pktdata, bool tx,
+	uint32 *pkthash, uint16 *pktfate);
+extern void dhd_dns6_dump(dhd_pub_t *dhdp, int ifidx, uint8 *pktdata, bool tx,
+    uint32 *pkthash, uint16 *pktfate);
+extern bool dhd_check_dhcp6(uint8 *pktdata, uint32 plen);
+extern bool dhd_check_dns6(uint8 *pktdata, uint32 plen);
+#endif
 extern bool dhd_check_ip_prot(uint8 *pktdata, uint16 ether_type);
 extern bool dhd_check_arp(uint8 *pktdata, uint16 ether_type);
 extern bool dhd_check_dhcp(uint8 *pktdata);

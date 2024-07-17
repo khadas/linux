@@ -1649,6 +1649,7 @@ config SND_SOC_STA529
 config SND_SOC_STAC9766
 	tristate
 	depends on SND_SOC_AC97_BUS
+	select REGMAP_AC97
 
 config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
@@ -2271,5 +2272,7 @@ config SND_SOC_LPASS_TX_MACRO
 	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"
 
 source "sound/soc/codecs/aw87xxx/Kconfig"
+source "sound/soc/codecs/aw882xx/Kconfig"
 source "sound/soc/codecs/aw883xx/Kconfig"
+source "sound/soc/codecs/it6621/Kconfig"
 endmenu

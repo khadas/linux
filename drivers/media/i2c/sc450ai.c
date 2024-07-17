@@ -27,6 +27,8 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
+#include "cam-tb-setup.h"
+#include "cam-sleep-wakeup.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -163,6 +165,7 @@ struct sc450ai {
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct cam_sw_info *cam_sw_inf;
 };
 
 #define to_sc450ai(sd) container_of(sd, struct sc450ai, subdev)
@@ -171,6 +174,199 @@ struct sc450ai {
  * Xclk 24Mhz
  */
 static const struct regval sc450ai_global_regs[] = {
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 27Mhz
+ * max_framerate 120fps
+ * mipi_datarate per lane 720Mbps, 2lane
+ * binning to 1344x760
+ */
+static const struct regval sc450ai_linear_10_1344x760_120fps_regs[] = {
+	{0x0103, 0x01},
+	{0x0100, 0x00},
+	{0x36e9, 0x80},
+	{0x36f9, 0x80},
+	{0x3018, 0x3a},
+	{0x3019, 0x0c},
+	{0x301c, 0x78},
+	{0x301f, 0x75},
+	{0x302e, 0x00},
+	{0x3208, 0x05},
+	{0x3209, 0x40},
+	{0x320a, 0x02},
+	{0x320b, 0xf8},
+	{0x320c, 0x03},
+	{0x320d, 0xa8},
+	{0x320e, 0x03},
+	{0x320f, 0x0c},
+	{0x3211, 0x04},
+	{0x3213, 0x04},
+	{0x3214, 0x11},
+	{0x3215, 0x31},
+	{0x3220, 0x01},
+	{0x3223, 0xc0},
+	{0x3253, 0x10},
+	{0x325f, 0x44},
+	{0x3274, 0x09},
+	{0x3280, 0x01},
+	{0x3301, 0x08},
+	{0x3306, 0x24},
+	{0x3309, 0x60},
+	{0x330b, 0x64},
+	{0x330d, 0x30},
+	{0x3315, 0x00},
+	{0x331f, 0x59},
+	{0x335d, 0x60},
+	{0x3364, 0x56},
+	{0x338f, 0x80},
+	{0x3390, 0x08},
+	{0x3391, 0x18},
+	{0x3392, 0x38},
+	{0x3393, 0x0a},
+	{0x3394, 0x10},
+	{0x3395, 0x18},
+	{0x3396, 0x08},
+	{0x3397, 0x18},
+	{0x3398, 0x38},
+	{0x3399, 0x0f},
+	{0x339a, 0x12},
+	{0x339b, 0x14},
+	{0x339c, 0x18},
+	{0x33af, 0x18},
+	{0x360f, 0x13},
+	{0x3621, 0xec},
+	{0x3627, 0xa0},
+	{0x3630, 0x90},
+	{0x3633, 0x56},
+	{0x3637, 0x1d},
+	{0x3638, 0x0a},
+	{0x363c, 0x0f},
+	{0x363d, 0x0f},
+	{0x363e, 0x08},
+	{0x3670, 0x4a},
+	{0x3671, 0xe0},
+	{0x3672, 0xe0},
+	{0x3673, 0xe0},
+	{0x3674, 0xb0},
+	{0x3675, 0x88},
+	{0x3676, 0x8c},
+	{0x367a, 0x48},
+	{0x367b, 0x58},
+	{0x367c, 0x48},
+	{0x367d, 0x58},
+	{0x3690, 0x34},
+	{0x3691, 0x43},
+	{0x3692, 0x44},
+	{0x3699, 0x03},
+	{0x369a, 0x0f},
+	{0x369b, 0x1f},
+	{0x369c, 0x40},
+	{0x369d, 0x48},
+	{0x36a2, 0x48},
+	{0x36a3, 0x78},
+	{0x36b0, 0x54},
+	{0x36b1, 0x75},
+	{0x36b2, 0x35},
+	{0x36b3, 0x48},
+	{0x36b4, 0x78},
+	{0x36b7, 0xa0},
+	{0x36b8, 0xa0},
+	{0x36b9, 0x20},
+	{0x36bd, 0x40},
+	{0x36be, 0x48},
+	{0x36d0, 0x20},
+	{0x36e0, 0x08},
+	{0x36e1, 0x08},
+	{0x36e2, 0x12},
+	{0x36e3, 0x48},
+	{0x36e4, 0x78},
+	{0x36fa, 0x0d},
+	{0x36fb, 0xa4},
+	{0x36fc, 0x00},
+	{0x36fd, 0x24},
+	{0x3907, 0x00},
+	{0x3908, 0x41},
+	{0x391e, 0x01},
+	{0x391f, 0x11},
+	{0x3933, 0x82},
+	{0x3934, 0x0b},
+	{0x3935, 0x02},
+	{0x3936, 0x5e},
+	{0x3937, 0x76},
+	{0x3938, 0x78},
+	{0x3939, 0x00},
+	{0x393a, 0x28},
+	{0x393b, 0x00},
+	{0x393c, 0x1d},
+	{0x3e00, 0x00},
+	{0x3e01, 0x61},
+	{0x3e02, 0x00},
+	{0x3e03, 0x0b},
+	{0x3e08, 0x03},
+	{0x3e1b, 0x2a},
+	{0x440e, 0x02},
+	{0x4509, 0x20},
+	{0x4837, 0x16},
+	{0x5000, 0x4e},
+	{0x5001, 0x44},
+	{0x5780, 0x76},
+	{0x5784, 0x08},
+	{0x5785, 0x04},
+	{0x5787, 0x0a},
+	{0x5788, 0x0a},
+	{0x5789, 0x0a},
+	{0x578a, 0x0a},
+	{0x578b, 0x0a},
+	{0x578c, 0x0a},
+	{0x578d, 0x40},
+	{0x5790, 0x08},
+	{0x5791, 0x04},
+	{0x5792, 0x04},
+	{0x5793, 0x08},
+	{0x5794, 0x04},
+	{0x5795, 0x04},
+	{0x5799, 0x46},
+	{0x579a, 0x77},
+	{0x57a1, 0x04},
+	{0x57a8, 0xd0},
+	{0x57aa, 0x2a},
+	{0x57ab, 0x7f},
+	{0x57ac, 0x00},
+	{0x57ad, 0x00},
+	{0x5900, 0x01},
+	{0x5901, 0x04},
+	{0x59e0, 0xfe},
+	{0x59e1, 0x40},
+	{0x59e2, 0x3f},
+	{0x59e3, 0x38},
+	{0x59e4, 0x30},
+	{0x59e5, 0x3f},
+	{0x59e6, 0x38},
+	{0x59e7, 0x30},
+	{0x59e8, 0x3f},
+	{0x59e9, 0x3c},
+	{0x59ea, 0x38},
+	{0x59eb, 0x3f},
+	{0x59ec, 0x3c},
+	{0x59ed, 0x38},
+	{0x59ee, 0xfe},
+	{0x59ef, 0x40},
+	{0x59f4, 0x3f},
+	{0x59f5, 0x38},
+	{0x59f6, 0x30},
+	{0x59f7, 0x3f},
+	{0x59f8, 0x38},
+	{0x59f9, 0x30},
+	{0x59fa, 0x3f},
+	{0x59fb, 0x3c},
+	{0x59fc, 0x38},
+	{0x59fd, 0x3f},
+	{0x59fe, 0x3c},
+	{0x59ff, 0x38},
+	{0x36e9, 0x44},
+	{0x36f9, 0x20},
 	{REG_NULL, 0x00},
 };
 
@@ -369,6 +565,23 @@ static const struct sc450ai_mode supported_modes[] = {
 		.vts_def = 0x0618,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.reg_list = sc450ai_linear_10_2688x1520_30fps_regs,
+		.hdr_mode = NO_HDR,
+		.xvclk_freq = 27000000,
+		.link_freq_idx = 0,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.width = 1344,
+		.height = 760,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 1200000,
+		},
+		.exp_def = 0x0080,
+		.hts_def = 0x03a8,
+		.vts_def = 0x030c,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.reg_list = sc450ai_linear_10_1344x760_120fps_regs,
 		.hdr_mode = NO_HDR,
 		.xvclk_freq = 27000000,
 		.link_freq_idx = 0,
@@ -1041,6 +1254,8 @@ static int __sc450ai_power_on(struct sc450ai *sc450ai)
 		return ret;
 	}
 
+	cam_sw_regulator_bulk_init(sc450ai->cam_sw_inf, SC450AI_NUM_SUPPLIES, sc450ai->supplies);
+
 	if (sc450ai->is_thunderboot)
 		return 0;
 
@@ -1107,6 +1322,51 @@ static void __sc450ai_power_off(struct sc450ai *sc450ai)
 	regulator_bulk_disable(SC450AI_NUM_SUPPLIES, sc450ai->supplies);
 }
 
+#if IS_REACHABLE(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)
+static int __maybe_unused sc450ai_resume(struct device *dev)
+{
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc450ai *sc450ai = to_sc450ai(sd);
+
+	cam_sw_prepare_wakeup(sc450ai->cam_sw_inf, dev);
+
+	usleep_range(4000, 5000);
+	cam_sw_write_array(sc450ai->cam_sw_inf);
+
+	if (__v4l2_ctrl_handler_setup(&sc450ai->ctrl_handler))
+		dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+
+	if (sc450ai->has_init_exp && sc450ai->cur_mode != NO_HDR) {	// hdr mode
+		ret = sc450ai_ioctl(&sc450ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				    &sc450ai->cam_sw_inf->hdr_ae);
+		if (ret) {
+			dev_err(&sc450ai->client->dev, "set exp fail in hdr mode\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int __maybe_unused sc450ai_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc450ai *sc450ai = to_sc450ai(sd);
+
+	cam_sw_write_array_cb_init(sc450ai->cam_sw_inf, client,
+				   (void *)sc450ai->cur_mode->reg_list,
+				   (sensor_write_array)sc450ai_write_array);
+	cam_sw_prepare_sleep(sc450ai->cam_sw_inf);
+
+	return 0;
+}
+#else
+#define sc450ai_resume NULL
+#define sc450ai_suspend NULL
+#endif
+
 static int __maybe_unused sc450ai_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1167,6 +1427,7 @@ static int sc450ai_enum_frame_interval(struct v4l2_subdev *sd,
 static const struct dev_pm_ops sc450ai_pm_ops = {
 	SET_RUNTIME_PM_OPS(sc450ai_runtime_suspend,
 			   sc450ai_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(sc450ai_suspend, sc450ai_resume)
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -1540,6 +1801,14 @@ static int sc450ai_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif
 
+	if (!sc450ai->cam_sw_inf) {
+		sc450ai->cam_sw_inf = cam_sw_init();
+		cam_sw_clk_init(sc450ai->cam_sw_inf, sc450ai->xvclk,
+			sc450ai->cur_mode->xvclk_freq);
+		cam_sw_reset_pin_init(sc450ai->cam_sw_inf, sc450ai->reset_gpio, 0);
+		cam_sw_pwdn_pin_init(sc450ai->cam_sw_inf, sc450ai->pwdn_gpio, 1);
+	}
+
 	memset(facing, 0, sizeof(facing));
 	if (strcmp(sc450ai->module_facing, "back") == 0)
 		facing[0] = 'b';
@@ -1557,7 +1826,10 @@ static int sc450ai_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (sc450ai->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
@@ -1586,6 +1858,8 @@ static int sc450ai_remove(struct i2c_client *client)
 #endif
 	v4l2_ctrl_handler_free(&sc450ai->ctrl_handler);
 	mutex_destroy(&sc450ai->mutex);
+
+	cam_sw_deinit(sc450ai->cam_sw_inf);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))

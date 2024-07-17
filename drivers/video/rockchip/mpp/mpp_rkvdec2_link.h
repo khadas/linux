@@ -29,9 +29,6 @@
 /* define for link hardware */
 #define RKVDEC_LINK_ADD_CFG_NUM		1
 
-#define RKVDEC_LINK_IRQ_BASE		0x000
-#define RKVDEC_LINK_BIT_IRQ_DIS		BIT(2)
-#define RKVDEC_LINK_BIT_IRQ		BIT(8)
 #define RKVDEC_LINK_BIT_IRQ_RAW		BIT(9)
 #define RKVDEC_LINK_BIT_CORE_WORK_MODE	BIT(16)
 #define RKVDEC_LINK_BIT_CCU_WORK_MODE	BIT(17)
@@ -50,12 +47,6 @@
 
 #define RKVDEC_LINK_EN_BASE		0x018
 #define RKVDEC_LINK_BIT_EN		BIT(0)
-
-#define RKVDEC_LINK_NEXT_ADDR_BASE	0x01c
-
-#define RKVDEC_LINK_STA_BASE		0x024
-
-#define RKVDEC_LINK_REG_CYCLE_CNT	179
 
 /* define for ccu link hardware */
 #define RKVDEC_CCU_CTRL_BASE		0x000
@@ -113,7 +104,11 @@ struct rkvdec_link_info {
 	/* current read back addr in table buffer */
 	u32 tb_reg_r;
 	/* secondary enable in table buffer */
-	u32 tb_reg_second_en;
+	int tb_reg_debug;
+	int tb_reg_seg0;
+	int tb_reg_seg1;
+	int tb_reg_seg2;
+	int tb_reg_second_en;
 	u32 part_w_num;
 	u32 part_r_num;
 
@@ -125,6 +120,23 @@ struct rkvdec_link_info {
 	u32 tb_reg_cycle;
 	bool hack_setup;
 	struct rkvdec_link_status reg_status;
+
+	/* for next link node addr */
+	u32 next_addr_base;
+
+	/* register for vdpu383 later */
+	u32 ip_reset_base;
+	u32 ip_reset_en;
+	u32 irq_base;
+	u32 irq_mask;
+	u32 status_base;
+	u32 status_mask;
+	u32 err_mask;
+	u32 ip_reset_mask;
+	u32 ip_time_base;
+	u32 en_base;
+	u32 ip_en_base;
+	u32 ip_en_val;
 };
 
 struct rkvdec_link_dev {
@@ -202,6 +214,7 @@ struct rkvdec2_ccu {
 extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
 extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
 extern struct rkvdec_link_info rkvdec_link_vdpu382_hw_info;
+extern struct rkvdec_link_info rkvdec_link_vdpu383_hw_info;
 
 int rkvdec_link_dump(struct mpp_dev *mpp);
 
@@ -234,5 +247,8 @@ void rkvdec2_hard_ccu_worker(struct kthread_work *work_s);
 int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 					struct device *iommu_dev,
 					unsigned long iova, int status, void *arg);
+
+/* for special handle */
+int rkvdec_vdpu383_link_irq(struct mpp_dev *mpp);
 
 #endif

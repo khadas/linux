@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/version.h>
 #include <linux/of.h>
@@ -18,7 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 
-#define DRIVER_VERSION				"0.0.1"
+#define DRIVER_VERSION				"0.1.0"
 #define UPDATE(x, h, l)		(((x) << (l)) & GENMASK((h), (l)))
 #define HIWORD_UPDATE(v, h, l)	((((v) << (l)) & GENMASK((h), (l))) | \
 				 (GENMASK((h), (l)) << 16))
@@ -38,8 +39,16 @@
 #define SW_BT_DATA_OEN			BIT(9)
 #define SW_EFUSE_HDCP_EN_MASK		BIT(8)
 #define SW_EFUSE_HDCP_EN(x)		UPDATE(x, 8, 8)
-#define SW_OUTPUT_MODE_MASK		GENMASK(7, 3)
-#define SW_OUTPUT_MODE(x)		UPDATE(x, 7, 3)
+#define SW_OUTPUT_MODE_MASK		GENMASK(5, 3)
+#define SW_OUTPUT_MODE(x)		UPDATE(x, 5, 3)
+/* compatible with rk628f */
+#define SW_OUTPUT_RGB_MODE_MASK		GENMASK(7, 6)
+#define SW_OUTPUT_RGB_MODE(x)		UPDATE(x, 7, 6)
+#define SW_HDMITX_EN_MASK		BIT(5)
+#define SW_HDMITX_EN(x)			UPDATE(x, 5, 5)
+#define SW_OUTPUT_COMBTX_MODE_MASK	GENMASK(4, 3)
+#define SW_OUTPUT_COMBTX_MODE(x)	UPDATE(x, 4, 3)
+
 #define SW_INPUT_MODE_MASK		GENMASK(2, 0)
 #define SW_INPUT_MODE(x)		UPDATE(x, 2, 0)
 #define GRF_SYSTEM_CON1			0x0004
@@ -51,7 +60,14 @@
 #define GRF_GPIO_RXDDC_SDA_SEL(x)	UPDATE(x, 6, 6)
 #define GRF_GPIO_RXDDC_SCL_SEL_MASK	BIT(5)
 #define GRF_GPIO_RXDDC_SCL_SEL(x)	UPDATE(x, 5, 5)
+#define GRF_DPHY_CH1_EN_MASK		BIT(1)
+#define GRF_DPHY_CH1_EN(x)		UPDATE(x, 1, 1)
+#define GRF_AS_DSIPHY_MASK		BIT(0)
+#define GRF_AS_DSIPHY(x)		UPDATE(x, 0, 0)
 #define GRF_SCALER_CON0			0x0010
+#define SCL_8_PIXEL_ALIGN(x)		HIWORD_UPDATE(x, 12, 12)
+#define SCL_COLOR_VER_EN(x)		HIWORD_UPDATE(x, 10, 10)
+#define SCL_COLOR_BAR_EN(x)		HIWORD_UPDATE(x, 9, 9)
 #define SCL_VER_DOWN_MODE(x)		HIWORD_UPDATE(x, 8, 8)
 #define SCL_HOR_DOWN_MODE(x)		HIWORD_UPDATE(x, 7, 7)
 #define SCL_BIC_COE_SEL(x)		HIWORD_UPDATE(x, 6, 5)
@@ -83,6 +99,8 @@
 #define DSP_VBOR_ST(x)			UPDATE(x, 28, 16)
 #define DSP_VBOR_END(x)			UPDATE(x, 12, 0)
 #define GRF_POST_PROC_CON		0x0034
+#define SW_HDMITX_VSYNC_POL		BIT(17)
+#define SW_HDMITX_HSYNC_POL		BIT(16)
 #define SW_DCLK_OUT_INV_EN		BIT(9)
 #define SW_DCLK_IN_INV_EN		BIT(8)
 #define SW_TXPHY_REFCLK_SEL_MASK	GENMASK(6, 5)
@@ -93,6 +111,8 @@
 #define SW_SPLIT_MODE(x)		UPDATE(x, 1, 1)
 #define SW_SPLIT_EN			BIT(0)
 #define GRF_CSC_CTRL_CON		0x0038
+#define SW_Y2R_MODE(x)			HIWORD_UPDATE(x, 13, 12)
+#define SW_FROM_CSC_MATRIX_EN(x)	HIWORD_UPDATE(x, 11, 11)
 #define SW_YUV2VYU_SWP(x)		HIWORD_UPDATE(x, 8, 8)
 #define SW_R2Y_EN(x)			HIWORD_UPDATE(x, 4, 4)
 #define SW_Y2R_EN(x)			HIWORD_UPDATE(x, 0, 0)
@@ -115,7 +135,8 @@
 #define DUAL_DATA_SWAP			BIT(6)
 #define DEC_DUALEDGE_EN			BIT(5)
 #define SW_PROGRESS_EN			BIT(4)
-#define SW_YC_SWAP			BIT(3)
+#define SW_BT1120_YC_SWAP		BIT(3)
+#define SW_BT1120_UV_SWAP		BIT(2)
 #define SW_CAP_EN_ASYNC			BIT(1)
 #define SW_CAP_EN_PSYNC			BIT(0)
 #define GRF_RGB_DEC_CON1		0x0044
@@ -179,7 +200,10 @@
 #define GRF_GPIO3A_D1_CON		0x00e4
 #define GRF_GPIO3B_D_CON		0x00e8
 #define GRF_GPIO_SR_CON			0x00ec
+#define GRF_SW_HDMIRXPHY_CRTL		0x00f4
 #define GRF_INTR0_EN			0x0100
+#define RK628F_HDMIRX_IRQ_EN(x)		HIWORD_UPDATE(x, 9, 9)
+#define RK628D_HDMIRX_IRQ_EN(x)		HIWORD_UPDATE(x, 8, 8)
 #define GRF_INTR0_CLR_EN		0x0104
 #define GRF_INTR0_STATUS		0x0108
 #define GRF_INTR0_RAW_STATUS		0x010c
@@ -191,18 +215,53 @@
 /* 0: i2c mode and mcu mode; 1: i2c mode only */
 #define I2C_ONLY_FLAG			BIT(6)
 #define GRF_SYSTEM_STATUS3		0x012c
+#define DECODER_1120_LAST_LINE_NUM_MASK	GENMASK(12, 0)
 #define GRF_SYSTEM_STATUS4		0x0130
+#define DECODER_1120_LAST_PIX_NUM_MASK	GENMASK(12, 0)
 #define GRF_OS_REG0			0x0140
 #define GRF_OS_REG1			0x0144
 #define GRF_OS_REG2			0x0148
 #define GRF_OS_REG3			0x014c
-#define GRF_SOC_VERSION			0x0150
-#define GRF_MAX_REGISTER		GRF_SOC_VERSION
+#define GRF_RGB_RX_DBG_MEAS0		0x0170
+#define RGB_RX_EVAL_TIME_MASK		GENMASK(27, 16)
+#define RGB_RX_MODET_EN			BIT(1)
+#define RGB_RX_DCLK_EN			BIT(0)
+#define GRF_RGB_RX_DBG_MEAS2		0x0178
+#define RGB_RX_CLKRATE_MASK		GENMASK(15, 0)
+#define GRF_RGB_RX_DBG_MEAS3		0x017c
+#define RGB_RX_CNT_EN_MASK		BIT(0)
+#define RGB_RX_CNT_EN(x)		UPDATE(x, 0, 0)
+#define GRF_RGB_RX_DBG_MEAS4		0x0180
+#define GRF_BT1120_TIMING_CTRL0		0x0190
+#define BT1120_DSP_HS_END(x)		UPDATE(x, 28, 16)
+#define BT1120_DSP_HTOTAL(x)		UPDATE(x, 12, 0)
+#define GRF_BT1120_TIMING_CTRL1		0x0194
+#define BT1120_DSP_HACT_ST(x)		UPDATE(x, 28, 16)
+#define GRF_BT1120_TIMING_CTRL2		0x0198
+#define	BT1120_DSP_VS_END(x)		UPDATE(x, 28, 16)
+#define BT1120_DSP_VTOTAL(x)		UPDATE(x, 12, 0)
+#define GRF_BT1120_TIMING_CTRL3		0x019c
+#define BT1120_DSP_VACT_ST(x)		UPDATE(x, 28, 16)
+#define GRF_CSC_MATRIX_COE01_COE00	0x01a0
+#define GRF_CSC_MATRIX_COE10_COE02	0x01a4
+#define GRF_CSC_MATRIX_COE12_COE11	0x01a8
+#define GRF_CSC_MATRIX_COE21_COE20	0x01ac
+#define GRF_CSC_MATRIX_COE22		0x01b0
+#define GRF_CSC_MATRIX_OFFSET0		0x01b4
+#define GRF_CSC_MATRIX_OFFSET1		0x01b8
+#define GRF_CSC_MATRIX_OFFSET2		0x01bc
+#define GRF_SOC_VERSION			0x0200
+#define GRF_OBS_REG			0X0300
+#define GRF_MAX_REGISTER		GRF_OBS_REG
 
 #define DRM_MODE_FLAG_PHSYNC                    (1<<0)
 #define DRM_MODE_FLAG_NHSYNC                    (1<<1)
 #define DRM_MODE_FLAG_PVSYNC                    (1<<2)
 #define DRM_MODE_FLAG_NVSYNC                    (1<<3)
+#define DRM_MODE_FLAG_INTERLACE                 (1<<4)
+
+#define RK628D_VERSION 0x20200326
+#define RK628F_VERSION 0x20230321
 
 enum {
 	COMBTXPHY_MODULEA_EN = BIT(0),
@@ -317,7 +376,63 @@ enum rk628_mode_sync_pol {
 	MODE_FLAG_PSYNC,
 };
 
-#undef BT1120_DUAL_EDGE
+/* see also http://vektor.theorem.ca/graphics/ycbcr/ */
+enum rk628_v4l2_colorspace {
+	/*
+	 * Default colorspace, i.e. let the driver figure it out.
+	 * Can only be used with video capture.
+	 */
+	V4L2_COLORSPACE_DEFAULT       = 0,
+
+	/* SMPTE 170M: used for broadcast NTSC/PAL SDTV */
+	V4L2_COLORSPACE_SMPTE170M     = 1,
+
+	/* Obsolete pre-1998 SMPTE 240M HDTV standard, superseded by Rec 709 */
+	V4L2_COLORSPACE_SMPTE240M     = 2,
+
+	/* Rec.709: used for HDTV */
+	V4L2_COLORSPACE_REC709        = 3,
+
+	/*
+	 * Deprecated, do not use. No driver will ever return this. This was
+	 * based on a misunderstanding of the bt878 datasheet.
+	 */
+	V4L2_COLORSPACE_BT878         = 4,
+
+	/*
+	 * NTSC 1953 colorspace. This only makes sense when dealing with
+	 * really, really old NTSC recordings. Superseded by SMPTE 170M.
+	 */
+	V4L2_COLORSPACE_470_SYSTEM_M  = 5,
+
+	/*
+	 * EBU Tech 3213 PAL/SECAM colorspace. This only makes sense when
+	 * dealing with really old PAL/SECAM recordings. Superseded by
+	 * SMPTE 170M.
+	 */
+	V4L2_COLORSPACE_470_SYSTEM_BG = 6,
+
+	/*
+	 * Effectively shorthand for V4L2_COLORSPACE_SRGB, V4L2_YCBCR_ENC_601
+	 * and V4L2_QUANTIZATION_FULL_RANGE. To be used for (Motion-)JPEG.
+	 */
+	V4L2_COLORSPACE_JPEG          = 7,
+
+	/* For RGB colorspaces such as produces by most webcams. */
+	V4L2_COLORSPACE_SRGB          = 8,
+
+	/* opRGB colorspace */
+	V4L2_COLORSPACE_OPRGB         = 9,
+
+	/* BT.2020 colorspace, used for UHDTV. */
+	V4L2_COLORSPACE_BT2020        = 10,
+
+	/* Raw colorspace: for RAW unprocessed images */
+	V4L2_COLORSPACE_RAW           = 11,
+
+	/* DCI-P3 colorspace, used by cinema projectors */
+	V4L2_COLORSPACE_DCI_P3        = 12,
+};
 
 struct rk628_videomode {
 	u32 pixelclock;	/* pixelclock in Hz */
@@ -366,7 +481,7 @@ struct panel_cmds {
 	int cmd_cnt;
 };
 
-struct panel_simple {
+struct rk628_panel_simple {
 	struct backlight_device *backlight;
 
 	struct regulator *supply;
@@ -374,6 +489,15 @@ struct panel_simple {
 	struct gpio_desc *reset_gpio;
 	struct panel_cmds *on_cmds;
 	struct panel_cmds *off_cmds;
+
+	struct {
+		unsigned int prepare;
+		unsigned int enable;
+		unsigned int disable;
+		unsigned int unprepare;
+		unsigned int reset;
+		unsigned int init;
+	} delay;
 };
 
 struct rk628_dsi {
@@ -386,6 +510,7 @@ struct rk628_dsi {
 	uint8_t  lanes;
 	uint8_t  id; /* 0:dsi0 1:dsi1 */
 	struct rk628 *rk628;
+	unsigned int lane_mbps; /* per lane */
 };
 
 struct rk628_lvds {
@@ -396,6 +521,7 @@ struct rk628_lvds {
 struct rk628_gvi {
 	enum gvi_bus_format bus_format;
 	enum gvi_color_depth color_depth;
+	int retry_times;
 	uint8_t lanes;
 	bool division_mode;
 	bool frm_rst;
@@ -413,6 +539,13 @@ struct rk628_combtxphy {
 	bool division_mode;
 };
 
+struct rk628_rgb {
+	struct regulator *vccio_rgb;
+	bool bt1120_dual_edge;
+	bool bt1120_yc_swap;
+	bool bt1120_uv_swap;
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
@@ -425,13 +558,15 @@ struct rk628 {
 	struct clk *soc_24M;
 	struct workqueue_struct *monitor_wq;
 	struct delayed_work delay_work;
+	struct dentry *debug_dir;
 	struct workqueue_struct *dsi_wq;
 	struct delayed_work dsi_delay_work;
-	struct panel_simple *panel;
+	struct rk628_panel_simple *panel;
 	void *hdmirx;
+	void *hdmitx;
 	bool display_enabled;
-	enum rk628_input_mode input_mode;
-	enum rk628_output_mode output_mode;
+	u32 input_mode;
+	u32 output_mode;
 	struct rk628_display_mode src_mode;
 	struct rk628_display_mode dst_mode;
 	enum bus_format input_fmt;
@@ -443,7 +578,61 @@ struct rk628 {
 	struct rk628_combtxphy combtxphy;
 	int sync_pol;
 	void *csi;
+	struct notifier_block fb_nb;
+	u32 version;
+	struct rk628_rgb rgb;
+	int old_blank;
 };
+
+static inline bool rk628_input_is_hdmi(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_HDMI);
+}
+
+static inline bool rk628_input_is_rgb(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_RGB);
+}
+
+static inline bool rk628_input_is_bt1120(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_BT1120);
+}
+
+static inline bool rk628_output_is_rgb(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_RGB);
+}
+
+static inline bool rk628_output_is_bt1120(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_BT1120);
+}
+
+static inline bool rk628_output_is_gvi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_GVI);
+}
+
+static inline bool rk628_output_is_lvds(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_LVDS);
+}
+
+static inline bool rk628_output_is_dsi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_DSI);
+}
+
+static inline bool rk628_output_is_csi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_CSI);
+}
+
+static inline bool rk628_output_is_hdmi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_HDMI);
+}
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 {

@@ -6,6 +6,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/debugfs.h>
 #include "rk628.h"
 #include "rk628_cru.h"
 #include "rk628_dsi.h"
@@ -20,8 +21,6 @@
 #define MIPI_DSI_MSG_REQ_ACK	BIT(0)
 /* use Low Power Mode to transmit message */
 #define MIPI_DSI_MSG_USE_LPM	BIT(1)
-
-static u32 lane_mbps;
 
 enum vid_mode_type {
 	VIDEO_MODE,
@@ -237,7 +236,6 @@ int rk628_dsi_parse(struct rk628 *rk628, struct device_node *dsi_np)
 	if (!of_device_is_available(dsi_np))
 		return -EINVAL;
 
-	rk628->output_mode = OUTPUT_MODE_DSI;
 	rk628->dsi0.id = 0;
 	rk628->dsi0.channel = 0;
 	rk628->dsi0.rk628 = rk628;
@@ -253,6 +251,9 @@ int rk628_dsi_parse(struct rk628 *rk628, struct device_node *dsi_np)
 
 	if (of_property_read_bool(dsi_np, "dsi,eotp"))
 		rk628->dsi0.mode_flags |= MIPI_DSI_MODE_EOT_PACKET;
+
+	if (of_property_read_bool(dsi_np, "dsi,clk-non-continuous"))
+		rk628->dsi0.mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
 	if (!of_property_read_string(dsi_np, "dsi,format", &string)) {
 		if (!strcmp(string, "rgb666")) {
@@ -697,8 +698,8 @@ static int rk628_dsi_transfer(struct rk628 *rk628, const struct rk628_dsi *dsi,
 	return msg->tx_len;
 }
 
-int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
-				 const void *payload, size_t size)
+static int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
+					const void *payload, size_t size)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -731,8 +732,8 @@ int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
 		return rk628_dsi_transfer(rk628, dsi, &msg);
 }
 
-int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
-				    const void *data, size_t len)
+static int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
+					   const void *data, size_t len)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -763,7 +764,8 @@ int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
 	return rk628_dsi_transfer(rk628, dsi, &msg);
 }
 
-int rk628_mipi_dsi_dcs_read(struct rk628 *rk628, u8 cmd, void *data, size_t len)
+static __maybe_unused int rk628_mipi_dsi_dcs_read(struct rk628 *rk628, u8 cmd,
+						  void *data, size_t len)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -823,14 +825,23 @@ panel_simple_xfer_dsi_cmd_seq(struct rk628 *rk628, struct panel_cmds *cmds)
 static u32 rk628_dsi_get_lane_rate(const struct rk628_dsi *dsi)
 {
 	const struct rk628_display_mode *mode = &dsi->rk628->dst_mode;
-	u32 lane_rate;
+	struct device_node *dsi_np;
+	u32 lane_rate, value;
 	u32 max_lane_rate = 1500;
 	u8 bpp, lanes;
 
-	bpp = dsi->bpp;
-	lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
-	lane_rate = mode->clock / 1000 * bpp / lanes;
-	lane_rate = DIV_ROUND_UP(lane_rate * 5, 4);
+	dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node, "rk628-dsi-out");
+	if (!dsi_np)
+		dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node,
+					      "rk628-dsi");
+	if (dsi_np && !of_property_read_u32(dsi_np, "rockchip,lane-mbps", &value)) {
+		lane_rate = value;
+	} else {
+		bpp = dsi->bpp;
+		lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
+		lane_rate = mode->clock / 1000 * bpp / lanes;
+		lane_rate = DIV_ROUND_UP(lane_rate * 5, 4);
+	}
 
 	if (lane_rate > max_lane_rate)
 		lane_rate = max_lane_rate;
@@ -939,6 +950,65 @@ static void testif_write(struct rk628 *rk628, const struct rk628_dsi *dsi,
 	dev_info(rk628->dev, "monitor_data: 0x%x\n", monitor_data);
 }
 
+static void testif_set_timing(const struct rk628_dsi *dsi, u8 addr,
+			      u8 max, u8 val)
+{
+	struct rk628 *rk628 = dsi->rk628;
+
+	if (val > max)
+		return;
+
+	testif_write(rk628, dsi, addr, (max + 1) | val);
+}
+
+static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
+{
+	const struct {
+		unsigned int min_lane_mbps;
+		unsigned int max_lane_mbps;
+		u8 clk_lp;
+		u8 clk_hs_prepare;
+		u8 clk_hs_zero;
+		u8 clk_hs_trail;
+		u8 clk_post;
+		u8 data_lp;
+		u8 data_hs_prepare;
+		u8 data_hs_zero;
+		u8 data_hs_trail;
+	} timing_table[] = {
+		{800, 899, 0x07, 0x30, 0x25, 0x3c, 0x0f, 0x07, 0x40, 0x09, 0x40},
+		{1100, 1249, 0x0a, 0x43, 0x2c, 0x50, 0x0f, 0x0a, 0x43, 0x10, 0x55},
+		{1250, 1349, 0x0b, 0x43, 0x2c, 0x50, 0x0f, 0x0b, 0x53, 0x10, 0x5b},
+		{1350, 1449, 0x0c, 0x43, 0x36, 0x60, 0x0f, 0x0c, 0x53, 0x10, 0x65},
+		{1450, 1500, 0x0f, 0x60, 0x31, 0x60, 0x0f, 0x0e, 0x60, 0x11, 0x6a}
+	};
+	unsigned int index;
+
+	if (dsi->lane_mbps < timing_table[0].min_lane_mbps)
+		return;
+
+	for (index = 0; index < ARRAY_SIZE(timing_table); index++)
+		if (dsi->lane_mbps >= timing_table[index].min_lane_mbps &&
+		    dsi->lane_mbps < timing_table[index].max_lane_mbps)
+			break;
+
+	if (index == ARRAY_SIZE(timing_table))
+		--index;
+
+	if (dsi->lane_mbps < timing_table[index].max_lane_mbps)
+		return;
+
+	testif_set_timing(dsi, 0x60, 0x3f, timing_table[index].clk_lp);
+	testif_set_timing(dsi, 0x61, 0x7f, timing_table[index].clk_hs_prepare);
+	testif_set_timing(dsi, 0x62, 0x3f, timing_table[index].clk_hs_zero);
+	testif_set_timing(dsi, 0x63, 0x7f, timing_table[index].clk_hs_trail);
+	testif_set_timing(dsi, 0x65, 0x0f, timing_table[index].clk_post);
+	testif_set_timing(dsi, 0x70, 0x3f, timing_table[index].data_lp);
+	testif_set_timing(dsi, 0x71, 0x7f, timing_table[index].data_hs_prepare);
+	testif_set_timing(dsi, 0x72, 0x3f, timing_table[index].data_hs_zero);
+	testif_set_timing(dsi, 0x73, 0x7f, timing_table[index].data_hs_trail);
+}
+
 static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 {
 	const struct {
@@ -960,7 +1030,7 @@ static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 	unsigned int index;
 
 	for (index = 0; index < ARRAY_SIZE(hsfreqrange_table); index++)
-		if (lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
+		if (dsi->lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
 			break;
 
 	if (index == ARRAY_SIZE(hsfreqrange_table))
@@ -968,6 +1038,9 @@ static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 
 	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
 	testif_write(rk628, dsi, 0x44, HSFREQRANGE(hsfreqrange));
+
+	if (rk628->version == RK628F_VERSION)
+		mipi_dphy_set_timing(dsi);
 }
 
 static void mipi_dphy_power_on(struct rk628 *rk628, const struct rk628_dsi *dsi)
@@ -1024,35 +1097,35 @@ static void mipi_dphy_power_on(struct rk628 *rk628, const struct rk628_dsi *dsi)
 	udelay(10);
 }
 
-void rk628_dsi0_reset_control_assert(struct rk628 *rk628)
+static void rk628_dsi0_reset_control_assert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x400040);
 }
 
-void rk628_dsi0_reset_control_deassert(struct rk628 *rk628)
+static void rk628_dsi0_reset_control_deassert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x400000);
 }
 
-void rk628_dsi1_reset_control_assert(struct rk628 *rk628)
+static void rk628_dsi1_reset_control_assert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x800080);
 }
 
-void rk628_dsi1_reset_control_deassert(struct rk628 *rk628)
+static void rk628_dsi1_reset_control_deassert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x800000);
 }
 
-void rk628_dsi_bridge_pre_enable(struct rk628 *rk628,
-				 const struct rk628_dsi *dsi)
+static void rk628_dsi_bridge_pre_enable(struct rk628 *rk628,
+					const struct rk628_dsi *dsi)
 {
 	u32 val;
 
 	dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
 	dsi_write(rk628, dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 
-	val = DIV_ROUND_UP(lane_mbps >> 3, 20);
+	val = DIV_ROUND_UP(dsi->lane_mbps >> 3, 20);
 	dsi_write(rk628, dsi, DSI_CLKMGR_CFG,
 		  TO_CLK_DIVISION(10) | TX_ESC_CLK_DIVISION(val));
 
@@ -1082,7 +1155,7 @@ static void rk628_dsi_set_vid_mode(struct rk628 *rk628,
 				   const struct rk628_dsi *dsi,
 				   const struct rk628_display_mode *mode)
 {
-	unsigned int lanebyteclk = (lane_mbps * 1000L) >> 3;
+	unsigned int lanebyteclk = (dsi->lane_mbps * 1000L) >> 3;
 	unsigned int dpipclk = mode->clock;
 	u32 hline, hsa, hbp, hline_time, hsa_time, hbp_time;
 	u32 vactive, vsa, vfp, vbp;
@@ -1149,9 +1222,22 @@ static void rk628_dsi_set_cmd_mode(struct rk628 *rk628,
 				   const struct rk628_dsi *dsi,
 				   const struct rk628_display_mode *mode)
 {
+	int cmd_size;
+
 	dsi_update_bits(rk628, dsi, DSI_CMD_MODE_CFG, DCS_LW_TX, 0);
-	dsi_write(rk628, dsi, DSI_EDPI_CMD_SIZE,
-		  EDPI_ALLOWED_CMD_SIZE(mode->hdisplay));
+
+	/* rk628: The maximum capacity of dsi memory is 2048*32 bits */
+	if (mode->hdisplay > 2048)
+		cmd_size = EDPI_ALLOWED_CMD_SIZE(mode->hdisplay / 2);
+	else
+		cmd_size = EDPI_ALLOWED_CMD_SIZE(mode->hdisplay);
+
+	dsi_write(rk628, dsi, DSI_EDPI_CMD_SIZE, cmd_size);
+
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		dsi_update_bits(rk628, dsi, DSI_LPCLK_CTRL,
+				AUTO_CLKLANE_CTRL, AUTO_CLKLANE_CTRL);
+
 	dsi_write(rk628, dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 }
 
@@ -1204,15 +1290,86 @@ static void rk628_dsi_bridge_enable(struct rk628 *rk628,
 	dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
 }
 
+static int rk628_dsi_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_dsi_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_dsi_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_dsi_color_bar_write(struct file *file, const char __user *ubuf,
+					 size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	struct rk628_dsi *dsi = &rk628->dsi0;
+	struct rk628_dsi *dsi1 = &rk628->dsi1;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
+	if (!mode) {
+		dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
+		dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
+	}
+
+	if (dsi->slave) {
+		dsi_update_bits(rk628, dsi1, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
+		if (!mode) {
+			dsi_write(rk628, dsi1, DSI_PWR_UP, RESET);
+			dsi_write(rk628, dsi1, DSI_PWR_UP, POWER_UP);
+		}
+	}
+
+	return len;
+}
+
+static const struct file_operations rk628_dsi_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_dsi_color_bar_open,
+	.read = seq_read,
+	.write = rk628_dsi_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_mipi_dsi_create_debugfs_file(struct rk628 *rk628)
+{
+	if (rk628_output_is_dsi(rk628))
+		debugfs_create_file("dsi_color_bar", 0600, rk628->debug_dir,
+				    rk628, &rk628_dsi_color_bar_fops);
+}
+
 void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 {
-	const struct rk628_dsi *dsi = &rk628->dsi0;
-	const struct rk628_dsi *dsi1 = &rk628->dsi1;
+	struct rk628_dsi *dsi = &rk628->dsi0;
+	struct rk628_dsi *dsi1 = &rk628->dsi1;
 	u32 rate = rk628_dsi_get_lane_rate(dsi);
 	int bus_width;
+	u32 mask = SW_OUTPUT_MODE_MASK;
+	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_DSI);
 
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			      SW_OUTPUT_MODE(OUTPUT_MODE_DSI));
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_OUTPUT_COMBTX_MODE_MASK;
+		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_DSI - 2);
+
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON3,
+				      GRF_DPHY_CH1_EN_MASK |
+				      GRF_AS_DSIPHY_MASK,
+				      (dsi->slave ? GRF_DPHY_CH1_EN(1) : 0) |
+				      GRF_AS_DSIPHY(1));
+	}
+
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON, SW_SPLIT_EN,
 			      dsi->slave ? SW_SPLIT_EN : 0);
 
@@ -1226,10 +1383,10 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 
 	rk628_combtxphy_set_bus_width(rk628, bus_width);
 	rk628_combtxphy_set_mode(rk628, PHY_MODE_VIDEO_MIPI);
-	lane_mbps = rk628_combtxphy_get_bus_width(rk628);
+	dsi->lane_mbps = rk628_combtxphy_get_bus_width(rk628);
 
-	if (dsi->slave)
-		lane_mbps = rk628_combtxphy_get_bus_width(rk628);
+	if (dsi->slave && dsi1)
+		dsi1->lane_mbps = rk628_combtxphy_get_bus_width(rk628);
 
 	/* rst for dsi0 */
 	rk628_dsi0_reset_control_assert(rk628);
@@ -1262,7 +1419,7 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 #endif
 
 	dev_info(rk628->dev, "rk628_dsi final DSI-Link bandwidth: %d x %d\n",
-		 lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
+		 dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 }
 
 void rk628_mipi_dsi_enable(struct rk628 *rk628)

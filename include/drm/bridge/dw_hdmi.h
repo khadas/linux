@@ -226,6 +226,8 @@ struct dw_hdmi_plat_data {
 	/* split mode */
 	bool split_mode;
 	bool first_screen;
+	bool dual_connector_split;
+	bool left_display;
 	struct dw_hdmi_qp *left;
 	struct dw_hdmi_qp *right;
 
@@ -267,6 +269,8 @@ struct dw_hdmi_plat_data {
 	int (*get_colorimetry)(void *data, struct edid *edid);
 	void (*set_ddc_io)(void *data, bool enable);
 	void (*set_hdcp14_mem)(void *data, bool enable);
+	struct drm_display_mode *(*get_force_timing)(void *data);
+	u32 (*get_refclk_rate)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
@@ -356,5 +360,8 @@ int dw_hdmi_qp_get_output_type_cap(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_set_hpd_wake(struct dw_hdmi *hdmi);
 void dw_hdmi_cec_wake_ops_register(struct dw_hdmi *hdmi,
 				   const struct dw_hdmi_cec_wake_ops *cec_ops);
+int dw_hdmi_qp_register_audio(struct dw_hdmi_qp *hdmi);
+int dw_hdmi_qp_register_cec(struct dw_hdmi_qp *hdmi);
+int dw_hdmi_qp_register_hdcp(struct dw_hdmi_qp *hdmi);
 
 #endif /* __IMX_HDMI_H__ */

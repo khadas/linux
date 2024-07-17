@@ -1,212 +1,227 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015 Olliver Schinagl <oliver@schinagl.nl>
+ * Generic software PWM for modulating GPIOs
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This driver adds a high-resolution timer based PWM driver. Since this is a
- * bit-banged driver, accuracy will always depend on a lot of factors, such as
- * GPIO toggle speed and system load.
+ * Copyright (C) 2020 Axis Communications AB
+ * Copyright (C) 2020 Nicola Di Lieto
+ * Copyright (C) 2024 Stefan Wahren
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hrtimer.h>
-#include <linux/ktime.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/property.h>
 #include <linux/pwm.h>
+#include <linux/spinlock.h>
 
-struct gpio_pwm_chip {
+struct pwm_gpio {
 	struct pwm_chip chip;
-	struct hrtimer timer;
-	struct gpio_desc *gpiod;
-	unsigned int on_time;
-	unsigned int off_time;
-	bool pin_on;
+	struct hrtimer gpio_timer;
+	struct gpio_desc *gpio;
+	struct pwm_state state;
+	struct pwm_state next_state;
+
+	/* Protect internal state between pwm_ops and hrtimer */
+	spinlock_t lock;
+
+	bool changing;
+	bool running;
+	bool level;
 };
 
-static inline struct gpio_pwm_chip *to_gpio_pwm_chip(struct pwm_chip *c)
+static unsigned long pwm_gpio_toggle(struct pwm_gpio *gpwm, bool level)
 {
-	return container_of(c, struct gpio_pwm_chip, chip);
-}
+	const struct pwm_state *state = &gpwm->state;
+	bool invert = state->polarity == PWM_POLARITY_INVERSED;
 
-static void gpio_pwm_off(struct gpio_pwm_chip *pc)
-{
-	enum pwm_polarity polarity = pwm_get_polarity(pc->chip.pwms);
+	gpwm->level = level;
+	gpiod_set_value(gpwm->gpio, gpwm->level ^ invert);
 
-	gpiod_set_value(pc->gpiod, polarity ? 1 : 0);
-}
-
-static void gpio_pwm_on(struct gpio_pwm_chip *pc)
-{
-	enum pwm_polarity polarity = pwm_get_polarity(pc->chip.pwms);
-
-	gpiod_set_value(pc->gpiod, polarity ? 0 : 1);
-}
-
-static enum hrtimer_restart gpio_pwm_timer(struct hrtimer *timer)
-{
-	struct gpio_pwm_chip *pc = container_of(timer,
-						struct gpio_pwm_chip,
-						timer);
-	if (!pwm_is_enabled(pc->chip.pwms)) {
-		gpio_pwm_off(pc);
-		pc->pin_on = false;
-		return HRTIMER_NORESTART;
+	if (!state->duty_cycle || state->duty_cycle == state->period) {
+		gpwm->running = false;
+		return 0;
 	}
 
-	if (!pc->pin_on) {
-		hrtimer_forward_now(&pc->timer, ns_to_ktime(pc->on_time));
+	gpwm->running = true;
+	return level ? state->duty_cycle : state->period - state->duty_cycle;
+}
 
-		if (pc->on_time) {
-			gpio_pwm_on(pc);
-			pc->pin_on = true;
-		}
+static enum hrtimer_restart pwm_gpio_timer(struct hrtimer *gpio_timer)
+{
+	struct pwm_gpio *gpwm = container_of(gpio_timer, struct pwm_gpio,
+					     gpio_timer);
+	unsigned long next_toggle;
+	unsigned long flags;
+	bool new_level;
 
+	spin_lock_irqsave(&gpwm->lock, flags);
+
+	/* Apply new state at end of current period */
+	if (!gpwm->level && gpwm->changing) {
+		gpwm->changing = false;
+		gpwm->state = gpwm->next_state;
+		new_level = !!gpwm->state.duty_cycle;
 	} else {
-		hrtimer_forward_now(&pc->timer, ns_to_ktime(pc->off_time));
+		new_level = !gpwm->level;
+	}
 
-		if (pc->off_time) {
-			gpio_pwm_off(pc);
-			pc->pin_on = false;
+	next_toggle = pwm_gpio_toggle(gpwm, new_level);
+	if (next_toggle) {
+		hrtimer_forward(gpio_timer, hrtimer_get_expires(gpio_timer),
+				ns_to_ktime(next_toggle));
+	}
+
+	spin_unlock_irqrestore(&gpwm->lock, flags);
+
+	return next_toggle ? HRTIMER_RESTART : HRTIMER_NORESTART;
+}
+
+static int pwm_gpio_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  const struct pwm_state *state)
+{
+	struct pwm_gpio *gpwm = container_of(chip, struct pwm_gpio, chip);
+	bool invert = state->polarity == PWM_POLARITY_INVERSED;
+	unsigned long flags;
+
+	if (state->duty_cycle && state->duty_cycle < hrtimer_resolution)
+		return -EINVAL;
+
+	if (state->duty_cycle != state->period &&
+	    (state->period - state->duty_cycle < hrtimer_resolution))
+		return -EINVAL;
+
+	if (!state->enabled) {
+		hrtimer_cancel(&gpwm->gpio_timer);
+	} else if (!gpwm->running) {
+		/*
+		 * This just enables the output, but pwm_gpio_toggle()
+		 * really starts the duty cycle.
+		 */
+		int ret = gpiod_direction_output(gpwm->gpio, invert);
+
+		if (ret)
+			return ret;
+	}
+
+	spin_lock_irqsave(&gpwm->lock, flags);
+
+	if (!state->enabled) {
+		gpwm->state = *state;
+		gpwm->running = false;
+		gpwm->changing = false;
+
+		gpiod_set_value(gpwm->gpio, invert);
+	} else if (gpwm->running) {
+		gpwm->next_state = *state;
+		gpwm->changing = true;
+	} else {
+		unsigned long next_toggle;
+
+		gpwm->state = *state;
+		gpwm->changing = false;
+
+		next_toggle = pwm_gpio_toggle(gpwm, !!state->duty_cycle);
+		if (next_toggle) {
+			hrtimer_start(&gpwm->gpio_timer, next_toggle,
+				      HRTIMER_MODE_REL);
 		}
 	}
 
-	return HRTIMER_RESTART;
-}
-
-static int gpio_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			    int duty_ns, int period_ns)
-{
-	struct gpio_pwm_chip *pc = to_gpio_pwm_chip(chip);
-
-	pc->on_time = duty_ns;
-	pc->off_time = period_ns - duty_ns;
+	spin_unlock_irqrestore(&gpwm->lock, flags);
 
 	return 0;
 }
 
-static int gpio_pwm_set_polarity(struct pwm_chip *chip, struct pwm_device *pwm,
-				 enum pwm_polarity polarity)
+static int pwm_gpio_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			       struct pwm_state *state)
 {
-	return 0;
-}
+	struct pwm_gpio *gpwm = container_of(chip, struct pwm_gpio, chip);
+	unsigned long flags;
 
-static int gpio_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct gpio_pwm_chip *pc = to_gpio_pwm_chip(chip);
+	spin_lock_irqsave(&gpwm->lock, flags);
 
-	if (pwm_is_enabled(pc->chip.pwms))
-		return -EBUSY;
+	if (gpwm->changing)
+		*state = gpwm->next_state;
+	else
+		*state = gpwm->state;
 
-	if (pc->off_time) {
-		hrtimer_start(&pc->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
-	} else {
-		if (pc->on_time)
-			gpio_pwm_on(pc);
-		else
-			gpio_pwm_off(pc);
-	}
+	spin_unlock_irqrestore(&gpwm->lock, flags);
 
 	return 0;
 }
 
-static void gpio_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct gpio_pwm_chip *pc = to_gpio_pwm_chip(chip);
-
-	if (!pc->off_time)
-		gpio_pwm_off(pc);
-}
-
-static const struct pwm_ops gpio_pwm_ops = {
-	.config = gpio_pwm_config,
-	.set_polarity = gpio_pwm_set_polarity,
-	.enable = gpio_pwm_enable,
-	.disable = gpio_pwm_disable,
-	.owner = THIS_MODULE,
+static const struct pwm_ops pwm_gpio_ops = {
+	.apply = pwm_gpio_apply,
+	.get_state = pwm_gpio_get_state,
 };
 
-static int gpio_pwm_probe(struct platform_device *pdev)
+static int pwm_gpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct pwm_gpio *gpwm;
 	int ret;
-	struct gpio_pwm_chip *pc;
 
-	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc)
+	gpwm = devm_kzalloc(dev, sizeof(*gpwm), GFP_KERNEL);
+	if (!gpwm)
 		return -ENOMEM;
 
-	pc->chip.dev = &pdev->dev;
-	pc->chip.ops = &gpio_pwm_ops;
-	pc->chip.base = -1;
-	pc->chip.npwm = 1;
-	pc->chip.of_xlate = of_pwm_xlate_with_flags;
-	pc->chip.of_pwm_n_cells = 3;
+	spin_lock_init(&gpwm->lock);
 
-	pc->gpiod = devm_gpiod_get(&pdev->dev, "pwm", GPIOD_OUT_LOW);
-
-	if (IS_ERR(pc->gpiod))
-		return PTR_ERR(pc->gpiod);
-
-	hrtimer_init(&pc->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	pc->timer.function = &gpio_pwm_timer;
-	pc->pin_on = false;
-
-	if (!hrtimer_is_hres_active(&pc->timer))
-		dev_warn(&pdev->dev, "HR timer unavailable, restricting to "
-				     "low resolution\n");
-
-	ret = pwmchip_add(&pc->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
-		return ret;
+	gpwm->gpio = devm_gpiod_get(dev, NULL, GPIOD_ASIS);
+	if (IS_ERR(gpwm->gpio)) {
+		return dev_err_probe(dev, PTR_ERR(gpwm->gpio),
+				     "could not get gpio\n");
 	}
 
-	platform_set_drvdata(pdev, pc);
+	if (gpiod_cansleep(gpwm->gpio)) {
+		return dev_err_probe(dev, -EINVAL,
+				     "sleeping GPIO %d not supported\n",
+				     desc_to_gpio(gpwm->gpio));
+	}
+
+	gpwm->chip.dev = dev;
+	gpwm->chip.ops = &pwm_gpio_ops;
+	gpwm->chip.npwm = 1;
+
+	hrtimer_init(&gpwm->gpio_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	gpwm->gpio_timer.function = pwm_gpio_timer;
+
+	ret = pwmchip_add(&gpwm->chip);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "could not add pwmchip\n");
+
+	platform_set_drvdata(pdev, gpwm);
+
 	return 0;
 }
 
-static int gpio_pwm_remove(struct platform_device *pdev)
+static void pwm_gpio_remove(struct platform_device *pdev)
 {
-	struct gpio_pwm_chip *pc = platform_get_drvdata(pdev);
+	struct pwm_gpio *gpwm = platform_get_drvdata(pdev);
 
-	hrtimer_cancel(&pc->timer);
-	return pwmchip_remove(&pc->chip);
+	pwmchip_remove(&gpwm->chip);
+	hrtimer_cancel(&gpwm->gpio_timer);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id gpio_pwm_of_match[] = {
-	{ .compatible = "pwm-gpio", },
-	{ }
+static const struct of_device_id pwm_gpio_dt_ids[] = {
+	{ .compatible = "pwm-gpio" },
+	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, gpio_pwm_of_match);
-#endif
+MODULE_DEVICE_TABLE(of, pwm_gpio_dt_ids);
 
-static struct platform_driver gpio_pwm_driver = {
-	.probe = gpio_pwm_probe,
-	.remove = gpio_pwm_remove,
+static struct platform_driver pwm_gpio_driver = {
 	.driver = {
 		.name = "pwm-gpio",
-		.of_match_table = of_match_ptr(gpio_pwm_of_match),
+		.of_match_table = pwm_gpio_dt_ids,
 	},
+	.probe = pwm_gpio_probe,
+	.remove_new = pwm_gpio_remove,
 };
-module_platform_driver(gpio_pwm_driver);
+module_platform_driver(pwm_gpio_driver);
 
-MODULE_AUTHOR("Olliver Schinagl <oliver@schinagl.nl>");
-MODULE_DESCRIPTION("Generic GPIO bit-banged PWM driver");
+MODULE_DESCRIPTION("PWM GPIO driver");
+MODULE_AUTHOR("Vincent Whitchurch");
 MODULE_LICENSE("GPL");

@@ -42,7 +42,7 @@
 };
 
 &dp0 {
-	//split-mode;
+	//rockchip,split-mode;
 	force-hpd;
 	status = "disabled";
 };
@@ -140,7 +140,7 @@
 };
 
 &edp0 {
-	split-mode;
+	rockchip,split-mode;
 	force-hpd;
 	status = "disabled";
 };

@@ -563,10 +563,10 @@ static void dw_hdmi_qp_hdcp(struct work_struct *p_work)
 {
 	struct dw_qp_hdcp *hdcp = container_of(p_work, struct dw_qp_hdcp, work);
 	u32 val;
-	int i = 500;
+	int i = 700;
 
 	while (i--) {
-		usleep_range(7000, 8000);
+		usleep_range(7200, 8000);
 
 		mutex_lock(&hdcp->mutex);
 		if (hdcp->status == DW_HDCP_DISABLED) {

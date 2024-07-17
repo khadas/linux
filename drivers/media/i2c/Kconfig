@@ -31,8 +31,15 @@ config VIDEO_IR_I2C
 # V4L2 I2C drivers that are related with Camera support
 #
 
-menu "Camera sensor devices"
-	visible if MEDIA_CAMERA_SUPPORT
+menuconfig VIDEO_CAMERA_SENSOR
+	bool "Camera sensor devices"
+	depends on MEDIA_CAMERA_SUPPORT && I2C
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	default y
+
+if VIDEO_CAMERA_SENSOR
 
 config VIDEO_APTINA_PLL
 	tristate
@@ -733,6 +740,18 @@ config VIDEO_IMX492
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx492.
 
+config VIDEO_IMX498
+	tristate "Sony IMX498 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX498 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx498.
+
 config VIDEO_IMX577
 	tristate "Sony IMX577 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -1145,6 +1164,17 @@ config VIDEO_OV13B10
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV13B10 camera.
+
+config VIDEO_OV16880
+	tristate "OmniVision OV16880 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV16880 camera.
 
 config VIDEO_OV16885
 	tristate "OmniVision OV16885 sensor support"
@@ -1844,6 +1874,16 @@ config VIDEO_SC3336
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC3336 camera.
 
+config VIDEO_SC3336P
+       tristate "SmartSens SC3336P sensor support"
+       depends on I2C && VIDEO_DEV
+       select MEDIA_CONTROLLER
+       select VIDEO_V4L2_SUBDEV_API
+       select V4L2_FWNODE
+       help
+         This is a Video4Linux2 sensor driver for the SmartSens
+         SC3336P camera.
+
 config VIDEO_SC3338
 	tristate "SmartSens SC3338 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -1964,6 +2004,26 @@ config VIDEO_SC5336
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC5336 camera.
 
+config VIDEO_SC830AI
+	tristate "SmartSens SC830AI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC830AI camera.
+
+config VIDEO_SC831AI
+	tristate "SmartSens SC831AI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC831AI camera.
+
 config VIDEO_SC850SL
 	tristate "SmartSens SC850SL sensor support"
 	depends on I2C && VIDEO_DEV
@@ -2003,7 +2063,7 @@ source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
 source "drivers/media/i2c/m5mols/Kconfig"
 
-endmenu
+endif
 
 menu "Lens drivers"
 	visible if MEDIA_CAMERA_SUPPORT
@@ -2037,6 +2097,17 @@ config VIDEO_AW8601
 	help
 	  This is a driver for the AW8601 camera lens voice coil.
 	  AW8601 is a 10 bit DAC with 100mA output current sink
+	  capability. This is designed for linear control of
+	  voice coil motors, controlled via I2C serial interface.
+
+config VIDEO_CES6301
+	tristate "CES6301 lens voice coil support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a driver for the CES6301 camera lens voice coil.
+	  CES6301 is a 10 bit DAC with 120mA output current sink
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
@@ -2541,6 +2612,19 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
+config VIDEO_LT6911C
+	tristate "Lontium LT6911UXC decoder"
+	depends on VIDEO_DEV && I2C
+	select HDMI
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the Lontium LT6911C series HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt6911c.
+
 config VIDEO_LT6911UXC
 	tristate "Lontium LT6911UXC decoder"
 	depends on VIDEO_DEV && I2C
@@ -2606,6 +2690,19 @@ config VIDEO_LT8619C
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lt8619c.
+
+config VIDEO_LT8668SX
+	tristate "Lontium LT8668SX decoder"
+	depends on VIDEO_DEV && I2C
+	select HDMI
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the Lontium LT8668SX series type-c/hdmi to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt8668sx.
 
 config VIDEO_MAX9286
 	tristate "Maxim MAX9286 GMSL deserializer support"
@@ -2881,8 +2978,7 @@ config VIDEO_VPX3220
 
 source "drivers/media/i2c/rk628/Kconfig"
 
-source "drivers/media/i2c/maxim2c/Kconfig"
-source "drivers/media/i2c/maxim4c/Kconfig"
+source "drivers/media/i2c/maxim/Kconfig"
 
 comment "Video and audio decoders"
 

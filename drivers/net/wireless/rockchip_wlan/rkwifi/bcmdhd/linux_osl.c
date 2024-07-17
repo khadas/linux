@@ -33,6 +33,9 @@
 #endif /* __ARM_ARCH_7A__ && !DHD_USE_COHERENT_MEM_FOR_RING */
 
 #include <linux/random.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+#include <linux/sched/clock.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) */
 
 #include <osl.h>
 #include <bcmutils.h>
@@ -353,14 +356,14 @@ inline void
 BCMFASTPATH(osl_cache_flush)(void *va, uint size)
 {
 	if (size > 0)
-		dma_sync_single_for_device(OSH_NULL, virt_to_dma(OSH_NULL, va), size,
+		dma_sync_single_for_device(OSH_NULL, virt_to_phys(va), size,
 			DMA_TO_DEVICE);
 }
 
 inline void
 BCMFASTPATH(osl_cache_inv)(void *va, uint size)
 {
-	dma_sync_single_for_cpu(OSH_NULL, virt_to_dma(OSH_NULL, va), size, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(OSH_NULL, virt_to_phys(va), size, DMA_FROM_DEVICE);
 }
 
 inline void
@@ -1310,7 +1313,7 @@ osl_dma_free_consistent(osl_t *osh, void *va, uint size, dmaaddr_t pa)
 	UNUSED_PARAMETER(hwdev);
 
 #if (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
-	kfree(va);
+	KVFREE(osh, va);
 #else /* (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING)) */
 	hwdev = osh->pdev;
 #ifdef BCMDMA64OSL

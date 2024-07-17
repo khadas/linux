@@ -98,7 +98,7 @@
 			linux,cma-default;
 		};
 */
-		drm_logo: drm-logo@00000000 {
+		drm_logo: drm-logo@0 {
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0>;
 		};
@@ -577,8 +577,6 @@
 };
 
 &sfc {
-	assigned-clocks = <&cru SCLK_SFC>;
-	assigned-clock-rates = <125000000>;
 	status = "disabled";
 
 	flash@0 {

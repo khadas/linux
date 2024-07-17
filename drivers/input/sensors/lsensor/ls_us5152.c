@@ -420,7 +420,7 @@ static const struct i2c_device_id light_us5152_id[] = {
 
 static struct i2c_driver light_us5152_driver = {
 	.probe = light_us5152_probe,
-	.remove = light_us5152_remove,
+	.remove = (void *)light_us5152_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = light_us5152_id,
 	.driver = {

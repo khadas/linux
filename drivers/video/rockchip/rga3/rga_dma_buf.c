@@ -133,6 +133,7 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		pageCount = end - start;
 		break;
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_Y8:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
@@ -457,7 +458,7 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 	rga_dma_buffer->dma_buf = dma_buf;
 	rga_dma_buffer->attach = attach;
 	rga_dma_buffer->sgt = sgt;
-	rga_dma_buffer->iova = sg_dma_address(sgt->sgl);
+	rga_dma_buffer->dma_addr = sg_dma_address(sgt->sgl);
 	rga_dma_buffer->dir = dir;
 	rga_dma_buffer->size = 0;
 	for_each_sgtable_sg(sgt, sg, i)
@@ -508,7 +509,7 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 	rga_dma_buffer->dma_buf = dma_buf;
 	rga_dma_buffer->attach = attach;
 	rga_dma_buffer->sgt = sgt;
-	rga_dma_buffer->iova = sg_dma_address(sgt->sgl);
+	rga_dma_buffer->dma_addr = sg_dma_address(sgt->sgl);
 	rga_dma_buffer->dir = dir;
 	rga_dma_buffer->size = 0;
 	for_each_sgtable_sg(sgt, sg, i)
@@ -543,4 +544,53 @@ void rga_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *
 {
 	dma_sync_single_for_device(scheduler->dev, virt_to_phys(pstart),
 				   pend - pstart, DMA_TO_DEVICE);
+}
+
+int rga_dma_free(struct rga_dma_buffer *buffer)
+{
+	if (buffer == NULL) {
+		pr_err("rga_dma_buffer is NULL.\n");
+		return -EINVAL;
+	}
+
+	dma_free_coherent(buffer->scheduler->dev, buffer->size, buffer->vaddr, buffer->dma_addr);
+	buffer->vaddr = NULL;
+	buffer->dma_addr = 0;
+	buffer->iova = 0;
+	buffer->size = 0;
+	buffer->scheduler = NULL;
+
+	kfree(buffer);
+
+	return 0;
+}
+
+struct rga_dma_buffer *rga_dma_alloc_coherent(struct rga_scheduler_t *scheduler,
+					      int size)
+{
+	size_t align_size;
+	dma_addr_t dma_addr;
+	struct  rga_dma_buffer *buffer;
+
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return NULL;
+
+	align_size = PAGE_ALIGN(size);
+	buffer->vaddr = dma_alloc_coherent(scheduler->dev, align_size, &dma_addr, GFP_KERNEL);
+	if (!buffer->vaddr)
+		goto fail_dma_alloc;
+
+	buffer->size = align_size;
+	buffer->dma_addr = dma_addr;
+	buffer->scheduler = scheduler;
+	if (scheduler->data->mmu == RGA_IOMMU)
+		buffer->iova = buffer->dma_addr;
+
+	return buffer;
+
+fail_dma_alloc:
+	kfree(buffer);
+
+	return NULL;
 }

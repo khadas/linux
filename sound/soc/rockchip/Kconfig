@@ -31,6 +31,7 @@ config SND_SOC_ROCKCHIP_I2S_TDM
 	tristate "Rockchip I2S/TDM Device Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
 	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_SOC_ROCKCHIP_TRCM
 	help
 	  Say Y or M if you want to add support for the I2S/TDM driver for
 	  Rockchip I2S/TDM devices, found in Rockchip SoCs. These devices
@@ -61,6 +62,17 @@ config SND_SOC_ROCKCHIP_PDM
 	  Say Y or M if you want to add support for PDM driver for
 	  Rockchip PDM Controller. The Controller supports up to maximum of
 	  8 channels record.
+
+config SND_SOC_ROCKCHIP_PDM_V2
+	tristate "Rockchip PDM Version 2 Controller Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select RATIONAL
+	help
+	  Say Y or M if you want to add support for PDM driver for
+	  Rockchip PDM Controller Version 2. The Controller supports up
+	  to maximum of 8 channels record. The version 2 pdm support gain
+	  control and more pdm clk, like 2.4MHz.
 
 config SND_SOC_ROCKCHIP_SAI
 	tristate "Rockchip SAI Controller Driver"
@@ -93,6 +105,12 @@ config SND_SOC_ROCKCHIP_SPDIFRX
 	help
 	  Say Y or M if you want to add support for SPDIFRX driver for
 	  Rockchip SPDIF receiver device.
+
+config SND_SOC_ROCKCHIP_TRCM
+	tristate "Rockchip TRCM Pcm Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for TRCM driver.
 
 config SND_SOC_ROCKCHIP_VAD
 	tristate "Rockchip Voice Activity Detection Driver"

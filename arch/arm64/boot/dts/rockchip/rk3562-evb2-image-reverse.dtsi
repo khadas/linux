@@ -102,7 +102,7 @@
 				      "srst_csihost_p";
 			csihost-idx = <0>;
 			rockchip,csi2-dphy = <&csi2_dphy0_hw>;
-			rockchip,csi2 = <&mipi0_csi2>;
+			rockchip,csi2 = <&mipi0_csi2_hw>;
 		};
 		csi2_dphy3 {
 			status = "disabled";
@@ -118,7 +118,7 @@
 				      "srst_csihost_p";
 			csihost-idx = <2>;
 			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
-			rockchip,csi2 = <&mipi2_csi2>;
+			rockchip,csi2 = <&mipi2_csi2_hw>;
 		};
 	};
 

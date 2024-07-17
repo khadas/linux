@@ -42,6 +42,10 @@
 #define UART_NPCM_TOR          7
 #define UART_NPCM_TOIE         BIT(7)  /* Timeout Interrupt Enable */
 
+#ifdef CONFIG_NO_GKI
+#define UART_RS485_TCR 0x2b
+#endif
+
 /*
  * Debugging.
  */
@@ -1986,7 +1990,10 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 		skip_rx = true;
 
 	if (status & (UART_LSR_DR | UART_LSR_BI) && !skip_rx) {
-		if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
+		struct irq_data *d;
+
+		d = irq_get_irq_data(port->irq);
+		if (d && irqd_is_wakeup_set(d))
 			pm_wakeup_event(tport->tty->dev, 0);
 		if (!up->dma || handle_rx_dma(up, iir))
 			status = serial8250_rx_chars(up, status);
@@ -1994,9 +2001,12 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 #endif
 	serial8250_modem_status(up);
 #ifdef CONFIG_ARCH_ROCKCHIP
-	if ((!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err))) &&
-	    ((iir & 0xf) == UART_IIR_THRI))
-		serial8250_tx_chars(up);
+	if ((iir & 0xf) == UART_IIR_THRI) {
+		if (!up->dma || (up->dma && (!up->dma->txchan || up->dma->tx_err)))
+			serial8250_tx_chars(up);
+		else if (!up->dma->tx_running)
+			__stop_tx(up);
+	}
 #else
 	if ((status & UART_LSR_THRE) && (up->ier & UART_IER_THRI)) {
 		if (!up->dma || up->dma->tx_err)
@@ -2705,6 +2715,7 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 #ifdef CONFIG_ARCH_ROCKCHIP
+	int mcr = serial_port_in(port, UART_MCR);
 	serial_port_out(port, UART_MCR, UART_MCR_LOOP);
 #endif
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
@@ -2734,7 +2745,7 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 	if (port->type != PORT_16750)
 		serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
 
-	serial_port_out(port, UART_MCR, up->mcr);
+	serial_port_out(port, UART_MCR, mcr);
 #endif
 }
 EXPORT_SYMBOL_GPL(serial8250_do_set_divisor);
@@ -2947,7 +2958,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_ROCKCHIP
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	/* Reset uart to make sure it is idle, then set baud rate */
 	serial_port_out(port, 0x88 >> 2, 0x7);
 #endif
@@ -2994,6 +3005,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->ier |= UART_IER_RTOIE;
 
 	serial_port_out(port, UART_IER, up->ier);
+#ifdef CONFIG_NO_GKI
+	serial_port_out(port, UART_RS485_TCR, up->tcr);
+#endif
 #endif
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);
@@ -3387,6 +3401,7 @@ void serial8250_init_port(struct uart_8250_port *up)
 	struct uart_port *port = &up->port;
 
 	spin_lock_init(&port->lock);
+	port->pm = NULL;
 	port->ops = &serial8250_pops;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 

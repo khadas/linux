@@ -14,7 +14,7 @@
 	model = "Rockchip RK3566 EVB5 LP4X V10 Board";
 	compatible = "rockchip,rk3566-evb5-lp4x-v10", "rockchip,rk3566";
 
-	vcc3v3_pcie: gpio-regulator {
+	vcc3v3_pcie: vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		regulator-min-microvolt = <3300000>;

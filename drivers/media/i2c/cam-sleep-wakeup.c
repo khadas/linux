@@ -5,6 +5,7 @@
 #include <linux/clk.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/rk-preisp.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
@@ -155,9 +156,6 @@ int cam_sw_prepare_wakeup(struct cam_sw_info *info, struct device *dev)
 		return -EINVAL;
 	}
 
-	if (!IS_ERR(info->pin.reset_gpio))
-		gpiod_set_value_cansleep(info->pin.reset_gpio, info->pin.reset_active_state);
-
 	if (!IS_ERR(info->pin.supplies) && info->pin.supplies_num) {
 		ret = regulator_bulk_enable(info->pin.supplies_num, info->pin.supplies);
 		if (ret != 0)
@@ -183,7 +181,7 @@ int cam_sw_prepare_sleep(struct cam_sw_info *info)
 		gpiod_set_value_cansleep(info->pin.pwdn_gpio, !info->pin.pwdn_active_state);
 
 	if (!IS_ERR(info->pin.reset_gpio))
-		gpiod_set_value_cansleep(info->pin.reset_gpio, !info->pin.reset_active_state);
+		gpiod_set_value_cansleep(info->pin.reset_gpio, info->pin.reset_active_state);
 
 	if (!IS_ERR_OR_NULL(info->pin.pins_sleep))
 		pinctrl_select_state(info->pin.pinctrl, info->pin.pins_sleep);

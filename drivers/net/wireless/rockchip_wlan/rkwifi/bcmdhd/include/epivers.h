@@ -31,25 +31,25 @@
 
 #define EPI_RC_NUMBER		591
 
-#define EPI_INCREMENTAL_NUMBER	33
+#define EPI_INCREMENTAL_NUMBER	0
 
 #define EPI_BUILD_NUMBER	0
 
-#define EPI_VERSION		101, 10, 591, 33
+#define EPI_VERSION		101, 10, 591, 0
 
-#define EPI_VERSION_NUM		0x650a24f2
+#define EPI_VERSION_NUM		0x650a24f0
 
 #define EPI_VERSION_DEV		101.10.591
 
-#define EPI_COMMIT_ID		"(gdbe2bd9)"
+#define EPI_COMMIT_ID		"(d83d8d7)"
 
 /* Driver Version String, ASCII, 32 chars max */
 #if defined (WLTEST)
-#define EPI_VERSION_STR		"101.10.591.33 (WLTEST)"
+#define EPI_VERSION_STR		"101.10.591.52 (WLTEST)"
 #elif (defined (BCMDBG_ASSERT) && !defined (BCMDBG_ASSERT_DISABLED))
-#define EPI_VERSION_STR		"101.10.591.33 (ASSRT)"
+#define EPI_VERSION_STR		"101.10.591.52 (ASSRT)"
 #else
-#define EPI_VERSION_STR		"101.10.591.33.20 (20230621-1)"
+#define EPI_VERSION_STR		"101.10.591.52.27 (20240409-1)(20240411-2)"
 #endif /* BCMINTERNAL */
 
 #endif /* _epivers_h_ */

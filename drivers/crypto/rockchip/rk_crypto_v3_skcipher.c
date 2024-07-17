@@ -39,6 +39,12 @@ static const u32 cipher_mode2bc[] = {
 	[CIPHER_MODE_GCM] = CRYPTO_BC_GCM,
 };
 
+static inline bool is_check_tag_valid(struct rk_crypto_dev *dev)
+{
+	/* crypto < v4 need to check tag valid */
+	return CRYPTO_MAJOR_VER(CRYPTO_READ(dev, CRYPTO_CRYPTO_VERSION)) < CRYPTO_MAJOR_VER_4;
+}
+
 static int rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(dev_id);
@@ -127,7 +133,7 @@ static void write_tkey_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 
 static int get_tag_reg(struct rk_crypto_dev *rk_dev, u8 *tag, u32 tag_len)
 {
-	int ret;
+	int ret = 0;
 	u32 reg_ctrl = 0;
 
 	CRYPTO_TRACE("tag_len = %u", tag_len);
@@ -135,15 +141,17 @@ static int get_tag_reg(struct rk_crypto_dev *rk_dev, u8 *tag, u32 tag_len)
 	if (tag_len > RK_MAX_TAG_SIZE)
 		return -EINVAL;
 
-	ret = read_poll_timeout_atomic(CRYPTO_READ,
-					reg_ctrl,
-					reg_ctrl & CRYPTO_CH0_TAG_VALID,
-					0,
-					RK_POLL_TIMEOUT_US,
-					false,
-					rk_dev, CRYPTO_TAG_VALID);
-	if (ret)
-		goto exit;
+	if (is_check_tag_valid(rk_dev)) {
+		ret = read_poll_timeout_atomic(CRYPTO_READ,
+					       reg_ctrl,
+					       reg_ctrl & CRYPTO_CH0_TAG_VALID,
+					       0,
+					       RK_POLL_TIMEOUT_US,
+					       false,
+					       rk_dev, CRYPTO_TAG_VALID);
+		if (ret)
+			goto exit;
+	}
 
 	rk_crypto_read_regs(rk_dev, CRYPTO_CH0_TAG_0, tag, tag_len);
 exit:

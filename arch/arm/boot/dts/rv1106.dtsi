@@ -314,18 +314,21 @@
 	rkisp_vir1: rkisp-vir1 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
+		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
 	rkisp_vir2: rkisp-vir2 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
+		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
 	rkisp_vir3: rkisp-vir3 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
+		dvbm = <&rkdvbm>;
 		status = "disabled";
 	};
 
@@ -1359,6 +1362,7 @@
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
 				bgs,increment = <2>;
+				rockchip,thermal-zone = "soc-thermal";
 			};
 		};
 
@@ -1414,8 +1418,6 @@
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
-		assigned-clocks = <&cru SCLK_SFC>;
-		assigned-clock-rates = <75000000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";

@@ -444,6 +444,9 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 
 	buffer->scheduler = scheduler;
 
+	if (scheduler->data->mmu == RGA_IOMMU)
+		buffer->iova = buffer->dma_addr;
+
 	if (rga_mm_check_range_sgt(buffer->sgt))
 		mm_flag |= RGA_MEM_UNDER_4G;
 
@@ -608,6 +611,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 			       __func__, scheduler->core);
 			goto free_dma_buffer;
 		}
+
+		buffer->dma_addr = buffer->iova;
+
 		break;
 	case RGA_MMU:
 		ret = dma_map_sg(scheduler->dev, sgt->sgl, sgt->orig_nents, DMA_BIDIRECTIONAL);
@@ -978,9 +984,12 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 			break;
 
 		pr_info("dma_buffer:\n");
-		pr_info("dma_buf = %p, iova = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
-			dump_buffer->dma_buffer->dma_buf,
+		pr_info("dma_buf = %p\n",
+			dump_buffer->dma_buffer->dma_buf);
+		pr_info("iova = 0x%lx, dma_addr = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
 			(unsigned long)dump_buffer->dma_buffer->iova,
+			(unsigned long)dump_buffer->dma_buffer->dma_addr,
+			(unsigned long)dump_buffer->dma_buffer->offset,
 			dump_buffer->dma_buffer->sgt,
 			dump_buffer->dma_buffer->size,
 			dump_buffer->dma_buffer->scheduler->core);
@@ -1002,8 +1011,9 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 		if (rga_mm_is_invalid_dma_buffer(dump_buffer->dma_buffer))
 			break;
 
-		pr_info("iova = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
+		pr_info("iova = 0x%lx, dma_addr = 0x%lx, offset = 0x%lx, sgt = %p, size = %ld, map_core = 0x%x\n",
 			(unsigned long)dump_buffer->dma_buffer->iova,
+			(unsigned long)dump_buffer->dma_buffer->dma_addr,
 			(unsigned long)dump_buffer->dma_buffer->offset,
 			dump_buffer->dma_buffer->sgt,
 			dump_buffer->dma_buffer->size,
@@ -1014,7 +1024,8 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 				(unsigned long)dump_buffer->phys_addr);
 		break;
 	case RGA_PHYSICAL_ADDRESS:
-		pr_info("physical address: pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
+		pr_info("physical address:\n");
+		pr_info("pa = 0x%lx\n", (unsigned long)dump_buffer->phys_addr);
 		break;
 	default:
 		pr_err("Illegal external buffer!\n");
@@ -1851,6 +1862,11 @@ static void rga_mm_unmap_channel_job_buffer(struct rga_job *job,
 		if (rga_mm_sync_dma_sg_for_cpu(job_buffer->addr, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("unmap buffer:\n");
+		rga_mm_dump_buffer(job_buffer->addr);
+	}
+
 	rga_mm_unmap_buffer(job_buffer->addr);
 	kfree(job_buffer->addr);
 
@@ -1876,6 +1892,11 @@ static int rga_mm_map_channel_job_buffer(struct rga_job *job,
 	if (ret < 0) {
 		pr_err("job buffer map failed!\n");
 		goto error_free_buffer;
+	}
+
+	if (DEBUGGER_EN(MM)) {
+		pr_info("map buffer:\n");
+		rga_mm_dump_buffer(buffer);
 	}
 
 	ret = rga_mm_get_buffer_info(job, buffer, &img->yrgb_addr);
@@ -1998,10 +2019,203 @@ error_unmap_buffer:
 	return ret;
 }
 
+static void rga_mm_free_channel_fake_buffer(struct rga_job *job,
+					    struct rga_job_buffer *job_buffer,
+					    enum dma_data_direction dir)
+{
+	struct rga_internal_buffer *buffer = job_buffer->addr;
+
+	if (rga_mm_is_invalid_dma_buffer(buffer->dma_buffer))
+		return;
+
+	if (DEBUGGER_EN(MM)) {
+		pr_info("free fake-buffer dump info:\n");
+		rga_mm_dump_buffer(buffer);
+	}
+
+	rga_dma_free(buffer->dma_buffer);
+	kfree(buffer);
+	job_buffer->addr = NULL;
+}
+
+static int rga_mm_alloc_channel_fake_buffer(struct rga_job *job,
+					    struct rga_img_info_t *img,
+					    struct rga_job_buffer *job_buffer,
+					    enum dma_data_direction dir)
+{
+	int ret;
+	int size;
+	uint32_t mm_flag;
+	uint64_t phys_addr;
+	struct rga_internal_buffer *buffer;
+	struct rga_dma_buffer *dma_buf;
+
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (buffer == NULL) {
+		pr_err("%s alloc internal_buffer error!\n", __func__);
+		return -ENOMEM;
+	}
+
+	size = rga_image_size_cal(img->vir_w, img->vir_h, img->format,
+				  NULL, NULL, NULL);
+	dma_buf = rga_dma_alloc_coherent(job->scheduler, size);
+	if (dma_buf == NULL) {
+		ret = -ENOMEM;
+		pr_err("%s failed to alloc dma_buf.\n", __func__);
+		goto error_free_buffer;
+	}
+
+	mm_flag = RGA_MEM_PHYSICAL_CONTIGUOUS | RGA_MEM_UNDER_4G;
+	if (job->scheduler->data->mmu != RGA_IOMMU) {
+		mm_flag |= RGA_MEM_NEED_USE_IOMMU;
+		phys_addr = 0;
+	} else {
+		phys_addr = dma_buf->dma_addr;
+	}
+
+	if (!rga_mm_check_memory_limit(job->scheduler, mm_flag)) {
+		pr_err("%s scheduler core[%d] unsupported mm_flag[0x%x]!\n",
+		       __func__, job->scheduler->core, mm_flag);
+		ret = -EINVAL;
+		goto error_free_dma_buf;
+	}
+
+	buffer->type = RGA_DMA_BUFFER_PTR;
+	buffer->size = dma_buf->size - dma_buf->offset;
+	buffer->mm_flag = mm_flag;
+	buffer->dma_buffer = dma_buf;
+	buffer->phys_addr = phys_addr;
+
+	buffer->memory_parm.width = img->vir_w;
+	buffer->memory_parm.height = img->vir_h;
+	buffer->memory_parm.format = img->format;
+	buffer->memory_parm.size = size;
+
+	ret = rga_mm_get_buffer_info(job, buffer, &img->yrgb_addr);
+	if (ret < 0) {
+		pr_err("%s failed to get internal buffer info!\n", __func__);
+		goto error_free_dma_buf;
+	}
+
+	rga_convert_addr(img, false);
+
+	job_buffer->addr = buffer;
+
+	if (job->scheduler->data->mmu == RGA_MMU &&
+	    rga_mm_is_need_mmu(job, job_buffer->addr)) {
+		ret = rga_mm_set_mmu_base(job, img, job_buffer);
+		if (ret < 0) {
+			pr_err("%s can't set RGA2 MMU_BASE!\n", __func__);
+			job_buffer->addr = NULL;
+			goto error_free_dma_buf;
+		}
+	}
+
+	if (DEBUGGER_EN(MM)) {
+		pr_info("alloc fake-buffer dump info:\n");
+		rga_mm_dump_buffer(buffer);
+	}
+
+	return 0;
+
+error_free_dma_buf:
+	rga_dma_free(dma_buf);
+
+error_free_buffer:
+	kfree(buffer);
+
+	return ret;
+}
+
+static void rga_mm_free_fake_buffer(struct rga_job *job)
+{
+	if (job->src_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &job->src_buffer, DMA_NONE);
+	if (job->dst_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &job->dst_buffer, DMA_FROM_DEVICE);
+	if (job->src1_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &job->src1_buffer, DMA_NONE);
+	if (job->els_buffer.addr)
+		rga_mm_free_channel_fake_buffer(job, &job->els_buffer, DMA_NONE);
+}
+
+static int rga_mm_alloc_fake_buffer(struct rga_job *job)
+{
+	int ret = 0;
+	struct rga_req *req = NULL;
+	enum dma_data_direction dir;
+
+	req = &job->rga_command_base;
+
+	if (req->src.yrgb_addr != 0 || req->src.uv_addr != 0) {
+		ret = rga_mm_alloc_channel_fake_buffer(job, &req->src,
+						       &job->src_buffer, DMA_TO_DEVICE);
+		if (ret < 0) {
+			pr_err("%s src channel map job buffer failed!", __func__);
+			goto error_free_fake_buffer;
+		}
+	}
+
+	if (req->dst.yrgb_addr != 0 || req->dst.uv_addr != 0) {
+		ret = rga_mm_alloc_channel_fake_buffer(job, &req->dst,
+						       &job->dst_buffer, DMA_TO_DEVICE);
+		if (ret < 0) {
+			pr_err("%s dst channel map job buffer failed!", __func__);
+			goto error_free_fake_buffer;
+		}
+	}
+
+	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE &&
+	    (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0)) {
+		if (req->bsfilter_flag)
+			dir = DMA_BIDIRECTIONAL;
+		else
+			dir = DMA_TO_DEVICE;
+
+		ret = rga_mm_alloc_channel_fake_buffer(job, &req->pat,
+						       &job->src1_buffer, dir);
+		if (ret < 0) {
+			pr_err("%s src1 channel map job buffer failed!", __func__);
+			goto error_free_fake_buffer;
+		}
+	} else if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0) {
+		ret = rga_mm_alloc_channel_fake_buffer(job, &req->pat,
+						       &job->els_buffer, DMA_TO_DEVICE);
+		if (ret < 0) {
+			pr_err("%s els channel map job buffer failed!", __func__);
+			goto error_free_fake_buffer;
+		}
+	}
+
+	rga_mm_set_mmu_flag(job);
+
+	return 0;
+
+error_free_fake_buffer:
+	rga_mm_free_fake_buffer(job);
+
+	return ret;
+}
+
 int rga_mm_map_job_info(struct rga_job *job)
 {
 	int ret;
 	ktime_t timestamp = ktime_get();
+
+	if (job->flags & RGA_JOB_DEBUG_FAKE_BUFFER) {
+		ret = rga_mm_alloc_fake_buffer(job);
+		if (ret < 0)
+			return ret;
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], alloc fake buffer cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
+
+		job->flags &= ~RGA_JOB_USE_HANDLE;
+		job->flags |= RGA_JOB_DEBUG_FAKE_BUFFER;
+
+		return 0;
+	}
 
 	if (job->flags & RGA_JOB_USE_HANDLE) {
 		ret = rga_mm_get_handle_info(job);
@@ -2031,6 +2245,16 @@ int rga_mm_map_job_info(struct rga_job *job)
 void rga_mm_unmap_job_info(struct rga_job *job)
 {
 	ktime_t timestamp = ktime_get();
+
+	if (job->flags & RGA_JOB_DEBUG_FAKE_BUFFER) {
+		rga_mm_free_fake_buffer(job);
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], free fake buffer cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
+
+		return;
+	}
 
 	if (job->flags & RGA_JOB_USE_HANDLE) {
 		rga_mm_put_handle_info(job);

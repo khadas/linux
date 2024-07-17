@@ -106,8 +106,8 @@ static int techpoint_analyze_dts(struct techpoint *techpoint)
 	fwnode = of_fwnode_handle(endpoint);
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval <= 0) {
-		dev_err(dev, " Get mipi lane num failed!\n");
-		return -EINVAL;
+		rval = 4;
+		dev_err(dev, " Get mipi lane num failed!, set default 4\n");
 	}
 	techpoint->data_lanes = rval;
 

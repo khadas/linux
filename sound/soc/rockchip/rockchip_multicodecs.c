@@ -326,7 +326,31 @@ static const struct snd_soc_dapm_widget mc_dapm_widgets[] = {
 			    SND_SOC_DAPM_PRE_PMD),
 };
 
+static int mc_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(card);
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
+	struct gpio_desc *gpio = mc->reg == 1 ? mc_data->hp_ctl_gpio : mc_data->spk_ctl_gpio;
+
+	ucontrol->value.integer.value[0] = gpiod_get_value_cansleep(gpio);
+	return 0;
+}
+
+static int mc_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(card);
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
+	struct gpio_desc *gpio = mc->reg == 1 ? mc_data->hp_ctl_gpio : mc_data->spk_ctl_gpio;
+
+	gpiod_set_value_cansleep(gpio, ucontrol->value.integer.value[0] ? 1 : 0);
+	return 0;
+}
+
 static const struct snd_kcontrol_new mc_controls[] = {
+	SOC_SINGLE_EXT("spk switch", 0, 0, 1, 0, mc_switch_get, mc_switch_put),
+	SOC_SINGLE_EXT("hp switch", 1, 0, 1, 0, mc_switch_get, mc_switch_put),
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 	SOC_DAPM_PIN_SWITCH("Main Mic"),
@@ -691,10 +715,13 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->adc = devm_iio_channel_get(&pdev->dev, "adc-detect");
 
 	if (IS_ERR(mc_data->adc)) {
-		if (PTR_ERR(mc_data->adc) != -EPROBE_DEFER) {
-			mc_data->adc = NULL;
-			dev_warn(&pdev->dev, "Failed to get ADC channel");
+		if (PTR_ERR(mc_data->adc) == -EPROBE_DEFER) {
+			dev_warn(&pdev->dev, "deferred by saradc not ready\n");
+			return -EPROBE_DEFER;
 		}
+
+		mc_data->adc = NULL;
+		dev_warn(&pdev->dev, "Has no ADC channel\n");
 	} else {
 		if (mc_data->adc->channel->type != IIO_VOLTAGE)
 			return -EINVAL;

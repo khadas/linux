@@ -1755,32 +1755,71 @@ static int rga3_scale_check(const struct rga3_req *req)
 	u32 win0_saw, win0_sah, win0_daw, win0_dah;
 	u32 win1_saw, win1_sah, win1_daw, win1_dah;
 
-	win0_saw = req->win0.src_act_w;
-	win0_sah = req->win0.src_act_h;
-	win0_daw = req->win0.dst_act_w;
-	win0_dah = req->win0.dst_act_h;
+	if (req->rotate_mode & RGA3_ROT_BIT_ROT_90) {
+		if (req->win1.yrgb_addr != 0) {
+			/* ABB */
+			if (req->win0.yrgb_addr == req->wr.yrgb_addr) {
+				/* win0 do not need rotate, but net equal to wr */
+				win0_saw = req->win0.src_act_h;
+				win0_sah = req->win0.src_act_w;
+				win0_daw = req->win0.dst_act_h;
+				win0_dah = req->win0.dst_act_w;
+
+				win1_saw = req->win1.dst_act_w;
+				win1_sah = req->win1.dst_act_h;
+				win1_daw = req->win1.dst_act_h;
+				win1_dah = req->win1.dst_act_w;
+			} else {
+				win0_saw = req->win0.src_act_w;
+				win0_sah = req->win0.src_act_h;
+				win0_daw = req->win0.dst_act_w;
+				win0_dah = req->win0.dst_act_h;
+
+				win1_saw = req->win1.src_act_w;
+				win1_sah = req->win1.src_act_h;
+				win1_daw = req->win1.dst_act_w;
+				win1_dah = req->win1.dst_act_h;
+			}
+		} else {
+			win0_saw = req->win0.src_act_w;
+			win0_sah = req->win0.src_act_h;
+			win0_daw = req->win0.dst_act_h;
+			win0_dah = req->win0.dst_act_w;
+		}
+	} else {
+		win0_saw = req->win0.src_act_w;
+		win0_sah = req->win0.src_act_h;
+		win0_daw = req->win0.dst_act_w;
+		win0_dah = req->win0.dst_act_h;
+
+		if (req->win1.yrgb_addr != 0) {
+			win1_saw = req->win1.src_act_w;
+			win1_sah = req->win1.src_act_h;
+			win1_daw = req->win1.dst_act_w;
+			win1_dah = req->win1.dst_act_h;
+		}
+	}
 
 	if (((win0_saw >> 3) > win0_daw) || ((win0_sah >> 3) > win0_dah)) {
-		pr_info("win0 unsupported to scaling less than 1/8 times.\n");
+		pr_info("win0 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 	if (((win0_daw >> 3) > win0_saw) || ((win0_dah >> 3) > win0_sah)) {
-		pr_info("win0 unsupported to scaling more than 8 times.\n");
+		pr_info("win0 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 
 	if (req->win1.yrgb_addr != 0) {
-		win1_saw = req->win1.src_act_w;
-		win1_sah = req->win1.src_act_h;
-		win1_daw = req->win1.dst_act_w;
-		win1_dah = req->win1.dst_act_h;
-
 		if (((win1_saw >> 3) > win1_daw) || ((win1_sah >> 3) > win1_dah)) {
-			pr_info("win1 unsupported to scaling less than 1/8 times.\n");
+			pr_info("win1 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 		if (((win1_daw >> 3) > win1_saw) || ((win1_dah >> 3) > win1_sah)) {
-			pr_info("win1 unsupported to scaling more than 8 times.\n");
+			pr_info("win1 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 	}
@@ -1980,7 +2019,7 @@ static int rga3_init_reg(struct rga_job *job)
 	if (DEBUGGER_EN(MSG))
 		print_debug_info(&req);
 
-	if (rga3_gen_reg_info((uint8_t *) job->cmd_reg, &req) == -1) {
+	if (rga3_gen_reg_info((uint8_t *) job->cmd_buf->vaddr, &req) == -1) {
 		pr_err("RKA: gen reg info error\n");
 		return -EINVAL;
 	}
@@ -2017,7 +2056,10 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	int i;
 	bool master_mode_en;
 	uint32_t sys_ctrl;
+	uint32_t *cmd;
 	ktime_t now = ktime_get();
+
+	cmd = job->cmd_buf->vaddr;
 
 	/*
 	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
@@ -2029,14 +2071,11 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		master_mode_en = false;
 
 	if (DEBUGGER_EN(REG)) {
-		uint32_t *p;
-
-		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
 		for (i = 0; i < 12; i++)
 			pr_info("i = %x : %.8x %.8x %.8x %.8x\n", i,
-				p[0 + i * 4], p[1 + i * 4],
-				p[2 + i * 4], p[3 + i * 4]);
+				cmd[0 + i * 4], cmd[1 + i * 4],
+				cmd[2 + i * 4], cmd[3 + i * 4]);
 	}
 
 	/* All CMD finish int */
@@ -2047,10 +2086,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		/* master mode */
 		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
 
-		/* cmd buffer flush cache to ddr */
-		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
-
-		rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
+		rga_write(job->cmd_buf->dma_addr, RGA3_CMD_ADDR, scheduler);
 		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
 		rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
 	} else {
@@ -2058,7 +2094,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
 
 		for (i = 0; i <= 50; i++)
-			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+			rga_write(cmd[i], 0x100 + i * 4, scheduler);
 
 		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
 	}
@@ -2186,6 +2222,7 @@ const struct rga_backend_ops rga3_ops = {
 	.init_reg = rga3_init_reg,
 	.soft_reset = rga3_soft_reset,
 	.read_back_reg = NULL,
+	.read_status = NULL,
 	.irq = rga3_irq,
 	.isr_thread = rga3_isr_thread,
 };

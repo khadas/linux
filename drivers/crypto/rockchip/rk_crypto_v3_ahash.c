@@ -42,6 +42,12 @@ static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_SM3]    = CRYPTO_SM3,
 };
 
+static inline bool is_check_hash_valid(struct rk_crypto_dev *dev)
+{
+	/* crypto < v4 need to check hash valid */
+	return CRYPTO_MAJOR_VER(CRYPTO_READ(dev, CRYPTO_CRYPTO_VERSION)) < CRYPTO_MAJOR_VER_4;
+}
+
 static void rk_hash_reset(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
@@ -368,13 +374,15 @@ static int rk_ahash_get_result(struct rk_crypto_dev *rk_dev,
 
 	memset(ctx->priv, 0x00, sizeof(struct rk_hash_mid_data));
 
-	ret = read_poll_timeout_atomic(CRYPTO_READ, reg_ctrl,
-				       reg_ctrl & CRYPTO_HASH_IS_VALID,
-				       RK_POLL_PERIOD_US,
-				       RK_POLL_TIMEOUT_US, false,
-				       rk_dev, CRYPTO_HASH_VALID);
-	if (ret)
-		goto exit;
+	if (is_check_hash_valid(rk_dev)) {
+		ret = read_poll_timeout_atomic(CRYPTO_READ, reg_ctrl,
+					       reg_ctrl & CRYPTO_HASH_IS_VALID,
+					       RK_POLL_PERIOD_US,
+					       RK_POLL_TIMEOUT_US, false,
+					       rk_dev, CRYPTO_HASH_VALID);
+		if (ret)
+			goto exit;
+	}
 
 	rk_crypto_read_regs(rk_dev, CRYPTO_HASH_DOUT_0, data, data_len);
 

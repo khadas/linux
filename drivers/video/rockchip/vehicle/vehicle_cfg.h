@@ -15,7 +15,7 @@
 static int vehicle_debug;
 #define VEHICLE_DG(format, ...) do {	\
 	if (vehicle_debug)	\
-		pr_info("%s %s(%d): " format, __func__, __LINE__, ## __VA_ARGS__);	\
+		pr_info("%s(%d): " format, __func__, __LINE__, ## __VA_ARGS__);	\
 	} while (0)
 
 #define VEHICLE_DGERR(format, ...)  \
@@ -42,6 +42,29 @@ enum {
 	CIF_OUTPUT_FORMAT_422 = 0,
 	CIF_OUTPUT_FORMAT_420 = 1,
 };
+
+/* Serial flags */
+/* CSI-2 D-PHY number of data lanes. */
+#define V4L2_MBUS_CSI2_1_LANE			BIT(0)
+#define V4L2_MBUS_CSI2_2_LANE			BIT(1)
+#define V4L2_MBUS_CSI2_3_LANE			BIT(2)
+#define V4L2_MBUS_CSI2_4_LANE			BIT(3)
+/* CSI-2 Virtual Channel identifiers. */
+#define V4L2_MBUS_CSI2_CHANNEL_0		BIT(4)
+#define V4L2_MBUS_CSI2_CHANNEL_1		BIT(5)
+#define V4L2_MBUS_CSI2_CHANNEL_2		BIT(6)
+#define V4L2_MBUS_CSI2_CHANNEL_3		BIT(7)
+/* Clock non-continuous mode support. */
+#define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		BIT(8)
+
+#define V4L2_MBUS_CSI2_LANES		(V4L2_MBUS_CSI2_1_LANE | \
+					 V4L2_MBUS_CSI2_2_LANE | \
+					 V4L2_MBUS_CSI2_3_LANE | \
+					 V4L2_MBUS_CSI2_4_LANE)
+#define V4L2_MBUS_CSI2_CHANNELS		(V4L2_MBUS_CSI2_CHANNEL_0 | \
+					 V4L2_MBUS_CSI2_CHANNEL_1 | \
+					 V4L2_MBUS_CSI2_CHANNEL_2 | \
+					 V4L2_MBUS_CSI2_CHANNEL_3)
 
 struct vehicle_cfg {
 	/* output */

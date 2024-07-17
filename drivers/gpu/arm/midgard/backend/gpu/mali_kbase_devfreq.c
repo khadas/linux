@@ -343,6 +343,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	unsigned long opp_rate;
 	unsigned int dyn_power_coeff = 0;
 	int err;
+	struct device_node *model_dt_node;
 
 	if (!kbdev->clock) {
 		dev_err(kbdev->dev, "Clock not available for devfreq\n");
@@ -373,10 +374,20 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 			     &ondemand_data.upthreshold);
 	of_property_read_u32(np, "downdifferential",
 			     &ondemand_data.downdifferential);
-	of_property_read_u32(kbdev->dev->of_node, "dynamic-power-coefficient",
-			     &dyn_power_coeff);
-	if (dyn_power_coeff)
-		dp->is_cooling_device = true;
+
+	model_dt_node = of_get_compatible_child(np, "arm,mali-simple-power-model");
+	if (!model_dt_node) {
+		err = of_property_read_u32(np, "dynamic-power-coefficient",
+					   &dyn_power_coeff);
+		if (err) {
+			dev_err(kbdev->dev, "Couldn't find proper 'dynamic-power-coefficient' in DT\n");
+			goto devfreq_add_dev_failed;
+		} else {
+			dp->is_cooling_device = true;
+		}
+	} else {
+		of_node_put(model_dt_node);
+	}
 
 	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp,
 				"simple_ondemand", &ondemand_data);

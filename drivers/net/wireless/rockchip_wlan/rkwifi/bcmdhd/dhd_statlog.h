@@ -171,7 +171,26 @@ typedef enum stat_log_stat {
 	ST(ASSOC_NO_NETWORKS)	= 86,	/* association failure due to no networks */
 	ST(ASSOC_OTHERS)	= 87,	/* association failure due to no networks */
 	ST(REASSOC_DONE_OTHERS)	= 88,	/* complete to reassoc with other reason */
-	ST(MAX)			= 89	/* Max Status */
+	ST(SOLICIT) 		= 89,	/* DHCPv6 Solicit */
+	ST(ADVERTISE) 		= 90,	/* DHCPv6 Advertise */
+	ST(REQUEST) 		= 91,	/* DHCPv6 Request */
+	ST(CONFIRM) 		= 92,	/* DHCPv6 Confirm */
+	ST(RENEW) 		= 93,	/* DHCPv6 Renew */
+	ST(REBIND) 		= 94,	/* DHCPv6 Rebind */
+	ST(REPLY) 		= 95,	/* DHCPv6 Reply */
+	ST(RELEASE) 		= 96,	/* DHCPv6 Release */
+	ST(DECLINE) 		= 97,	/* DHCPv6 Decline */
+	ST(RECONFIGURE) 	= 98,	/* ICMPv6 Reconfigure */
+	ST(ECHO_REQ) 		= 99,	/* ICMPv6 Echo Req */
+	ST(ECHO_REPLY) 		= 100,	/* ICMPv6 Echo Reply */
+	ST(MULTI_QUERY) 	= 101,	/* ICMPv6 Multi Query */
+	ST(MULTI_REPORT) 	= 102,	/* ICMPv6 Multi Report */
+	ST(MULTI_DONE) 		= 103,	/* ICMPv6 Multi Done */
+	ST(ROUTER_SOLIC) 	= 104,	/* ICMPv6 Router Solic */
+	ST(ROUTER_ADV) 		= 105,	/* ICMPv6 Router Adv */
+	ST(NEIGHBOR_SOLIC) 	= 106,	/* ICMPv6 Neighbor Solic */
+	ST(NEIGHBOR_ADV) 	= 107,	/* ICMPv6 Neighbor Adv */
+	ST(MAX)			= 108	/* Max Status */
 } stat_log_stat_t;
 
 /* functions */

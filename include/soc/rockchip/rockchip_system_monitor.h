@@ -104,17 +104,18 @@ struct monitor_dev_info {
 	struct freq_qos_request min_sta_freq_req;
 	struct freq_qos_request max_sta_freq_req;
 	struct dev_pm_qos_request dev_max_freq_req;
-	struct regulator *early_reg;
+	struct regulator *early_reg[2];
 	unsigned long low_limit;
 	unsigned long high_limit;
 	unsigned long max_volt;
 	unsigned long low_temp_min_volt;
 	unsigned long high_temp_max_volt;
+	unsigned int early_suspend_freq;
 	unsigned int video_4k_freq;
 	unsigned int reboot_freq;
 	unsigned int status_min_limit;
 	unsigned int status_max_limit;
-	unsigned int early_min_volt;
+	unsigned int early_min_volt[2];
 	int low_temp;
 	int high_temp;
 	int temp_hysteresis;
@@ -211,5 +212,18 @@ rockchip_system_monitor_unregister_notifier(struct notifier_block *nb)
 {
 };
 #endif /* CONFIG_ROCKCHIP_SYSTEM_MONITOR */
+
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+void rockchip_request_early_suspend(void);
+void rockchip_request_late_resume(void);
+#else
+static inline void rockchip_request_early_suspend(void)
+{
+}
+
+static inline void rockchip_request_late_resume(void)
+{
+}
+#endif
 
 #endif

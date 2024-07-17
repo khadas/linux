@@ -282,7 +282,7 @@ static const struct i2c_device_id light_al3006_id[] = {
 
 static struct i2c_driver light_al3006_driver = {
 	.probe = light_al3006_probe,
-	.remove = light_al3006_remove,
+	.remove = (void *)light_al3006_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = light_al3006_id,
 	.driver = {

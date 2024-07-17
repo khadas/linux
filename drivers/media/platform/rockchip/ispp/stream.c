@@ -1561,6 +1561,9 @@ static void dump_file(struct rkispp_device *dev, u32 restart_module)
 	char file[160], reg[48];
 	int i;
 
+	if (!IS_ENABLED(CONFIG_NO_GKI))
+		return;
+
 	snprintf(file, sizeof(file), "%s/%s%d.reg",
 		 rkispp_dump_path, DRIVER_NAME, dev->dev_id);
 	fp = filp_open(file, O_RDWR | O_CREAT, 0644);

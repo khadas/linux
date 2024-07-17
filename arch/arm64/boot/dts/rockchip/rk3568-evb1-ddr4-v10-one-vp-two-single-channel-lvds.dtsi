@@ -102,7 +102,7 @@
 
 &lvds0 {
 	status = "okay";
-	dual-channel;
+	rockchip,dual-channel;
 
 	ports {
 		port@1 {

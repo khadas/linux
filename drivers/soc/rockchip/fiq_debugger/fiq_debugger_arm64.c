@@ -159,7 +159,6 @@ struct stacktrace_state {
 	unsigned int depth;
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0)
 static bool report_trace(void *data, unsigned long pc)
 {
 	struct stacktrace_state *sts = data;
@@ -173,7 +172,6 @@ static bool report_trace(void *data, unsigned long pc)
 
 	return sts->depth != 0;
 }
-#endif
 
 void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		const struct pt_regs *regs, unsigned int depth, void *ssp)
@@ -198,6 +196,11 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		frame.prev_type = STACK_TYPE_UNKNOWN;
 		output->printf(output, "\n");
 		walk_stackframe(current, &frame, report_trace, &sts);
+	}
+#else
+	if (!user_mode(regs)) {
+		output->printf(output, "\n");
+		arch_stack_walk(report_trace, (void *)&sts, current, (struct pt_regs *)regs);
 	}
 #endif
 }

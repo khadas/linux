@@ -82,7 +82,6 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	struct optee_supp_req *req;
 	bool interruptable;
 	u32 ret;
-	unsigned long timeleft;
 	int id;
 	struct optee_supp_req *get_req;
 
@@ -117,14 +116,12 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	 * exclusive access again.
 	 */
 	while (wait_for_completion_interruptible(&req->c)) {
-		pr_err("Warning, Interrupting an RPC to supplicant!\n");
-		timeleft = wait_for_completion_timeout(&req->c, msecs_to_jiffies(2000));
-		if (timeleft) {
-			/* get completion, it means tee-supplicant is alive. */
-			break;
-		} else {
-			/* timeout, it means tee-supplicant is dead, interrupting an RPC. */
+		if (supp->shutdown) {
+			/* Reboot happen, tee-supplicant is dead, interrupt an RPC */
 			interruptable = true;
+		} else {
+			/* Deep sleep, tee-supplicant is freeze, wait tee-supplicant */
+			continue;
 		}
 
 		mutex_lock(&supp->mutex);

@@ -772,6 +772,16 @@ config SPI_ROCKCHIP_MISCDEV
 	  for each spi controller and support to get the controller register
 	  resource by calling mmap.
 
+config SPI_ROCKCHIP_FLEXBUS_FSPI
+	tristate "Rockchip Flexbus controller under SPI transmission protocol"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on HAS_IOMEM && HAS_DMA
+	select MFD_ROCKCHIP_FLEXBUS
+	help
+	  This enables support for Rockchip Flexbus controller under SPI
+	  transmission protocol. This is a specialized controller used to access
+	  SPI flash on some Rockchip SOCs.
+
 config SPI_ROCKCHIP_SFC
 	tristate "Rockchip Serial Flash Controller (SFC)"
 	imply ROCKCHIP_MTD_VENDOR_STORAGE
@@ -1115,6 +1125,7 @@ config SPI_XTENSA_XTFPGA
 config SPI_ZYNQ_QSPI
 	tristate "Xilinx Zynq QSPI controller"
 	depends on ARCH_ZYNQ || COMPILE_TEST
+	depends on SPI_MEM
 	help
 	  This enables support for the Zynq Quad SPI controller
 	  in master mode.
@@ -1122,9 +1133,10 @@ config SPI_ZYNQ_QSPI
 
 config SPI_ZYNQMP_GQSPI
 	tristate "Xilinx ZynqMP GQSPI controller"
-	depends on (SPI_MASTER && HAS_DMA) || COMPILE_TEST
+	depends on (SPI_MEM && HAS_DMA) || COMPILE_TEST
 	help
 	  Enables Xilinx GQSPI controller driver for Zynq UltraScale+ MPSoC.
+	  This controller only supports SPI memory interface.
 
 config SPI_AMD
 	tristate "AMD SPI controller"

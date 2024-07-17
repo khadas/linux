@@ -132,16 +132,16 @@ init_err:
 
 int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 {
-	struct panel_simple *panel;
+	struct rk628_panel_simple *panel;
 	struct device *dev = rk628->dev;
 	struct device_node *backlight;
 	int ret;
 
-	panel = devm_kzalloc(dev, sizeof(struct panel_simple), GFP_KERNEL);
+	panel = devm_kzalloc(dev, sizeof(struct rk628_panel_simple), GFP_KERNEL);
 	if (!panel)
 		return -ENOMEM;
 
-	panel->supply = devm_regulator_get(dev, "power");
+	panel->supply = devm_regulator_get(dev, "panel-power");
 	if (IS_ERR(panel->supply)) {
 		ret = PTR_ERR(panel->supply);
 		dev_err(dev, "failed to get power regulator: %d\n", ret);
@@ -174,9 +174,16 @@ int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 
 	}
 
+	device_property_read_u32(dev, "panel-prepare-delay-ms", &panel->delay.prepare);
+	device_property_read_u32(dev, "panel-enable-delay-ms", &panel->delay.enable);
+	device_property_read_u32(dev, "panel-disable-delay-ms", &panel->delay.disable);
+	device_property_read_u32(dev, "panel-unprepare-delay-ms", &panel->delay.unprepare);
+	device_property_read_u32(dev, "panel-reset-delay-ms", &panel->delay.reset);
+	device_property_read_u32(dev, "panel-init-delay-ms", &panel->delay.init);
+
 	rk628->panel = panel;
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
+	if (rk628_output_is_dsi(rk628)) {
 		ret = dsi_panel_get_cmds(rk628, np);
 		if (ret) {
 			dev_err(dev, "failed to get cmds\n");
@@ -189,57 +196,75 @@ int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 
 void rk628_panel_prepare(struct rk628 *rk628)
 {
+	struct rk628_panel_simple *p = rk628->panel;
 	int ret;
 
-	if (rk628->panel->supply) {
-		ret = regulator_enable(rk628->panel->supply);
+	if (!p)
+		return;
+
+	if (p->supply) {
+		ret = regulator_enable(p->supply);
 		if (ret)
 			dev_info(rk628->dev, "failed to enable panel power supply\n");
+
 	}
 
-	if (rk628->panel->enable_gpio) {
-		gpiod_set_value(rk628->panel->enable_gpio, 0);
-		mdelay(120);
-		gpiod_set_value(rk628->panel->enable_gpio, 1);
-		mdelay(120);
-	}
+	gpiod_direction_output(p->enable_gpio, 1);
+	if (p->delay.prepare)
+		msleep(p->delay.prepare);
 
-	if (rk628->panel->reset_gpio) {
-		gpiod_set_value(rk628->panel->reset_gpio, 0);
-		mdelay(120);
-		gpiod_set_value(rk628->panel->reset_gpio, 1);
-		mdelay(120);
-		gpiod_set_value(rk628->panel->reset_gpio, 0);
-		mdelay(120);
-	}
+	gpiod_direction_output(p->reset_gpio, 1);
+
+	if (p->delay.reset)
+		msleep(p->delay.reset);
+
+	gpiod_direction_output(p->reset_gpio, 0);
+
+	if (p->delay.init)
+		msleep(p->delay.init);
 }
 
 void rk628_panel_enable(struct rk628 *rk628)
 {
-	if (rk628->panel->backlight)
-		backlight_enable(rk628->panel->backlight);
+	struct rk628_panel_simple *p = rk628->panel;
+
+	if (!p)
+		return;
+
+	if (p->delay.enable)
+		msleep(p->delay.enable);
+
+	if (p->backlight)
+		backlight_enable(p->backlight);
 }
 
 void rk628_panel_unprepare(struct rk628 *rk628)
 {
+	struct rk628_panel_simple *p = rk628->panel;
 
-	if (rk628->panel->reset_gpio) {
-		gpiod_set_value(rk628->panel->reset_gpio, 1);
-		mdelay(120);
-	}
+	if (!p)
+		return;
 
-	if (rk628->panel->enable_gpio) {
-		gpiod_set_value(rk628->panel->enable_gpio, 0);
-		mdelay(120);
-	}
+	gpiod_direction_output(p->reset_gpio, 1);
+	gpiod_direction_output(p->enable_gpio, 0);
 
 	if (rk628->panel->supply)
 		regulator_disable(rk628->panel->supply);
+
+	if (p->delay.unprepare)
+		msleep(p->delay.unprepare);
 }
 
 void rk628_panel_disable(struct rk628 *rk628)
 {
-	if (rk628->panel->backlight)
-		backlight_disable(rk628->panel->backlight);
+	struct rk628_panel_simple *p = rk628->panel;
 
+	if (!p)
+		return;
+
+	if (p->backlight)
+		backlight_disable(p->backlight);
+
+	if (p->delay.disable)
+		msleep(p->delay.disable);
 }

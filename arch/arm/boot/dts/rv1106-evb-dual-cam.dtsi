@@ -44,6 +44,12 @@
 				remote-endpoint = <&sc301iot_out>;
 				data-lanes = <1 2>;
 			};
+
+			csi_dphy_input6: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&sc530ai_out>;
+				data-lanes = <1 2>;
+			};
 		};
 
 		port@1 {
@@ -86,6 +92,12 @@
 			csi_dphy_input5: endpoint@3 {
 				reg = <3>;
 				remote-endpoint = <&sc301iot_1_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy_input7: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&sc530ai_1_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -175,6 +187,28 @@
 		};
 	};
 
+	sc530ai: sc530ai@30 {
+		compatible = "smartsens,sc530ai";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2115-PC1";
+		rockchip,camera-module-lens-name = "30IRC-F16";
+		port {
+			sc530ai_out: endpoint {
+				remote-endpoint = <&csi_dphy_input6>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	sc4336: sc4336@30 {
 		compatible = "smartsens,sc4336";
 		status = "okay";
@@ -236,6 +270,28 @@
 		port {
 			sc301iot_1_out: endpoint {
 				remote-endpoint = <&csi_dphy_input5>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc530ai_1: sc530ai_1@32 {
+		compatible = "smartsens,sc530ai";
+		status = "okay";
+		reg = <0x32>;
+		clocks = <&cru MCLK_REF_MIPI1>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out1>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2115-PC1";
+		rockchip,camera-module-lens-name = "30IRC-F16";
+		port {
+			sc530ai_1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input7>;
 				data-lanes = <1 2>;
 			};
 		};

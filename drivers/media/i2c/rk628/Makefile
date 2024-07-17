@@ -2,7 +2,8 @@
 #
 # Makefile for the Rockchip RK628 display bridge driver.
 #
-video-rk628-objs	:= rk628.o rk628_cru.o rk628_hdmirx.o rk628_dsi.o rk628_combrxphy.o rk628_combtxphy.o
+video-rk628-objs	:= rk628.o rk628_cru.o rk628_hdmirx.o rk628_dsi.o rk628_combrxphy.o \
+				rk628_combtxphy.o rk628_mipi_dphy.o rk628_post_process.o
 obj-$(CONFIG_VIDEO_RK628)	+= video-rk628.o
 
 rk628-csi-objs	:= rk628_csi_v4l2.o

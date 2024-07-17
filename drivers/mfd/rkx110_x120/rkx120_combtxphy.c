@@ -307,6 +307,19 @@ static void rkx120_combtxphy_lvds_power_on(struct rk_serdes *des,
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON13, TX_IDLE(0));
 }
 
+static void rkx120_combtxphy_lvds_power_off(struct rk_serdes *des,
+					    struct rkx120_combtxphy *combtxphy,
+					    u8 dev_id, u8 phy_id)
+{
+	struct i2c_client *client = des->chip[dev_id].client;
+	u32 grf_base = (phy_id == 0) ?
+			RKX120_GRF_MIPI0_BASE : RKX120_GRF_MIPI1_BASE;
+
+	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON14, TX_PD(0));
+	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON0, PHYSHUTDWN(0));
+	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON1, PWON_PLL(0));
+}
+
 void rkx120_combtxphy_power_on(struct rk_serdes *des, struct rkx120_combtxphy *combtxphy,
 			       u8 dev_id, u8 phy_id)
 {
@@ -330,6 +343,7 @@ void rkx120_combtxphy_power_off(struct rk_serdes *des, struct rkx120_combtxphy *
 		rkx120_combtxphy_dsi_power_off(des, dev_id);
 		break;
 	case COMBTX_PHY_MODE_VIDEO_LVDS:
+		rkx120_combtxphy_lvds_power_off(des, combtxphy, dev_id, phy_id);
 		break;
 	case COMBTX_PHY_MODE_GPIO:
 		break;

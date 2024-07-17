@@ -38,6 +38,7 @@
 #include <dhd_bus.h>
 
 #include <dhd_dbg.h>
+#include <dhd_debug.h>
 #include <dhd_config.h>
 #include <wl_android.h>
 
@@ -943,6 +944,9 @@ _dhd_wlfc_flow_control_check(athost_wl_status_info_t* ctx, struct pktq* pq, uint
 	dhdp = (dhd_pub_t *)ctx->dhdp;
 	ASSERT(dhdp);
 
+	/* Return for the bc/mc and unknown destinations configured by
+	 * &wlfc->destination_entries.other to prevent from out-of-boundary access
+	 * in array (BRK exception) kernel panic issue. */
 	if (if_id >= WLFC_MAX_IFNUM)
 		return;
 
@@ -1604,7 +1608,7 @@ _dhd_wlfc_pktq_flush(athost_wl_status_info_t* ctx, struct pktq *pq,
 				bool head = (p == q->head);
 				if (head)
 					q->head = PKTLINK(p);
-				else
+				else if (prev)
 					PKTSETLINK(prev, PKTLINK(p));
 				if (q_type == Q_TYPE_PSQ) {
 					if (!WLFC_GET_AFQ(dhdp->wlfc_mode) && (prec & 1)) {
@@ -3785,6 +3789,11 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 #endif
 	dhd_os_wlfc_unblock(dhd);
 
+	/* Only initialize the wlfc structure when fw supports proptx */
+	if (FW_SUPPORTED(dhd, proptxstatus)) {
+		dhd_wlfc_enable(dhd);
+	}
+
 	if (dhd->plat_init)
 		dhd->plat_init((void *)dhd);
 
@@ -4450,7 +4459,6 @@ int dhd_wlfc_set_mode(dhd_pub_t *dhd, int val)
 /** Called when rx frame is received from the dongle */
 bool dhd_wlfc_is_header_only_pkt(dhd_pub_t * dhd, void *pktbuf)
 {
-	athost_wl_status_info_t* wlfc;
 	bool rc = FALSE;
 
 	if (dhd == NULL) {
@@ -4460,16 +4468,20 @@ bool dhd_wlfc_is_header_only_pkt(dhd_pub_t * dhd, void *pktbuf)
 
 	dhd_os_wlfc_block(dhd);
 
-	if (!dhd->wlfc_state || (dhd->proptxstatus_mode == WLFC_FCMODE_NONE)) {
-		dhd_os_wlfc_unblock(dhd);
-		return FALSE;
-	}
-
-	wlfc = (athost_wl_status_info_t*)dhd->wlfc_state;
-
-	if (PKTLEN(wlfc->osh, pktbuf) == 0) {
-		wlfc->stats.wlfc_header_only_pkt++;
+	// process for both wlfc or hostreorder case
+	if (0 == PKTLEN(dhd->osh, pktbuf)) {
 		rc = TRUE;
+
+		if (   (dhd->wlfc_state)
+		    && (   (WLFC_FCMODE_IMPLIED_CREDIT == dhd->proptxstatus_mode)
+		        || (WLFC_FCMODE_EXPLICIT_CREDIT == dhd->proptxstatus_mode)
+		       )
+		   ) {
+			athost_wl_status_info_t* wlfc;
+
+			wlfc = (athost_wl_status_info_t*)dhd->wlfc_state;
+			wlfc->stats.wlfc_header_only_pkt++;
+		}
 	}
 
 	dhd_os_wlfc_unblock(dhd);
@@ -4720,10 +4732,6 @@ int dhd_txpkt_log_and_dump(dhd_pub_t *dhdp, void* pkt, uint16 *pktfate_status)
 	uint8 hcnt = WL_TXSTATUS_GET_FREERUNCTR(DHD_PKTTAG_H2DTAG(PKTTAG(pkt)));
 	uint8 fifo_id = DHD_PKTTAG_FIFO(PKTTAG(pkt));
 
-	if (!pkt) {
-		DHD_ERROR(("Error: %s():%d\n", __FUNCTION__, __LINE__));
-		return BCME_BADARG;
-	}
 	pktid = (ifidx << DHD_PKTID_IF_SHIFT) | (fifo_id << DHD_PKTID_FIFO_SHIFT) | hcnt;
 #ifdef BDC
 	bdch = (struct bdc_header *)pktdata;
@@ -4731,6 +4739,15 @@ int dhd_txpkt_log_and_dump(dhd_pub_t *dhdp, void* pkt, uint16 *pktfate_status)
 	pktlen -= bdc_len;
 	pktdata = pktdata + bdc_len;
 #endif /* BDC */
+
+#if defined(DBG_PKT_MON)
+	if (pktfate_status) {
+		DHD_DBG_PKT_MON_TX_STATUS(dhdp, pkt, pktid, *pktfate_status);
+	} else {
+		DHD_DBG_PKT_MON_TX(dhdp, pkt, pktid, FRAME_TYPE_ETHERNET_II, 0);
+	}
+#endif
+
 	dhd_handle_pktdata(dhdp, ifidx, pkt, pktdata, pktid, pktlen,
 		pktfate_status, NULL, NULL, TRUE, FALSE, TRUE);
 	return BCME_OK;

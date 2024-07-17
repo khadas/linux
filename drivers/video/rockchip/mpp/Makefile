@@ -21,10 +21,12 @@ rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VDPU2)  += mpp_vdpu2.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VEPU2)  += mpp_vepu2.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_IEP2)   += mpp_iep2.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_JPGDEC) += mpp_jpgdec.o
+rk_vcodec-$(CONFIG_ROCKCHIP_MPP_JPGENC) += mpp_jpgenc.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_AV1DEC) += mpp_av1dec.o
 rk_vcodec-$(CONFIG_ROCKCHIP_MPP_VDPP)   += mpp_vdpp.o
 
 # hack for workaround
 rk_vcodec-$(CONFIG_CPU_PX30) += hack/mpp_hack_px30.o
+rk_vcodec-$(CONFIG_CPU_RK3576) += hack/mpp_hack_rk3576.o
 
 obj-$(CONFIG_ROCKCHIP_MPP_SERVICE) += rk_vcodec.o

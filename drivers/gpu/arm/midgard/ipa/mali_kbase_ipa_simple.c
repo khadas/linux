@@ -145,9 +145,9 @@ static int add_params(struct kbase_ipa_model *model)
 	if (err)
 		goto end;
 
-	err = kbase_ipa_model_add_param_s32(model, "dynamic-coefficient",
-					    &model_data->dynamic_coefficient,
-					    1, true);
+	err = of_property_read_u32_array(model->kbdev->dev->of_node,
+					"dynamic-power-coefficient",
+					&model_data->dynamic_coefficient, 1);
 	if (err)
 		goto end;
 

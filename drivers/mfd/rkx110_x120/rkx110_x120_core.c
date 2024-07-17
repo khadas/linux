@@ -603,7 +603,6 @@ static void rk_serdes_function_debugfs_init(struct rk_serdes *serdes)
 
 static void rk_serdes_debugfs_init(struct rk_serdes *serdes)
 {
-#if defined(CONFIG_DEBUG_FS)
 	serdes->debugfs_root =
 		debugfs_create_dir(dev_name(serdes->dev), debugfs_lookup("rkserdes", NULL));
 	serdes->debugfs_local = debugfs_create_dir("local", serdes->debugfs_root);
@@ -633,7 +632,6 @@ static void rk_serdes_debugfs_init(struct rk_serdes *serdes)
 
 		rk_serdes_function_debugfs_init(serdes);
 	}
-#endif
 }
 
 static void rk_serdes_read_chip_id(struct rk_serdes *serdes)

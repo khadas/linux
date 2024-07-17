@@ -8,10 +8,15 @@
 #include "rk3568-amp.dtsi"
 
 / {
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x03880000 0x0 0x04b80000>,
-		      <0x0 0x0a200000 0x0 0x75e00000>;
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		amp_reserved: amp@1800000 {
+			reg = <0x0 0x01800000 0x0 0x01800000>;
+			no-map;
+		};
 	};
 };
 

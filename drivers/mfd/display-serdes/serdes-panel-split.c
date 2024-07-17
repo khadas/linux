@@ -194,6 +194,7 @@ static int serdes_panel_split_probe(struct platform_device *pdev)
 	struct serdes *serdes = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
 	struct serdes_panel_split *serdes_panel_split;
+	struct device_node *np = NULL;
 	int ret;
 
 	serdes_panel_split = devm_kzalloc(dev, sizeof(*serdes_panel_split), GFP_KERNEL);
@@ -213,10 +214,14 @@ static int serdes_panel_split_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to parse serdes DT\n");
 
-	serdes_panel_split->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(serdes_panel_split->backlight))
-		return dev_err_probe(dev, PTR_ERR(serdes_panel_split->backlight),
-				     "failed to get serdes backlight\n");
+	np = of_parse_phandle(dev->of_node, "backlight", 0);
+	if (np) {
+		serdes_panel_split->backlight = of_find_backlight_by_node(np);
+		of_node_put(np);
+		if (!serdes_panel_split->backlight)
+			return dev_err_probe(dev, -EPROBE_DEFER,
+					     "failed to get serdes backlight\n");
+	}
 
 	if (serdes_panel_split->parent->chip_data->connector_type) {
 		drm_panel_init(&serdes_panel_split->panel, dev, &serdes_panel_split_funcs,
@@ -236,6 +241,10 @@ static int serdes_panel_split_probe(struct platform_device *pdev)
 static int serdes_panel_split_remove(struct platform_device *pdev)
 {
 	struct serdes_panel_split *serdes_panel_split = platform_get_drvdata(pdev);
+	struct backlight_device *backlight = serdes_panel_split->backlight;
+
+	if (backlight)
+		put_device(&backlight->dev);
 
 	drm_panel_remove(&serdes_panel_split->panel);
 

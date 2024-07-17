@@ -239,7 +239,7 @@ static const struct i2c_device_id gyro_l3g20d_id[] = {
 
 static struct i2c_driver gyro_l3g20d_driver = {
 	.probe = gyro_l3g20d_probe,
-	.remove = gyro_l3g20d_remove,
+	.remove = (void *)gyro_l3g20d_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gyro_l3g20d_id,
 	.driver = {

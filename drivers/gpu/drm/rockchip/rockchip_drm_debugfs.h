@@ -47,8 +47,14 @@ struct vop_dump_list {
 	struct vop_dump_info dump_info;
 };
 
+/**
+ * @DUMP_DISABLE: Disable dump and do not record plane info into list.
+ * @DUMP_ENABLE: Record plane info into list.
+ * @DUMP_KEEP: Record plane info into list and keep to dump plane.
+ */
 enum vop_dump_status {
 	DUMP_DISABLE = 0,
+	DUMP_ENABLE,
 	DUMP_KEEP
 };
 

@@ -23,12 +23,15 @@
 		};
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x02000000 0x0 0x06400000>,
-		      <0x0 0x09400000 0x0 0xe6c00000>,
-		      <0x1 0x00000000 0x1 0x00000000>,
-		      <0x2 0xf0000000 0x0 0x10000000>;
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		amp_reserved: amp@800000 {
+			reg = <0x0 0x00800000 0x0 0x01800000>;
+			no-map;
+		};
 	};
 };
 

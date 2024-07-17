@@ -40,6 +40,10 @@ enum rkisp_ispp_dev {
 	DEV_ID1,
 	DEV_ID2,
 	DEV_ID3,
+	DEV_ID4,
+	DEV_ID5,
+	DEV_ID6,
+	DEV_ID7,
 	DEV_MAX,
 };
 

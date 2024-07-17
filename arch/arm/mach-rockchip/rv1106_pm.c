@@ -27,6 +27,24 @@
 
 #define RV1106_PM_REG_REGION_MEM_SIZE		SZ_4K
 
+#define CRU_PVTPLL0_CON0_L		0x00
+#define CRU_PVTPLL0_CON0_H		0x04
+#define CRU_PVTPLL0_CON1_L		0x08
+#define CRU_PVTPLL0_CON1_H		0x0c
+#define CRU_PVTPLL0_CON2_L		0x10
+#define CRU_PVTPLL0_CON2_H		0x14
+#define CRU_PVTPLL0_CON3_L		0x18
+#define CRU_PVTPLL0_CON3_H		0x1c
+
+#define CRU_PVTPLL1_CON0_L		0x30
+#define CRU_PVTPLL1_CON0_H		0x34
+#define CRU_PVTPLL1_CON1_L		0x38
+#define CRU_PVTPLL1_CON1_H		0x3c
+#define CRU_PVTPLL1_CON2_L		0x40
+#define CRU_PVTPLL1_CON2_H		0x44
+#define CRU_PVTPLL1_CON3_L		0x48
+#define CRU_PVTPLL1_CON3_H		0x4c
+
 enum {
 	RV1106_GPIO_PULL_NONE,
 	RV1106_GPIO_PULL_UP,
@@ -55,6 +73,7 @@ struct rv1106_sleep_ddr_data {
 	u32 gpio0a_iomux_l, gpio0a_iomux_h, gpio0a0_pull;
 	u32 gpio0_ddr_l, gpio0_ddr_h;
 	u32 pmu_wkup_int_st, gpio0_int_st;
+	u32 sleep_clk_freq_hz;
 };
 
 static struct rv1106_sleep_ddr_data ddr_data;
@@ -98,6 +117,8 @@ static void __iomem *firewall_syssram_base;
 static void __iomem *pmu_base;
 static void __iomem *nstimer_base;
 static void __iomem *stimer_base;
+static void __iomem *wdt_ns_base;
+static void __iomem *wdt_s_base;
 static void __iomem *mbox_base;
 static void __iomem *ddrc_base;
 static void __iomem *ioc_base[5];
@@ -110,10 +131,6 @@ static struct reg_region vd_core_reg_rgns[] = {
 	/* core_cru */
 	{ REG_REGION(0x300, 0x310, 4, &corecru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x804, 4, &corecru_base, WMSK_VAL)},
-
-	/* pvtpll_cru */
-	{ REG_REGION(0x00, 0x24, 4, &pvtpllcru_base, WMSK_VAL)},
-	{ REG_REGION(0x30, 0x54, 4, &pvtpllcru_base, WMSK_VAL)},
 
 	/* core_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &coresgrf_base, 0)},
@@ -177,6 +194,10 @@ static struct reg_region vd_log_reg_rgns[] = {
 	/* peri_cru */
 	{ REG_REGION(0x304, 0x32c, 4, &pericru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x81c, 4, &pericru_base, WMSK_VAL)},
+
+	/* peri_grf */
+	{ REG_REGION(0x000, 0x004, 4, &perigrf_base, WMSK_VAL)},
+	{ REG_REGION(0x090, 0x094, 4, &perigrf_base, WMSK_VAL)},
 
 	/* peri_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &perisgrf_base, 0)},
@@ -284,6 +305,14 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x10, 0x10, 4, &stimer_base, 0)},
 	{ REG_REGION(0x20, 0x24, 4, &stimer_base, 0)},
 	{ REG_REGION(0x30, 0x30, 4, &stimer_base, 0)},
+
+	/* wdt_ns */
+	{ REG_REGION(0x04, 0x04, 4, &wdt_ns_base, 0)},
+	{ REG_REGION(0x00, 0x00, 4, &wdt_ns_base, 0)},
+
+	/* wdt_s */
+	{ REG_REGION(0x04, 0x04, 4, &wdt_s_base, 0)},
+	{ REG_REGION(0x00, 0x00, 4, &wdt_s_base, 0)},
 };
 
 static int is_rv1103, is_rv1106;
@@ -588,28 +617,27 @@ static void clock_resume(void)
 			       vocru_base + RV1106_VOCRU_GATE_CON(i));
 }
 
-static void pvtm_32k_config(int flag)
+static void pvtm_32k_config(void)
 {
-	int value;
-	int pvtm_freq_khz, pvtm_div;
-	int sleep_clk_freq_khz;
+	u64 value, pvtm_freq_hz;
+	int pvtm_div;
+	u32 pvtm_div_freq_hz;
 
 	ddr_data.pmucru_sel_con7 =
 		readl_relaxed(pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
-	if (flag) {
-		writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 6), vigrf_base + 0x0);
-		writel_relaxed(BITS_WITH_WMASK(0x4, 0xf, 0), ioc_base[0] + 0);
-		writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 15),
+	if (slp_cfg->mode_config & RKPM_SLP_32K_EXT) {
+		writel_relaxed(BITS_WITH_WMASK(0x3, 0x3, 14),
 			       pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
 		writel_relaxed(BITS_WITH_WMASK(0x1, 0x3, 0),
 			       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
+		ddr_data.sleep_clk_freq_hz = 32768;
 	} else {
 		writel_relaxed(BITS_WITH_WMASK(0, 0x3, 0),
 			       pmupvtm_base + RV1106_PVTM_CON(2));
 		writel_relaxed(RV1106_PVTM_CALC_CNT,
 			       pmupvtm_base + RV1106_PVTM_CON(1));
-		writel_relaxed(BITS_WITH_WMASK(0, 0x3, PVTM_START),
+		writel_relaxed(BITS_WITH_WMASK(0, 0x1, PVTM_START),
 			       pmupvtm_base + RV1106_PVTM_CON(0));
 		dsb();
 
@@ -634,8 +662,11 @@ static void pvtm_32k_config(int flag)
 			;
 
 		value = (readl_relaxed(pmupvtm_base + RV1106_PVTM_STATUS(1)));
-		pvtm_freq_khz = (value * 24000 + RV1106_PVTM_CALC_CNT / 2) / RV1106_PVTM_CALC_CNT;
-		pvtm_div = (pvtm_freq_khz + 16) / 32 - 1;
+		pvtm_freq_hz = (value * 24000000 + RV1106_PVTM_CALC_CNT / 2);
+		pvtm_freq_hz = div_u64(pvtm_freq_hz, RV1106_PVTM_CALC_CNT);
+
+		pvtm_div = ((u32)pvtm_freq_hz + RV1106_PVTM_TARGET_FREQ / 2) /
+			   RV1106_PVTM_TARGET_FREQ - 1;
 		if (pvtm_div > 0xfff)
 			pvtm_div = 0xfff;
 
@@ -646,12 +677,19 @@ static void pvtm_32k_config(int flag)
 		writel_relaxed(BITS_WITH_WMASK(0x2, 0x3, 0),
 			       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
-		sleep_clk_freq_khz = pvtm_freq_khz / (pvtm_div + 1);
+		pvtm_div_freq_hz = (u32)pvtm_freq_hz  / (pvtm_div + 1);
+		ddr_data.sleep_clk_freq_hz = pvtm_div_freq_hz;
 
-		rkpm_printstr("pvtm real_freq (khz):");
-		rkpm_printhex(sleep_clk_freq_khz);
+		rkpm_printstr("pvtm freq (hz):");
+		rkpm_printdec(pvtm_freq_hz);
+		rkpm_printch('-');
+		rkpm_printdec(pvtm_div_freq_hz);
 		rkpm_printch('\n');
 	}
+
+	rkpm_printstr("sleep freq (hz):");
+	rkpm_printdec(ddr_data.sleep_clk_freq_hz);
+	rkpm_printch('\n');
 }
 
 static void pvtm_32k_config_restore(void)
@@ -660,7 +698,9 @@ static void pvtm_32k_config_restore(void)
 		       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
 	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE)
-		rk_hptimer_do_soft_adjust_no_wait(hptimer_base);
+		rk_hptimer_do_soft_adjust_no_wait(hptimer_base,
+						  24000000,
+						  ddr_data.sleep_clk_freq_hz);
 }
 
 static void ddr_sleep_config(void)
@@ -860,7 +900,7 @@ static void soc_sleep_config(void)
 
 	rkpm_printch('a');
 
-	pvtm_32k_config(0);
+	pvtm_32k_config();
 	rkpm_printch('b');
 
 	ddr_sleep_config();
@@ -1002,6 +1042,28 @@ static void gpio_restore(void)
 
 static struct uart_debug_ctx debug_port_save;
 static u32 cru_mode;
+static u32 pvtpll0_length, pvtpll1_length;
+
+static void pvtpllcru_save(void)
+{
+	pvtpll0_length = readl_relaxed(pvtpllcru_base + CRU_PVTPLL0_CON0_H);
+	pvtpll1_length = readl_relaxed(pvtpllcru_base + CRU_PVTPLL1_CON0_H);
+}
+
+static void pvtpllcru_restore(void)
+{
+	writel_relaxed(0x00030000, pvtpllcru_base + CRU_PVTPLL0_CON0_L);
+	writel_relaxed(0x007f0000 | pvtpll0_length, pvtpllcru_base + CRU_PVTPLL0_CON0_H);
+	writel_relaxed(0xffff0018, pvtpllcru_base + CRU_PVTPLL0_CON1_L);
+	writel_relaxed(0xffff0004, pvtpllcru_base + CRU_PVTPLL0_CON2_H);
+	writel_relaxed(0x00030003, pvtpllcru_base + CRU_PVTPLL0_CON0_L);
+
+	writel_relaxed(0x00030000, pvtpllcru_base + CRU_PVTPLL1_CON0_L);
+	writel_relaxed(0x007f0000 | pvtpll1_length, pvtpllcru_base + CRU_PVTPLL1_CON0_H);
+	writel_relaxed(0xffff0018, pvtpllcru_base + CRU_PVTPLL1_CON1_L);
+	writel_relaxed(0xffff0004, pvtpllcru_base + CRU_PVTPLL1_CON2_H);
+	writel_relaxed(0x00030003, pvtpllcru_base + CRU_PVTPLL1_CON0_L);
+}
 
 static void vd_log_regs_save(void)
 {
@@ -1012,6 +1074,7 @@ static void vd_log_regs_save(void)
 	gic400_save();
 	rkpm_printch('b');
 
+	pvtpllcru_save();
 	rkpm_reg_rgn_save(vd_core_reg_rgns, ARRAY_SIZE(vd_core_reg_rgns));
 	rkpm_printch('c');
 	rkpm_reg_rgn_save(vd_log_reg_rgns, ARRAY_SIZE(vd_log_reg_rgns));
@@ -1030,6 +1093,7 @@ static void vd_log_regs_restore(void)
 
 	rkpm_reg_rgn_restore(vd_core_reg_rgns, ARRAY_SIZE(vd_core_reg_rgns));
 	rkpm_reg_rgn_restore(vd_log_reg_rgns, ARRAY_SIZE(vd_log_reg_rgns));
+	pvtpllcru_restore();
 
 	/* wait lock */
 	pm_pll_wait_lock(RV1106_APLL_ID);
@@ -1040,6 +1104,15 @@ static void vd_log_regs_restore(void)
 	writel_relaxed(WITH_16BITS_WMSK(cru_mode), cru_base + 0x280);
 
 	gic400_restore();
+
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(5));
+
+	if (readl_relaxed(wdt_ns_base + RV1106_WDT_CR) & 0x1)
+		writel_relaxed(0x76, wdt_ns_base + RV1106_WDT_CRR);
+
+	if (readl_relaxed(wdt_s_base + RV1106_WDT_CR) & 0x1)
+		writel_relaxed(0x76, wdt_s_base + RV1106_WDT_CRR);
 }
 
 static void rkpm_reg_rgns_init(void)
@@ -1181,6 +1254,9 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	nstimer_base = dev_reg_base + RV1106_NSTIMER_OFFSET;
 	stimer_base = dev_reg_base + RV1106_STIMER_OFFSET;
+
+	wdt_ns_base = dev_reg_base + RV1106_WDTNS_OFFSET;
+	wdt_s_base = dev_reg_base + RV1106_WDTS_OFFSET;
 
 	pmu_base = dev_reg_base + RV1106_PMU_OFFSET;
 	uartdbg_base = dev_reg_base + RV1106_UART2_OFFSET;
