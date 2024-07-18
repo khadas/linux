@@ -254,19 +254,6 @@
 		pwm-supply = <&vcc_sys>;
 	};
 
-	vcc0v9_stb: vcc0v9-stb {
-		compatible = "pwm-regulator";
-		pwms = <&pwm0_4ch_1 0 5000 1>;
-		regulator-name = "vcc0v9_stb";
-		regulator-min-microvolt = <810000>;
-		regulator-max-microvolt = <1006000>;
-		regulator-init-microvolt = <900000>;
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-settling-time-up-us = <250>;
-		pwm-supply = <&vcc_sys>;
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
