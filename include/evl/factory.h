@@ -80,7 +80,6 @@ struct evl_element {
 	struct filename *devname;
 	unsigned int minor;
 	refcount_t refs;
-	bool zombie;
 	fundle_t fundle;
 	int clone_flags;
 	struct rb_node index_node;
