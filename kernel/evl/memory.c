@@ -38,8 +38,7 @@ enum evl_heap_pgtype {
 	page_list =2
 };
 
-static inline u32 __always_inline
-gen_block_mask(int log2size)
+__always_inline static u32 gen_block_mask(int log2size)
 {
 	return -1U >> (32 - (EVL_HEAP_PAGE_SIZE >> log2size));
 }
