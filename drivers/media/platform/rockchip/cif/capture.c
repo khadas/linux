@@ -11529,18 +11529,19 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
-		if (cif_dev->chip_id < CHIP_RK3576_CIF)
+		if (cif_dev->chip_id < CHIP_RK3576_CIF) {
+			val |= CSI_DMA_ENABLE;
 			uncompact = CSI_WRDDR_TYPE_RAW_UNCOMPACT;
-		else
+		} else {
+			val |= CSI_DMA_ENABLE_RK3576;
 			uncompact = CSI_WRDDR_TYPE_RAW_UNCOMPACT << 3;
+			rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
+						CSI_START_INTEN_RK3576(stream->id));
+		}
 		if (!stream->is_compact)
 			val |= uncompact;
 		else
 			val &= ~uncompact;
-		if (cif_dev->chip_id < CHIP_RK3576_CIF)
-			val |= CSI_DMA_ENABLE;
-		else
-			val |= CSI_DMA_ENABLE_RK3576;
 		rkcif_write_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id), val);
 	} else if (mbus_cfg->type == V4L2_MBUS_CCP2) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_lvds_id_ctrl0(stream->id));
@@ -11589,10 +11590,13 @@ static int rkcif_stop_dma_capture(struct rkcif_stream *stream)
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
 		val = rkcif_read_register(cif_dev, get_reg_index_of_id_ctrl0(stream->id));
-		if (cif_dev->chip_id < CHIP_RK3576_CIF)
+		if (cif_dev->chip_id < CHIP_RK3576_CIF) {
 			val &= ~CSI_DMA_ENABLE;
-		else
+		} else {
 			val &= ~CSI_DMA_ENABLE_RK3576;
+			rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN,
+						~CSI_START_INTEN_RK3576(stream->id));
+		}
 		if (stream->is_stop_capture) {
 			val &= ~CSI_ENABLE_CAPTURE;
 			stream->is_stop_capture = false;
