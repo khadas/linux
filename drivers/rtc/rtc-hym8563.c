@@ -722,14 +722,14 @@ rtc_sysfs_set_bootalarm(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(bootalarm, 0664,
 		rtc_sysfs_show_bootalarm, rtc_sysfs_set_bootalarm);
 
-void rtc_sysfs_add_bootalarm(struct rtc_device *rtc)
-{
-	int err;
-	err = device_create_file(&rtc->dev, &dev_attr_bootalarm);
-	if (err)
-		pr_err("failed to create boot alarm attribute");
+//void rtc_sysfs_add_bootalarm(struct rtc_device *rtc)
+//{
+//	int err;
+//	err = device_create_file(&rtc->dev, &dev_attr_bootalarm);
+//	if (err)
+//		pr_err("failed to create boot alarm attribute");
 
-}
+//}
 
 void rtc_sysfs_del_bootalarm(struct rtc_device *rtc)
 {
@@ -872,7 +872,7 @@ static int hym8563_probe(struct i2c_client *client)
 	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, hym8563->rtc->features);
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, hym8563->rtc->features);
 
-	rtc_sysfs_add_bootalarm(hym8563->rtc);
+	//rtc_sysfs_add_bootalarm(hym8563->rtc);
 #ifdef CONFIG_COMMON_CLK
 	hym8563_clkout_register_clk(hym8563);
 #endif
