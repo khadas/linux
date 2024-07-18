@@ -145,8 +145,15 @@ const char *rockchip_drm_modifier_to_string(uint64_t modifier)
 		return "_TILE-4x4-M0";
 	case DRM_FORMAT_MOD_ROCKCHIP_TILED(ROCKCHIP_TILED_BLOCK_SIZE_4x4_MODE1):
 		return "_TILE-4x4-M1";
+	case DRM_FORMAT_MOD_ROCKCHIP_RFBC(ROCKCHIP_RFBC_BLOCK_SIZE_64x4):
+		return "_RFBC-64x4";
 	default:
-		return drm_is_afbc(modifier) ? "_AFBC" : IS_ROCKCHIP_RFBC_MOD(modifier) ? "_RFBC" : "";
+		if (modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+			return "_AFBC-32x8";
+		else if (modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_16x16)
+			return "_AFBC-16x16";
+		else
+			return "";
 	}
 }
 EXPORT_SYMBOL(rockchip_drm_modifier_to_string);
