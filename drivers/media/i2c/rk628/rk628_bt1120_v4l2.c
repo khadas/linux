@@ -335,7 +335,6 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
 	rk628_hdmirx_verisyno_phy_power_off(bt1120->rk628);
-	rk628_clk_set_rate(bt1120->rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 }
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
@@ -1967,6 +1966,7 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 
 	rk628_bt1120_power_on(bt1120);
 	rk628_cru_initialize(rk628);
+	rk628_clk_set_rate(rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 
 	rk628_version_parse(rk628);
 

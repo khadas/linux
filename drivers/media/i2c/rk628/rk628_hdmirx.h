@@ -14,6 +14,7 @@
 #include <media/v4l2-dv-timings.h>
 
 #include "rk628.h"
+#include "rk628_cru.h"
 
 /* --------- EDID and HDCP KEY ------- */
 #define EDID_BASE			0x000a0000
@@ -440,7 +441,7 @@
 
 #define HDMIRX_GET_TIMING_CNT		20
 #define HDMIRX_MODETCLK_CNT_NUM		1000
-#define HDMIRX_MODETCLK_HZ		49500000
+#define HDMIRX_MODETCLK_HZ		(CPLL_REF_CLK / 24)
 
 #define EDID_NUM_BLOCKS_MAX		2
 #define EDID_BLOCK_SIZE			128

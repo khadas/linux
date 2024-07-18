@@ -195,7 +195,8 @@
 #define RGU_TXESC		30
 #define RGU_CSI1		31
 
-#define CPLL_REF_CLK		1188000000
+/* CTS HF2-6/HF2-23 test frequency +/-0.5%, (1188M * 1.005) */
+#define CPLL_REF_CLK		1194000000
 
 unsigned long rk628_clk_get_rate(struct rk628 *rk628, unsigned int id);
 int rk628_clk_set_rate(struct rk628 *rk628, unsigned int id,
