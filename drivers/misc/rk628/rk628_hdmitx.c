@@ -31,6 +31,7 @@
 #include "rk628_config.h"
 #include "rk628_hdmitx.h"
 #include "rk628_post_process.h"
+#include "rk628_cru.h"
 
 #include <linux/extcon.h>
 #include <linux/extcon-provider.h>
@@ -1231,7 +1232,7 @@ void rk628_hdmitx_disable(struct rk628 *rk628)
 int rk628_hdmitx_enable(struct rk628 *rk628)
 {
 	struct device *dev = rk628->dev;
-	struct rk628_hdmi *hdmi;
+	struct rk628_hdmi *hdmi = NULL;
 	u32 mask = SW_OUTPUT_MODE_MASK;
 	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_HDMI);
 	int irq;
@@ -1299,7 +1300,11 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 	 * PCLK_HDMI, so we need to init the TMDS rate to PCLK rate,
 	 * and reconfigure the DDC clock.
 	 */
-	hdmi->tmds_rate = 24000 * 1000;
+	rk628_i2c_read(rk628, GRF_POST_PROC_CON, &val);
+	if (val & SW_HDMITX_VCLK_PLLREF_SEL(1))
+		hdmi->tmds_rate = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
+	else
+		hdmi->tmds_rate = 24000000;
 	rk628_hdmi_i2c_init(hdmi);
 
 	rk628_hdmi_audio_codec_init(hdmi, dev);
