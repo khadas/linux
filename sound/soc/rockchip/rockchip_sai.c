@@ -1849,6 +1849,23 @@ static int rockchip_sai_wait_time_init(struct rk_sai_dev *sai)
 	return 0;
 }
 
+static int rockchip_sai_register_platform(struct device *dev)
+{
+	int ret = 0;
+
+	if (device_property_read_bool(dev, "rockchip,no-dmaengine")) {
+		dev_info(dev, "Used for Multi-DAI\n");
+		return 0;
+	}
+
+	if (device_property_read_bool(dev, "rockchip,digital-loopback"))
+		ret = devm_snd_dmaengine_dlp_register(dev, &dconfig);
+	else
+		ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
+
+	return ret;
+}
+
 static int rockchip_sai_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1959,23 +1976,13 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 			goto err_runtime_disable;
 	}
 
-	ret = devm_snd_soc_register_component(&pdev->dev,
-					      &rockchip_sai_component,
-					      dai, 1);
+	ret = rockchip_sai_register_platform(&pdev->dev);
 	if (ret)
 		goto err_runtime_suspend;
 
-	if (device_property_read_bool(&pdev->dev, "rockchip,no-dmaengine")) {
-		clk_disable_unprepare(sai->hclk);
-		dev_info(&pdev->dev, "Used for Multi-DAI\n");
-		return 0;
-	}
-
-	if (device_property_read_bool(&pdev->dev, "rockchip,digital-loopback"))
-		ret = devm_snd_dmaengine_dlp_register(&pdev->dev, &dconfig);
-	else
-		ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &rockchip_sai_component,
+					      dai, 1);
 	if (ret)
 		goto err_runtime_suspend;
 
