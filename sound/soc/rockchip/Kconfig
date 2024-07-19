@@ -25,6 +25,12 @@ config SND_SOC_ROCKCHIP_DLP_PCM
 	  Say Y or M if you want to add support for DLP driver for
 	  Rockchip DMA-Based Digital Loopback.
 
+config SND_SOC_ROCKCHIP_DUMMY_DAI
+	tristate "Rockchip Dummy DAI Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for DUMMY DAI driver.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
