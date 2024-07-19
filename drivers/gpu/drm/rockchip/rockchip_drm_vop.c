@@ -3168,10 +3168,11 @@ static void vop_mcu_mode_setup(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, mcu_rw_pend, vop->mcu_timing.mcu_rw_pend);
 }
 
-static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
+static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
 {
 	struct drm_display_mode *adjusted_mode;
 	struct vop *vop = NULL;
+	uint32_t val = 0;
 
 	if (!crtc)
 		return;
@@ -3199,6 +3200,11 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 		case MCU_WRDATA:
 			VOP_CTRL_SET(vop, mcu_rs, 1);
 			VOP_CTRL_SET(vop, mcu_rw_bypass_port, value);
+			break;
+		case MCU_RDDATA:
+			VOP_CTRL_SET(vop, mcu_rs, 1);
+			val = VOP_CTRL_GET(vop, mcu_rw_bypass_port);
+			DRM_DEBUG_DRIVER("mcu read reg[0x%02x] = 0x%02x", value, val);
 			break;
 		case MCU_SETBYPASS:
 			VOP_CTRL_SET(vop, mcu_bypass, value ? 1 : 0);

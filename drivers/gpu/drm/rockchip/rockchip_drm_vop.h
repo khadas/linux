@@ -694,6 +694,7 @@ enum _vop_rgb2rgb_conv_mode {
 enum _MCU_IOCTL {
 	MCU_WRCMD = 0,
 	MCU_WRDATA,
+	MCU_RDDATA,
 	MCU_SETBYPASS,
 };
 
