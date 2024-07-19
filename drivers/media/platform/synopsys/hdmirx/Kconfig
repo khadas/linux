@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config VIDEO_SYNOPSYS_HDMIRX
+	tristate "Synopsys DesignWare HDMI Receiver driver"
+	depends on VIDEO_DEV
+	depends on ARCH_ROCKCHIP
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select CEC_CORE
+	select CEC_NOTIFIER
+	select HDMI
+	help
+	  Support for Synopsys HDMI HDMI RX Controller.
+	  This driver supports HDMI 2.0 version.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called synopsys_hdmirx.
+
+config HDMIRX_LOAD_DEFAULT_EDID
+	bool "Load default EDID"
+	depends on VIDEO_SYNOPSYS_HDMIRX
+	default "y"
+	help
+	  Preload the default EDID (Extended Display Identification Data).
+	  EDID contains information about the capabilities of the display,
+	  such as supported resolutions, refresh rates, and audio formats.
