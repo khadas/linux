@@ -621,6 +621,12 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
+	ret = snd_dmaengine_mpcm_register(mdais);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register PCM\n");
+		goto err_suspend;
+	}
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_mdais_component,
 					      soc_dai, 1);
@@ -628,12 +634,6 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "could not register dai: %d\n", ret);
 		goto err_suspend;
-	}
-
-	ret = snd_dmaengine_mpcm_register(mdais);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
-		return ret;
 	}
 
 	return 0;
