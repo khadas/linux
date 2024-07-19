@@ -152,22 +152,37 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 	struct device *dev = &client->dev;
 	maxim2c_gmsl_link_t *gmsl_link = &maxim2c->gmsl_link;
 	u8 link_type = 0, link_lock = 0, lock_state = 0;
-
-	dev_dbg(dev, "%s, link_mask = 0x%x\n", __func__, link_mask);
+	int ret = 0, i = 0;
 
 	// Link A
 	if (link_mask & MAXIM2C_LINK_MASK_A) {
 		link_type = gmsl_link->link_cfg[MAXIM2C_LINK_ID_A].link_type;
 		if (link_type == MAXIM2C_GMSL2) {
 			// GMSL2 Link A
-			maxim2c_i2c_read_reg(client, 0x0013, &link_lock);
+			for (i = 0; i < 3; i++) {
+				ret = maxim2c_i2c_read_reg(client, 0x0013, &link_lock);
+				if (ret) {
+					dev_info(dev, "GMSL2 Link A get lock retry (%d)", i);
+					usleep_range(10000, 10100);
+				} else {
+					break;
+				}
+			}
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM2C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL2 Link A locked\n");
 			}
 		} else {
 			// GMSL1 Link A
-			maxim2c_i2c_read_reg(client, 0x0BCB, &link_lock);
+			for (i = 0; i < 3; i++) {
+				ret = maxim2c_i2c_read_reg(client, 0x0BCB, &link_lock);
+				if (ret) {
+					dev_info(dev, "GMSL1 Link A get lock retry (%d)", i);
+					usleep_range(10000, 10100);
+				} else {
+					break;
+				}
+			}
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM2C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL1 Link A locked\n");
@@ -186,14 +201,30 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM2C_LINK_ID_B].link_type;
 		if (link_type == MAXIM2C_GMSL2) {
 			// GMSL2 Link B
-			maxim2c_i2c_read_reg(client, 0x5009, &link_lock);
+			for (i = 0; i < 3; i++) {
+				ret = maxim2c_i2c_read_reg(client, 0x5009, &link_lock);
+				if (ret) {
+					dev_info(dev, "GMSL2 Link B get lock retry (%d)", i);
+					usleep_range(10000, 10100);
+				} else {
+					break;
+				}
+			}
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM2C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL2 Link B locked\n");
 			}
 		} else {
 			// GMSL1 Link B
-			maxim2c_i2c_read_reg(client, 0x0CCB, &link_lock);
+			for (i = 0; i < 3; i++) {
+				ret = maxim2c_i2c_read_reg(client, 0x0CCB, &link_lock);
+				if (ret) {
+					dev_info(dev, "GMSL1 Link B get lock retry (%d)", i);
+					usleep_range(10000, 10100);
+				} else {
+					break;
+				}
+			}
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM2C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL1 Link B locked\n");
@@ -206,6 +237,9 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 		else
 			gmsl_link->link_locked_mask &= ~MAXIM2C_LINK_MASK_B;
 	}
+
+	dev_dbg(dev, "%s, link_mask = 0x%02x, lock_state = 0x%02x\n",
+			__func__, link_mask, lock_state);
 
 	return lock_state;
 }

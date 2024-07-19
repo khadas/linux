@@ -79,6 +79,10 @@
  *     1. v4l2 ioctl add command to support quick stream setting
  *     2. dev_pm_ops add suspend and resume for system sleep
  *
+ * V3.08.00
+ *     1. wait link lock stable when hot plug is detected
+ *     2. link get lock state retry if i2c error
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -106,7 +110,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x07, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x08, 0x00)
 
 #define MAXIM4C_NAME			"maxim4c"
 
@@ -233,7 +237,7 @@ static void maxim4c_hot_plug_state_check_work(struct work_struct *work)
 	maxim4c_t *maxim4c =
 		container_of(hot_plug_work, struct maxim4c, hot_plug_work);
 	struct device *dev = &maxim4c->client->dev;
-	u8 curr_lock_state = 0, last_lock_state = 0, link_lock_change = 0;
+	u8 curr_lock_state = 0, retry_lock_state = 0, last_lock_state = 0, link_lock_change = 0;
 	u8 link_enable_mask = 0, link_id = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -249,13 +253,25 @@ static void maxim4c_hot_plug_state_check_work(struct work_struct *work)
 	if ((maxim4c->hot_plug_state == MAXIM4C_HOT_PLUG_OUT)
 			&& (last_lock_state == link_enable_mask)) {
 		// i2c mux enable: disable all remote channel
+		dev_info(dev, "disable all remote channel\n");
 		maxim4c_i2c_mux_enable(maxim4c, 0x00);
 	}
 
 	curr_lock_state = maxim4c_link_get_lock_state(maxim4c, link_enable_mask);
+	// Link lock state maybe detect error when hot plug, first check i2c io status
+	if (curr_lock_state != last_lock_state) {
+		// delay 100ms for link lock stable
+		usleep_range(100000, 110000);
+		retry_lock_state = maxim4c_link_get_lock_state(maxim4c, link_enable_mask);
+		if (retry_lock_state != curr_lock_state) {
+			dev_info(dev, "link lock retry: 0x%02x -> 0x%02x\n",
+					curr_lock_state, retry_lock_state);
+			curr_lock_state = retry_lock_state;
+		}
+	}
 	link_lock_change = (last_lock_state ^ curr_lock_state);
 	if (link_lock_change) {
-		dev_dbg(dev, "lock state: current = 0x%02x, last = 0x%02x\n",
+		dev_info(dev, "lock state: current = 0x%02x, last = 0x%02x\n",
 			curr_lock_state, last_lock_state);
 
 		maxim4c_hot_plug_event_report(maxim4c, curr_lock_state);
