@@ -3,7 +3,6 @@
  * Copyright (c) 2014 Broadcom Corporation
  */
 
-#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -2414,7 +2413,6 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_core *core;
 	struct brcmf_bus *bus;
-	struct clk *clk;
 
 	if (!id) {
 		id = pci_match_id(brcmf_pcie_devid_table, pdev);
@@ -2425,14 +2423,6 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
-
-	clk = devm_clk_get_optional_enabled(&pdev->dev, "32k");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-	if (clk) {
-		brcmf_dbg(PCIE, "enabling 32kHz clock\n");
-		clk_set_rate(clk, 32768);
-	}
 
 	ret = -ENOMEM;
 	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
@@ -2659,7 +2649,6 @@ cleanup:
 
 	return err;
 }
-
 
 static const struct dev_pm_ops brcmf_pciedrvr_pm = {
 	.suspend = brcmf_pcie_pm_enter_D3,
