@@ -67,6 +67,7 @@
 #define MULTIPLEX_CH_MAX			10
 #define CLK_PPM_MIN				(-1000)
 #define CLK_PPM_MAX				(1000)
+#define CLK_SHIFT_RATE_HZ_MAX			5
 #define MAXBURST_PER_FIFO			8
 #define WAIT_TIME_MS_MAX			10000
 
@@ -1448,14 +1449,29 @@ static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 	unsigned int mclk_root_freq;
 	unsigned int mclk_root_initial_freq;
 	unsigned int mclk_parent_freq;
+	unsigned int mclk_freq, freq, freq_req;
 	unsigned int div, delta;
 	u64 ppm;
 	int ret;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mclk_parent = i2s_tdm->mclk_tx_src;
-	else
+		mclk_freq = i2s_tdm->mclk_tx_freq;
+	} else {
 		mclk_parent = i2s_tdm->mclk_rx_src;
+		mclk_freq = i2s_tdm->mclk_rx_freq;
+	}
+
+	switch (i2s_tdm->clk_trcm) {
+	case I2S_CKR_TRCM_TXONLY:
+		mclk_parent = i2s_tdm->mclk_tx_src;
+		mclk_freq = i2s_tdm->mclk_tx_freq;
+		break;
+	case I2S_CKR_TRCM_RXONLY:
+		mclk_parent = i2s_tdm->mclk_rx_src;
+		mclk_freq = i2s_tdm->mclk_rx_freq;
+		break;
+	}
 
 	switch (lrck_freq) {
 	case 8000:
@@ -1514,7 +1530,17 @@ static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 		i2s_tdm->mclk_root1_freq = clk_get_rate(i2s_tdm->mclk_root1);
 	}
 
-	return clk_set_rate(mclk_parent, mclk_parent_freq);
+	freq = clk_get_rate(mclk_parent);
+	div = DIV_ROUND_CLOSEST(freq, mclk_freq);
+	freq_req = mclk_freq * div;
+	if (freq < freq_req - CLK_SHIFT_RATE_HZ_MAX ||
+	    freq > freq_req + CLK_SHIFT_RATE_HZ_MAX) {
+		dev_dbg(i2s_tdm->dev, "Change mclk parent freq from %d to %d\n",
+			freq, mclk_parent_freq);
+		ret = clk_set_rate(mclk_parent, mclk_parent_freq);
+	}
+
+	return ret;
 }
 
 static int rockchip_i2s_tdm_mclk_reparent(struct rk_i2s_tdm_dev *i2s_tdm)
