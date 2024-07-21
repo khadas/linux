@@ -216,6 +216,8 @@ struct rockchip_spi {
 	u8 rsd;
 	u8 csm;
 	bool poll; /* only support transfer data by cpu polling */
+	bool retry_poll; /* SPI adjustment when the system irq abnormally */
+	bool retry_poll_active;
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
@@ -314,6 +316,8 @@ static void rockchip_spi_handle_err(struct spi_controller *ctlr,
 {
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 
+	if (rs->retry_poll)
+		dev_err(rs->dev, "poll=%d-%d\n", rs->poll, rs->retry_poll_active);
 	dev_err(rs->dev, "state=%x\n", atomic_read(&rs->state));
 	dev_err(rs->dev, "tx_left=%x\n", rs->tx_left);
 	dev_err(rs->dev, "rx_left=%x\n", rs->rx_left);
@@ -334,6 +338,8 @@ static void rockchip_spi_handle_err(struct spi_controller *ctlr,
 	if (atomic_read(&rs->state) & RXDMA)
 		dmaengine_terminate_async(ctlr->dma_rx);
 	atomic_set(&rs->state, 0);
+	if (rs->retry_poll)
+		rs->retry_poll_active = true;
 }
 
 static void rockchip_spi_pio_writer(struct rockchip_spi *rs)
@@ -832,7 +838,7 @@ static int rockchip_spi_transfer_one(
 
 	rs->n_bytes = xfer->bits_per_word <= 8 ? 1 : 2;
 	rs->xfer = xfer;
-	if (rs->poll) {
+	if (rs->poll || rs->retry_poll_active) {
 		xfer_mode = ROCKCHIP_SPI_POLL;
 	} else {
 		use_dma = ctlr->can_dma ? ctlr->can_dma(ctlr, spi, xfer) : false;
@@ -1179,8 +1185,9 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	}
 
 	rs->poll = device_property_read_bool(&pdev->dev, "rockchip,poll-only");
+	rs->retry_poll = device_property_read_bool(&pdev->dev, "rockchip,failed-retry-poll");
 	init_completion(&rs->xfer_done);
-	if (rs->poll && slave_mode) {
+	if ((rs->poll || rs->retry_poll) && slave_mode) {
 		dev_err(rs->dev, "only support rockchip,poll-only property in master mode\n");
 		ret = -EINVAL;
 		goto err_free_dma_rx;
@@ -1318,6 +1325,9 @@ static int rockchip_spi_runtime_resume(struct device *dev)
 	ret = clk_prepare_enable(rs->spiclk);
 	if (ret < 0)
 		clk_disable_unprepare(rs->apb_pclk);
+
+	if (rs->retry_poll)
+		rs->retry_poll_active = false;
 
 	return 0;
 }
