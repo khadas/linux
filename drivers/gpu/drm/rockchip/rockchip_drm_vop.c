@@ -272,6 +272,7 @@ struct vop {
 	/* physical map length of vop register */
 	uint32_t len;
 
+	struct resource *lut_res;
 	void __iomem *lut_regs;
 	u32 *lut;
 	u32 lut_len;
@@ -2823,6 +2824,35 @@ static void vop_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	}
 }
 
+static int vop_crtc_regs_write(struct drm_crtc *crtc, phys_addr_t address, u32 val)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	void __iomem *regs;
+	u32 offset = 0;
+
+	if (!crtc_state->active) {
+		DRM_DEV_ERROR(vop->dev, "VOP is disabled");
+		return -EINVAL;
+	}
+
+	if (vop->res && address >= vop->res->start &&
+	    address < vop->res->end) {
+		regs = vop->regs;
+		offset = address - vop->res->start;
+	} else if (vop->lut_res && address >= vop->lut_res->start &&
+		   address < vop->lut_res->end) {
+		regs = vop->lut_regs;
+		offset = address - vop->lut_res->start;
+	} else {
+		DRM_ERROR("unsupported address: %pa\n", &address);
+		return -ENXIO;
+	}
+	writel(val, regs + offset);
+
+	return 0;
+}
+
 static int vop_gamma_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
@@ -2868,6 +2898,7 @@ static int vop_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc)
 	}
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	rockchip_drm_add_dump_buffer(crtc, vop->debugfs);
+	rockchip_drm_debugfs_add_regs_write(crtc, vop->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop_debugfs_files); i++)
 		vop->debugfs_files[i].data = vop;
@@ -3242,6 +3273,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.debugfs_dump = vop_crtc_debugfs_dump,
 	.active_regs_dump = vop_crtc_regs_dump,
 	.regs_dump = vop_crtc_regs_dump,
+	.regs_write = vop_crtc_regs_write,
 	.bandwidth = vop_crtc_bandwidth,
 	.crtc_close = vop_crtc_close,
 	.crtc_send_mcu_cmd = vop_crtc_send_mcu_cmd,
@@ -5259,6 +5291,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
 	if (res) {
+		vop->res = res;
 		vop->lut_len = resource_size(res) / sizeof(*vop->lut);
 		if (vop->lut_len != 256 && vop->lut_len != 1024) {
 			dev_err(vop->dev, "unsupported lut sizes %d\n",
