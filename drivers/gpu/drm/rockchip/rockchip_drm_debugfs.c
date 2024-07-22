@@ -19,10 +19,6 @@
 #include "rockchip_drm_fb.h"
 
 #define DUMP_BUF_PATH		"/data"
-#define AFBC_HEADER_SIZE		16
-#define AFBC_HDR_ALIGN			64
-#define AFBC_SUPERBLK_PIXELS		256
-#define AFBC_SUPERBLK_ALIGNMENT		128
 
 #define to_rockchip_crtc(x) container_of(x, struct rockchip_crtc, crtc)
 
