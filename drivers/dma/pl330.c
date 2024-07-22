@@ -2331,19 +2331,49 @@ static struct dma_chan *of_dma_pl330_xlate(struct of_phandle_args *dma_spec,
 {
 	int count = dma_spec->args_count;
 	struct pl330_dmac *pl330 = ofdma->of_dma_data;
+	struct dma_chan *chan;
 	unsigned int chan_id;
 
 	if (!pl330)
 		return NULL;
 
-	if (count != 1)
+	if (count < 1)
 		return NULL;
 
 	chan_id = dma_spec->args[0];
 	if (chan_id >= pl330->num_peripherals)
 		return NULL;
 
-	return dma_get_slave_channel(&pl330->peripherals[chan_id].chan);
+	chan = dma_get_slave_channel(&pl330->peripherals[chan_id].chan);
+
+	/* Support dmamux set, such as rk3506 */
+	if (chan && count == 5) {
+		void __iomem *r;
+
+		/* dmamux pair0: args[1]: reg0 args[2]: val0 */
+		if (dma_spec->args[1]) {
+			r = ioremap(dma_spec->args[1], 0x4);
+			if (r) {
+				writel(dma_spec->args[2], r);
+				iounmap(r);
+			}
+		}
+
+		/* dmamux pair1: args[3]: reg1 args[4]: val1 */
+		if (dma_spec->args[3]) {
+			r = ioremap(dma_spec->args[3], 0x4);
+			if (r) {
+				writel(dma_spec->args[4], r);
+				iounmap(r);
+			}
+		}
+
+		dev_dbg(pl330->ddma.dev, "r0: 0x%08x v0: 0x%08x r1: 0x%08x, v1: 0x%08x\n",
+			dma_spec->args[1], dma_spec->args[2],
+			dma_spec->args[3], dma_spec->args[4]);
+	}
+
+	return chan;
 }
 
 static int pl330_alloc_chan_resources(struct dma_chan *chan)
