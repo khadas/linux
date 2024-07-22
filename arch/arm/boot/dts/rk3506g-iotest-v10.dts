@@ -197,3 +197,15 @@
 	pinctrl-0 = <&rm_io20_pwm0_ch1>;
 	status = "okay";
 };
+
+&u2phy_otg0 {
+	status = "okay";
+};
+
+&usb2phy {
+	status = "okay";
+};
+
+&usb20_otg0 {
+	status = "okay";
+};
