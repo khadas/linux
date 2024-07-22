@@ -7351,6 +7351,39 @@ static void vop2_crtc_active_regs_dump(struct drm_crtc *crtc, struct seq_file *s
 	}
 }
 
+static int vop2_crtc_regs_write(struct drm_crtc *crtc, phys_addr_t address, u32 val)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc_state *cstate = crtc->state;
+	void __iomem *regs;
+	struct vop2_resource *resources[4] = {&vop2->base_res,
+					      &vop2->lut_res,
+					      &vop2->acm_res,
+					      &vop2->sharp_res};
+	u32 offset = 0, i = 0, res_num = ARRAY_SIZE(resources);
+
+	if (!cstate->active) {
+		DRM_DEV_ERROR(vop2->dev, "Video port%d is disabled\n", vp->id);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < res_num; i++) {
+		if (resources[i]->res && address >= resources[i]->res->start &&
+		    address < resources[i]->res->end) {
+			regs = resources[i]->regs;
+			offset = address - resources[i]->res->start;
+
+			writel(val, regs + offset);
+			return 0;
+		}
+	}
+
+	DRM_ERROR("unsupported address: %pa\n", &address);
+
+	return -ENXIO;
+}
+
 static int vop2_gamma_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
@@ -7585,6 +7618,7 @@ static int vop2_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	rockchip_drm_add_dump_buffer(crtc, vop2->debugfs);
 	rockchip_drm_debugfs_add_color_bar(crtc, vop2->debugfs);
+	rockchip_drm_debugfs_add_regs_write(crtc, vop2->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vop2->debugfs_files[i].data = vop2;
@@ -7894,6 +7928,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.debugfs_dump = vop2_crtc_debugfs_dump,
 	.regs_dump = vop2_crtc_regs_dump,
 	.active_regs_dump = vop2_crtc_active_regs_dump,
+	.regs_write = vop2_crtc_regs_write,
 	.bandwidth = vop2_crtc_bandwidth,
 	.crtc_close = vop2_crtc_close,
 	.te_handler = vop2_crtc_te_handler,
