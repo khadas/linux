@@ -2545,6 +2545,13 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 			req->alpha_config.mode = req_rga->PD_mode;
 		}
+	} else if (req_rga->gauss_config.size > 0) {
+		if (req_rga->feature.global_alpha_en) {
+			req->alpha_config.fg_global_alpha_en = true;
+			req->alpha_config.fg_global_alpha_value = req_rga->fg_global_alpha;
+		} else {
+			req->alpha_config.fg_global_alpha_value = 0xff;
+		}
 	}
 
 	if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
