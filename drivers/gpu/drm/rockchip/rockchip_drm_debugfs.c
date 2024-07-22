@@ -18,6 +18,7 @@
 #include "rockchip_drm_debugfs.h"
 #include "rockchip_drm_fb.h"
 
+#if defined(CONFIG_NO_GKI)
 #define DUMP_BUF_PATH		"/data"
 
 #define to_rockchip_crtc(x) container_of(x, struct rockchip_crtc, crtc)
@@ -217,6 +218,7 @@ int rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
 
 	return 0;
 }
+#endif
 
 static int rockchip_drm_debugfs_color_bar_show(struct seq_file *s, void *data)
 {
