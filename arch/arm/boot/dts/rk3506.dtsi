@@ -352,7 +352,7 @@
 			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_DMAC0>;
 		clock-names = "apb_pclk";
-		#dma-cells = <1>;
+		#dma-cells = <5>;
 		arm,pl330-periph-burst;
 	};
 
@@ -363,7 +363,7 @@
 			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_DMAC1>;
 		clock-names = "apb_pclk";
-		#dma-cells = <1>;
+		#dma-cells = <5>;
 		arm,pl330-periph-burst;
 	};
 
@@ -406,7 +406,8 @@
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac0 4>, <&dmac0 5>;
+		dmas = <&dmac0 4 0xff2880a8 0x03000100 0x0 0x0>,
+		       <&dmac0 5 0xff2880a8 0x0c000400 0x0 0x0>;
 		clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 		clock-names = "baudclk", "apb_pclk";
 		pinctrl-names = "default";
@@ -420,7 +421,8 @@
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac0 6>, <&dmac0 7>;
+		dmas = <&dmac0 6 0xff2880a8 0x30001000 0x0 0x0>,
+		       <&dmac0 7 0xff2880a8 0xc0004000 0x0 0x0>;
 		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 		clock-names = "baudclk", "apb_pclk";
 		status = "disabled";
@@ -432,7 +434,8 @@
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac0 8>, <&dmac0 9>;
+		dmas = <&dmac0 8 0xff2880ac 0x00030001 0x0 0x0>,
+		       <&dmac0 9 0xff2880ac 0x000c0004 0x0 0x0>;
 		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 		clock-names = "baudclk", "apb_pclk";
 		status = "disabled";
@@ -444,7 +447,8 @@
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac0 10>, <&dmac0 11>;
+		dmas = <&dmac0 10 0xff2880ac 0x00300010 0x0 0x0>,
+		       <&dmac0 11 0xff2880ac 0x00c00040 0x0 0x0>;
 		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		clock-names = "baudclk", "apb_pclk";
 		status = "disabled";
@@ -456,7 +460,7 @@
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac1 12>, <&dmac1 13>;
+		dmas = <&dmac1 12 0x0 0x0 0x0 0x0>, <&dmac1 13 0x0 0x0 0x0 0x0>;
 		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
 		clock-names = "baudclk", "apb_pclk";
 		status = "disabled";
@@ -470,7 +474,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
-		dmas = <&dmac0 0>, <&dmac0 1>;
+		dmas = <&dmac0 0 0xff2880a8 0x00030001 0x0 0x0>,
+		       <&dmac0 1 0xff2880a8 0x000c0004 0x0 0x0>;
 		dma-names = "tx", "rx";
 		num-cs = <2>;
 		pinctrl-names = "default";
@@ -486,7 +491,8 @@
 		#size-cells = <0>;
 		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
-		dmas = <&dmac0 2>, <&dmac0 3>;
+		dmas = <&dmac0 2 0xff2880a8 0x00300010 0x0 0x0>,
+		       <&dmac0 3 0xff2880a8 0x00c00040 0x0 0x0>;
 		dma-names = "tx", "rx";
 		num-cs = <2>;
 		pinctrl-names = "default";
@@ -728,7 +734,10 @@
 		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI0>, <&cru HCLK_SAI0>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 1>, <&dmac1 0>;
+		dmas = <&dmac1 1 0xff2880a4 0x01000000 0x0 0x0>,
+		       <&dmac1 0 0xff2880a4 0x00800000 0x0 0x0>;
+	//	dmas = <&dmac0 9 0xff2880a4 0x01000100 0xff2880ac 0x000c0000>,
+	//	       <&dmac0 8 0xff2880a4 0x00800080 0xff2880ac 0x00030002>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI0>, <&cru SRST_H_SAI0>;
 		reset-names = "m", "h";
@@ -751,7 +760,10 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI1>, <&cru HCLK_SAI1>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 3>, <&dmac1 2>;
+		dmas = <&dmac1 3  0xff2880a4 0x04000000 0x0 0x0>,
+		       <&dmac1 2  0xff2880a4 0x02000000 0x0 0x0>;
+	//	dmas = <&dmac0 11 0xff2880a4 0x04000400 0xff2880ac 0x00c00000>,
+	//	       <&dmac0 10 0xff2880a4 0x02000200 0xff2880ac 0x00300020>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI1>, <&cru SRST_H_SAI1>;
 		reset-names = "m", "h";
@@ -796,7 +808,8 @@
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>, <&cru CLKOUT_PDM>;
 		clock-names = "pdm_clk", "pdm_hclk", "pdm_clk_out";
-		dmas = <&dmac1 9>;
+		dmas = <&dmac1 9 0xff2880a4 0x00100000 0x0 0x0>;
+	//	dmas = <&dmac0 5 0xff2880a4 0x00100010 0xff2880a8 0x0c000800>;
 		dma-names = "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rm_io0_pdm_clk0
@@ -816,7 +829,8 @@
 		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SPDIFTX>, <&cru HCLK_SPDIFTX>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 10>;
+		dmas = <&dmac1 10 0xff2880a4 0x00200000 0xff2880ac 0x03000100>;
+	//	dmas = <&dmac0 6  0xff2880a4 0x00200020 0xff2880a8 0x30000000>;
 		dma-names = "tx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rm_io0_spdif_tx>;
@@ -830,7 +844,8 @@
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SPDIFRX>, <&cru HCLK_SPDIFRX>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 11>;
+		dmas = <&dmac1 11 0xff2880a4 0x00400000 0xff2880ac 0x0c000400>;
+	//	dmas = <&dmac0 7  0xff2880a4 0x00400040 0xff2880a8 0xc0000000>;
 		dma-names = "rx";
 		resets = <&cru SRST_SPDIFRX>;
 		reset-names = "spdifrx-m";
@@ -871,7 +886,7 @@
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI2>, <&cru HCLK_SAI2>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 5>, <&dmac1 4>;
+		dmas = <&dmac1 5 0x0 0x0 0x0 0x0>, <&dmac1 4 0x0 0x0 0x0 0x0>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI2>, <&cru SRST_H_SAI2>;
 		reset-names = "m", "h";
@@ -891,7 +906,7 @@
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI3>, <&cru HCLK_SAI3>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 6>, <&dmac1 7>;
+		dmas = <&dmac1 6 0x0 0x0 0x0 0x0>, <&dmac1 7 0x0 0x0 0x0 0x0>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI3>, <&cru SRST_H_SAI3>;
 		reset-names = "m", "h";
@@ -911,7 +926,7 @@
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI4>, <&cru HCLK_SAI4>;
 		clock-names = "mclk", "hclk";
-		dmas = <&dmac1 8>;
+		dmas = <&dmac1 8 0x0 0x0 0x0 0x0>;
 		dma-names = "rx";
 		resets = <&cru SRST_M_SAI4>, <&cru SRST_H_SAI4>;
 		reset-names = "m", "h";
@@ -1050,7 +1065,7 @@
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
-		dmas = <&dmac1 14>, <&dmac1 15>;
+		dmas = <&dmac1 14 0x0 0x0 0x0 0x0>, <&dmac1 15 0x0 0x0 0x0 0x0>;
 		clocks = <&cru SCLK_UART5>, <&cru PCLK_UART5>;
 		clock-names = "baudclk", "apb_pclk";
 		pinctrl-names = "default";
@@ -1367,7 +1382,10 @@
 			 <&cru CLK_DSMC>;
 		clock-names = "clk_sys", "aclk_dsmc", "pclk", "aclk_root";
 		clock-frequency = <100000000>;
-		dmas = <&dmac0 2>, <&dmac0 3>;
+		dmas = <&dmac0 2  0xff288078 0x80000000 0xff2880a8 0x00300000>,
+		       <&dmac0 3  0xff288078 0x40000000 0xff2880a8 0x00c00000>;
+	//	dmas = <&dmac0 8  0xff288078 0x80008000 0xff2880ac 0x00030000>,
+	//	       <&dmac0 10 0xff288078 0x40004000 0xff2880ac 0x00300000>;
 		dma-names = "req0", "req1";
 		status = "disabled";
 		slave {
