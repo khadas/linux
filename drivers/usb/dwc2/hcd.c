@@ -4503,7 +4503,8 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	}
 
 	/* Change Root port status, as port status change occurred after resume.*/
-	hsotg->flags.b.port_suspend_change = 1;
+	if (hsotg->params.power_down == DWC2_POWER_DOWN_PARAM_PARTIAL)
+		hsotg->flags.b.port_suspend_change = 1;
 
 	/*
 	 * Enable power if not already done.
