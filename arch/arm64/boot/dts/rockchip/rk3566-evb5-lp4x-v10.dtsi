@@ -322,6 +322,7 @@
 		};
 	};
 
+	/delete-node/ wireless-bluetooth;
 	wireless-bluetooth {
 		uart1_gpios: uart1-gpios {
 			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;

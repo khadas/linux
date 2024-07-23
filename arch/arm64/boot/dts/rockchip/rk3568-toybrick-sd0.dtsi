@@ -599,6 +599,7 @@
 		};
 	};
 
+	/delete-node/ wireless-bluetooth;
 	wireless-bluetooth {
 		uart1_pin: uart1-pin {
 			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
