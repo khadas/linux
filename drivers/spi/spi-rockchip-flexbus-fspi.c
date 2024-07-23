@@ -42,7 +42,7 @@
 #define FLEXBUS_DLL_CELLS			(0x7f)
 
 #define FLEXBUS_MAX_CHIPSELECT_NUM		(1)
-#define FLEXBUS_TX_WIDTH			(4)
+#define FLEXBUS_TX_WIDTH_4			(4)
 
 struct rk_flexbus_fspi {
 	struct device *dev;
@@ -184,8 +184,10 @@ static int rk_flexbus_fspi_init(struct rk_flexbus_fspi *fspi)
 	fspi->max_iosize = FLEXBUS_MAX_IOSIZE;
 
 	rockchip_flexbus_writel(fspi->fb, FLEXBUS_TXWAT_START, 0x10);
-	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_SRC_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
-	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_DST_LEN0, fspi->max_iosize * FLEXBUS_TX_WIDTH);
+	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_SRC_LEN0,
+				fspi->max_iosize * FLEXBUS_TX_WIDTH_4);
+	rockchip_flexbus_writel(fspi->fb, FLEXBUS_DMA_DST_LEN0,
+				fspi->max_iosize * FLEXBUS_TX_WIDTH_4);
 
 	if (fspi->version == FLEXBUS_REVISION_V9)
 		ctrl = FLEXBUS_TX_CTL_MSB | fspi->fb->dfs_reg->dfs_4bit;
@@ -717,9 +719,10 @@ static int rk_flexbus_fspi_probe(struct platform_device *pdev)
 	rk_flexbus_fspi_init(fspi);
 
 	fspi->tx_buf = devm_kmalloc(dev, FLEXBUS_QSPI_CMD_MAX, GFP_KERNEL);
-	fspi->switch_buf = devm_kmalloc(dev, fspi->max_iosize * FLEXBUS_TX_WIDTH, GFP_KERNEL);
+	fspi->switch_buf = devm_kmalloc(dev, fspi->max_iosize * FLEXBUS_TX_WIDTH_4, GFP_KERNEL);
 	fspi->temp_buf = (u8 *)devm_get_free_pages(dev, GFP_KERNEL | GFP_DMA32,
-						   get_order(fspi->max_iosize * FLEXBUS_TX_WIDTH));
+						   get_order(fspi->max_iosize *
+							     FLEXBUS_TX_WIDTH_4));
 	if (!fspi->temp_buf)
 		return -ENOMEM;
 	fspi->dma_temp_buf = virt_to_phys(fspi->temp_buf);
