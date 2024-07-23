@@ -3327,7 +3327,8 @@ int dwc2_port_suspend(struct dwc2_hsotg *hsotg, u16 windex)
 		 * If not hibernation nor partial power down are supported,
 		 * clock gating is used to save power.
 		 */
-		if (!hsotg->params.no_clock_gating)
+		if (!hsotg->params.no_clock_gating ||
+		    IS_REACHABLE(CONFIG_ARCH_ROCKCHIP))
 			dwc2_host_enter_clock_gating(hsotg);
 		break;
 	}
@@ -4392,7 +4393,8 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 		 * If not hibernation nor partial power down are supported,
 		 * clock gating is used to save power.
 		 */
-		if (!hsotg->params.no_clock_gating) {
+		if (!hsotg->params.no_clock_gating ||
+		    IS_REACHABLE(CONFIG_ARCH_ROCKCHIP)) {
 			dwc2_host_enter_clock_gating(hsotg);
 
 			/* After entering suspend, hardware is not accessible */
@@ -5921,11 +5923,13 @@ void dwc2_host_enter_clock_gating(struct dwc2_hsotg *hsotg)
 	dwc2_writel(hsotg, pcgctl, PCGCTL);
 	udelay(5);
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	/* Set the Gate hclk as suspend is received. */
 	pcgctl = dwc2_readl(hsotg, PCGCTL);
 	pcgctl |= PCGCTL_GATEHCLK;
 	dwc2_writel(hsotg, pcgctl, PCGCTL);
 	udelay(5);
+#endif
 
 	hsotg->bus_suspended = true;
 	hsotg->lx_state = DWC2_L2;
