@@ -47,6 +47,7 @@ struct rockchip_flexbus_adc_ops {
 struct rockchip_flexbus_adc {
 	struct device		*dev;
 	struct rockchip_flexbus	*rkfb;
+	struct clk		*ref_clk;	/* ref_clk is only used for slave-mode */
 	u32			dfs;
 	bool			slave_mode;
 	bool			free_sclk;
@@ -178,12 +179,15 @@ static int rockchip_flexbus_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (rkfb_adc->slave_mode) {
+		if (rkfb_adc->slave_mode && !rkfb_adc->ref_clk) {
 			dev_err(rkfb_adc->dev,
-				"sample freq depends on the external clock in slave_mode\n");
+				"sample freq depends on clock source of the ADC device\n");
 			return -EINVAL;
 		}
-		*val = clk_get_rate(rkfb_adc->rkfb->clks[1].clk) / 2;
+		if (rkfb_adc->slave_mode)
+			*val = clk_get_rate(rkfb_adc->ref_clk);
+		else
+			*val = clk_get_rate(rkfb_adc->rkfb->clks[1].clk) / 2;
 		return IIO_VAL_INT;
 
 	default:
@@ -196,21 +200,22 @@ static int rockchip_flexbus_adc_write_raw(struct iio_dev *indio_dev,
 					  long mask)
 {
 	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
-	u32 clk_rate;
 	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (rkfb_adc->slave_mode) {
+		if (rkfb_adc->slave_mode && !rkfb_adc->ref_clk) {
 			dev_err(rkfb_adc->dev,
-				"sample freq depends on the external clock in slave_mode\n");
+				"sample freq depends on clock source of the ADC device\n");
 			return -EINVAL;
 		}
 		mutex_lock(&rkfb_adc->lock);
-		clk_rate = val * 2;
-		if (clk_rate > FLEXBUS_MAX_RX_RATE)
-			clk_rate = FLEXBUS_MAX_RX_RATE;
-		ret = clk_set_rate(rkfb_adc->rkfb->clks[1].clk, clk_rate);
+		if (val > FLEXBUS_MAX_RX_RATE / 2)
+			val = FLEXBUS_MAX_RX_RATE / 2;
+		if (rkfb_adc->slave_mode)
+			ret = clk_set_rate(rkfb_adc->ref_clk, val);
+		else
+			ret = clk_set_rate(rkfb_adc->rkfb->clks[1].clk, val * 2);
 		mutex_unlock(&rkfb_adc->lock);
 		break;
 
@@ -341,6 +346,21 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	ret = rockchip_flexbus_adc_parse_dt(rkfb_adc);
 	if (ret != 0)
 		return -EINVAL;
+
+	if (rkfb_adc->slave_mode) {
+		rkfb_adc->ref_clk = devm_clk_get(&pdev->dev, "ref_clk");
+		if (IS_ERR(rkfb_adc->ref_clk)) {
+			dev_warn(rkfb_adc->dev,
+				 "failed to get ref_clk in slave-mode. Please make sure the ADC device has clock source.\n");
+			rkfb_adc->ref_clk = NULL;
+		} else {
+			ret = clk_prepare_enable(rkfb_adc->ref_clk);
+			if (ret) {
+				dev_err(rkfb_adc->dev, "failed to enable ref_clk.\n");
+				return ret;
+			}
+		}
+	}
 
 	mutex_init(&rkfb_adc->lock);
 	init_completion(&rkfb_adc->completion);
