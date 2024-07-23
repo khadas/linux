@@ -164,6 +164,9 @@ static int rk3506_codec_reset(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, AUDIO_ADC_PGA2,
 				      PGA_BUF_IB_SEL_MSK | PGA_BUF_CHOP_SEL_MSK,
 				      PGA_BUF_IB_SEL_167_PCT | PGA_BUF_CHOP_SEL_400K);
+	snd_soc_component_update_bits(component, AUDIO_ADC_PGA0,
+				      PGA_INPUT_DEC_MSK | PGA_GAIN_MASK,
+				      PGA_INPUT_DEC_N4_34DB | PGA_GAIN_3DB);
 
 	clk_disable_unprepare(rk3506->pclk);
 

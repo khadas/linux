@@ -153,6 +153,8 @@
 #define PGA_INPUT_DEC_N7_34DB			(0x2 << 1)
 #define PGA_INPUT_DEC_N10_34DB			(0x3 << 1)
 #define PGA_GAIN_SHIFT				(0x3)
+#define PGA_GAIN_MASK				(0x1f << PGA_GAIN_SHIFT)
+#define PGA_GAIN_3DB				(0x10 << PGA_GAIN_SHIFT)
 #define PGA_GAIN_MIN				(0x0)
 #define PGA_GAIN_MAX				(0x1f)
 
