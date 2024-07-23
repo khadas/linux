@@ -1323,6 +1323,8 @@
 		flexbus_adc: adc {
 			compatible = "rockchip,flexbus-adc";
 			#io-channel-cells = <0>;
+			clocks = <&cru CLK_REF_OUT1>;
+			clock-names = "ref_clk";	/* ref_clk is only used for slave-mode */
 			rockchip,slave-mode;
 			rockchip,free-sclk;
 			rockchip,auto-pad;
