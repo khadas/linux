@@ -67,6 +67,8 @@ static unsigned int samplerate_to_bit(unsigned int samplerate)
 
 static void rk3506_codec_power_on(struct snd_soc_component *component)
 {
+	snd_soc_component_update_bits(component, AUDIO_ADC_LDO,
+				      ADC_IP_MSK, ADC_IP_EN);
 	snd_soc_component_update_bits(component, AUDIO_ADC_PGA0,
 				      PGA_PWD_MSK, PGA_PWD_EN);
 	snd_soc_component_update_bits(component, AUDIO_ADC_ADC0,
@@ -80,6 +82,8 @@ static void rk3506_codec_power_off(struct snd_soc_component *component)
 				      PGA_PWD_MSK, PGA_PWD_DIS);
 	snd_soc_component_update_bits(component, AUDIO_ADC_ADC0,
 				      ADC_PWD_MSK, ADC_PWD_DIS);
+	snd_soc_component_update_bits(component, AUDIO_ADC_LDO,
+				      ADC_IP_MSK, ADC_IP_DIS);
 }
 
 static void rk3506_codec_adc_enable(struct snd_soc_component *component)
@@ -143,7 +147,7 @@ static int rk3506_codec_reset(struct snd_soc_component *component)
 
 	/* Set parameters */
 	snd_soc_component_update_bits(component, AUDIO_ADC_LDO,
-				      ADC_IP_MSK | LDO_VSEL_MSK, ADC_IP_EN | LDO_VSEL_1_65V);
+				      LDO_VSEL_MSK, LDO_VSEL_1_65V);
 	snd_soc_component_update_bits(component, AUDIO_ADC_PGA1,
 				      PGA_CHOP_SEL_MSK,
 				      PGA_CHOP_SEL_200K);
