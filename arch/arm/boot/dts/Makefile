@@ -1225,6 +1225,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3506b-evb1-v10.dtb \
 	rk3506g-evb1-v10.dtb \
 	rk3506g-evb1-v10-amp.dtb \
+	rk3506g-evb1-v10-flexbus-adc-dac.dtb \
 	rk3506g-evb1-v10-mcu-k350c4516t.dtb \
 	rk3506g-evb1-v10-rgb-Q7050ITH2641AA1T.dtb \
 	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
