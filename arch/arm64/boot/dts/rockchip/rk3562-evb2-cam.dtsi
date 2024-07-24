@@ -44,6 +44,11 @@
 				remote-endpoint = <&gc8034_out0>;
 				data-lanes = <1 2 3 4>;
 			};
+			mipi_dphy0_ov5695: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5695_out0>;
+				data-lanes = <1 2>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -74,6 +79,12 @@
 				remote-endpoint = <&gc8034_out1>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_dphy1_ov5695: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5695_out1>;
+				data-lanes = <1 2>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -100,6 +111,28 @@
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
+	};
+
+	ov5695: ov5695@36 {
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru CLK_CAM0_OUT2IO>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&camm0_clk0_out>;
+		reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		lens-focus = <&dw9714>;
+		port {
+			ov5695_out0: endpoint {
+				remote-endpoint = <&mipi_dphy0_ov5695>;
+				data-lanes = <1 2>;
+			};
+		};
 	};
 
 	gc8034: gc8034@37 {
@@ -138,6 +171,28 @@
 		rockchip,vcm-step-mode = <5>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
+	};
+
+	ov5695_1: ov5695_1@36 {
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru CLK_CAM2_OUT2IO>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk2_out>;
+		reset-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		lens-focus = <&dw9714_1>;
+		port {
+			ov5695_out1: endpoint {
+				remote-endpoint = <&mipi_dphy1_ov5695>;
+				data-lanes = <1 2>;
+			};
+		};
 	};
 
 	gc8034_1: gc8034_1@37 {
