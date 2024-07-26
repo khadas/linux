@@ -930,14 +930,12 @@ int rga_request_commit(struct rga_request *request)
 	return 0;
 }
 
-static void rga_request_acquire_fence_signaled_cb(struct dma_fence *fence,
-						  struct dma_fence_cb *_waiter)
+static void rga_request_acquire_fence_work(struct work_struct *work)
 {
 	int ret;
 	unsigned long flags;
 	struct mm_struct *current_mm;
-	struct rga_fence_waiter *waiter = (struct rga_fence_waiter *)_waiter;
-	struct rga_request *request = (struct rga_request *)waiter->private;
+	struct rga_request *request = container_of(work, struct rga_request, fence_work);
 	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
 	ret = rga_request_commit(request);
@@ -954,18 +952,22 @@ static void rga_request_acquire_fence_signaled_cb(struct dma_fence *fence,
 
 		rga_request_put_current_mm(current_mm);
 
-		/*
-		 * Since the callback is called while holding &dma_fence.lock,
-		 * the _locked API is used here.
-		 */
-		if (dma_fence_get_status_locked(request->release_fence) == 0)
-			dma_fence_signal_locked(request->release_fence);
+		if (rga_dma_fence_get_status(request->release_fence) == 0)
+			rga_dma_fence_signal(request->release_fence, ret);
 	}
 
 	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
 	mutex_unlock(&request_manager->lock);
+}
 
+static void rga_request_acquire_fence_signaled_cb(struct dma_fence *fence,
+						  struct dma_fence_cb *_waiter)
+{
+	struct rga_fence_waiter *waiter = (struct rga_fence_waiter *)_waiter;
+	struct rga_request *request = (struct rga_request *)waiter->private;
+
+	queue_work(system_highpri_wq, &request->fence_work);
 	kfree(waiter);
 }
 
@@ -1224,6 +1226,7 @@ int rga_request_submit(struct rga_request *request)
 		request->release_fence = release_fence;
 
 		if (request->acquire_fence_fd > 0) {
+			INIT_WORK(&request->fence_work, rga_request_acquire_fence_work);
 			ret = rga_request_add_acquire_fence_callback(
 				request->acquire_fence_fd, request,
 				rga_request_acquire_fence_signaled_cb);

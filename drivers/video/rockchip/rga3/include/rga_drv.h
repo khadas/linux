@@ -366,6 +366,7 @@ struct rga_request {
 	int32_t release_fence_fd;
 	struct dma_fence *release_fence;
 	spinlock_t fence_lock;
+	struct work_struct fence_work;
 
 	wait_queue_head_t finished_wq;
 
