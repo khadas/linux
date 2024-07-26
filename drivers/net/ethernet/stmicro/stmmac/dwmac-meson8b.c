@@ -625,6 +625,7 @@ err_remove_config_dt:
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
+extern void realtek_setup_wol(int enable, bool is_shutdown);
 static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -643,12 +644,13 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 		if (dwmac->data->suspend)
 			ret = dwmac->data->suspend(dwmac);
 	}
+	realtek_setup_wol(1, 1);
 }
 
 static int dwmac_suspend(struct meson8b_dwmac *dwmac)
 {
 	pr_info("disable analog\n");
-	/*writel(0x00000000, phy_analog_config_addr + 0x0);
+	writel(0x00000000, phy_analog_config_addr + 0x0);
 	writel(0x003e0000, phy_analog_config_addr + 0x4);
 	writel(0x12844008, phy_analog_config_addr + 0x8);
 	writel(0x0800a40c, phy_analog_config_addr + 0xc);
@@ -658,14 +660,14 @@ static int dwmac_suspend(struct meson8b_dwmac *dwmac)
 	if (phy_pll_mode == 1)
 		writel(0x608200a0, phy_analog_config_addr + 0x44);
 	else
-		writel(0x09c0040a, phy_analog_config_addr + 0x44);*/
+		writel(0x09c0040a, phy_analog_config_addr + 0x44);
 	return 0;
 }
 
 static void dwmac_resume(struct meson8b_dwmac *dwmac)
 {
 	pr_info("recover analog\n");
-	/*if (phy_pll_mode == 1) {
+	if (phy_pll_mode == 1) {
 		writel(0x608200a0, phy_analog_config_addr + 0x44);
 		writel(0xea002000, phy_analog_config_addr + 0x48);
 		writel(0x00000150, phy_analog_config_addr + 0x4c);
@@ -682,7 +684,7 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 	} else {
 		writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	}
-	writel(0x0, phy_analog_config_addr + 0x4);*/
+	writel(0x0, phy_analog_config_addr + 0x4);
 }
 
 int backup_adv;
@@ -715,6 +717,7 @@ static int meson8b_suspend(struct device *dev)
 		}
 		without_reset = 0;
 	}
+	realtek_setup_wol(1, 0);
 	return ret;
 }
 
@@ -757,6 +760,7 @@ static int meson8b_resume(struct device *dev)
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
 	}
+	realtek_setup_wol(0, 0);
 	return ret;
 }
 
