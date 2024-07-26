@@ -761,7 +761,7 @@ static int __maxim2c_stop_stream(maxim2c_t *maxim2c)
 		disable_irq(maxim2c->hot_plug_irq);
 
 	if (maxim2c->hot_plug_work.state_check_wq)
-		cancel_delayed_work_sync(&maxim2c->hot_plug_work.state_d_work);
+		cancel_delayed_work(&maxim2c->hot_plug_work.state_d_work);
 
 	ret |= maxim2c_mipi_csi_output(maxim2c, false);
 	ret |= maxim2c_mipi_txphy_enable(maxim2c, false);

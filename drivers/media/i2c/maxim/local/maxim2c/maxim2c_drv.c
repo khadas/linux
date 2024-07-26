@@ -60,6 +60,10 @@
  *     1. wait link lock stable when hot plug is detected
  *     2. link get lock state retry if i2c error
  *
+ * V3.09.00
+ *     1. if remote camera not connected, hot plug state check timer working,
+ *        fix the issue of mutex deadlock when stream off.
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -87,7 +91,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x08, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x09, 0x00)
 
 #define MAXIM2C_NAME			"maxim2c"
 

@@ -761,7 +761,7 @@ static int __maxim4c_stop_stream(maxim4c_t *maxim4c)
 		disable_irq(maxim4c->hot_plug_irq);
 
 	if (maxim4c->hot_plug_work.state_check_wq)
-		cancel_delayed_work_sync(&maxim4c->hot_plug_work.state_d_work);
+		cancel_delayed_work(&maxim4c->hot_plug_work.state_d_work);
 
 	ret |= maxim4c_mipi_csi_output(maxim4c, false);
 	ret |= maxim4c_mipi_txphy_enable(maxim4c, false);
