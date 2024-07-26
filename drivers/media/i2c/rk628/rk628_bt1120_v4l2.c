@@ -617,6 +617,11 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 		}
 		rk628_hdmirx_vid_enable(sd, true);
 		enable_bt1120tx(sd);
+
+		rk628_i2c_update_bits(bt1120->rk628, HDMI_RX_PDEC_CTRL,
+				      GCPFORCE_CLRAVMUTE_MASK, GCPFORCE_CLRAVMUTE(1));
+		rk628_i2c_update_bits(bt1120->rk628, HDMI_RX_PDEC_CTRL,
+				      GCPFORCE_CLRAVMUTE_MASK, GCPFORCE_CLRAVMUTE(0));
 	} else {
 		rk628_i2c_write(bt1120->rk628, GRF_SCALER_CON0, SCL_EN(0));
 		rk628_hdmirx_vid_enable(sd, false);

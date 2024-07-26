@@ -911,6 +911,11 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			rk628_csi_enable_csi_interrupts(sd, true);
 		}
 		rk628_hdmirx_vid_enable(sd, true);
+
+		rk628_i2c_update_bits(csi->rk628, HDMI_RX_PDEC_CTRL,
+				      GCPFORCE_CLRAVMUTE_MASK, GCPFORCE_CLRAVMUTE(1));
+		rk628_i2c_update_bits(csi->rk628, HDMI_RX_PDEC_CTRL,
+				      GCPFORCE_CLRAVMUTE_MASK, GCPFORCE_CLRAVMUTE(0));
 	} else {
 		if (csi->plat_data->tx_mode == CSI_MODE) {
 			rk628_csi_enable_csi_interrupts(sd, false);
