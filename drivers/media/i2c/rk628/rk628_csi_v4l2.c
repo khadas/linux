@@ -125,6 +125,7 @@ struct rk628_csi {
 	bool vid_ints_en;
 	bool continues_clk;
 	bool cec_enable;
+	bool dvi_mode;
 	struct rk628_hdmirx_cec *cec;
 	struct rk628_hdcp hdcp;
 	bool i2s_enable_default;
@@ -474,12 +475,25 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 
 }
 
+static void rk628_csi_hdmirx_reset(struct v4l2_subdev *sd)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	disable_irq(csi->plugin_irq);
+	disable_irq(csi->hdmirx_irq);
+	rk628_hdmirx_controller_reset(csi->rk628);
+	csi->hdcp.hdcp_start = false;
+	enable_irq(csi->plugin_irq);
+	enable_irq(csi->hdmirx_irq);
+}
+
 static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
 	enable_stream(sd, false);
 	csi->nosignal = true;
+	csi->hdcp.hdcp_start = false;
 	rk628_csi_enable_interrupts(sd, false);
 	cancel_delayed_work(&csi->delayed_work_res_change);
 	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
@@ -494,16 +508,21 @@ static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 	struct rk628_csi *csi = to_csi(sd);
 
 	ret = rk628_hdmirx_phy_setup(sd);
-	if (ret >= 0 && !rk628_hdmirx_scdc_ced_err(csi->rk628)) {
+	if (ret == LOCK_OK && !rk628_hdmirx_scdc_ced_err(csi->rk628)) {
 		ret = rk628_csi_format_change(sd);
-		if (!ret) {
+		if (ret == LOCK_OK) {
 			csi->lock_fail_time = 0;
 			csi->nosignal = false;
 			return;
 		}
 	}
 
-	if (ret < 0 || rk628_hdmirx_scdc_ced_err(csi->rk628)) {
+	if (ret == LOCK_RESET || rk628_hdmirx_scdc_ced_err(csi->rk628)) {
+		rk628_csi_hdmirx_reset(sd);
+		rk628_hdmirx_hpd_ctrl(sd, true);
+		schedule_delayed_work(&csi->delayed_work_enable_hotplug,
+				      msecs_to_jiffies(100));
+	} else if (ret == LOCK_FAIL) {
 		if (rk628_hdmirx_get_arc_enable(csi->audio_info))
 			return;
 
@@ -601,7 +620,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 				rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
 				schedule_delayed_work(&csi->delayed_work_enable_hotplug,
-						      msecs_to_jiffies(1100));
+						      msecs_to_jiffies(100));
 			} else {
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 				rk628_hdmirx_inno_phy_power_off(sd);
@@ -1269,6 +1288,27 @@ static bool rk628_rcv_supported_res(struct v4l2_subdev *sd, u32 width,
 	}
 }
 
+static int rk628_hdmirx_dvi_mode_reset(struct v4l2_subdev *sd)
+{
+	u32 val, avi_pb;
+	struct rk628_csi *csi = to_csi(sd);
+
+	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_STS, &val);
+	if (val & DVI_DET) {
+		rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_AVI_PB, &avi_pb);
+		if (avi_pb && !csi->dvi_mode) {
+			csi->dvi_mode = true;
+			v4l2_info(sd, "%s HDMI to DVI hdmirx ctrl reset!\n", __func__);
+			return -1;
+		}
+		csi->dvi_mode = true;
+	} else {
+		csi->dvi_mode = false;
+	}
+
+	return 0;
+}
+
 static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 {
 	u32 i, cnt, val;
@@ -1307,9 +1347,15 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 			if (csi->rk628->version < RK628F_VERSION && (val & DVI_DET))
 				dev_info(csi->dev, "DVI mode detected\n");
 
+			if ((status & 0xfff) >= 0xf00) {
+				msleep(50);
+				if (rk628_hdmirx_dvi_mode_reset(sd))
+					return LOCK_RESET;
+			}
+
 			if (!tx_5v_power_present(sd)) {
 				v4l2_info(sd, "HDMI pull out, return!\n");
-				return -1;
+				return LOCK_FAIL;
 			}
 
 			if (cnt >= 15)
@@ -1330,9 +1376,9 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 	}
 
 	if (i == RXPHY_CFG_MAX_TIMES)
-		return -1;
+		return LOCK_FAIL;
 
-	return 0;
+	return LOCK_OK;
 }
 
 static void rk628_csi_initial(struct v4l2_subdev *sd)
@@ -1439,7 +1485,7 @@ static int rk628_csi_format_change(struct v4l2_subdev *sd)
 	ret = rk628_csi_get_detected_timings(sd, &timings);
 	if (ret) {
 		v4l2_dbg(1, debug, sd, "%s: get timing fail\n", __func__);
-		return ret;
+		return LOCK_FAIL;
 	}
 	if (!v4l2_match_dv_timings(&csi->timings, &timings, 0, false)) {
 		/* automatically set timing rather than set by userspace */
@@ -1452,7 +1498,7 @@ static int rk628_csi_format_change(struct v4l2_subdev *sd)
 	if (sd->devnode)
 		v4l2_subdev_notify_event(sd, &rk628_csi_ev_fmt);
 
-	return 0;
+	return LOCK_OK;
 }
 
 #if IS_REACHABLE(CONFIG_VIDEO_ROCKCHIP_CIF)
@@ -1774,9 +1820,11 @@ static int rk628_hdmirx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
+	mutex_lock(&csi->rk628->rst_lock);
 	rk628_hdmirx_general_isr(sd, status, handled);
 	if (csi->cec_enable && csi->cec)
 		rk628_hdmirx_cec_irq(csi->rk628, csi->cec);
+	mutex_unlock(&csi->rk628->rst_lock);
 
 	rk628_csi_clear_hdmirx_interrupts(sd);
 

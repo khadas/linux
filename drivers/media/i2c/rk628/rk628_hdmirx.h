@@ -471,6 +471,12 @@ enum bus_format {
 	BUS_FMT_UNKNOWN,
 };
 
+enum lock_status {
+	LOCK_OK = 0,
+	LOCK_FAIL = 1,
+	LOCK_RESET = 2,
+};
+
 struct hdcp_keys {
 	u8 KSV[HDCP_KEY_KSV_SIZE];
 	u8 devicekey[HDCP_PRIVATE_KEY_SIZE];
