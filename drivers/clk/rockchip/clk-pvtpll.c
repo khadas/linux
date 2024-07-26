@@ -37,8 +37,6 @@
 #define RK3506_RING_LENGTH_SEL_OFFSET		0
 #define RK3506_RING_LENGTH_SEL_MASK		0x7f
 
-static DEFINE_MUTEX(pvtpll_reg_mutex);
-
 struct rockchip_clock_pvtpll;
 
 struct pvtpll_table {
