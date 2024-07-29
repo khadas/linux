@@ -2352,6 +2352,20 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		goto err_regsmap;
 	}
 
+	/*
+	 * If uboot logo is on, we must read uboot phy pll rate.
+	 * Because if uboot logo is on, cru or vop will enable
+	 * dclk before phy pll clk register. Then phy pll is dclk's
+	 * parent clk, phy pll clk will be enabled when phy pll clk
+	 * register. If don't read uboot pll rate, default rate 74.25M
+	 * will be set rather than actual rate. That will cause
+	 * kernel logo display error.
+	 */
+	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE) {
+		hdptx->initialized = true;
+		hdptx->rate = hdptx_cal_current_rate(hdptx);
+	}
+
 	reset_control_deassert(hdptx->apb_reset);
 	reset_control_deassert(hdptx->cmn_reset);
 	reset_control_deassert(hdptx->init_reset);
@@ -2361,10 +2375,6 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 		goto err_regsmap;
 
 	platform_set_drvdata(pdev, hdptx);
-	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE) {
-		hdptx->initialized = true;
-		hdptx->rate = hdptx_cal_current_rate(hdptx);
-	}
 
 	dev_info(dev, "hdptx phy init success\n");
 	return 0;
