@@ -3545,6 +3545,8 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	value = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, id);
+	if (value & BIT(1) && !arg->bypass_en)
+		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_RAW3D_FST_FRAME, id);
 	value &= (ISP32_MODULE_EN | ISP32_BAY3D_BWSAVING(1));
 
 	value |= !!arg->loswitch_protect << 12 |
