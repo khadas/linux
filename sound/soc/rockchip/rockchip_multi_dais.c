@@ -405,10 +405,10 @@ static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
 		format_mask |= SND_SOC_DAIFMT_INV_MASK;
 	ret = mdais_read_prop_array(node, BITCLOCK_MASTER_STR, cmst, num_dai);
 	if (!ret)
-		format_mask |= SND_SOC_DAIFMT_MASTER_MASK;
+		format_mask |= SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 	ret = mdais_read_prop_array(node, FRAME_MASTER_STR, fmst, num_dai);
 	if (!ret)
-		format_mask |= SND_SOC_DAIFMT_MASTER_MASK;
+		format_mask |= SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 
 	for (i = 0; i < num_dai; i++) {
 		format = 0;
@@ -428,18 +428,18 @@ static void mdais_parse_daifmt(struct device_node *node, struct rk_dai *dais,
 			break;
 		}
 
-		switch ((!cmst[i] << 4) + !fmst[i]) {
+		switch ((cmst[i] << 4) + fmst[i]) {
 		case 0x11:
-			format |= SND_SOC_DAIFMT_CBM_CFM;
+			format |= SND_SOC_DAIFMT_BP_FP;
 			break;
 		case 0x10:
-			format |= SND_SOC_DAIFMT_CBM_CFS;
+			format |= SND_SOC_DAIFMT_BP_FC;
 			break;
 		case 0x01:
-			format |= SND_SOC_DAIFMT_CBS_CFM;
+			format |= SND_SOC_DAIFMT_BC_FP;
 			break;
 		default:
-			format |= SND_SOC_DAIFMT_CBS_CFS;
+			format |= SND_SOC_DAIFMT_BC_FC;
 			break;
 		}
 
