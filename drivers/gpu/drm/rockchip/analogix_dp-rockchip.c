@@ -420,7 +420,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 		DRM_DEV_DEBUG(dp->dev, "%s output to edp\n", name);
 	}
 
-	ret = rockchip_grf_field_write(dp->grf, &dp->data->lcdc_sel, ret);
+	ret = rockchip_grf_field_write(dp->grf, &dp->data->lcdc_sel, endpoint.id);
 	if (ret != 0)
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF reg lcdc_sel: %d\n", ret);
 }
