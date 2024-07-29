@@ -151,6 +151,7 @@ struct rk_i2s_tdm_dev {
 	unsigned int quirks;
 	unsigned int lrck_ratio;
 	unsigned int tdm_slots;
+	unsigned int resume_deferred_ms;
 	int clk_ppm;
 	int refcount;
 	spinlock_t lock; /* xfer lock */
@@ -2386,6 +2387,19 @@ static void rockchip_i2s_tdm_shutdown(struct snd_pcm_substream *substream,
 	i2s_tdm->substreams[substream->stream] = NULL;
 }
 
+static int rockchip_i2s_tdm_comp_resume(struct snd_soc_component *component)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_component_get_drvdata(component);
+
+	if (i2s_tdm->resume_deferred_ms)
+		msleep(i2s_tdm->resume_deferred_ms);
+
+	dev_dbg(component->dev, "%s: resume deferred %d ms\n",
+		__func__, i2s_tdm->resume_deferred_ms);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops rockchip_i2s_tdm_dai_ops = {
 	.startup = rockchip_i2s_tdm_startup,
 	.shutdown = rockchip_i2s_tdm_shutdown,
@@ -2403,6 +2417,7 @@ static const struct snd_soc_component_driver rockchip_i2s_tdm_component = {
 	.legacy_dai_naming = 1,
 	.controls = rockchip_i2s_tdm_snd_controls,
 	.num_controls = ARRAY_SIZE(rockchip_i2s_tdm_snd_controls),
+	.resume = rockchip_i2s_tdm_comp_resume,
 };
 
 static bool rockchip_i2s_tdm_wr_reg(struct device *dev, unsigned int reg)
@@ -3098,7 +3113,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 #ifdef HAVE_SYNC_RESET
 	bool sync;
 #endif
-	int ret, i, irq;
+	int ret, val, i, irq;
 
 	i2s_tdm = devm_kzalloc(&pdev->dev, sizeof(*i2s_tdm), GFP_KERNEL);
 	if (!i2s_tdm)
@@ -3106,6 +3121,9 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->dev = &pdev->dev;
 	i2s_tdm->lrck_ratio = 1;
+
+	if (!device_property_read_u32(i2s_tdm->dev, "rockchip,resume-deferred-ms", &val))
+		i2s_tdm->resume_deferred_ms = val;
 
 	/*
 	 * Should use flag GPIOD_ASIS not to reclaim LRCK pin as GPIO function,
