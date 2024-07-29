@@ -466,7 +466,13 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 				continue;
 			/* reg value of read diff to write */
 			if (j == ISP_MPFBC_CTRL ||
-			    j == ISP32_ISP_AWB1_GAIN_G || j == ISP32_ISP_AWB1_GAIN_RB)
+			    j == ISP32_ISP_AWB1_GAIN_G || j == ISP32_ISP_AWB1_GAIN_RB ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_Y_0 || j == ISP3X_RAWAWB_YUV_X_COOR_U_0 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_V_0 || j == ISP3X_RAWAWB_YUV_X_COOR_Y_1 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_U_1 || j == ISP3X_RAWAWB_YUV_X_COOR_V_1 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_Y_2 || j == ISP3X_RAWAWB_YUV_X_COOR_U_2 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_V_2 || j == ISP3X_RAWAWB_YUV_X_COOR_Y_3 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_U_3 || j == ISP3X_RAWAWB_YUV_X_COOR_V_3)
 				reg = isp->sw_base_addr + j;
 			else
 				reg = reg_buf + j;
