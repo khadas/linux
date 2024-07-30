@@ -4040,6 +4040,7 @@
 
 		lb-slave {
 			dsmc_lb_slave0: lb-slave0 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
 				status = "disabled";
 				dsmc_p0_region: region {
 					dsmc_p0_region0: region0 {
@@ -4077,6 +4078,7 @@
 				};
 			};
 			dsmc_lb_slave1: lb-slave1 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
 				status = "disabled";
 				dsmc_p1_region: region {
 					dsmc_p1_region0: region0 {
@@ -4114,6 +4116,7 @@
 				};
 			};
 			dsmc_lb_slave2: lb-slave2 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
 				status = "disabled";
 				dsmc_p2_region: region {
 					dsmc_p2_region0: region0 {
@@ -4151,6 +4154,7 @@
 				};
 			};
 			dsmc_lb_slave3: lb-slave3 {
+				rockchip,mtr-timing = <1 0 0 0 0 0 2 2>;
 				status = "disabled";
 				dsmc_p3_region: region {
 					dsmc_p3_region0: region0 {
