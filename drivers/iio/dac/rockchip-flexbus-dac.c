@@ -41,7 +41,7 @@ struct rockchip_flexbus_dac;
 
 struct rockchip_flexbus_dac_ops {
 	int (*write_block)(struct rockchip_flexbus_dac *rkfb_dac, void *src, dma_addr_t src_phys,
-			   u32 dst_len, u32 num_of_dfs);
+			   u32 src_len, u32 num_of_dfs);
 };
 
 struct rockchip_flexbus_dac {
@@ -355,14 +355,14 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	rkfb_dac = iio_priv(indio_dev);
 
-	platform_set_drvdata(pdev, rkfb_dac);
+	platform_set_drvdata(pdev, indio_dev);
 	rkfb_dac->dev = &pdev->dev;
 	rkfb_dac->rkfb = rkfb;
 	rockchip_flexbus_set_fb0(rkfb, rkfb_dac, rockchip_flexbus_dac_isr);
 
 	ret = rockchip_flexbus_dac_parse_dt(rkfb_dac);
-	if (ret != 0)
-		return -EINVAL;
+	if (ret)
+		goto err_fb0;
 
 	mutex_init(&rkfb_dac->lock);
 	init_completion(&rkfb_dac->completion);
@@ -374,7 +374,9 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 	indio_dev->channels = rockchip_flexbus_dac_channel;
 	indio_dev->num_channels = 1;
 
-	rockchip_flexbus_dac_init(rkfb_dac);
+	ret = rockchip_flexbus_dac_init(rkfb_dac);
+	if (ret)
+		goto err_mutex_destroy;
 	rkfb_dac->ops = &rockchip_flexbus_dac_ops;
 
 	rkfb_dac->src_buf_len = DIV_ROUND_UP(indio_dev->channels->scan_type.repeat * rkfb_dac->dfs,
@@ -382,25 +384,52 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 	rkfb_dac->src_buf_len = round_up(rkfb_dac->src_buf_len, 0x40);
 	if (rkfb_dac->src_buf_len < 0x40 || rkfb_dac->src_buf_len > 0x0fffffc0) {
 		dev_err(rkfb_dac->dev, "buf_len should >= 0x40 and <= 0x0fffffc0\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_mutex_destroy;
 	}
 
-	rkfb_dac->src_buf = dma_alloc_coherent(rkfb_dac->dev, rkfb_dac->src_buf_len,
-					       &rkfb_dac->src_buf_phys, GFP_KERNEL | __GFP_ZERO);
-	if (!rkfb_dac->src_buf)
-		return -ENOMEM;
+	rkfb_dac->src_buf = dmam_alloc_coherent(rkfb_dac->dev, rkfb_dac->src_buf_len,
+						&rkfb_dac->src_buf_phys, GFP_KERNEL | __GFP_ZERO);
+	if (!rkfb_dac->src_buf) {
+		ret = -ENOMEM;
+		goto err_mutex_destroy;
+	}
 
 	ret = devm_iio_triggered_buffer_setup_ext(&pdev->dev, indio_dev, NULL,
 						  &rockchip_flexbus_dac_trigger_handler,
 						  IIO_BUFFER_DIRECTION_OUT, NULL, NULL);
 	if (ret)
-		return ret;
+		goto err_mutex_destroy;
 
-	return devm_iio_device_register(&pdev->dev, indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
+	if (ret)
+		goto err_mutex_destroy;
+
+	return ret;
+
+err_mutex_destroy:
+	mutex_destroy(&rkfb_dac->lock);
+err_fb0:
+	rockchip_flexbus_set_fb0(rkfb, NULL, NULL);
+
+	return ret;
+}
+
+static int rockchip_flexbus_dac_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct rockchip_flexbus_dac *rkfb_dac = iio_priv(indio_dev);
+	struct rockchip_flexbus *rkfb = rkfb_dac->rkfb;
+
+	mutex_destroy(&rkfb_dac->lock);
+	rockchip_flexbus_set_fb0(rkfb, NULL, NULL);
+
+	return 0;
 }
 
 static struct platform_driver rockchip_flexbus_dac_driver = {
 	.probe	= rockchip_flexbus_dac_probe,
+	.remove	= rockchip_flexbus_dac_remove,
 	.driver	= {
 		.name		= "rockchip_flexbus_dac",
 		.of_match_table = rockchip_flexbus_dac_of_match,
