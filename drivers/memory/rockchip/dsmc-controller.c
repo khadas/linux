@@ -87,7 +87,8 @@ static int find_attr_region(struct dsmc_config_cs *cfg, uint32_t attribute)
 	int region;
 
 	for (region = 0; region < DSMC_LB_MAX_RGN; region++) {
-		if (cfg->slv_rgn[region].attribute == attribute)
+		if ((cfg->slv_rgn[region].status) &&
+		    (cfg->slv_rgn[region].attribute == attribute))
 			return region;
 	}
 	return -1;
@@ -264,7 +265,8 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
 	writel(dsmc->cfg.clk_mode, dsmc->regs + DSMC_CLK_MD);
-	writel(MTR_CFG(3, 3, 1, 1, 0, 0,
+	writel(MTR_CFG(cfg->rcshi, cfg->wcshi, cfg->rcss, cfg->wcss,
+		       cfg->rcsh, cfg->wcsh,
 		       calc_ltcy_value(cfg->rd_latency),
 		       calc_ltcy_value(cfg->wr_latency)),
 	       dsmc->regs + DSMC_MTR(cs));
@@ -287,13 +289,18 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		       (slv_rgn->cs0_ctrl << RGNX_ATTR_CTRL_SHIFT) |
 		       (slv_rgn->cs0_be_ctrled <<
 			RGNX_ATTR_BE_CTRLED_SHIFT) | value |
-		       (slv_rgn->ca_addr_width <<
+		       (RGNX_ATTR_32BIT_ADDR_WIDTH <<
 			RGNX_ATTR_ADDR_WIDTH_SHIFT),
 		       dsmc->regs + DSMC_RGN0_ATTR(cs) + 4 * i);
 	}
 	/* clear and enable interrupt */
-	writel(INT_STATUS(cs), dsmc->regs + DSMC_INT_STATUS);
-	writel(INT_EN(cs), dsmc->regs + DSMC_INT_EN);
+	writel(INT_STATUS(cfg->int_en), dsmc->regs + DSMC_INT_STATUS);
+	writel(INT_EN(cfg->int_en), dsmc->regs + DSMC_INT_EN);
+
+	if (dsmc->cfg.dma_req_mux_offset && (cs < 2))
+		REG_CLRSETBITS(dsmc, dsmc->cfg.dma_req_mux_offset,
+			       DMA_REQ_MUX_MASK(cs),
+			       DMA_REQ_MUX(cs, dsmc->cfg.cs_cfg[cs].int_en));
 
 	return 0;
 }
@@ -347,6 +354,12 @@ static int dsmc_slv_cmn_config(struct rockchip_dsmc *dsmc,
 	struct dsmc_map *region_map = &dsmc->cs_map[cs].region_map[0];
 	struct dsmc_config_cs *cfg = &dsmc->cfg.cs_cfg[cs];
 
+	tmp = lb_read_cmn(region_map, CMN_CON(3));
+	tmp |= 0x1 << RDYN_GEN_CTRL_SHIFT;
+	tmp &= ~(DATA_WIDTH_MASK << DATA_WIDTH_SHIFT);
+	tmp |= cfg->io_width << DATA_WIDTH_SHIFT;
+	lb_write_cmn(region_map, CMN_CON(3), tmp);
+
 	tmp = lb_read_cmn(region_map, CMN_CON(0));
 	if (slv_rgn->dummy_clk_num == 0) {
 		tmp &= ~(WR_DATA_CYC_EXTENDED_MASK << WR_DATA_CYC_EXTENDED_SHIFT);
@@ -354,13 +367,6 @@ static int dsmc_slv_cmn_config(struct rockchip_dsmc *dsmc,
 		tmp |= slv_rgn->dummy_clk_num << WR_DATA_CYC_EXTENDED_SHIFT;
 	} else {
 		pr_err("DSMC: lb slave: dummy clk too large\n");
-		return -1;
-	}
-	tmp &= ~(RD_LATENCY_CYC_MASK << RD_LATENCY_CYC_SHIFT);
-	if ((cfg->rd_latency == 1) || (cfg->rd_latency == 2)) {
-		tmp |= cfg->rd_latency << RD_LATENCY_CYC_SHIFT;
-	} else {
-		pr_err("DSMC: lb slave: read latency value error\n");
 		return -1;
 	}
 
@@ -371,12 +377,6 @@ static int dsmc_slv_cmn_config(struct rockchip_dsmc *dsmc,
 		tmp |= CA_CYC_16BIT << CA_CYC_SHIFT;
 
 	lb_write_cmn(region_map, CMN_CON(0), tmp);
-
-	tmp = lb_read_cmn(region_map, CMN_CON(3));
-	tmp |= 0x1 << RDYN_GEN_CTRL_SHIFT;
-	tmp &= ~(DATA_WIDTH_MASK << DATA_WIDTH_SHIFT);
-	tmp |= cfg->io_width << DATA_WIDTH_SHIFT;
-	lb_write_cmn(region_map, CMN_CON(3), tmp);
 
 	return 0;
 }
@@ -396,9 +396,6 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 		       (MCR_IOWIDTH_X8 << MCR_IOWIDTH_SHIFT) |
 		       (MCR_CRT_CR_SPACE << MCR_CRT_SHIFT));
 
-	slv_rgn = &cfg->slv_rgn[0];
-	ret = dsmc_slv_cmn_config(dsmc, slv_rgn, cs);
-
 	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
 		slv_rgn = &cfg->slv_rgn[i];
 		if (!slv_rgn->status)
@@ -408,8 +405,21 @@ static int dsmc_lb_cmn_config(struct rockchip_dsmc *dsmc, uint32_t cs)
 			break;
 	}
 
+	slv_rgn = &cfg->slv_rgn[0];
+	ret = dsmc_slv_cmn_config(dsmc, slv_rgn, cs);
+
 	/* config to memory space */
 	writel(tmp, dsmc->regs + DSMC_MCR(cs));
+
+	for (i = 0; i < DSMC_LB_MAX_RGN; i++) {
+		slv_rgn = &cfg->slv_rgn[i];
+		if (!slv_rgn->status)
+			continue;
+
+		REG_CLRSETBITS(dsmc, DSMC_RGN0_ATTR(cs) + 4 * i,
+			       RGNX_ATTR_CA_ADDR_MASK << RGNX_ATTR_ADDR_WIDTH_SHIFT,
+			       slv_rgn->ca_addr_width << RGNX_ATTR_ADDR_WIDTH_SHIFT);
+	}
 
 	return ret;
 }
@@ -470,7 +480,7 @@ static int dsmc_psram_cfg(struct rockchip_dsmc *dsmc, uint32_t cs)
 		       (MCR_CRT_CR_SPACE << MCR_CRT_SHIFT));
 	if (cs_cfg->protcl == OPI_XCCELA_PSRAM) {
 		/* Xccela psram init */
-		uint8_t mr_tmp;
+		uint8_t mr_tmp, rbxen;
 
 		mr_tmp = xccela_read_mr(region_map, 0);
 		tmp = cs_cfg->rd_latency - 3;
@@ -497,6 +507,14 @@ static int dsmc_psram_cfg(struct rockchip_dsmc *dsmc, uint32_t cs)
 
 		dsmc_cfg_latency(cs_cfg->rd_latency, cs_cfg->wr_latency, dsmc, cs);
 
+		mr_tmp = xccela_read_mr(region_map, 3);
+		if ((mr_tmp >> XCCELA_MR3_RBXEN_SHIFT) & XCCELA_MR3_RBXEN_MASK) {
+			rbxen = 1;
+			cs_cfg->rd_bdr_xfer_en = 0;
+		} else {
+			rbxen = 0;
+		}
+
 		mr_tmp = xccela_read_mr(region_map, 8);
 
 		if (cs_cfg->io_width == MCR_IOWIDTH_X16) {
@@ -513,10 +531,22 @@ static int dsmc_psram_cfg(struct rockchip_dsmc *dsmc, uint32_t cs)
 		else if (cs_cfg->wrap_size == MCR_WRAPSIZE_32_CLK)
 			mr_tmp |= (XCCELA_MR8_BL_32_CLK << XCCELA_MR8_BL_SHIFT);
 
+		mr_tmp |= rbxen << XCCELA_MR8_RBX_EN_SHIFT;
+
 		xccela_write_mr(region_map, 8, mr_tmp);
 	} else {
 		/* Hyper psram init */
 		uint16_t cr_tmp;
+
+		cr_tmp = hyper_read_mr(region_map, HYPER_PSRAM_IR0);
+		if (((cr_tmp >> IR0_ROW_COUNT_SHIFT) & IR0_ROW_COUNT_MASK) ==
+		    IR0_ROW_COUNT_128MBIT) {
+			cs_cfg->rd_bdr_xfer_en = 1;
+			cs_cfg->wr_bdr_xfer_en = 1;
+		} else {
+			cs_cfg->rd_bdr_xfer_en = 0;
+			cs_cfg->wr_bdr_xfer_en = 0;
+		}
 
 		cr_tmp = hyper_read_mr(region_map, HYPER_PSRAM_CR0);
 
@@ -652,8 +682,8 @@ static void dsmc_psram_remodify_timing(struct rockchip_dsmc *dsmc, uint32_t cs)
 		       (BDRTCR_WR_BDR_XFER_EN_MASK << BDRTCR_WR_BDR_XFER_EN_SHIFT) |
 		       (BDRTCR_RD_BDR_XFER_EN_MASK << BDRTCR_RD_BDR_XFER_EN_SHIFT),
 		       ((tmp - 6) << BDRTCR_COL_BIT_NUM_SHIFT) |
-		       (BDRTCR_WR_BDR_XFER_EN << BDRTCR_WR_BDR_XFER_EN_SHIFT) |
-		       (BDRTCR_RD_BDR_XFER_EN << BDRTCR_RD_BDR_XFER_EN_SHIFT));
+		       (cs_cfg->wr_bdr_xfer_en << BDRTCR_WR_BDR_XFER_EN_SHIFT) |
+		       (cs_cfg->rd_bdr_xfer_en << BDRTCR_RD_BDR_XFER_EN_SHIFT));
 }
 
 static void dsmc_lb_dma_clear_s2h_intrupt(struct rockchip_dsmc *dsmc, uint32_t cs)

@@ -74,6 +74,10 @@
 #define DMA_REQ_EN(cs)					(0x1 << (cs))
 #define DMA_REQ_DIS(cs)					(0x0 << (cs))
 
+/* DSMC_DMA_MUX */
+#define DMA_REQ_MUX_MASK(req)				(0x3 << ((req) * 4))
+#define DMA_REQ_MUX(req, n)				(((n) & 0x3) << ((req) * 4))
+
 /* VDMC */
 #define VDMC_MID_SHIFT					0
 #define VDMC_MID_MASK					0xF
@@ -166,6 +170,7 @@
 #define RGNX_ATTR_BE_CTRLED_SHIFT			5
 #define RGNX_ATTR_DUM_CLK_EN_SHIFT			6
 #define RGNX_ATTR_DUM_CLK_NUM_SHIFT			7
+#define RGNX_ATTR_CA_ADDR_MASK				1
 #define RGNX_ATTR_32BIT_ADDR_WIDTH			0
 #define RGNX_ATTR_16BIT_ADDR_WIDTH			1
 #define RGNX_ATTR_ADDR_WIDTH_SHIFT			8
@@ -201,6 +206,7 @@
 #define XCCELA_PSRAM_MR_SET(n)				(((n) & 0xff) << 8)
 /* device id bit mask */
 #define HYPERBUS_DEV_ID_MASK				(0xf)
+#define IR0_ROW_COUNT_128MBIT				(0xd)
 #define IR0_ROW_COUNT_SHIFT				(0x8)
 #define IR0_ROW_COUNT_MASK				(0x1f)
 #define IR0_COL_COUNT_SHIFT				(0x4)
@@ -239,6 +245,9 @@
 
 #define XCCELA_MR2_DEV_DENSITY_MASK			(0x7)
 
+#define XCCELA_MR3_RBXEN_MASK				(1)
+#define XCCELA_MR3_RBXEN_SHIFT				(7)
+
 #define XCCELA_MR4_WL_SHIFT				(5)
 #define XCCELA_MR4_WL_MASK				(0x7)
 
@@ -246,6 +255,9 @@
 #define XCCELA_MR8_IO_TYPE_MASK				(0x1)
 #define XCCELA_MR8_IO_TYPE_X16				(0x1)
 #define XCCELA_MR8_IO_TYPE_X8				(0x0)
+#define XCCELA_MR8_RBX_EN_SHIFT				(3)
+#define XCCELA_MR8_RBX_EN_MASK				(0x1)
+#define XCCELA_MR8_RBX_EN				(0x1)
 #define XCCELA_MR8_BL_SHIFT				(0)
 #define XCCELA_MR8_BL_MASK				(0x7)
 #define XCCELA_MR8_BL_32_CLK				(0x2)
@@ -284,6 +296,16 @@
 
 #define RK3576_IOMUX_SEL(v, s)				(((v) << (s)) | (0xf << ((s) + 16)))
 
+#define RK3506_GPIO1A_IOMUX_SEL_0_OFFSET		(0x20)
+#define RK3506_GPIO1A_IOMUX_SEL_1_OFFSET		(0x24)
+#define RK3506_GPIO1B_IOMUX_SEL_0_OFFSET		(0x28)
+#define RK3506_GPIO1B_IOMUX_SEL_1_OFFSET		(0x2c)
+#define RK3506_GPIO1C_IOMUX_SEL_0_OFFSET		(0x30)
+#define RK3506_GPIO1C_IOMUX_SEL_1_OFFSET		(0x34)
+#define RK3506_GPIO1D_IOMUX_SEL_0_OFFSET		(0x38)
+
+#define RK3506_IOMUX_SEL(v, s)				(((v) << (s)) | (0xf << ((s) + 16)))
+
 struct regions_config {
 	uint32_t attribute;
 	uint32_t ca_addr_width;
@@ -303,6 +325,12 @@ struct dsmc_config_cs {
 	uint32_t exclusive_dqs;
 	uint32_t io_width;
 	uint32_t wrap_size;
+	uint32_t rcshi;
+	uint32_t wcshi;
+	uint32_t rcss;
+	uint32_t wcss;
+	uint32_t rcsh;
+	uint32_t wcsh;
 	uint32_t rd_latency;
 	uint32_t wr_latency;
 	uint32_t col;
@@ -311,6 +339,9 @@ struct dsmc_config_cs {
 	uint32_t max_length;
 	uint32_t rgn_num;
 	uint32_t dll_num[2];
+	uint32_t rd_bdr_xfer_en;
+	uint32_t wr_bdr_xfer_en;
+	uint32_t int_en;
 	struct regions_config slv_rgn[DSMC_LB_MAX_RGN];
 };
 
@@ -319,6 +350,7 @@ struct dsmc_ctrl_config {
 	uint32_t freq_hz;
 	uint32_t ctrl_freq_hz;
 	uint32_t cap;
+	uint32_t dma_req_mux_offset;
 	struct dsmc_config_cs cs_cfg[DSMC_MAX_SLAVE_NUM];
 };
 
