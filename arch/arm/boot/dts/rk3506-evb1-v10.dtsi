@@ -164,35 +164,6 @@
 		};
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		cma: linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x800000>;
-			linux,cma-default;
-		};
-
-		drm_logo: drm-logo@0 {
-			compatible = "rockchip,drm-logo";
-			reg = <0x0 0x0>;
-		};
-
-		ramoops: ramoops@880000 {
-			compatible = "ramoops";
-			reg = <0x880000 0x80000>;
-			boot-log-size = <0x10000>;	/* do not change */
-			boot-log-count = <0x1>;		/* do not change */
-			console-size = <0x70000>;
-			pmsg-size = <0x0>;
-			ftrace-size = <0x0>;
-			record-size = <0x0>;
-		};
-	};
-
 	vcc12v_dc: vcc12v-dc {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dc";
@@ -298,6 +269,10 @@
 	pinctrl-0 = <&rm_io30_can0_tx &rm_io31_can0_rx>;
 	pinctrl-names = "default";
 	status = "disabled";
+};
+
+&cma {
+	size = <0x800000>;
 };
 
 &cpu0 {
