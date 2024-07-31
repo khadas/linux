@@ -313,6 +313,40 @@
 		method = "smc";
 	};
 
+	reserved_memory: reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		trust@0 {
+			reg = <0x00000 0xa1000>;
+			no-map;
+		};
+
+		cma: linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0>;
+			linux,cma-default;
+		};
+
+		drm_logo: drm-logo@0 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
+
+		ramoops: ramoops@a1000 {
+			compatible = "ramoops";
+			reg = <0xa1000 0x5f000>;
+			boot-log-size = <0xf000>;	/* do not change */
+			boot-log-count = <0x1>;		/* do not change */
+			console-size = <0x50000>;
+			pmsg-size = <0x0>;
+			ftrace-size = <0x0>;
+			record-size = <0x0>;
+		};
+	};
+
 	rockchip_system_monitor: rockchip-system-monitor {
 		compatible = "rockchip,system-monitor";
 
