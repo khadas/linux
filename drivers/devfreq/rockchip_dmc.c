@@ -357,6 +357,7 @@ static int rockchip_ddr_set_rate(unsigned long target_rate)
 
 static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
 				     struct dev_pm_opp_supply *supply,
+				     unsigned long *dmcfreq_volt,
 				     char *reg_name)
 {
 	int ret;
@@ -369,6 +370,8 @@ static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
 		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu mV): %d\n",
 			__func__, supply->u_volt_min, supply->u_volt,
 			supply->u_volt_max, ret);
+	else
+		*dmcfreq_volt = supply->u_volt;
 
 	return ret;
 }
@@ -453,12 +456,12 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
 		if (reg_count > 1) {
-			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
-							&supplies[1], "mem");
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg, &supplies[1],
+							&dmcfreq->mem_volt, "mem");
 			if (ret)
 				goto restore_voltage;
 		}
-		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], "vdd");
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], &dmcfreq->volt, "vdd");
 		if (ret)
 			goto restore_voltage;
 		if (new_freq == old_freq)
@@ -512,20 +515,16 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0],
-						"vdd");
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], &dmcfreq->volt, "vdd");
 		if (ret)
 			goto restore_freq;
 		if (reg_count > 1) {
-			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
-							&supplies[1], "mem");
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg, &supplies[1],
+							&dmcfreq->mem_volt, "mem");
 			if (ret)
 				goto restore_freq;
 		}
 	}
-	dmcfreq->volt = supplies[0].u_volt;
-	if (reg_count > 1)
-		dmcfreq->mem_volt = supplies[1].u_volt;
 
 	goto out;
 
@@ -3390,7 +3389,7 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 		mem_reg = opp_info->regulators[1];
 
 	/* set voltage to sleep_volt if need */
-	if (vdd_reg && dmcfreq->sleep_volt &&
+	if (vdd_reg && dmcfreq->sleep_volt && dmcfreq->volt &&
 	    dmcfreq->sleep_volt != dmcfreq->volt) {
 		ret = regulator_set_voltage(vdd_reg, dmcfreq->sleep_volt, INT_MAX);
 		if (ret) {
@@ -3399,7 +3398,7 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 			return ret;
 		}
 	}
-	if (mem_reg && dmcfreq->sleep_mem_volt &&
+	if (mem_reg && dmcfreq->sleep_mem_volt && dmcfreq->mem_volt &&
 	    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
 		ret = regulator_set_voltage(mem_reg, dmcfreq->sleep_mem_volt, INT_MAX);
 		if (ret) {
@@ -3430,7 +3429,7 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 			mem_reg = opp_info->regulators[1];
 
 		/* restore voltage if it is sleep_volt */
-		if (mem_reg && dmcfreq->sleep_volt &&
+		if (mem_reg && dmcfreq->sleep_volt && dmcfreq->volt &&
 		    dmcfreq->sleep_volt != dmcfreq->volt) {
 			ret = regulator_set_voltage(vdd_reg, dmcfreq->volt,
 						    INT_MAX);
@@ -3440,7 +3439,7 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 				return ret;
 			}
 		}
-		if (vdd_reg && dmcfreq->sleep_mem_volt &&
+		if (vdd_reg && dmcfreq->sleep_mem_volt && dmcfreq->mem_volt &&
 		    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
 			ret = regulator_set_voltage(mem_reg, dmcfreq->mem_volt,
 						    INT_MAX);
