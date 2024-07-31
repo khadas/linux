@@ -568,8 +568,7 @@ static int flexbus_cif_plat_probe(struct platform_device *pdev)
 		return ret;
 
 	cif_dev->fb_dev = rkfb;
-	rkfb->fb1_data = cif_dev;
-	rkfb->fb1_isr = flexbus_cif_irq_handler;
+	rockchip_flexbus_set_fb1(rkfb, cif_dev, flexbus_cif_irq_handler);
 
 	if (flexbus_cif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));

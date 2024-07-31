@@ -358,8 +358,7 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rkfb_dac);
 	rkfb_dac->dev = &pdev->dev;
 	rkfb_dac->rkfb = rkfb;
-	rkfb->fb0_data = rkfb_dac;
-	rkfb->fb0_isr = rockchip_flexbus_dac_isr;
+	rockchip_flexbus_set_fb0(rkfb, rkfb_dac, rockchip_flexbus_dac_isr);
 
 	ret = rockchip_flexbus_dac_parse_dt(rkfb_dac);
 	if (ret != 0)

@@ -147,6 +147,20 @@ struct rockchip_flexbus {
 	const struct rockchip_flexbus_config	*config;
 };
 
+static inline void rockchip_flexbus_set_fb0(struct rockchip_flexbus *rkfb, void *fb0_data,
+					    void (*fb0_isr)(struct rockchip_flexbus *rkfb, u32 isr))
+{
+	rkfb->fb0_data = fb0_data;
+	rkfb->fb0_isr = fb0_isr;
+}
+
+static inline void rockchip_flexbus_set_fb1(struct rockchip_flexbus *rkfb, void *fb1_data,
+					    void (*fb1_isr)(struct rockchip_flexbus *rkfb, u32 isr))
+{
+	rkfb->fb1_data = fb1_data;
+	rkfb->fb1_isr = fb1_isr;
+}
+
 unsigned int rockchip_flexbus_readl(struct rockchip_flexbus *rkfb, unsigned int reg);
 void rockchip_flexbus_writel(struct rockchip_flexbus *rkfb, unsigned int reg, unsigned int val);
 void rockchip_flexbus_clrbits(struct rockchip_flexbus *rkfb, unsigned int reg,

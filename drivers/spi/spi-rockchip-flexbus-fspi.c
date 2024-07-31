@@ -695,8 +695,7 @@ static int rk_flexbus_fspi_probe(struct platform_device *pdev)
 	fspi->master = master;
 	fspi->fb = flexbus_dev;
 
-	flexbus_dev->fb0_data = fspi;
-	flexbus_dev->fb0_isr = rk_flexbus_fspi_irq_handler;
+	rockchip_flexbus_set_fb0(flexbus_dev, fspi, rk_flexbus_fspi_irq_handler);
 
 	if (has_acpi_companion(&pdev->dev)) {
 		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &val);

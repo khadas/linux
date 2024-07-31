@@ -340,8 +340,7 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rkfb_adc);
 	rkfb_adc->dev = &pdev->dev;
 	rkfb_adc->rkfb = rkfb;
-	rkfb->fb1_data = rkfb_adc;
-	rkfb->fb1_isr = rockchip_flexbus_adc_isr;
+	rockchip_flexbus_set_fb1(rkfb, rkfb_adc, rockchip_flexbus_adc_isr);
 
 	ret = rockchip_flexbus_adc_parse_dt(rkfb_adc);
 	if (ret != 0)
