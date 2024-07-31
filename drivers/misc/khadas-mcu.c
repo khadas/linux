@@ -900,8 +900,25 @@ static void khadas_fan_shutdown(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int khadas_fan_suspend(struct device *dev)
 {
+	int ret;
+	u8 data = MCU_FAN_SPEED_OFF;
+
 	cancel_delayed_work(&g_mcu_data->fan_data.work);
-	mcu_fan_level_set(&g_mcu_data->fan_data, 0);
+	if (g_mcu_data->board == KHADAS_BOARD_VIM4 || g_mcu_data->board == KHADAS_BOARD_VIM1S){
+		ret = mcu_i2c_write_regs(g_mcu_data->client,
+				MCU_CMD_FAN_STATUS_CTRL_REGv2,
+				&data, 1);
+		if (ret < 0) {
+			pr_debug("write fan control err\n");
+		}
+	} else {
+		ret = mcu_i2c_write_regs(g_mcu_data->client,
+				MCU_CMD_FAN_STATUS_CTRL_REG,
+				&data, 1);
+		if (ret < 0) {
+			pr_debug("write fan control err\n");
+		}
+	}
 
 	return 0;
 }
