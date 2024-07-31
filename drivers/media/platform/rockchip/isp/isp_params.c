@@ -261,6 +261,8 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	/* clean module params */
 	params_vdev->ops->clear_first_param(params_vdev);
 	params_vdev->rdbk_times = 0;
+	if (!(dev->isp_state & ISP_START))
+		rkisp_params_stream_stop(params_vdev);
 }
 
 static int
@@ -305,7 +307,8 @@ static int rkisp_params_fh_open(struct file *filp)
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
-
+	if (!ret)
+		atomic_inc(&params->open_cnt);
 	return ret;
 }
 
@@ -317,6 +320,10 @@ static int rkisp_params_fop_release(struct file *file)
 	ret = vb2_fop_release(file);
 	if (!ret)
 		v4l2_pipeline_pm_put(&params->vnode.vdev.entity);
+	if (!atomic_dec_return(&params->open_cnt) &&
+	    !(params->dev->isp_state & ISP_START) &&
+	    params->ops->fop_release)
+		params->ops->fop_release(params);
 	return ret;
 }
 
@@ -491,8 +498,6 @@ void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev)
 	/* isp stop to free buf */
 	if (params_vdev->ops->stream_stop)
 		params_vdev->ops->stream_stop(params_vdev);
-	if (params_vdev->ops->fop_release)
-		params_vdev->ops->fop_release(params_vdev);
 	params_vdev->first_cfg_params = false;
 }
 
@@ -573,7 +578,7 @@ int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 		RKISP_ISP_PAD_SINK_PARAMS, MEDIA_LNK_FL_ENABLED);
 	if (ret < 0)
 		goto err_unregister_video;
-
+	atomic_set(&params_vdev->open_cnt, 0);
 	return 0;
 
 err_unregister_video:
