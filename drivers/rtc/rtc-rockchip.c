@@ -153,7 +153,6 @@ enum {
 };
 
 struct rockchip_rtc_chip {
-	u32 count_reg;
 	int (*initialize)(struct regmap *regmap);
 	void (*clamp_en)(struct regmap *grf, bool on);
 	int (*test_start)(struct regmap *regmap);
@@ -553,38 +552,12 @@ static void rv1106_rtc_clamp(struct regmap *grf, bool en)
 			     (RV1106_RTC_CLAMP_EN << 16) | RV1106_RTC_CLAMP_EN);
 }
 
-static int rv1103b_rtc_test_start(struct regmap *regmap)
-{
-	int ret = 0, done = 0;
-
-	ret = rockchip_rtc_write(regmap, RV1103B_RTC_TEST_LEN,
-				 CLK32K_TEST_LEN);
-	if (ret) {
-		pr_err("%s:Failed to update RTC CLK32K TEST LEN: %d\n",
-		       __func__, ret);
-		return ret;
-	}
-
-	ret = rockchip_rtc_update_bits(regmap, RV1103B_RTC_TEST_ST,
-				       RV1103B_CLK32K_TEST_START,
-				       RV1103B_CLK32K_TEST_START);
-	if (ret) {
-		pr_err("%s:Failed to update RTC CLK32K TEST STATUS : %d\n",
-		       __func__, ret);
-		return ret;
-	}
-
-	ret = regmap_read_poll_timeout(regmap, RV1103B_RTC_TEST_ST, done,
-				       (done & RV1103B_CLK32K_TEST_DONE), 20000, RTC_TIMEOUT);
-	if (ret)
-		pr_err("%s:timeout waiting for RTC TEST STATUS : %d\n",  __func__, ret);
-
-	return ret;
-}
-
 static int rv1106_rtc_test_start(struct regmap *regmap)
 {
-	int ret = 0, done = 0;
+	u64 camp;
+	u32 count[4], counts, g_ref, tcamp;
+	int ret, done = 0, trim_dir, c_hour,
+	    c_day, c_det_day, c_mon, c_det_mon;
 
 	ret = rockchip_rtc_update_bits(regmap, RV1106_RTC_CLK32K_TEST,
 				       RV1106_CLK32K_TEST_EN, RV1106_CLK32K_TEST_EN);
@@ -616,6 +589,77 @@ static int rv1106_rtc_test_start(struct regmap *regmap)
 	if (ret)
 		pr_err("%s:timeout waiting for RTC TEST STATUS : %d\n", __func__, ret);
 
+	ret = regmap_bulk_read(regmap,
+			       RV1106_RTC_CNT_0,
+			       count, 4);
+	if (ret) {
+		pr_err("Failed to read RTC count REG: %d\n", ret);
+		return ret;
+	}
+
+	counts = count[0] | (count[1] << 8) |
+		 (count[2] << 16) | (count[3] << 24);
+	g_ref = CLK32K_TEST_REF_CLK * (CLK32K_TEST_LEN + 1);
+
+	if (counts > g_ref) {
+		trim_dir = 0;
+		camp = 36ULL * (32768 * (counts - g_ref));
+		do_div(camp, (g_ref / 100));
+	} else {
+		trim_dir = CLK32K_COMP_DIR_ADD;
+		camp = 36ULL * (32768 * (g_ref - counts));
+		do_div(camp, (g_ref / 100));
+	}
+	tcamp = (u32)camp;
+	c_hour = DIV_ROUND_CLOSEST(tcamp, 32768);
+	c_day = DIV_ROUND_CLOSEST(24 * tcamp, 32768);
+	c_mon = DIV_ROUND_CLOSEST(30 * 24 * tcamp, 32768);
+
+	if (c_hour > 1)
+		rockchip_rtc_write(regmap, RTC_COMP_H, bin2bcd((c_hour - 1)) | trim_dir);
+	else
+		rockchip_rtc_write(regmap, RTC_COMP_H, CLK32K_NO_COMP);
+
+	if (c_day > c_hour * 23) {
+		c_det_day = c_day - c_hour * 23;
+		trim_dir = CLK32K_COMP_DIR_ADD;
+	} else {
+		c_det_day = c_hour * 24 - c_day;
+		trim_dir = 0;
+	}
+
+	if (c_det_day > 1)
+		rockchip_rtc_write(regmap, RTC_COMP_D,
+				   bin2bcd((c_det_day - 1)) | trim_dir);
+	else
+		rockchip_rtc_write(regmap, RTC_COMP_D, CLK32K_NO_COMP);
+
+	if (c_mon > (29 * c_day + 23 * c_hour)) {
+		c_det_mon = c_mon - 29 * c_day - 23 * c_hour;
+		trim_dir = CLK32K_COMP_DIR_ADD;
+	} else {
+		c_det_mon = 29 * c_day + 23 * c_hour - c_mon;
+		trim_dir = 0;
+	}
+
+	if (c_det_mon > 1)
+		rockchip_rtc_write(regmap, RTC_COMP_M,
+				   bin2bcd((c_det_mon - 1)) | trim_dir);
+	else
+		rockchip_rtc_write(regmap, RTC_COMP_M, CLK32K_NO_COMP);
+
+	ret = regmap_read(regmap, RTC_CTRL, &done);
+	if (ret) {
+		pr_err("Failed to read RTC_CTRL: %d\n", ret);
+		return ret;
+	}
+
+	ret = rockchip_rtc_update_bits(regmap, RTC_CTRL,
+				       CLK32K_COMP_EN, CLK32K_COMP_EN);
+	if (ret) {
+		pr_err("%s:Failed to update RTC CTRL : %d\n", __func__, ret);
+		return ret;
+	}
 	return ret;
 }
 
@@ -644,89 +688,15 @@ static int rv1106_rtc_test_start(struct regmap *regmap)
 static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 {
 	struct rockchip_rtc *rtc = container_of(work, struct rockchip_rtc, trim_work.work);
-	u64 camp;
-	u32 count[4], counts, g_ref, tcamp;
-	int ret, done = 0, trim_dir, c_hour,
-	    c_day, c_det_day, c_mon, c_det_mon;
+	int ret = 0;
 
-	ret = rtc->chip->test_start(rtc->regmap);
-	if (ret) {
-		pr_err("%s:Failed to test rtc: %d\n",  __func__, ret);
-		return;
+	if (rtc->chip->test_start) {
+		ret = rtc->chip->test_start(rtc->regmap);
+		if (ret) {
+			pr_err("%s:Failed to test rtc: %d\n",  __func__, ret);
+			return;
+		}
 	}
-
-	ret = regmap_bulk_read(rtc->regmap,
-			       rtc->chip->count_reg,
-			       count, 4);
-	if (ret) {
-		pr_err("Failed to read RTC count REG: %d\n", ret);
-		return;
-	}
-
-	counts = count[0] | (count[1] << 8) |
-		 (count[2] << 16) | (count[3] << 24);
-	g_ref = CLK32K_TEST_REF_CLK * (CLK32K_TEST_LEN + 1);
-
-	if (counts > g_ref) {
-		trim_dir = 0;
-		camp = 36ULL * (32768 * (counts - g_ref));
-		do_div(camp, (g_ref / 100));
-	} else {
-		trim_dir = CLK32K_COMP_DIR_ADD;
-		camp = 36ULL * (32768 * (g_ref - counts));
-		do_div(camp, (g_ref / 100));
-	}
-	tcamp = (u32)camp;
-	c_hour = DIV_ROUND_CLOSEST(tcamp, 32768);
-	c_day = DIV_ROUND_CLOSEST(24 * tcamp, 32768);
-	c_mon = DIV_ROUND_CLOSEST(30 * 24 * tcamp, 32768);
-
-	if (c_hour > 1)
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_H, bin2bcd((c_hour - 1)) | trim_dir);
-	else
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_H, CLK32K_NO_COMP);
-
-	if (c_day > c_hour * 23) {
-		c_det_day = c_day - c_hour * 23;
-		trim_dir = CLK32K_COMP_DIR_ADD;
-	} else {
-		c_det_day = c_hour * 24 - c_day;
-		trim_dir = 0;
-	}
-
-	if (c_det_day > 1)
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_D,
-				   bin2bcd((c_det_day - 1)) | trim_dir);
-	else
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_D, CLK32K_NO_COMP);
-
-	if (c_mon > (29 * c_day + 23 * c_hour)) {
-		c_det_mon = c_mon - 29 * c_day - 23 * c_hour;
-		trim_dir = CLK32K_COMP_DIR_ADD;
-	} else {
-		c_det_mon = 29 * c_day + 23 * c_hour - c_mon;
-		trim_dir = 0;
-	}
-
-	if (c_det_mon > 1)
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_M,
-				   bin2bcd((c_det_mon - 1)) | trim_dir);
-	else
-		rockchip_rtc_write(rtc->regmap, RTC_COMP_M, CLK32K_NO_COMP);
-
-	ret = regmap_read(rtc->regmap, RTC_CTRL, &done);
-	if (ret) {
-		pr_err("Failed to read RTC_CTRL: %d\n", ret);
-		return;
-	}
-
-	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_CTRL,
-				       CLK32K_COMP_EN, CLK32K_COMP_EN);
-	if (ret) {
-		pr_err("%s:Failed to update RTC CTRL : %d\n", __func__, ret);
-		return;
-	}
-	return;
 }
 
 static bool rockchip_rtc_is_trimed(struct rockchip_rtc *rtc)
@@ -743,14 +713,14 @@ static bool rockchip_rtc_is_trimed(struct rockchip_rtc *rtc)
 
 static void rockchip_rtc_trim_start(struct rockchip_rtc *rtc)
 {
-	if (!rockchip_rtc_is_trimed(rtc))
+	if (!rockchip_rtc_is_trimed(rtc) && rtc->chip->test_start)
 		queue_delayed_work(system_long_wq, &rtc->trim_work,
 				   msecs_to_jiffies(5000));
 }
 
 static void __maybe_unused rockchip_rtc_trim_close(struct rockchip_rtc *rtc)
 {
-	if (!rockchip_rtc_is_trimed(rtc))
+	if (!rockchip_rtc_is_trimed(rtc) && rtc->chip->test_start)
 		cancel_delayed_work_sync(&rtc->trim_work);
 }
 
@@ -809,17 +779,14 @@ static SIMPLE_DEV_PM_OPS(rockchip_rtc_pm_ops,
 	rockchip_rtc_suspend, rockchip_rtc_resume);
 
 static const struct rockchip_rtc_chip rv1106_rtc_data = {
-	.count_reg = RV1106_RTC_CNT_0,
 	.initialize = rv1106_rtc_init,
 	.clamp_en = rv1106_rtc_clamp,
 	.test_start = rv1106_rtc_test_start,
 };
 
 static const struct rockchip_rtc_chip rv1103b_rtc_data = {
-	.count_reg = RV1103B_RTC_CNT_0,
 	.initialize = rv1103b_rtc_init,
 	.clamp_en = rv1103b_rtc_clamp,
-	.test_start = rv1103b_rtc_test_start,
 };
 
 static const struct of_device_id rockchip_rtc_of_match[] = {
@@ -947,8 +914,10 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtc))
 		return PTR_ERR(rtc->rtc);
 
-	INIT_DELAYED_WORK(&rtc->trim_work, rockchip_rtc_compensation_delay_work);
-	rockchip_rtc_trim_start(rtc);
+	if (rtc->chip->test_start) {
+		INIT_DELAYED_WORK(&rtc->trim_work, rockchip_rtc_compensation_delay_work);
+		rockchip_rtc_trim_start(rtc);
+	}
 
 	return 0;
 }
