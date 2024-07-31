@@ -11385,7 +11385,7 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 
 	if (!vp_data->regs->bcsh_en.mask) {
 		if (vcstate->bcsh_en)
-			DRM_WARN("VP%d unsupported BCSH\n", vp->id);
+			DRM_DEBUG("VP%d unsupported BCSH\n", vp->id);
 		return;
 	}
 
@@ -11650,6 +11650,31 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	vcstate->sharp_en = true;
 }
 
+static void vop3_get_csc_paramter_from_bcsh(struct rockchip_crtc_state *vcstate,
+					    struct post_csc *csc_info)
+{
+	csc_info->r_gain = 256;
+	csc_info->g_gain = 256;
+	csc_info->b_gain = 256;
+	csc_info->r_offset = 256;
+	csc_info->g_offset = 256;
+	csc_info->b_offset = 256;
+	if (vcstate->tv_state->brightness == 50 && vcstate->tv_state->contrast == 50 &&
+	    vcstate->tv_state->saturation == 50 && vcstate->tv_state->hue == 50) {
+		csc_info->csc_enable = false;
+		csc_info->brightness = 256;
+		csc_info->contrast = 256;
+		csc_info->saturation = 256;
+		csc_info->hue = 256;
+	} else {
+		csc_info->csc_enable = true;
+		csc_info->brightness = vcstate->tv_state->brightness * 511 / 100;
+		csc_info->contrast = vcstate->tv_state->contrast * 511 / 100;
+		csc_info->saturation = vcstate->tv_state->saturation * 511 / 100;
+		csc_info->hue = vcstate->tv_state->hue * 511 / 100;
+	}
+}
+
 static void vop2_cfg_update(struct drm_crtc *crtc,
 			    struct drm_crtc_state *old_crtc_state)
 {
@@ -11659,6 +11684,7 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct vop2_video_port *splice_vp = &vop2->vps[vp_data->splice_vp_id];
+	struct post_csc default_csc_info;
 	uint32_t val;
 	uint32_t r, g, b;
 
@@ -11703,9 +11729,14 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 
 	spin_unlock(&vop2->reg_lock);
 
-	if (vp_data->feature & VOP_FEATURE_POST_CSC)
-		vop3_post_csc_config(crtc, &vp->acm_info,
-				     vp->csc_info.csc_enable ? &vp->csc_info : NULL);
+	if (vp_data->feature & VOP_FEATURE_POST_CSC) {
+		if (vp->csc_info.csc_enable) {
+			vop3_post_csc_config(crtc, &vp->acm_info, &vp->csc_info);
+		} else {
+			vop3_get_csc_paramter_from_bcsh(vcstate, &default_csc_info);
+			vop3_post_csc_config(crtc, &vp->acm_info, &default_csc_info);
+		}
+	}
 
 	if ((vp_data->feature & VOP_FEATURE_POST_ACM) && vp->acm_state_changed)
 		vop3_post_acm_config(crtc, &vp->acm_info);
