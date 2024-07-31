@@ -30,6 +30,7 @@
 #include "rk628_csi.h"
 #include "rk628_hdmitx.h"
 #include "rk628_efuse.h"
+#include "rk628_config.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
@@ -909,11 +910,12 @@ static void rk628_show_resolution(struct seq_file *s)
 	struct rk628_display_mode *src_mode = &rk628->src_mode;
 	u32 src_hactive, src_hs_start, src_hs_end, src_htotal;
 	u32 src_vactive, src_vs_start, src_vs_end, src_vtotal;
-	u32 clk_rx_read;
+	u32 src_dclk, clk_rx_read;
 	u32 fps;
+	const char *bus_format_s;
 
 	/* get timing */
-	clk_rx_read = src_mode->clock;
+	src_dclk = src_mode->clock;
 	src_hactive = src_mode->hdisplay;
 	src_hs_start = src_mode->hsync_start;
 	src_hs_end = src_mode->hsync_end;
@@ -924,11 +926,17 @@ static void rk628_show_resolution(struct seq_file *s)
 	src_vtotal = src_mode->vtotal;
 
 	/* get fps */
-	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
+	fps = src_dclk * 1000 / (src_htotal * src_vtotal);
+
+	clk_rx_read = rk628_cru_clk_get_rate(rk628, CGU_CLK_RX_READ) / 1000;
+
+	bus_format_s = rk628_get_input_bus_format_name(rk628);
 
 	/* print */
-	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%u]\n", src_hactive,
-		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("    Display mode: %dx%dp%d  bus_format: %s\n",
+		    src_hactive, src_vactive, fps, bus_format_s);
+	DEBUG_PRINT("\tclk[%u] real_clk[%u] flag[%x]\n",
+		    clk_rx_read, src_dclk, src_mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", src_hactive, src_hs_start, src_hs_end,
 		    src_htotal);
 	DEBUG_PRINT("\tV: %d %d %d %d\n", src_vactive, src_vs_start, src_vs_end,
@@ -938,15 +946,18 @@ static void rk628_show_resolution(struct seq_file *s)
 static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
+	struct rk628_display_mode *src_mode = &rk628->src_mode;
 	u32 val;
 
-	u64 clk_rx_read;
+	u64 src_dclk;
+	u32 clk_rx_read;
 	u64 imodet_clk;
 	u32 rgb_rx_eval_time, rgb_rx_clkrate;
 
 	u16 src_hactive = 0, src_vactive = 0;
 	u16 src_htotal, src_vtotal;
 	u32 fps;
+	const char *bus_format_s;
 
 	/* get clk rgbrx read */
 	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS0, &val);
@@ -957,9 +968,9 @@ static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 
 	imodet_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
 
-	clk_rx_read = imodet_clk * rgb_rx_clkrate;
-	do_div(clk_rx_read, rgb_rx_eval_time + 1);
-	do_div(clk_rx_read, 1000);
+	src_dclk = imodet_clk * rgb_rx_clkrate;
+	do_div(src_dclk, rgb_rx_eval_time + 1);
+	do_div(src_dclk, 1000);
 
 	/* get timing */
 	if (rk628_input_is_rgb(rk628)) {
@@ -979,11 +990,17 @@ static void rk628f_show_rgbrx_resolution(struct seq_file *s)
 	src_vtotal = val & 0xffff;
 
 	/* get fps */
-	fps = clk_rx_read * 1000 / (src_htotal * src_vtotal);
+	fps = src_dclk * 1000 / (src_htotal * src_vtotal);
+
+	clk_rx_read = rk628_cru_clk_get_rate(rk628, CGU_CLK_RX_READ) / 1000;
+
+	bus_format_s = rk628_get_input_bus_format_name(rk628);
 
 	/* print */
-	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n", src_hactive,
-		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("    Display mode: %dx%dp%d  bus_format: %s\n",
+		    src_hactive, src_vactive, fps, bus_format_s);
+	DEBUG_PRINT("\tclk[%u] real_clk[%llu] flag[%x]\n",
+		    clk_rx_read, src_dclk, src_mode->flags);
 	DEBUG_PRINT("\tH-total: %d\n", src_htotal);
 	DEBUG_PRINT("\tV-total: %d\n", src_vtotal);
 }
@@ -1002,11 +1019,13 @@ static void rk628_show_input_resolution(struct seq_file *s)
 static void rk628_show_output_resolution(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
+	struct rk628_display_mode *dst_mode = &rk628->dst_mode;
 	u32 val;
 	u64 sclk_vop;
 	u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
 	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
 	u32 fps;
+	const char *bus_format_s;
 
 	/* get sclk_vop */
 	sclk_vop = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
@@ -1032,10 +1051,14 @@ static void rk628_show_output_resolution(struct seq_file *s)
 	/* get fps */
 	fps = sclk_vop * 1000 / (dsp_vtotal * dsp_htotal);
 
+	bus_format_s = rk628_get_output_bus_format_name(rk628);
+
 	/* print */
-	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
+	DEBUG_PRINT("    Display mode: %dx%dp%d  bus_format: %s\n",
 		    dsp_hact_end - dsp_hact_st, dsp_vact_end - dsp_vact_st, fps,
-		    sclk_vop);
+		    bus_format_s);
+	DEBUG_PRINT("\tclk[%u] real_clk[%llu] flag[%x]\n",
+		    dst_mode->clock, sclk_vop, dst_mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", dsp_hact_end - dsp_hact_st,
 		    dsp_htotal - dsp_hact_st,
 		    dsp_htotal - dsp_hact_st + dsp_hs_end, dsp_htotal);
@@ -1048,10 +1071,11 @@ static void rk628_show_csc_info(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
 	u32 val;
-	bool r2y, y2r;
+	bool r2y, y2r, csc;
 	char csc_mode_r2y_s[10];
 	char csc_mode_y2r_s[10];
-	u32 csc;
+	const char *csc_mode_s;
+	u32 mode;
 	enum csc_mode {
 		BT601_L,
 		BT709_L,
@@ -1060,11 +1084,14 @@ static void rk628_show_csc_info(struct seq_file *s)
 	};
 
 	rk628_i2c_read(rk628, GRF_CSC_CTRL_CON, &val);
-	r2y = ((val & 0x10) == 0x10);
-	y2r = ((val & 0x1) == 0x1);
+	r2y = ((val & BIT(4)) == BIT(4));
+	y2r = ((val & BIT(0)) == BIT(0));
+	csc = ((val & BIT(11)) == BIT(11));
 
-	csc = (val & 0xc0) >> 6;
-	switch (csc) {
+	DEBUG_PRINT("csc:\n");
+
+	mode = (val & 0xc0) >> 6;
+	switch (mode) {
 	case BT601_L:
 		strcpy(csc_mode_r2y_s, "BT601_L");
 		break;
@@ -1079,8 +1106,8 @@ static void rk628_show_csc_info(struct seq_file *s)
 		break;
 	}
 
-	csc = (val & 0xc) >> 2;
-	switch (csc) {
+	mode = (val & 0xc) >> 2;
+	switch (mode) {
 	case BT601_L:
 		strcpy(csc_mode_y2r_s, "BT601_L");
 		break;
@@ -1093,14 +1120,16 @@ static void rk628_show_csc_info(struct seq_file *s)
 	case BT2020:
 		strcpy(csc_mode_y2r_s, "BT2020");
 		break;
-
 	}
-	DEBUG_PRINT("csc:\n");
+
+	csc_mode_s = rk628_post_process_get_csc_mode_name(rk628);
 
 	if (r2y)
-		DEBUG_PRINT("\tr2y[1],csc mode:%s\n", csc_mode_r2y_s);
+		DEBUG_PRINT("\tr2y[1], csc mode: %s\n", csc_mode_r2y_s);
 	else if (y2r)
-		DEBUG_PRINT("\ty2r[1],csc mode:%s\n", csc_mode_y2r_s);
+		DEBUG_PRINT("\ty2r[1], csc mode: %s\n", csc_mode_y2r_s);
+	else if (csc)
+		DEBUG_PRINT("\tcsc[1], csc mode: %s\n", csc_mode_s);
 	else
 		DEBUG_PRINT("\tnot open\n");
 }

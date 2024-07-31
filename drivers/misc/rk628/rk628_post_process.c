@@ -967,6 +967,17 @@ enum vop_csc_format {
 	CSC_BT2020F_13BIT,
 };
 
+static const char * const vop_csc_format_str[] = {
+	"BT601L",
+	"BT709L",
+	"BT601F",
+	"BT2020",
+	"BT709L_13BIT",
+	"BT709F_13BIT",
+	"BT2020L_13BIT",
+	"BT2020F_13BIT",
+};
+
 enum vop_csc_mode {
 	CSC_RGB,
 	CSC_YUV,
@@ -1527,7 +1538,6 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 	struct post_csc_coef csc_coef = {};
 	bool is_input_yuv, is_output_yuv;
 	u32 color_space = V4L2_COLORSPACE_DEFAULT;
-	u32 csc_mode;
 	u32 val;
 	int range_type;
 
@@ -1553,11 +1563,11 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 		else if (out_fmt == BUS_FMT_RGB)
 			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 	} else {
-		csc_mode = vop2_convert_csc_mode(color_space, CSC_13BIT_DEPTH);
+		rk628->csc_mode = vop2_convert_csc_mode(color_space, CSC_13BIT_DEPTH);
 
 		is_input_yuv = !is_rgb_format(in_fmt);
 		is_output_yuv = !is_rgb_format(out_fmt);
-		rockchip_calc_post_csc(&csc_coef, csc_mode, is_input_yuv, is_output_yuv);
+		rockchip_calc_post_csc(&csc_coef, rk628->csc_mode, is_input_yuv, is_output_yuv);
 
 		val = ((csc_coef.csc_coef01 & 0xffff) << 16) | (csc_coef.csc_coef00 & 0xffff);
 		rk628_i2c_write(rk628, GRF_CSC_MATRIX_COE01_COE00, val);
@@ -1585,6 +1595,11 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 		if (rk628_output_is_bt1120(rk628))
 			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(1));
 	}
+}
+
+const char *rk628_post_process_get_csc_mode_name(struct rk628 *rk628)
+{
+	return vop_csc_format_str[rk628->csc_mode];
 }
 
 void rk628_post_process_enable(struct rk628 *rk628)

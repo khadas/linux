@@ -12,4 +12,5 @@ void rk628_post_process_init(struct rk628 *rk628);
 void rk628_post_process_enable(struct rk628 *rk628);
 void rk628_post_process_disable(struct rk628 *rk628);
 void rk628_post_process_create_debugfs_file(struct rk628 *rk628);
+const char *rk628_post_process_get_csc_mode_name(struct rk628 *rk628);
 #endif

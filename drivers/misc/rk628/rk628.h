@@ -571,6 +571,7 @@ struct rk628 {
 	struct rk628_display_mode dst_mode;
 	enum bus_format input_fmt;
 	enum bus_format output_fmt;
+	u32 csc_mode;
 	struct rk628_dsi dsi0;
 	struct rk628_dsi dsi1;
 	struct rk628_lvds lvds;
