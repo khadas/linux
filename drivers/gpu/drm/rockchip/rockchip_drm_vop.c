@@ -3126,6 +3126,7 @@ static void vop_set_out_mode(struct vop *vop, u32 mode)
 static void vop_mcu_bypass_mode_setup(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	const struct rockchip_mcu_timing *mcu_timing = &vop->data->mcu_bypass_cfg->timing;
 
 	/*
 	 * If mcu_hold_mode is 1, set 1 to mcu_frame_st will
@@ -3137,11 +3138,13 @@ static void vop_mcu_bypass_mode_setup(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, mcu_type, 1);
 
 	VOP_CTRL_SET(vop, mcu_hold_mode, 1);
-	VOP_CTRL_SET(vop, mcu_pix_total, 53);
-	VOP_CTRL_SET(vop, mcu_cs_pst, 6);
-	VOP_CTRL_SET(vop, mcu_cs_pend, 48);
-	VOP_CTRL_SET(vop, mcu_rw_pst, 12);
-	VOP_CTRL_SET(vop, mcu_rw_pend, 30);
+	VOP_CTRL_SET(vop, mcu_pix_total, mcu_timing->mcu_pix_total);
+	VOP_CTRL_SET(vop, mcu_cs_pst, mcu_timing->mcu_cs_pst);
+	VOP_CTRL_SET(vop, mcu_cs_pend, mcu_timing->mcu_cs_pend);
+	VOP_CTRL_SET(vop, mcu_rw_pst, mcu_timing->mcu_rw_pst);
+	VOP_CTRL_SET(vop, mcu_rw_pend, mcu_timing->mcu_rw_pend);
+
+	clk_set_rate(vop->dclk, vop->data->mcu_bypass_cfg->dclk_rate);
 }
 
 static void vop_mcu_mode_setup(struct drm_crtc *crtc)
@@ -3176,15 +3179,13 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 	vop = to_vop(crtc);
 	adjusted_mode = &crtc->state->adjusted_mode;
 
-	if (vop->version >= VOP_VERSION(2, 0xd)) {
+	if (vop->data->mcu_bypass_cfg) {
 		/*
 		 * 1.set mcu bypass mode timing.
 		 * 2.set dclk rate to 150M.
 		 */
-		if ((type == MCU_SETBYPASS) && value) {
+		if ((type == MCU_SETBYPASS) && value)
 			vop_mcu_bypass_mode_setup(crtc);
-			clk_set_rate(vop->dclk, 150000000);
-		}
 	}
 
 	mutex_lock(&vop->vop_lock);
@@ -3208,7 +3209,7 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 	}
 	mutex_unlock(&vop->vop_lock);
 
-	if (vop->version >= VOP_VERSION(2, 0xd)) {
+	if (vop->data->mcu_bypass_cfg) {
 		/*
 		 * 1.restore mcu data mode timing.
 		 * 2.restore dclk rate to crtc_clock.

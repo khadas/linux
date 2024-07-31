@@ -1295,6 +1295,7 @@ struct vop_data {
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *grf;
 	const struct vop_grf_ctrl *vo0_grf;
+	const struct vop_mcu_bypass_cfg *mcu_bypass_cfg;
 	unsigned int win_size;
 	uint32_t version;
 	struct vop_rect max_input;

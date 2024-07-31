@@ -366,6 +366,11 @@ struct rockchip_mcu_timing {
 	int mcu_hold_mode;
 };
 
+struct vop_mcu_bypass_cfg {
+	const struct rockchip_mcu_timing timing;
+	unsigned long dclk_rate;
+};
+
 struct loader_cubic_lut {
 	bool enable;
 	u32 offset;

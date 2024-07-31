@@ -2102,6 +2102,17 @@ static const struct vop_grf_ctrl rk3506_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3506_GRF_SOC_CON2, 0x1, 0),
 };
 
+static const struct vop_mcu_bypass_cfg rk3506_mcu_bypass_cfg = {
+	.timing = {
+		.mcu_pix_total = 26,
+		.mcu_cs_pst = 3,
+		.mcu_cs_pend = 24,
+		.mcu_rw_pst = 6,
+		.mcu_rw_pend = 15,
+	},
+	.dclk_rate = 120000000,
+};
+
 static const struct vop_data rk3506_vop = {
 	.soc_id = 0x3506,
 	.vop_id = 0,
@@ -2113,6 +2124,7 @@ static const struct vop_data rk3506_vop = {
 	.grf = &rk3506_grf_ctrl,
 	.win = rk3506_vop_win_data,
 	.win_size = ARRAY_SIZE(rk3506_vop_win_data),
+	.mcu_bypass_cfg = &rk3506_mcu_bypass_cfg,
 };
 
 static const struct vop_ctrl rk3576_lit_ctrl_data = {
@@ -2231,6 +2243,17 @@ static const struct vop_grf_ctrl rk3576_lit_grf_ctrl = {
 	.grf_vopl_sel = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 11),
 };
 
+static const struct vop_mcu_bypass_cfg rk3576_lit_mcu_bypass_cfg = {
+	.timing = {
+		.mcu_pix_total = 53,
+		.mcu_cs_pst = 6,
+		.mcu_cs_pend = 48,
+		.mcu_rw_pst = 12,
+		.mcu_rw_pend = 30,
+	},
+	.dclk_rate = 150000000,
+};
+
 static const struct vop_data rk3576_vop_lit = {
 	.soc_id = 0x3576,
 	.vop_id = 0,
@@ -2243,6 +2266,7 @@ static const struct vop_data rk3576_vop_lit = {
 	.grf = &rk3576_lit_grf_ctrl,
 	.win = rk3576_lit_win_data,
 	.win_size = ARRAY_SIZE(rk3576_lit_win_data),
+	.mcu_bypass_cfg = &rk3576_lit_mcu_bypass_cfg,
 };
 
 static const struct of_device_id vop_driver_dt_match[] = {
