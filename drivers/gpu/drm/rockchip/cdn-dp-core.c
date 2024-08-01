@@ -1199,6 +1199,7 @@ static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 	struct drm_connector *connector = &dp->connector;
 
 	cancel_delayed_work_sync(&dp->event_work);
+	drm_dp_aux_unregister(&dp->aux);
 	cdn_dp_encoder_disable(encoder);
 	encoder->funcs->destroy(encoder);
 	connector->funcs->destroy(connector);
