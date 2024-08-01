@@ -1164,6 +1164,21 @@ static int rockchip_sai_init_dai(struct rk_sai_dev *sai, struct resource *res,
 	struct snd_soc_dai_driver *dai;
 	struct property *dma_names;
 	const char *dma_name;
+	unsigned int val;
+
+	if (!device_property_read_u32(sai->dev, "rockchip,slot-width", &val)) {
+		if ((val < 8) || (val > 32)) {
+			dev_err(sai->dev, "Slot width should be in range [8, 32]\n");
+			return -EINVAL;
+		}
+
+		regmap_update_bits(sai->regmap, SAI_TXCR,
+				   SAI_XCR_SBW_MASK,
+				   SAI_XCR_SBW(val));
+		regmap_update_bits(sai->regmap, SAI_RXCR,
+				   SAI_XCR_SBW_MASK,
+				   SAI_XCR_SBW(val));
+	}
 
 	of_property_for_each_string(node, "dma-names", dma_names, dma_name) {
 		if (!strcmp(dma_name, "tx"))
