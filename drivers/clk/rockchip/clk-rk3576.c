@@ -1646,7 +1646,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(CLK_I2C0, "clk_i2c0", mux_pmu200m_pmu100m_pmu50m_24m_p, 0,
 			RK3576_PMU_CLKSEL_CON(6), 7, 2, MFLAGS,
 			RK3576_PMU_CLKGATE_CON(5), 2, GFLAGS),
-	COMPOSITE_NODIV(SCLK_UART1, "sclk_uart1", uart1_p, 0,
+	COMPOSITE_NODIV(SCLK_UART1, "sclk_uart1", uart1_p, CLK_SET_RATE_PARENT,
 			RK3576_PMU_CLKSEL_CON(8), 0, 1, MFLAGS,
 			RK3576_PMU_CLKGATE_CON(5), 5, GFLAGS),
 	GATE(PCLK_UART1, "pclk_uart1", "pclk_pmu1_root", 0,
