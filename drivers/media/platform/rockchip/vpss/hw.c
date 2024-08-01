@@ -702,6 +702,107 @@ static const struct of_device_id rkvpss_hw_of_match[] = {
 	{},
 };
 
+void rkvpss_hw_reg_save(struct rkvpss_hw_dev *dev)
+{
+	void *buf = dev->sw_reg;
+
+	dev_info(dev->dev, "%s\n", __func__);
+	memcpy_fromio(buf, dev->base_addr, RKVPSS_SW_REG_SIZE);
+}
+
+void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev)
+{
+	void __iomem *base = dev->base_addr;
+	void *reg_buf = dev->sw_reg;
+	u32 val, *reg, i;
+
+	dev_info(dev->dev, "%s\n", __func__);
+
+	/* cmsc */
+	for (i = RKVPSS_CMSC_BASE; i <= RKVPSS_CMSC_WIN7_L3_SLP; i += 4) {
+		if (i == RKVPSS_CMSC_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_CMSC_GEN_UPD | RKVPSS_CMSC_UPDATE;
+	writel(val, base + RKVPSS_CMSC_UPDATE);
+
+	/* crop1 */
+	for (i = RKVPSS_CROP1_CTRL; i <= RKVPSS_CROP1_3_V_SIZE; i += 4) {
+		if (i == RKVPSS_CROP1_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_CROP_GEN_UPD | RKVPSS_CROP_FORCE_UPD;
+	writel(val, base + RKVPSS_CROP1_UPDATE);
+	writel(val, base + RKVPSS_CROP1_UPDATE);
+
+	/* scale */
+	for (i = RKVPSS_ZME_BASE; i <= RKVPSS_ZME_UV_YSCL_FACTOR; i += 4) {
+		if (i == RKVPSS_ZME_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_ZME_GEN_UPD | RKVPSS_ZME_FORCE_UPD;
+	writel(val, base + RKVPSS_ZME_UPDATE);
+
+	for (i = RKVPSS_SCALE1_BASE; i <= RKVPSS_SCALE1_IN_CROP_OFFSET; i += 4) {
+		if (i == RKVPSS_SCALE1_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+	writel(val, base + RKVPSS_SCALE1_UPDATE);
+
+	for (i = RKVPSS_SCALE2_BASE; i <= RKVPSS_SCALE2_IN_CROP_OFFSET; i += 4) {
+		if (i == RKVPSS_SCALE2_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+	writel(val, base + RKVPSS_SCALE2_UPDATE);
+
+	for (i = RKVPSS_SCALE3_BASE; i <= RKVPSS_SCALE3_IN_CROP_OFFSET; i += 4) {
+		if (i == RKVPSS_SCALE3_UPDATE)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_SCL_GEN_UPD | RKVPSS_SCL_FORCE_UPD;
+	writel(val, base + RKVPSS_SCALE3_UPDATE);
+
+	/* mi */
+	for (i = RKVPSS_MI_BASE; i <= RKVPSS_MI_CHN3_WR_LINE_CNT; i += 4) {
+		if (i >= RKVPSS_MI_RD_CTRL && i <= RKVPSS_MI_RD_Y_HEIGHT_SHD)
+			continue;
+		if (i == RKVPSS_MI_WR_INIT)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_MI_FORCE_UPD;
+	writel(val, base + RKVPSS_MI_WR_INIT);
+	writel(val, base + RKVPSS_MI_WR_INIT);
+
+	/* vpss ctrl */
+	for (i = RKVPSS_VPSS_BASE; i <= RKVPSS_VPSS_Y2R_OFF2; i += 4) {
+		if (i == RKVPSS_VPSS_UPDATE || i == RKVPSS_VPSS_RESET)
+			continue;
+		reg = reg_buf + i;
+		writel(*reg, base + i);
+	}
+	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD |
+	      RKVPSS_ONLINE2_CHN_FORCE_UPD;
+	if (!dev->is_ofl_cmsc)
+		val |= RKVPSS_MIR_FORCE_UPD;
+	writel(val, base + RKVPSS_VPSS_UPDATE);
+}
+
 static int rkvpss_hw_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -721,6 +822,9 @@ static int rkvpss_hw_probe(struct platform_device *pdev)
 	if (!hw_dev)
 		return -ENOMEM;
 
+	hw_dev->sw_reg = devm_kzalloc(dev, RKVPSS_SW_REG_SIZE, GFP_KERNEL);
+	if (!hw_dev->sw_reg)
+		return -ENOMEM;
 	dev_set_drvdata(dev, hw_dev);
 	hw_dev->dev = dev;
 	match_data = match->data;
@@ -749,8 +853,8 @@ static int rkvpss_hw_probe(struct platform_device *pdev)
 		irq = platform_get_irq_byname(pdev, match_data->irqs[i].name);
 		if (irq < 0) {
 			dev_err(dev, "no irq %s in dts\n", match_data->irqs[i].name);
-				ret = irq;
-				goto err;
+			ret = irq;
+			goto err;
 		}
 		ret = devm_request_irq(dev, irq,
 				       match_data->irqs[i].irq_hdl,
@@ -798,6 +902,7 @@ static int rkvpss_hw_probe(struct platform_device *pdev)
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_shutdown = false;
 	hw_dev->is_mmu = is_iommu_enable(dev);
+	hw_dev->is_suspend = false;
 	ret = of_reserved_mem_device_init(dev);
 	if (ret) {
 		is_mem_reserved = false;
@@ -839,40 +944,72 @@ static void rkvpss_hw_shutdown(struct platform_device *pdev)
 	}
 }
 
-static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
+static int __maybe_unused rkvpss_hw_runtime_suspend(struct device *dev)
 {
 	struct rkvpss_hw_dev *hw_dev = dev_get_drvdata(dev);
+	u32 ret;
 
-	rkvpss_hw_write(hw_dev, RKVPSS_MI_IMSC, 0);
-	rkvpss_hw_write(hw_dev, RKVPSS_VPSS_IMSC, 0);
+	if (rkvpss_debug >= 4)
+		dev_info(dev, "%s enter\n", __func__);
+
+	if (dev->power.runtime_status) {
+		rkvpss_hw_write(hw_dev, RKVPSS_MI_IMSC, 0);
+		rkvpss_hw_write(hw_dev, RKVPSS_VPSS_IMSC, 0);
+		hw_dev->ofl_dev.mode_sel_en = true;
+	} else {
+		rkvpss_hw_reg_save(hw_dev);
+		hw_dev->is_suspend = true;
+		if (hw_dev->ofl_dev.pm_need_wait) {
+			ret = wait_for_completion_timeout(&hw_dev->ofl_dev.pm_cmpl,
+							  msecs_to_jiffies(200));
+			if (!ret)
+				dev_info(dev, "%s pm wait offline timeout\n", __func__);
+		}
+	}
+
 	disable_sys_clk(hw_dev);
-	hw_dev->ofl_dev.mode_sel_en = true;
+
+	if (rkvpss_debug >= 4)
+		dev_info(dev, "%s exit\n", __func__);
+
 	return 0;
 }
 
-static int __maybe_unused rkvpss_runtime_resume(struct device *dev)
+static int __maybe_unused rkvpss_hw_runtime_resume(struct device *dev)
 {
 	struct rkvpss_hw_dev *hw_dev = dev_get_drvdata(dev);
 	void __iomem *base = hw_dev->base_addr;
 	int i;
 
+	if (rkvpss_debug >= 4)
+		dev_info(dev, "%s enter\n", __func__);
+
 	enable_sys_clk(hw_dev);
 	rkvpss_soft_reset(hw_dev);
 
-	for (i = 0; i < hw_dev->dev_num; i++) {
-		void *buf = hw_dev->vpss[i]->sw_base_addr;
+	if (dev->power.runtime_status) {
+		for (i = 0; i < hw_dev->dev_num; i++) {
+			void *buf = hw_dev->vpss[i]->sw_base_addr;
 
-		memset(buf, 0, RKVPSS_SW_REG_SIZE_MAX);
-		memcpy_fromio(buf, base, RKVPSS_SW_REG_SIZE);
+			memset(buf, 0, RKVPSS_SW_REG_SIZE_MAX);
+			memcpy_fromio(buf, base, RKVPSS_SW_REG_SIZE);
+		}
+	} else {
+		rkvpss_hw_reg_restore(hw_dev);
+		hw_dev->is_suspend = false;
 	}
+
+	if (rkvpss_debug >= 4)
+		dev_info(dev, "%s exit\n", __func__);
+
 	return 0;
 }
 
 static const struct dev_pm_ops rkvpss_hw_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(rkvpss_runtime_suspend,
-			   rkvpss_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(rkvpss_hw_runtime_suspend,
+			   rkvpss_hw_runtime_resume, NULL)
 };
 
 static struct platform_driver rkvpss_hw_drv = {

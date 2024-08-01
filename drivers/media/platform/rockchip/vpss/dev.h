@@ -79,6 +79,9 @@ struct rkvpss_device {
 	unsigned int irq_ends_mask;
 
 	bool is_probe_end;
+	bool is_suspend;
+	bool is_idle;
+	struct completion pm_suspend_wait_fe;
 };
 
 void rkvpss_pipeline_default_fmt(struct rkvpss_device *dev);

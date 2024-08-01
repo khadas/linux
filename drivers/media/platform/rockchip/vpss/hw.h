@@ -33,6 +33,7 @@ struct rkvpss_hw_dev {
 	struct rkvpss_device *vpss[VPSS_MAX_DEV];
 	struct rkvpss_offline_dev ofl_dev;
 	struct list_head list;
+	void *sw_reg;
 	int clk_rate_tbl_num;
 	int clks_num;
 	int dev_num;
@@ -52,6 +53,7 @@ struct rkvpss_hw_dev {
 	bool is_single;
 	bool is_dma_contig;
 	bool is_shutdown;
+	bool is_suspend;
 };
 
 #define RKVPSS_ZME_TAP_COE(x, y) (((x) & 0x3ff) | (((y) & 0x3ff) << 16))
@@ -67,4 +69,6 @@ void rkvpss_hw_write(struct rkvpss_hw_dev *hw_dev, u32 reg, u32 val);
 u32 rkvpss_hw_read(struct rkvpss_hw_dev *hw_dev, u32 reg);
 void rkvpss_hw_set_bits(struct rkvpss_hw_dev *hw, u32 reg, u32 mask, u32 val);
 void rkvpss_hw_clear_bits(struct rkvpss_hw_dev *hw, u32 reg, u32 mask);
+void rkvpss_hw_reg_save(struct rkvpss_hw_dev *dev);
+void rkvpss_hw_reg_restore(struct rkvpss_hw_dev *dev);
 #endif

@@ -73,8 +73,10 @@ struct rkvpss_offline_dev {
 	struct mutex ofl_lock;
 	struct rkvpss_dev_rate dev_rate[DEV_NUM_MAX];
 	struct rkvpss_unite_scl_params unite_params[RKVPSS_OUTPUT_MAX];
+	struct completion pm_cmpl;
 	u32 unite_right_enlarge;
 	bool mode_sel_en;
+	bool pm_need_wait;
 };
 
 int rkvpss_register_offline(struct rkvpss_hw_dev *hw);

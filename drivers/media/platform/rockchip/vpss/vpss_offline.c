@@ -2069,11 +2069,16 @@ end:
 static long rkvpss_ofl_ioctl(struct file *file, void *fh,
 			     bool valid_prio, unsigned int cmd, void *arg)
 {
+	struct rkvpss_offline_dev *ofl = video_drvdata(file);
 	long ret = 0;
 	bool unite;
 
-	if (!arg)
-		return -EINVAL;
+	ofl->pm_need_wait = true;
+
+	if (!arg) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	switch (cmd) {
 	case RKVPSS_CMD_MODULE_SEL:
@@ -2098,6 +2103,12 @@ static long rkvpss_ofl_ioctl(struct file *file, void *fh,
 		ret = -EFAULT;
 	}
 
+out:
+	/* notify hw suspend */
+	if (ofl->hw->is_suspend)
+		complete(&ofl->pm_cmpl);
+
+	ofl->pm_need_wait = false;
 	return ret;
 }
 
@@ -2201,6 +2212,8 @@ int rkvpss_register_offline(struct rkvpss_hw_dev *hw)
 	INIT_LIST_HEAD(&ofl->cfginfo_list);
 	mutex_init(&ofl->ofl_lock);
 	rkvpss_offline_proc_init(ofl);
+	ofl->pm_need_wait = false;
+	init_completion(&ofl->pm_cmpl);
 	return 0;
 unreg_v4l2:
 	mutex_destroy(&ofl->apilock);

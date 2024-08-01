@@ -347,6 +347,8 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	vpss_dev->is_probe_end = true;
 	init_waitqueue_head(&vpss_dev->stop_done);
+	vpss_dev->is_suspend = false;
+	vpss_dev->is_idle = true;
 	return 0;
 
 err_unreg_media_dev:
@@ -375,7 +377,7 @@ static int rkvpss_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
+static int __maybe_unused rkvpss_dev_runtime_suspend(struct device *dev)
 {
 	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
 	int ret;
@@ -386,7 +388,7 @@ static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
 	return (ret > 0) ? 0 : ret;
 }
 
-static int __maybe_unused rkvpss_runtime_resume(struct device *dev)
+static int __maybe_unused rkvpss_dev_runtime_resume(struct device *dev)
 {
 	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
 	int ret;
@@ -397,9 +399,46 @@ static int __maybe_unused rkvpss_runtime_resume(struct device *dev)
 	return (ret > 0) ? 0 : ret;
 }
 
+static int rkvpss_pm_suspend(struct device *dev)
+{
+	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
+	u32 ret;
+
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s enter\n", __func__);
+	if (vpss_dev->vpss_sdev.state == VPSS_STOP)
+		return 0;
+
+	vpss_dev->is_suspend = true;
+	/* wait fe*/
+	if (!vpss_dev->is_idle) {
+		ret = wait_for_completion_timeout(&vpss_dev->pm_suspend_wait_fe,
+						  msecs_to_jiffies(200));
+		if (!ret)
+			v4l2_info(&vpss_dev->v4l2_dev, "%s wait fe timeout\n", __func__);
+	}
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s exit\n", __func__);
+	return 0;
+}
+
+static int rkvpss_pm_resume(struct device *dev)
+{
+	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
+
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s enter\n", __func__);
+	if (vpss_dev->vpss_sdev.state == VPSS_STOP)
+		return 0;
+
+	vpss_dev->is_suspend = false;
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s exit\n", __func__);
+
+	return 0;
+}
+
 static const struct dev_pm_ops rkvpss_plat_pm_ops = {
-	SET_RUNTIME_PM_OPS(rkvpss_runtime_suspend,
-			   rkvpss_runtime_resume, NULL)
+	.suspend = rkvpss_pm_suspend,
+	.resume = rkvpss_pm_resume,
+	SET_RUNTIME_PM_OPS(rkvpss_dev_runtime_suspend,
+			   rkvpss_dev_runtime_resume, NULL)
 };
 
 struct platform_driver rkvpss_plat_drv = {

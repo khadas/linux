@@ -779,8 +779,9 @@ static void rkvpss_buf_done_task(unsigned long arg)
 		buf = list_first_entry(&local_list, struct rkvpss_buffer, queue);
 		list_del(&buf->queue);
 		v4l2_dbg(2, rkvpss_debug, &stream->dev->v4l2_dev,
-			 "%s id:%d seq:%d buf:0x%x done\n",
-			 node->vdev.name, stream->id, buf->vb.sequence, buf->dma[0]);
+			 "%s stream:%d index:%d seq:%d buf:0x%x done\n",
+			 node->vdev.name, stream->id, buf->vb.vb2_buf.index,
+			 buf->vb.sequence, buf->dma[0]);
 		vb2_buffer_done(&buf->vb.vb2_buf,
 				stream->streaming ? VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR);
 	}
@@ -793,6 +794,9 @@ static void rkvpss_stream_buf_done(struct rkvpss_stream *stream,
 
 	if (!stream || !buf)
 		return;
+
+	v4l2_dbg(3, rkvpss_debug, &stream->dev->v4l2_dev,
+		 "stream:%d\n", stream->id);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	list_add_tail(&buf->queue, &stream->buf_done_list);
@@ -807,6 +811,8 @@ static void rkvpss_frame_end(struct rkvpss_stream *stream)
 	struct rkvpss_buffer *buf = NULL;
 	unsigned long lock_flags = 0;
 
+	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
+		 "stream:%d\n", stream->id);
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		buf = stream->curr_buf;
@@ -906,8 +912,8 @@ static void rkvpss_buf_queue(struct vb2_buffer *vb)
 	}
 
 	v4l2_dbg(2, rkvpss_debug, &dev->v4l2_dev,
-		 "%s stream:%d buf:0x%x\n", __func__,
-		 stream->id, vpssbuf->dma[0]);
+		 "%s stream:%d index:%d buf:0x%x\n", __func__,
+		 stream->id, vb->index, vpssbuf->dma[0]);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	list_add_tail(&vpssbuf->queue, &stream->buf_queue);

@@ -246,10 +246,11 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 	sdev->frame_seq = info->seq;
 	sdev->frame_timestamp = info->timestamp;
 	dev->unite_index = info->unite_index;
+	dev->is_idle = false;
 
 	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
-		 "%s unite_mode:%u, unite_indev:%u\n", __func__,
-		 dev->unite_mode, dev->unite_index);
+		 "%s unite_mode:%u, unite_indev:%u seq:%d\n", __func__,
+		 dev->unite_mode, dev->unite_index, info->seq);
 
 	rkvpss_cmsc_config(dev, !info->irq);
 	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
@@ -418,6 +419,10 @@ void rkvpss_check_idle(struct rkvpss_device *dev, u32 irq)
 
 	dev->irq_ends = 0;
 	rkvpss_end_notify_isp(dev);
+	dev->is_idle = true;
+
+	if (dev->is_suspend)
+		complete(&dev->pm_suspend_wait_fe);
 }
 
 int rkvpss_register_subdev(struct rkvpss_device *dev,
@@ -451,6 +456,7 @@ int rkvpss_register_subdev(struct rkvpss_device *dev,
 	if (ret < 0)
 		goto free_media;
 	rkvpss_subdev_default_fmt(vpss_sdev);
+	init_completion(&dev->pm_suspend_wait_fe);
 	return ret;
 free_media:
 	media_entity_cleanup(&sd->entity);
