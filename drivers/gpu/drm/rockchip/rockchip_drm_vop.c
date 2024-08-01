@@ -304,6 +304,7 @@ struct vop {
 	struct rockchip_dclk_pll *pll;
 
 	struct rockchip_mcu_timing mcu_timing;
+	struct rockchip_mcu_timing mcu_bypass_timing;
 
 	struct vop_win win[];
 };
@@ -3138,13 +3139,27 @@ static void vop_mcu_bypass_mode_setup(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, mcu_type, 1);
 
 	VOP_CTRL_SET(vop, mcu_hold_mode, 1);
-	VOP_CTRL_SET(vop, mcu_pix_total, mcu_timing->mcu_pix_total);
-	VOP_CTRL_SET(vop, mcu_cs_pst, mcu_timing->mcu_cs_pst);
-	VOP_CTRL_SET(vop, mcu_cs_pend, mcu_timing->mcu_cs_pend);
-	VOP_CTRL_SET(vop, mcu_rw_pst, mcu_timing->mcu_rw_pst);
-	VOP_CTRL_SET(vop, mcu_rw_pend, mcu_timing->mcu_rw_pend);
+	/*
+	 * Use user-defined mcu bypass timing if mcu-bypass-timing
+	 * node has been found in dts, otherwise setup the default
+	 * timing which can meet the read/write timing requirements
+	 * of most mcu panel.
+	 */
+	if (vop->mcu_bypass_timing.mcu_pix_total) {
+		VOP_CTRL_SET(vop, mcu_pix_total, vop->mcu_bypass_timing.mcu_pix_total);
+		VOP_CTRL_SET(vop, mcu_cs_pst, vop->mcu_bypass_timing.mcu_cs_pst);
+		VOP_CTRL_SET(vop, mcu_cs_pend, vop->mcu_bypass_timing.mcu_cs_pend);
+		VOP_CTRL_SET(vop, mcu_rw_pst, vop->mcu_bypass_timing.mcu_rw_pst);
+		VOP_CTRL_SET(vop, mcu_rw_pend, vop->mcu_bypass_timing.mcu_rw_pend);
+	} else {
+		VOP_CTRL_SET(vop, mcu_pix_total, mcu_timing->mcu_pix_total);
+		VOP_CTRL_SET(vop, mcu_cs_pst, mcu_timing->mcu_cs_pst);
+		VOP_CTRL_SET(vop, mcu_cs_pend, mcu_timing->mcu_cs_pend);
+		VOP_CTRL_SET(vop, mcu_rw_pst, mcu_timing->mcu_rw_pst);
+		VOP_CTRL_SET(vop, mcu_rw_pend, mcu_timing->mcu_rw_pend);
 
-	clk_set_rate(vop->dclk, vop->data->mcu_bypass_cfg->dclk_rate);
+		clk_set_rate(vop->dclk, vop->data->mcu_bypass_cfg->dclk_rate);
+	}
 }
 
 static void vop_mcu_mode_setup(struct drm_crtc *crtc)
@@ -5387,6 +5402,27 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 			vop->mcu_timing.mcu_rw_pend = val;
 		if (!of_property_read_u32(mcu, "mcu-hold-mode", &val))
 			vop->mcu_timing.mcu_hold_mode = val;
+	}
+
+	mcu = of_get_child_by_name(dev->of_node, "mcu-bypass-timing");
+	if (!mcu) {
+		dev_dbg(dev, "no mcu-bypass-timing node found in %s\n",
+			dev->of_node->full_name);
+	} else {
+		u32 val;
+
+		if (!of_property_read_u32(mcu, "mcu-pix-total", &val))
+			vop->mcu_bypass_timing.mcu_pix_total = val;
+		if (!of_property_read_u32(mcu, "mcu-cs-pst", &val))
+			vop->mcu_bypass_timing.mcu_cs_pst = val;
+		if (!of_property_read_u32(mcu, "mcu-cs-pend", &val))
+			vop->mcu_bypass_timing.mcu_cs_pend = val;
+		if (!of_property_read_u32(mcu, "mcu-rw-pst", &val))
+			vop->mcu_bypass_timing.mcu_rw_pst = val;
+		if (!of_property_read_u32(mcu, "mcu-rw-pend", &val))
+			vop->mcu_bypass_timing.mcu_rw_pend = val;
+		if (!of_property_read_u32(mcu, "mcu-hold-mode", &val))
+			vop->mcu_bypass_timing.mcu_hold_mode = val;
 	}
 
 	dual_channel_swap = of_property_read_bool(dev->of_node,
