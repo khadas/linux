@@ -120,6 +120,9 @@
 #define RV1106_RTC_D2A_XO_EN		BIT(0)
 #define RV1106_RTC_D2A_CLK_OUT_EN	BIT(5)
 
+/* RV1106_RTC_XO_TRIM bitfields */
+#define RV1106_RTC_D2A_XO_START		0x7
+
 /* RV1106_RTC_VPTAT_TRIM bitfields */
 #define RV1106_CLK_32K_ENABLE		BIT(5)
 #define RV1106_D2A_POR_REG_SEL1		BIT(4)
@@ -521,6 +524,12 @@ static int rv1106_rtc_init(struct regmap *regmap)
 	ret = rockchip_rtc_update_bits(regmap, RV1106_RTC_ANALOG_EN,
 				       RV1106_RTC_D2A_CLK_OUT_EN,
 				       RV1106_RTC_D2A_CLK_OUT_EN);
+	if (ret)
+		return ret;
+
+	ret = rockchip_rtc_update_bits(regmap, RV1106_RTC_XO_TRIM0,
+				       RV1106_RTC_D2A_XO_START,
+				       RV1106_RTC_D2A_XO_START);
 	if (ret)
 		return ret;
 	return ret;
