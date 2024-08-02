@@ -519,6 +519,12 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	if (rk_pcie->clk_cnt < 1)
 		return -ENODEV;
 
+	rk_pcie->rsts = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(rk_pcie->rsts)) {
+		dev_err(&pdev->dev, "failed to get reset lines\n");
+		return PTR_ERR(rk_pcie->rsts);
+	}
+
 	return 0;
 }
 
@@ -1192,13 +1198,6 @@ retry_regulator:
 	if (ret) {
 		dev_err(dev, "phy init failed\n");
 		goto disable_vpcie3v3;
-	}
-
-	rk_pcie->rsts = devm_reset_control_array_get_exclusive(dev);
-	if (IS_ERR(rk_pcie->rsts)) {
-		ret = PTR_ERR(rk_pcie->rsts);
-		dev_err(dev, "failed to get reset lines\n");
-		goto disable_phy;
 	}
 
 	reset_control_deassert(rk_pcie->rsts);
