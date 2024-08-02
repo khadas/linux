@@ -467,6 +467,7 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 {
 	struct resource *dbi_base;
 	struct resource *apb_base;
+	u32 val = 0;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"pcie-dbi");
@@ -534,6 +535,23 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	    device_property_read_bool(&pdev->dev, "hotplug-gpio")) {
 		rk_pcie->slot_pluggable = true;
 		dev_info(&pdev->dev, "support hotplug-gpios!\n");
+	}
+
+retry_regulator:
+	rk_pcie->vpcie3v3 = devm_regulator_get_optional(&pdev->dev, "vpcie3v3");
+	if (IS_ERR(rk_pcie->vpcie3v3)) {
+		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV) {
+			if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
+				/* Deferred but in threaded context for most 10s */
+				msleep(20);
+				if (++val < 500)
+					goto retry_regulator;
+			}
+
+			return PTR_ERR(rk_pcie->vpcie3v3);
+		}
+
+		dev_info(&pdev->dev, "no vpcie3v3 regulator found\n");
 	}
 
 	return 0;
@@ -1169,25 +1187,6 @@ static int rk_pcie_really_probe(void *p)
 			ret = -ENODEV;
 			goto release_driver;
 		}
-	}
-
-retry_regulator:
-	/* DON'T MOVE ME: must be enable before phy init */
-	rk_pcie->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
-	if (IS_ERR(rk_pcie->vpcie3v3)) {
-		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV) {
-			if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
-				/* Deferred but in threaded context for most 10s */
-				msleep(20);
-				if (++val < 500)
-					goto retry_regulator;
-			}
-
-			ret = PTR_ERR(rk_pcie->vpcie3v3);
-			goto release_driver;
-		}
-
-		dev_info(dev, "no vpcie3v3 regulator found\n");
 	}
 
 	ret = rk_pcie_enable_power(rk_pcie);
