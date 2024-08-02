@@ -37,35 +37,6 @@
 		status = "okay";
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		/* remote amp core address */
-		amp_shmem_reserved: amp-shmem@3b00000 {
-			reg = <0x03b00000 0x100000>;
-			no-map;
-		};
-
-		rpmsg_reserved: rpmsg@3c00000 {
-			reg = <0x03c00000 0x100000>;
-			no-map;
-		};
-
-		rpmsg_dma_reserved: rpmsg-dma@3d00000 {
-			compatible = "shared-dma-pool";
-			reg = <0x03d00000 0x100000>;
-			no-map;
-		};
-
-		/* mcu address */
-		mcu_reserved: mcu@fff80000 {
-			reg = <0xfff80000 0xc000>;
-			no-map;
-		};
-	};
-
 	rpmsg: rpmsg@3c00000 {
 		compatible = "rockchip,rpmsg";
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
@@ -86,4 +57,29 @@
 &mailbox0 {
 	rockchip,txpoll-period-ms = <1>;
 	status = "okay";
+};
+
+&reserved_memory {
+	/* remote amp core address */
+	amp_shmem_reserved: amp-shmem@3b00000 {
+		reg = <0x03b00000 0x100000>;
+		no-map;
+	};
+
+	rpmsg_reserved: rpmsg@3c00000 {
+		reg = <0x03c00000 0x100000>;
+		no-map;
+	};
+
+	rpmsg_dma_reserved: rpmsg-dma@3d00000 {
+		compatible = "shared-dma-pool";
+		reg = <0x03d00000 0x100000>;
+		no-map;
+	};
+
+	/* mcu address */
+	mcu_reserved: mcu@fff80000 {
+		reg = <0xfff80000 0xc000>;
+		no-map;
+	};
 };
