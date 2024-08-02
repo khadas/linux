@@ -12,6 +12,17 @@
 	model = "Rockchip RK3506B(BGA) EVB1 V10 Board";
 	compatible = "rockchip,rk3506b-evb1-v10", "rockchip,rk3506";
 
+	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc3v3_lcd_n";
+		regulator-boot-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
 	vcc5v0_otg0: vcc5v0-otg0-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_otg0";
@@ -37,6 +48,39 @@
 	};
 };
 
+&cma {
+	size = <0x1600000>;
+};
+
+&dsi {
+	status = "okay";
+};
+
+&dsi_dphy {
+	status = "okay";
+};
+
+&dsi_in_vop {
+	status = "okay";
+};
+
+&dsi_panel {
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
+&es8388 {
+	status = "okay";
+};
+
+&es8388_sound {
+	status = "okay";
+};
+
+&gt1x {
+	power-supply = <&vcc3v3_lcd_n>;
+	status = "okay";
+};
+
 &pinctrl {
 	usb {
 		vcc5v0_otg0_en: vcc5v0-otg0-en {
@@ -47,6 +91,14 @@
 			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&route_dsi {
+	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
 };
 
 &u2phy_otg0 {
