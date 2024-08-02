@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -41,8 +42,8 @@
 #define MAXBURST_PER_FIFO		8
 #define DEFAULT_SAMPLE_RATE		48000
 #define ASRC_DEFAULT_CLK		200000000
-#define CRU_LRCK_SOURCE_FREQ		49152000
 
+/* Platform Definition */
 /* rk3576 */
 #define RK3576_SYS_GRF_SOC_CON9		0x24
 #define ASRC0_4CH_SRC_SEL_SHIFT		0
@@ -52,8 +53,8 @@
 #define ASRC0_4CH_DST_SEL_MASK		(0x1f << (ASRC0_4CH_DST_SEL_SHIFT + 16))
 #define ASRC0_4CH_DST_SEL(x)		(x << ASRC0_4CH_DST_SEL_SHIFT)
 #define ASRC1_4CH_SRC_SEL_SHIFT		10
-#define ASRC1_4CH_SRC_SEL_MASK		(0x1f << ASRC1_4CH_SRC_SEL_SHIFT)
-#define ASRC1_4CH_SRC_SEL(x)		(x << (ASRC1_4CH_SRC_SEL_SHIFT + 16))
+#define ASRC1_4CH_SRC_SEL_MASK		(0x1f << (ASRC1_4CH_SRC_SEL_SHIFT + 16))
+#define ASRC1_4CH_SRC_SEL(x)		(x << (ASRC1_4CH_SRC_SEL_SHIFT))
 
 #define RK3576_SYS_GRF_SOC_CON10	0x28
 #define ASRC1_4CH_DST_SEL_SHIFT		0
@@ -116,66 +117,72 @@
 #define RK3576_ASRC2			0x2a6b0000
 #define RK3576_ASRC3			0x2a6c0000
 
-#define DAI_ID_MEM			0
-#define DAI_ID_SAI0			1
-#define DAI_ID_SAI1			2
-#define DAI_ID_SAI2			3
-#define DAI_ID_SAI3			4
-#define DAI_ID_SAI4			5
-#define DAI_ID_SAI5			6
-#define DAI_ID_SAI6			7
-#define DAI_ID_SAI7			8
-#define DAI_ID_SAI8			9
-#define DAI_ID_SAI9			10
-#define DAI_ID_SAI10			11
-#define DAI_ID_SAI11			12
-#define DAI_ID_SAI12			13
-#define DAI_ID_SAI13			14
-#define DAI_ID_SAI14			15
-#define DAI_ID_SAI15			16
-#define DAI_ID_ASRC0			17
-#define DAI_ID_ASRC1			18
-#define DAI_ID_ASRC2			19
-#define DAI_ID_ASRC3			20
-#define DAI_ID_ASRC4			21
-#define DAI_ID_ASRC5			22
-#define DAI_ID_ASRC6			23
-#define DAI_ID_ASRC7			24
-#define DAI_ID_ASRC8			25
-#define DAI_ID_ASRC9			26
-#define DAI_ID_ASRC10			27
-#define DAI_ID_ASRC11			28
-#define DAI_ID_ASRC12			29
-#define DAI_ID_ASRC13			30
-#define DAI_ID_ASRC14			31
-#define DAI_ID_ASRC15			32
-#define DAI_ID_PDM0			33
-#define DAI_ID_PDM1			34
-#define DAI_ID_PDM2			35
-#define DAI_ID_PDM3			36
-#define DAI_ID_PDM4			37
-#define DAI_ID_PDM5			38
-#define DAI_ID_PDM6			39
-#define DAI_ID_PDM7			40
-#define DAI_ID_SPDIF_TX0		41
-#define DAI_ID_SPDIF_TX1		42
-#define DAI_ID_SPDIF_TX2		43
-#define DAI_ID_SPDIF_TX3		44
-#define DAI_ID_SPDIF_TX4		45
-#define DAI_ID_SPDIF_TX5		46
-#define DAI_ID_SPDIF_TX6		47
-#define DAI_ID_SPDIF_TX7		48
-#define DAI_ID_SPDIF_RX0		49
-#define DAI_ID_SPDIF_RX1		50
-#define DAI_ID_SPDIF_RX2		51
-#define DAI_ID_SPDIF_RX3		52
-#define DAI_ID_SPDIF_RX4		53
-#define DAI_ID_SPDIF_RX5		54
-#define DAI_ID_SPDIF_RX6		55
-#define DAI_ID_SPDIF_RX7		56
+/* Common Definition */
+#define DAI_ID_UNKNOWN			-1
+#define DAI_ID_ASRC0			0
+#define DAI_ID_ASRC1			1
+#define DAI_ID_ASRC2			2
+#define DAI_ID_ASRC3			3
+#define DAI_ID_ASRC4			4
+#define DAI_ID_ASRC5			5
+#define DAI_ID_ASRC6			6
+#define DAI_ID_ASRC7			7
+#define DAI_ID_ASRC8			8
+#define DAI_ID_ASRC9			9
+#define DAI_ID_ASRC10			10
+#define DAI_ID_ASRC11			11
+#define DAI_ID_ASRC12			12
+#define DAI_ID_ASRC13			13
+#define DAI_ID_ASRC14			14
+#define DAI_ID_ASRC15			15
+#define DAI_ID_SAI0			16
+#define DAI_ID_SAI1			17
+#define DAI_ID_SAI2			18
+#define DAI_ID_SAI3			19
+#define DAI_ID_SAI4			20
+#define DAI_ID_SAI5			21
+#define DAI_ID_SAI6			22
+#define DAI_ID_SAI7			23
+#define DAI_ID_SAI8			24
+#define DAI_ID_SAI9			25
+#define DAI_ID_SAI10			26
+#define DAI_ID_SAI11			27
+#define DAI_ID_SAI12			28
+#define DAI_ID_SAI13			29
+#define DAI_ID_SAI14			30
+#define DAI_ID_SAI15			31
+#define DAI_ID_PDM0			32
+#define DAI_ID_PDM1			33
+#define DAI_ID_PDM2			34
+#define DAI_ID_PDM3			35
+#define DAI_ID_PDM4			36
+#define DAI_ID_PDM5			37
+#define DAI_ID_PDM6			38
+#define DAI_ID_PDM7			39
+#define DAI_ID_SPDIF_TX0		40
+#define DAI_ID_SPDIF_TX1		41
+#define DAI_ID_SPDIF_TX2		42
+#define DAI_ID_SPDIF_TX3		43
+#define DAI_ID_SPDIF_TX4		44
+#define DAI_ID_SPDIF_TX5		45
+#define DAI_ID_SPDIF_TX6		46
+#define DAI_ID_SPDIF_TX7		47
+#define DAI_ID_SPDIF_RX0		48
+#define DAI_ID_SPDIF_RX1		49
+#define DAI_ID_SPDIF_RX2		50
+#define DAI_ID_SPDIF_RX3		51
+#define DAI_ID_SPDIF_RX4		52
+#define DAI_ID_SPDIF_RX5		53
+#define DAI_ID_SPDIF_RX6		54
+#define DAI_ID_SPDIF_RX7		55
+#define DAI_ID_MAX			64
 
 struct rk_asrc_soc_data {
-	int (*select_lrck_clk)(struct device *dev);
+	int (*lrck_clk_init)(struct device *dev);
+	int (*lrck_clk_set)(struct device *dev);
+	int (*lrck_clk_en)(struct device *dev);
+	int (*lrck_clk_dis)(struct device *dev);
+	int lrck_source_freq;
 };
 
 struct rockchip_asrc_pair {
@@ -197,21 +204,28 @@ struct rockchip_asrc {
 	struct regmap *regmap;
 	struct clk *mclk;
 	struct clk *hclk;
-	struct clk *cru_src0;
+	struct clk *cru_src0;	// Used if src or dst is MEM.
 	struct clk *cru_src1;
-	unsigned long paddr;
+	struct clk *src_lrck;
+	struct clk *dst_lrck;
+	struct clk *src_lrck_parent;
+	struct clk *dst_lrck_parent;
+	struct list_head clk_list_head;
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
 	const struct rk_asrc_soc_data *soc_data;
 	struct rockchip_asrc_pair *pair[2];
 	struct snd_dmaengine_dai_dma_data dma_data_rx;
 	struct snd_dmaengine_dai_dma_data dma_data_tx;
+	dma_addr_t paddr;
+	int chan_num;
+	int sample_bits;
 	int sample_rate;
 	int resample_rate;
-	int tx_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
-	int rx_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
+	int dst_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
+	int src_link_dai_id;	/* This must be set firstly by amixer/tinymixer */
 };
 
-static int asrc_calculate_ratio(struct rockchip_asrc *asrc,
+static int rockchip_asrc_calculate_ratio(struct rockchip_asrc *asrc,
 				int numerator, int denominator)
 {
 	int i, integerPart, remainder, ratio, digit;
@@ -238,6 +252,18 @@ static int asrc_calculate_ratio(struct rockchip_asrc *asrc,
 	return ratio;
 }
 
+static int rockchip_asrc_calculate_dma_thresh(int dma_burst, struct rockchip_asrc *asrc)
+{
+	int n = asrc->sample_bits == 16 ? 1 : 0;
+
+	return dma_burst * (n + 1) / (asrc->chan_num + 1) / 2 - 1;
+}
+
+static bool rockchip_asrc_is_link_mem(int dai_id)
+{
+	return (DAI_ID_ASRC0 <= dai_id && dai_id <= DAI_ID_ASRC15);
+}
+
 static struct dma_chan *rockchip_asrc_get_dma_channel(struct rockchip_asrc *asrc, bool dir)
 {
 	struct dma_chan *chan = NULL;
@@ -250,37 +276,63 @@ static struct dma_chan *rockchip_asrc_get_dma_channel(struct rockchip_asrc *asrc
 	return chan;
 }
 
-static void rockchip_asrc_ratio_update_start(struct rockchip_asrc *asrc, int stream)
+static void rockchip_asrc_ratio_update(struct rockchip_asrc *asrc, int stream)
 {
 	/* get the sampling frequency, then set the ratio */
 	regmap_write(asrc->regmap, ASRC_SAMPLE_RATE, asrc->sample_rate);
 	regmap_write(asrc->regmap, ASRC_RESAMPLE_RATE, asrc->resample_rate);
 
 	regmap_write(asrc->regmap, ASRC_MANUAL_RATIO,
-		     asrc_calculate_ratio(asrc, asrc->sample_rate, asrc->resample_rate));
+		     rockchip_asrc_calculate_ratio(asrc, asrc->sample_rate, asrc->resample_rate));
 }
 
-static int rockchip_asrc_clks_setup(struct rockchip_asrc *asrc)
+static int rockchip_asrc_lrck_clks_set(struct rockchip_asrc *asrc)
 {
+	if (asrc->src_link_dai_id < 0 || asrc->dst_link_dai_id < 0) {
+		dev_warn(asrc->dev, "Invalid DAI_ID, Please set dai id by amixer or tinymix firstly!\n");
+		return -EINVAL;
+	}
 	/*
 	 * Set which device attach to asrc, then set their
 	 * clks which connect to asrc.
 	 */
-	return asrc->soc_data->select_lrck_clk(asrc->dev);
+	return asrc->soc_data->lrck_clk_set(asrc->dev);
 }
 
-static void rockchip_asrc_start(struct rockchip_asrc *asrc, int stream)
+static int rockchip_asrc_lrck_clks_en(struct rockchip_asrc *asrc)
+{
+	return asrc->soc_data->lrck_clk_en(asrc->dev);
+}
+
+static int rockchip_asrc_lrck_clks_dis(struct rockchip_asrc *asrc)
+{
+	return asrc->soc_data->lrck_clk_dis(asrc->dev);
+}
+
+static int rockchip_asrc_start(struct rockchip_asrc *asrc, int stream)
 {
 	unsigned int val = 0;
+	int ret;
 
-	rockchip_asrc_ratio_update_start(asrc, stream);
+	ret = rockchip_asrc_lrck_clks_set(asrc);
+	if (ret)
+		return ret;
+
+	ret = rockchip_asrc_lrck_clks_en(asrc);
+	if (ret)
+		return ret;
+
+	rockchip_asrc_ratio_update(asrc, stream);
 	/* Set the real time here */
-	if (!asrc->rx_link_dai_id && asrc->tx_link_dai_id)
-		val = ASRC_M2D;
-	else if (asrc->rx_link_dai_id && !asrc->tx_link_dai_id)
-		val = ASRC_S2M;
-	else if (!asrc->rx_link_dai_id && !asrc->tx_link_dai_id)
+	if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id) &&
+	    rockchip_asrc_is_link_mem(asrc->dst_link_dai_id))
 		val = ASRC_M2M;
+	else if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id) &&
+		 !rockchip_asrc_is_link_mem(asrc->dst_link_dai_id))
+		val = ASRC_M2D;
+	else if (!rockchip_asrc_is_link_mem(asrc->src_link_dai_id) &&
+		 rockchip_asrc_is_link_mem(asrc->dst_link_dai_id))
+		val = ASRC_S2M;
 	else
 		val = ASRC_S2D;
 
@@ -293,9 +345,11 @@ static void rockchip_asrc_start(struct rockchip_asrc *asrc, int stream)
 			   ASRC_CONV_ERROR_MSK, ASRC_CONV_ERROR_EN);
 	/* Now the dma is single direction */
 	regmap_update_bits(asrc->regmap, ASRC_CON, ASRC_MSK, ASRC_EN);
+
+	return 0;
 }
 
-static void rockchip_asrc_stop(struct rockchip_asrc *asrc, int stream)
+static int rockchip_asrc_stop(struct rockchip_asrc *asrc, int stream)
 {
 	regmap_update_bits(asrc->regmap, ASRC_CON,
 			   ASRC_OUT_MSK | ASRC_IN_MSK,
@@ -303,6 +357,9 @@ static void rockchip_asrc_stop(struct rockchip_asrc *asrc, int stream)
 	regmap_update_bits(asrc->regmap, ASRC_INT_CON,
 			   ASRC_CONV_ERROR_MSK, ASRC_CONV_ERROR_DIS);
 	regmap_update_bits(asrc->regmap, ASRC_CON, ASRC_MSK, ASRC_DIS);
+	rockchip_asrc_lrck_clks_dis(asrc);
+
+	return 0;
 }
 
 static int rockchip_asrc_startup(struct snd_pcm_substream *substream,
@@ -339,16 +396,19 @@ static int rockchip_asrc_hw_params(struct snd_pcm_substream *substream,
 	/* Set channel */
 	regmap_update_bits(asrc->regmap, ASRC_CON, ASRC_CHAN_NUM_MSK,
 			   ASRC_CHAN_NUM(params_channels(params)));
+	asrc->chan_num = (params_channels(params) - 2) / 2;
 	/* Set size */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		val = ASRC_IWL_16BIT | ASRC_OWL_16BIT |
 		      ASRC_OFMT_16 | ASRC_IFMT_16;
+		asrc->sample_bits = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		val = ASRC_IWL_24BIT | ASRC_OWL_24BIT |
 		ASRC_OFMT_32 | ASRC_IFMT_32;
+		asrc->sample_bits = 32;
 		break;
 	default:
 		return -EINVAL;
@@ -358,9 +418,6 @@ static int rockchip_asrc_hw_params(struct snd_pcm_substream *substream,
 			   ASRC_OWL_MSK | ASRC_IWL_MSK |
 			   ASRC_OFMT_MSK | ASRC_IFMT_MSK,
 			   val);
-
-	if (rockchip_asrc_clks_setup(asrc))
-		return -EINVAL;
 
 	return 0;
 }
@@ -375,12 +432,12 @@ static int rockchip_asrc_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		rockchip_asrc_start(asrc, substream->stream);
+		ret = rockchip_asrc_start(asrc, substream->stream);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		rockchip_asrc_stop(asrc, substream->stream);
+		ret = rockchip_asrc_stop(asrc, substream->stream);
 		break;
 	default:
 		ret = -EINVAL;
@@ -508,6 +565,7 @@ static bool rockchip_asrc_writeable_reg(struct device *dev, unsigned int reg)
 	case ASRC_FETCH_LEN:
 	case ASRC_DMA_THRESH:
 	case ASRC_INT_CON:
+	case ASRC_INT_ST:
 	case ASRC_FIFO_IN_WRCNT:
 	case ASRC_FIFO_IN_RDCNT:
 	case ASRC_RXDR:
@@ -520,18 +578,7 @@ static bool rockchip_asrc_writeable_reg(struct device *dev, unsigned int reg)
 
 static bool rockchip_asrc_volatile_reg(struct device *dev, unsigned int reg)
 {
-	switch (reg) {
-	case ASRC_INT_CON:
-	case ASRC_FIFO_IN_WRCNT:
-	case ASRC_FIFO_IN_RDCNT:
-	case ASRC_FIFO_OUT_WRCNT:
-	case ASRC_FIFO_OUT_RDCNT:
-	case ASRC_RXDR:
-	case ASRC_TXDR:
-		return true;
-	default:
-		return false;
-	}
+	return true;
 }
 
 static bool rockchip_asrc_precious_reg(struct device *dev, unsigned int reg)
@@ -684,7 +731,7 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct device *dev_be;
 	u8 dir = tx ? OUT : IN;
 	dma_cap_mask_t mask;
-	int ret;
+	int ret, dma_thresh;
 
 	/* Fetch the Back-End dma_data from DPCM */
 	for_each_dpcm_be(rtd, stream, dpcm) {
@@ -716,15 +763,29 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 	dma_params_fe->maxburst = dma_params_be->maxburst;
 
 	pair->dma_chan[!dir] = rockchip_asrc_get_dma_channel(asrc, !dir);
-	if (!pair->dma_chan[!dir]) {
+	if (IS_ERR_OR_NULL(pair->dma_chan[!dir])) {
 		dev_err(dev, "failed to request DMA channel\n");
-		return -EINVAL;
+		ret = PTR_ERR(pair->dma_chan[!dir]);
+		pair->dma_chan[!dir] = NULL;
+		return ret;
 	}
 
 	ret = snd_dmaengine_pcm_prepare_slave_config(substream, params, &config_fe);
 	if (ret) {
 		dev_err(dev, "failed to prepare DMA config for Front-End\n");
 		return ret;
+	}
+
+	if (tx && rockchip_asrc_is_link_mem(asrc->src_link_dai_id)) {
+		dma_thresh = rockchip_asrc_calculate_dma_thresh(config_fe.dst_maxburst, asrc);
+		regmap_update_bits(asrc->regmap, ASRC_DMA_THRESH,
+				   ASRC_DMA_TX_THRESH_MSK | ASRC_IN_THRESH_MSK,
+				   ASRC_DMA_TX_THRESH(dma_thresh) | ASRC_IN_THRESH(dma_thresh));
+	} else if (!tx && rockchip_asrc_is_link_mem(asrc->dst_link_dai_id)) {
+		dma_thresh = rockchip_asrc_calculate_dma_thresh(config_fe.src_maxburst, asrc);
+		regmap_update_bits(asrc->regmap, ASRC_DMA_THRESH,
+				   ASRC_DMA_RX_THRESH_MSK | ASRC_IN_THRESH_MSK,
+				   ASRC_DMA_RX_THRESH(dma_thresh) | ASRC_IN_THRESH(dma_thresh));
 	}
 
 	ret = dmaengine_slave_config(pair->dma_chan[!dir], &config_fe);
@@ -742,17 +803,19 @@ static int rockchip_asrc_dma_hw_params(struct snd_soc_component *component,
 	 * The Back-End device might have already requested a DMA channel,
 	 * so try to reuse it first, and then request a new one upon NULL.
 	 */
-	component_be = snd_soc_lookup_component_nolocked(dev_be, SND_DMAENGINE_PCM_DRV_NAME);
-	if (component_be) {
-		be_chan = soc_component_to_pcm(component_be)->chan[substream->stream];
-		tmp_chan = be_chan;
+	if (!IS_ENABLED(CONFIG_SND_SOC_DYNAMIC_DMA_CHAN)) {
+		component_be = snd_soc_lookup_component_nolocked(dev_be, SND_DMAENGINE_PCM_DRV_NAME);
+		if (component_be) {
+			be_chan = soc_component_to_pcm(component_be)->chan[substream->stream];
+			tmp_chan = be_chan;
+		}
 	}
 
 	if (!tmp_chan) {
 		tmp_chan = dma_request_chan(dev_be, tx ? "tx" : "rx");
 		if (IS_ERR(tmp_chan)) {
 			dev_err(dev, "failed to request DMA channel for Back-End\n");
-			return -EINVAL;
+			return PTR_ERR(tmp_chan);
 		}
 	}
 
@@ -920,20 +983,20 @@ static int rockchip_asrc_dma_pcm_new(struct snd_soc_component *component,
 }
 
 static const char * const asrc_link_dai_text[] = {
-		"MEM", "SAI0", "SAI1", "SAI2", "SAI3",
-		"SAI4", "SAI5", "SAI6", "SAI7",
-		"SAI8", "SAI9", "SAI10", "SAI11",
-		"SAI12", "SAI13", "SAI14", "SAI15",
-		"ASRC0", "ASRC1", "ASRC2", "ASRC3",
-		"ASRC4", "ASRC5", "ASRC6", "ASRC7",
-		"ASRC8", "ASRC9", "ASRC10", "ASRC11",
-		"ASRC12", "ASRC13", "ASRC14", "ASRC15",
-		"PDM0", "PDM1", "PDM2", "PDM3",
-		"PDM4", "PDM5", "PDM6", "PDM7",
-		"SPDIF_TX0", "SPDIF_TX1", "SPDIF_TX2", "SPDIF_TX4",
-		"SPDIF_TX4", "SPDIF_TX5", "SPDIF_TX6", "SPDIF_TX7",
-		"SPDIF_RX0", "SPDIF_RX1", "SPDIF_RX2", "SPDIF_RX4",
-		"SPDIF_RX4", "SPDIF_RX5", "SPDIF_RX6", "SPDIF_RX7" };
+	"asrc0", "asrc1", "asrc2", "asrc3",
+	"asrc4", "asrc5", "asrc6", "asrc7",
+	"asrc8", "asrc9", "asrc10", "asrc11",
+	"asrc12", "asrc13", "asrc14", "asrc15",
+	"sai0", "sai1", "sai2", "sai3",
+	"sai4", "sai5", "sai6", "sai7",
+	"sai8", "sai9", "sai10", "sai11",
+	"sai12", "sai13", "sai14", "sai15",
+	"pdm0", "pdm1", "pdm2", "pdm3",
+	"pdm4", "pdm5", "pdm6", "pdm7",
+	"spdiftx0", "spdiftx1", "spdiftx2", "spdiftx4",
+	"spdiftx4", "spdiftx5", "spdiftx6", "spdiftx7",
+	"spdifrx0", "spdifrx1", "spdifrx2", "spdifrx4",
+	"spdifrx4", "spdifrx5", "spdifrx6", "spdifrx7" };
 
 static const struct soc_enum asrc_tx_link_dai_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(asrc_link_dai_text), asrc_link_dai_text);
@@ -946,7 +1009,7 @@ static int rockchip_asrc_tx_dai_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rockchip_asrc *asrc = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.enumerated.item[0] = asrc->tx_link_dai_id;
+	ucontrol->value.enumerated.item[0] = asrc->dst_link_dai_id;
 
 	return 0;
 }
@@ -962,7 +1025,7 @@ static int rockchip_asrc_tx_dai_put(struct snd_kcontrol *kcontrol,
 	if (num >= ARRAY_SIZE(asrc_link_dai_text))
 		return -EINVAL;
 
-	asrc->tx_link_dai_id = num;
+	asrc->dst_link_dai_id = num;
 
 	return 1;
 }
@@ -973,7 +1036,7 @@ static int rockchip_asrc_rx_dai_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rockchip_asrc *asrc = snd_soc_component_get_drvdata(component);
 
-	ucontrol->value.enumerated.item[0] = asrc->rx_link_dai_id;
+	ucontrol->value.enumerated.item[0] = asrc->src_link_dai_id;
 
 	return 0;
 }
@@ -989,7 +1052,7 @@ static int rockchip_asrc_rx_dai_put(struct snd_kcontrol *kcontrol,
 	if (num >= ARRAY_SIZE(asrc_link_dai_text))
 		return -EINVAL;
 
-	asrc->rx_link_dai_id = num;
+	asrc->src_link_dai_id = num;
 
 	return 1;
 }
@@ -1089,19 +1152,7 @@ static int rockchip_asrc_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(asrc->mclk);
 	clk_disable_unprepare(asrc->hclk);
-	if (asrc->tx_link_dai_id == DAI_ID_MEM) {
-		clk_disable_unprepare(asrc->cru_src0);
-		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
-				   ASRC_DST_LRCK_DIV_MSK,
-				   ASRC_DST_LRCK_DIV_DIS);
-	}
-
-	if (asrc->rx_link_dai_id == DAI_ID_MEM) {
-		clk_disable_unprepare(asrc->cru_src1);
-		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
-				   ASRC_SRC_LRCK_DIV_MSK,
-				   ASRC_SRC_LRCK_DIV_DIS);
-	}
+	rockchip_asrc_lrck_clks_dis(asrc);
 
 	return 0;
 }
@@ -1119,32 +1170,20 @@ static int rockchip_asrc_runtime_resume(struct device *dev)
 	if (ret)
 		goto err_mclk;
 
-	if (asrc->tx_link_dai_id == DAI_ID_MEM) {
-		ret = clk_prepare_enable(asrc->cru_src0);
-		if (ret)
-			goto error_cru_src0;
-	}
-
-	if (asrc->rx_link_dai_id == DAI_ID_MEM) {
-		ret = clk_prepare_enable(asrc->cru_src1);
-		if (ret)
-			goto error_cru_src1;
-	}
+	ret = rockchip_asrc_lrck_clks_en(asrc);
+	if (ret)
+		goto err_asrc_lrck_clks;
 
 	regcache_cache_only(asrc->regmap, false);
 	regcache_mark_dirty(asrc->regmap);
 
-	ret =  regcache_sync(asrc->regmap);
+	ret = regcache_sync(asrc->regmap);
 	if (ret)
 		goto err_regmap;
 	return 0;
 err_regmap:
-	if (asrc->rx_link_dai_id == DAI_ID_MEM)
-		clk_disable_unprepare(asrc->cru_src1);
-error_cru_src1:
-	if (asrc->tx_link_dai_id == DAI_ID_MEM)
-		clk_disable_unprepare(asrc->cru_src0);
-error_cru_src0:
+	rockchip_asrc_lrck_clks_dis(asrc);
+err_asrc_lrck_clks:
 	clk_disable_unprepare(asrc->mclk);
 err_mclk:
 	clk_disable_unprepare(asrc->hclk);
@@ -1178,149 +1217,374 @@ static irqreturn_t rockchip_asrc_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static void rockchip_asrc_set_lrck_div_from_cru(struct rockchip_asrc *asrc)
+static int rockchip_asrc_get_clk_all_parents_name(struct clk *clk, char *clk_names[], int n)
 {
-	if (asrc->tx_link_dai_id == DAI_ID_MEM) {
-		if (clk_set_rate(asrc->cru_src0, CRU_LRCK_SOURCE_FREQ)) {
-			dev_err(asrc->dev, "Failed to set cru_src0\n");
-			return;
-		}
+	struct clk_hw *hw = __clk_get_hw(clk);
+	unsigned int num_parents = clk_hw_get_num_parents(hw);
+	struct clk_hw *parent;
+	int i;
 
-		clk_prepare_enable(asrc->cru_src0);
+	if (num_parents > n)
+		num_parents = n;
+
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_hw_get_parent_by_index(hw, i);
+		if (!parent)
+			break;
+		clk_names[i] = (char *)clk_hw_get_name(parent);
+	}
+
+	return i;
+}
+
+static struct clk *rockchip_asrc_get_clk_parent_by_name(struct clk *clk, char *clk_names[], int n, char *name)
+{
+	struct clk_hw *hw = __clk_get_hw(clk);
+	struct clk_hw *parent = NULL;
+	char *result = NULL;
+	int i;
+
+	for (i = 0; i < n; i++) {
+		result = strstr(clk_names[i], name);
+		if (!result) {
+			continue;
+		} else {
+			parent = clk_hw_get_parent_by_index(hw, i);
+			return parent->clk;
+		}
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
+static struct clk *rockchip_asrc_get_clk_parent(struct clk *clk, char *clk_names[], int n, char *name)
+{
+	struct clk *parent;
+	char *name_temp;
+	int name_len;
+
+	parent = rockchip_asrc_get_clk_parent_by_name(clk, clk_names, n, name);
+	if (!IS_ERR(parent))
+		return parent;
+
+	name_len = strlen(name);
+	if ((name_len > 1) && (name[name_len - 1] == '0') &&
+	    (name[name_len - 2] < '0' && name[name_len - 2] > '9')) {
+		name_temp = kstrdup(name, GFP_KERNEL);
+		if (!name_temp)
+			return ERR_PTR(-ENOMEM);
+
+		name_temp[name_len - 1] = 0;
+		parent = rockchip_asrc_get_clk_parent_by_name(clk, clk_names, n, name_temp);
+		kfree(name_temp);
+
+		return parent;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
+static void rockchip_asrc_lrck_div_set(struct rockchip_asrc *asrc)
+{
+	int dst_lrck_div = 0, src_lrck_div = 0;
+
+	switch (asrc->src_link_dai_id) {
+	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
+		src_lrck_div = asrc->soc_data->lrck_source_freq / asrc->sample_rate;
+		break;
+	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
+		src_lrck_div = 128;
+		break;
+	default:
+		break;
+	}
+
+	switch (asrc->dst_link_dai_id) {
+	case DAI_ID_ASRC0 ... DAI_ID_ASRC15:
+		dst_lrck_div = asrc->soc_data->lrck_source_freq / asrc->resample_rate;
+		break;
+	case DAI_ID_SPDIF_TX0 ... DAI_ID_SPDIF_RX7:
+		dst_lrck_div = 128;
+		break;
+	default:
+		break;
+	}
+
+	if (dst_lrck_div) {
 		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
 				   ASRC_DST_LRCK_DIV_MSK |
 				   ASRC_DST_LRCK_DIV_CON_MSK,
 				   ASRC_DST_LRCK_DIV_EN |
-				   ASRC_DST_LRCK_DIV(CRU_LRCK_SOURCE_FREQ /
-						     asrc->resample_rate * 2));
-
+				   ASRC_DST_LRCK_DIV(dst_lrck_div));
 	}
 
-	if (asrc->rx_link_dai_id == DAI_ID_MEM) {
-		if (clk_set_rate(asrc->cru_src1, CRU_LRCK_SOURCE_FREQ)) {
-			dev_err(asrc->dev, "Failed to set cru_src1\n");
-			return;
-		}
-
-		clk_prepare_enable(asrc->cru_src1);
+	if (src_lrck_div) {
 		regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
 				   ASRC_SRC_LRCK_DIV_MSK |
 				   ASRC_SRC_LRCK_DIV_CON_MSK,
 				   ASRC_SRC_LRCK_DIV_EN |
-				   ASRC_SRC_LRCK_DIV(CRU_LRCK_SOURCE_FREQ /
-						     asrc->sample_rate * 2));
+				   ASRC_SRC_LRCK_DIV(src_lrck_div));
 	}
 }
 
-static int rk3576_asrc_select_lrck_clk(struct device *dev)
+static void rockchip_asrc_lrck_div_close(struct rockchip_asrc *asrc)
+{
+	regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
+			   ASRC_DST_LRCK_DIV_MSK,
+			   ASRC_DST_LRCK_DIV_DIS);
+	regmap_update_bits(asrc->regmap, ASRC_CLKDIV_CON,
+			   ASRC_SRC_LRCK_DIV_MSK,
+			   ASRC_SRC_LRCK_DIV_DIS);
+}
+
+static int rk3506_asrc_lrck_clk_init(struct device *dev)
 {
 	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
-	unsigned int tx_val = 0, rx_val = 0;
 
-	switch (asrc->tx_link_dai_id) {
-	case DAI_ID_MEM:
-		tx_val = RK3576_DST_LRCK_FROM_CRU0;
+	asrc->src_lrck = devm_clk_get(dev, "src_lrck");
+	if (IS_ERR(asrc->src_lrck)) {
+		dev_err(dev, "Failed to get src_clk\n");
+		return PTR_ERR(asrc->src_lrck);
+	}
+
+	asrc->dst_lrck = devm_clk_get(dev, "dst_lrck");
+	if (IS_ERR(asrc->dst_lrck)) {
+		dev_err(dev, "Failed to get dst_lrck\n");
+		return PTR_ERR(asrc->dst_lrck);
+	}
+
+	return 0;
+}
+
+static int rk3506_asrc_lrck_clk_set(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+	char *clk_names[DAI_ID_MAX] = {0};
+	int n;
+
+	n = rockchip_asrc_get_clk_all_parents_name(asrc->dst_lrck, clk_names, ARRAY_SIZE(clk_names));
+	asrc->dst_lrck_parent = rockchip_asrc_get_clk_parent(asrc->dst_lrck, clk_names, n,
+					(char *)asrc_link_dai_text[asrc->dst_link_dai_id]);
+	if (IS_ERR(asrc->dst_lrck_parent)) {
+		dev_err(dev, "Failed to get dst_lrck_parent\n");
+		return PTR_ERR(asrc->dst_lrck_parent);
+	}
+
+	n = rockchip_asrc_get_clk_all_parents_name(asrc->src_lrck, clk_names, ARRAY_SIZE(clk_names));
+	asrc->src_lrck_parent = rockchip_asrc_get_clk_parent(asrc->src_lrck, clk_names, n,
+						(char *)asrc_link_dai_text[asrc->src_link_dai_id]);
+	if (IS_ERR(asrc->src_lrck_parent)) {
+		dev_err(dev, "Failed to get src_lrck_parent\n");
+		return PTR_ERR(asrc->src_lrck_parent);
+	}
+
+	clk_set_parent(asrc->src_lrck, asrc->src_lrck_parent);
+	clk_set_parent(asrc->dst_lrck, asrc->dst_lrck_parent);
+	if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id)) {
+		if (clk_set_rate(asrc->src_lrck_parent, asrc->soc_data->lrck_source_freq)) {
+			dev_err(asrc->dev, "Failed to set src_lrck_parent, freq is %d\n",
+				asrc->soc_data->lrck_source_freq);
+			return -EINVAL;
+		}
+	}
+
+	if (rockchip_asrc_is_link_mem(asrc->dst_link_dai_id)) {
+		if (clk_set_rate(asrc->dst_lrck_parent, asrc->soc_data->lrck_source_freq)) {
+			dev_err(asrc->dev, "Failed to set dst_lrck_parent, freq is %d\n",
+				asrc->soc_data->lrck_source_freq);
+			return -EINVAL;
+		}
+	}
+
+	rockchip_asrc_lrck_div_set(asrc);
+
+	return 0;
+}
+
+static int rk3506_asrc_lrck_clk_en(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = clk_prepare_enable(asrc->src_lrck_parent);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(asrc->dst_lrck_parent);
+	if (ret)
+		goto err_dst_lrck_parent;
+
+	ret = clk_prepare_enable(asrc->src_lrck);
+	if (ret)
+		goto err_src_lrck;
+
+	ret = clk_prepare_enable(asrc->dst_lrck);
+	if (ret)
+		goto err_dst_lrck;
+
+	return 0;
+err_dst_lrck:
+	clk_disable_unprepare(asrc->src_lrck);
+err_src_lrck:
+	clk_disable_unprepare(asrc->dst_lrck_parent);
+err_dst_lrck_parent:
+	clk_disable_unprepare(asrc->src_lrck_parent);
+
+	return ret;
+}
+
+static int rk3506_asrc_lrck_clk_dis(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(asrc->src_lrck);
+	clk_disable_unprepare(asrc->dst_lrck);
+	clk_disable_unprepare(asrc->src_lrck_parent);
+	clk_disable_unprepare(asrc->dst_lrck_parent);
+	rockchip_asrc_lrck_div_close(asrc);
+
+	return 0;
+}
+
+static int rk3576_asrc_lrck_clk_init(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+	struct device_node *node = dev->of_node;
+
+	asrc->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	if (IS_ERR(asrc->grf))
+		return PTR_ERR(asrc->grf);
+
+	asrc->cru_src0 = devm_clk_get(dev, "cru_src0");
+	if (IS_ERR(asrc->cru_src0)) {
+		dev_err(dev, "Failed to get cru_src0\n");
+		return PTR_ERR(asrc->cru_src0);
+	}
+
+	asrc->cru_src1 = devm_clk_get(dev, "cru_src1");
+	if (IS_ERR(asrc->cru_src1)) {
+		dev_err(dev, "Failed to get cru_src1\n");
+		return PTR_ERR(asrc->cru_src1);
+	}
+
+	return 0;
+}
+
+static int rk3576_asrc_lrck_clk_set(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+	unsigned int dst_val = 0, src_val = 0;
+
+	switch (asrc->dst_link_dai_id) {
+	case DAI_ID_ASRC0:
+		dst_val = RK3576_DST_LRCK_FROM_CRU0;
+		break;
+	case DAI_ID_ASRC1:
+		dst_val = RK3576_DST_LRCK_FROM_CRU1;
 		break;
 	case DAI_ID_SAI0:
-		tx_val = RK3576_DST_LRCK_FROM_SAI0;
+		dst_val = RK3576_DST_LRCK_FROM_SAI0;
 		break;
 	case DAI_ID_SAI1:
-		tx_val = RK3576_DST_LRCK_FROM_SAI1;
+		dst_val = RK3576_DST_LRCK_FROM_SAI1;
 		break;
 	case DAI_ID_SAI2:
-		tx_val = RK3576_DST_LRCK_FROM_SAI2;
+		dst_val = RK3576_DST_LRCK_FROM_SAI2;
 		break;
 	case DAI_ID_SAI3:
-		tx_val = RK3576_DST_LRCK_FROM_SAI3;
+		dst_val = RK3576_DST_LRCK_FROM_SAI3;
 		break;
 	case DAI_ID_SAI4:
-		tx_val = RK3576_DST_LRCK_FROM_SAI4;
+		dst_val = RK3576_DST_LRCK_FROM_SAI4;
 		break;
 	case DAI_ID_SAI5:
-		tx_val = RK3576_DST_LRCK_FROM_SAI5;
+		dst_val = RK3576_DST_LRCK_FROM_SAI5;
 		break;
 	case DAI_ID_SAI6:
-		tx_val = RK3576_DST_LRCK_FROM_SAI6;
+		dst_val = RK3576_DST_LRCK_FROM_SAI6;
 		break;
 	case DAI_ID_SAI7:
-		tx_val = RK3576_DST_LRCK_FROM_SAI7;
+		dst_val = RK3576_DST_LRCK_FROM_SAI7;
 		break;
 	case DAI_ID_SAI8:
-		tx_val = RK3576_DST_LRCK_FROM_SAI8;
+		dst_val = RK3576_DST_LRCK_FROM_SAI8;
 		break;
 	case DAI_ID_SAI9:
-		tx_val = RK3576_DST_LRCK_FROM_SAI9;
+		dst_val = RK3576_DST_LRCK_FROM_SAI9;
 		break;
 	case DAI_ID_SPDIF_TX0:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX0;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX0;
 		break;
 	case DAI_ID_SPDIF_TX1:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX1;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX1;
 		break;
 	case DAI_ID_SPDIF_TX2:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX2;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX2;
 		break;
 	case DAI_ID_SPDIF_TX3:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX3;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX3;
 		break;
 	case DAI_ID_SPDIF_TX4:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX4;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX4;
 		break;
 	case DAI_ID_SPDIF_TX5:
-		tx_val = RK3576_DST_LRCK_FROM_SPDIF_TX5;
+		dst_val = RK3576_DST_LRCK_FROM_SPDIF_TX5;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	switch (asrc->rx_link_dai_id) {
-	case DAI_ID_MEM:
-		rx_val = RK3576_SRC_LRCK_FROM_CRU1;
+	switch (asrc->src_link_dai_id) {
+	case DAI_ID_ASRC0:
+		src_val = RK3576_SRC_LRCK_FROM_CRU0;
+		break;
+	case DAI_ID_ASRC1:
+		src_val = RK3576_SRC_LRCK_FROM_CRU1;
 		break;
 	case DAI_ID_SAI0:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI0;
+		src_val = RK3576_SRC_LRCK_FROM_SAI0;
 		break;
 	case DAI_ID_SAI1:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI1;
+		src_val = RK3576_SRC_LRCK_FROM_SAI1;
 		break;
 	case DAI_ID_SAI2:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI2;
+		src_val = RK3576_SRC_LRCK_FROM_SAI2;
 		break;
 	case DAI_ID_SAI3:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI3;
+		src_val = RK3576_SRC_LRCK_FROM_SAI3;
 		break;
 	case DAI_ID_SAI4:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI4;
+		src_val = RK3576_SRC_LRCK_FROM_SAI4;
 		break;
 	case DAI_ID_SAI5:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI5;
+		src_val = RK3576_SRC_LRCK_FROM_SAI5;
 		break;
 	case DAI_ID_SAI6:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI6;
+		src_val = RK3576_SRC_LRCK_FROM_SAI6;
 		break;
 	case DAI_ID_SAI7:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI7;
+		src_val = RK3576_SRC_LRCK_FROM_SAI7;
 		break;
 	case DAI_ID_SAI8:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI8;
+		src_val = RK3576_SRC_LRCK_FROM_SAI8;
 		break;
 	case DAI_ID_SAI9:
-		rx_val = RK3576_SRC_LRCK_FROM_SAI9;
+		src_val = RK3576_SRC_LRCK_FROM_SAI9;
 		break;
 	case DAI_ID_PDM0:
-		rx_val = RK3576_SRC_LRCK_FROM_PDM0;
+		src_val = RK3576_SRC_LRCK_FROM_PDM0;
 		break;
 	case DAI_ID_PDM1:
-		rx_val = RK3576_SRC_LRCK_FROM_PDM1;
+		src_val = RK3576_SRC_LRCK_FROM_PDM1;
 		break;
 	case DAI_ID_SPDIF_RX0:
-		rx_val = RK3576_SRC_LRCK_FROM_SPDIF_RX0;
+		src_val = RK3576_SRC_LRCK_FROM_SPDIF_RX0;
 		break;
 	case DAI_ID_SPDIF_RX1:
-		rx_val = RK3576_SRC_LRCK_FROM_SPDIF_RX1;
+		src_val = RK3576_SRC_LRCK_FROM_SPDIF_RX1;
 		break;
 	case DAI_ID_SPDIF_RX2:
-		rx_val = RK3576_SRC_LRCK_FROM_SPDIF_RX2;
+		src_val = RK3576_SRC_LRCK_FROM_SPDIF_RX2;
 		break;
 	default:
 		return -EINVAL;
@@ -1329,34 +1593,90 @@ static int rk3576_asrc_select_lrck_clk(struct device *dev)
 	if (asrc->paddr == RK3576_ASRC0) {
 		regmap_write(asrc->grf, RK3576_SYS_GRF_SOC_CON9,
 			     ASRC0_4CH_SRC_SEL_MASK |  ASRC0_4CH_DST_SEL_MASK |
-			     ASRC0_4CH_SRC_SEL(rx_val) | ASRC0_4CH_DST_SEL(tx_val));
+			     ASRC0_4CH_SRC_SEL(src_val) | ASRC0_4CH_DST_SEL(dst_val));
 	} else if (asrc->paddr == RK3576_ASRC1) {
 		regmap_write(asrc->grf, RK3576_SYS_GRF_SOC_CON9,
-			     ASRC1_4CH_SRC_SEL_MASK | ASRC1_4CH_SRC_SEL(rx_val));
+			     ASRC1_4CH_SRC_SEL_MASK | ASRC1_4CH_SRC_SEL(src_val));
 		regmap_write(asrc->grf, RK3576_SYS_GRF_SOC_CON10,
-			     ASRC1_4CH_DST_SEL_MASK | ASRC1_4CH_DST_SEL(tx_val));
+			     ASRC1_4CH_DST_SEL_MASK | ASRC1_4CH_DST_SEL(dst_val));
 	} else if (asrc->paddr == RK3576_ASRC2) {
 		regmap_write(asrc->grf, RK3576_SYS_GRF_SOC_CON10,
 			     ASRC2_2CH_SRC_SEL_MASK | ASRC2_2CH_DST_SEL_MASK |
-			     ASRC2_2CH_SRC_SEL(rx_val) | ASRC2_2CH_DST_SEL(tx_val));
+			     ASRC2_2CH_SRC_SEL(src_val) | ASRC2_2CH_DST_SEL(dst_val));
 	} else if (asrc->paddr == RK3576_ASRC3) {
 		regmap_write(asrc->grf, RK3576_SYS_GRF_SOC_CON11,
 			     ASRC3_2CH_SRC_SEL_MASK | ASRC3_2CH_DST_SEL_MASK |
-			     ASRC3_2CH_SRC_SEL(rx_val) | ASRC3_2CH_DST_SEL(tx_val));
+			     ASRC3_2CH_SRC_SEL(src_val) | ASRC3_2CH_DST_SEL(dst_val));
 	} else {
 		return -EINVAL;
 	}
 
-	rockchip_asrc_set_lrck_div_from_cru(asrc);
+	if (rockchip_asrc_is_link_mem(asrc->src_link_dai_id)) {
+		if (clk_set_rate(asrc->cru_src0, asrc->soc_data->lrck_source_freq)) {
+			dev_err(asrc->dev, "Failed to set cru_src0, freq is %d\n",
+				asrc->soc_data->lrck_source_freq);
+			return -EINVAL;
+		}
+	}
+
+	if (rockchip_asrc_is_link_mem(asrc->dst_link_dai_id)) {
+		if (clk_set_rate(asrc->cru_src1, asrc->soc_data->lrck_source_freq)) {
+			dev_err(asrc->dev, "Failed to set cru_src1, freq is %d\n",
+				asrc->soc_data->lrck_source_freq);
+			return -EINVAL;
+		}
+	}
+
+	rockchip_asrc_lrck_div_set(asrc);
 
 	return 0;
 }
 
+static int rk3576_asrc_lrck_clk_en(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = clk_prepare_enable(asrc->cru_src0);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(asrc->cru_src1);
+	if (ret)
+		clk_disable_unprepare(asrc->cru_src0);
+
+	return ret;
+}
+
+static int rk3576_asrc_lrck_clk_dis(struct device *dev)
+{
+	struct rockchip_asrc *asrc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(asrc->cru_src0);
+	clk_disable_unprepare(asrc->cru_src1);
+	rockchip_asrc_lrck_div_close(asrc);
+
+	return 0;
+}
+
+static const struct rk_asrc_soc_data rk3506_data = {
+	.lrck_clk_init = rk3506_asrc_lrck_clk_init,
+	.lrck_clk_set = rk3506_asrc_lrck_clk_set,
+	.lrck_clk_en = rk3506_asrc_lrck_clk_en,
+	.lrck_clk_dis = rk3506_asrc_lrck_clk_dis,
+	.lrck_source_freq = 98304000,
+};
+
 static const struct rk_asrc_soc_data rk3576_data = {
-	.select_lrck_clk = rk3576_asrc_select_lrck_clk,
+	.lrck_clk_init = rk3576_asrc_lrck_clk_init,
+	.lrck_clk_set = rk3576_asrc_lrck_clk_set,
+	.lrck_clk_en = rk3576_asrc_lrck_clk_en,
+	.lrck_clk_dis = rk3576_asrc_lrck_clk_dis,
+	.lrck_source_freq = 49152000,
 };
 
 static const struct of_device_id rockchip_asrc_match[] = {
+	{ .compatible = "rockchip,rk3506-asrc", .data = &rk3506_data},
 	{ .compatible = "rockchip,rk3576-asrc", .data = &rk3576_data},
 	{}
 };
@@ -1373,10 +1693,6 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 	asrc = devm_kzalloc(&pdev->dev, sizeof(*asrc), GFP_KERNEL);
 	if (!asrc)
 		return -ENOMEM;
-
-	asrc->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
-	if (IS_ERR(asrc->grf))
-		return PTR_ERR(asrc->grf);
 
 	asrc->dev = &pdev->dev;
 	asrc->pdev = pdev;
@@ -1407,6 +1723,10 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = asrc->soc_data->lrck_clk_init(asrc->dev);
+	if (ret)
+		return ret;
+
 	asrc->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(asrc->mclk)) {
 		dev_err(&pdev->dev, "Failed to get mclk\n");
@@ -1419,18 +1739,6 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 		return PTR_ERR(asrc->hclk);
 	}
 
-	asrc->cru_src0 = devm_clk_get(&pdev->dev, "cru_src0");
-	if (IS_ERR(asrc->cru_src0)) {
-		dev_err(&pdev->dev, "Failed to get cru_src0\n");
-		return PTR_ERR(asrc->cru_src0);
-	}
-
-	asrc->cru_src1 = devm_clk_get(&pdev->dev, "cru_src1");
-	if (IS_ERR(asrc->cru_src1)) {
-		dev_err(&pdev->dev, "Failed to get cru_src1\n");
-		return PTR_ERR(asrc->cru_src1);
-	}
-
 	ret = clk_prepare_enable(asrc->hclk);
 	if (ret)
 		return ret;
@@ -1439,8 +1747,8 @@ static int rockchip_asrc_probe(struct platform_device *pdev)
 	asrc->sample_rate = DEFAULT_SAMPLE_RATE;
 
 	/* Set the default link dai here */
-	asrc->tx_link_dai_id = DAI_ID_SAI0;
-	asrc->rx_link_dai_id = DAI_ID_SAI1;
+	asrc->dst_link_dai_id = DAI_ID_UNKNOWN;
+	asrc->src_link_dai_id = DAI_ID_UNKNOWN;
 
 	/* DMA data init */
 	asrc->dma_data_tx.addr = res->start + ASRC_TXDR;
@@ -1497,12 +1805,6 @@ static int rockchip_asrc_remove(struct platform_device *pdev)
 		rockchip_asrc_runtime_suspend(&pdev->dev);
 
 	clk_disable_unprepare(asrc->hclk);
-
-	if (asrc->tx_link_dai_id == DAI_ID_MEM)
-		clk_disable_unprepare(asrc->cru_src0);
-
-	if (asrc->rx_link_dai_id == DAI_ID_MEM)
-		clk_disable_unprepare(asrc->cru_src1);
 
 	return 0;
 }
