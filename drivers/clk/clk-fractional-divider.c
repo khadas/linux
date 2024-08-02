@@ -134,7 +134,7 @@ static long clk_fd_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long m, n;
 	u64 ret;
 
-	if (!rate && rate >= *parent_rate)
+	if (!rate || rate >= *parent_rate)
 		return *parent_rate;
 
 	if (fd->approximation)
