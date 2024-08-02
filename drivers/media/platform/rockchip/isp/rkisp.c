@@ -825,7 +825,9 @@ run_next:
 	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
-		rkisp_unite_write(dev, ISP_CTRL, val, true);
+		writel(val, hw->base_addr + ISP_CTRL);
+		if (hw->unite == ISP_UNITE_TWO)
+			writel(val, hw->base_next_addr + ISP_CTRL);
 		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
 		rkisp_update_regs(dev, ISP3X_ISP_CTRL1, ISP3X_ISP_CTRL1);
 		/* fix ldch multi sensor case:

@@ -4543,8 +4543,10 @@ rkisp_params_first_cfg_v39(struct rkisp_isp_params_vdev *params_vdev)
 			isp3_param_write(params_vdev, addr + size * i, ISP32L_FRM_BUF_RD_BASE, i);
 		}
 	}
-	if (dev->hw_dev->is_single && (dev->isp_state & ISP_START))
+	if (dev->hw_dev->is_single && (dev->isp_state & ISP_START)) {
 		rkisp_set_bits(dev, ISP3X_ISP_CTRL0, 0, CIF_ISP_CTRL_ISP_CFG_UPD, true);
+		rkisp_clear_reg_cache_bits(dev, ISP3X_ISP_CTRL0, CIF_ISP_CTRL_ISP_CFG_UPD);
+	}
 }
 
 static void rkisp_save_first_param_v39(struct rkisp_isp_params_vdev *params_vdev, void *param)
