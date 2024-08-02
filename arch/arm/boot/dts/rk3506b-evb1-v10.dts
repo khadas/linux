@@ -48,3 +48,13 @@
 		};
 	};
 };
+
+&u2phy_otg0 {
+	vbus-supply = <&vcc5v0_otg0>;
+	status = "okay";
+};
+
+&u2phy_otg1 {
+	phy-supply = <&vcc5v0_otg1>;
+	status = "okay";
+};
