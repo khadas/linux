@@ -462,24 +462,6 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pde
 	return 0;
 }
 
-static int rk_pcie_clk_init(struct rk_pcie *rk_pcie)
-{
-	struct device *dev = rk_pcie->pci->dev;
-	int ret;
-
-	rk_pcie->clk_cnt = devm_clk_bulk_get_all(dev, &rk_pcie->clks);
-	if (rk_pcie->clk_cnt < 1)
-		return -ENODEV;
-
-	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
-	if (ret) {
-		dev_err(dev, "failed to prepare enable pcie bulk clks: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int rk_pcie_resource_get(struct platform_device *pdev,
 					 struct rk_pcie *rk_pcie)
 {
@@ -532,6 +514,10 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	rk_pcie->prsnt_gpio = devm_gpiod_get_optional(&pdev->dev, "prsnt", GPIOD_IN);
 	if (IS_ERR_OR_NULL(rk_pcie->prsnt_gpio))
 		dev_info(&pdev->dev, "invalid prsnt-gpios property in node\n");
+
+	rk_pcie->clk_cnt = devm_clk_bulk_get_all(&pdev->dev, &rk_pcie->clks);
+	if (rk_pcie->clk_cnt < 1)
+		return -ENODEV;
 
 	return 0;
 }
@@ -1217,7 +1203,7 @@ retry_regulator:
 
 	reset_control_deassert(rk_pcie->rsts);
 
-	ret = rk_pcie_clk_init(rk_pcie);
+	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
 		dev_err(dev, "clock init failed\n");
 		goto disable_phy;
