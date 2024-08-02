@@ -1543,6 +1543,7 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 		}
 		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_R2Y_EN(0));
 		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(0));
+		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_FROM_CSC_MATRIX_EN(0));
 		return;
 	}
 
