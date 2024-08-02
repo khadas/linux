@@ -137,6 +137,9 @@
 /* RV1103B_RTC_XO_TRIM0 bitfields */
 #define RV1103B_RTC_D2A_XO_EN		BIT(0)
 
+/* RV1103B_RTC_XO_TRIM1 bitfields */
+#define RV1103B_RTC_D2A_XO_CUR_SEL	BIT(2)
+
 /* RV1103B_RTC_ANALOG_EN bitfields */
 #define RV1103B_RTC_D2A_CLK_OUT_EN	BIT(3)
 
@@ -494,6 +497,11 @@ static int rv1103b_rtc_init(struct regmap *regmap)
 	if (ret)
 		return ret;
 
+	ret = rockchip_rtc_update_bits(regmap, RV1103B_RTC_XO_TRIM1,
+				       RV1103B_RTC_D2A_XO_CUR_SEL,
+				       RV1103B_RTC_D2A_XO_CUR_SEL);
+	if (ret)
+		return ret;
 	return ret;
 }
 
