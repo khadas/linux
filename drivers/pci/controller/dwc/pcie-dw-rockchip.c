@@ -537,6 +537,10 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 		dev_info(&pdev->dev, "support hotplug-gpios!\n");
 	}
 
+	/* Skip waiting for training to pass in system PM routine */
+	if (device_property_read_bool(&pdev->dev, "rockchip,skip-scan-in-resume"))
+		rk_pcie->skip_scan_in_resume = true;
+
 retry_regulator:
 	rk_pcie->vpcie3v3 = devm_regulator_get_optional(&pdev->dev, "vpcie3v3");
 	if (IS_ERR(rk_pcie->vpcie3v3)) {
@@ -1274,10 +1278,6 @@ static int rk_pcie_really_probe(void *p)
 		}
 		rk_pcie->is_signal_test = true;
 	}
-
-	/* Skip waiting for training to pass in system PM routine */
-	if (device_property_read_bool(dev, "rockchip,skip-scan-in-resume"))
-		rk_pcie->skip_scan_in_resume = true;
 
 	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
 	if (!rk_pcie->hot_rst_wq) {
