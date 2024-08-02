@@ -135,6 +135,8 @@ struct rk_pcie {
 	bool				slot_pluggable;
 	struct gpio_hotplug_slot	hp_slot;
 	bool				hp_no_link;
+	bool				is_lpbk;
+	bool				is_comp;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
@@ -540,6 +542,32 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	/* Skip waiting for training to pass in system PM routine */
 	if (device_property_read_bool(&pdev->dev, "rockchip,skip-scan-in-resume"))
 		rk_pcie->skip_scan_in_resume = true;
+
+	/* Force into loopback master mode */
+	if (device_property_read_bool(&pdev->dev, "rockchip,lpbk-master")) {
+		rk_pcie->is_lpbk = true;
+		rk_pcie->is_signal_test = true;
+	}
+
+	/*
+	 * Force into compliance mode
+	 * comp_prst is a two dimensional array of which the first element
+	 * stands for speed mode, and the second one is preset value encoding:
+	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
+	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
+	 */
+	if (!device_property_read_u32_array(&pdev->dev, "rockchip,compliance-mode",
+					    rk_pcie->comp_prst, 2)) {
+		WARN_ON_ONCE(rk_pcie->comp_prst[0] > 3 || rk_pcie->comp_prst[1] > 10);
+		if (!rk_pcie->comp_prst[0])
+			dev_info(&pdev->dev, "Auto compliance mode for SMA tool.\n");
+		else
+			dev_info(&pdev->dev, "compliance mode for soldered board Gen%d, P%d.\n",
+				 rk_pcie->comp_prst[0], rk_pcie->comp_prst[1]);
+
+		rk_pcie->is_comp = true;
+		rk_pcie->is_signal_test = true;
+	}
 
 retry_regulator:
 	rk_pcie->vpcie3v3 = devm_regulator_get_optional(&pdev->dev, "vpcie3v3");
@@ -1249,34 +1277,16 @@ static int rk_pcie_really_probe(void *p)
 	/* Set PCIe RC mode */
 	rk_pcie_set_mode(rk_pcie);
 
-	/* Force into loopback master mode */
-	if (device_property_read_bool(dev, "rockchip,lpbk-master")) {
+	if (rk_pcie->is_lpbk) {
 		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 		val |= PORT_LINK_LPBK_ENABLE;
 		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
-		rk_pcie->is_signal_test = true;
 	}
 
-	/*
-	 * Force into compliance mode
-	 * comp_prst is a two dimensional array of which the first element
-	 * stands for speed mode, and the second one is preset value encoding:
-	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
-	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
-	 */
-	if (!device_property_read_u32_array(dev, "rockchip,compliance-mode",
-					    rk_pcie->comp_prst, 2)) {
-		BUG_ON(rk_pcie->comp_prst[0] > 3 || rk_pcie->comp_prst[1] > 10);
-		if (!rk_pcie->comp_prst[0]) {
-			dev_info(dev, "Auto compliance mode for SMA tool.\n");
-		} else {
-			dev_info(dev, "compliance mode for soldered board Gen%d, P%d.\n",
-				 rk_pcie->comp_prst[0], rk_pcie->comp_prst[1]);
-			val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
-			val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
-			dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
-		}
-		rk_pcie->is_signal_test = true;
+	if (rk_pcie->is_comp && rk_pcie->comp_prst[0]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+		val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
+		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 	}
 
 	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
