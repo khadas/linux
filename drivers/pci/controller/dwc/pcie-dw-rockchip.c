@@ -525,6 +525,17 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 		return PTR_ERR(rk_pcie->rsts);
 	}
 
+	if (device_property_read_bool(&pdev->dev, "rockchip,bifurcation"))
+		rk_pcie->bifurcation = true;
+
+	rk_pcie->supports_clkreq = device_property_read_bool(&pdev->dev, "supports-clkreq");
+
+	if (device_property_read_bool(&pdev->dev, "hotplug-gpios") ||
+	    device_property_read_bool(&pdev->dev, "hotplug-gpio")) {
+		rk_pcie->slot_pluggable = true;
+		dev_info(&pdev->dev, "support hotplug-gpios!\n");
+	}
+
 	return 0;
 }
 
@@ -1146,9 +1157,6 @@ static int rk_pcie_really_probe(void *p)
 		rk_pcie->msi_vector_num = data->msi_vector_num;
 	rk_pcie->pci = pci;
 
-	if (device_property_read_bool(dev, "rockchip,bifurcation"))
-		rk_pcie->bifurcation = true;
-
 	ret = rk_pcie_resource_get(pdev, rk_pcie);
 	if (ret) {
 		dev_err(dev, "resource init failed\n");
@@ -1161,14 +1169,6 @@ static int rk_pcie_really_probe(void *p)
 			ret = -ENODEV;
 			goto release_driver;
 		}
-	}
-
-	rk_pcie->supports_clkreq = device_property_read_bool(dev, "supports-clkreq");
-
-	if (device_property_read_bool(dev, "hotplug-gpios") ||
-	    device_property_read_bool(dev, "hotplug-gpio")) {
-		rk_pcie->slot_pluggable = true;
-		dev_info(dev, "support hotplug-gpios!\n");
 	}
 
 retry_regulator:
