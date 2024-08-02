@@ -7772,21 +7772,27 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	uint16_t htotal = adjusted_mode->crtc_htotal;
 	uint16_t vdisplay = adjusted_mode->crtc_vdisplay;
 	int clock = adjusted_mode->crtc_clock;
-	struct drm_atomic_state *state = crtc_state->state;
 	struct vop2_plane_state *vpstate;
 	struct drm_plane_state *pstate;
 	struct vop2_bandwidth *pbandwidth;
 	struct drm_plane *plane;
 	u64 line_bw_mbyte = 0;
 	int8_t cnt = 0, plane_num = 0;
-	int i = 0;
 
 	if (!htotal || !vdisplay)
 		return 0;
 
-	for_each_new_plane_in_state(state, plane, pstate, i) {
-		if (pstate->crtc == crtc)
-			plane_num++;
+	/*
+	 * userspace maybe want to change some property and commit new frame
+	 * without any plane, so we need use api drm_atomic_crtc_for_each_plane
+	 * to get current plane or bandwidth info correctly.
+	 */
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		pstate = plane->state;
+		if (!pstate || pstate->crtc != crtc || !pstate->fb)
+			continue;
+
+		plane_num++;
 	}
 
 	vop_bw_info->plane_num += plane_num;
@@ -7795,9 +7801,10 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	if (!pbandwidth)
 		return -ENOMEM;
 
-	for_each_new_plane_in_state(state, plane, pstate, i) {
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		int act_w, act_h, bpp, afbc_fac;
 		int fps = drm_mode_vrefresh(adjusted_mode);
+		pstate = plane->state;
 
 		if (!pstate || pstate->crtc != crtc || !pstate->fb)
 			continue;
