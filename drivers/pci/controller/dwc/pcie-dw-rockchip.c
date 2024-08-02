@@ -152,76 +152,27 @@ struct rk_pcie_of_data {
 static int rk_pcie_disable_power(struct rk_pcie *rk_pcie);
 static int rk_pcie_enable_power(struct rk_pcie *rk_pcie);
 
-static int rk_pcie_read(void __iomem *addr, int size, u32 *val)
-{
-	if ((uintptr_t)addr & (size - 1)) {
-		*val = 0;
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-	}
-
-	if (size == 4) {
-		*val = readl(addr);
-	} else if (size == 2) {
-		*val = readw(addr);
-	} else if (size == 1) {
-		*val = readb(addr);
-	} else {
-		*val = 0;
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int rk_pcie_write(void __iomem *addr, int size, u32 val)
-{
-	if ((uintptr_t)addr & (size - 1))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	if (size == 4)
-		writel(val, addr);
-	else if (size == 2)
-		writew(val, addr);
-	else if (size == 1)
-		writeb(val, addr);
-	else
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static u32 __rk_pcie_read_apb(struct rk_pcie *rk_pcie, void __iomem *base,
-			u32 reg, size_t size)
+static inline u32 rk_pcie_readl_apb(struct rk_pcie *rk_pcie, u32 reg)
 {
 	int ret;
 	u32 val;
 
-	ret = rk_pcie_read(base + reg, size, &val);
+	ret = dw_pcie_read(rk_pcie->apb_base + reg, 0x4, &val);
 	if (ret)
 		dev_err(rk_pcie->pci->dev, "Read APB address failed\n");
 
 	return val;
 }
 
-static void __rk_pcie_write_apb(struct rk_pcie *rk_pcie, void __iomem *base,
-			u32 reg, size_t size, u32 val)
-{
-	int ret;
-
-	ret = rk_pcie_write(base + reg, size, val);
-	if (ret)
-		dev_err(rk_pcie->pci->dev, "Write APB address failed\n");
-}
-
-static inline u32 rk_pcie_readl_apb(struct rk_pcie *rk_pcie, u32 reg)
-{
-	return __rk_pcie_read_apb(rk_pcie, rk_pcie->apb_base, reg, 0x4);
-}
-
 static inline void rk_pcie_writel_apb(struct rk_pcie *rk_pcie, u32 reg,
 					u32 val)
 {
-	__rk_pcie_write_apb(rk_pcie, rk_pcie->apb_base, reg, 0x4, val);
+	int ret;
+
+	ret = dw_pcie_write(rk_pcie->apb_base + reg, 0x4, val);
+	if (ret)
+		dev_err(rk_pcie->pci->dev, "Write APB address failed\n");
+
 }
 
 #if defined(CONFIG_PCIEASPM)
