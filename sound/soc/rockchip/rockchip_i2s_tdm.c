@@ -986,6 +986,48 @@ static int rockchip_i2s_tdm_slave_one_frame_start(struct rk_i2s_tdm_dev *i2s_tdm
 	return 0;
 }
 
+static int rockchip_i2s_tdm_xfer_with_gate(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	struct clk *mclk = NULL;
+
+	switch (i2s_tdm->clk_trcm) {
+	case I2S_CKR_TRCM_TXONLY:
+		mclk = i2s_tdm->mclk_tx;
+		break;
+	case I2S_CKR_TRCM_RXONLY:
+		mclk = i2s_tdm->mclk_rx;
+		break;
+	default:
+		dev_err(i2s_tdm->dev, "Must use in TRCM mode.\n");
+		return -EINVAL;
+	}
+
+	rockchip_utils_clk_gate_endisable(i2s_tdm->dev, mclk, 0);
+	udelay(10);
+	regmap_update_bits(i2s_tdm->regmap, I2S_XFER,
+			   I2S_XFER_TXS_MASK |
+			   I2S_XFER_RXS_MASK,
+			   I2S_XFER_TXS_START |
+			   I2S_XFER_RXS_START);
+	udelay(10);
+	rockchip_utils_clk_gate_endisable(i2s_tdm->dev, mclk, 1);
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_trcm_xfer(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	/* No need to do GATE for HAVE_SYNC_RESET case */
+	if (i2s_tdm->soc_data && i2s_tdm->soc_data->src_clk_ctrl)
+		return regmap_update_bits(i2s_tdm->regmap, I2S_XFER,
+					  I2S_XFER_TXS_MASK |
+					  I2S_XFER_RXS_MASK,
+					  I2S_XFER_TXS_START |
+					  I2S_XFER_RXS_START);
+
+	return rockchip_i2s_tdm_xfer_with_gate(i2s_tdm);
+}
+
 static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
 					int stream)
 {
@@ -1000,11 +1042,7 @@ static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
 
 	if (i2s_tdm->clk_trcm) {
 		rockchip_i2s_tdm_reset_assert(i2s_tdm);
-		regmap_update_bits(i2s_tdm->regmap, I2S_XFER,
-				   I2S_XFER_TXS_MASK |
-				   I2S_XFER_RXS_MASK,
-				   I2S_XFER_TXS_START |
-				   I2S_XFER_RXS_START);
+		rockchip_i2s_tdm_trcm_xfer(i2s_tdm);
 		rockchip_i2s_tdm_reset_deassert(i2s_tdm);
 	} else if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		regmap_update_bits(i2s_tdm->regmap, I2S_XFER,
