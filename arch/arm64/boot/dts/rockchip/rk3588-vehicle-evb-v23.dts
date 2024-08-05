@@ -599,6 +599,18 @@
 	status = "okay";
 };
 
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m0_cs1 &spi0m0_pins>;
+	spi-dev@1 {
+		compatible = "rockchip,spidev";
+		reg = <0x1>;
+		spi-max-frequency = <50000000>;
+		spi-lsb-first;
+	};
+};
+
 &spi4 {
 	status = "disabled";
 };
