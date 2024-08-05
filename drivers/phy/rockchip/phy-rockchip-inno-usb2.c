@@ -2922,6 +2922,31 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rk3506_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	int ret = 0;
+
+	/* Turn off otg0 port differential receiver in suspend mode */
+	phy_clear_bits(rphy->phy_base + 0x30, BIT(2));
+
+	/* Turn off otg1 port differential receiver in suspend mode */
+	phy_clear_bits(rphy->phy_base + 0x430, BIT(2));
+
+	/* Set otg0 port HS eye height to 425mv(default is 450mv) */
+	phy_update_bits(rphy->phy_base + 0x30, GENMASK(6, 4), (0x05 << 4));
+
+	/* Set otg1 port HS eye height to 425mv(default is 450mv) */
+	phy_update_bits(rphy->phy_base + 0x430, GENMASK(6, 4), (0x05 << 4));
+
+	/* Choose the Tx fs/ls data as linestate from TX driver for otg0 port */
+	phy_update_bits(rphy->phy_base + 0x94, GENMASK(6, 3), (0x03 << 3));
+
+	/* Choose the Tx fs/ls data as linestate from TX driver for otg1 port */
+	phy_update_bits(rphy->phy_base + 0x494, GENMASK(6, 3), (0x03 << 3));
+
+	return ret;
+}
+
 static int rk3528_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret = 0;
@@ -3949,6 +3974,7 @@ static const struct rockchip_usb2phy_cfg rk3506_phy_cfgs[] = {
 	{
 		.reg = 0xff2b0000,
 		.num_ports	= 2,
+		.phy_tuning	= rk3506_usb2phy_tuning,
 		.vbus_detect	= rockchip_usb2phy_vbus_det_control,
 		.clkout_ctl_phy = { 0x041c, 7, 2, 0, 0x27 },
 		.port_cfgs	= {
