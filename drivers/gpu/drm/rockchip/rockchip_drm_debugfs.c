@@ -284,3 +284,70 @@ int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *roo
 
 	return 0;
 }
+
+static int rockchip_drm_debugfs_regs_write_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Write VOP regs:\n");
+	seq_puts(s, "    echo address val > /sys/kernel/debug/dri/0/video_portx/regs_write\n\n");
+	seq_puts(s, "    video_portx is depend on hardware config, you can get this info from the cmd:\n");
+	seq_puts(s, "    cat /sys/kernel/debug/dri/0/summary\n\n");
+	seq_puts(s, "    Example:\n");
+	seq_puts(s, "    echo 0x27d00000 0x1 > /sys/kernel/debug/dri/0/video_portx/regs_write\n\n");
+
+	return 0;
+}
+
+static int rockchip_drm_debugfs_regs_write_open(struct inode *inode, struct file *file)
+{
+	struct drm_crtc *crtc = inode->i_private;
+
+	return single_open(file, rockchip_drm_debugfs_regs_write_show, crtc);
+}
+
+static ssize_t rockchip_drm_debugfs_regs_write(struct file *file, const char __user *ubuf,
+					       size_t len, loff_t *offp)
+{
+	struct seq_file *s = file->private_data;
+	struct drm_crtc *crtc = s->private;
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int ret = 0, pipe = drm_crtc_index(crtc);
+	unsigned long address = 0;
+	u32 val = 0;
+	char kbuf[32];
+
+	len = min_t(size_t, len, (sizeof(kbuf) - 1));
+	if (copy_from_user(kbuf, ubuf, len))
+		return -EINVAL;
+
+	kbuf[len] = 0;
+	if (sscanf(kbuf, "%lx %x", &address, &val) == -1)
+		return -EFAULT;
+
+	if (priv->crtc_funcs[pipe]->regs_write)
+		ret = priv->crtc_funcs[pipe]->regs_write(crtc, address, val);
+	if (ret)
+		return ret;
+
+	return len;
+}
+
+static const struct file_operations rockchip_drm_debugfs_regs_write_ops = {
+	.owner = THIS_MODULE,
+	.open = rockchip_drm_debugfs_regs_write_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = rockchip_drm_debugfs_regs_write,
+};
+
+int rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root)
+{
+	struct dentry *ent;
+
+	ent = debugfs_create_file("regs_write", 0644, root, crtc,
+				  &rockchip_drm_debugfs_regs_write_ops);
+	if (!ent)
+		DRM_ERROR("Failed to add regs_write for debugfs\n");
+
+	return 0;
+}
