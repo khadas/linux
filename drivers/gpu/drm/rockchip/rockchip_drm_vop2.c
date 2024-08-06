@@ -914,6 +914,11 @@ struct vop2 {
 	 * @active_vp_mask: Bitmask of active video ports;
 	 */
 	uint8_t active_vp_mask;
+	/**
+	 * @active_display_mask: Bitmask of active display;
+	 */
+	uint8_t active_display_mask;
+
 	uint16_t port_mux_cfg;
 
 	uint32_t *regsbak;
@@ -2329,7 +2334,7 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 
 static void vop2_set_system_status(struct vop2 *vop2, bool is_enabled)
 {
-	unsigned int nports = hweight8(vop2->active_vp_mask);
+	unsigned int nports = hweight8(vop2->active_display_mask);
 
 	if (is_enabled) {
 		if (nports == 2)
@@ -5130,6 +5135,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2->active_vp_mask &= ~BIT(vp->id);
 	if (vcstate->splice_mode)
 		vop2->active_vp_mask &= ~BIT(splice_vp->id);
+	vop2->active_display_mask &= ~BIT(vp->id);
 	vcstate->splice_mode = false;
 	vcstate->output_flags = 0;
 	vp->splice_mode_right = false;
@@ -7049,6 +7055,7 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 	if (on) {
 		vp->loader_protect = true;
 		vop2->active_vp_mask |= BIT(vp->id);
+		vop2->active_display_mask |= BIT(vp->id);
 		vop2_set_system_status(vop2, true);
 		vop2_initial(crtc);
 		if (crtc->primary) {
@@ -9163,6 +9170,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	}
 
 	vop2->active_vp_mask |= BIT(vp->id);
+	vop2->active_display_mask |= BIT(vp->id);
 	vop2_set_system_status(vop2, true);
 	rockchip_request_late_resume();
 
