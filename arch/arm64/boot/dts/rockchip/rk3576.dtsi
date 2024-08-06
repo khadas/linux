@@ -1364,6 +1364,7 @@
 		rockchip,sleep-pin-config = <
 			(0
 			| RKPM_SLEEP_PIN0_EN
+			| RKPM_SLEEP_PIN1_EN
 			)
 			(0)
 		>;
