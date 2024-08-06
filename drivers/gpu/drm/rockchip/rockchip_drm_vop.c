@@ -2782,8 +2782,9 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
-	DEBUG_PRINT("\tclk[%d] real_clk[%d] type[%x] flag[%x]\n",
-		    mode->clock, mode->crtc_clock, mode->type, mode->flags);
+	DEBUG_PRINT("\tdclk[%d kHz] real_dclk[%d kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
+		    mode->clock, mode->crtc_clock, clk_get_rate(vop->aclk) / 1000,
+		    mode->type, mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
 		    mode->hsync_end, mode->htotal);
 	DEBUG_PRINT("\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
