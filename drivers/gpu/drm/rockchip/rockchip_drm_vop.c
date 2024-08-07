@@ -1939,6 +1939,20 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 				      new_plane_state->rotation);
 			return -EINVAL;
 		}
+
+		/* RK3399 AFBC act_h must aligned as 16 line */
+		if (vop->version == VOP_VERSION_RK3399_BIG) {
+			u32 old_act_h = drm_rect_height(src) >> 16;
+
+			if (!IS_ALIGNED(old_act_h, 16)) {
+				u32 aligned_act_h = ALIGN_DOWN(old_act_h, 16);
+
+				src->y2 = ((src->y1 >> 16) + aligned_act_h) << 16;
+
+				DRM_DEBUG_KMS("Win%d afbc act_h:%d isn't aligned as 16, so change to: %d\n",
+					      win->win_id, old_act_h, aligned_act_h);
+			}
+		}
 	}
 
 	offset = (src->x1 >> 16) * fb->format->cpp[0];
@@ -3871,6 +3885,13 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 		if (fb->modifier & AFBC_FORMAT_MOD_YTR)
 			s->afbdc_win_format |= AFBC_Y2R_COLOR_TRANSFORM;
 		s->afbdc_win_width = fb->width - 1;
+		/* RK3399 AFBC can't supported vir width */
+		if (vop->version == VOP_VERSION_RK3399_BIG &&
+		    fb->width != drm_rect_width(src) >> 16) {
+			DRM_ERROR("Win%d afbc unsupported vir width: fb->width: %d, act_w: %d\n",
+				  win->win_id, fb->width, drm_rect_width(src) >> 16);
+			return -EINVAL;
+		}
 		s->afbdc_win_height = (drm_rect_height(src) >> 16) - 1;
 		s->afbdc_win_id = win->win_id;
 		s->afbdc_win_ptr = plane_state->yrgb_mst;
