@@ -735,6 +735,7 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 		struct device_node *pctlnp = of_get_parent(dev->of_node);
 
 		pctldev = of_pinctrl_get(pctlnp);
+		of_node_put(pctlnp);
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
