@@ -5292,7 +5292,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gamma_lut");
 	if (res) {
-		vop->res = res;
+		vop->lut_res = res;
 		vop->lut_len = resource_size(res) / sizeof(*vop->lut);
 		if (vop->lut_len != 256 && vop->lut_len != 1024) {
 			dev_err(vop->dev, "unsupported lut sizes %d\n",
