@@ -341,6 +341,10 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &fspi {
 	status = "okay";
 
