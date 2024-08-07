@@ -113,6 +113,12 @@ enum user_color_range {
 #define RK_HDMIRX_CMD_SET_COLOR_RANGE  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 15, int)
 
+#define RK_HDMIRX_CMD_GET_EDID_VERSION  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 16, int)
+
+#define RK_HDMIRX_CMD_SET_EDID_VERSION  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 17, int)
+
 /* Private v4l2 event */
 #define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \
 	(V4L2_EVENT_PRIVATE_START + 1)

@@ -105,6 +105,7 @@ struct rk628_csi {
 	u8 csi_lanes_in_use;
 	u32 mbus_fmt_code;
 	u8 fps;
+	u8 edid_version;
 	u32 stream_state;
 	int hdmirx_irq;
 	int plugin_irq;
@@ -142,6 +143,11 @@ struct rk628_csi_mode {
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
+};
+
+struct rk628_edid {
+	u8 version;
+	u8 *data;
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -232,6 +238,18 @@ static u8 rk628f_edid_init_data[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD3,
+};
+
+
+static struct rk628_edid edid_data[] = {
+	{
+		.version = 1,
+		.data = edid_init_data,
+	},
+	{
+		.version = 2,
+		.data = rk628f_edid_init_data,
+	},
 };
 
 static const unsigned int rk628_csi_extcon_cable[] = {
@@ -1430,15 +1448,17 @@ static void rk628_csi_initial(struct v4l2_subdev *sd)
 			SW_HSYNC_POL(1) |
 			SW_VSYNC_POL(1) |
 			SW_I2S_DATA_OEN(0));
-	rk628_hdmirx_controller_reset(csi->rk628);
 
 	def_edid.pad = 0;
 	def_edid.start_block = 0;
 	def_edid.blocks = 2;
-	if (csi->rk628->version >= RK628F_VERSION && csi->dual_mipi_use)
+	if (csi->rk628->version >= RK628F_VERSION && csi->dual_mipi_use) {
 		def_edid.edid = rk628f_edid_init_data;
-	else
+		csi->edid_version = 2;
+	} else {
 		def_edid.edid = edid_init_data;
+		csi->edid_version = 1;
+	}
 	rk628_csi_s_edid(sd, &def_edid);
 }
 
@@ -2324,6 +2344,7 @@ static int rk628_csi_s_edid(struct v4l2_subdev *sd,
 		return -E2BIG;
 	}
 
+	rk628_hdmirx_controller_reset(csi->rk628);
 	rk628_hdmirx_hpd_ctrl(sd, false);
 
 	if (edid->blocks == 0) {
@@ -2366,6 +2387,22 @@ static int rk628_csi_s_edid(struct v4l2_subdev *sd,
 		rk628_hdmirx_hpd_ctrl(sd, true);
 
 	return 0;
+}
+
+static void rk628_reset_edid(struct v4l2_subdev *sd, u8 *edid_data, u8 edid_version)
+{
+	struct rk628_csi *csi = to_csi(sd);
+	struct v4l2_subdev_edid def_edid;
+
+	rk628_hdmirx_plugout(&csi->sd);
+	def_edid.pad = 0;
+	def_edid.start_block = 0;
+	def_edid.blocks = 2;
+	def_edid.edid = edid_data;
+	csi->edid_version = edid_version;
+	rk628_csi_s_edid(sd, &def_edid);
+	schedule_delayed_work(&csi->delayed_work_enable_hotplug,
+			      msecs_to_jiffies(1000));
 }
 
 static int rk628_csi_g_frame_interval(struct v4l2_subdev *sd,
@@ -2472,6 +2509,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_capture_info  *capture_info;
 	u32 val;
 	u32 stream = 0;
+	int edid_version, i;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2562,6 +2600,21 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		else
 			*(int *)arg = 0;
 		break;
+	case RK_HDMIRX_CMD_GET_EDID_VERSION:
+		*(int *)arg = csi->edid_version;
+		break;
+	case RK_HDMIRX_CMD_SET_EDID_VERSION:
+		edid_version = *((int *)arg);
+		if (edid_version <= 0)
+			return -EINVAL;
+		for (i = 0; i < ARRAY_SIZE(edid_data); i++) {
+			if (edid_data[i].version == edid_version) {
+				rk628_reset_edid(sd, edid_data[i].data, edid_data[i].version);
+				return 0;
+			}
+		}
+		v4l2_info(sd, "the edid version is not supported: %d\n", edid_version);
+		return -EINVAL;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3325,14 +3378,47 @@ static ssize_t arc_enable_store(struct device *dev,
 	return count;
 }
 
+static ssize_t edid_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", csi->edid_version);
+}
+
+static ssize_t edid_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+	int version, ret, i;
+
+	ret = kstrtoint(buf, 0, &version);
+	if (ret)
+		return ret;
+
+	if (version <= 0)
+		return count;
+	for (i = 0; i < ARRAY_SIZE(edid_data); i++) {
+		if (edid_data[i].version == version) {
+			rk628_reset_edid(&csi->sd, edid_data[i].data, edid_data[i].version);
+			break;
+		}
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR_RO(audio_rate);
 static DEVICE_ATTR_RO(audio_present);
 static DEVICE_ATTR_RW(arc_enable);
+static DEVICE_ATTR_RW(edid);
 
 static struct attribute *rk628_attrs[] = {
 	&dev_attr_audio_rate.attr,
 	&dev_attr_audio_present.attr,
 	&dev_attr_arc_enable.attr,
+	&dev_attr_edid.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(rk628);
