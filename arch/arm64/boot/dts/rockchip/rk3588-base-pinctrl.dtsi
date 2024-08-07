@@ -1799,12 +1799,22 @@
 		};
 
 		/omit-if-no-ref/
-		pcie30x4m1_pins: pcie30x4m1-pins {
+		pcie30x4_clkreqn_m1: pcie30x4-clkreqn-m1 {
 			rockchip,pins =
 				/* pcie30x4_clkreqn_m1 */
-				<4 RK_PB4 4 &pcfg_pull_none>,
+				<4 RK_PB4 4 &pcfg_pull_down>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4_perstn_m1: pcie30x4-perstn-m1 {
+			rockchip,pins =
 				/* pcie30x4_perstn_m1 */
-				<4 RK_PB6 4 &pcfg_pull_none>,
+				<4 RK_PB6 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		pcie30x4_waken_m1: pcie30x4-waken-m1 {
+			rockchip,pins =
 				/* pcie30x4_waken_m1 */
 				<4 RK_PB5 4 &pcfg_pull_none>;
 		};
