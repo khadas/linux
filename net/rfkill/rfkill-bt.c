@@ -906,8 +906,6 @@ fail_alloc:
 	remove_proc_subtree("bluetooth/sleep", NULL);
 fail_setup_wake_irq:
 	wake_lock_destroy(&rfkill->bt_irq_wl);
-fail_gpio:
-	g_rfkill = NULL;
 	return ret;
 }
 
