@@ -468,6 +468,11 @@ static int hym8563_init_device(struct i2c_client *client)
 {
 	int ret;
 
+	ret = i2c_smbus_read_byte_data(client, HYM8563_CTL1);
+	if (ret < 0)
+		dev_err(&client->dev, "%s: error read i2c data %d\n",
+			__func__, ret);
+
 	/* Clear stop flag if present */
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CTL1, 0);
 	if (ret < 0)
@@ -517,6 +522,12 @@ static int hym8563_suspend(struct device *dev)
 static int hym8563_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(client, HYM8563_CTL1);
+	if (ret < 0)
+		dev_err(&client->dev, "%s: error read i2c data %d\n",
+			__func__, ret);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(client->irq);
