@@ -18,7 +18,7 @@
 			mipi_in_dcphy0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415b_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 
 			mipi_in_dcphy2: endpoint@2 {
@@ -57,7 +57,7 @@
 			mipi_in_dcphy1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415f_out1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 
 			mipi_in_dcphy3: endpoint@2 {
@@ -161,7 +161,7 @@
 		port {
 			imx415b_out0: endpoint {
 				remote-endpoint = <&mipi_in_dcphy0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -230,7 +230,7 @@
 		port {
 			imx415f_out1: endpoint {
 				remote-endpoint = <&mipi_in_dcphy1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
