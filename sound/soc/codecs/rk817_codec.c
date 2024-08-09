@@ -4,7 +4,6 @@
 //
 // Copyright (c) 2018, Fuzhou Rockchip Electronics Co., Ltd All rights reserved.
 
-
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -17,6 +16,7 @@
 #include <sound/core.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/tlv.h>
 #include "rk817_codec.h"
 
 #ifdef CONFIG_SND_DEBUG
@@ -1263,7 +1263,6 @@ static struct snd_soc_dai_driver rk817_dai[] = {
 		},
 		.ops = &rk817_dai_ops,
 	},
-
 };
 
 static int rk817_suspend(struct snd_soc_component *component)
@@ -1444,6 +1443,8 @@ static int rk817_codec_parse_dt_property(struct device *dev,
 	rk817->adc_for_loopback =
 			of_property_read_bool(node, "adc-for-loopback");
 
+	of_node_put(node);
+
 	return 0;
 }
 
@@ -1514,15 +1515,13 @@ static int rk817_platform_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-err_:
 
+err_:
 	return ret;
 }
 
 static int rk817_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_component(&pdev->dev);
-
 	return 0;
 }
 
@@ -1557,3 +1556,4 @@ module_platform_driver(rk817_codec_driver);
 MODULE_DESCRIPTION("ASoC RK817 codec driver");
 MODULE_AUTHOR("binyuan <kevan.lan@rock-chips.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:rk817-codec");
