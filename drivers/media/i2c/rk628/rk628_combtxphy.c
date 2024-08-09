@@ -246,10 +246,10 @@ EXPORT_SYMBOL(rk628_txphy_power_on);
 
 void rk628_txphy_power_off(struct rk628 *rk628)
 {
-	rk628_i2c_update_bits(rk628,  COMBTXPHY_CON0, SW_TX_IDLE_MASK | SW_TX_PD_MASK |
-			      SW_PD_PLL_MASK | SW_MODULEB_EN_MASK |
-			      SW_MODULEA_EN_MASK, SW_TX_IDLE(0x3ff) |
-			      SW_TX_PD(0x3ff) | SW_PD_PLL);
+	rk628_i2c_update_bits(rk628, COMBTXPHY_CON0, SW_TX_IDLE_MASK | SW_TX_PD_MASK |
+			      SW_PD_PLL_MASK | SW_MODULEB_EN_MASK | SW_MODULEA_EN_MASK |
+			      SW_GVI_LVDS_EN_MASK | SW_MIPI_DSI_EN_MASK,
+			      SW_TX_IDLE(0x3ff) | SW_TX_PD(0x3ff) | SW_PD_PLL);
 }
 EXPORT_SYMBOL(rk628_txphy_power_off);
 

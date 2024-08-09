@@ -494,6 +494,7 @@ static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
 	rk628_hdmirx_hpd_ctrl(sd, false);
 	rk628_hdmirx_inno_phy_power_off(sd);
 	rk628_hdmirx_verisyno_phy_power_off(csi->rk628);
+	mipi_dphy_power_off(csi);
 }
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
@@ -1458,9 +1459,6 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 	}
 
 	csi->rk628->dphy_lane_en = 0x1f;
-	if (csi->plat_data->tx_mode == CSI_MODE)
-		mipi_dphy_power_on(csi);
-
 	csi->txphy_pwron = true;
 	if (tx_5v_power_present(sd))
 		schedule_delayed_work(&csi->delayed_work_enable_hotplug, msecs_to_jiffies(4000));
