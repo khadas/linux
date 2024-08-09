@@ -57,15 +57,3 @@
 		};
 	};
 };
-
-&cluster0_opp_table {
-	/delete-property/ rockchip,early-suspend-freq;
-};
-
-&cluster1_opp_table {
-	/delete-property/ rockchip,early-suspend-freq;
-};
-
-&rockchip_system_monitor {
-	/delete-property/ rockchip,early-suspend-offline-cpus;
-};
