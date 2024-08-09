@@ -54,6 +54,10 @@ properties:
       and the interface clock is 1:1 with the controller working clock.
     type: boolean
 
+  rockchip,max-dll:
+    description:
+      Setting maximum dll cell.
+
 patternProperties:
   "^flash@[0-3]$":
     type: object
