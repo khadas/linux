@@ -34,8 +34,9 @@
 
 /*
  * DDAC L/R volume setting
- * 0db~-95db,0.375db/step,for example:
- * 0: 0dB
+ * -1.125db~-95db,0.375db/step
+ * 0~2 are not allowed to use
+ * 0x03: -1.125dB
  * 0x0a: -3.75dB
  * 0x7d: -46dB
  * 0xff: -95dB
@@ -54,6 +55,9 @@
 
 #define CODEC_SET_SPK 1
 #define CODEC_SET_HP 2
+
+#define RK817_DAC_VOL_MIN 3
+#define RK817_DAC_VOL_MAX 255
 
 struct rk817_codec_priv {
 	struct snd_soc_component *component;
@@ -87,6 +91,30 @@ struct rk817_codec_priv {
 	int hp_mute_delay;
 	int chip_ver;
 };
+
+/*
+ * DADC L/R volume setting
+ * 0db~-95db, 0.375db/step, for example:
+ * 0x00: 0dB
+ * 0xff: -95dB
+ */
+static const DECLARE_TLV_DB_MINMAX(adc_vol_tlv, -9500, 0);
+
+/*
+ * DAC L/R Volume setting
+ * -1.125db~-95db,0.375db/step
+ * 0~2 are not allowed to use
+ */
+static const DECLARE_TLV_DB_MINMAX(dac_vol_tlv, -9500, -112);
+
+/* MIC_BOOST {0, +10, +20, +30} dB */
+static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1000, 0);
+
+/* ADC PGA_GAIN -18dB to 27dB*/
+static const DECLARE_TLV_DB_SCALE(adc_pga_tlv, -1800, 300, 0);
+
+/* HP Output Gain {0, +3, +6, +9} dB */
+static const DECLARE_TLV_DB_SCALE(hp_out_tlv, 0, 300, 0);
 
 static const struct reg_default rk817_reg_defaults[] = {
 	{ RK817_CODEC_DTOP_VUCTL, 0x003 },
@@ -949,7 +977,38 @@ static int rk817_resume_path_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new rk817_snd_path_controls[] = {
+static int rk817_dac_vol_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	unsigned int left_val, right_val;
+	unsigned int max_val = RK817_DAC_VOL_MAX;
+
+	left_val = max_val - ucontrol->value.integer.value[0];
+	right_val = max_val - ucontrol->value.integer.value[1];
+
+	if (left_val < RK817_DAC_VOL_MIN || left_val > RK817_DAC_VOL_MAX ||
+	    right_val < RK817_DAC_VOL_MIN || right_val > RK817_DAC_VOL_MAX) {
+
+		dev_warn(component->dev,
+			 "%s: Volume out of range [%d, %d], left=%ld, right=%ld\n",
+			 __func__,
+			 max_val - RK817_DAC_VOL_MAX,
+			 max_val - RK817_DAC_VOL_MIN,
+			 ucontrol->value.integer.value[0],
+			 ucontrol->value.integer.value[1]);
+
+		return -EINVAL;
+	}
+
+	/* Re-invert the values before setting them */
+	ucontrol->value.integer.value[0] = max_val - left_val;
+	ucontrol->value.integer.value[1] = max_val - right_val;
+
+	return snd_soc_put_volsw(kcontrol, ucontrol);
+}
+
+static struct snd_kcontrol_new rk817_snd_controls[] = {
 	SOC_ENUM_EXT("Playback Path", rk817_playback_path_type,
 		     rk817_playback_path_get, rk817_playback_path_put),
 
@@ -958,6 +1017,23 @@ static struct snd_kcontrol_new rk817_snd_path_controls[] = {
 
 	SOC_ENUM_EXT("Resume Path", rk817_resume_path_type,
 		     rk817_resume_path_get, rk817_resume_path_put),
+
+	SOC_DOUBLE_R_EXT_TLV("DAC Playback Volume", RK817_CODEC_DDAC_VOLL,
+			     RK817_CODEC_DDAC_VOLR, 0, 0xff, 1,
+			     snd_soc_get_volsw, rk817_dac_vol_put,
+			     dac_vol_tlv),
+
+	SOC_DOUBLE_R_TLV("ADC Capture Volume", RK817_CODEC_DADC_VOLL,
+			 RK817_CODEC_DADC_VOLR, 0, 0xff, 1, adc_vol_tlv),
+
+	SOC_DOUBLE_TLV("MIC Boost Gain", RK817_CODEC_AMIC_CFG0,
+		       0, 2, 3, 0, adc_bst_tlv),
+
+	SOC_DOUBLE_TLV("ADC PGA Gain", RK817_CODEC_DMIC_PGA_GAIN,
+		       4, 0, 15, 0, adc_pga_tlv),
+
+	SOC_SINGLE_TLV("HP Output Gain", RK817_CODEC_AHP_CFG0,
+		       3, 3, 0, hp_out_tlv),
 };
 
 static int rk817_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -1315,8 +1391,8 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817->clk_capture = 0;
 	rk817->clk_playback = 0;
 
-	snd_soc_add_component_controls(component, rk817_snd_path_controls,
-				       ARRAY_SIZE(rk817_snd_path_controls));
+	snd_soc_add_component_controls(component, rk817_snd_controls,
+				       ARRAY_SIZE(rk817_snd_controls));
 	return 0;
 }
 
