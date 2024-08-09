@@ -909,6 +909,7 @@
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_FSPI>, <&cru HCLK_FSPI>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		rockchip,max-dll = <0x17F>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
