@@ -551,6 +551,15 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		return -EINVAL;
 	}
 
+	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk")) {
+		rockchip_combphy_param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
+		if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			val = readl(priv->mmio + 0x108);
+			val |= BIT(29) | (0x3 << 4 | 0x1 << 7);
+			writel(val, priv->mmio + 0x108);
+		}
+	}
+
 	if (priv->mode == PHY_TYPE_PCIE) {
 		if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
 			val = readl(priv->mmio + 0x100);
