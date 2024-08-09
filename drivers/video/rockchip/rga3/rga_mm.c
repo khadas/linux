@@ -1325,6 +1325,7 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 {
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
+	ktime_t timestamp = ktime_get();
 
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
@@ -1347,6 +1348,11 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 		dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
 	}
 
+	if (DEBUGGER_EN(TIME))
+		pr_info("handle[%d], %s, flush CPU cache for device cost %lld us\n",
+			buffer->handle, rga_get_dma_data_direction_str(dir),
+			ktime_us_delta(ktime_get(), timestamp));
+
 	return 0;
 }
 
@@ -1356,6 +1362,7 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 {
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
+	ktime_t timestamp = ktime_get();
 
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
@@ -1377,6 +1384,11 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 
 		dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
 	}
+
+	if (DEBUGGER_EN(TIME))
+		pr_info("handle[%d], %s, flush CPU cache for CPU cost %lld us\n",
+			buffer->handle, rga_get_dma_data_direction_str(dir),
+			ktime_us_delta(ktime_get(), timestamp));
 
 	return 0;
 }
@@ -2287,6 +2299,7 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	int ret = 0, new_id;
 	struct rga_mm *mm;
 	struct rga_internal_buffer *internal_buffer;
+	ktime_t timestamp = ktime_get();
 
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
@@ -2348,7 +2361,12 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		rga_mm_dump_buffer(internal_buffer);
 	}
 
+	if (DEBUGGER_EN(TIME))
+		pr_info("handle[%d], import buffer cost %lld us\n",
+			internal_buffer->handle, ktime_us_delta(ktime_get(), timestamp));
+
 	mutex_unlock(&mm->lock);
+
 	return internal_buffer->handle;
 
 FREE_INTERNAL_BUFFER:
@@ -2362,6 +2380,7 @@ int rga_mm_release_buffer(uint32_t handle)
 {
 	struct rga_mm *mm;
 	struct rga_internal_buffer *internal_buffer;
+	ktime_t timestamp = ktime_get();
 
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
@@ -2387,7 +2406,12 @@ int rga_mm_release_buffer(uint32_t handle)
 
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
 
+	if (DEBUGGER_EN(TIME))
+		pr_info("handle[%d], release buffer cost %lld us\n",
+			handle, ktime_us_delta(ktime_get(), timestamp));
+
 	mutex_unlock(&mm->lock);
+
 	return 0;
 }
 

@@ -3053,7 +3053,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	if (DEBUGGER_EN(TIME))
 		pr_info("request[%d], set register cost time %lld us\n",
-			job->request_id, ktime_us_delta(now, job->timestamp));
+			job->request_id, ktime_us_delta(ktime_get(), now));
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;

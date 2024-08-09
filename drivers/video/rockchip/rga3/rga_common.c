@@ -633,6 +633,22 @@ const char *rga_get_mmu_type_str(enum rga_mmu mmu_type)
 	}
 }
 
+const char *rga_get_dma_data_direction_str(enum dma_data_direction dir)
+{
+	switch (dir) {
+	case DMA_BIDIRECTIONAL:
+		return "bidirectional";
+	case DMA_TO_DEVICE:
+		return "to_device";
+	case DMA_FROM_DEVICE:
+		return "from_device";
+	case DMA_NONE:
+		return "none";
+	default:
+		return "unknown";
+	}
+}
+
 const char *rga_get_core_name(enum RGA_SCHEDULER_CORE core)
 {
 	switch (core) {
