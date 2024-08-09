@@ -736,7 +736,6 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 {
 	struct device_node *np;
 	int ret = 0;
-	u32 val;
 
 	if (of_property_read_bool(rk628->dev->of_node, "rk628-hdmi-in") ||
 	    of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-in")) {
@@ -786,11 +785,6 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 		ret = rk628_rgb_parse(rk628, NULL);
 	}
 
-	if (of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val) < 0)
-		rk628->sync_pol = MODE_FLAG_PSYNC;
-	else
-		rk628->sync_pol = (!val ? MODE_FLAG_NSYNC : MODE_FLAG_PSYNC);
-
 	return ret;
 }
 
@@ -810,6 +804,29 @@ rk628_display_mode_from_videomode(const struct rk628_videomode *vm,
 
 	dmode->clock = vm->pixelclock / 1000;
 	dmode->flags = vm->flags;
+}
+
+static void of_parse_rk628_display_sync_pol(struct rk628 *rk628)
+{
+	u32 val;
+
+	rk628->src_mode.flags = 0;
+	if (!of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val)) {
+		if (val)
+			rk628->src_mode.flags |= DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC;
+		else
+			rk628->src_mode.flags |= DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC;
+	} else {
+		if (of_property_read_u32(rk628->dev->of_node, "mode-hsync-pol", &val) || val)
+			rk628->src_mode.flags |= DRM_MODE_FLAG_PHSYNC;
+		else
+			rk628->src_mode.flags |= DRM_MODE_FLAG_NHSYNC;
+
+		if (of_property_read_u32(rk628->dev->of_node, "mode-vsync-pol", &val) || val)
+			rk628->src_mode.flags |= DRM_MODE_FLAG_PVSYNC;
+		else
+			rk628->src_mode.flags |= DRM_MODE_FLAG_NVSYNC;
+	}
 }
 
 static void
@@ -838,9 +855,10 @@ of_parse_rk628_display_timing(struct device_node *np, struct rk628_videomode *vm
 
 static int rk628_get_video_mode(struct rk628 *rk628)
 {
-
 	struct device_node *timings_np, *src_np, *dst_np;
 	struct rk628_videomode vm;
+
+	of_parse_rk628_display_sync_pol(rk628);
 
 	timings_np = of_get_child_by_name(rk628->dev->of_node, "display-timings");
 	if (!timings_np) {

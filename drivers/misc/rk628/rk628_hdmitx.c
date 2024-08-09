@@ -704,6 +704,7 @@ static void rk628_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	struct rk628 *rk628 = hdmi->rk628;
 	struct rk628_display_mode *src = rk628_display_get_src_mode(rk628);
 	struct rk628_display_mode *dst = rk628_display_get_dst_mode(rk628);
+	int flags;
 
 	/*
 	 * Store the display mode for plugin/DPMS poweron events. rk628d hdmitx
@@ -728,7 +729,10 @@ static void rk628_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 	dst->vsync_end = mode->vsync_end;
 	dst->vtotal = mode->vtotal;
 	dst->flags = mode->flags;
+
+	flags = src->flags;
 	rk628_mode_copy(src, dst);
+	src->flags = flags;
 }
 
 static bool
@@ -739,13 +743,11 @@ rk628_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
 	struct rk628_hdmi *hdmi = bridge_to_hdmi(bridge);
 	struct rk628 *rk628 = hdmi->rk628;
 
-	if (rk628->sync_pol == MODE_FLAG_NSYNC) {
-		adj->flags &= ~(DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
-		adj->flags |= (DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
-	} else {
-		adj->flags &= ~(DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
-		adj->flags |= (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
-	}
+	adj->flags &= ~(DRM_MODE_FLAG_PHSYNC |
+			DRM_MODE_FLAG_NHSYNC |
+			DRM_MODE_FLAG_PVSYNC |
+			DRM_MODE_FLAG_NVSYNC);
+	adj->flags |= rk628->src_mode.flags;
 
 	return true;
 }

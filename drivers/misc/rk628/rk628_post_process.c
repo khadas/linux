@@ -1514,20 +1514,12 @@ void rk628_post_process_init(struct rk628 *rk628)
 	struct rk628_display_mode *src = &rk628->src_mode;
 	const struct rk628_display_mode *dst = &rk628->dst_mode;
 
-	if (rk628_output_is_hdmi(rk628)) {
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_VSYNC_POL_MASK,
-				      SW_VSYNC_POL(rk628->sync_pol));
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_HSYNC_POL_MASK,
-				      SW_HSYNC_POL(rk628->sync_pol));
-	} else {
-		if (src->flags & DRM_MODE_FLAG_PVSYNC)
-			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-					      SW_VSYNC_POL_MASK, SW_VSYNC_POL(1));
-		if (src->flags & DRM_MODE_FLAG_PHSYNC)
-			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-					      SW_HSYNC_POL_MASK,
-					      SW_HSYNC_POL(1));
-	}
+	if (src->flags & DRM_MODE_FLAG_PVSYNC)
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+					SW_VSYNC_POL_MASK, SW_VSYNC_POL(1));
+	if (src->flags & DRM_MODE_FLAG_PHSYNC)
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+					SW_HSYNC_POL_MASK, SW_HSYNC_POL(1));
 
 	rk628_post_process_scaler_init(rk628, src, dst);
 }
