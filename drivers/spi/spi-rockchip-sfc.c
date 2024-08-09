@@ -212,6 +212,7 @@ struct rockchip_sfc {
 	bool use_dma;
 	bool sclk_x2_bypass;
 	u32 max_iosize;
+	u32 max_dll_cells;
 	u32 dll_cells[SFC_MAX_CHIPSELECT_NUM];
 	u16 version;
 	struct gpio_desc *rst_gpio;
@@ -255,6 +256,9 @@ static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 
 static u32 rockchip_sfc_get_max_dll_cells(struct rockchip_sfc *sfc)
 {
+	if (sfc->max_dll_cells)
+		return sfc->max_dll_cells;
+
 	if (sfc->version > SFC_VER_4)
 		return SFC_DLL_CTRL0_DLL_MAX_VER5;
 	else if (sfc->version == SFC_VER_4)
@@ -952,6 +956,10 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 					      "rockchip,sfc-no-dma");
 	sfc->sclk_x2_bypass = of_property_read_bool(sfc->dev->of_node,
 						    "rockchip,sclk-x2-bypass");
+
+	device_property_read_u32(&pdev->dev, "rockchip,max-dll", &sfc->max_dll_cells);
+	if (sfc->max_dll_cells > SFC_DLL_CTRL0_DLL_MAX_VER5)
+		sfc->max_dll_cells = SFC_DLL_CTRL0_DLL_MAX_VER5;
 
 	ret = rockchip_sfc_get_gpio_descs(master, sfc);
 	if (ret) {
