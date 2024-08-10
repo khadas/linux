@@ -637,6 +637,73 @@ static const struct snd_soc_dai_link rk_multicodecs_card_dai[] = {
 	},
 };
 
+static int rk_multicodecs_probe_keys(struct platform_device *pdev,
+				     struct multicodecs_data *mc_data)
+{
+	struct input_dev *input;
+	int ret = 0, i = 0, value = 0;
+
+	if (IS_ERR_OR_NULL(mc_data) || IS_ERR_OR_NULL(mc_data->adc))
+		return -EINVAL;
+
+	if (IS_ERR_OR_NULL(pdev))
+		return -EINVAL;
+
+	if (mc_data->adc->channel->type != IIO_VOLTAGE)
+		return -EINVAL;
+
+	if (device_property_read_u32(&pdev->dev, "keyup-threshold-microvolt",
+	    &mc_data->keyup_voltage)) {
+		dev_warn(&pdev->dev, "Invalid or missing keyup voltage\n");
+		return -EINVAL;
+	}
+	mc_data->keyup_voltage /= 1000;
+
+	ret = mc_keys_load_keymap(&pdev->dev, mc_data);
+	if (ret)
+		return ret;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (IS_ERR(input)) {
+		dev_err(&pdev->dev, "Failed to allocate input device\n");
+		return PTR_ERR(input);
+	}
+
+	input_set_drvdata(input, mc_data);
+
+	input->name = "headset-keys";
+	input->phys = "headset-keys/input0";
+	input->id.bustype = BUS_HOST;
+	input->id.vendor = 0x0001;
+	input->id.product = 0x0001;
+	input->id.version = 0x0100;
+
+	__set_bit(EV_KEY, input->evbit);
+	for (i = 0; i < mc_data->num_keys; i++)
+		__set_bit(mc_data->map[i].keycode, input->keybit);
+
+	if (device_property_read_bool(&pdev->dev, "autorepeat"))
+		__set_bit(EV_REP, input->evbit);
+
+	mc_data->input = input;
+	ret = mc_keys_setup_polling(mc_data, mc_keys_poll);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set up polling: %d\n", ret);
+		return ret;
+	}
+
+	if (!device_property_read_u32(&pdev->dev, "poll-interval", &value))
+		mc_set_poll_interval(mc_data->poller, value);
+
+	ret = input_register_device(mc_data->input);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register input device: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int rk_multicodecs_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
@@ -644,9 +711,8 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link_component *codecs;
 	struct multicodecs_data *mc_data;
 	struct of_phandle_args args;
-	struct input_dev *input;
 	u32 val;
-	int count, value, irq;
+	int count, irq;
 	int ret = 0, i = 0, idx = 0;
 	const char *prefix = "rockchip,";
 
@@ -775,57 +841,9 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 		mc_data->adc = NULL;
 		dev_warn(&pdev->dev, "Has no ADC channel\n");
 	} else {
-		if (mc_data->adc->channel->type != IIO_VOLTAGE)
-			return -EINVAL;
-
-		if (device_property_read_u32(&pdev->dev, "keyup-threshold-microvolt",
-					&mc_data->keyup_voltage)) {
-			dev_warn(&pdev->dev, "Invalid or missing keyup voltage\n");
-			return -EINVAL;
-		}
-		mc_data->keyup_voltage /= 1000;
-
-		ret = mc_keys_load_keymap(&pdev->dev, mc_data);
+		ret = rk_multicodecs_probe_keys(pdev, mc_data);
 		if (ret)
-			return ret;
-
-		input = devm_input_allocate_device(&pdev->dev);
-		if (IS_ERR(input)) {
-			dev_err(&pdev->dev, "Failed to allocate input device\n");
-			return PTR_ERR(input);
-		}
-
-		input_set_drvdata(input, mc_data);
-
-		input->name = "headset-keys";
-		input->phys = "headset-keys/input0";
-		input->id.bustype = BUS_HOST;
-		input->id.vendor = 0x0001;
-		input->id.product = 0x0001;
-		input->id.version = 0x0100;
-
-		__set_bit(EV_KEY, input->evbit);
-		for (i = 0; i < mc_data->num_keys; i++)
-			__set_bit(mc_data->map[i].keycode, input->keybit);
-
-		if (device_property_read_bool(&pdev->dev, "autorepeat"))
-			__set_bit(EV_REP, input->evbit);
-
-		mc_data->input = input;
-		ret = mc_keys_setup_polling(mc_data, mc_keys_poll);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to set up polling: %d\n", ret);
-			return ret;
-		}
-
-		if (!device_property_read_u32(&pdev->dev, "poll-interval", &value))
-			mc_set_poll_interval(mc_data->poller, value);
-
-		ret = input_register_device(mc_data->input);
-		if (ret) {
-			dev_err(&pdev->dev, "Failed to register input device: %d\n", ret);
-			return ret;
-		}
+			dev_warn(&pdev->dev, "Has no input keys\n");
 	}
 
 	INIT_DEFERRABLE_WORK(&mc_data->handler, adc_jack_handler);
