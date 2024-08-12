@@ -428,7 +428,11 @@
 #define LANE_REG0302			0x0C08
 #define LANE_REG0303			0x0C0C
 #define LANE_REG0304			0x0C10
+#define DE_EMPHASIS_MASK		GENMASK(3, 0)
+#define DE_EMPHASIS(x)			UPDATE(x, 3, 0)
 #define LANE_REG0305			0x0C14
+#define PRE_SHOOT_MASK			GENMASK(5, 2)
+#define PRE_SHOOT(x)			UPDATE(x, 5, 2)
 #define LANE_REG0306			0x0C18
 #define LANE_REG0307			0x0C1C
 #define LANE_REG0308			0x0C20
@@ -639,7 +643,6 @@ enum hdptx_combphy_type {
 	SS_DP
 };
 
-
 struct lcpll_config {
 	u32 bit_rate;
 	u8 lcvco_mode_en;
@@ -808,6 +811,20 @@ static struct ropll_config ropll_tmds_cfg[] = {
 	{ 251750, 84, 84, 1, 1, 0xf, 1, 1, 1, 1, 1, 1, 1, 168, 1, 16, 4, 1,
 		1, 1, 0, 0x20, 0x0c, 1, 0x0e, 0, 0,
 	},
+};
+
+struct ffe_cfg {
+	u8 pre_shoot;
+	u8 de_emphasis;
+};
+
+#define FFE_CFG_TAB_LEN 4
+
+static const struct ffe_cfg ffe_cfg_table[FFE_CFG_TAB_LEN] = {
+	{ 0x3, 0x4 },
+	{ 0x3, 0x6 },
+	{ 0x3, 0x8 },
+	{ 0x3, 0x9 },
 };
 
 static bool rockchip_hdptx_phy_is_accissible_reg(struct device *dev,
@@ -1991,10 +2008,38 @@ static int rockchip_hdptx_phy_power_off(struct phy *phy)
 	return 0;
 }
 
+static int rockchip_hdptx_phy_set_mode(struct phy *phy, enum phy_mode mode,
+				       int submode)
+{
+	struct rockchip_hdptx_phy *hdptx = phy_get_drvdata(phy);
+	u8 pre_shoot;
+	u8 de_emphasis;
+
+	if (submode < 0 || submode >= FFE_CFG_TAB_LEN) {
+		dev_err(hdptx->dev, "out of ffe cfg table range\n");
+		return -EINVAL;
+	}
+
+	pre_shoot = ffe_cfg_table[submode].pre_shoot;
+	de_emphasis = ffe_cfg_table[submode].de_emphasis;
+
+	hdptx_update_bits(hdptx, LANE_REG0305, PRE_SHOOT_MASK, PRE_SHOOT(pre_shoot));
+	hdptx_update_bits(hdptx, LANE_REG0405, PRE_SHOOT_MASK, PRE_SHOOT(pre_shoot));
+	hdptx_update_bits(hdptx, LANE_REG0505, PRE_SHOOT_MASK, PRE_SHOOT(pre_shoot));
+	hdptx_update_bits(hdptx, LANE_REG0605, PRE_SHOOT_MASK, PRE_SHOOT(pre_shoot));
+	hdptx_update_bits(hdptx, LANE_REG0304, DE_EMPHASIS_MASK, DE_EMPHASIS(de_emphasis));
+	hdptx_update_bits(hdptx, LANE_REG0404, DE_EMPHASIS_MASK, DE_EMPHASIS(de_emphasis));
+	hdptx_update_bits(hdptx, LANE_REG0504, DE_EMPHASIS_MASK, DE_EMPHASIS(de_emphasis));
+	hdptx_update_bits(hdptx, LANE_REG0604, DE_EMPHASIS_MASK, DE_EMPHASIS(de_emphasis));
+
+	return 0;
+}
+
 static const struct phy_ops rockchip_hdptx_phy_ops = {
 	.owner	   = THIS_MODULE,
 	.power_on  = rockchip_hdptx_phy_power_on,
 	.power_off = rockchip_hdptx_phy_power_off,
+	.set_mode  = rockchip_hdptx_phy_set_mode,
 };
 
 static const struct of_device_id rockchip_hdptx_phy_of_match[] = {
