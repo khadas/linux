@@ -1004,9 +1004,23 @@ static const struct hdmi_quirk *get_hdmi_quirk(u8 *vendor_id)
 
 static void dw_hdmi_i2c_init(struct dw_hdmi_qp *hdmi)
 {
+	u64 scl_high_cnt, scl_low_cnt, val;
+
+	scl_high_cnt = hdmi->i2c->scl_high_ns;
+	scl_low_cnt = hdmi->i2c->scl_low_ns;
+
+	scl_high_cnt = scl_high_cnt * hdmi->refclk_rate;
+	scl_high_cnt = DIV_ROUND_CLOSEST_ULL(scl_high_cnt, 1000000000);
+
+	scl_low_cnt = scl_low_cnt * hdmi->refclk_rate;
+	scl_low_cnt = DIV_ROUND_CLOSEST_ULL(scl_low_cnt, 1000000000);
+
+	val = (scl_high_cnt & 0xffff) << 16 | (scl_low_cnt & 0xffff);
+
 	/* Software reset */
 	hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 
+	hdmi_writel(hdmi, val, I2CM_SM_SCL_CONFIG0);
 	hdmi_modb(hdmi, 0, I2CM_FM_EN, I2CM_INTERFACE_CONTROL0);
 
 	/* Clear DONE and ERROR interrupts */
@@ -4311,23 +4325,36 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	/* If DDC bus is not specified, try to register HDMI I2C bus */
 	if (!hdmi->ddc) {
 		hdmi->ddc = dw_hdmi_i2c_adapter(hdmi);
-		if (IS_ERR(hdmi->ddc))
-			hdmi->ddc = NULL;
+		if (IS_ERR(hdmi->ddc)) {
+			dev_err(hdmi->dev, "register HDMI I2C bus failed\n");
+			return ERR_PTR(-ENOMEM);
+		}
+
 		/*
 		 * Read high and low time from device tree. If not available use
-		 * the default timing scl clock rate is about 99.6KHz.
+		 * the default timing scl clock rate is about 100KHz.
 		 */
 		if (of_property_read_u32(np, "ddc-i2c-scl-high-time-ns",
 					 &hdmi->i2c->scl_high_ns))
-			hdmi->i2c->scl_high_ns = 4708;
+			hdmi->i2c->scl_high_ns = 5000;
 		if (of_property_read_u32(np, "ddc-i2c-scl-low-time-ns",
 					 &hdmi->i2c->scl_low_ns))
-			hdmi->i2c->scl_low_ns = 4916;
-	}
+			hdmi->i2c->scl_low_ns = 5000;
 
-	/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
-	if (hdmi->i2c)
+		/* limit scl freq from 10KHz to 100KHz */
+		if (hdmi->i2c->scl_high_ns < 5000 || hdmi->i2c->scl_high_ns > 50000) {
+			dev_err(hdmi->dev, "scl_high_ns is out of range, set to 5000\n");
+			hdmi->i2c->scl_high_ns = 5000;
+		}
+
+		if (hdmi->i2c->scl_low_ns < 5000 || hdmi->i2c->scl_low_ns > 50000) {
+			dev_err(hdmi->dev, "scl_low_ns is out of range, set to 5000\n");
+			hdmi->i2c->scl_low_ns = 5000;
+		}
+
+		/* Reset HDMI DDC I2C master controller and mute I2CM interrupts */
 		dw_hdmi_i2c_init(hdmi);
+	}
 
 	init_completion(&hdmi->flt_cmp);
 	init_completion(&hdmi->earc_cmp);
