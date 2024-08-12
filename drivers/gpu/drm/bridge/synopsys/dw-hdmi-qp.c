@@ -308,7 +308,6 @@ struct dw_hdmi_qp {
 	bool rxsense;			/* rxsense state */
 	u8 phy_mask;			/* desired phy int mask settings */
 	u8 mc_clkdis;			/* clock disable register */
-	u8 hdcp_caps;
 	u8 hdcp_status;
 
 	bool update;
@@ -2329,27 +2328,19 @@ static ssize_t hdcp_ddc_read(struct i2c_adapter *adapter, u8 address,
 	return 0;
 }
 
-static u8 dw_hdmi_qp_hdcp_capable(struct dw_hdmi_qp *hdmi)
+static bool is_sink_hdcp2_supported(struct dw_hdmi_qp *hdmi)
 {
-	u8 version = 0;
 	u8 bcaps;
 	int ret;
-
-	ret = hdcp_ddc_read(hdmi->ddc, HDMI_HDCP_ADDR, HDMI_BCAPS, &bcaps);
-	if (ret < 0)
-		dev_err(hdmi->dev, "get hdcp1.4 capable failed:%d\n", ret);
-
-	if (bcaps & HDMI_HDCP14_SUPPORT)
-		version |= SINK_CAP_HDCP14;
 
 	ret = hdcp_ddc_read(hdmi->ddc, HDMI_HDCP_ADDR, HDMI_HDCP2_VERSION, &bcaps);
 	if (ret < 0)
 		dev_err(hdmi->dev, "get hdcp2.x capable failed:%d\n", ret);
 
 	if (bcaps & HDMI_HDCP2_SUPPORT)
-		version |= SINK_CAP_HDCP2;
+		return true;
 
-	return version;
+	return false;
 }
 
 static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
@@ -2362,10 +2353,8 @@ static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
 	if (conn_state->content_protection != DRM_MODE_CONTENT_PROTECTION_DESIRED)
 		return;
 
-	hdmi->hdcp_caps = dw_hdmi_qp_hdcp_capable(hdmi);
-
 	/* sink support hdcp2.x */
-	if (hdmi->hdcp_caps & SINK_CAP_HDCP2) {
+	if (is_sink_hdcp2_supported(hdmi)) {
 		if (hdmi->plat_data->set_hdcp2_enable)
 			hdmi->plat_data->set_hdcp2_enable(data, true);
 
@@ -2374,7 +2363,7 @@ static void dw_hdmi_qp_hdcp_enable(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, HDCP2_ESM_P0_GPIO_OUT_2_CHG_IRQ,
 			  HDCP2_ESM_P0_GPIO_OUT_2_CHG_IRQ, AVP_3_INT_MASK_N);
 		hdmi_writel(hdmi, 0x35, HDCP2LOGIC_ESM_GPIO_IN);
-	} else if (hdmi->hdcp_caps & SINK_CAP_HDCP14) {
+	} else {
 		if (hdmi->hdcp && hdmi->hdcp->hdcp_start)
 			hdmi->hdcp->hdcp_start(hdmi->hdcp);
 	}
@@ -4081,10 +4070,13 @@ static void dw_hdmi_qp_hdcp14_get_mem(struct dw_hdmi_qp *hdmi, u8 *data, u32 len
 		/* read ksv list */
 		if (i < ksv_len)
 			val = readl(hdmi->hdcp14_mem + HDMI_HDCP14_MEM_KSV0 + i * 4);
-		/* read bstatus */
+		/*
+		 * read bstatus, if device count is 0, bstatus save in external
+		 * memory is error, we need to read bstatus via ddc
+		 */
 		else if (i < len - SHAMAX - M0_LEN)
-			val = readl(hdmi->hdcp14_mem + HDMI_HDCP14_MEM_BSTATUS0 +
-				    (i - ksv_len) * 4);
+			hdcp_ddc_read(hdmi->ddc, HDMI_HDCP_ADDR, 0x41 + i - ksv_len,
+				      &val);
 		/* read M0 */
 		else if (i < len - SHAMAX)
 			val = readl(hdmi->hdcp14_mem + HDMI_HDCP14_MEM_M0_1 +
