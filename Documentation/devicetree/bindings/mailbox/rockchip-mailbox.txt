@@ -28,6 +28,7 @@ Optional properties :
 	This is only support from rockchip,rk3576-mbox.
  - rockchip,txdone-ack: Enable if the mailbox client use ACK to check TX_DONE.
  - rockchip,txdone-irq: Enable if the controller can trigger TX_DONE interrupt.
+ - rockchip,tx-direction-b2a: To specify the TX direction as B2A for local.
 
 Example:
 --------

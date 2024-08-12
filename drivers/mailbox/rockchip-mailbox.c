@@ -48,8 +48,21 @@
 #define MAILBOX_POLLING_MS		5 /* default polling interval 5ms */
 #define BIT_WRITEABLE_SHIFT		16
 
+struct rockchip_mbox_reg {
+	u32 tx_int;
+	u32 tx_sts;
+	u32 tx_cmd;
+	u32 tx_dat;
+	u32 rx_int;
+	u32 rx_sts;
+	u32 rx_cmd;
+	u32 rx_dat;
+};
+
 struct rockchip_mbox_data {
 	int num_chans;
+	struct rockchip_mbox_reg reg_a2b;
+	struct rockchip_mbox_reg reg_b2a;
 	const struct mbox_chan_ops *ops;
 	irqreturn_t (*irq_func)(int irq, void *dev_id);
 };
@@ -66,6 +79,7 @@ struct rockchip_mbox {
 	spinlock_t cfg_lock; /* Serialise access to the register */
 	unsigned char trigger_method; /* 0 = write cmd, 1 = write cmd first, then write data */
 	struct rockchip_mbox_msg *msg;
+	const struct rockchip_mbox_reg *reg;
 
 	struct rockchip_mbox_chan *chans;
 };
@@ -176,19 +190,19 @@ static int rockchip_mbox_v2_send_data(struct mbox_chan *chan, void *data)
 	if (!msg)
 		return -EINVAL;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_A2B_STATUS);
+	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
 	if (status & MAILBOX_V2_STATUS_TX_DONE) {
 		dev_err(mb->mbox.dev, "The mailbox is busy\n");
 		return -EBUSY;
 	}
 
-	dev_dbg(mb->mbox.dev, "A2B message, cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
+	dev_dbg(mb->mbox.dev, "TX: cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
 
 	if (mb->trigger_method) {
-		writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_V2_A2B_CMD);
-		writel_relaxed(msg->data, mb->mbox_base + MAILBOX_V2_A2B_DAT);
+		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
+		writel_relaxed(msg->data, mb->mbox_base + mb->reg->tx_dat);
 	} else {
-		writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_V2_A2B_CMD);
+		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
 	}
 
 	return 0;
@@ -198,20 +212,20 @@ static int rockchip_mbox_v2_startup(struct mbox_chan *chan)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 
-	/* Set the A2B interrupt trigger method */
+	/* Set the TX interrupt trigger method */
 	writel_relaxed((1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_TRIGGER_SHIFT) |
 			mb->trigger_method << MAILBOX_V2_TRIGGER_SHIFT),
-			mb->mbox_base + MAILBOX_V2_A2B_INTEN);
+			mb->mbox_base + mb->reg->tx_int);
 
-	/* Enable the B2A TX_DONE interrupt */
+	/* Enable the tx_done interrupt */
 	writel_relaxed((1U << BIT_WRITEABLE_SHIFT | MAILBOX_V2_INTEN_TX_DONE),
-			mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+			mb->mbox_base + mb->reg->rx_int);
 
-	/* Enable the B2A RX_DONE interrupt */
+	/* Enable the rx_done interrupt */
 	if (mb->mbox.txdone_irq)
 		writel_relaxed((1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_INTEN_RX_DONE_SHIFT) |
 				MAILBOX_V2_INTEN_RX_DONE),
-				mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+				mb->mbox_base + mb->reg->rx_int);
 
 	return 0;
 }
@@ -221,7 +235,7 @@ static bool rockchip_mbox_v2_last_tx_done(struct mbox_chan *chan)
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	u32 status;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_A2B_STATUS);
+	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
 	return !(status & MAILBOX_V2_STATUS_TX_DONE);
 }
 
@@ -229,13 +243,13 @@ static void rockchip_mbox_v2_shutdown(struct mbox_chan *chan)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 
-	/* Disable the B2A TX_DONE interrupt */
-	writel_relaxed(1U << BIT_WRITEABLE_SHIFT, mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+	/* Disable the tx_done interrupt */
+	writel_relaxed(1U << BIT_WRITEABLE_SHIFT, mb->mbox_base + mb->reg->rx_int);
 
-	/* Disable the B2A RX_DONE interrupt */
+	/* Disable the rx_done interrupt */
 	if (mb->mbox.txdone_irq)
 		writel_relaxed(1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_INTEN_RX_DONE_SHIFT),
-				mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+				mb->mbox_base + mb->reg->rx_int);
 }
 
 static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
@@ -244,21 +258,21 @@ static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
 	struct rockchip_mbox_msg *msg = mb->msg;
 	u32 status;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_STATUS);
+	status = readl_relaxed(mb->mbox_base + mb->reg->rx_sts);
 	if (!(status & MAILBOX_V2_STATUS_MASK))
 		return IRQ_NONE;
 
 	if (status & MAILBOX_V2_STATUS_TX_DONE) {
-		/* Get cmd/data from the channel of B2A */
-		msg->cmd = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_CMD);
-		msg->data = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_DAT);
+		/* Get cmd/data from the channel */
+		msg->cmd = readl_relaxed(mb->mbox_base + mb->reg->rx_cmd);
+		msg->data = readl_relaxed(mb->mbox_base + mb->reg->rx_dat);
 
-		dev_dbg(mb->mbox.dev, "B2A message, cmd 0x%08x, data 0x%08x\n",
+		dev_dbg(mb->mbox.dev, "RX: cmd 0x%08x, data 0x%08x\n",
 			msg->cmd, msg->data);
 
-		/* Clear mbox's message B2A TX_DONE interrupt */
+		/* Clear the tx_done interrupt */
 		writel_relaxed(MAILBOX_V2_STATUS_TX_DONE,
-			       mb->mbox_base + MAILBOX_V2_B2A_STATUS);
+			       mb->mbox_base + mb->reg->rx_sts);
 
 		if (mb->mbox.chans[0].cl)
 			mbox_chan_received_data(&mb->mbox.chans[0], msg);
@@ -268,9 +282,9 @@ static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
 		if (mb->mbox.txdone_irq)
 			mbox_chan_txdone(&mb->mbox.chans[0], 0);
 
-		/* Clear mbox's B2A RX_DONE interrupt */
+		/* Clear the rx_done interrupt */
 		writel_relaxed(MAILBOX_V2_STATUS_RX_DONE,
-			       mb->mbox_base + MAILBOX_V2_B2A_STATUS);
+			       mb->mbox_base + mb->reg->rx_sts);
 	}
 
 	return IRQ_HANDLED;
@@ -317,6 +331,14 @@ static const struct rockchip_mbox_data rk3368_drv_data = {
 
 static const struct rockchip_mbox_data rk3576_drv_data = {
 	.num_chans = 1,
+	.reg_a2b = { MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT },
+	.reg_b2a = { MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT },
 	.ops = &rockchip_mbox_v2_chan_ops,
 	.irq_func = rockchip_mbox_v2_irq,
 };
@@ -368,6 +390,11 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	mb->mbox.num_chans = drv_data->num_chans;
 	mb->mbox.ops = drv_data->ops;
 	spin_lock_init(&mb->cfg_lock);
+
+	if (device_property_present(&pdev->dev, "rockchip,tx-direction-b2a"))
+		mb->reg = &drv_data->reg_b2a;
+	else
+		mb->reg = &drv_data->reg_a2b;
 
 	/*
 	 * rockchip,txdone-ack: the mailbox client uses its own ACK to check
