@@ -776,7 +776,7 @@ static const struct rockchip_data rk3528_data = {
 };
 
 static const char * const rk3562_otp_clocks[] = {
-	"usr", "sbpi", "apb", "arb", "phy",
+	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rk3562_data = {
@@ -810,7 +810,7 @@ static const struct rockchip_data rk3576_data = {
 };
 
 static const char * const rk3588_otp_clocks[] = {
-	"otpc", "apb", "arb", "phy",
+	"otpc", "apb", "phy",
 };
 
 static const struct rockchip_data rk3588_data = {
@@ -822,7 +822,7 @@ static const struct rockchip_data rk3588_data = {
 };
 
 static const char * const rv1106_otp_clocks[] = {
-	"usr", "sbpi", "apb", "phy", "arb", "pmc",
+	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rv1106_data = {
