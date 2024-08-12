@@ -741,7 +741,7 @@ static u8 *find_cea_extension(const struct edid *edid)
 #define EDID_CEA_YCRCB422	(1 << 4)
 
 int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
-				   struct edid *edid)
+				   const struct edid *edid)
 {
 	struct drm_display_info *info;
 	const u8 *edid_ext;

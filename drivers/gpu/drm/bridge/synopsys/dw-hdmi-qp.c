@@ -2687,7 +2687,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		container_of(connector, struct dw_hdmi_qp, connector);
 	struct hdr_static_metadata *metedata =
 		&connector->hdr_sink_metadata.hdmi_type1;
-	struct edid *edid;
+	const struct edid *edid = NULL;
+	const struct drm_edid *drm_edid;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
 	void *data = hdmi->plat_data->phy_data;
@@ -2731,14 +2732,13 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	memset(metedata, 0, sizeof(*metedata));
 	memset(hdmi->vendor_info, 0, VENDOR_INFO_LEN);
 
-	if (edid_blob_ptr && edid_blob_ptr->length) {
-		edid = kmalloc(edid_blob_ptr->length, GFP_KERNEL);
-		if (!edid)
-			return -ENOMEM;
-		memcpy(edid, edid_blob_ptr->data, edid_blob_ptr->length);
-	} else {
-		edid = drm_get_edid(connector, hdmi->ddc);
-	}
+	if (edid_blob_ptr && edid_blob_ptr->length)
+		drm_edid = drm_edid_alloc(edid_blob_ptr->data, edid_blob_ptr->length);
+	else
+		drm_edid = drm_edid_read_ddc(connector, hdmi->ddc);
+
+	if (drm_edid)
+		edid = drm_edid_raw(drm_edid);
 
 	if (edid) {
 		u8 *raw_edid = (u8 *)edid;
@@ -2748,13 +2748,12 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		hdmi->support_hdmi = drm_detect_hdmi_monitor(edid);
 		hdmi->sink_has_audio = drm_detect_monitor_audio(edid);
-		drm_connector_update_edid_property(connector, edid);
 		if (hdmi->cec_notifier)
 			cec_notifier_set_phys_addr_from_edid(hdmi->cec_notifier, edid);
 		if (hdmi->plat_data->get_edid_dsc_info)
 			hdmi->plat_data->get_edid_dsc_info(data, edid);
 		memcpy(hdmi->vendor_info, &raw_edid[8], VENDOR_INFO_LEN);
-		ret = drm_add_edid_modes(connector, edid);
+		ret = drm_edid_connector_update(connector, drm_edid);
 		if (hdmi->plat_data->get_colorimetry)
 			hdmi->plat_data->get_colorimetry(data, edid);
 		if (hdmi->plat_data->get_yuv422_format)
@@ -2771,6 +2770,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 			if (!secondary) {
 				kfree(edid);
+				kfree(drm_edid);
 				return -ENOMEM;
 			}
 			secondary_data = secondary->plat_data->phy_data;
@@ -2784,6 +2784,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 				secondary->plat_data->get_edid_dsc_info(secondary_data, edid);
 		}
 		kfree(edid);
+		kfree(drm_edid);
 	} else {
 		hdmi->support_hdmi = true;
 		hdmi->sink_has_audio = true;
