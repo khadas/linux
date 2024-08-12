@@ -5290,7 +5290,7 @@ static int vop2_linear_yuv_format_check(struct drm_plane *plane, struct drm_plan
 	struct vop2_win *win = to_vop2_win(plane);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_rect *src = &vpstate->src;
-	u32 val = 0;
+	u32 val = 0, src_h = 0;
 
 	if (vpstate->afbc_en || vpstate->tiled_en || !fb->format->is_yuv)
 		return 0;
@@ -5308,6 +5308,16 @@ static int vop2_linear_yuv_format_check(struct drm_plane *plane, struct drm_plan
 			src->y1 = ALIGN(val, 2) << 16;
 			DRM_WARN("VP%d %s src y offset[%d] must aligned as 2 pixel at NV12 fmt, and adjust to: %d\n", vp->id, win->name, val, src->y1 >> 16);
 		}
+		if (vp->vop2->version == VOP_VERSION_RK3528 ||
+		    vp->vop2->version == VOP_VERSION_RK3562 ||
+		    vp->vop2->version == VOP_VERSION_RK3576) {
+			src_h = drm_rect_height(src) >> 16;
+			if (src_h % 2) {
+				src->y2 = src->y1 + (ALIGN_DOWN(src_h, 2) << 16);
+				DRM_WARN("VP%d %s src_h[%d] must aligned as 2 line at NV12/NV21 fmt, and adjust to: %d\n", vp->id, win->name, src_h, drm_rect_height(src) >> 16);
+			}
+		}
+
 		break;
 	case DRM_FORMAT_NV15:
 		val = src->y1 >> 16;
@@ -5331,6 +5341,16 @@ static int vop2_linear_yuv_format_check(struct drm_plane *plane, struct drm_plan
 				DRM_WARN("VP%d %s src x offset[%d] must aligned as 4 pixel at NV15 fmt, and adjust to: %d\n", vp->id, win->name, val, src->x1 >> 16);
 			}
 		}
+		if (vp->vop2->version == VOP_VERSION_RK3528 ||
+		    vp->vop2->version == VOP_VERSION_RK3562 ||
+		    vp->vop2->version == VOP_VERSION_RK3576) {
+			src_h = drm_rect_height(src) >> 16;
+			if (src_h % 2) {
+				src->y2 = src->y1 + (ALIGN_DOWN(src_h, 2) << 16);
+				DRM_WARN("VP%d %s src_h[%d] must aligned as 2 line at NV15/NV51 fmt, and adjust to: %d\n", vp->id, win->name, src_h, drm_rect_height(src) >> 16);
+			}
+		}
+
 		break;
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
