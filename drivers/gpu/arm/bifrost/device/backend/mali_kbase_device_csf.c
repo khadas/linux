@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -159,9 +159,11 @@ fail_reset_gpu_init:
  */
 static void kbase_backend_late_term(struct kbase_device *kbdev)
 {
-	kbase_backend_devfreq_term(kbdev);
-	kbasep_pm_metrics_term(kbdev);
-	kbase_ipa_control_term(kbdev);
+	{
+		kbase_backend_devfreq_term(kbdev);
+		kbasep_pm_metrics_term(kbdev);
+		kbase_ipa_control_term(kbdev);
+	}
 	kbase_hwaccess_pm_halt(kbdev);
 	kbase_reset_gpu_term(kbdev);
 	kbase_hwaccess_pm_term(kbdev);
@@ -279,10 +281,8 @@ static const struct kbase_device_init dev_init[] = {
 	{ kbase_gpu_device_create, kbase_gpu_device_destroy, "Dummy model initialization failed" },
 #else /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 	{ kbase_get_irqs, NULL, "IRQ search failed" },
-#endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
-#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 	{ registers_map, registers_unmap, "Register map failed" },
-#endif /* !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
+#endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 #if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
 	{ kbase_gpu_metrics_init, kbase_gpu_metrics_term, "GPU metrics initialization failed" },
 #endif /* IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) */

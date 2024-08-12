@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #include <linux/debugfs.h>
 #include <linux/kprobes.h>
 #include <linux/version.h>
+#include <linux/delay.h>
 #include <kutf/kutf_kprobe.h>
 
 #define KUTF_KP_REG_MIN_ARGS 3
@@ -85,6 +86,19 @@ const struct file_operations kutf_kp_unreg_debugfs_fops = {
 };
 
 struct kprobe kutf_kallsym_kp = { .symbol_name = "kallsyms_lookup_name" };
+
+void kutf_kp_delay_handler(int argc, char **argv)
+{
+	long delay;
+
+	if ((!argv) || (!argv[0]))
+		return;
+
+	if (kstrtol(argv[0], 0, &delay))
+		return;
+
+	mdelay(delay);
+}
 
 void kutf_kp_sample_kernel_function(void)
 {
@@ -150,11 +164,9 @@ static ssize_t kutf_kp_reg_debugfs_write(struct file *file, const char __user *u
 	if (count >= KUTF_KP_WRITE_BUFSIZE)
 		return -EINVAL;
 
-	kbuf = memdup_user(user_buf, count);
-	if (IS_ERR(kbuf)) {
+	kbuf = memdup_user_nul(user_buf, count);
+	if (IS_ERR(kbuf))
 		return -ENOMEM;
-	}
-	kbuf[count - 1] = '\0';
 
 	argv = argv_split(GFP_KERNEL, kbuf, &argc);
 	if (!argv) {
@@ -245,11 +257,9 @@ static ssize_t kutf_kp_unreg_debugfs_write(struct file *file, const char __user 
 	if (count >= KUTF_KP_WRITE_BUFSIZE)
 		return -EINVAL;
 
-	kbuf = memdup_user(user_buf, count);
-	if (IS_ERR(kbuf)) {
+	kbuf = memdup_user_nul(user_buf, count);
+	if (IS_ERR(kbuf))
 		return -ENOMEM;
-	}
-	kbuf[count - 1] = '\0';
 
 	argv = argv_split(GFP_KERNEL, kbuf, &argc);
 	if (!argv) {

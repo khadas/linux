@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,7 +68,7 @@ struct kbase_hwcnt_backend_csf_if_enable {
  * @prfcnt_block_size: Bytes of each performance counter block.
  * @l2_count:          The MMU L2 cache count.
  * @csg_count:         The total number of CSGs in the system
- * @core_mask:         Shader core mask.
+ * @sc_core_mask:         Shader core mask.
  * @clk_cnt:           Clock domain count in the system.
  * @clearing_samples:  Indicates whether counters are cleared after each sample
  *                     is taken.
@@ -80,7 +80,7 @@ struct kbase_hwcnt_backend_csf_if_prfcnt_info {
 	size_t prfcnt_block_size;
 	size_t l2_count;
 	u32 csg_count;
-	u64 core_mask;
+	u64 sc_core_mask;
 	u8 clk_cnt;
 	bool clearing_samples;
 };

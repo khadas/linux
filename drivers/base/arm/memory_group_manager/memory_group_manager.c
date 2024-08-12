@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -50,10 +50,6 @@ static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigne
 	return VM_FAULT_NOPAGE;
 }
 #endif
-
-#define PTE_PBHA_SHIFT (59)
-#define PTE_PBHA_MASK ((uint64_t)0xf << PTE_PBHA_SHIFT)
-#define PTE_RES_BIT_MULTI_AS_SHIFT (63)
 
 #define IMPORTED_MEMORY_ID (MEMORY_GROUP_MANAGER_NR_GROUPS - 1)
 
@@ -263,7 +259,7 @@ static struct page *example_mgm_alloc_page(struct memory_group_manager_device *m
 	} else {
 		struct mgm_groups *data = mgm_dev->data;
 
-		dev_err(data->dev, "alloc_pages failed\n");
+		dev_dbg(data->dev, "alloc_pages failed\n");
 	}
 
 	return p;

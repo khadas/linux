@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1328,7 +1328,7 @@ void kbase_reset_gpu(struct kbase_device *kbdev)
 
 	if (!kbase_is_quick_reset_enabled(kbdev))
 		dev_err(kbdev->dev,
-			"Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
+			"Preparing to soft-reset GPU: Waiting (up to %d ms) for all jobs to complete soft-stop\n",
 			kbdev->reset_timeout_ms);
 
 	hrtimer_start(&kbdev->hwaccess.backend.reset_timer,
@@ -1350,7 +1350,7 @@ void kbase_reset_gpu_locked(struct kbase_device *kbdev)
 
 	if (!kbase_is_quick_reset_enabled(kbdev))
 		dev_err(kbdev->dev,
-			"Preparing to soft-reset GPU: Waiting (upto %d ms) for all jobs to complete soft-stop\n",
+			"Preparing to soft-reset GPU: Waiting (up to %d ms) for all jobs to complete soft-stop\n",
 			kbdev->reset_timeout_ms);
 	hrtimer_start(&kbdev->hwaccess.backend.reset_timer,
 		      HR_TIMER_DELAY_MSEC(kbdev->reset_timeout_ms), HRTIMER_MODE_REL);
