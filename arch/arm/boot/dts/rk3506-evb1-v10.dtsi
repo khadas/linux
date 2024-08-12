@@ -5,6 +5,7 @@
 
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/input/rk-input.h>
+#include <dt-bindings/suspend/rockchip-rk3506.h>
 
 / {
 	model = "Rockchip RK3506 EVB1 V10 Board";
@@ -715,6 +716,15 @@
 
 &rng {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	rockchip,apios-suspend = <
+		(0
+		| RKPM_PWREN_CORE_GPIO0A2 | RKPM_PWREN_CORE_ACT_LOW
+		| RKPM_PWREN_SLEEP_GPIO0A0 | RKPM_PWREN_SLEEP_ACT_LOW
+		)
+	>;
 };
 
 &sai1 {
