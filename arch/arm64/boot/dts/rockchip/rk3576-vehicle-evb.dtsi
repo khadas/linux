@@ -322,13 +322,15 @@
 
 &pdm1 {
 	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pdm1m1_clk0
-		     &pdm1m1_clk1
-		     &pdm1m1_sdi0
+	pinctrl-names = "default", "idle", "clk";
+	pinctrl-0 = <&pdm1m1_sdi0
 		     &pdm1m1_sdi1
 		     &pdm1m1_sdi2
 		     &pdm1m1_sdi3>;
+	pinctrl-1 = <&pdm1m1_clk0_idle
+		     &pdm1m1_clk1_idle>;
+	pinctrl-2 = <&pdm1m1_clk0
+		     &pdm1m1_clk1>;
 };
 
 &pinctrl {
