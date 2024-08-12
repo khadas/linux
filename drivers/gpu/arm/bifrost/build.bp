@@ -113,7 +113,7 @@ bob_defaults {
     mali_hw_errata_1485982_use_clock_alternative: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
     },
-    platform_is_fpga: {
+    mali_is_fpga: {
         kbuild_options: ["CONFIG_MALI_IS_FPGA=y"],
     },
     mali_coresight: {
@@ -148,7 +148,6 @@ bob_defaults {
         // is an umbrella feature that would be open for inappropriate use
         // (catch-all for experimental CS code without separating it into
         // different features).
-        "MALI_INCREMENTAL_RENDERING_JM={{.incremental_rendering_jm}}",
         "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
     ],
 }
@@ -162,6 +161,9 @@ bob_kernel_module {
         "*.c",
         "*.h",
         "Kbuild",
+        "arbiter/*.c",
+        "arbiter/*.h",
+        "arbiter/Kbuild",
         "backend/gpu/*.c",
         "backend/gpu/*.h",
         "backend/gpu/Kbuild",
@@ -255,13 +257,6 @@ bob_kernel_module {
             "mmu/backend/*_csf.h",
             "ipa/backend/*_csf.c",
             "ipa/backend/*_csf.h",
-        ],
-    },
-    mali_arbiter_support: {
-        srcs: [
-            "arbiter/*.c",
-            "arbiter/*.h",
-            "arbiter/Kbuild",
         ],
     },
     kbuild_options: [
