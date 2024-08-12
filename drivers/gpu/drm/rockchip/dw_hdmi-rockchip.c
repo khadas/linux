@@ -2661,7 +2661,8 @@ secondary:
 				if (hdmi->link_cfg.frl_lanes > frl_lanes)
 					hdmi->link_cfg.frl_lanes = frl_lanes;
 			/* 40G is preferred */
-			} else if (hdmi->link_cfg.rate_per_lane >= 12) {
+			} else if (hdmi->link_cfg.rate_per_lane >= 12 ||
+				   !hdmi->link_cfg.rate_per_lane) {
 				hdmi->link_cfg.frl_lanes = 4;
 				hdmi->link_cfg.rate_per_lane = 12;
 			}
