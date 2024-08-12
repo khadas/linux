@@ -12,7 +12,7 @@
 #include <linux/v4l2-controls.h>
 #include <linux/rk-camera-module.h>
 
-#define RKISP_API_VERSION		KERNEL_VERSION(2, 6, 0)
+#define RKISP_API_VERSION		KERNEL_VERSION(2, 6, 1)
 
 /****************ISP SUBDEV IOCTL*****************************/
 
