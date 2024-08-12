@@ -4349,7 +4349,7 @@ rkisp_params_check_bigmode_v39(struct rkisp_isp_params_vdev *params_vdev)
 
 	ispdev->multi_mode = 0;
 	ispdev->multi_index = ispdev->dev_id;
-	if (hw->dev_link_num == 5 || hw->unite == ISP_UNITE_ONE)
+	if (!hw->is_single)
 		hw->is_frm_buf = true;
 using_frm_buf:
 	if (hw->is_frm_buf) {
