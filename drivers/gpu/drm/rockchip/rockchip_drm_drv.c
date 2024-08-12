@@ -766,6 +766,10 @@ static
 void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
 {
 	switch (max_frl_rate) {
+	case 0:
+		*max_lanes = 0;
+		*max_rate_per_lane = 0;
+		break;
 	case 1:
 		*max_lanes = 3;
 		*max_rate_per_lane = 3;
@@ -787,13 +791,13 @@ void get_max_frl_rate(int max_frl_rate, u8 *max_lanes, u8 *max_rate_per_lane)
 		*max_rate_per_lane = 10;
 		break;
 	case 6:
+	/*
+	 * According to CTS HFR1-17, if max frl rate in edid is out
+	 * of hdmi spec range, hdmitx should output its max frl rate.
+	 */
+	default:
 		*max_lanes = 4;
 		*max_rate_per_lane = 12;
-		break;
-	case 0:
-	default:
-		*max_lanes = 0;
-		*max_rate_per_lane = 0;
 	}
 }
 
