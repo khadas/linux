@@ -682,7 +682,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		if (dev->isp_ver >= ISP_V21) {
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
 			val |= ISP21_SENSOR_INDEX(dev->multi_index);
-			if (dev->isp_ver == ISP_V32_L)
+			if (dev->isp_ver >= ISP_V32_L)
 				val |= ISP32L_SENSOR_MODE(dev->multi_mode);
 			else
 				val |= ISP21_SENSOR_MODE(dev->multi_mode);
