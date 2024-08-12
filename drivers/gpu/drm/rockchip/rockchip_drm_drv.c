@@ -570,6 +570,23 @@ static bool cea_db_is_hdmi_forum_vsdb(const u8 *db)
 	return oui == HDMI_FORUM_IEEE_OUI;
 }
 
+#define CTA_DB_EXTENDED_TAG		7
+
+static bool cea_db_is_extended_tag(const u8 *db, int tag)
+{
+	return cea_db_tag(db) == CTA_DB_EXTENDED_TAG &&
+		cea_db_payload_len(db) >= 1 &&
+		db[1] == tag;
+}
+
+#define CTA_EXT_DB_HF_SCDB		0x79
+
+static bool cea_db_is_hdmi_forum_scdb(const u8 *db)
+{
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_HF_SCDB) &&
+		cea_db_payload_len(db) >= 7;
+}
+
 static int
 cea_db_offsets(const u8 *cea, int *start, int *end)
 {
@@ -872,6 +889,80 @@ void parse_edid_forum_vsdb(struct rockchip_drm_dsc_cap *dsc_cap,
 	}
 }
 
+/* Sink Capability Data Structure, for compatibility with linux version < linux kernel 6.1 */
+static void parse_hdmi_forum_scds(struct rockchip_drm_dsc_cap *dsc_cap,
+				  u8 *max_frl_rate_per_lane, u8 *max_lanes,
+				  const u8 *hf_scds)
+{
+	if (hf_scds[7]) {
+		u8 max_frl_rate;
+		u8 dsc_max_frl_rate;
+		u8 dsc_max_slices;
+
+		DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
+		max_frl_rate = (hf_scds[7] & DRM_EDID_MAX_FRL_RATE_MASK) >> 4;
+		get_max_frl_rate(max_frl_rate, max_lanes,
+				 max_frl_rate_per_lane);
+		dsc_cap->v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
+
+		if (dsc_cap->v_1p2) {
+			dsc_cap->native_420 = hf_scds[11] & DRM_EDID_DSC_NATIVE_420;
+			dsc_cap->all_bpp = hf_scds[11] & DRM_EDID_DSC_ALL_BPP;
+
+			if (hf_scds[11] & DRM_EDID_DSC_16BPC)
+				dsc_cap->bpc_supported = 16;
+			else if (hf_scds[11] & DRM_EDID_DSC_12BPC)
+				dsc_cap->bpc_supported = 12;
+			else if (hf_scds[11] & DRM_EDID_DSC_10BPC)
+				dsc_cap->bpc_supported = 10;
+			else
+				/* Supports min 8 BPC if DSC 1.2 is supported*/
+				dsc_cap->bpc_supported = 8;
+
+			dsc_max_frl_rate = (hf_scds[12] & DRM_EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
+			get_max_frl_rate(dsc_max_frl_rate, &dsc_cap->max_lanes,
+					 &dsc_cap->max_frl_rate_per_lane);
+			dsc_cap->total_chunk_kbytes = hf_scds[13] & DRM_EDID_DSC_TOTAL_CHUNK_KBYTES;
+
+			dsc_max_slices = hf_scds[12] & DRM_EDID_DSC_MAX_SLICES;
+			switch (dsc_max_slices) {
+			case 1:
+				dsc_cap->max_slices = 1;
+				dsc_cap->clk_per_slice = 340;
+				break;
+			case 2:
+				dsc_cap->max_slices = 2;
+				dsc_cap->clk_per_slice = 340;
+				break;
+			case 3:
+				dsc_cap->max_slices = 4;
+				dsc_cap->clk_per_slice = 340;
+				break;
+			case 4:
+				dsc_cap->max_slices = 8;
+				dsc_cap->clk_per_slice = 340;
+				break;
+			case 5:
+				dsc_cap->max_slices = 8;
+				dsc_cap->clk_per_slice = 400;
+				break;
+			case 6:
+				dsc_cap->max_slices = 12;
+				dsc_cap->clk_per_slice = 400;
+				break;
+			case 7:
+				dsc_cap->max_slices = 16;
+				dsc_cap->clk_per_slice = 400;
+				break;
+			case 0:
+			default:
+				dsc_cap->max_slices = 0;
+				dsc_cap->clk_per_slice = 0;
+			}
+		}
+	}
+}
+
 enum {
 	VER_26_BYTE_V0,
 	VER_15_BYTE_V1,
@@ -1041,6 +1132,9 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 		if (cea_db_is_hdmi_forum_vsdb(db))
 			parse_edid_forum_vsdb(dsc_cap, max_frl_rate_per_lane,
 					      max_lanes, add_func, db);
+		else if (cea_db_is_hdmi_forum_scdb(db))
+			parse_hdmi_forum_scds(dsc_cap, max_frl_rate_per_lane,
+					      max_lanes, db);
 	}
 
 	return 0;
