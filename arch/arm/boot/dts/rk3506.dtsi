@@ -9,6 +9,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/suspend/rockchip-rk3506.h>
 
 / {
 	#address-cells = <1>;
@@ -345,6 +346,27 @@
 			ftrace-size = <0x0>;
 			record-size = <0x0>;
 		};
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-config";
+		status = "okay";
+
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_ARMOFF_DDRPD
+			| RKPM_24M_OSC_DIS
+			| RKPM_32K_CLK
+			| RKPM_32K_SRC_RC
+			| RKPM_SLP_RC_PWM1_CH(1)
+			)
+		>;
+
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WAKEUP_EN
+			)
+		>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
