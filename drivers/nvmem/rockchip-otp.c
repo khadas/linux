@@ -25,6 +25,7 @@
 #define OTPC_SBPI_CMD_VALID_PRE		0x0024
 #define OTPC_SBPI_CS_VALID_PRE		0x0028
 #define OTPC_SBPI_STATUS		0x002C
+#define OTPC_LOCK_CTRL			0x0050
 #define OTPC_USER_CTRL			0x0100
 #define OTPC_USER_ADDR			0x0104
 #define OTPC_USER_ENABLE		0x0108
@@ -59,6 +60,8 @@
 #define OTPC_USE_USER_MASK		GENMASK(16, 16)
 #define OTPC_USER_FSM_ENABLE		BIT(0)
 #define OTPC_USER_FSM_ENABLE_MASK	GENMASK(16, 16)
+#define OTPC_LOCK			BIT(0)
+#define OTPC_LOCK_MASK			GENMASK(16, 16)
 #define OTPC_SBPI_DONE			BIT(1)
 #define OTPC_USER_DONE			BIT(2)
 
@@ -456,12 +459,6 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 		goto out;
 	}
 
-	ret = rockchip_otp_reset(otp);
-	if (ret) {
-		dev_err(otp->dev, "failed to reset otp phy\n");
-		goto disable_clks;
-	}
-
 	ret = px30_otp_ecc_enable(otp, true);
 	if (ret < 0) {
 		dev_err(otp->dev, "rockchip_otp_ecc_enable err\n");
@@ -471,6 +468,7 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 	writel(OTPC_USE_USER | OTPC_USE_USER_MASK, otp->base + OTPC_USER_CTRL);
 	udelay(5);
 	while (addr_len--) {
+		writel(OTPC_LOCK | OTPC_LOCK_MASK, otp->base + OTPC_LOCK_CTRL);
 		writel(addr_start++ | OTPC_USER_ADDR_MASK,
 		       otp->base + OTPC_USER_ADDR);
 		writel(OTPC_USER_FSM_ENABLE | OTPC_USER_FSM_ENABLE_MASK,
@@ -489,11 +487,14 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 		out_value = readl(otp->base + OTPC_USER_Q);
 		memcpy(&buf[i], &out_value, RK3568_NBYTES);
 		i += RK3568_NBYTES;
+		writel(OTPC_LOCK_MASK, otp->base + OTPC_LOCK_CTRL);
 	}
 
 	memcpy(val, buf + addr_offset, bytes);
 
 read_end:
+	if (ret)
+		writel(OTPC_LOCK_MASK, otp->base + OTPC_LOCK_CTRL);
 	writel(0x0 | OTPC_USE_USER_MASK, otp->base + OTPC_USER_CTRL);
 disable_clks:
 	clk_bulk_disable_unprepare(otp->num_clks, otp->clks);
