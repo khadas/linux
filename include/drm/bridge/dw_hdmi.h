@@ -164,6 +164,7 @@ struct dw_hdmi_qp_phy_ops {
 	void (*setup_hpd)(struct dw_hdmi_qp *hdmi, void *data);
 	void (*set_mode)(struct dw_hdmi_qp *dw_hdmi, void *data,
 			 u32 mode_mask, bool enable);
+	void (*set_ffe)(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe);
 };
 
 struct dw_hdmi_property_ops {
@@ -271,6 +272,7 @@ struct dw_hdmi_plat_data {
 	void (*set_hdcp14_mem)(void *data, bool enable);
 	struct drm_display_mode *(*get_force_timing)(void *data);
 	u32 (*get_refclk_rate)(void *data);
+	void (*force_frl_rate)(void *data, u8 rate);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;

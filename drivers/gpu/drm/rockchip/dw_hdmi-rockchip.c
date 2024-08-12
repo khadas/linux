@@ -298,6 +298,7 @@ struct rockchip_hdmi {
 	enum rk_if_color_format hdmi_output;
 	struct rockchip_drm_sub_dev sub_dev;
 
+	u64 force_frl_rate;
 	u8 max_frl_rate_per_lane;
 	u8 max_lanes;
 	u8 add_func;
@@ -1415,7 +1416,12 @@ static irqreturn_t rk3576_hdmi_thread(int irq, void *dev_id)
 
 	if (stat) {
 		hdmi->hpd_stat = true;
-		msecs = 150;
+		/*
+		 * Responding to hpd too early will cause the hdmi frl
+		 * hfr1-10 test to fail. The ln3 value of TE should have
+		 * been 3 but changed to 0.
+		 */
+		msecs = 450;
 	} else {
 		hdmi->hpd_stat = false;
 		msecs = 20;
@@ -2566,6 +2572,45 @@ dw_hdmi_rockchip_check_color(struct drm_connector_state *conn_state,
 }
 
 static int
+dw_hdmi_get_lane_cfg_by_frl_rate(struct rockchip_hdmi *hdmi, u64 rate,
+				 u8 *rate_per_lane, u8 *lanes)
+{
+	switch (rate) {
+	case 48000000:
+		*rate_per_lane = 12;
+		*lanes = 4;
+		break;
+	case 40000000:
+		*rate_per_lane = 10;
+		*lanes = 4;
+		break;
+	case 32000000:
+		*rate_per_lane = 8;
+		*lanes = 4;
+		break;
+	case 24000000:
+		*rate_per_lane = 6;
+		*lanes = 4;
+		break;
+	case 18000000:
+		*rate_per_lane = 6;
+		*lanes = 3;
+		break;
+	case 9000000:
+		*rate_per_lane = 3;
+		*lanes = 3;
+		break;
+	default:
+		dev_err(hdmi->dev, "%s frl rate is out of range, set to 40G\n", __func__);
+		*rate_per_lane = 10;
+		*lanes = 4;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
 dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
@@ -2603,10 +2648,22 @@ secondary:
 		hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
 
 		if (hdmi->link_cfg.frl_mode) {
-			/* in the current version, support max 40G frl */
-			if (hdmi->link_cfg.rate_per_lane >= 10) {
+			/* if current frl training failed, set lower frl rate */
+			if (hdmi->force_frl_rate) {
+				u8 rate_per_lane, frl_lanes;
+
+				dw_hdmi_get_lane_cfg_by_frl_rate(hdmi, hdmi->force_frl_rate,
+								 &rate_per_lane, &frl_lanes);
+
+				if (hdmi->link_cfg.rate_per_lane > rate_per_lane)
+					hdmi->link_cfg.rate_per_lane = rate_per_lane;
+
+				if (hdmi->link_cfg.frl_lanes > frl_lanes)
+					hdmi->link_cfg.frl_lanes = frl_lanes;
+			/* 40G is preferred */
+			} else if (hdmi->link_cfg.rate_per_lane >= 12) {
 				hdmi->link_cfg.frl_lanes = 4;
-				hdmi->link_cfg.rate_per_lane = 10;
+				hdmi->link_cfg.rate_per_lane = 12;
 			}
 			bus_width = hdmi->link_cfg.frl_lanes *
 				hdmi->link_cfg.rate_per_lane * 1000000;
@@ -2983,6 +3040,22 @@ static u32 dw_hdmi_rockchip_get_refclk_rate(void *data)
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
 	return clk_get_rate(hdmi->hdmitx_ref);
+}
+
+static void dw_hdmi_rockchip_force_frl_rate(void *data, u8 rate)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u64 bus_width = rate * 1000000;
+
+	if (!bus_width) {
+		hdmi->force_frl_rate = 0;
+		return;
+	}
+	hdmi->phy_bus_width &= ~DATA_RATE_MASK;
+	hdmi->phy_bus_width |= bus_width;
+	hdmi->force_frl_rate = bus_width;
+
+	phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
 }
 
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
@@ -3666,6 +3739,7 @@ static void dw_hdmi_rk3576_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 	      HIWORD_UPDATE(0, RK3576_HDMITX_HPD_INT_MSK);
 
 	regmap_write(hdmi->regmap, RK3576_IOC_MISC_CON0, val);
+	regmap_write(hdmi->regmap, 0xa404, 0xffff0102);
 }
 
 static void rk3588_io_path_init(struct rockchip_hdmi *hdmi)
@@ -3769,6 +3843,16 @@ static void dw_hdmi_rk3588_phy_set_mode(struct dw_hdmi_qp *dw_hdmi, void *data,
 		hdmi->phy_bus_width &= ~mode_mask;
 
 	phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
+}
+
+static void dw_hdmi_qp_rockchip_phy_set_ffe(struct dw_hdmi_qp *dw_hdmi, void *data, u8 ffe)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!hdmi->phy)
+		return;
+
+	phy_set_mode_ext(hdmi->phy, 0, ffe);
 }
 
 static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
@@ -3926,6 +4010,7 @@ static const struct dw_hdmi_qp_phy_ops rk3576_hdmi_phy_ops = {
 	.read_hpd	= dw_hdmi_rk3576_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3576_setup_hpd,
 	.set_mode       = dw_hdmi_rk3588_phy_set_mode,
+	.set_ffe        = dw_hdmi_qp_rockchip_phy_set_ffe,
 };
 
 static const struct rockchip_hdmi_chip_ops rk3576_hdmi_chip_ops = {
@@ -3962,6 +4047,7 @@ static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
 	.read_hpd	= dw_hdmi_rk3588_read_hpd,
 	.setup_hpd	= dw_hdmi_rk3588_setup_hpd,
 	.set_mode       = dw_hdmi_rk3588_phy_set_mode,
+	.set_ffe        = dw_hdmi_qp_rockchip_phy_set_ffe,
 };
 
 static const struct rockchip_hdmi_chip_ops rk3588_hdmi_chip_ops = {
@@ -4096,6 +4182,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_get_force_timing;
 	plat_data->get_refclk_rate =
 		dw_hdmi_rockchip_get_refclk_rate;
+	plat_data->force_frl_rate =
+		dw_hdmi_rockchip_force_frl_rate;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
