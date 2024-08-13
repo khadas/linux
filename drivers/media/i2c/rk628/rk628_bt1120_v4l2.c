@@ -328,6 +328,7 @@ static void rk628_bt1120_hdmirx_reset(struct v4l2_subdev *sd)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
+	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
 	disable_irq(bt1120->plugin_irq);
 	disable_irq(bt1120->hdmirx_irq);
 	rk628_hdmirx_controller_reset(bt1120->rk628);

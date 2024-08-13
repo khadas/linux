@@ -473,6 +473,7 @@ static void rk628_csi_hdmirx_reset(struct v4l2_subdev *sd)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
+	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 	disable_irq(csi->plugin_irq);
 	disable_irq(csi->hdmirx_irq);
 	rk628_hdmirx_controller_reset(csi->rk628);
