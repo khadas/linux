@@ -828,30 +828,44 @@ static int rga_mm_map_buffer(struct rga_external_buffer *external_buffer,
 static void rga_mm_kref_release_buffer(struct kref *ref)
 {
 	struct rga_internal_buffer *internal_buffer;
+	struct rga_mm *mm = rga_drvdata->mm;
 
 	internal_buffer = container_of(ref, struct rga_internal_buffer, refcount);
-	rga_mm_unmap_buffer(internal_buffer);
+	idr_remove(&mm->memory_idr, internal_buffer->handle);
+	mm->buffer_count--;
+	mutex_unlock(&mm->lock);
 
-	idr_remove(&rga_drvdata->mm->memory_idr, internal_buffer->handle);
+
+	rga_mm_unmap_buffer(internal_buffer);
 	kfree(internal_buffer);
-	rga_drvdata->mm->buffer_count--;
+
+	mutex_lock(&mm->lock);
+}
+
+/* Force release the current internal_buffer from the IDR. */
+static void rga_mm_force_releaser_buffer(struct rga_internal_buffer *buffer)
+{
+	struct rga_mm *mm = rga_drvdata->mm;
+
+	WARN_ON(!mutex_is_locked(&mm->lock));
+
+	idr_remove(&mm->memory_idr, buffer->handle);
+	mm->buffer_count--;
+
+	rga_mm_unmap_buffer(buffer);
+	kfree(buffer);
 }
 
 /*
  * Called at driver close to release the memory's handle references.
  */
-static int rga_mm_handle_remove(int id, void *ptr, void *data)
+static int rga_mm_buffer_destroy_for_idr(int id, void *ptr, void *data)
 {
 	struct rga_internal_buffer *internal_buffer = ptr;
 
-	rga_mm_kref_release_buffer(&internal_buffer->refcount);
+	rga_mm_force_releaser_buffer(internal_buffer);
 
 	return 0;
-}
-
-static void rga_mm_buffer_destroy(struct rga_internal_buffer *buffer)
-{
-	rga_mm_kref_release_buffer(&buffer->refcount);
 }
 
 static struct rga_internal_buffer *
@@ -2324,6 +2338,8 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		return internal_buffer->handle;
 	}
 
+	mutex_unlock(&mm->lock);
+
 	/* finally, map and cached external_buffer in rga_mm */
 	internal_buffer = kzalloc(sizeof(struct rga_internal_buffer), GFP_KERNEL);
 	if (internal_buffer == NULL) {
@@ -2340,6 +2356,7 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	kref_init(&internal_buffer->refcount);
 	internal_buffer->session = session;
 
+	mutex_lock(&mm->lock);
 	/*
 	 * Get the user-visible handle using idr. Preload and perform
 	 * allocation under our spinlock.
@@ -2350,6 +2367,8 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	if (new_id < 0) {
 		pr_err("internal_buffer alloc id failed!\n");
 		ret = new_id;
+
+		mutex_unlock(&mm->lock);
 		goto FREE_INTERNAL_BUFFER;
 	}
 
@@ -2361,16 +2380,15 @@ int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		rga_mm_dump_buffer(internal_buffer);
 	}
 
+	mutex_unlock(&mm->lock);
+
 	if (DEBUGGER_EN(TIME))
 		pr_info("handle[%d], import buffer cost %lld us\n",
 			internal_buffer->handle, ktime_us_delta(ktime_get(), timestamp));
 
-	mutex_unlock(&mm->lock);
-
 	return internal_buffer->handle;
 
 FREE_INTERNAL_BUFFER:
-	mutex_unlock(&mm->lock);
 	kfree(internal_buffer);
 
 	return ret;
@@ -2433,7 +2451,7 @@ int rga_mm_session_release_buffer(struct rga_session *session)
 		if (session == buffer->session) {
 			pr_err("[tgid:%d] Destroy handle[%d] when the user exits\n",
 			       session->tgid, buffer->handle);
-			rga_mm_buffer_destroy(buffer);
+			rga_mm_force_releaser_buffer(buffer);
 		}
 	}
 
@@ -2465,7 +2483,7 @@ int rga_mm_remove(struct rga_mm **mm_session)
 
 	mutex_lock(&mm->lock);
 
-	idr_for_each(&mm->memory_idr, &rga_mm_handle_remove, mm);
+	idr_for_each(&mm->memory_idr, &rga_mm_buffer_destroy_for_idr, mm);
 	idr_destroy(&mm->memory_idr);
 
 	mutex_unlock(&mm->lock);
