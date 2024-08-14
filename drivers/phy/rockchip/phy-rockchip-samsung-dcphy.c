@@ -2401,6 +2401,7 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, samsung);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	samsung->res = res;
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
