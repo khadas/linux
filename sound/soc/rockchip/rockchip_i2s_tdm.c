@@ -163,6 +163,8 @@ struct rk_i2s_tdm_dev {
 #ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
 	struct snd_soc_dai *clk_src_dai;
 	struct gpio_desc *tdm_fsync_gpio;
+	struct gpio_desc *fsxn_tx_gpio;
+	struct gpio_desc *fsxn_rx_gpio;
 	unsigned int tx_lanes;
 	unsigned int rx_lanes;
 	void __iomem *clk_src_base;
@@ -814,11 +816,58 @@ static int rockchip_i2s_tdm_multi_lanes_set_clk(struct snd_pcm_substream *substr
 	return 0;
 }
 
+static int rockchip_i2s_tdm_fsxn_start(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
+{
+	struct gpio_desc *fsn;
+	unsigned int msk, val;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		fsn = i2s_tdm->fsxn_tx_gpio;
+		msk = I2S_XFER_TXS_MASK;
+		val = I2S_XFER_TXS_START;
+	} else {
+		fsn = i2s_tdm->fsxn_rx_gpio;
+		msk = I2S_XFER_RXS_MASK;
+		val = I2S_XFER_RXS_START;
+	}
+
+	if (!fsn)
+		return -ENODEV;
+
+	regmap_update_bits(i2s_tdm->regmap, I2S_XFER, msk, val);
+	udelay(10);
+	gpiod_set_value(fsn, 1);
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_fsxn_stop(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
+{
+	struct gpio_desc *fsn;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		fsn = i2s_tdm->fsxn_tx_gpio;
+	else
+		fsn = i2s_tdm->fsxn_rx_gpio;
+
+	if (!fsn)
+		return -ENODEV;
+
+	gpiod_set_value(fsn, 0);
+
+	return 0;
+}
+
 static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 {
 	unsigned int tdm_h = 0, tdm_l = 0, i2s_h = 0, i2s_l = 0;
 	unsigned int msk, val, reg, fmt;
 	unsigned long flags;
+	int ret;
+
+	ret = rockchip_i2s_tdm_fsxn_start(i2s_tdm, stream);
+	if (ret == 0)
+		return 0;
 
 	if (!i2s_tdm->tdm_fsync_gpio || !i2s_tdm->i2s_lrck_gpio)
 		return -ENOSYS;
@@ -920,6 +969,25 @@ static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 		if ((val >= 1) && (val <= 4))
 			i2s_tdm->rx_lanes = val;
 	}
+
+	i2s_tdm->fsxn_rx_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "fsxn-rx",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(i2s_tdm->fsxn_rx_gpio)) {
+		ret = PTR_ERR(i2s_tdm->fsxn_rx_gpio);
+		dev_err(i2s_tdm->dev, "Failed to get fsxn_rx_gpio %d\n", ret);
+		return ret;
+	}
+
+	i2s_tdm->fsxn_tx_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "fsxn-tx",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(i2s_tdm->fsxn_tx_gpio)) {
+		ret = PTR_ERR(i2s_tdm->fsxn_tx_gpio);
+		dev_err(i2s_tdm->dev, "Failed to get fsxn_tx_gpio %d\n", ret);
+		return ret;
+	}
+
+	if (i2s_tdm->fsxn_rx_gpio || i2s_tdm->fsxn_tx_gpio)
+		dev_info(i2s_tdm->dev, "FSXN Mode\n");
 
 	/* It's optional, required when use soc clk src, such as: i2s2_2ch */
 	clk_src_node = of_parse_phandle(i2s_tdm->dev->of_node, "rockchip,clk-src", 0);
@@ -1098,6 +1166,10 @@ static void rockchip_i2s_tdm_xfer_stop(struct rk_i2s_tdm_dev *i2s_tdm,
 	udelay(150);
 
 	rockchip_i2s_tdm_clear(i2s_tdm, clr);
+
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	rockchip_i2s_tdm_fsxn_stop(i2s_tdm, stream);
+#endif
 
 	dev_dbg(i2s_tdm->dev, "%s: stream: %d force: %d\n",
 		__func__, stream, force);
