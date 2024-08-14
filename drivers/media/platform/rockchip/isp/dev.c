@@ -95,6 +95,10 @@ static unsigned int rkisp_wrap_line;
 module_param_named(wrap_line, rkisp_wrap_line, uint, 0644);
 MODULE_PARM_DESC(wrap_line, "rkisp wrap line for mpp");
 
+unsigned int rkisp_vicap_buf[DEV_MAX];
+module_param_array_named(vicap_raw_buf, rkisp_vicap_buf, uint, NULL, 0644);
+MODULE_PARM_DESC(vicap_raw_buf, "rkisp and vicap auto readback mode raw buf count");
+
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
@@ -276,13 +280,26 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 				struct media_entity *me,
 				bool prepare)
 {
-	int ret;
 	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
+	struct rkisp_hw_dev *hw = dev->hw_dev;
+	int ret;
 
 	if (WARN_ON(!p || !me))
 		return -EINVAL;
 	if (atomic_inc_return(&p->power_cnt) > 1)
 		return 0;
+
+	if (hw->is_assigned_clk)
+		rkisp_clk_dbg = true;
+	if (!(dev->isp_inp & (INP_RAWRD0 | INP_RAWRD2))) {
+		dev->is_rdbk_auto = rkisp_rdbk_auto;
+		if (dev->is_aiisp_en)
+			dev->is_rdbk_auto = true;
+		if (rkisp_vicap_buf[dev->dev_id] > RKISP_VICAP_BUF_CNT_MAX)
+			rkisp_vicap_buf[dev->dev_id] = RKISP_VICAP_BUF_CNT_MAX;
+		dev->vicap_buf_cnt = rkisp_vicap_buf[dev->dev_id];
+	}
+	dev->cap_dev.wait_line = rkisp_wait_line;
 
 	/* go through media graphic and get subdevs */
 	if (prepare) {
@@ -317,6 +334,7 @@ static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 	dev->hw_dev->isp_size[dev->dev_id].is_on = false;
 	if (dev->hw_dev->is_runing && (dev->isp_ver >= ISP_V30) && !rkisp_clk_dbg)
 		dev->hw_dev->is_dvfs = true;
+	dev->is_rdbk_auto = false;
 	return 0;
 }
 
@@ -1020,16 +1038,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	    rkisp_update_sensor_info(isp_dev) >= 0)
 		_set_pipeline_default_fmt(isp_dev, false);
 
-	if (isp_dev->hw_dev->is_assigned_clk)
-		rkisp_clk_dbg = true;
-
-	if (isp_dev->hw_dev->unite == ISP_UNITE_ONE &&
-	    !(isp_dev->isp_inp & INP_RAWRD2))
-		rkisp_rdbk_auto = true;
-
-	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
-	isp_dev->is_rdbk_auto = rkisp_rdbk_auto;
 	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(isp_dev->hw_dev->dev);
 	mutex_unlock(&isp_dev->hw_dev->dev_lock);

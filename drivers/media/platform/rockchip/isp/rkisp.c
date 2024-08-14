@@ -1820,6 +1820,7 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		rkisp_update_regs(dev, CIF_ISP_OUT_H_SIZE, CIF_ISP_OUT_V_SIZE);
 	}
 
+	dev->is_aiisp_upd = dev->is_aiisp_en;
 	rkisp_config_cmsk(dev);
 	rkisp_config_aiisp(dev);
 	return 0;
@@ -3730,6 +3731,32 @@ static void rkisp_aiisp_rd_start(struct rkisp_device *dev)
 		 "%s 0x%x:0x%x\n", __func__, ISP39_AIISP_LINE_CNT, val);
 }
 
+static int rkisp_set_offline_raw_buf_cnt(struct rkisp_device *dev, int *cnt)
+{
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD2)) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "offline raw to user, buf count no set by this\n");
+		return -EINVAL;
+	}
+	dev->vicap_buf_cnt = *cnt;
+	rkisp_vicap_buf[dev->dev_id] = *cnt;
+	return 0;
+}
+
+static int rkisp_get_offline_raw_buf_cnt(struct rkisp_device *dev, int *cnt)
+{
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD2)) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "offline raw to user, buf count no get by this\n");
+		return -EINVAL;
+	}
+	if (!dev->vicap_buf_cnt)
+		*cnt = RKISP_VICAP_BUF_CNT;
+	else
+		*cnt = dev->vicap_buf_cnt;
+	return 0;
+}
+
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -3883,6 +3910,12 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_CMD_AIISP_RD_START:
 		rkisp_aiisp_rd_start(isp_dev);
 		break;
+	case RKISP_CMD_SET_OFFLINE_RAW_BUFCNT:
+		ret = rkisp_set_offline_raw_buf_cnt(isp_dev, arg);
+		break;
+	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
+		ret = rkisp_get_offline_raw_buf_cnt(isp_dev, arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3970,6 +4003,14 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 		break;
 	case RKISP_CMD_GET_AIISP_LINECNT:
 		size = sizeof(struct rkisp_aiisp_cfg);
+		cp_t_us = true;
+		break;
+	case RKISP_CMD_SET_OFFLINE_RAW_BUFCNT:
+		size = sizeof(int);
+		cp_f_us = true;
+		break;
+	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
+		size = sizeof(int);
 		cp_t_us = true;
 		break;
 	default:
