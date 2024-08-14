@@ -857,6 +857,62 @@ static int dlp_process(struct snd_soc_component *component,
 	return ret;
 }
 
+/*
+ * MSB check
+ * channel id
+ * as much as more 0/1 stress
+ */
+#define PATTERN8(x)	(0xa0 | (x))
+#define PATTERN16(x)	(0xab00 | (x))
+#define PATTERN32(x)	(0xabcabc00 | (x))
+
+static void snd_fill_pattern_frame(char *buf, int bits, int ch)
+{
+	unsigned char *ptr8 = (unsigned char *)buf;
+	unsigned short *ptr16 = (unsigned short *)buf;
+	unsigned int *ptr32 = (unsigned int *)buf;
+	int i = 0;
+
+	switch (bits) {
+	case 8:
+		for (i = 0; i < ch; i++)
+			ptr8[i] = PATTERN8(i + 1);
+		break;
+	case 16:
+		for (i = 0; i < ch; i++)
+			ptr16[i] = PATTERN16(i + 1);
+		break;
+	case 32:
+		for (i = 0; i < ch; i++)
+			ptr32[i] = PATTERN32(i + 1);
+		break;
+	default:
+		pr_err("invalid bits: %d\n", bits);
+		break;
+	}
+}
+
+static int snd_fill_pattern(struct snd_pcm_substream *substream,
+			    int channels, unsigned long hwoff,
+			    unsigned long bytes)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_uframes_t frames;
+	void *buf;
+	int i = 0;
+
+	buf = runtime->dma_area + hwoff +
+	      channels * (runtime->dma_bytes / runtime->channels);
+	frames = bytes_to_frames(runtime, bytes);
+
+	for (i = 0; i < frames; i++) {
+		snd_fill_pattern_frame(buf, runtime->sample_bits, runtime->channels);
+		buf += frames_to_bytes(runtime, 1);
+	}
+
+	return 0;
+}
+
 int dlp_copy_user(struct snd_soc_component *component,
 		  struct snd_pcm_substream *substream,
 		  int channel, unsigned long hwoff,
@@ -874,9 +930,12 @@ int dlp_copy_user(struct snd_soc_component *component,
 	dma_ptr = runtime->dma_area + hwoff +
 		  channel * (runtime->dma_bytes / runtime->channels);
 
-	if (is_playback)
-		if (copy_from_user(dma_ptr, buf, bytes))
+	if (is_playback) {
+		if (IS_ENABLED(CONFIG_SND_PCM_PATTERN_DEBUG))
+			snd_fill_pattern(substream, channel, hwoff, bytes);
+		else if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
+	}
 
 	ret = dlp_process(component, substream, hwoff, buf, bytes);
 	if (!ret)
