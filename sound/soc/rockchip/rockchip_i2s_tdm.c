@@ -333,13 +333,13 @@ static void rockchip_i2s_tdm_px30_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm, b
 	unsigned int gate_reg = 0, gate_val = 0, sel_reg = 0;
 
 	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
+	case TRCM_TX:
 		sel_reg  = PX30_CLKSEL_CON28_I2S0_TX;
 		gate_reg = PX30_CLKGATE_CON9;
 		gate_val = en ? PX30_CLKGATE_CON9_I2S0_TX_PLL_EN :
 				PX30_CLKGATE_CON9_I2S0_TX_PLL_DIS;
 		break;
-	case I2S_CKR_TRCM_RXONLY:
+	case TRCM_RX:
 		sel_reg  = PX30_CLKSEL_CON58_I2S0_RX;
 		gate_reg = PX30_CLKGATE_CON17;
 		gate_val = en ? PX30_CLKGATE_CON17_I2S0_RX_PLL_EN :
@@ -355,13 +355,13 @@ static void rockchip_i2s_tdm_rk1808_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 	unsigned int gate_reg = 0, gate_val = 0, sel_reg = 0;
 
 	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
+	case TRCM_TX:
 		sel_reg  = RK1808_CLKSEL_CON32_I2S0_TX;
 		gate_reg = RK1808_CLKGATE_CON17;
 		gate_val = en ? RK1808_CLKGATE_CON17_I2S0_TX_PLL_EN :
 				RK1808_CLKGATE_CON17_I2S0_TX_PLL_DIS;
 		break;
-	case I2S_CKR_TRCM_RXONLY:
+	case TRCM_RX:
 		sel_reg  = RK1808_CLKSEL_CON34_I2S0_RX;
 		gate_reg = RK1808_CLKGATE_CON18;
 		gate_val = en ? RK1808_CLKGATE_CON18_I2S0_RX_PLL_EN :
@@ -380,13 +380,13 @@ static void rockchip_i2s_tdm_rk3308_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 	switch (i2s_tdm->id) {
 	case 0:
 		switch (i2s_tdm->clk_trcm) {
-		case I2S_CKR_TRCM_TXONLY:
+		case TRCM_TX:
 			sel_reg  = RK3308_CLKSEL_CON52_I2S0_TX;
 			gate_reg = RK3308_CLKGATE_CON10;
 			gate_val = en ? RK3308_CLKGATE_CON10_I2S0_TX_PLL_EN :
 					RK3308_CLKGATE_CON10_I2S0_TX_PLL_DIS;
 			break;
-		case I2S_CKR_TRCM_RXONLY:
+		case TRCM_RX:
 			sel_reg  = RK3308_CLKSEL_CON54_I2S0_RX;
 			gate_reg = RK3308_CLKGATE_CON11;
 			gate_val = en ? RK3308_CLKGATE_CON11_I2S0_RX_PLL_EN :
@@ -396,13 +396,13 @@ static void rockchip_i2s_tdm_rk3308_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 		break;
 	case 1:
 		switch (i2s_tdm->clk_trcm) {
-		case I2S_CKR_TRCM_TXONLY:
+		case TRCM_TX:
 			sel_reg  = RK3308_CLKSEL_CON56_I2S1_TX;
 			gate_reg = RK3308_CLKGATE_CON11;
 			gate_val = en ? RK3308_CLKGATE_CON11_I2S1_TX_PLL_EN :
 					RK3308_CLKGATE_CON11_I2S1_TX_PLL_DIS;
 			break;
-		case I2S_CKR_TRCM_RXONLY:
+		case TRCM_RX:
 			sel_reg  = RK3308_CLKSEL_CON58_I2S1_RX;
 			gate_reg = RK3308_CLKGATE_CON11;
 			gate_val = en ? RK3308_CLKGATE_CON11_I2S1_RX_PLL_EN :
@@ -991,10 +991,10 @@ static int rockchip_i2s_tdm_xfer_with_gate(struct rk_i2s_tdm_dev *i2s_tdm)
 	struct clk *mclk = NULL;
 
 	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
+	case TRCM_TX:
 		mclk = i2s_tdm->mclk_tx;
 		break;
-	case I2S_CKR_TRCM_RXONLY:
+	case TRCM_RX:
 		mclk = i2s_tdm->mclk_rx;
 		break;
 	default:
@@ -1502,11 +1502,11 @@ static int rockchip_i2s_tdm_calibrate_mclk(struct rk_i2s_tdm_dev *i2s_tdm,
 	}
 
 	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
+	case TRCM_TX:
 		mclk_parent = i2s_tdm->mclk_tx_src;
 		mclk_freq = i2s_tdm->mclk_tx_freq;
 		break;
-	case I2S_CKR_TRCM_RXONLY:
+	case TRCM_RX:
 		mclk_parent = i2s_tdm->mclk_rx_src;
 		mclk_freq = i2s_tdm->mclk_rx_freq;
 		break;
