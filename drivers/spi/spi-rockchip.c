@@ -173,6 +173,8 @@
 
 #define ROCKCHIP_SPI_REGISTER_SIZE		0x1000
 
+#define ROCKCHIP_AUTOSUSPEND_TIMEOUT		500
+
 enum rockchip_spi_xfer_mode {
 	ROCKCHIP_SPI_DMA,
 	ROCKCHIP_SPI_IRQ,
@@ -1112,13 +1114,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (quirks_cfg)
 		rs->max_baud_div_in_cpha = quirks_cfg->max_baud_div_in_cpha;
 
-	if (!device_property_read_u32(&pdev->dev, "rockchip,autosuspend-delay-ms", &val)) {
-		if (val > 0) {
-			pm_runtime_set_autosuspend_delay(&pdev->dev, val);
-			pm_runtime_use_autosuspend(&pdev->dev);
-		}
-	}
-
+	device_property_read_u32(&pdev->dev, "rockchip,autosuspend-delay-ms", &val);
+	if (val <= 0)
+		val = ROCKCHIP_AUTOSUSPEND_TIMEOUT;
+	pm_runtime_set_autosuspend_delay(&pdev->dev, val);
+	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
