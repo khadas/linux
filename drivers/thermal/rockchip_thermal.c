@@ -2149,19 +2149,18 @@ static int rockchip_thermal_get_temp(struct thermal_zone_device *tz, int *out_te
 	return retval;
 }
 
-struct thermal_zone_device *tz;
+static struct thermal_zone_device  *g_tsensor_data_ptr;
 int rk_get_temperature(void)
 {
 	int temp;
 	int ret;
 
-	ret = rockchip_thermal_get_temp(tz, &temp);
+	ret = rockchip_thermal_get_temp(g_tsensor_data_ptr, &temp);
 		if (ret) {
 			pr_debug("rk_get_temp failed!\n");
 			return ret;
 		}
-
-	return temp / 1000;
+		return temp / 1000;
 }
 EXPORT_SYMBOL(rk_get_temperature);
 
@@ -2561,6 +2560,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	thermal->panic_nb.notifier_call = rockchip_thermal_panic;
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &thermal->panic_nb);
+	g_tsensor_data_ptr = thermal->sensors[0].tzd;
 
 	dev_info(&pdev->dev, "tsadc is probed successfully!\n");
 

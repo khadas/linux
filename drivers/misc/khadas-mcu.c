@@ -248,7 +248,7 @@ static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
 	}
 }
 
-//extern int rk_get_temperature(void);
+extern int rk_get_temperature(void);
 
 static void fan_work_func(struct work_struct *_work)
 {
@@ -257,7 +257,7 @@ static void fan_work_func(struct work_struct *_work)
 		struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
 
 		if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
-			//temp = rk_get_temperature();
+			temp = rk_get_temperature();
 		} else {
 			temp = fan_data->trig_temp_level0;
 		}
@@ -401,7 +401,7 @@ static ssize_t show_fan_temp(struct class *cls,
 	int temp = -EINVAL;
 
 	if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
-		//temp = rk_get_temperature();
+		temp = rk_get_temperature();
 	} else {
 		temp = fan_data->trig_temp_level0;
 	}
@@ -426,7 +426,7 @@ void fan_level_set(struct mcu_data *ug_mcu_data)
 	int temp = -EINVAL;
 
 	if (ug_mcu_data->board == KHADAS_BOARD_EDGE2) {
-		//temp = rk_get_temperature();
+		temp = rk_get_temperature();
 	} else {
 		temp = fan_data->trig_temp_level0;
 	}
