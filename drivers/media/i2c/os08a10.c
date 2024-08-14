@@ -70,6 +70,10 @@
 #define	ANALOG_GAIN_DEFAULT		1024
 
 #define OS08A10_REG_GROUP	0x3208
+#define OS08A10_REG_FLIP	0x3820
+#define OS08A10_REG_MIRROR	0x3821
+#define MIRROR_BIT_MASK			BIT(2)
+#define FLIP_BIT_MASK			BIT(2)
 
 #define OS08A10_REG_TEST_PATTERN		0x5081
 #define	OS08A10_TEST_PATTERN_ENABLE	0x08
@@ -125,6 +129,7 @@ struct os08a10_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u8 hdr_mode;
 };
 
 struct os08a10 {
@@ -351,9 +356,6 @@ static const struct regval os08a10_global_regs[] = {
 	{0x4d03, 0xc6},
 	{0x4d04, 0x4a},
 	{0x4d05, 0x25},
-
-	//{0x0100, 0x01},
-
 	{REG_NULL, 0x00},
 };
 
@@ -383,8 +385,6 @@ static const struct regval os08a10_3840x2160_regs_4lane[] = {
 	{0x3501, 0x06},
 	{0x3502, 0xca},
 	{0x4837, 0x10},
-	//{0x0100, 0x01},
-
 	{REG_NULL, 0x00},
 };
 
@@ -401,6 +401,7 @@ static const struct os08a10_mode supported_modes_4lane[] = {
 		.hts_def = 0x898 * 2,
 		.vts_def = 0x08c6,
 		.reg_list = os08a10_3840x2160_regs_4lane,
+		.hdr_mode = NO_HDR,
 	},
 };
 
@@ -569,7 +570,7 @@ os08a10_find_best_fit(struct os08a10 *os08a10,
 }
 
 static int os08a10_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
@@ -585,7 +586,7 @@ static int os08a10_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&os08a10->mutex);
 		return -ENOTTY;
@@ -607,7 +608,7 @@ static int os08a10_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int os08a10_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
@@ -616,7 +617,7 @@ static int os08a10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&os08a10->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 #else
 		mutex_unlock(&os08a10->mutex);
 		return -ENOTTY;
@@ -633,7 +634,7 @@ static int os08a10_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int os08a10_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index != 0)
@@ -644,7 +645,7 @@ static int os08a10_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int os08a10_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
@@ -711,12 +712,23 @@ static void os08a10_set_awb_cfg(struct os08a10 *os08a10,
 static long os08a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
+	struct rkmodule_hdr_cfg *hdr;
 	long ret = 0;
 	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		os08a10_get_module_inf(os08a10, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		hdr->esp.mode = HDR_NORMAL_VC;
+		hdr->hdr_mode = os08a10->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		if (hdr->hdr_mode != 0)
+			ret = -1;
 		break;
 	case RKMODULE_AWB_CFG:
 		os08a10_set_awb_cfg(os08a10, (struct rkmodule_awb_cfg *)arg);
@@ -747,6 +759,7 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *awb_cfg;
+	struct rkmodule_hdr_cfg *hdr;
 	long ret;
 	u32 stream = 0;
 
@@ -759,9 +772,42 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = os08a10_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, hdr);
+		if (!ret) {
+			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(hdr);
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, hdr);
+		kfree(hdr);
 		break;
 	case RKMODULE_AWB_CFG:
 		awb_cfg = kzalloc(sizeof(*awb_cfg), GFP_KERNEL);
@@ -770,15 +816,19 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(awb_cfg, up, sizeof(*awb_cfg));
-		if (!ret)
-			ret = os08a10_ioctl(sd, cmd, awb_cfg);
+		if (copy_from_user(awb_cfg, up, sizeof(*awb_cfg))) {
+			kfree(awb_cfg);
+			return -EFAULT;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, awb_cfg);
 		kfree(awb_cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = os08a10_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = os08a10_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -881,7 +931,7 @@ static int os08a10_s_power(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = os08a10->client;
 	int ret = 0;
 
-	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
+	dev_dbg(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
 
 	mutex_lock(&os08a10->mutex);
 
@@ -907,12 +957,10 @@ static int os08a10_s_power(struct v4l2_subdev *sd, int on)
 		/* export gpio */
 		if (!IS_ERR(os08a10->reset_gpio))
 			gpiod_export(os08a10->reset_gpio, false);
-		if (!IS_ERR(os08a10->pwdn_gpio))
-			gpiod_export(os08a10->pwdn_gpio, false);
-	} else {
-		pm_runtime_put(&client->dev);
-		os08a10->power_on = false;
-	}
+		} else {
+			pm_runtime_put(&client->dev);
+			os08a10->power_on = false;
+		}
 
 unlock_and_return:
 	mutex_unlock(&os08a10->mutex);
@@ -963,14 +1011,9 @@ static int __os08a10_power_on(struct os08a10 *os08a10)
 	if (!IS_ERR(os08a10->reset_gpio))
 		gpiod_set_value_cansleep(os08a10->reset_gpio, 1);
 
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os08a10->pwdn_gpio, 1);
-
 	/* export gpio */
 	if (!IS_ERR(os08a10->reset_gpio))
 		gpiod_export(os08a10->reset_gpio, false);
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_export(os08a10->pwdn_gpio, false);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = os08a10_cal_delay(8192);
@@ -989,11 +1032,9 @@ static void __os08a10_power_off(struct os08a10 *os08a10)
 	int ret;
 	struct device *dev = &os08a10->client->dev;
 
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os08a10->pwdn_gpio, 0);
 	clk_disable_unprepare(os08a10->xvclk);
 	if (!IS_ERR(os08a10->reset_gpio))
-		gpiod_set_value_cansleep(os08a10->reset_gpio, 0);
+		gpiod_set_value_cansleep(os08a10->reset_gpio, 1);
 	if (!IS_ERR_OR_NULL(os08a10->pins_sleep)) {
 		ret = pinctrl_select_state(os08a10->pinctrl,
 					   os08a10->pins_sleep);
@@ -1031,7 +1072,7 @@ static int os08a10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 	const struct os08a10_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&os08a10->mutex);
@@ -1049,7 +1090,7 @@ static int os08a10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 static int os08a10_enum_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_state *sd_state,
 				       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
@@ -1057,12 +1098,11 @@ static int os08a10_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= os08a10->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != OS08A10_MEDIA_BUS_FMT)
-		//return -EINVAL;
-
+	fie->code = OS08A10_MEDIA_BUS_FMT;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
+	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
 	return 0;
 }
 
@@ -1070,13 +1110,8 @@ static int os08a10_g_mbus_config(struct v4l2_subdev *sd,
 				unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
-	u32 val = 0;
-
-	val = 1 << (OS08A10_LANES - 1) |
-	      V4L2_MBUS_CSI2_CHANNEL_0 |
-	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->flags = val;
+	config->bus.mipi_csi2.num_data_lanes = OS08A10_LANES;
 
 	return 0;
 }
@@ -1126,6 +1161,7 @@ static int os08a10_set_ctrl(struct v4l2_ctrl *ctrl)
 					       struct os08a10, ctrl_handler);
 	struct i2c_client *client = os08a10->client;
 	s64 max;
+	u32 val = 0;
 	int ret = 0;
 
 	/* Propagate change of current control to all related controls */
@@ -1158,13 +1194,36 @@ static int os08a10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 OS08A10_GAIN_H_MASK);
 		break;
 	case V4L2_CID_VBLANK:
-
 		ret = os08a10_write_reg(os08a10->client, OS08A10_REG_VTS,
 					OS08A10_REG_VALUE_16BIT,
 					ctrl->val + os08a10->cur_mode->height);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = os08a10_enable_test_pattern(os08a10, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		ret = os08a10_read_reg(os08a10->client, OS08A10_REG_MIRROR,
+				       OS08A10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= MIRROR_BIT_MASK;
+		else
+			val &= ~MIRROR_BIT_MASK;
+		ret |= os08a10_write_reg(os08a10->client, OS08A10_REG_MIRROR,
+					OS08A10_REG_VALUE_08BIT,
+					val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = os08a10_read_reg(os08a10->client, OS08A10_REG_FLIP,
+				       OS08A10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= FLIP_BIT_MASK;
+		else
+			val &= ~FLIP_BIT_MASK;
+		ret |= os08a10_write_reg(os08a10->client, OS08A10_REG_FLIP,
+					OS08A10_REG_VALUE_08BIT,
+					val);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1362,17 +1421,9 @@ static int os08a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	os08a10->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
-	if (IS_ERR(os08a10->power_gpio))
-		dev_warn(dev, "Failed to get power-gpios, maybe no use\n");
-
-	os08a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	os08a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(os08a10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios, maybe no use\n");
-
-	os08a10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(os08a10->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
 	ret = os08a10_configure_regulators(os08a10);
 	if (ret) {
@@ -1412,7 +1463,7 @@ static int os08a10_probe(struct i2c_client *client,
 
 	ret = os08a10_check_sensor_id(os08a10, client);
 	if (ret < 0) {
-		dev_info(&client->dev, "%s(%d) Check id  failed,\n"
+		dev_err(&client->dev, "%s(%d) Check id  failed,\n"
 			  "check following information:\n"
 			  "Power/PowerDown/Reset/Mclk/I2cBus !!\n",
 			  __func__, __LINE__);
@@ -1442,7 +1493,7 @@ static int os08a10_probe(struct i2c_client *client,
 		 os08a10->module_index, facing,
 		 OS08A10_NAME, dev_name(sd->dev));
 
-	ret = v4l2_async_register_subdev_sensor_common(sd);
+	ret = v4l2_async_register_subdev_sensor(sd);
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1468,7 +1519,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int os08a10_remove(struct i2c_client *client)
+static void os08a10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct os08a10 *os08a10 = to_os08a10(sd);
@@ -1484,8 +1535,6 @@ static int os08a10_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		__os08a10_power_off(os08a10);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
