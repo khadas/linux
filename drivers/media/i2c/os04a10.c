@@ -222,9 +222,9 @@ static const struct regval os04a10_global_regs[] = {
 	{0x340c, 0x0c},
 	{0x340d, 0xb0},
 	{0x3425, 0x51},
-	{0x3426, 0x50},
-	{0x3427, 0x15},
-	{0x3428, 0x50},
+	{0x3426, 0x10},
+	{0x3427, 0x14},
+	{0x3428, 0x10},
 	{0x3429, 0x10},
 	{0x342a, 0x10},
 	{0x342b, 0x04},
@@ -2521,7 +2521,7 @@ static int os04a10_initialize_controls(struct os04a10 *os04a10)
 			0, PIXEL_RATE_WITH_648M,
 			1, dst_pixel_rate);
 
-	__v4l2_ctrl_s_ctrl(os04a10->link_freq, dst_link_freq);
+	v4l2_ctrl_s_ctrl(os04a10->link_freq, dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	os04a10->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,

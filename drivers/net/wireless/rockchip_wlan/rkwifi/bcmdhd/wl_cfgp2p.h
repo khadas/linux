@@ -476,9 +476,11 @@ wl_cfg80211_abort_action_frame(struct bcm_cfg80211 *cfg, struct net_device *dev,
  * instead of channel in actframe iovar.
  */
 #define FW_MAJOR_VER_ACTFRAME_CHSPEC    14
+#define FW_MAJOR_VER_ACTFRAME_CHSPEC_PORTED(ver)  \
+	((ver.wlc_ver_major == 12) && (ver.wlc_ver_minor >= 3))
 
 #ifdef BCMDBUS
 int
 wl_cfgp2p_start_p2p_device_resume(dhd_pub_t *dhd);
 #endif /* BCMDBUS */
-#endif				/* _wl_cfgp2p_h_ */
+#endif /* _wl_cfgp2p_h_ */

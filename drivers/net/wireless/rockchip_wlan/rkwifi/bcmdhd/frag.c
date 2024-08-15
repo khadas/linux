@@ -56,7 +56,7 @@ bcm_tlv_dot11_defrag(const void *buf, uint buf_len, uint8 id, bool id_ext,
 	tot_data_len = tot_len;
 
 	/* copy out if output space permits */
-	if (out_left < tot_len) {
+	if ((out == NULL) || (out_left < tot_len)) {
 		err = BCME_BUFTOOSHORT;
 		out_left = 0; /* prevent further copy */
 	} else {
@@ -82,7 +82,7 @@ bcm_tlv_dot11_defrag(const void *buf, uint buf_len, uint8 id, bool id_ext,
 	while ((ie = bcm_next_tlv(ie, &buf_len)) &&
 			(ie->id == DOT11_MNG_FRAGMENT_ID)) {
 		/* note: buf_len starts at next ie and last frag may be partial */
-		if (out_left < ie->len) {
+		if ((out == NULL) || (out_left < ie->len)) {
 			err = BCME_BUFTOOSHORT;
 			out_left = 0;
 		} else {

@@ -13,12 +13,15 @@
 
 #include "rga_drv.h"
 
+#define RGA_CMD_REG_SIZE 256 /* 32 * 8 bit */
+
 enum job_flags {
 	RGA_JOB_DONE			= 1 << 0,
 	RGA_JOB_ASYNC			= 1 << 1,
 	RGA_JOB_SYNC			= 1 << 2,
 	RGA_JOB_USE_HANDLE		= 1 << 3,
 	RGA_JOB_UNSUPPORT_RGA_MMU	= 1 << 4,
+	RGA_JOB_DEBUG_FAKE_BUFFER	= 1 << 5,
 };
 
 void rga_job_scheduler_dump_info(struct rga_scheduler_t *scheduler);
@@ -35,6 +38,7 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *reque
 				       uint32_t id);
 
 int rga_request_commit(struct rga_request *user_request);
+void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler);
 void rga_request_session_destroy_abort(struct rga_session *session);
 int rga_request_put(struct rga_request *request);
 void rga_request_get(struct rga_request *request);

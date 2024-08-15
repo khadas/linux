@@ -44,6 +44,8 @@ typedef uint16 chanspec_subband_t;
 #define CH_MAX_2G_CHANNEL                14u    /* Max channel in 2G band */
 #define CH_MIN_2G_40M_CHANNEL             3u    /* Min 40MHz center channel in 2G band */
 #define CH_MAX_2G_40M_CHANNEL            11u    /* Max 40MHz center channel in 2G band */
+#define CH_MIN_5G_CHANNEL                34u    /* Min channel in 5G band */
+#define CH_MAX_5G_CHANNEL               177u    /* Max channel in 5G band */
 
 #define CH_MIN_6G_CHANNEL                 1u    /* Min 20MHz channel in 6G band */
 #define CH_MAX_6G_CHANNEL               253u    /* Max 20MHz channel in 6G band */
@@ -66,6 +68,9 @@ typedef uint16 chanspec_subband_t;
 
 #define INVCHANNEL                      255u    /* error value for a bad channel */
 
+/* channel 52 ~ 144 */
+#define CH_RADAR_CHANNEL_MIN            50
+#define CH_RADAR_CHANNEL_MAX            146
 /* length of channel vector bitmap is the MAXCHANNEL we want to handle rounded up to a byte */
 /* The actual CHANVEC_LEN fix is leading to high static memory impact
 * in all projects wherein the previous CHANVEC_LEN definition is used.

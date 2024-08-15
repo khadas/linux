@@ -263,6 +263,7 @@ static HAL_Status RKX11x_HAL_CRU_ClkSetFreq(struct hwclk *hw, uint32_t clockName
     uint32_t pll;
     uint8_t overMax = 0;
     HAL_Status ret = HAL_OK;
+    int i;
 
     if (clockName == RKX110_CLK_D_DSI_0_PATTERN_GEN ||
         clockName == RKX110_CLK_D_DSI_1_PATTERN_GEN) {
@@ -326,12 +327,21 @@ static HAL_Status RKX11x_HAL_CRU_ClkSetFreq(struct hwclk *hw, uint32_t clockName
 
             /* PLL change closest new rate <= 1200M if need */
             if (!pRate) {
-                pRate = (_MHZ(1200) / rate) * rate;
-            }
-
-            ret = RKX11x_HAL_CRU_ClkSetFreq(hw, pll, pRate);
-            if (ret != HAL_OK) {
-                return ret;
+               if (!rate || rate > _MHZ(1200))
+                  return HAL_ERROR;
+               for (i = _MHZ(1200) / rate; i > _MHZ(24) / rate; i--) {
+                  pRate = i * rate;
+                  ret = RKX11x_HAL_CRU_ClkSetFreq(hw, pll, pRate);
+                  if (ret == HAL_OK)
+                     break;
+               }
+               if (ret != HAL_OK)
+                  return ret;
+            } else {
+               ret = RKX11x_HAL_CRU_ClkSetFreq(hw, pll, pRate);
+               if (ret != HAL_OK) {
+                   return ret;
+               }
             }
 
             /* if success, continue to set divider */

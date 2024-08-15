@@ -47,6 +47,8 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 			"%s: fail to set pwr_mgmt0(%d)\n", __func__, result);
 		return result;
 	}
+	/*set powerdown will make scale change*/
+	sensor_write_reg(client, ICM4260X_GYRO_CONFIG0, 0x66);
 	/* Gyroscope needs to be kept ON for a minimum of 45ms */
 	usleep_range(45*1000, 45*1010);
 
@@ -64,10 +66,8 @@ static int sensor_init(struct i2c_client *client)
 	 * init on icm42607_acc.c
 	 */
 
-	/* set Full scale select for accelerometer UI interface output*/
-	value = sensor_read_reg(client, ICM4260X_GYRO_CONFIG0);
-	value &= ~BIT_GYRO_FSR;
-	value |= GYRO_FS_SEL << SHIFT_GYRO_FS_SEL;
+	/* set +/-2g scale select for accelerometer UI interface output*/
+	value = 0x66;
 	ret = sensor_write_reg(client, ICM4260X_GYRO_CONFIG0, value);
 	if (ret)
 		return ret;
@@ -182,7 +182,7 @@ static const struct i2c_device_id gyro_icm4260x_id[] = {
 
 static struct i2c_driver gyro_icm4260x_driver = {
 	.probe = gyro_icm4260x_probe,
-	.remove = gyro_icm4260x_remove,
+	.remove = (void *)gyro_icm4260x_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gyro_icm4260x_id,
 	.driver = {

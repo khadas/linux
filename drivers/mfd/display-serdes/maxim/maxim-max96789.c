@@ -342,25 +342,33 @@ static int max96789_bridge_init(struct serdes *serdes)
 
 static bool max96789_bridge_link_locked(struct serdes *serdes)
 {
-	u32 val;
+	u32 val = 0, i;
 
 	if (serdes->lock_gpio) {
-		val = gpiod_get_value_cansleep(serdes->lock_gpio);
-		SERDES_DBG_CHIP("%s: lock_gpio val=%d\n", __func__, val);
-		return val;
+		for (i = 0; i < 3; i++) {
+			val = gpiod_get_value_cansleep(serdes->lock_gpio);
+			if (val)
+				break;
+			msleep(20);
+		}
+
+		SERDES_DBG_CHIP("%s:%s-%s, gpio %s\n", __func__, dev_name(serdes->dev),
+		       serdes->chip_data->name, (val) ? "locked" : "unlocked");
+		if (val)
+			return true;
 	}
 
 	if (serdes_reg_read(serdes, 0x0013, &val)) {
-		SERDES_DBG_CHIP("%s: false val=%d\n", __func__, val);
+		SERDES_DBG_CHIP("serdes %s: unlocked val=0x%x\n", __func__, val);
 		return false;
 	}
 
 	if (!FIELD_GET(LOCKED, val)) {
-		SERDES_DBG_CHIP("%s: false val=%d\n", __func__, val);
+		SERDES_DBG_CHIP("serdes %s: unlocked val=0x%x\n", __func__, val);
 		return false;
 	}
 
-	SERDES_DBG_CHIP("%s: return true\n", __func__);
+	SERDES_DBG_CHIP("%s: serdes reg locked 0x%x\n", __func__, val);
 
 	return true;
 }
@@ -404,7 +412,9 @@ max96789_bridge_detect(struct serdes *serdes)
 
 out:
 	serdes_bridge->status = status;
-	SERDES_DBG_CHIP("%s: status=%d\n", __func__, status);
+	SERDES_DBG_CHIP("%s:%s %s, status=%d state=%d\n", __func__, dev_name(serdes->dev),
+			serdes->chip_data->name,
+			status, serdes->extcon->state);
 	return status;
 }
 

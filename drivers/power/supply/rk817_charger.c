@@ -1796,3 +1796,4 @@ module_exit(rk817_charge_exit);
 
 MODULE_DESCRIPTION("RK817 Charge driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:rk817-charger");

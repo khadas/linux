@@ -5,6 +5,9 @@
  * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 init first version.
+ * V0.0X01.0X01 update sensor driver.
+ * 1. adjust power sequence to suit spec.
+ * 2. fix bayer pattern to suit setting.
  */
 
 #include <linux/clk.h>
@@ -84,7 +87,7 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define GC05A2_NAME				"gc05a2"
-#define GC05A2_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SRGGB10_1X10
+#define GC05A2_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG10_1X10
 
 static const char * const gc05a2_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -1185,14 +1188,16 @@ static int __gc05a2_power_on(struct gc05a2 *gc05a2)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
-	if (!IS_ERR(gc05a2->reset_gpio))
-		gpiod_set_value_cansleep(gc05a2->reset_gpio, 0);
 
 	ret = regulator_bulk_enable(GC05A2_NUM_SUPPLIES, gc05a2->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
+	usleep_range(2000, 2100);
+
+	if (!IS_ERR(gc05a2->reset_gpio))
+		gpiod_set_value_cansleep(gc05a2->reset_gpio, 0);
 
 	usleep_range(1000, 1100);
 	if (!IS_ERR(gc05a2->reset_gpio))

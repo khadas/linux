@@ -157,6 +157,8 @@ struct cyttsp5_mt_platform_data {
 	char const *inp_dev_name;
 	int vkeys_x;
 	int vkeys_y;
+	int max_x;
+	int max_y;
 	int swap_x;
 	int swap_y;
 	int xy_exchange;

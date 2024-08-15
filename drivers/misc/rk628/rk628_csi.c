@@ -416,8 +416,15 @@ static void enable_stream(struct rk628 *rk628, bool en)
 
 void rk628_csi_init(struct rk628 *rk628)
 {
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-			      SW_OUTPUT_MODE_MASK, SW_OUTPUT_MODE(OUTPUT_MODE_CSI));
+	u32 mask = SW_OUTPUT_MODE_MASK;
+	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_CSI);
+
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_OUTPUT_COMBTX_MODE_MASK;
+		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_CSI - 1);
+	}
+
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 	rk628_csi_get_detected_timings(rk628);
 	mipi_dphy_reset(rk628);
 }

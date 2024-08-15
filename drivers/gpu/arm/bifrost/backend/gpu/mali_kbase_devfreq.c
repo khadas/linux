@@ -597,7 +597,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 			     &ondemand_data.upthreshold);
 	of_property_read_u32(np, "downdifferential",
 			     &ondemand_data.downdifferential);
-	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp, "simple_ondemand", NULL);
+	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp, "simple_ondemand", &ondemand_data);
 	if (IS_ERR(kbdev->devfreq)) {
 		err = PTR_ERR(kbdev->devfreq);
 		kbdev->devfreq = NULL;

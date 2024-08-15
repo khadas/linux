@@ -4,9 +4,11 @@
  */
 
 #include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk3588-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
@@ -335,6 +337,7 @@
 			clocks = <&cru I2S0_8CH_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "i2s0_mclkout_to_io";
+			power-domains = <&power RK3588_PD_AUDIO>;
 			rockchip,bit-shift = <0>;
 			rockchip,bit-set-to-disable;
 		};
@@ -364,6 +367,7 @@
 			clocks = <&cru I2S2_2CH_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "i2s2_mclkout_to_io";
+			power-domains = <&power RK3588_PD_AUDIO>;
 			rockchip,bit-shift = <2>;
 			rockchip,bit-set-to-disable;
 		};
@@ -374,6 +378,7 @@
 			clocks = <&cru I2S3_2CH_MCLKOUT>;
 			#clock-cells = <0>;
 			clock-output-names = "i2s3_mclkout_to_io";
+			power-domains = <&power RK3588_PD_AUDIO>;
 			rockchip,bit-shift = <7>;
 			rockchip,bit-set-to-disable;
 		};
@@ -700,8 +705,8 @@
 		rockchip,reboot-freq = <1416000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <750000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <1608000>;
 
@@ -965,8 +970,8 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <750000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
 
@@ -1298,8 +1303,8 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <750000>;
+		rockchip,low-temp = <15000>;
+		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
 
@@ -1764,7 +1769,7 @@
 			58	254	3
 		>;
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 
 		/* RK3588 dmc OPPs */
@@ -2186,6 +2191,7 @@
 			| RKPM_GPIO_WKUP_EN
 			)
 		>;
+		power-domains = <&power RK3588_PD_USB>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
@@ -2426,7 +2432,7 @@
 		intermediate-threshold-freq = <400000>;	/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
@@ -3519,7 +3525,7 @@
 		rockchip,init-freq = <1000000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
@@ -5102,7 +5108,7 @@
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>,
-			 <&hdptxphy_hdmi_clk0>;
+			 <&hdptxphy_hdmi0>;
 		clock-names = "pclk",
 			      "hpd",
 			      "earc",
@@ -5170,6 +5176,7 @@
 		phy-names = "dp";
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&vo1_grf>;
+		#sound-dai-cells = <1>;
 		status = "disabled";
 
 		ports {
@@ -5655,8 +5662,6 @@
 		interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
-		assigned-clocks = <&cru SCLK_SFC>;
-		assigned-clock-rates = <100000000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -5707,6 +5712,7 @@
 			 <&cru SRST_T_EMMC>;
 		reset-names = "core", "bus", "axi", "block", "timer";
 		max-frequency = <200000000>;
+		supports-cqe;
 		status = "disabled";
 	};
 
@@ -5747,6 +5753,7 @@
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,trcm-sync-tx-only;
+		i2s-lrck-gpio = <&gpio1 RK_PC5 GPIO_ACTIVE_HIGH>; /* i2s0_lrck */
 		pinctrl-names = "default", "idle", "clk";
 		pinctrl-0 = <&i2s0_sdi0
 			     &i2s0_sdi1
@@ -5772,6 +5779,7 @@
 		resets = <&cru SRST_M_I2S1_8CH_TX>, <&cru SRST_M_I2S1_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,trcm-sync-tx-only;
+		i2s-lrck-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>; /* i2s1m0_lrck */
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1m0_lrck
 			     &i2s1m0_sclk
@@ -6720,6 +6728,8 @@
 		reg = <0x0 0xfed60000 0x0 0x2000>;
 		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX0>;
 		clock-names = "ref", "apb";
+		clock-output-names = "clk_hdmiphy_pixel0";
+		#clock-cells = <0>;
 		resets = <&cru SRST_HDPTX0>, <&cru SRST_P_HDPTX0>,
 			 <&cru SRST_HDPTX0_INIT>, <&cru SRST_HDPTX0_CMN>,
 			 <&cru SRST_HDPTX0_LANE>, <&cru SRST_HDPTX0_ROPLL>,
@@ -6729,11 +6739,6 @@
 		rockchip,grf = <&hdptxphy0_grf>;
 		#phy-cells = <0>;
 		status = "disabled";
-
-		hdptxphy_hdmi_clk0: clk-port {
-			#clock-cells = <0>;
-			status = "okay";
-		};
 	};
 
 	usbdp_phy0: phy@fed80000 {

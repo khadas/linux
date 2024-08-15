@@ -63,7 +63,7 @@ uint sd_msglevel = SDH_ERROR_VAL;
 
 uint sd_hiok = TRUE;			/* Use hi-speed mode if available? */
 uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
-uint sd_f2_blocksize = 64;		/* Default blocksize */
+uint sd_f2_blocksize = 256;		/* Default blocksize */
 uint sd_f1_blocksize = BLOCK_SIZE_4318;		/* Default blocksize */
 
 #define sd3_trace(x)

@@ -9,6 +9,7 @@
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
+#include <linux/earlysuspend.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm_opp.h>
@@ -18,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
+#include <../drivers/devfreq/governor.h>
 
 #define CLUSTER0	0
 #define CLUSTER1	1
@@ -33,6 +36,12 @@ struct busfreq_table {
 	unsigned long volt;
 };
 
+struct relate_clk {
+	struct clk *clk;
+	unsigned long normal_rate;
+	unsigned long low_rate;
+};
+
 struct rockchip_bus {
 	struct device *dev;
 	struct regulator *regulator;
@@ -41,11 +50,22 @@ struct rockchip_bus {
 	struct notifier_block cpufreq_nb;
 	struct busfreq_table *freq_table;
 	struct rockchip_opp_info opp_info;
+	struct devfreq *devfreq;
+	struct monitor_dev_info *mdev_info;
+	struct opp_table *opp_table;
+	struct relate_clk *relate_clks;
+#if defined(CONFIG_ROCKCHIP_EARLYSUSPEND)
+	struct early_suspend early_suspend;
+	unsigned long early_suspend_rate;
+#endif
 
 	unsigned int max_state;
+	unsigned int num_relate_clks;
 
 	unsigned long cur_volt;
 	unsigned long cur_rate;
+	unsigned long target_rate;
+	unsigned long normal_rate;
 
 	/*
 	 * Busfreq-policy-cpufreq:
@@ -486,6 +506,308 @@ static int rockchip_bus_cpufreq(struct rockchip_bus *bus)
 	return 0;
 }
 
+static struct monitor_dev_profile bus_mdevp = {
+	.type = MONITOR_TYPE_DEV,
+	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+	.check_rate_volt = rockchip_monitor_check_rate_volt,
+};
+
+static int devfreq_bus_ondemand_func(struct devfreq *df, unsigned long *freq)
+{
+	struct rockchip_bus *bus = df->data;
+
+	if (bus && bus->target_rate)
+		*freq = bus->target_rate;
+	else
+		*freq = df->previous_freq;
+
+	return 0;
+}
+
+static int devfreq_bus_ondemand_handler(struct devfreq *devfreq,
+					unsigned int event, void *data)
+{
+	return 0;
+}
+
+static struct devfreq_governor devfreq_bus_ondemand = {
+	.name = "bus_ondemand",
+	.get_target_freq = devfreq_bus_ondemand_func,
+	.event_handler = devfreq_bus_ondemand_handler,
+};
+
+static int set_relate_clks_low(struct rockchip_bus *bus)
+{
+	int i, ret;
+
+	for (i = 0; i < bus->num_relate_clks; i++) {
+		struct clk *clk = bus->relate_clks[i].clk;
+		unsigned long rate = bus->relate_clks[i].low_rate;
+
+		ret = clk_set_rate(clk, rate);
+		if (ret) {
+			dev_err(bus->dev, "failed to set relate clk[%d] low\n", i);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int set_relate_clks_normal(struct rockchip_bus *bus)
+{
+	int i, ret;
+
+	for (i = 0; i < bus->num_relate_clks; i++) {
+		struct clk *clk = bus->relate_clks[i].clk;
+		unsigned long rate = bus->relate_clks[i].normal_rate;
+
+		ret = clk_set_rate(clk, rate);
+		if (ret) {
+			dev_err(bus->dev, "failed to set relate clk[%d] normal\n", i);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int bus_devfreq_target(struct device *dev, unsigned long *freq,
+			      u32 flags)
+{
+	struct rockchip_bus *bus = dev_get_drvdata(dev);
+	struct rockchip_opp_info *opp_info = &bus->opp_info;
+	struct dev_pm_opp *opp;
+	int ret = 0;
+
+	if (!opp_info->is_rate_volt_checked)
+		return -EINVAL;
+
+	opp = devfreq_recommended_opp(dev, freq, flags);
+	if (IS_ERR(opp)) {
+		dev_err(dev, "Failed to find opp for %lu Hz\n", *freq);
+		return PTR_ERR(opp);
+	}
+	dev_pm_opp_put(opp);
+
+	if (*freq == bus->cur_rate)
+		return 0;
+
+	if (*freq < bus->normal_rate) {
+		ret = set_relate_clks_low(bus);
+		if (ret) {
+			dev_err(dev, "failed to set relate clks low\n");
+			return ret;
+		}
+	}
+
+	rockchip_opp_dvfs_lock(opp_info);
+	ret = dev_pm_opp_set_rate(dev, *freq);
+	if (!ret) {
+		bus->cur_rate = *freq;
+		bus->devfreq->last_status.current_frequency = *freq;
+	}
+	rockchip_opp_dvfs_unlock(opp_info);
+
+	if (ret) {
+		dev_err(dev, "failed to set bus clk to %lu\n", *freq);
+		return ret;
+	}
+
+	if (*freq >= bus->normal_rate) {
+		ret = set_relate_clks_normal(bus);
+		if (ret)
+			dev_err(dev, "failed to set relate clks normal\n");
+	}
+
+	return ret;
+}
+
+static int bus_devfreq_get_dev_status(struct device *dev,
+				      struct devfreq_dev_status *stat)
+{
+	return 0;
+}
+
+static int bus_devfreq_get_cur_freq(struct device *dev,
+				    unsigned long *freq)
+{
+	struct rockchip_bus *bus = dev_get_drvdata(dev);
+
+	*freq = bus->cur_rate;
+
+	return 0;
+}
+
+static struct devfreq_dev_profile bus_devfreq_profile = {
+	.target	= bus_devfreq_target,
+	.get_dev_status	= bus_devfreq_get_dev_status,
+	.get_cur_freq = bus_devfreq_get_cur_freq,
+};
+
+static int parse_relate_clks(struct rockchip_bus *bus)
+{
+	struct device_node *node = bus->dev->of_node;
+	struct of_phandle_args clkspec;
+	struct property	*prop;
+	const __be32 *cur;
+	int rc, count, index = 0;
+	struct clk *clk;
+	u32 rate;
+
+	if (!of_find_property(node, "rockchip,relate-clocks", NULL))
+		return 0;
+
+	count = of_property_count_u32_elems(node, "rockchip,relate-clock-rates");
+	if (count <= 0)
+		return count;
+
+	bus->relate_clks = devm_kmalloc(bus->dev,
+					count * sizeof(struct relate_clk),
+					GFP_KERNEL);
+	if (!bus->relate_clks)
+		return -ENOMEM;
+
+	of_property_for_each_u32(node, "rockchip,relate-clock-rates", prop, cur, rate) {
+		rc = of_parse_phandle_with_args(node, "rockchip,relate-clocks",
+						"#clock-cells",	index, &clkspec);
+		if (rc < 0)
+			return rc;
+
+		clk = of_clk_get_from_provider(&clkspec);
+		of_node_put(clkspec.np);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
+
+		bus->relate_clks[index].clk = clk;
+		bus->relate_clks[index].low_rate = rate;
+		bus->relate_clks[index].normal_rate = clk_get_rate(clk);
+		index++;
+	}
+
+	bus->num_relate_clks = count;
+
+	return 0;
+}
+
+#ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
+static void bus_devfreq_early_suspend(struct early_suspend *h)
+{
+	struct rockchip_bus *bus;
+	int ret;
+
+	bus = container_of(h, struct rockchip_bus, early_suspend);
+
+	bus->target_rate = bus->early_suspend_rate;
+	mutex_lock(&bus->devfreq->lock);
+	ret = update_devfreq(bus->devfreq);
+	mutex_unlock(&bus->devfreq->lock);
+	if (ret)
+		dev_err(bus->dev, "failed to set rate %lu\n", bus->target_rate);
+}
+
+static void bus_devfreq_resume(struct early_suspend *h)
+{
+	struct rockchip_bus *bus;
+	int ret;
+
+	bus = container_of(h, struct rockchip_bus, early_suspend);
+
+	bus->target_rate = bus->normal_rate;
+	mutex_lock(&bus->devfreq->lock);
+	ret = update_devfreq(bus->devfreq);
+	mutex_unlock(&bus->devfreq->lock);
+	if (ret)
+		dev_err(bus->dev, "failed to set rate %lu\n", bus->target_rate);
+}
+#endif
+
+static int rockchip_bus_devfreq(struct rockchip_bus *bus)
+{
+	struct devfreq_dev_profile *dev_profile = &bus_devfreq_profile;
+	struct dev_pm_opp *opp;
+	int ret = 0;
+
+	bus->clk = devm_clk_get(bus->dev, "bus");
+	if (IS_ERR(bus->clk)) {
+		dev_err(bus->dev, "failed to get bus clock\n");
+		return PTR_ERR(bus->clk);
+	}
+
+	ret = parse_relate_clks(bus);
+	if (ret) {
+		dev_err(bus->dev, "failed to parse relate clks\n");
+		return ret;
+	}
+
+	ret = rockchip_init_opp_table(bus->dev, &bus->opp_info, NULL, "bus");
+	if (ret) {
+		dev_info(bus->dev, "Unsupported bus dvfs\n");
+		return ret;
+	}
+
+	bus->normal_rate = bus->cur_rate = clk_get_rate(bus->clk);
+	opp = devfreq_recommended_opp(bus->dev, &bus->cur_rate, 0);
+	if (IS_ERR(opp)) {
+		ret = PTR_ERR(opp);
+		goto err_remove_table;
+	}
+	dev_pm_opp_put(opp);
+	dev_profile->initial_freq = bus->cur_rate;
+	ret = devfreq_add_governor(&devfreq_bus_ondemand);
+	if (ret) {
+		dev_err(bus->dev, "failed to add bus_ondemand governor\n");
+		goto err_remove_table;
+	}
+
+	bus->devfreq = devm_devfreq_add_device(bus->dev, dev_profile, "bus_ondemand",
+						(void *)bus);
+	if (IS_ERR(bus->devfreq)) {
+		dev_err(bus->dev, "failed to add devfreq\n");
+		ret = PTR_ERR(bus->devfreq);
+		goto err_remove_governor;
+	}
+
+	bus_mdevp.data = bus->devfreq;
+	bus_mdevp.opp_info = &bus->opp_info;
+	bus->mdev_info = rockchip_system_monitor_register(bus->dev, &bus_mdevp);
+	if (IS_ERR(bus->mdev_info)) {
+		dev_dbg(bus->dev, "without system monitor\n");
+		bus->mdev_info = NULL;
+	}
+	bus->cur_rate = clk_get_rate(bus->clk);
+	bus->target_rate = bus->cur_rate;
+	bus->devfreq->previous_freq = bus->cur_rate;
+	if (bus->devfreq->suspend_freq)
+		bus->devfreq->resume_freq = bus->cur_rate;
+	bus->devfreq->last_status.current_frequency = bus->cur_rate;
+	bus->devfreq->last_status.total_time = 1;
+	bus->devfreq->last_status.busy_time = 1;
+
+#if defined(CONFIG_ROCKCHIP_EARLYSUSPEND)
+	ret = of_property_read_u32(bus->dev->of_node,
+				   "rockchip,early-suspend-rate",
+				   (u32 *)&bus->early_suspend_rate);
+	if (!ret) {
+		bus->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+		bus->early_suspend.suspend = bus_devfreq_early_suspend;
+		bus->early_suspend.resume = bus_devfreq_resume;
+		register_early_suspend(&bus->early_suspend);
+	}
+#endif
+
+	return 0;
+
+err_remove_governor:
+	devfreq_remove_governor(&devfreq_bus_ondemand);
+err_remove_table:
+	rockchip_uninit_opp_table(bus->dev, &bus->opp_info);
+
+	return ret;
+
+}
+
 static const struct of_device_id rockchip_busfreq_of_match[] = {
 	{ .compatible = "rockchip,px30-bus", },
 	{ .compatible = "rockchip,rk1808-bus", },
@@ -495,6 +817,7 @@ static const struct of_device_id rockchip_busfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3528-bus", },
 	{ .compatible = "rockchip,rk3562-bus", },
 	{ .compatible = "rockchip,rk3568-bus", },
+	{ .compatible = "rockchip,rk3576-bus", },
 	{ .compatible = "rockchip,rk3588-bus", },
 	{ .compatible = "rockchip,rv1126-bus", },
 	{ },
@@ -529,6 +852,8 @@ static int rockchip_busfreq_probe(struct platform_device *pdev)
 		ret = rockchip_bus_clkfreq(bus);
 	else if (!strcmp(policy_name, "cpufreq"))
 		ret = rockchip_bus_cpufreq(bus);
+	else if (!strcmp(policy_name, "devfreq"))
+		ret = rockchip_bus_devfreq(bus);
 
 	return ret;
 }

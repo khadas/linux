@@ -681,7 +681,9 @@ static int rk806_regulator_resume(struct regulator_dev *rdev)
 static int rk806_set_suspend_voltage_range(struct regulator_dev *rdev, int uv)
 {
 	struct rk806_regulator_data *pdata = rdev_get_drvdata(rdev);
-	int sel = regulator_map_voltage_linear_range(rdev, uv, uv);
+	int sel = regulator_map_voltage_linear_range(rdev,
+						     uv,
+						     rdev->constraints->max_uV);
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
 	int reg_offset;
@@ -725,6 +727,8 @@ static int rk806_set_voltage(struct regulator_dev *rdev,
 	int ret;
 	int sel;
 
+	if (req_min_uV == req_max_uV)
+		req_max_uV = rdev->constraints->max_uV;
 	ret = regulator_map_voltage_linear_range(rdev, req_min_uV, req_max_uV);
 	if (ret >= 0) {
 		*selector = ret;
@@ -1165,8 +1169,6 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 	int i;
 
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
-	rk806_field_write(rk806, PWRCTRL2_FUN, PWRCTRL_NULL_FUN);
-	rk806_field_write(rk806, PWRCTRL3_FUN, PWRCTRL_NULL_FUN);
 
 	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
 		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);

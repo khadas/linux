@@ -231,6 +231,7 @@ static const struct edid_quirk {
 
 	/* OSVR HDK and HDK2 VR Headsets */
 	EDID_QUIRK('S', 'V', 'R', 0x1019, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('A', 'U', 'O', 0x1111, EDID_QUIRK_NON_DESKTOP),
 };
 
 /*
@@ -590,6 +591,10 @@ static const struct drm_display_mode drm_dmt_modes[] = {
 	/* 0x58 - 4096x2160@59.94Hz RB */
 	{ DRM_MODE("4096x2160", DRM_MODE_TYPE_DRIVER, 556188, 4096, 4104,
 		   4136, 4176, 0, 2160, 2208, 2216, 2222, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
+	/* 0x59 - 1024x600@59.94Hz RB */
+	{ DRM_MODE("1024x600", DRM_MODE_TYPE_DRIVER, 51200, 1024, 1192,
+		   1224, 1344, 0, 600, 615, 621, 635, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
 };
 

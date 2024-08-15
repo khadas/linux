@@ -8,7 +8,6 @@
 #include "rkx110_reg.h"
 #include "serdes_combphy.h"
 
-#if defined(CONFIG_DEBUG_FS)
 static struct pattern_gen rkx110_pattern_gen[] = {
 	{
 		.name = "dsi0",
@@ -269,7 +268,6 @@ void rkx110_debugfs_init(struct rk_serdes_chip *chip, struct dentry *dentry)
 		}
 	}
 }
-#endif
 
 static int rkx110_rgb_rx_iomux_cfg(struct rk_serdes *serdes, struct rk_serdes_route *route)
 {

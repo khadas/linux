@@ -25,6 +25,7 @@
  */
 
 #include <dhd_linux_priv.h>
+#include <wl_android.h>
 
 extern dhd_pub_t* g_dhd_pub;
 
@@ -1119,6 +1120,16 @@ dhd_napi_schedule(void *info)
 	 * rx performance drop of ~5Mbs(SWWLAN-349763).
 	 * So, excludes this prevention for Android platform.
 	 */
+#ifndef OEM_ANDROID
+	DHD_GENERAL_LOCK(&dhd->pub, flags);
+
+	if (DHD_BUS_BUSY_CHECK_SUSPEND_IN_PROGRESS(&dhd->pub)) {
+		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
+		return;
+	}
+
+	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
+#endif /* OEM_ANDROID */
 
 	/* add napi_struct to softnet data poll list and raise NET_RX_SOFTIRQ */
 	if (napi_schedule_prep(&dhd->rx_napi_struct)) {
@@ -1219,6 +1230,12 @@ dhd_lb_rx_napi_dispatch(dhd_pub_t *dhdp)
 		dhd_napi_schedule(dhd);
 		return;
 	}
+#ifdef TPUT_MONITOR
+	if (wl_ext_tput_get(dhdp) < dhdp->conf->napi_tput_thresh) {
+		dhd_napi_schedule(dhd);
+		return;
+	}
+#endif /* TPUT_MONITOR */
 
 	/*
 	 * Get cpu will disable pre-ermption and will not allow any cpu to go offline

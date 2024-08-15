@@ -274,6 +274,9 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 	const char *str;
 	int ret, i = 0;
 
+	if (dai->probed)
+		return 0;
+
 	for (i = 0; i < mdais->num_dais; i++) {
 		child = mdais->dais[i].dai;
 		comp = child->component;
@@ -322,6 +325,7 @@ static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 
 static const struct snd_soc_component_driver rockchip_mdais_component = {
 	.name = DAIS_DRV_NAME,
+	.legacy_dai_naming = 1,
 };
 
 static const struct of_device_id rockchip_mdais_match[] = {

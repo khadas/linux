@@ -42,5 +42,8 @@ void rga_dma_unmap_buf(struct rga_dma_buffer *rga_dma_buffer);
 
 void rga_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler);
 
+struct rga_dma_buffer *rga_dma_alloc_coherent(struct rga_scheduler_t *scheduler, int size);
+int rga_dma_free(struct rga_dma_buffer *buffer);
+
 #endif /* #ifndef __RGA3_DMA_BUF_H__ */
 

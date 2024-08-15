@@ -14,7 +14,6 @@
 #include "rkx120_reg.h"
 #include "serdes_combphy.h"
 
-#if defined(CONFIG_DEBUG_FS)
 static struct pattern_gen rkx120_pattern_gen[] = {
 	{
 		.name = "dsi",
@@ -247,6 +246,9 @@ void rkx120_debugfs_init(struct rk_serdes_chip *chip, struct dentry *dentry)
 	struct pattern_gen *pattern_gen;
 	struct dentry *dir;
 
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
+
 	pattern_gen = devm_kmemdup(chip->serdes->dev, &rkx120_pattern_gen,
 				   sizeof(rkx120_pattern_gen), GFP_KERNEL);
 	if (!pattern_gen)
@@ -268,7 +270,6 @@ void rkx120_debugfs_init(struct rk_serdes_chip *chip, struct dentry *dentry)
 		}
 	}
 }
-#endif
 
 static int rkx120_rgb_tx_iomux_cfg(struct rk_serdes *serdes, struct rk_serdes_route *route,
 				   u8 remote_id)
@@ -324,6 +325,17 @@ int rkx120_lvds_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *rout
 	else
 		rkx120_combtxphy_set_rate(combtxphy, route->vm.pixelclock * 7);
 	rkx120_combtxphy_power_on(serdes, combtxphy, remote_id, phy_id);
+
+	return 0;
+}
+
+int rkx120_lvds_tx_disable(struct rk_serdes *serdes, struct rk_serdes_route *route, u8 remote_id,
+			   u8 phy_id)
+{
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_combtxphy *combtxphy = &sd_panel->combtxphy;
+
+	rkx120_combtxphy_power_off(serdes, combtxphy, remote_id, phy_id);
 
 	return 0;
 }

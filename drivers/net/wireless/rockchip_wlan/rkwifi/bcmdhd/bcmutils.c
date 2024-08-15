@@ -1804,9 +1804,10 @@ BCMFASTPATH(bcm_mwbmap_alloc)(struct bcm_mwbmap * mwbmap_hdl)
 			}
 			MWBMAP_ASSERT(C_bcm_count_leading_zeros(bitmap) ==
 			              bcm_count_leading_zeros(bitmap));
-			bitix    = (BCM_MWBMAP_BITS_WORD - 1)
-				 - bcm_count_leading_zeros(bitmap); /* use asm clz */
-			wordix   = BCM_MWBMAP_MULOP(wordix) + bitix;
+			bitix = bcm_count_leading_zeros(bitmap); /* use asm clz */
+			bitix = (bitix <= (BCM_MWBMAP_BITS_WORD - 1)) ?
+					((BCM_MWBMAP_BITS_WORD - 1) - bitix) : 0;
+			wordix = BCM_MWBMAP_MULOP(wordix) + bitix;
 
 			/* Clear bit if wd count is 0, without conditional branch */
 #if defined(BCM_MWBMAP_USE_CNTSETBITS)

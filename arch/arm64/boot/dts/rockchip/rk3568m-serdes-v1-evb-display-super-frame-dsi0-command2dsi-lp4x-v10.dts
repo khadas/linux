@@ -84,7 +84,7 @@
 	local-port0 = <RK_SERDES_DSI_RX0>;
 	remote0-port0 = <RK_SERDES_DSI_TX0>;
 	remote1-port0 = <RK_SERDES_DSI_TX0>;
-	split-mode;
+	rockchip,split-mode;
 	dsi-tx,format = "rgb888";
 	dsi-tx,lanes  = <4>;
 	dsi-tx,video-mode;

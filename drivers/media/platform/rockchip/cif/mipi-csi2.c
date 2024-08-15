@@ -146,8 +146,10 @@ static int csi2_enable_clks(struct csi2_hw *csi2_hw)
 {
 	int ret = 0;
 
-	if (!csi2_hw->clks_bulk)
-		return -EINVAL;
+	if (!csi2_hw->clks_bulk) {
+		dev_info(csi2_hw->dev, "clks is NULL, please check it if needs\n");
+		return 0;
+	}
 
 	ret = clk_bulk_prepare_enable(csi2_hw->clks_num, csi2_hw->clks_bulk);
 	if (ret)
@@ -190,6 +192,9 @@ static void csi2_enable(struct csi2_hw *csi2_hw,
 
 	write_csihost_reg(base, CSIHOST_N_LANES, lanes - 1);
 
+	if (csi2->sw_dbg)
+		val |= BIT(6);
+
 	if (host_type == RK_DSI_RXHOST) {
 		val |= SW_DSI_EN(1) | SW_DATATYPE_FS(0x01) |
 		       SW_DATATYPE_FE(0x11) | SW_DATATYPE_LS(0x21) |
@@ -231,7 +236,8 @@ static int csi2_start(struct csi2_dev *csi2)
 		csi2_hw_do_reset(csi2->csi2_hw[csi_idx]);
 		ret = csi2_enable_clks(csi2->csi2_hw[csi_idx]);
 		if (ret) {
-			v4l2_err(&csi2->sd, "%s: enable clks failed\n", __func__);
+			v4l2_err(&csi2->sd, "%s: enable clks failed, index %d\n",
+				 __func__, csi_idx);
 			return ret;
 		}
 		enable_irq(csi2->csi2_hw[csi_idx]->irq1);
@@ -587,7 +593,10 @@ static long rkcif_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg
 		if (csi2->match_data->chip_id > CHIP_RV1126_CSI2)
 			ret = v4l2_subdev_call(sensor, core, ioctl,
 					       RKCIF_CMD_SET_CSI_IDX,
-					       arg);
+						   arg);
+		break;
+	case RKCIF_CMD_SET_PPI_DATA_DEBUG:
+		csi2->sw_dbg = *((u32 *)arg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -603,6 +612,7 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct rkcif_csi_info csi_info;
+	int sw_dbg = 0;
 	long ret;
 
 	switch (cmd) {
@@ -611,6 +621,12 @@ static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 
 		ret = rkcif_csi2_ioctl(sd, cmd, &csi_info);
+		break;
+	case RKCIF_CMD_SET_PPI_DATA_DEBUG:
+		if (copy_from_user(&sw_dbg, up, sizeof(int)))
+			return -EFAULT;
+
+		ret = rkcif_csi2_ioctl(sd, cmd, &sw_dbg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1022,6 +1038,12 @@ static const struct csi2_match_data rk3562_csi2_match_data = {
 	.num_hw = 4,
 };
 
+static const struct csi2_match_data rk3576_csi2_match_data = {
+	.chip_id = CHIP_RK3576_CSI2,
+	.num_pads = CSI2_NUM_PADS_MAX,
+	.num_hw = 5,
+};
+
 static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2",
@@ -1050,6 +1072,10 @@ static const struct of_device_id csi2_dt_ids[] = {
 	{
 		.compatible = "rockchip,rk3562-mipi-csi2",
 		.data = &rk3562_csi2_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3576-mipi-csi2",
+		.data = &rk3576_csi2_match_data,
 	},
 	{ /* sentinel */ }
 };
@@ -1204,6 +1230,10 @@ static const struct csi2_hw_match_data rk3562_csi2_hw_match_data = {
 	.chip_id = CHIP_RK3562_CSI2,
 };
 
+static const struct csi2_hw_match_data rk3576_csi2_hw_match_data = {
+	.chip_id = CHIP_RK3576_CSI2,
+};
+
 static const struct of_device_id csi2_hw_ids[] = {
 	{
 		.compatible = "rockchip,rk1808-mipi-csi2-hw",
@@ -1231,7 +1261,11 @@ static const struct of_device_id csi2_hw_ids[] = {
 	},
 	{
 		.compatible = "rockchip,rk3562-mipi-csi2-hw",
-		.data = &rk3588_csi2_hw_match_data,
+		.data = &rk3562_csi2_hw_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3576-mipi-csi2-hw",
+		.data = &rk3576_csi2_hw_match_data,
 	},
 	{ /* sentinel */ }
 };

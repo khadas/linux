@@ -108,6 +108,7 @@ static int spidev_slv_write_and_read(struct spidev_rkslv_data *spidev, const voi
 			.tx_buf = tx_buf,
 			.rx_buf = rx_buf,
 			.len = len,
+			.bits_per_word = bit_per_word,
 		};
 	struct spi_message m;
 	int ret;
@@ -375,7 +376,7 @@ static int spidev_rkslv_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int spidev_rkslv_remove(struct spi_device *spi)
+static void spidev_rkslv_remove(struct spi_device *spi)
 {
 	struct spidev_rkslv_data *spidev = dev_get_drvdata(&spi->dev);
 
@@ -383,8 +384,6 @@ static int spidev_rkslv_remove(struct spi_device *spi)
 	spi_slave_abort(spi);
 	kthread_stop(spidev->tsk);
 	misc_deregister(&spidev->misc_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -396,7 +395,13 @@ MODULE_DEVICE_TABLE(of, spidev_rkslv_dt_match);
 
 #endif /* CONFIG_OF */
 
-static struct spi_driver spidev_rkmst_driver = {
+static const struct spi_device_id spidev_rkslv_spi_ids[] = {
+	{ .name = "spi-obj-slave" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, spidev_rkslv_spi_ids);
+
+static struct spi_driver spidev_rkslv_driver = {
 	.driver = {
 		.name	= "spidev_rkslv",
 		.owner = THIS_MODULE,
@@ -404,8 +409,9 @@ static struct spi_driver spidev_rkmst_driver = {
 	},
 	.probe		= spidev_rkslv_probe,
 	.remove		= spidev_rkslv_remove,
+	.id_table	= spidev_rkslv_spi_ids,
 };
-module_spi_driver(spidev_rkmst_driver);
+module_spi_driver(spidev_rkslv_driver);
 
 MODULE_AUTHOR("Jon Lin <jon.lin@rock-chips.com>");
 MODULE_DESCRIPTION("ROCKCHIP SPI Object Slave Driver");

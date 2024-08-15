@@ -85,6 +85,7 @@ struct dw9800v_device {
 	struct i2c_client *client;
 	bool power_on;
 
+	atomic_t open_cnt;
 };
 
 static inline struct dw9800v_device *to_dw9800v_vcm(struct v4l2_ctrl *ctrl)
@@ -426,24 +427,27 @@ static int dw9800v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		pm_runtime_put_noidle(sd->dev);
 		return rval;
 	}
-	dw9800v_init(client);
 
-	usleep_range(1000, 1200);
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+	if (dev_vcm->power_on && atomic_inc_return(&dev_vcm->open_cnt) == 1) {
+		dw9800v_init(client);
 
-	move_time = dw9800v_move_time(dev_vcm, DW9800V_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		dw9800v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac += DW9800V_GRADUAL_MOVELENS_STEPS;
-		if (dac >= dev_vcm->current_lens_pos)
-			break;
-	}
+		usleep_range(1000, 1200);
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		dw9800v_set_dac(dev_vcm, dac);
+		move_time = dw9800v_move_time(dev_vcm, DW9800V_GRADUAL_MOVELENS_STEPS);
+		while (dac <= dev_vcm->current_lens_pos) {
+			dw9800v_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac += DW9800V_GRADUAL_MOVELENS_STEPS;
+			if (dac >= dev_vcm->current_lens_pos)
+				break;
+		}
+
+		if (dac > dev_vcm->current_lens_pos) {
+			dac = dev_vcm->current_lens_pos;
+			dw9800v_set_dac(dev_vcm, dac);
+		}
 	}
 
 #ifdef CONFIG_PM
@@ -465,23 +469,25 @@ static int dw9800v_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	v4l2_info(sd, "%s: enter,  power.usage_count(%d)!\n", __func__,
 		  atomic_read(&sd->dev->power.usage_count));
 #endif
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = dw9800v_move_time(dev_vcm, DW9800V_GRADUAL_MOVELENS_STEPS);
-	while (dac >= DW9800V_GRADUAL_MOVELENS_STEPS) {
-		dw9800v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac -= DW9800V_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
+	if (dev_vcm->power_on && atomic_dec_return(&dev_vcm->open_cnt) == 0) {
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		move_time = dw9800v_move_time(dev_vcm, DW9800V_GRADUAL_MOVELENS_STEPS);
+		while (dac >= DW9800V_GRADUAL_MOVELENS_STEPS) {
+			dw9800v_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac -= DW9800V_GRADUAL_MOVELENS_STEPS;
+			if (dac <= 0)
+				break;
+		}
 
-	if (dac < DW9800V_GRADUAL_MOVELENS_STEPS) {
-		dac = DW9800V_GRADUAL_MOVELENS_STEPS;
-		dw9800v_set_dac(dev_vcm, dac);
+		if (dac < DW9800V_GRADUAL_MOVELENS_STEPS) {
+			dac = DW9800V_GRADUAL_MOVELENS_STEPS;
+			dw9800v_set_dac(dev_vcm, dac);
+		}
+		/* set to power down mode */
+		dw9800v_write_reg(client, 0x02, 1, 0x01);
 	}
-	/* set to power down mode */
-	dw9800v_write_reg(client, 0x02, 1, 0x01);
 
 	pm_runtime_put(sd->dev);
 
@@ -926,6 +932,8 @@ static int dw9800v_probe(struct i2c_client *client,
 
 	dw9800v_dev->vcm_movefull_t =
 		dw9800v_move_time(dw9800v_dev, DW9800V_MAX_REG);
+	atomic_set(&dw9800v_dev->open_cnt, 0);
+
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
@@ -943,14 +951,12 @@ err_power_off:
 	return ret;
 }
 
-static int dw9800v_remove(struct i2c_client *client)
+static void dw9800v_remove(struct i2c_client *client)
 {
 	struct dw9800v_device *dw9800v_dev = i2c_get_clientdata(client);
 
 	pm_runtime_disable(&client->dev);
 	dw9800v_subdev_cleanup(dw9800v_dev);
-
-	return 0;
 }
 
 static int dw9800v_init(struct i2c_client *client)

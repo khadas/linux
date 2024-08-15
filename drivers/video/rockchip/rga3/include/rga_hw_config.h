@@ -20,7 +20,14 @@ enum rga_hw_support_format_index {
 	RGA_RASTER_INDEX,
 	RGA_AFBC16x16_INDEX,
 	RGA_TILE8x8_INDEX,
+	RGA_TILE4x4_INDEX,
+	RGA_RKFBC64x4_INDEX,
+	RGA_AFBC32x8_INDEX,
 	RGA_FORMAT_INDEX_BUTT,
+};
+
+enum rga_hw_issue {
+	RGA_HW_ISSUE_DIS_AUTO_RST,
 };
 
 struct rga_win_data {
@@ -70,6 +77,10 @@ extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
 extern const struct rga_hw_data rga2e_1106_data;
 extern const struct rga_hw_data rga2e_iommu_data;
+extern const struct rga_hw_data rga2p_iommu_data;
+
+#define rga_hw_has_issue(scheduler, issue) test_bit(issue, &((scheduler)->hw_issues_mask))
+#define rga_hw_set_issue_mask(scheduler, issue) set_bit(issue, &((scheduler)->hw_issues_mask))
 
 /* Returns false if in range, true otherwise */
 static inline bool rga_hw_out_of_range(const struct rga_rect_range *range, int width, int height)

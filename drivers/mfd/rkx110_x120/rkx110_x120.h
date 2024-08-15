@@ -363,6 +363,8 @@ int rkx120_display_linkrx_enable(struct rk_serdes *serdes,
 int rkx120_rgb_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route, u8 remote_id);
 int rkx120_lvds_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route, u8 remote_id,
 			  u8 phy_id);
+int rkx120_lvds_tx_disable(struct rk_serdes *serdes, struct rk_serdes_route *route, u8 remote_id,
+			   u8 phy_id);
 void rkx120_linkrx_gpi_gpo_mux_cfg(struct rk_serdes *serdes, u32 mux, u8 remote_id);
 void rkx110_linktx_gpi_gpo_mux_cfg(struct rk_serdes *serdes, u32 mux, u8 remote_id);
 int rkx110_rgb_rx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route);

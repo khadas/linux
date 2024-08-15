@@ -949,7 +949,6 @@ rkisp_stats_send_meas_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_stats_v21_ops *ops =
 		(struct rkisp_stats_v21_ops *)stats_vdev->priv_ops;
 	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
-	int ret = 0;
 
 	cur_frame_id = meas_work->frame_id;
 	spin_lock(&stats_vdev->rd_lock);
@@ -979,10 +978,10 @@ rkisp_stats_send_meas_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 			  "ISP2X_AFM_LUM_OF\n");
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAWB)
-		ret |= ops->get_rawawb_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawawb_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAF)
-		ret |= ops->get_rawaf_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawaf_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAF_SUM)
 		v4l2_warn(stats_vdev->vnode.vdev.v4l2_dev,
@@ -993,37 +992,42 @@ rkisp_stats_send_meas_v21(struct rkisp_isp_stats_vdev *stats_vdev,
 			  "ISP2X_3A_RAWAF_LUM\n");
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_BIG)
-		ret |= ops->get_rawae3_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae3_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_BIG)
-		ret |= ops->get_rawhst3_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst3_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH0)
-		ret |= ops->get_rawae0_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae0_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH1)
-		ret |= ops->get_rawae1_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae1_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWAE_CH2)
-		ret |= ops->get_rawae2_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawae2_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH0)
-		ret |= ops->get_rawhst0_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst0_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH1)
-		ret |= ops->get_rawhst1_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst1_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp3a_ris & ISP2X_3A_RAWHIST_CH2)
-		ret |= ops->get_rawhst2_meas(stats_vdev, cur_stat_buf);
+		ops->get_rawhst2_meas(stats_vdev, cur_stat_buf);
 
 	if (meas_work->isp_ris & ISP2X_FRAME) {
-		ret |= ops->get_bls_stats(stats_vdev, cur_stat_buf);
-		ret |= ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
+		ops->get_bls_stats(stats_vdev, cur_stat_buf);
+		ops->get_dhaz_stats(stats_vdev, cur_stat_buf);
 	}
 
 	rkisp_stats_restart_meas(stats_vdev);
 
-	if (cur_buf && !ret) {
+	v4l2_dbg(4, rkisp_debug, &stats_vdev->dev->v4l2_dev,
+		 "%s id:%d seq:%d params_id:%d ris:0x%x buf:%p meas_type:0x%x\n",
+		 __func__, stats_vdev->dev->unite_index,
+		 cur_frame_id, params_vdev->cur_frame_id, meas_work->isp3a_ris,
+		 cur_buf, !cur_stat_buf ? 0 : cur_stat_buf->meas_type);
+	if (cur_buf) {
 		vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
 				      sizeof(struct rkisp_isp2x_stat_buffer));
 		cur_buf->vb.sequence = cur_frame_id;
@@ -1120,10 +1124,19 @@ rkisp_stats_rdbk_enable_v21(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
 	stats_vdev->rdbk_mode = en;
 }
 
+static void
+rkisp_get_stat_size_v21(struct rkisp_isp_stats_vdev *stats_vdev,
+			unsigned int sizes[])
+{
+	sizes[0] = sizeof(struct rkisp_isp2x_stat_buffer);
+	stats_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
+}
+
 static struct rkisp_isp_stats_ops rkisp_isp_stats_ops_tbl = {
 	.isr_hdl = rkisp_stats_isr_v21,
 	.send_meas = rkisp_stats_send_meas_v21,
 	.rdbk_enable = rkisp_stats_rdbk_enable_v21,
+	.get_stat_size = rkisp_get_stat_size_v21,
 };
 
 void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
@@ -1149,12 +1162,8 @@ void rkisp_stats_first_ddr_config_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 
 void rkisp_init_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 {
+	int mult = stats_vdev->dev->hw_dev->unite ? ISP_UNITE_MAX : 1;
 	int i;
-
-	stats_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_STAT_3A;
-	stats_vdev->vdev_fmt.fmt.meta.buffersize =
-		sizeof(struct rkisp_isp2x_stat_buffer);
 
 	stats_vdev->ops = &rkisp_isp_stats_ops_tbl;
 	stats_vdev->priv_ops = &rkisp_stats_reg_ops_v21;
@@ -1162,7 +1171,7 @@ void rkisp_init_stats_vdev_v21(struct rkisp_isp_stats_vdev *stats_vdev)
 
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++) {
 		stats_vdev->stats_buf[i].is_need_vaddr = true;
-		stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE;
+		stats_vdev->stats_buf[i].size = RKISP_RD_STATS_BUF_SIZE * mult;
 		rkisp_alloc_buffer(stats_vdev->dev, &stats_vdev->stats_buf[i]);
 	}
 }

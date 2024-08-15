@@ -377,7 +377,7 @@
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>,
-			 <&hdptxphy_hdmi_clk1>;
+			 <&hdptxphy_hdmi1>;
 		clock-names = "pclk",
 			      "hpd",
 			      "earc",
@@ -445,6 +445,7 @@
 		phy-names = "dp";
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&vo1_grf>;
+		#sound-dai-cells = <1>;
 		status = "disabled";
 
 		ports {
@@ -769,6 +770,8 @@
 		reg = <0x0 0xfed70000 0x0 0x2000>;
 		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX1>;
 		clock-names = "ref", "apb";
+		clock-output-names = "clk_hdmiphy_pixel1";
+		#clock-cells = <0>;
 		resets = <&cru SRST_HDPTX1>, <&cru SRST_P_HDPTX1>,
 			 <&cru SRST_HDPTX1_INIT>, <&cru SRST_HDPTX1_CMN>,
 			 <&cru SRST_HDPTX1_LANE>, <&cru SRST_HDPTX1_ROPLL>,
@@ -778,11 +781,6 @@
 		rockchip,grf = <&hdptxphy1_grf>;
 		#phy-cells = <0>;
 		status = "disabled";
-
-		hdptxphy_hdmi_clk1: clk-port {
-			#clock-cells = <0>;
-			status = "okay";
-		};
 	};
 
 

@@ -608,7 +608,7 @@
 			  0x82000000 0x0 0xfc200000 0x0 0xfc200000 0x0 0x1e00000
 			  0xc3000000 0x1 0x00000000 0x1 0x00000000 0x0 0x40000000>;
 		reg = <0x0 0xfe4f0000 0x0 0x10000>,
-		      <0x1 0x40000000 0x0 0x400000>,
+		      <0x0 0xfe000000 0x0 0x400000>,
 		      <0x0 0xfc000000 0x0 0x100000>;
 		reg-names = "pcie-apb", "pcie-dbi", "config";
 		resets = <&cru SRST_RESETN_PCIE_POWER_UP>, <&cru SRST_PRESETN_PCIE>,
@@ -2095,6 +2095,7 @@
 				pinctrl-0 = <&fephym0_led_link &fephym0_led_spd>;
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
+				rockchip,thermal-zone = "soc-thermal";
 			};
 		};
 

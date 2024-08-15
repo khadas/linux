@@ -20,6 +20,7 @@ extern int RGA_DEBUG_TIME;
 extern int RGA_DEBUG_INT_FLAG;
 extern int RGA_DEBUG_MM;
 extern int RGA_DEBUG_CHECK_MODE;
+extern int RGA_DEBUG_INTERNAL_MODE;
 extern int RGA_DEBUG_NONUSE;
 extern int RGA_DEBUG_DUMP_IMAGE;
 

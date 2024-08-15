@@ -26,6 +26,9 @@
 #define GRF_DPHY_CON0	(0x0)
 #define GRF_SOC_CON2	(0x0308)
 
+/*RK3576 DPHY GRF REG OFFSET */
+#define GRF_SOC_CON5_RK3576	(0x14)
+
 /*GRF REG BIT DEFINE */
 #define GRF_CSI2PHY_LANE_SEL_SPLIT	(0x1)
 #define GRF_CSI2PHY_SEL_SPLIT_0_1	(0x0)
@@ -308,6 +311,7 @@ enum csi2_dphy_chip_id {
 	CHIP_ID_RK3588_DCPHY = 0x2,
 	CHIP_ID_RV1106 = 0x3,
 	CHIP_ID_RK3562 = 0x4,
+	CHIP_ID_RK3576 = 0x5,
 };
 
 enum csi2_dphy_rx_pads {

@@ -16,3 +16,12 @@ config CANFD_ROCKCHIP
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called rockchip_canfd.
+
+config CANFD_RK3576
+	tristate "RK3576 CANFD controller"
+	depends on ARCH_ROCKCHIP
+	help
+	Say Y here if you want to use CANFD controller found on RK3576 SoCs.
+
+	To compile this driver as a module, choose M here: the module will
+	be called rk3576_canfd.

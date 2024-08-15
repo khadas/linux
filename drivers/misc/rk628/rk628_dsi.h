@@ -155,4 +155,5 @@ int rk628_dsi_parse(struct rk628 *rk628, struct device_node *dsi_np);
 void rk628_mipi_dsi_pre_enable(struct rk628 *rk628);
 void rk628_mipi_dsi_enable(struct rk628 *rk628);
 void rk628_dsi_disable(struct rk628 *rk628);
+void rk628_mipi_dsi_create_debugfs_file(struct rk628 *rk628);
 #endif

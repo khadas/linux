@@ -35,17 +35,25 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	max96722_dphy3_poc: max96722-dphy3-poc {
+	max96722_dphy3_pwdn_regulator: max96722-dphy3-pwdn-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "max96722_dphy3_pwdn";
+		gpio = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_dphy3_pwdn>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
+		vin-supply = <&max96722_dphy3_vcc1v8>;
+	};
+
+	max96722_dphy3_poc_regulator: max96722-dphy3-poc-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "max96722_dphy3_poc";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-		enable-active-high;
 		gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <1050>;
-		off-on-delay-us = <515000>;
+		enable-active-high;
+		startup-delay-us = <10000>;
+		off-on-delay-us = <5000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
 };
@@ -96,19 +104,18 @@
 		clock-names = "xvclk";
 		clocks = <&max96722_dphy3_osc0 0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&max96722_dphy3_pwdn>, <&max96722_dphy3_errb>, <&max96722_dphy3_lock>;
+		pinctrl-0 = <&max96722_dphy3_errb>, <&max96722_dphy3_lock>;
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
-		pwdn-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
-		lock-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 		vcc1v2-supply = <&max96722_dphy3_vcc1v2>;
 		vcc1v8-supply = <&max96722_dphy3_vcc1v8>;
-		poc-supply = <&max96722_dphy3_poc>;
+		pwdn-supply = <&max96722_dphy3_pwdn_regulator>;
+		lock-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "max96722";
-		rockchip,camera-module-lens-name = "max96722";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 
 		port {
 			max96722_dphy3_out: endpoint {
@@ -128,7 +135,6 @@
 			max-fps-denominator = <300000>;
 			bpp = <16>;
 			link-freq-idx = <20>;
-			vc-array = <0x10 0x20 0x40 0x80>; // VC0~3: bit4~7
 		};
 		/* support mode config end */
 
@@ -152,11 +158,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy3_link0_in: endpoint {
-							remote-endpoint = <&max96722_dphy3_remote0_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy3_cam0>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -180,11 +182,7 @@
 					link-rx-rate = <0>;
 					link-tx-rate = <0>;
 
-					port {
-						max96722_dphy3_link1_in: endpoint {
-							remote-endpoint = <&max96722_dphy3_remote1_out>;
-						};
-					};
+					link-remote-cam = <&max96722_dphy3_cam1>; // remote camera
 
 					link-init-sequence {
 						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
@@ -347,91 +345,142 @@
 		};
 		/* serdes local device end */
 
-		/* serdes remote device start */
-		serdes-remote-device-0 {
-			compatible = "maxim4c,link0,max9295";
-			status = "okay";
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			remote-id = <0>; // Same as Link ID: 0/1/2/3
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x41>; // 0: disable remap
+				// Note: Serializer node defined before camera node
+				max96722_dphy3_ser0: max9295@41 {
+					compatible = "maxim,ser,max9295";
+					reg = <0x41>;
 
-			port {
-				max96722_dphy3_remote0_out: endpoint {
-					remote-endpoint = <&max96722_dphy3_link0_in>;
+					ser-i2c-addr-def = <0x40>;
+
+					ser-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
+							00 11 03 00 00 // Coax Drive
+							02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
+							03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
+							00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
+							00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
+							02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
+							02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
+							00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
+							00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
+							00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
+							01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
+							01 01 50 00 00 // Video X, BPP = 0x10
+							00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
+							00 02 13 00 00 // Video transmit enable for Port X
+						];
+					};
+				};
+
+				max96722_dphy3_cam0: ov2311@31 {
+					compatible = "maxim,ovti,ov2311";
+					reg = <0x31>;
+
+					cam-i2c-addr-def = <0x30>;
+
+					cam-remote-ser = <&max96722_dphy3_ser0>; // remote serializer
+
+					poc-supply = <&max96722_dphy3_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy3_cam0_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf */
+							//remote-endpoint = <&mipi_lvds_sditf_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
 
-			remote-init-sequence {
-				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
+			i2c@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <1>;
 
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
-					00 11 03 00 00 // Coax Drive
-					02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
-					03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
-					00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
-					00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
-					02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
-					02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
-					00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
-					00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
-					00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
-					01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
-					01 01 50 00 00 // Video X, BPP = 0x10
-					00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
-					00 02 13 00 00 // Video transmit enable for Port X
-				];
-			};
-		};
+				// Note: Serializer node defined before camera node
+				max96722_dphy3_ser1: max9295@42 {
+					compatible = "maxim,ser,max9295";
+					reg = <0x42>;
 
-		serdes-remote-device-1 {
-			compatible = "maxim4c,link1,max9295";
-			status = "okay";
+					ser-i2c-addr-def = <0x40>;
 
-			remote-id = <1>; // Same as Link ID: 0/1/2/3
+					ser-init-sequence {
+						seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
+						reg-addr-len = <2>; // 1: 8bits, 2: 16bits
+						reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
 
-			// Serializer i2c 7bit address remap
-			ser-i2c-addr-def = <0x40>;
-			ser-i2c-addr-map = <0x42>; // 0: disable remap
+						// reg_addr reg_val val_mask delay
+						init-sequence = [
+							00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
+							00 11 03 00 00 // Coax Drive
+							02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
+							03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
+							00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
+							00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
+							02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
+							02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
+							00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
+							00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
+							00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
+							01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
+							01 01 50 00 00 // Video X, BPP = 0x10
+							00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
+							00 02 13 00 00 // Video transmit enable for Port X
+						];
+					};
+				};
 
-			port {
-				max96722_dphy3_remote1_out: endpoint {
-					remote-endpoint = <&max96722_dphy3_link1_in>;
+				max96722_dphy3_cam1: ov2312@32 {
+					compatible = "maxim,ovti,ov2312";
+					reg = <0x32>;
+
+					cam-i2c-addr-def = <0x30>;
+
+					cam-remote-ser = <&max96722_dphy3_ser1>; // remote serializer
+
+					poc-supply = <&max96722_dphy3_poc_regulator>;
+
+					rockchip,camera-module-index = <1>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						max96722_dphy3_cam1_out: endpoint {
+							/* remote endpoint: rkcif_mipi_lvds_sditf_vir1 */
+							//remote-endpoint = <&mipi_lvds_sditf_vir1_in>;
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
 				};
 			};
-
-			remote-init-sequence {
-				seq-item-size = <5>; // reg-addr-len + reg-val-len * 2 + 1
-				reg-addr-len = <2>; // 1: 8bits, 2: 16bits
-				reg-val-len = <1>; // 1: 8bits, 2: 16bits, 3: 24bits
-
-				// reg_addr reg_val val_mask delay
-				init-sequence = [
-					00 01 04 00 00 // RX_RATE: 187.5Mbps, TX_RATE: 3Gbps
-					00 11 03 00 00 // Coax Drive
-					02 D6 03 00 00 // MFP8: GPIO_OUT_DIS = 1, GPIO_TX_EN = 1
-					03 F0 51 00 00 // RCLK: 27MHz/24MHz (ALT),Enable reference-generation PLL, Enable pre-defined clock setting for reference-generation PLL
-					00 03 07 00 00 // RCLK: Enable RCLK output from altermative MFP pin, RCLKOUT clock select reference PLL
-					00 06 b1 00 00 // RCLK: GMSL2, Enable RCLK output, i2c selected
-					02 C1 10 00 00 // MFP1: GPIO_OUT pin output is driven to 1 when GPIO_RX_EN = 0
-					02 C2 60 00 00 // MFP1: OUT_TYPE = 1: Push-pull, PULL_UPDN_SEL[1:0] = 0b01: Pullup
-					00 07 07 00 00 // Enable Parallel video input, Parallel HS and VS Enable
-					00 10 05 00 00 // AUTO_LINK = 0, LINK_CFG = 1: LinkA is selected, REG_ENABLE = 1: Regulator enabled
-					00 12 14 00 00 // REG_MNL = 1: Enable LDO on/off state controlled by REG_ENABLE
-					01 00 62 00 00 // Video X, Line CRC enabled, ENC_MODE = 2: HS, VS, DE encoding on, color bits sent only when DE is high
-					01 01 50 00 00 // Video X, BPP = 0x10
-					00 53 10 00 00 // Video X, TX_STR_SEL = 0: Stream ID = 0 for packets from this channel
-					00 02 13 00 00 // Video transmit enable for Port X
-				];
-			};
 		};
-		/* serdes remote device end */
+		/* i2c-mux end */
 	};
 };
 

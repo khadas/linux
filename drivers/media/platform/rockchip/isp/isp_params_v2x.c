@@ -4061,7 +4061,7 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 }
 
 static
-void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev)
+void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev, bool is_reset)
 {
 	struct isp2x_isp_params_cfg *params = params_vdev->isp2x_params;
 
@@ -4196,6 +4196,7 @@ rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
 	sizes[0] = sizeof(struct isp2x_isp_params_cfg);
+	params_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
 static void

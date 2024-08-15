@@ -22,10 +22,12 @@ if VIDEO_ROCKCHIP_ISPP
 
 config VIDEO_ROCKCHIP_ISPP_VERSION_V10
 	bool "ispp10 for rv1126 and rv1109"
-	default y if CPU_RV1126
+	depends on CPU_RV1126
+	default y
 
 config VIDEO_ROCKCHIP_ISPP_VERSION_V20
 	bool "ispp20 for rk3588"
-	default y if CPU_RK3588
+	depends on CPU_RK3588
+	default y
 
 endif

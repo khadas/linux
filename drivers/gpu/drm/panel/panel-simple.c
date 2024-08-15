@@ -29,9 +29,9 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/rockchip-panel-notifier.h>
 
 #include <video/display_timing.h>
 #include <video/mipi_display.h>
@@ -218,6 +218,8 @@ struct panel_simple {
 
 	struct drm_dsc_picture_parameter_set *pps;
 	enum drm_panel_orientation orientation;
+
+	struct rockchip_panel_notifier panel_notifier;
 };
 
 static inline void panel_simple_msleep(unsigned int msecs)
@@ -484,20 +486,6 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel,
 	return num;
 }
 
-static void panel_simple_wait(ktime_t start_ktime, unsigned int min_ms)
-{
-	ktime_t now_ktime, min_ktime;
-
-	if (!min_ms)
-		return;
-
-	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
-	now_ktime = ktime_get_boottime();
-
-	if (ktime_before(now_ktime, min_ktime))
-		panel_simple_msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
-}
-
 static int panel_simple_regulator_enable(struct panel_simple *p)
 {
 	int err;
@@ -536,9 +524,9 @@ int panel_simple_loader_protect(struct drm_panel *panel)
 	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
-	err = pm_runtime_get_sync(panel->dev);
+	err = panel_simple_regulator_enable(p);
 	if (err < 0) {
-		pm_runtime_put_autosuspend(panel->dev);
+		dev_err(panel->dev, "failed to enable supply: %d\n", err);
 		return err;
 	}
 
@@ -553,6 +541,13 @@ static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 
+	/*
+	 * notify other devices (such as TP) to perform the action before the
+	 * panel is disabled.
+	 */
+	rockchip_panel_notifier_call_chain(&p->panel_notifier,
+					   PANEL_PRE_DISABLE, NULL);
+
 	if (!p->enabled)
 		return 0;
 
@@ -564,30 +559,9 @@ static int panel_simple_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int panel_simple_suspend(struct device *dev)
-{
-	struct panel_simple *p = dev_get_drvdata(dev);
-
-	gpiod_set_value_cansleep(p->reset_gpio, 1);
-	gpiod_set_value_cansleep(p->enable_gpio, 0);
-
-	panel_simple_regulator_disable(p);
-
-	if (p->desc->delay.unprepare)
-		panel_simple_msleep(p->desc->delay.unprepare);
-
-	p->unprepared_time = ktime_get_boottime();
-
-	kfree(p->edid);
-	p->edid = NULL;
-
-	return 0;
-}
-
 static int panel_simple_unprepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	int ret;
 
 	/* Unpreparing when already unprepared is a no-op */
 	if (!p->prepared)
@@ -605,34 +579,15 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 		}
 	}
 
-	pm_runtime_mark_last_busy(panel->dev);
-	ret = pm_runtime_put_autosuspend(panel->dev);
-	if (ret < 0)
-		return ret;
+	gpiod_direction_output(p->reset_gpio, 1);
+	gpiod_direction_output(p->enable_gpio, 0);
+
+	panel_simple_regulator_disable(p);
+
+	if (p->desc->delay.unprepare)
+		panel_simple_msleep(p->desc->delay.unprepare);
+
 	p->prepared = false;
-
-	return 0;
-}
-
-static int panel_simple_resume(struct device *dev)
-{
-	struct panel_simple *p = dev_get_drvdata(dev);
-	int err;
-
-	panel_simple_wait(p->unprepared_time, p->desc->delay.unprepare);
-
-	err = panel_simple_regulator_enable(p);
-	if (err < 0) {
-		dev_err(dev, "failed to enable supply: %d\n", err);
-		return err;
-	}
-
-	gpiod_set_value_cansleep(p->enable_gpio, 1);
-
-	if (p->desc->delay.prepare)
-		panel_simple_msleep(p->desc->delay.prepare);
-
-	p->prepared_time = ktime_get_boottime();
 
 	return 0;
 }
@@ -640,24 +595,24 @@ static int panel_simple_resume(struct device *dev)
 static int panel_simple_prepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	int ret;
+	int err;
 
 	/* Preparing when already prepared is a no-op */
 	if (p->prepared)
 		return 0;
 
-	ret = pm_runtime_get_sync(panel->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(panel->dev);
-		return ret;
+	err = panel_simple_regulator_enable(p);
+	if (err < 0) {
+		dev_err(panel->dev, "failed to enable supply: %d\n", err);
+		return err;
 	}
 
-	gpiod_direction_output(p->reset_gpio, 1);
+	gpiod_direction_output(p->enable_gpio, 1);
 
-	if (p->desc->delay.reset)
-		panel_simple_msleep(p->desc->delay.reset);
+	if (p->desc->delay.prepare)
+		panel_simple_msleep(p->desc->delay.prepare);
 
-	// gpiod_direction_output(p->reset_gpio, 0);
+	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.init)
 		panel_simple_msleep(p->desc->delay.init);
@@ -691,6 +646,13 @@ static int panel_simple_enable(struct drm_panel *panel)
 
 	p->enabled = true;
 
+	/*
+	 * notify other devices (such as TP) to perform the action after the
+	 * panel is enabled.
+	 */
+	rockchip_panel_notifier_call_chain(&p->panel_notifier,
+					   PANEL_ENABLED, NULL);
+
 	return 0;
 }
 
@@ -702,16 +664,11 @@ static int panel_simple_get_modes(struct drm_panel *panel,
 
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
-		pm_runtime_get_sync(panel->dev);
-
 		if (!p->edid)
 			p->edid = drm_get_edid(connector, p->ddc);
 
 		if (p->edid)
 			num += drm_add_edid_modes(connector, p->edid);
-
-		pm_runtime_mark_last_busy(panel->dev);
-		pm_runtime_put_autosuspend(panel->dev);
 	}
 
 	/* add hard-coded panel modes */
@@ -976,7 +933,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	/* Catch common mistakes for panels. */
 	switch (connector_type) {
 	case 0:
-		dev_warn(dev, "Specify missing connector_type\n");
+		dev_warn(dev, "Specify missing connector_type, please specify \"connector-type\" in dts\n");
 		connector_type = DRM_MODE_CONNECTOR_DPI;
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1028,31 +985,21 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	dev_set_drvdata(dev, panel);
 
-	/*
-	 * We use runtime PM for prepare / unprepare since those power the panel
-	 * on and off and those can be very slow operations. This is important
-	 * to optimize powering the panel on briefly to read the EDID before
-	 * fully enabling the panel.
-	 */
-	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, 1000);
-	pm_runtime_use_autosuspend(dev);
+	devm_rockchip_panel_notifier_register(dev, &panel->base,
+					      &panel->panel_notifier);
 
 	drm_panel_init(&panel->base, dev, &panel_simple_funcs, connector_type);
 
 	err = drm_panel_of_backlight(&panel->base);
 	if (err) {
 		dev_err_probe(dev, err, "Could not find backlight\n");
-		goto disable_pm_runtime;
+		goto free_ddc;
 	}
 
 	drm_panel_add(&panel->base);
 
 	return 0;
 
-disable_pm_runtime:
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
 free_ddc:
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
@@ -1068,8 +1015,6 @@ static void panel_simple_remove(struct device *dev)
 	drm_panel_disable(&panel->base);
 	drm_panel_unprepare(&panel->base);
 
-	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_disable(dev);
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
 }
@@ -1336,21 +1281,21 @@ static const struct panel_desc auo_g104sn02 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct drm_display_mode auo_g121ean01_mode = {
-	.clock = 66700,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 58,
-	.hsync_end = 1280 + 58 + 8,
-	.htotal = 1280 + 58 + 8 + 70,
-	.vdisplay = 800,
-	.vsync_start = 800 + 6,
-	.vsync_end = 800 + 6 + 4,
-	.vtotal = 800 + 6 + 4 + 10,
+static const struct display_timing auo_g121ean01_timing = {
+	.pixelclock = { 60000000, 74400000, 90000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 20, 50, 100 },
+	.hback_porch = { 20, 50, 100 },
+	.hsync_len = { 30, 100, 200 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 2, 10, 25 },
+	.vback_porch = { 2, 10, 25 },
+	.vsync_len = { 4, 18, 50 },
 };
 
 static const struct panel_desc auo_g121ean01 = {
-	.modes = &auo_g121ean01_mode,
-	.num_modes = 1,
+	.timings = &auo_g121ean01_timing,
+	.num_timings = 1,
 	.bpc = 8,
 	.size = {
 		.width = 261,
@@ -1526,7 +1471,9 @@ static const struct panel_desc auo_t215hvn01 = {
 	.delay = {
 		.disable = 5,
 		.unprepare = 1000,
-	}
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode avic_tm070ddh03_mode = {
@@ -2570,13 +2517,13 @@ static const struct panel_desc innolux_g070y2_t02 = {
 static const struct display_timing innolux_g101ice_l01_timing = {
 	.pixelclock = { 60400000, 71100000, 74700000 },
 	.hactive = { 1280, 1280, 1280 },
-	.hfront_porch = { 41, 80, 100 },
-	.hback_porch = { 40, 79, 99 },
-	.hsync_len = { 1, 1, 1 },
+	.hfront_porch = { 30, 60, 70 },
+	.hback_porch = { 30, 60, 70 },
+	.hsync_len = { 22, 40, 60 },
 	.vactive = { 800, 800, 800 },
-	.vfront_porch = { 5, 11, 14 },
-	.vback_porch = { 4, 11, 14 },
-	.vsync_len = { 1, 1, 1 },
+	.vfront_porch = { 3, 8, 14 },
+	.vback_porch = { 3, 8, 14 },
+	.vsync_len = { 4, 7, 12 },
 	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
@@ -2593,6 +2540,7 @@ static const struct panel_desc innolux_g101ice_l01 = {
 		.disable = 200,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
@@ -4750,6 +4698,7 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 
 	if (desc->num_modes || desc->num_timings) {
 		of_property_read_u32(np, "bpc", &desc->bpc);
+		of_property_read_u32(np, "connector-type", &desc->connector_type);
 		of_property_read_u32(np, "bus-format", &desc->bus_format);
 		of_property_read_u32(np, "width-mm", &desc->size.width);
 		of_property_read_u32(np, "height-mm", &desc->size.height);
@@ -4840,17 +4789,10 @@ static void panel_simple_platform_shutdown(struct platform_device *pdev)
 	panel_simple_shutdown(&pdev->dev);
 }
 
-static const struct dev_pm_ops panel_simple_pm_ops = {
-	SET_RUNTIME_PM_OPS(panel_simple_suspend, panel_simple_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-};
-
 static struct platform_driver panel_simple_platform_driver = {
 	.driver = {
 		.name = "panel-simple",
 		.of_match_table = platform_of_match,
-		.pm = &panel_simple_pm_ops,
 	},
 	.probe = panel_simple_platform_probe,
 	.remove = panel_simple_platform_remove,
@@ -5109,6 +5051,8 @@ static int panel_simple_dsi_of_get_desc_data(struct device *dev,
 	if (err)
 		return err;
 
+	desc->desc.connector_type = DRM_MODE_CONNECTOR_DSI;
+
 	if (!of_property_read_u32(np, "dsi,flags", &val))
 		desc->flags = val;
 	if (!of_property_read_u32(np, "dsi,format", &val))
@@ -5162,7 +5106,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 		props.max_brightness = 255;
 
 		panel->base.backlight =
-			devm_backlight_device_register(dev, "dcs-backlight",
+			devm_backlight_device_register(dev, dev_name(dev),
 						       dev, panel, &dcs_bl_ops,
 						       &props);
 		if (IS_ERR(panel->base.backlight)) {
@@ -5207,7 +5151,6 @@ static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
 		.of_match_table = dsi_of_match,
-		.pm = &panel_simple_pm_ops,
 	},
 	.probe = panel_simple_dsi_probe,
 	.remove = panel_simple_dsi_remove,
@@ -5253,10 +5196,18 @@ static int panel_simple_spi_write(struct device *dev, const u8 *data, size_t len
 }
 
 static const struct of_device_id panel_simple_spi_of_match[] = {
+	{ .compatible = "panel-simple-spi", .data = NULL },
 	{ .compatible = "simple-panel-spi", .data = NULL },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, panel_simple_spi_of_match);
+
+static const struct spi_device_id panel_simple_spi_ids[] = {
+	{ .name = "panel-simple-spi" },
+	{ .name = "simple-panel-spi" },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, panel_simple_spi_ids);
 
 static int panel_simple_spi_probe(struct spi_device *spi)
 {
@@ -5281,6 +5232,7 @@ static int panel_simple_spi_probe(struct spi_device *spi)
 			return ret;
 		}
 
+		d->connector_type = DRM_MODE_CONNECTOR_SPI;
 		d->spi_write = panel_simple_spi_write;
 		d->spi_read = panel_simple_spi_read;
 		d->cmd_type = CMD_TYPE_SPI;
@@ -5319,6 +5271,7 @@ static struct spi_driver panel_simple_spi_driver = {
 	.probe			= panel_simple_spi_probe,
 	.remove			= panel_simple_spi_remove,
 	.shutdown		= panel_simple_spi_shutdown,
+	.id_table		= panel_simple_spi_ids,
 };
 
 static int __init panel_simple_init(void)

@@ -24,6 +24,8 @@
 #include "rk_dsm.h"
 
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
+#define RK3576_SYS_GRF_SOC_CON2		(0x0008)
+#define RK3576_DSM_SEL			(0x0)
 
 struct rk_dsm_soc_data {
 	int (*init)(struct device *dev);
@@ -346,11 +348,11 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(rd->regmap, I2S_RXCR0,
 				   DSM_I2S_RXCR0_VDW_MASK,
 				   DSM_I2S_RXCR0_VDW(val));
-		regmap_update_bits(rd->regmap, DACPWM_CTRL,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_MASK |
-				   DSM_DACPWM_CTRL_PWM_EN_MASK,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_EN |
-				   DSM_DACPWM_CTRL_PWM_EN);
+		regmap_update_bits(rd->regmap, DACDSM_CTRL,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_MASK |
+				   DSM_DACDSM_CTRL_DSM_EN_MASK,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_EN |
+				   DSM_DACDSM_CTRL_DSM_EN);
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -400,11 +402,11 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 	gpiod_set_value(rd->pa_ctl, 0);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_update_bits(rd->regmap, DACPWM_CTRL,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_MASK |
-				   DSM_DACPWM_CTRL_PWM_EN_MASK,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_DIS |
-				   DSM_DACPWM_CTRL_PWM_DIS);
+		regmap_update_bits(rd->regmap, DACDSM_CTRL,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_MASK |
+				   DSM_DACDSM_CTRL_DSM_EN_MASK,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_DIS |
+				   DSM_DACDSM_CTRL_DSM_DIS);
 		regmap_update_bits(rd->regmap, I2S_XFER,
 				   DSM_I2S_XFER_RXS_MASK,
 				   DSM_I2S_XFER_RXS_STOP);
@@ -462,9 +464,6 @@ static int rk3562_soc_init(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
 
-	if (IS_ERR(rd->grf))
-		return PTR_ERR(rd->grf);
-
 	/* enable internal codec to i2s1 */
 	return regmap_write(rd->grf, RK3562_GRF_PERI_AUDIO_CON,
 			    (BIT(14) << 16 | BIT(14) | 0x0a100a10));
@@ -474,9 +473,6 @@ static void rk3562_soc_deinit(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
 
-	if (IS_ERR(rd->grf))
-		return;
-
 	regmap_write(rd->grf, RK3562_GRF_PERI_AUDIO_CON, (BIT(14) << 16) | 0x0a100a10);
 }
 
@@ -485,9 +481,31 @@ static const struct rk_dsm_soc_data rk3562_data = {
 	.deinit = rk3562_soc_deinit,
 };
 
+static int rk3576_soc_init(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	/* enable internal codec to sai4 */
+	return regmap_write(rd->grf, RK3576_SYS_GRF_SOC_CON2,
+			    BIT(RK3576_DSM_SEL) << 16 | BIT(RK3576_DSM_SEL));
+}
+
+static void rk3576_soc_deinit(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	regmap_write(rd->grf, RK3576_SYS_GRF_SOC_CON2, BIT(RK3576_DSM_SEL) << 16);
+}
+
+static const struct rk_dsm_soc_data rk3576_data = {
+	.init = rk3576_soc_init,
+	.deinit = rk3576_soc_deinit,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id rd_of_match[] = {
 	{ .compatible = "rockchip,rk3562-dsm", .data = &rk3562_data },
+	{ .compatible = "rockchip,rk3576-dsm", .data = &rk3576_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rd_of_match);
@@ -583,9 +601,9 @@ static int rk_dsm_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	regmap_update_bits(rd->regmap, DACPWM_CTRL,
-			   DSM_DACPWM_CTRL_PWM_MODE_MASK,
-			   DSM_DACPWM_CTRL_PWM_MODE_0);
+	regmap_update_bits(rd->regmap, DACDSM_CTRL,
+			   DSM_DACDSM_CTRL_DSM_MODE_MASK,
+			   DSM_DACDSM_CTRL_DSM_MODE_0);
 
 	rd->pa_ctl = devm_gpiod_get_optional(&pdev->dev, "pa-ctl",
 					     GPIOD_OUT_LOW);

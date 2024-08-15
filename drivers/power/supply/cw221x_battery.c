@@ -116,6 +116,7 @@ struct cw_battery {
 	struct delayed_work battery_delay_work;
 
 	struct power_supply *cw_bat;
+	int user_rsense;
 	u8 *bat_profile;
 	int chip_id;
 	int voltage;
@@ -420,9 +421,9 @@ static int cw_get_current(struct cw_battery *cw_bat)
 	cw_current = get_complement_code(current_reg);
 
 	if (((cw_bat->fw_version & CW2215_MARK) != 0) || ((cw_bat->fw_version & CW2217_MARK) != 0))
-		cw_current = cw_current * 1600 / USER_RSENSE;
+		cw_current = cw_current * 1600 / cw_bat->user_rsense;
 	else if ((cw_bat->fw_version != 0) && ((cw_bat->fw_version & 0xC0) == CW2218_MARK))
-		cw_current = cw_current * 3815 / USER_RSENSE;
+		cw_current = cw_current * 3815 / cw_bat->user_rsense;
 	else {
 		cw_bat->cw_current = 0;
 		dev_err(cw_bat->dev, "error! cw221x firmware read error!\n");
@@ -543,6 +544,15 @@ static int cw221x_parse_properties(struct cw_battery *cw_bat)
 	int length;
 	int ret;
 
+	ret = device_property_read_u32(dev,
+				       "cw,user_rsense",
+				       &cw_bat->user_rsense);
+	if (ret)
+		cw_bat->user_rsense = USER_RSENSE;
+	if (cw_bat->user_rsense == 0)
+		cw_bat->user_rsense = USER_RSENSE;
+
+	cw_printk("user_rsense: %d\n", cw_bat->user_rsense);
 	length = device_property_count_u8(dev, "cellwise,battery-profile");
 	if (length < 0) {
 		dev_warn(cw_bat->dev,

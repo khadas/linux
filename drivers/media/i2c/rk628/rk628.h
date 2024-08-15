@@ -34,6 +34,8 @@
 #define SW_EFUSE_HDCP_EN(x)		UPDATE(x, 8, 8)
 #define SW_OUTPUT_MODE_MASK		GENMASK(7, 3)
 #define SW_OUTPUT_MODE(x)		UPDATE(x, 7, 3)
+#define SW_OUTPUT_COMBTX_MODE_MASK	GENMASK(4, 3)
+#define SW_OUTPUT_COMBTX_MODE(x)	UPDATE(x, 4, 3)
 #define SW_INPUT_MODE_MASK		GENMASK(2, 0)
 #define SW_INPUT_MODE(x)		UPDATE(x, 2, 0)
 #define GRF_SYSTEM_CON1			0x0004
@@ -45,7 +47,13 @@
 #define GRF_GPIO_RXDDC_SDA_SEL(x)	UPDATE(x, 6, 6)
 #define GRF_GPIO_RXDDC_SCL_SEL_MASK	BIT(5)
 #define GRF_GPIO_RXDDC_SCL_SEL(x)	UPDATE(x, 5, 5)
+#define GRF_DPHY_CH1_EN_MASK		BIT(1)
+#define GRF_DPHY_CH1_EN(x)		UPDATE(x, 1, 1)
+#define GRF_AS_DSIPHY_MASK		BIT(0)
+#define GRF_AS_DSIPHY(x)		UPDATE(x, 0, 0)
 #define GRF_SCALER_CON0			0x0010
+#define SCL_COLOR_VER_EN(x)		HIWORD_UPDATE(x, 10, 10)
+#define SCL_COLOR_BAR_EN(x)		HIWORD_UPDATE(x, 9, 9)
 #define SCL_VER_DOWN_MODE(x)		HIWORD_UPDATE(x, 8, 8)
 #define SCL_HOR_DOWN_MODE(x)		HIWORD_UPDATE(x, 7, 7)
 #define SCL_BIC_COE_SEL(x)		HIWORD_UPDATE(x, 6, 5)
@@ -87,9 +95,13 @@
 #define SW_SPLIT_MODE(x)		UPDATE(x, 1, 1)
 #define SW_SPLIT_EN			BIT(0)
 #define GRF_CSC_CTRL_CON		0x0038
+#define SW_Y2R_MODE(x)			HIWORD_UPDATE(x, 13, 12)
+#define SW_FROM_CSC_MATRIX_EN(x)	HIWORD_UPDATE(x, 11, 11)
 #define SW_YUV2VYU_SWP(x)		HIWORD_UPDATE(x, 8, 8)
 #define SW_R2Y_EN(x)			HIWORD_UPDATE(x, 4, 4)
 #define SW_Y2R_EN(x)			HIWORD_UPDATE(x, 0, 0)
+#define SW_R2Y_CSC_MODE(x)		HIWORD_UPDATE(x, 7, 6)
+#define SW_Y2R_CSC_MODE(x)		HIWORD_UPDATE(x, 3, 2)
 #define GRF_LVDS_TX_CON			0x003c
 #define SW_LVDS_CON_DUAL_SEL(x)		HIWORD_UPDATE(x, 12, 12)
 #define SW_LVDS_CON_DEN_POLARITY(x)	HIWORD_UPDATE(x, 11, 11)
@@ -173,8 +185,23 @@
 #define GRF_GPIO3A_D1_CON		0x00e4
 #define GRF_GPIO3B_D_CON		0x00e8
 #define GRF_GPIO_SR_CON			0x00ec
+#define GRF_BG_CTRL			0x00f0
+#define BG_ENABLE_MASK			GENMASK(31, 31)
+#define BG_ENABLE(x)			UPDATE(x, 31, 31)
+#define BG_R_OR_V_MASK			GENMASK(29, 20)
+#define BG_R_OR_V(x)			UPDATE(x, 29, 20)
+#define BG_G_OR_Y_MASK			GENMASK(19, 10)
+#define BG_G_OR_Y(x)			UPDATE(x, 19, 10)
+#define BG_B_OR_U_MASK			GENMASK(9, 0)
+#define BG_B_OR_U(x)			UPDATE(x, 9, 0)
+
+#define GRF_SW_HDMIRXPHY_CRTL		0x00f4
 #define GRF_INTR0_EN			0x0100
 #define GRF_INTR0_CLR_EN		0x0104
+#define GRF_INT0_HDMIRX_CLR_MASK_D(x)	HIWORD_UPDATE(x, 8, 8)
+#define GRF_INT0_HDMIRX_CLR_D(x)	HIWORD_UPDATE(x, 8, 8)
+#define GRF_INT0_HDMIRX_CLR_MASK_F(x)	HIWORD_UPDATE(x, 9, 9)
+#define GRF_INT0_HDMIRX_CLR_F(x)	HIWORD_UPDATE(x, 9, 9)
 #define GRF_INTR0_STATUS		0x0108
 #define GRF_INTR0_RAW_STATUS		0x010c
 #define GRF_INTR1_EN			0x0110
@@ -190,8 +217,19 @@
 #define GRF_OS_REG1			0x0144
 #define GRF_OS_REG2			0x0148
 #define GRF_OS_REG3			0x014c
-#define GRF_SOC_VERSION			0x0150
+#define GRF_CSC_MATRIX_COE01_COE00	0x01a0
+#define GRF_CSC_MATRIX_COE10_COE02	0x01a4
+#define GRF_CSC_MATRIX_COE12_COE11	0x01a8
+#define GRF_CSC_MATRIX_COE21_COE20	0x01ac
+#define GRF_CSC_MATRIX_COE22		0x01b0
+#define GRF_CSC_MATRIX_OFFSET0		0x01b4
+#define GRF_CSC_MATRIX_OFFSET1		0x01b8
+#define GRF_CSC_MATRIX_OFFSET2		0x01bc
+#define GRF_SOC_VERSION			0x0200
 #define GRF_MAX_REGISTER		GRF_SOC_VERSION
+
+#define RK628_DEFAULT_WIDTH	64
+#define RK628_DEFAULT_HEIGHT	64
 
 enum {
 	COMBTXPHY_MODULEA_EN = BIT(0),
@@ -233,46 +271,70 @@ enum {
 	RK628_DEV_GPIO1,
 	RK628_DEV_GPIO2,
 	RK628_DEV_GPIO3,
+	RK628_DEV_CSI1 = 0x14,
 	RK628_DEV_MAX,
+};
+
+enum {
+	RK628_UNKNOWN,
+	RK628D_VERSION,
+	RK628F_VERSION,
+};
+
+struct mipi_timing {
+	u8 data_lp;
+	u8 data_prepare;
+	u8 data_zero;
+	u8 data_trail;
+	u8 clk_lp;
+	u8 clk_prepare;
+	u8 clk_zero;
+	u8 clk_trail;
+	u8 clk_post;
 };
 
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap[RK628_DEV_MAX];
+	u8 version;
 	void *txphy;
+	u8 dphy_lane_en;
+	bool dual_mipi;
+	struct mipi_timing mipi_timing[2];
+	struct mutex rst_lock;
+	int tx_mode;
+	int dbg_en;
+	struct dentry *debug_dir;
+	struct gpio_desc *hdmirx_det_gpio;
+	bool last_mipi_status;
+	bool is_suspend;
 };
+
+#define rk628_dbg(rk628, format, ...)	\
+do {			\
+	if (rk628->dbg_en)	\
+		dev_info(rk628->dev, format, ##__VA_ARGS__); \
+} while (0)
+
+int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val);
+int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val);
+int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask, u32 val);
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 {
-	int region = (reg >> 16) & 0xff;
-	int ret = 0;
-
-	ret = regmap_write(rk628->regmap[region], reg, val);
-	if (ret < 0)
-		pr_info("%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
-
-	return ret;
+	return rk628_media_i2c_write(rk628, reg, val);
 }
 
 static inline int rk628_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
 {
-	int region = (reg >> 16) & 0xff;
-	int ret = 0;
-
-	ret = regmap_read(rk628->regmap[region], reg, val);
-	if (ret < 0)
-		pr_info("%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
-
-	return ret;
+	return rk628_media_i2c_read(rk628, reg, val);
 }
 
 static inline int rk628_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 					u32 val)
 {
-	int region = (reg >> 16) & 0xff;
-
-	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	return rk628_media_i2c_update_bits(rk628, reg, mask, val);
 }
 
 struct rk628 *rk628_i2c_register(struct i2c_client *client);
@@ -280,5 +342,7 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   struct videomode *src,
 			   struct videomode *dst,
 			   u64 *dst_pclk);
+void rk628_version_parse(struct rk628 *rk628);
+void rk628_debugfs_create(struct rk628 *rk628);
 
 #endif

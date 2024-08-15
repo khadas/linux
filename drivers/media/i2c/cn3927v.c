@@ -113,6 +113,8 @@ struct cn3927v_device {
 	struct regulator *supply;
 	struct i2c_client *client;
 	bool power_on;
+
+	atomic_t open_cnt;
 };
 
 struct TimeTabel_s {
@@ -675,24 +677,26 @@ static int cn3927v_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
-	cn3927v_init(client);
+	if (dev_vcm->power_on && atomic_inc_return(&dev_vcm->open_cnt) == 1) {
+		cn3927v_init(client);
 
-	usleep_range(1000, 1200);
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		usleep_range(1000, 1200);
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 
-	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		cn3927v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac += CN3927V_GRADUAL_MOVELENS_STEPS;
-		if (dac >= dev_vcm->current_lens_pos)
-			break;
-	}
+		move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
+		while (dac <= dev_vcm->current_lens_pos) {
+			cn3927v_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac += CN3927V_GRADUAL_MOVELENS_STEPS;
+			if (dac >= dev_vcm->current_lens_pos)
+				break;
+		}
 
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		cn3927v_set_dac(dev_vcm, dac);
+		if (dac > dev_vcm->current_lens_pos) {
+			dac = dev_vcm->current_lens_pos;
+			cn3927v_set_dac(dev_vcm, dac);
+		}
 	}
 
 #ifdef CONFIG_PM
@@ -715,27 +719,29 @@ static int cn3927v_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		  atomic_read(&sd->dev->power.usage_count));
 #endif
 
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
-	while (dac >= CN3927V_GRADUAL_MOVELENS_STEPS) {
-		cn3927v_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac -= CN3927V_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
+	if (dev_vcm->power_on && atomic_dec_return(&dev_vcm->open_cnt) == 0) {
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
+		while (dac >= CN3927V_GRADUAL_MOVELENS_STEPS) {
+			cn3927v_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac -= CN3927V_GRADUAL_MOVELENS_STEPS;
+			if (dac <= 0)
+				break;
+		}
 
-	if (dac < CN3927V_GRADUAL_MOVELENS_STEPS) {
-		dac = CN3927V_GRADUAL_MOVELENS_STEPS;
-		cn3927v_set_dac(dev_vcm, dac);
-	}
-	/* set to power down mode */
-	if (dev_vcm->adcanced_mode) {
-		cn3927v_write_reg(client, 0x02, 1, 0x01);
-	} else {
-		/* Ringing off */
-		cn3927v_write_msg(client, 0xDC, 0x51);
+		if (dac < CN3927V_GRADUAL_MOVELENS_STEPS) {
+			dac = CN3927V_GRADUAL_MOVELENS_STEPS;
+			cn3927v_set_dac(dev_vcm, dac);
+		}
+		/* set to power down mode */
+		if (dev_vcm->adcanced_mode) {
+			cn3927v_write_reg(client, 0x02, 1, 0x01);
+		} else {
+			/* Ringing off */
+			cn3927v_write_msg(client, 0xDC, 0x51);
+		}
 	}
 
 	pm_runtime_put(sd->dev);
@@ -1333,6 +1339,7 @@ static int cn3927v_probe(struct i2c_client *client,
 	cn3927v_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	cn3927v_dev->vcm_movefull_t =
 		cn3927v_move_time(cn3927v_dev, CN3927V_MAX_REG);
+	atomic_set(&cn3927v_dev->open_cnt, 0);
 
 	pm_runtime_enable(dev);
 

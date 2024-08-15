@@ -194,6 +194,7 @@ struct sii902x {
 	} audio;
 	struct drm_display_mode mode;
 	int bus_format;
+	bool loader_protect;
 };
 
 enum sii902x_bus_format {
@@ -257,12 +258,12 @@ static void sii902x_reset(struct sii902x *sii902x)
 	if (!sii902x->reset_gpio)
 		return;
 
-	gpiod_set_value(sii902x->reset_gpio, 1);
+	gpiod_direction_output(sii902x->reset_gpio, 1);
 
 	/* The datasheet says treset-min = 100us. Make it 150us to be sure. */
 	usleep_range(150, 200);
 
-	gpiod_set_value(sii902x->reset_gpio, 0);
+	gpiod_direction_output(sii902x->reset_gpio, 0);
 }
 
 static enum drm_connector_status sii902x_detect(struct sii902x *sii902x)
@@ -550,6 +551,11 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	struct hdmi_avi_infoframe frame;
 	u16 pixel_clock_10kHz = adj->clock / 10;
 	int ret, vrefresh;
+
+	if (sii902x->loader_protect) {
+		sii902x->loader_protect = false;
+		return;
+	}
 
 	if (sii902x->sink_is_hdmi)
 		output_mode = SII902X_SYS_CTRL_OUTPUT_HDMI;
@@ -1219,6 +1225,32 @@ static const struct drm_bridge_timings default_sii902x_timings = {
 		 | DRM_BUS_FLAG_DE_HIGH,
 };
 
+static bool sii902x_is_enabled(struct sii902x *sii902x)
+{
+	struct device *dev = &sii902x->i2c->dev;
+	unsigned int val;
+	u8 chipid[4];
+	bool enable;
+	bool chipid_valid;
+	int ret;
+
+	ret = regmap_read(sii902x->regmap, SII902X_PWR_STATE_CTRL, &val);
+	if (ret) {
+		dev_err(dev, "regmap_read failed %d\n", ret);
+		return false;
+	}
+	enable = (val & SII902X_AVI_POWER_STATE_MSK) ? false : true;
+
+	ret = regmap_bulk_read(sii902x->regmap, SII902X_REG_CHIPID(0), &chipid, 4);
+	if (ret) {
+		dev_err(dev, "regmap_read failed %d\n", ret);
+		return false;
+	}
+	chipid_valid = (chipid[0] == 0xb0) ? true : false;
+
+	return enable && chipid_valid;
+}
+
 static int sii902x_init(struct sii902x *sii902x)
 {
 	struct device *dev = &sii902x->i2c->dev;
@@ -1226,34 +1258,38 @@ static int sii902x_init(struct sii902x *sii902x)
 	u8 chipid[4];
 	int ret;
 
-	sii902x_reset(sii902x);
+	sii902x->loader_protect = sii902x_is_enabled(sii902x);
+	if (!sii902x->loader_protect) {
+		sii902x_reset(sii902x);
 
-	ret = regmap_write(sii902x->regmap, SII902X_REG_TPI_RQB, 0x0);
-	if (ret) {
-		dev_err(dev, "enable TPI mode failed %d\n", ret);
-		return ret;
+		ret = regmap_write(sii902x->regmap, SII902X_REG_TPI_RQB, 0x0);
+		if (ret) {
+			dev_err(dev, "enable TPI mode failed %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_bulk_read(sii902x->regmap, SII902X_REG_CHIPID(0),
+				       &chipid, 4);
+		if (ret) {
+			dev_err(dev, "regmap_read failed %d\n", ret);
+			return ret;
+		}
+
+		if (chipid[0] != 0xb0) {
+			dev_err(dev, "Invalid chipid: %02x (expecting 0xb0)\n",
+				chipid[0]);
+			return -EINVAL;
+		}
+
+		/* Clear all pending interrupts */
+		regmap_read(sii902x->regmap, SII902X_INT_STATUS, &status);
+		regmap_write(sii902x->regmap, SII902X_INT_STATUS, status);
 	}
-
-	ret = regmap_bulk_read(sii902x->regmap, SII902X_REG_CHIPID(0),
-			       &chipid, 4);
-	if (ret) {
-		dev_err(dev, "regmap_read failed %d\n", ret);
-		return ret;
-	}
-
-	if (chipid[0] != 0xb0) {
-		dev_err(dev, "Invalid chipid: %02x (expecting 0xb0)\n",
-			chipid[0]);
-		return -EINVAL;
-	}
-
-	/* Clear all pending interrupts */
-	regmap_read(sii902x->regmap, SII902X_INT_STATUS, &status);
-	regmap_write(sii902x->regmap, SII902X_INT_STATUS, status);
 
 	if (sii902x->i2c->irq > 0) {
-		regmap_write(sii902x->regmap, SII902X_INT_ENABLE,
-			     SII902X_HOTPLUG_EVENT);
+		if (!sii902x->loader_protect)
+			regmap_write(sii902x->regmap, SII902X_INT_ENABLE,
+				     SII902X_HOTPLUG_EVENT);
 
 		ret = devm_request_threaded_irq(dev, sii902x->i2c->irq, NULL,
 						sii902x_interrupt,
@@ -1314,8 +1350,7 @@ static int sii902x_probe(struct i2c_client *client,
 	if (IS_ERR(sii902x->regmap))
 		return PTR_ERR(sii902x->regmap);
 
-	sii902x->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-						      GPIOD_OUT_LOW);
+	sii902x->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(sii902x->reset_gpio)) {
 		dev_err(dev, "Failed to retrieve/request reset gpio: %ld\n",
 			PTR_ERR(sii902x->reset_gpio));
@@ -1344,8 +1379,7 @@ static int sii902x_probe(struct i2c_client *client,
 			return -EPROBE_DEFER;
 	}
 
-	sii902x->enable_gpio = devm_gpiod_get_optional(dev, "enable",
-						       GPIOD_OUT_LOW);
+	sii902x->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_ASIS);
 	if (IS_ERR(sii902x->enable_gpio)) {
 		dev_err(dev, "Failed to retrieve/request enable gpio: %ld\n",
 			PTR_ERR(sii902x->enable_gpio));

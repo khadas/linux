@@ -60,6 +60,9 @@
 #define I2CM_ADDR					0xff000
 #define I2CM_SLVADDR					0xfe0
 #define I2CM_WR_MASK					0x1e
+#define I2CM_NBYTES_MASK				(0xf << 20)
+#define I2CM_16BYTES					(0xf << 20)
+#define I2CM_1BYTES					(0 << 20)
 #define I2CM_EXT_READ					BIT(4)
 #define I2CM_SHORT_READ					BIT(3)
 #define I2CM_FM_READ					BIT(2)
@@ -156,7 +159,10 @@
 #define HDCP2_BYPASS					BIT(0)
 #define HDCP2LOGIC_ESM_GPIO_IN				0x8e4
 #define HDCP2LOGIC_ESM_GPIO_OUT				0x8e8
-#define HDCP2_AUTHENTICATION_SUCCESS			BIT(6)
+#define HDCP2_AUTHENTICATION_NOT_CAPABLE		(BIT(1) << 4)
+#define HDCP2_AUTHENTICATION_SUCCESS			(BIT(2) << 4)
+#define HDCP2_AUTHENTICATION_FAILED			(BIT(3) << 4)
+#define HDCP2_AUTHENTICATION_LINK_ERR			(BIT(4) << 4)
 /* HDCP14 Registers */
 #define HDCP14_CONFIG0					0x900
 #define HDCP14_OESS_ESSS_OVR_VALUE                      BIT(14)

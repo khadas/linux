@@ -64,7 +64,7 @@ int dhd_monitor_uninit(void);
 #ifndef DHD_MAX_IFS
 #define DHD_MAX_IFS 16
 #endif
-#define MON_PRINT(format, ...) printf("DHD-MON: %s " format, __func__, ##__VA_ARGS__)
+#define MON_PRINT(format, ...)    printf("DHD-MON: %s " format, __func__, ##__VA_ARGS__)
 #define MON_TRACE MON_PRINT
 
 typedef struct monitor_interface {
@@ -329,7 +329,7 @@ int dhd_add_monitor(const char *name, struct net_device **new_ndev)
 	strlcpy(ndev->name, name, sizeof(ndev->name));
 	ndev->netdev_ops = &dhd_mon_if_ops;
 
-	ret = register_netdevice(ndev);
+	ret = dhd_register_net(ndev, true);
 	if (ret) {
 		MON_PRINT(" register_netdevice failed (%d)\n", ret);
 		goto out;
@@ -365,7 +365,7 @@ int dhd_del_monitor(struct net_device *ndev)
 			g_monitor.mon_if[i].real_ndev == ndev) {
 
 			g_monitor.mon_if[i].real_ndev = NULL;
-			unregister_netdevice(g_monitor.mon_if[i].mon_ndev);
+			dhd_unregister_net(g_monitor.mon_if[i].mon_ndev, true);
 			free_netdev(g_monitor.mon_if[i].mon_ndev);
 			g_monitor.mon_if[i].mon_ndev = NULL;
 			g_monitor.monitor_state = MONITOR_STATE_INTERFACE_DELETED;
@@ -399,7 +399,7 @@ int dhd_monitor_uninit(void)
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			ndev = g_monitor.mon_if[i].mon_ndev;
 			if (ndev) {
-				unregister_netdevice(ndev);
+				dhd_unregister_net(ndev, true);
 				free_netdev(ndev);
 				g_monitor.mon_if[i].real_ndev = NULL;
 				g_monitor.mon_if[i].mon_ndev = NULL;

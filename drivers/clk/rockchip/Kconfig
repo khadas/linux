@@ -128,6 +128,13 @@ config CLK_RK3568
 	help
 	  Build the driver for RK3568 Clock Driver.
 
+config CLK_RK3576
+	tristate "Rockchip RK3576 clock controller support"
+	depends on CPU_RK3576 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3576 Clock Driver.
+
 config CLK_RK3588
 	tristate "Rockchip RK3588 clock controller support"
 	depends on CPU_RK3588 || COMPILE_TEST
@@ -148,13 +155,15 @@ config ROCKCHIP_CLK_LINK
 
 config ROCKCHIP_CLK_BOOST
 	bool "Rockchip Clk Boost"
-	default y if CPU_PX30
+	depends on CPU_PX30
+	default y
 	help
 	  Say y here to enable clk boost.
 
 config ROCKCHIP_CLK_INV
 	bool "Rockchip Clk Inverter"
-	default y if !CPU_RV1126 && !CPU_RV1106
+	depends on !CPU_RV1126 && !CPU_RV1106
+	default y
 	help
 	  Say y here to enable clk Inverter.
 
@@ -166,7 +175,8 @@ config ROCKCHIP_CLK_OUT
 
 config ROCKCHIP_CLK_PVTM
 	bool "Rockchip Clk Pvtm"
-	default y if !CPU_RV1126 && !CPU_RV1106
+	depends on !CPU_RV1126 && !CPU_RV1106
+	default y
 	help
 	  Say y here to enable clk pvtm.
 
@@ -175,35 +185,39 @@ config ROCKCHIP_DDRCLK
 
 config ROCKCHIP_DDRCLK_SIP
 	bool "Rockchip DDR Clk SIP"
-	default y if CPU_RK3399
+	depends on CPU_RK3399
+	default y
 	select ROCKCHIP_DDRCLK
 	help
 	  Say y here to enable ddr clk sip.
 
 config ROCKCHIP_DDRCLK_SIP_V2
 	bool "Rockchip DDR Clk SIP V2"
-	default y if CPU_PX30   || CPU_RK1808 || CPU_RK312X || CPU_RK322X || \
-		     CPU_RK3288 || CPU_RK3308 || CPU_RK3328 || CPU_RV1126
+	depends on CPU_PX30   || CPU_RK1808 || CPU_RK312X || CPU_RK322X || \
+		   CPU_RK3288 || CPU_RK3308 || CPU_RK3328 || CPU_RV1126
+	default y
 	select ROCKCHIP_DDRCLK
 	help
 	  Say y here to enable ddr clk sip v2.
 
 config ROCKCHIP_PLL_RK3066
 	bool "Rockchip PLL Type RK3066"
-	default y if CPU_RK30XX || CPU_RK3188 || \
-		CPU_RK3288 || CPU_RK3368
+	depends on CPU_RK30XX || CPU_RK3188 || CPU_RK3288 || CPU_RK3368
+	default y
 	help
 	  Say y here to enable pll type is rk3066.
 
 config ROCKCHIP_PLL_RK3399
 	bool "Rockchip PLL Type RK3399"
-	default y if CPU_RK3399 || CPU_RV1108
+	depends on CPU_RK3399 || CPU_RV1108
+	default y
 	help
 	  Say y here to enable pll type is rk3399.
 
 config ROCKCHIP_PLL_RK3588
 	bool "Rockchip PLL Type RK3588"
-	default y if CPU_RK3588
+	depends on CPU_RK3588 || CPU_RK3576
+	default y
 	help
 	  Say y here to enable pll type is rk3588.
 

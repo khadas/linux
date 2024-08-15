@@ -292,13 +292,11 @@ err_exit:
 	return ret;
 }
 
-static int nca9539_remove(struct i2c_client *client)
+static void nca9539_remove(struct i2c_client *client)
 {
 	struct nca9539_chip *chip = i2c_get_clientdata(client);
 
 	regulator_disable(chip->regulator);
-
-	return 0;
 }
 
 static const struct of_device_id nca9539_gpio_of_match_table[] = {

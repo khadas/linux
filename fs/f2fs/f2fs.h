@@ -64,7 +64,7 @@ enum {
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-#define F2FS_ALL_FAULT_TYPE		((1 << FAULT_MAX) - 1)
+#define F2FS_ALL_FAULT_TYPE		(GENMASK(FAULT_MAX - 1, 0))
 
 struct f2fs_fault_info {
 	atomic_t inject_ops;
@@ -73,7 +73,7 @@ struct f2fs_fault_info {
 };
 
 extern const char *f2fs_fault_name[FAULT_MAX];
-#define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
+#define IS_FAULT_SET(fi, type) ((fi)->inject_type & BIT(type))
 #endif
 
 #define MIN_ROOT_RESERVED_BLOCKS (128 * 1024 * 1024)
@@ -842,7 +842,7 @@ struct f2fs_inode_info {
 	unsigned char i_compress_algorithm;	/* algorithm type */
 	unsigned char i_log_cluster_size;	/* log of cluster size */
 	unsigned char i_compress_level;		/* compress level (lz4hc,zstd) */
-	unsigned short i_compress_flag;		/* compress flag */
+	unsigned char i_compress_flag;		/* compress flag */
 	unsigned int i_cluster_size;		/* cluster size */
 
 	unsigned int atomic_write_cnt;
@@ -1414,7 +1414,7 @@ static inline void set_page_private_##name(struct page *page) \
 static inline void clear_page_private_##name(struct page *page) \
 { \
 	clear_bit(PAGE_PRIVATE_##flagname, &page_private(page)); \
-	if (page_private(page) == 1 << PAGE_PRIVATE_NOT_POINTER) { \
+	if (page_private(page) == BIT(PAGE_PRIVATE_NOT_POINTER)) { \
 		set_page_private(page, 0); \
 		if (PagePrivate(page)) { \
 			ClearPagePrivate(page); \
@@ -1464,8 +1464,8 @@ static inline void set_page_private_data(struct page *page, unsigned long data)
 
 static inline void clear_page_private_data(struct page *page)
 {
-	page_private(page) &= (1 << PAGE_PRIVATE_MAX) - 1;
-	if (page_private(page) == 1 << PAGE_PRIVATE_NOT_POINTER) {
+	page_private(page) &= GENMASK(PAGE_PRIVATE_MAX - 1, 0);
+	if (page_private(page) == BIT(PAGE_PRIVATE_NOT_POINTER)) {
 		set_page_private(page, 0);
 		if (PagePrivate(page)) {
 			ClearPagePrivate(page);
@@ -1502,6 +1502,8 @@ struct compress_data {
 #define COMPRESS_HEADER_SIZE	(sizeof(struct compress_data))
 
 #define F2FS_COMPRESSED_PAGE_MAGIC	0xF5F2C000
+
+#define F2FS_ZSTD_DEFAULT_CLEVEL	1
 
 #define	COMPRESS_LEVEL_OFFSET	8
 
@@ -2164,15 +2166,6 @@ static inline int f2fs_down_read_trylock(struct f2fs_rwsem *sem)
 	return down_read_trylock(&sem->internal_rwsem);
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-static inline void f2fs_down_read_nested(struct f2fs_rwsem *sem, int subclass)
-{
-	down_read_nested(&sem->internal_rwsem, subclass);
-}
-#else
-#define f2fs_down_read_nested(sem, subclass) f2fs_down_read(sem)
-#endif
-
 static inline void f2fs_up_read(struct f2fs_rwsem *sem)
 {
 	up_read(&sem->internal_rwsem);
@@ -2182,6 +2175,21 @@ static inline void f2fs_down_write(struct f2fs_rwsem *sem)
 {
 	down_write(&sem->internal_rwsem);
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static inline void f2fs_down_read_nested(struct f2fs_rwsem *sem, int subclass)
+{
+	down_read_nested(&sem->internal_rwsem, subclass);
+}
+
+static inline void f2fs_down_write_nested(struct f2fs_rwsem *sem, int subclass)
+{
+	down_write_nested(&sem->internal_rwsem, subclass);
+}
+#else
+#define f2fs_down_read_nested(sem, subclass) f2fs_down_read(sem)
+#define f2fs_down_write_nested(sem, subclass) f2fs_down_write(sem)
+#endif
 
 static inline int f2fs_down_write_trylock(struct f2fs_rwsem *sem)
 {
@@ -2880,7 +2888,7 @@ static inline int f2fs_test_bit(unsigned int nr, char *addr)
 	int mask;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	return mask & *addr;
 }
 
@@ -2889,7 +2897,7 @@ static inline void f2fs_set_bit(unsigned int nr, char *addr)
 	int mask;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	*addr |= mask;
 }
 
@@ -2898,7 +2906,7 @@ static inline void f2fs_clear_bit(unsigned int nr, char *addr)
 	int mask;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	*addr &= ~mask;
 }
 
@@ -2908,7 +2916,7 @@ static inline int f2fs_test_and_set_bit(unsigned int nr, char *addr)
 	int ret;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	ret = mask & *addr;
 	*addr |= mask;
 	return ret;
@@ -2920,7 +2928,7 @@ static inline int f2fs_test_and_clear_bit(unsigned int nr, char *addr)
 	int ret;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	ret = mask & *addr;
 	*addr &= ~mask;
 	return ret;
@@ -2931,7 +2939,7 @@ static inline void f2fs_change_bit(unsigned int nr, char *addr)
 	int mask;
 
 	addr += (nr >> 3);
-	mask = 1 << (7 - (nr & 0x07));
+	mask = BIT(7 - (nr & 0x07));
 	*addr ^= mask;
 }
 
@@ -3782,8 +3790,9 @@ int f2fs_reserve_new_block(struct dnode_of_data *dn);
 int f2fs_get_block(struct dnode_of_data *dn, pgoff_t index);
 int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index);
 struct page *f2fs_get_read_data_page(struct inode *inode, pgoff_t index,
-			blk_opf_t op_flags, bool for_write);
-struct page *f2fs_find_data_page(struct inode *inode, pgoff_t index);
+			blk_opf_t op_flags, bool for_write, pgoff_t *next_pgofs);
+struct page *f2fs_find_data_page(struct inode *inode, pgoff_t index,
+							pgoff_t *next_pgofs);
 struct page *f2fs_get_lock_data_page(struct inode *inode, pgoff_t index,
 			bool for_write);
 struct page *f2fs_get_new_data_page(struct inode *inode,
@@ -4330,15 +4339,14 @@ static inline int set_compress_context(struct inode *inode)
 			F2FS_OPTION(sbi).compress_log_size;
 	F2FS_I(inode)->i_compress_flag =
 			F2FS_OPTION(sbi).compress_chksum ?
-				1 << COMPRESS_CHKSUM : 0;
+				BIT(COMPRESS_CHKSUM) : 0;
 	F2FS_I(inode)->i_cluster_size =
-			1 << F2FS_I(inode)->i_log_cluster_size;
+			BIT(F2FS_I(inode)->i_log_cluster_size);
 	if ((F2FS_I(inode)->i_compress_algorithm == COMPRESS_LZ4 ||
 		F2FS_I(inode)->i_compress_algorithm == COMPRESS_ZSTD) &&
 			F2FS_OPTION(sbi).compress_level)
-		F2FS_I(inode)->i_compress_flag |=
-				F2FS_OPTION(sbi).compress_level <<
-				COMPRESS_LEVEL_OFFSET;
+		F2FS_I(inode)->i_compress_level =
+				F2FS_OPTION(sbi).compress_level;
 	F2FS_I(inode)->i_flags |= F2FS_COMPR_FL;
 	set_inode_flag(inode, FI_COMPRESSED_FILE);
 	stat_inc_compr_inode(inode);
@@ -4457,7 +4465,8 @@ static inline bool f2fs_low_mem_mode(struct f2fs_sb_info *sbi)
 static inline bool f2fs_may_compress(struct inode *inode)
 {
 	if (IS_SWAPFILE(inode) || f2fs_is_pinned_file(inode) ||
-		f2fs_is_atomic_file(inode) || f2fs_has_inline_data(inode))
+		f2fs_is_atomic_file(inode) || f2fs_has_inline_data(inode) ||
+		f2fs_is_mmap_file(inode))
 		return false;
 	return S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode);
 }

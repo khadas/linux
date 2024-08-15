@@ -1156,6 +1156,10 @@ typedef struct wl_iscan_results_v2 {
 	wl_scan_results_v2_t results;
 } wl_iscan_results_v2_t;
 
+/** size of wl_iscan_results not including variable length array */
+#define WL_ISCAN_RESULTS_V109_FIXED_SIZE \
+        (WL_SCAN_RESULTS_V109_FIXED_SIZE + OFFSETOF(wl_iscan_results_v109_t, results))
+
 typedef struct wl_probe_params {
 	wlc_ssid_t ssid;
 	struct ether_addr bssid;
@@ -9753,7 +9757,16 @@ typedef enum event_msgs_ext_command {
 } event_msgs_ext_command_t;
 
 #define EVENTMSGS_VER 1
+
+#define __CHK_EMPTY(VAL) VAL ## 1
+#define CHK_EMPTY(VAL) __CHK_EMPTY(VAL)
+
+#if defined(BCM_FLEX_ARRAY) && (CHK_EMPTY(BCM_FLEX_ARRAY) == 1)
+/* Do not need to -1 since the BCM_FLEX_ARRAY is empty. */
+#define EVENTMSGS_EXT_STRUCT_SIZE      ((uint)(sizeof(eventmsgs_ext_t)))
+#else
 #define EVENTMSGS_EXT_STRUCT_SIZE	((uint)(sizeof(eventmsgs_ext_t) - 1))
+#endif /* BCM_FLEX_ARRAY && CHECK_EMPTY(BCM_FLEX_ARRAY) */
 
 /* len-	for SET it would be mask size from the application to the firmware */
 /*		for GET it would be actual firmware mask size */
@@ -10740,6 +10753,8 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	vndr_ie_t vndr_ie_data;		/**< vendor IE data */
 } BWL_POST_PACKED_STRUCT vndr_ie_info_t;
 #include <packed_section_end.h>
+/* buffer contains only 1 IE */
+#define VNDR_IE_SET_ONE_BUF_LEN (sizeof(vndr_ie_setbuf_t) + sizeof(vndr_ie_info_t))
 
 #include <packed_section_start.h>
 typedef BWL_PRE_PACKED_STRUCT struct {
@@ -10747,6 +10762,9 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 	vndr_ie_info_t vndr_ie_list[BCM_FLEX_ARRAY];	/**< var len list of vndr_ie_info_t */
 } BWL_POST_PACKED_STRUCT vndr_ie_buf_t;
 #include <packed_section_end.h>
+
+/* buffer contains only 1 IE */
+#define IE_SET_ONE_BUF_LEN (sizeof(ie_setbuf_t) + sizeof(ie_info_t))
 
 #include <packed_section_start.h>
 typedef BWL_PRE_PACKED_STRUCT struct {
@@ -29641,9 +29659,10 @@ typedef struct wl_aml_header_v1 {
 #define WL_AML_HEADER_VERSION	1u
 
 /* Flags for aml header */
-#define WL_AML_F_DIRECTION 0x0001	/* This flag indicates this is Tx mgmt, otherwise Rx */
-#define WL_AML_F_ACKED     0x0002	/* This flag indicates the frame is acked */
-#define WL_AML_F_EAPOL     0x0004	/* This flag indicates the frame is wpa supplicant */
+#define WL_AML_F_DIRECTION	0x0001	/* This flag indicates this is Tx mgmt, otherwise Rx */
+#define WL_AML_F_ACKED		0x0002	/* This flag indicates the frame is acked */
+#define WL_AML_F_MGMT		0x0004	/* This flag indicates the frame is 80211 mgmt */
+#define SDIO_HLEN		12	/* Sdio Header Length */
 
 /* Version for IOVAR 'aml' */
 #define WL_AML_IOV_MAJOR_VER_1 1u
@@ -31162,22 +31181,46 @@ typedef struct wl_ext_auth_evt {
 
 /* SAR related parameter and structure */
 #define MAX_5G_SUBBAND       4
+#define MAX_6G_SUBBAND	     6
 #define SAR_PARAM_V1_VSDB    1
 #define SAR_PARAM_V2_RSDB    2
+#define SAR_PARAM_6G_V3_VSDB    3
+#define SAR_PARAM_6G_V4_RSDB    4
+#define SAR_PARAM_DYN           5
+#define SAR_PARAM_VER_MASK      0xffff
+#define SAR_PARAM_NUM_MASK      0xffff0000
+#define SAR_PARAM_NUM_OFFSET	16
+/* MAX_NUM (2g * 2 + 5g * 10 + 6g * 12) * 2 (RSDB) */
+#define MAX_SAR_PARAMS_NUM      48
 
 typedef struct _sarctrl_single_set {
 	uint32 sarctrl_2g;
 	uint32 sarctrl_2g_2;
 	uint32 sarctrl_5gs[MAX_5G_SUBBAND];
 	uint32 sarctrl_5gs_2[MAX_5G_SUBBAND];
+#if defined(WL_BAND6G) || defined(WL_6G_BAND)
+	uint32 sarctrl_6gs[MAX_6G_SUBBAND];
+	uint32 sarctrl_6gs_2[MAX_6G_SUBBAND];
+#endif /* WL_BAND6G || WL_6G_BAND */
 } sarctrl_single_set;
 #define CONST_SARCTRL_SINGLE_SET_QTY    (sizeof(sarctrl_single_set)/sizeof(uint32))
 
 typedef struct _sarctrl_set {
-	uint32              ver;
+	/* ver MASK 0xffff, num MASK 0xffff0000
+	 * ver = 5, add num,
+	 * else set ver only, without num to adapt old FW
+	 */
+	uint32 ver;
 
-	sarctrl_single_set  basic;
-	sarctrl_single_set  rsdb;
+	union {
+		struct {
+			sarctrl_single_set  basic;
+			sarctrl_single_set  rsdb;
+		};
+		struct {
+			uint32 sarctrl[MAX_SAR_PARAMS_NUM];
+		};
+	};
 } sarctrl_set;
 #define CONST_SARCTRL_SET_QTY    (sizeof(sarctrl_set)/sizeof(uint32) - 1)
 

@@ -163,13 +163,14 @@ const module_name_map_v2_t module_name_map_v2[] = {
 	{BCM43752_CHIP_ID,	4,	"ap6276s"},
 	{BCM43756_CHIP_ID,	4,	"ap6276s"},
 	{BCM43756_CHIP_ID,	6,	""},
+	{BCM43711_CHIP_ID,	0,	"ap6611s"},
 	{BCM4382_CHIP_ID,	3,	""},
 #endif
 #ifdef BCMPCIE
 	{BCM4381_CHIP_ID,	0,	""},
 	{BCM4381_CHIP_ID,	1,	""},
 	{BCM43752_CHIP_ID,	4,	""},
-	{BCM43756_CHIP_ID,	4,	""},
+	{BCM43756_CHIP_ID,	4,	"ap6276p"},
 	{BCM43756_CHIP_ID,	6,	""},
 	{BCM4382_CHIP_ID,	3,	""},
 #endif
@@ -192,6 +193,7 @@ const chip_name_map_v2_t chip_name_map_v2[] = {
 	{BCM43752_CHIP_ID,	4,	"syn43756b0"},
 	{BCM43756_CHIP_ID,	4,	"syn43756b0"},
 	{BCM43756_CHIP_ID,	6,	"syn43756c0"},
+	{BCM43711_CHIP_ID,	0,	"syn43711a0"},
 	{BCM4382_CHIP_ID,	3,	"syn4382a0"},
 };
 
@@ -627,7 +629,7 @@ dhd_conf_legacy_otp_chip(dhd_pub_t *dhd)
 			chip == BCM4345_CHIP_ID || chip == BCM43454_CHIP_ID ||
 			chip == BCM4359_CHIP_ID || chip == BCM43012_CHIP_ID ||
 			chip == BCM43751_CHIP_ID || chip == BCM43752_CHIP_ID ||
-			chip == BCM43756_CHIP_ID) {
+			chip == BCM43756_CHIP_ID || chip == BCM43711_CHIP_ID) {
 		return true;
 	}
 
@@ -1319,7 +1321,7 @@ dhd_conf_tput_monitor(dhd_pub_t *dhd)
 				if (tput_rx == 0) {
 					tput_rx = (int32)(diff_bytes*8/1024/1024)*1000/diff_ms;
 					tput_rx_kb = (int32)(diff_bytes*8*1000/1024)/diff_ms;
-					tput_rx_kb = tput_tx_kb % 1000;
+					tput_rx_kb = tput_rx_kb % 1000;
 				}
 				diff_bytes = conf->net_len - conf->last_net_tx;
 				tput_net = (int32)((diff_bytes/1024/1024)*8)*1000/diff_ms;
@@ -1691,6 +1693,34 @@ dhd_conf_get_iovar(dhd_pub_t *dhd, int ifidx, int cmd, char *name,
 }
 
 static int
+dhd_conf_intiovar(dhd_pub_t *dhd, int ifidx, uint cmd, char *name,
+	char *buf, int len)
+{
+	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
+	int ret = -1, val;
+
+	if (cmd == WLC_SET_VAR) {
+		memcpy(&val, buf, len);
+		CONFIG_TRACE("set %s %d\n", name, val);
+		bcm_mkiovar(name, (char *)&val, sizeof(val), iovbuf, sizeof(iovbuf));
+		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, ifidx);
+	}
+	else if (cmd == WLC_GET_VAR) {
+		if (bcm_mkiovar(name, NULL, 0, iovbuf, sizeof(iovbuf))) {
+			ret = dhd_wl_ioctl_cmd(dhd, cmd, iovbuf, sizeof(iovbuf), FALSE, ifidx);
+			if (!ret) {
+				memcpy(buf, iovbuf, len);
+				CONFIG_TRACE("get %s %d\n", name, *(int *)buf);
+			}
+		} else {
+			CONFIG_ERROR("mkiovar %s failed\n", name);
+		}
+	}
+
+	return ret;
+}
+
+static int
 dhd_conf_get_ioctl_ver(dhd_pub_t *dhd)
 {
 	int ret = 0;
@@ -1728,43 +1758,74 @@ dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec)
 	return bcmerror;
 }
 
+static int
+dhd_conf_check_ccode_all(dhd_pub_t *dhd)
+{
+	int ret = -1;
+	wl_channels_in_country_t *cic;
+
+	cic = kmalloc(WLC_IOCTL_SMLEN, GFP_KERNEL);
+	if (!cic) {
+		CONFIG_ERROR("kmalloc failed for cic\n");
+		goto exit;
+	}
+	memset(cic, 0, WLC_IOCTL_SMLEN);
+	cic->buflen = WLC_IOCTL_SMLEN;
+	cic->count = 0;
+	strcpy(cic->country_abbrev, dhd->conf->ccode_all.cspec.ccode);
+	cic->band = WLC_BAND_2G;
+	cic->buflen = htod32(cic->buflen);
+	cic->band = htod32(cic->band);
+	cic->count = htod32(cic->count);
+	ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_CHANNELS_IN_COUNTRY, (char *)cic,
+		WLC_IOCTL_SMLEN, FALSE, 0);
+exit:
+	if (ret)
+		memset(&dhd->conf->ccode_all, 0, sizeof(wl_ccode_all_t));
+	if (cic)
+		kfree(cic);
+
+	return ret;
+}
+
 int
 dhd_conf_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec)
 {
-	int bcmerror = -1;
+	int ret = -1;
 	struct dhd_conf *conf = dhd->conf;
 	country_list_t *country = conf->country_head;
 
 #ifdef CCODE_LIST
-	bcmerror = dhd_ccode_map_country_list(dhd, cspec);
+	if (strlen(dhd->conf->ccode_all.cspec.ccode)) {
+		ret = dhd_ccode_map_country_all(dhd, cspec);
+	}
+	if (ret)
+		ret = dhd_ccode_map_country_list(dhd, cspec);
 #endif
-	// **:XZ/11 => return XZ/11 if not found
-	// **:**/0 => return user specified ccode if not found, but set regrev 0
 	while (country != NULL) {
 		if (!strncmp("**", country->cspec.country_abbrev, 2)) {
 			if (!strncmp("**", country->cspec.ccode, 2)) {
+				// **:**/0 => return user specified ccode if not found, but set regrev 0
 				cspec->rev = 0;
-				bcmerror = 0;
+				ret = 0;
 				break;
 			}
+			// **:XZ/11 => return XZ/11 if not found
 			memcpy(cspec->ccode, country->cspec.ccode, WLC_CNTRY_BUF_SZ);
 			cspec->rev = country->cspec.rev;
-			bcmerror = 0;
+			ret = 0;
 			break;
 		} else if (!strncmp(cspec->country_abbrev,
 				country->cspec.country_abbrev, 2)) {
 			memcpy(cspec->ccode, country->cspec.ccode, WLC_CNTRY_BUF_SZ);
 			cspec->rev = country->cspec.rev;
-			bcmerror = 0;
+			ret = 0;
 			break;
 		}
 		country = country->next;
 	}
 
-	if (!bcmerror)
-		CONFIG_MSG("%s/%d\n", cspec->ccode, cspec->rev);
-
-	return bcmerror;
+	return ret;
 }
 
 static int
@@ -1962,7 +2023,7 @@ dhd_conf_he_cmd(dhd_pub_t * dhd, char *cmd, char *buf)
 	uint16 he_id = -1, he_len = 0, mybuf_len = sizeof(mybuf);
 	uint32 he_val;
 	const sub_cmd_t *tpl = he_cmd_list;
-	char sub_cmd[32], he_val_str[10];
+	char sub_cmd[32] = "", he_val_str[10] = "";
 
 	if (buf) {
 		sscanf(buf, "%s %s", sub_cmd, he_val_str);
@@ -2041,25 +2102,113 @@ dhd_conf_scan_mac(dhd_pub_t * dhd, char *cmd, char *buf)
 }
 #endif
 
+static void
+dhd_conf_reset_country_all(dhd_pub_t *dhd)
+{
+	int val;
+	val = 2;
+	dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "ww_2g_chan_only", (char *)&val, sizeof(val));
+	val = 0;
+	dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "disable_5g_band", (char *)&val, sizeof(val));
+	val = 0;
+	dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "disable_6g_band", (char *)&val, sizeof(val));
+}
+
+static int
+dhd_conf_set_country_all(dhd_pub_t *dhd, wl_country_t *cspec)
+{
+	struct dhd_conf *conf = dhd->conf;
+	wl_ccode_all_t *ccode_all = &conf->ccode_all;
+	wl_country_t cspec_all;
+	int ret = -1;
+
+	CONFIG_MSG("%s:%s/%d(2g%x-5g%x-6g%x)\n",
+		cspec->country_abbrev, ccode_all->cspec.ccode, ccode_all->cspec.rev,
+		ccode_all->ww_2g_chan_only,
+		ccode_all->disable_5g_band, ccode_all->disable_6g_band);
+
+	memcpy(&cspec_all, &ccode_all->cspec, sizeof(wl_country_t));
+	ret = dhd_conf_set_country(dhd, &cspec_all);
+	if (!ret) {
+		dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "ww_2g_chan_only",
+			(char *)&ccode_all->ww_2g_chan_only, sizeof(ccode_all->ww_2g_chan_only));
+		dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "disable_5g_band",
+			(char *)&ccode_all->disable_5g_band, sizeof(ccode_all->disable_5g_band));
+		dhd_conf_intiovar(dhd, 0, WLC_SET_VAR, "disable_6g_band",
+			(char *)&ccode_all->disable_6g_band, sizeof(ccode_all->disable_6g_band));
+	}
+
+	return ret;
+}
+
+bool
+dhd_conf_same_country(dhd_pub_t *dhd, char *buf)
+{
+	wl_ccode_all_t *ccode_all = &dhd->conf->ccode_all;
+	wl_country_t cspec = {{0}, 0, {0}};
+	wl_country_t cur_cspec = {{0}, 0, {0}};
+	uint32 ww_2g_chan_only = 0, disable_5g_band = 0, disable_6g_band = 0;
+	int ret;
+	bool match = TRUE;
+
+	strlcpy(cspec.country_abbrev, buf, WL_CCODE_LEN + 1);
+	strlcpy(cspec.ccode, buf, WL_CCODE_LEN + 1);
+	dhd_conf_map_country_list(dhd, &cspec);
+	dhd_conf_get_country(dhd, &cur_cspec);
+	if (!strncmp(cspec.ccode, ccode_all->cspec.ccode, 2) &&
+			!strncmp(cspec.ccode, cur_cspec.ccode, 2)) {
+		ret = dhd_conf_intiovar(dhd, 0, WLC_GET_VAR, "ww_2g_chan_only",
+			(char *)&ww_2g_chan_only, sizeof(ww_2g_chan_only));
+		if (!ret && ww_2g_chan_only != ccode_all->ww_2g_chan_only)
+			match = FALSE;	
+		ret = dhd_conf_intiovar(dhd, 0, WLC_GET_VAR, "disable_5g_band",
+			(char *)&disable_5g_band, sizeof(disable_5g_band));
+		if (!ret && disable_5g_band != ccode_all->disable_5g_band)
+			match = FALSE;
+		ret = dhd_conf_intiovar(dhd, 0, WLC_GET_VAR, "disable_6g_band",
+			(char *)&disable_6g_band, sizeof(disable_6g_band));
+		if (!ret && disable_6g_band != ccode_all->disable_6g_band)
+			match = FALSE;
+		if (match) {
+			CONFIG_MSG("%s/%d(2g%x-5g%x-6g%x) is already configured\n",
+				cur_cspec.ccode, cur_cspec.rev,
+				ww_2g_chan_only, disable_5g_band, disable_6g_band);
+			return TRUE;
+		}
+	}
+	if (!memcmp(&cspec.ccode, &cur_cspec.ccode, WL_CCODE_LEN) &&
+			(cspec.rev == cur_cspec.rev) &&
+			strncmp(cspec.ccode, ccode_all->cspec.ccode, 2)) {
+		CONFIG_MSG("country code = %s/%d is already configured\n",
+			cspec.ccode, cspec.rev);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 int
 dhd_conf_country(dhd_pub_t *dhd, char *cmd, char *buf)
 {
+	wl_ccode_all_t *ccode_all = &dhd->conf->ccode_all;
 	wl_country_t cspec = {{0}, 0, {0}};
-	wl_country_t cur_cspec = {{0}, 0, {0}};
 	int err = 0;
 
 	if (buf) {
-		dhd_conf_get_country(dhd, &cur_cspec);
+		if (dhd_conf_same_country(dhd, buf)) {
+			return 0;
+		}
 		strlcpy(cspec.country_abbrev, buf, WL_CCODE_LEN + 1);
 		strlcpy(cspec.ccode, buf, WL_CCODE_LEN + 1);
 		dhd_conf_map_country_list(dhd, &cspec);
-		if (!memcmp(&cspec.ccode, &cur_cspec.ccode, WL_CCODE_LEN) &&
-				(cspec.rev == cur_cspec.rev)) {
-			CONFIG_MSG("country code = %s/%d is already configured\n",
-				cspec.ccode, cspec.rev);
-			return 0;
+		if (!strncmp(cspec.ccode, ccode_all->cspec.ccode, 2))
+			err = dhd_conf_set_country_all(dhd, &cspec);
+		else {
+			if (strlen(dhd->conf->ccode_all.cspec.ccode)) {
+				dhd_conf_reset_country_all(dhd);
+			}
+			err = dhd_conf_set_country(dhd, &cspec);
 		}
-		err = dhd_conf_set_country(dhd, &cspec);
 		if (!err) {
 			dhd_conf_fix_country(dhd);
 		}
@@ -2201,27 +2350,6 @@ dhd_conf_get_band(dhd_pub_t *dhd)
 		CONFIG_ERROR("dhd or conf is NULL\n");
 
 	return band;
-}
-
-bool
-dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel)
-{
-	int i;
-	bool match = false;
-
-	if (dhd && dhd->conf) {
-		if (dhd->conf->channels.count == 0)
-			return true;
-		for (i=0; i<dhd->conf->channels.count; i++) {
-			if (channel == dhd->conf->channels.channel[i])
-				match = true;
-		}
-	} else {
-		match = true;
-		CONFIG_ERROR("dhd or conf is NULL\n");
-	}
-
-	return match;
 }
 
 int
@@ -2533,28 +2661,35 @@ dhd_conf_set_mchan_bw(dhd_pub_t *dhd, int p2p_mode, int miracast_mode)
 void
 dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 {
-	int i, j;
-	char str[16];
+	int i, j, magic_id;
+	char str[16], magic[20];
 #define MACS "%02x%02x%02x%02x%02x%02x"
 
 	/*  0) suspend_mode=1
 	 * Case 0: default is unicast pkt and event wake up
 	 * Case 1: no connection in suspend
-	 *   1) wl_suspend=3=0
+	 *   1) wl_suspend=52=0, 3=0
 	 *   2) wl_resume=2=0
 	 *   3) insuspend=0x7
 	 * Case 2: keep connection in suspend, but no pkt and event wake up
 	 *   1) dhd_master_mode=1
-	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107
+	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107, 200
 	 *   3) pkt_filter_add=141 0 0 0 0xFFFFFFFFFFFF 0x000000000000
 	 *   4) insuspend=0x7
 	 *   5) rekey_offload=1
 	 * Case 3: magic pkt and event wake up
 	 *   1) dhd_master_mode=1
-	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107
+	 *   2) pkt_filter_delete=100, 102, 103, 104, 105, 106, 107, 200
 	 *   3) magic_pkt_filter_add=141 0 1 12
 	 *   4) rekey_offload=1
 	 */
+	if (!dhd->conf->pkt_filter_cnt_default) {
+		dhd->conf->pkt_filter_cnt_default = dhd->pktfilter_count;
+		if (dhd->conf->magic_pkt_filter_add)
+			dhd->conf->magic_pkt_hdr_len = strlen(dhd->conf->magic_pkt_filter_add);
+	}
+	dhd->pktfilter_count = dhd->conf->pkt_filter_cnt_default;
+
 	for(i=0; i<dhd->conf->pkt_filter_add.count; i++) {
 		dhd->pktfilter[i+dhd->pktfilter_count] = dhd->conf->pkt_filter_add.filter[i];
 		CONFIG_MSG("%s\n", dhd->pktfilter[i+dhd->pktfilter_count]);
@@ -2562,6 +2697,10 @@ dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 	dhd->pktfilter_count += i;
 
 	if (dhd->conf->magic_pkt_filter_add) {
+		strncpy(magic, dhd->conf->magic_pkt_filter_add, dhd->conf->magic_pkt_hdr_len);
+		memset(dhd->conf->magic_pkt_filter_add, 0, MAGIC_PKT_FILTER_LEN);
+		strcpy(dhd->conf->magic_pkt_filter_add, magic);
+		magic_id = (int32)simple_strtol(magic, NULL, 10);
 		strcat(dhd->conf->magic_pkt_filter_add, " 0x");
 		strcat(dhd->conf->magic_pkt_filter_add, "FFFFFFFFFFFF");
 		for (j=0; j<16; j++)
@@ -2572,7 +2711,10 @@ dhd_conf_add_pkt_filter(dhd_pub_t *dhd)
 		for (j=0; j<16; j++)
 			strncat(dhd->conf->magic_pkt_filter_add, str, 12);
 		dhd->pktfilter[dhd->pktfilter_count] = dhd->conf->magic_pkt_filter_add;
+		dhd_pktfilter_offload_delete(dhd, magic_id);
+		dhd_pktfilter_offload_set(dhd, dhd->pktfilter[dhd->pktfilter_count]);
 		dhd->pktfilter_count += 1;
+		CONFIG_MSG("%s\n", dhd->conf->magic_pkt_filter_add);
 	}
 }
 
@@ -3208,7 +3350,6 @@ dhd_conf_suspend_resume_sta(dhd_pub_t *dhd, int ifidx, int suspend)
 static int
 dhd_conf_suspend_resume_ap(dhd_pub_t *dhd, int ifidx, int suspend)
 {
-	struct dhd_conf *conf = dhd->conf;
 	uint insuspend = 0;
 
 	insuspend = dhd_conf_get_insuspend(dhd, ALL_IN_SUSPEND);
@@ -3872,6 +4013,10 @@ dhd_conf_read_country(dhd_pub_t *dhd, char *full_param, uint len_param)
 	 * [country2]:[ccode2]/[regrev2] \
 	 * Ex: country_list=US:US/0, TW:TW/1
 	 */
+	/* Process ccode_all_list:
+	 * ccode_all_list=[ccode1]:[2g1]-[5g1]-[6g1], [ccode2]:[2g2]-[5g2]-[6g2], \
+	 * Ex: ccode_all_list=AU:2g3-5g0820-6gE, TW:2g3-5g0E04-6gF, US:2g3
+	 */
 	if (!strncmp("ccode=", full_param, len_param)) {
 		len_data = min((uint)WLC_CNTRY_BUF_SZ, len_data);
 		memset(&conf->cspec, 0, sizeof(wl_country_t));
@@ -3882,6 +4027,25 @@ dhd_conf_read_country(dhd_pub_t *dhd, char *full_param, uint len_param)
 	else if (!strncmp("regrev=", full_param, len_param)) {
 		conf->cspec.rev = (int32)simple_strtol(data, NULL, 10);
 		CONFIG_MSG("regrev = %d\n", conf->cspec.rev);
+	}
+	else if (!strncmp("ccode_all=", full_param, len_param)) {
+		len_data = min((uint)WLC_CNTRY_BUF_SZ, len_data);
+		memset(&conf->ccode_all.cspec, 0, sizeof(wl_country_t));
+		memcpy(conf->ccode_all.cspec.country_abbrev, data, len_data);
+		memcpy(conf->ccode_all.cspec.ccode, data, len_data);
+		CONFIG_MSG("ccode_all = %s\n", conf->ccode_all.cspec.ccode);
+	}
+	else if (!strncmp("ccode_all_list=", full_param, len_param)) {
+		if (conf->ccode_all_list) {
+			kfree(conf->ccode_all_list);
+			conf->ccode_all_list = NULL;
+		}
+		if (!(conf->ccode_all_list = kzalloc(len_data+1, GFP_KERNEL))) {
+			CONFIG_ERROR("kmalloc failed\n");
+			return TRUE;
+		}
+		memcpy(conf->ccode_all_list, data, len_data);
+		CONFIG_MSG("ccode_all_list size = %d\n", len_data);
 	}
 	else if (!strncmp("country_list=", full_param, len_param)) {
 		dhd_conf_free_country_list(conf);
@@ -4475,7 +4639,6 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 	struct dhd_conf *conf = dhd->conf;
 	char *data = full_param+len_param;
 	char *pch, *pick_tmp;
-	int i;
 #ifdef GET_CUSTOM_MAC_FROM_CONFIG
 	struct ether_addr ea_addr;
 	char macpad[56];
@@ -4524,21 +4687,6 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 			conf->bw_cap[1] = (uint32)simple_strtol(pch, NULL, 0);
 			CONFIG_MSG("bw_cap 5g = %d\n", conf->bw_cap[1]);
 		}
-	}
-	else if (!strncmp("channels=", full_param, len_param)) {
-		pick_tmp = data;
-		pch = bcmstrtok(&pick_tmp, " ,.-", 0);
-		i=0;
-		while (pch != NULL && i<WL_NUMCHANNELS) {
-			conf->channels.channel[i] = (uint32)simple_strtol(pch, NULL, 10);
-			pch = bcmstrtok(&pick_tmp, " ,.-", 0);
-			i++;
-		}
-		conf->channels.count = i;
-		CONFIG_MSG("channels = ");
-		for (i=0; i<conf->channels.count; i++)
-			printk(KERN_CONT "%d ", conf->channels.channel[i]);
-		printk(KERN_CONT "\n");
 	}
 	else if (!strncmp("keep_alive_period=", full_param, len_param)) {
 		conf->keep_alive_period = (uint)simple_strtol(data, NULL, 10);
@@ -4719,6 +4867,14 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 		conf->doflow_tput_thresh = (int)simple_strtol(data, NULL, 0);
 		CONFIG_MSG("doflow_tput_thresh = %d\n", conf->doflow_tput_thresh);
 		if (conf->doflow_tput_thresh > 0)
+			conf->tput_monitor_ms = 1000;
+	}
+#endif
+#ifdef BCMPCIE
+	else if (!strncmp("napi_tput_thresh=", full_param, len_param)) {
+		conf->napi_tput_thresh = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("napi_tput_thresh = %d\n", conf->napi_tput_thresh);
+		if (conf->napi_tput_thresh > 0)
 			conf->tput_monitor_ms = 1000;
 	}
 #endif
@@ -5087,6 +5243,7 @@ dhd_conf_set_intr_extn(dhd_pub_t *dhd)
 			chip == BCM4359_CHIP_ID ||
 			chip == BCM43751_CHIP_ID || chip == BCM43752_CHIP_ID ||
 			chip == BCM4375_CHIP_ID || chip == BCM43756_CHIP_ID ||
+			chip == BCM43711_CHIP_ID ||
 			chip == BCM4381_CHIP_ID || chip == BCM4382_CHIP_ID) {
 		CONFIG_TRACE("enable intr_extn\n");
 		dhd->conf->intr_extn = TRUE;
@@ -5127,6 +5284,7 @@ dhd_conf_tput_improve(dhd_pub_t *dhd)
 			chip == BCM43569_CHIP_ID || chip == BCM4359_CHIP_ID ||
 			chip == BCM43751_CHIP_ID || chip == BCM43752_CHIP_ID ||
 			chip == BCM4375_CHIP_ID || chip == BCM43756_CHIP_ID ||
+			chip == BCM43711_CHIP_ID ||
 			chip == BCM4381_CHIP_ID || chip == BCM4382_CHIP_ID) {
 		CONFIG_TRACE("enable tput parameters\n");
 #ifdef DHDTCPACK_SUPPRESS
@@ -5183,6 +5341,10 @@ dhd_conf_preinit_ioctls_sta(dhd_pub_t *dhd, int ifidx)
 {
 	struct dhd_conf *conf = dhd->conf;
 	int pm;
+#ifdef WL_CFG80211
+	struct net_device *net = dhd_idx2net(dhd, ifidx);
+	struct bcm_cfg80211 *cfg = wl_get_cfg(net);
+#endif /* defined(WL_CFG80211) */
 
 	dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "bcn_timeout", conf->bcn_timeout, 0, FALSE);
 #ifdef NO_POWER_SAVE
@@ -5196,6 +5358,16 @@ dhd_conf_preinit_ioctls_sta(dhd_pub_t *dhd, int ifidx)
 	dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_PM, "WLC_SET_PM", pm, 0, FALSE);
 	dhd_conf_set_intiovar(dhd, ifidx, WLC_SET_VAR, "assoc_retry_max", 10, 0, FALSE);
 	dhd_conf_set_roam(dhd, ifidx);
+
+#ifdef WL_CFG80211
+#ifndef DISABLE_BUILTIN_ROAM
+	cfg->roam_on = conf->roam_off ? false : true;
+#endif
+	if (conf->roam_off)
+		cfg->roam_flags = 0;
+	else
+		cfg->roam_flags |= WL_ROAM_OFF_ON_CONCURRENT;
+#endif /* defined(WL_CFG80211) */
 }
 
 void
@@ -5210,6 +5382,7 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 
 	dhd_conf_get_ioctl_ver(dhd);
 	dhd_conf_set_intiovar(dhd, 0, WLC_UP, "WLC_UP", 0, 0, FALSE);
+	dhd_conf_check_ccode_all(dhd);
 	dhd_conf_country(dhd, "country", conf->cspec.country_abbrev);
 
 	dhd_conf_set_intiovar(dhd, 0, WLC_SET_BAND, "WLC_SET_BAND", conf->band, 0, FALSE);
@@ -5299,6 +5472,10 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 		dhd_conf_set_wl_cmd(dhd, scanmac, TRUE);
 	}
 #endif
+	if (conf->chip == BCM4381_CHIP_ID) {
+		char ampdu_hostreorder[] = "ampdu_hostreorder=1";
+		dhd_conf_set_wl_cmd(dhd, ampdu_hostreorder, TRUE);
+	}
 	dhd_conf_set_wl_cmd(dhd, conf->wl_preinit, TRUE);
 
 #ifndef WL_CFG80211
@@ -5318,12 +5495,18 @@ dhd_conf_free_preinit(dhd_pub_t *dhd)
 #endif
 	dhd_conf_free_chip_nv_path_list(&conf->nv_by_chip);
 	dhd_conf_free_country_list(conf);
+	if (conf->ccode_all_list) {
+		kfree(conf->ccode_all_list);
+		conf->ccode_all_list = NULL;
+	}
 	dhd_conf_free_mchan_list(conf);
 #ifdef PKT_FILTER_SUPPORT
 	if (conf->magic_pkt_filter_add) {
 		kfree(conf->magic_pkt_filter_add);
 		conf->magic_pkt_filter_add = NULL;
 	}
+	conf->magic_pkt_hdr_len = 0;
+	conf->pkt_filter_cnt_default = 0;
 #endif
 	if (conf->wl_preinit) {
 		kfree(conf->wl_preinit);
@@ -5368,8 +5551,8 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 		conf->cspec.rev = 38;
 	}
 	else if ((conf->chip == BCM43752_CHIP_ID && conf->chiprev == 4) ||
-			conf->chip == BCM43756_CHIP_ID || conf->chip == BCM4381_CHIP_ID ||
-			conf->chip == BCM4382_CHIP_ID) {
+			conf->chip == BCM43756_CHIP_ID || conf->chip == BCM43711_CHIP_ID ||
+			conf->chip == BCM4381_CHIP_ID || conf->chip == BCM4382_CHIP_ID) {
 		strcpy(conf->cspec.country_abbrev, "US");
 		strcpy(conf->cspec.ccode, "US");
 		conf->cspec.rev = 0;
@@ -5379,7 +5562,10 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 		strcpy(conf->cspec.ccode, "CN");
 		conf->cspec.rev = 0;
 	}
-	memset(&conf->channels, 0, sizeof(wl_channel_list_t));
+	memset(&conf->ccode_all.cspec, 0, sizeof(wl_country_t));
+//	strcpy(conf->ccode_all.cspec.ccode, "AA");
+	conf->ccode_all.ww_2g_chan_only = 0x2;
+
 	conf->ioctl_ver = WLC_IOCTL_VERSION;
 	conf->roam_off = 1;
 	conf->roam_off_suspend = 1;
@@ -5507,11 +5693,17 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	conf->rxcnt_timeout = 3;
 	conf->in4way = STA_NO_SCAN_IN4WAY | STA_WAIT_DISCONNECTED |
 		AP_WAIT_STA_RECONNECT;
+#ifdef WL_EXT_RECONNECT
+	conf->in4way |= STA_REASSOC_RETRY;
+#endif
 	if (conf->chip == BCM43752_CHIP_ID)
 		conf->war = SET_CHAN_INCONN | FW_REINIT_INCSA | FW_REINIT_EMPTY_SCAN |
 			FW_REINIT_RXF0OVFL;
 	else
 		conf->war = 0;
+#ifdef EAPOL_RESEND
+	conf->war |= RESEND_EAPOL_PKT;
+#endif
 #ifdef P2P_AP_CONCURRENT
 	conf->war |= P2P_AP_MAC_CONFLICT;
 #endif
@@ -5524,6 +5716,7 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	conf->tput_monitor_ms = 0;
 #ifdef BCMSDIO
 	if (conf->chip == BCM43752_CHIP_ID || conf->chip == BCM43756_CHIP_ID ||
+			conf->chip == BCM43711_CHIP_ID ||
 			conf->chip == BCM4381_CHIP_ID || conf->chip == BCM4382_CHIP_ID)
 		conf->doflow_tput_thresh = 200;
 	else
@@ -5531,14 +5724,18 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	if (conf->doflow_tput_thresh > 0 && conf->doflow_tput_thresh < 9999)
 		conf->tput_monitor_ms = 1000;
 #endif
+#ifdef BCMPCIE
+	conf->napi_tput_thresh = 200;
+	conf->tput_monitor_ms = 1000;
+#endif
 #endif
 #ifdef SCAN_SUPPRESS
 	conf->scan_intput = SCAN_CURCHAN_INTPUT;
 	conf->scan_busy_thresh = 10;
 	conf->scan_busy_tmo = 120;
 	if (conf->chip == BCM43752_CHIP_ID || conf->chip == BCM4375_CHIP_ID ||
-			conf->chip == BCM43756_CHIP_ID || conf->chip == BCM4381_CHIP_ID ||
-			conf->chip == BCM4382_CHIP_ID)
+			conf->chip == BCM43756_CHIP_ID || conf->chip == BCM43711_CHIP_ID ||
+			conf->chip == BCM4381_CHIP_ID || conf->chip == BCM4382_CHIP_ID)
 		conf->scan_tput_thresh = 100;
 	else
 		conf->scan_tput_thresh = 9999;
@@ -5571,6 +5768,7 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 #ifdef DHD_TPUT_PATCH
 	if (conf->chip == BCM43751_CHIP_ID || conf->chip == BCM43752_CHIP_ID ||
 			conf->chip == BCM4375_CHIP_ID || conf->chip == BCM43756_CHIP_ID ||
+			conf->chip == BCM43711_CHIP_ID ||
 			conf->chip == BCM4381_CHIP_ID || conf->chip == BCM4382_CHIP_ID) {
 		conf->tput_patch = TRUE;
 		dhd_conf_set_tput_patch(dhd);

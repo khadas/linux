@@ -2840,7 +2840,7 @@ u8 gup_clk_dac_setting(int dac)
     return 0;
 }*/
 
-static void gup_output_pulse(int t)
+/* static void gup_output_pulse(int t)
 {
 	unsigned long flags;
 	struct goodix_ts_data *ts;
@@ -2862,7 +2862,7 @@ static void gup_output_pulse(int t)
 
 	msleep(20);
 	GTP_GPIO_OUTPUT(ts->irq_pin, 0);
-}
+}*/
 
 /*static void gup_sys_clk_init(void)
 {

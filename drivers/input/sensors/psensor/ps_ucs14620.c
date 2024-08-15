@@ -343,7 +343,7 @@ static const struct i2c_device_id proximity_ucs14620_id[] = {
 
 static struct i2c_driver proximity_ucs14620_driver = {
 	.probe = proximity_ucs14620_probe,
-	.remove = proximity_ucs14620_remove,
+	.remove = (void *)proximity_ucs14620_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = proximity_ucs14620_id,
 	.driver = {

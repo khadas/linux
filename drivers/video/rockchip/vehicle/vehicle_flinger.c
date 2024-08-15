@@ -724,7 +724,6 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 		if (!file_ready) {
 			int frame_len = src_buffer->src.w * src_buffer->src.h * 3 / 2;
 			char path[128] = {0};
-			mm_segment_t fs;
 
 			VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 							frame_count++, frame_len);
@@ -735,13 +734,8 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 				VEHICLE_DGERR(" %s filp_open failed!\n", path);
 				file_ready = false;
 			} else {
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				vfs_write(filep,
-					(unsigned char __user *)(src_buffer->vir_addr),
-					frame_len, &pos);
+				kernel_write(filep, src_buffer->vir_addr, frame_len, &pos);
 				filp_close(filep, NULL);
-				set_fs(fs);
 				VEHICLE_INFO(" %s file saved ok!\n", path);
 				file_ready = true;
 			}
@@ -761,7 +755,6 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 			/* NV12 */
 			int frame_len = dst_buffer->src.w * dst_buffer->src.h * 3 / 2;
 			char path[128] = {0};
-			mm_segment_t fs;
 
 			VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 							frame_count++, frame_len);
@@ -772,13 +765,8 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 				VEHICLE_DGERR(" %s filp_open failed!\n", path);
 				file_ready = false;
 			} else {
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				vfs_write(filep,
-					(unsigned char __user *)(dst_buffer->vir_addr),
-					frame_len, &pos);
+				kernel_write(filep, dst_buffer->vir_addr, frame_len, &pos);
 				filp_close(filep, NULL);
-				set_fs(fs);
 				VEHICLE_INFO(" %s file saved ok!\n", path);
 				file_ready = true;
 			}
@@ -1006,7 +994,6 @@ static int rk_flinger_rga_render(struct flinger *flinger,
 		if (!file_ready) {
 			int frame_len = dst_buffer->src.w * dst_buffer->src.h * 3 / 2;//NV12
 			char path[128] = {0};
-			mm_segment_t fs;
 
 			VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 							frame_count++, frame_len);
@@ -1017,13 +1004,8 @@ static int rk_flinger_rga_render(struct flinger *flinger,
 				VEHICLE_DGERR(" %s filp_open failed!\n", path);
 				file_ready = false;
 			} else {
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				vfs_write(filep,
-					(unsigned char __user *)(dst_buffer->vir_addr),
-					frame_len, &pos);
+				kernel_write(filep, dst_buffer->vir_addr, frame_len, &pos);
 				filp_close(filep, NULL);
-				set_fs(fs);
 				VEHICLE_INFO(" %s file saved ok!\n", path);
 				file_ready = true;
 			}
@@ -1075,7 +1057,6 @@ static void rk_drm_vehicle_commit(struct flinger *flinger, struct graphic_buffer
 			int frame_len = buffer->drm_buffer->width *
 					buffer->drm_buffer->height * 3 / 2;//NV12
 			char path[128] = {0};
-			mm_segment_t fs;
 
 			VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 							frame_count++, frame_len);
@@ -1087,13 +1068,9 @@ static void rk_drm_vehicle_commit(struct flinger *flinger, struct graphic_buffer
 				VEHICLE_DGERR(" %s filp_open failed!\n", path);
 				file_ready = false;
 			} else {
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				vfs_write(filep,
-					(unsigned char __user *)(buffer->drm_buffer->vir_addr[0]),
-					frame_len, &pos);
+				kernel_write(filep,
+					buffer->drm_buffer->vir_addr[0], frame_len, &pos);
 				filp_close(filep, NULL);
-				set_fs(fs);
 				VEHICLE_INFO(" %s file saved ok!\n", path);
 				file_ready = true;
 			}
@@ -1149,7 +1126,6 @@ static int rk_flinger_vop_show(struct flinger *flinger,
 		if (!file_ready) {
 			int frame_len = buffer->src.w * buffer->src.h * 3 / 2;//NV12
 			char path[128] = {0};
-			mm_segment_t fs;
 
 			VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 							frame_count++, frame_len);
@@ -1160,13 +1136,8 @@ static int rk_flinger_vop_show(struct flinger *flinger,
 				VEHICLE_DGERR(" %s filp_open failed!\n", path);
 				file_ready = false;
 			} else {
-				fs = get_fs();
-				set_fs(KERNEL_DS);
-				vfs_write(filep,
-					(unsigned char __user *)(buffer->vir_addr),
-					frame_len, &pos);
+				kernel_write(filep, buffer->vir_addr, frame_len, &pos);
 				filp_close(filep, NULL);
-				set_fs(fs);
 				VEHICLE_INFO(" %s file saved ok!\n", path);
 				file_ready = true;
 			}
@@ -1275,7 +1246,6 @@ try_again:
 				//nv12 frame_len=w*h*3/2
 				int frame_len = src_buffer->src.w * src_buffer->src.h * 3 / 2;
 				char path[128] = {0};
-				mm_segment_t fs;
 
 				VEHICLE_DG("save vop frame(%d) frame_len(%d)\n",
 								frame_count++, frame_len);
@@ -1286,11 +1256,8 @@ try_again:
 					VEHICLE_DGERR(" %s filp_open failed!\n", path);
 					file_ready = false;
 				} else {
-					fs = get_fs();
-					set_fs(KERNEL_DS);
-					vfs_write(filep, src_buffer->vir_addr, frame_len, &pos);
+					kernel_write(filep, src_buffer->vir_addr, frame_len, &pos);
 					filp_close(filep, NULL);
-					set_fs(fs);
 					VEHICLE_INFO(" %s file saved ok!\n", path);
 					file_ready = true;
 				}

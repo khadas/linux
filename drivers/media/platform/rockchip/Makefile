@@ -6,3 +6,4 @@ obj-y += ispp/
 obj-y += hdmirx/
 obj-y += rga/
 obj-y += rkisp1/
+obj-y += vpss/

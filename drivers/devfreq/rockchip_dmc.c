@@ -58,10 +58,11 @@
 #define input_hd_to_dmcfreq(hd) container_of(hd, struct rockchip_dmcfreq, \
 					     input_handler)
 
-#define VIDEO_1080P_SIZE	(1920 * 1080)
-#define DTS_PAR_OFFSET		(4096)
+#define VIDEO_1080P_SIZE		(1920 * 1080)
+#define DTS_PAR_OFFSET			(4096)
 
-#define FALLBACK_STATIC_TEMPERATURE 55000
+#define FALLBACK_STATIC_TEMPERATURE	55000
+#define MAX_FREQ_COUNT			6
 
 struct dmc_freq_table {
 	unsigned long freq;
@@ -90,7 +91,7 @@ struct share_params {
 	u32 update_deskew_cfg;
 
 	u32 freq_count;
-	u32 freq_info_mhz[6];
+	u32 freq_info_mhz[MAX_FREQ_COUNT];
 	u32 wait_mode;
 	u32 vop_scan_line_time_ns;
 	/* if need, add parameter after */
@@ -145,7 +146,7 @@ struct rockchip_dmcfreq {
 	unsigned long low_power_rate;
 
 	unsigned long freq_count;
-	unsigned long freq_info_rate[6];
+	unsigned long freq_info_rate[MAX_FREQ_COUNT];
 	unsigned long rate_low;
 	unsigned long rate_mid_low;
 	unsigned long rate_mid_high;
@@ -180,7 +181,8 @@ static struct monitor_dev_profile dmc_mdevp = {
 
 static inline unsigned long is_dualview(unsigned long status)
 {
-	return (status & SYS_STATUS_LCDC0) && (status & SYS_STATUS_LCDC1);
+	return ((status & SYS_STATUS_SINGLEVP) &&
+		((status & SYS_STATUS_MULTIVP) || (status & SYS_STATUS_EBC)));
 }
 
 static inline unsigned long is_isp(unsigned long status)
@@ -1171,6 +1173,7 @@ int rockchip_dmcfreq_wait_complete(void)
 	 * sip_smc_dram(DRAM_POST_SET_RATE).
 	 */
 	if (wait_ctrl.dcf_en == 2 && wait_ctrl.wait_flag != 0) {
+		pr_err_ratelimited("%s: waiting for wait_ctrl.complt_irq times out.\n", __func__);
 		res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_POST_SET_RATE);
 		if (res.a0)
 			pr_err("%s: dram post set rate error:%lx\n", __func__, res.a0);
@@ -1198,7 +1201,7 @@ static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfre
 		return -ENOMEM;
 	}
 
-	if (ddr_psci_param->freq_count == 0 || ddr_psci_param->freq_count > 6) {
+	if (ddr_psci_param->freq_count == 0 || ddr_psci_param->freq_count > MAX_FREQ_COUNT) {
 		dev_err(dmcfreq->dev, "it is no available frequencies!\n");
 		return -EPERM;
 	}
@@ -1279,7 +1282,7 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 		return -ENOMEM;
 	}
 
-	if (ddr_psci_param->freq_count == 0 || ddr_psci_param->freq_count > 6) {
+	if (ddr_psci_param->freq_count == 0 || ddr_psci_param->freq_count > MAX_FREQ_COUNT) {
 		dev_err(dev, "there is no available frequencies!\n");
 		return -EPERM;
 	}
@@ -2138,6 +2141,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3568)
 	{ .compatible = "rockchip,rk3568-dmc", .data = rk3568_dmc_init },
 #endif
+#if IS_ENABLED(CONFIG_CPU_RK3576)
+	{ .compatible = "rockchip,rk3576-dmc", .data = rk3588_dmc_init },
+#endif
 #if IS_ENABLED(CONFIG_CPU_RK3588)
 	{ .compatible = "rockchip,rk3588-dmc", .data = rk3588_dmc_init },
 #endif
@@ -2343,6 +2349,55 @@ static unsigned long rockchip_freq_level_2_rate(struct rockchip_dmcfreq *dmcfreq
 	return rate;
 }
 
+static int rockchip_get_level_map_talbe(struct device_node *np, char *porp_name,
+					struct rockchip_dmcfreq *dmcfreq,
+					struct freq_map_table **table)
+{
+	struct freq_map_table *tbl;
+	const struct property *prop;
+	unsigned int level = 0;
+	int count, i;
+
+	if (dmcfreq->rate_low == 0)
+		return -EINVAL;
+
+	prop = of_find_property(np, porp_name, NULL);
+	if (!prop)
+		return -EINVAL;
+
+	if (!prop->value)
+		return -ENODATA;
+
+	count = of_property_count_u32_elems(np, porp_name);
+	if (count < 0)
+		return -EINVAL;
+
+	if (count % 3)
+		return -EINVAL;
+
+	tbl = kzalloc(sizeof(*tbl) * (count / 3 + 1), GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+
+	for (i = 0; i < count / 3; i++) {
+		of_property_read_u32_index(np, porp_name, 3 * i, &tbl[i].min);
+		of_property_read_u32_index(np, porp_name, 3 * i + 1,
+					   &tbl[i].max);
+		of_property_read_u32_index(np, porp_name, 3 * i + 2,
+					   &level);
+		tbl[i].freq = rockchip_freq_level_2_rate(dmcfreq, level);
+
+	}
+
+	tbl[i].min = 0;
+	tbl[i].max = 0;
+	tbl[i].freq = DMCFREQ_TABLE_END;
+
+	*table = tbl;
+
+	return 0;
+}
+
 static int rockchip_get_system_status_level(struct device_node *np,
 					    char *porp_name,
 					    struct rockchip_dmcfreq *dmcfreq)
@@ -2351,6 +2406,9 @@ static int rockchip_get_system_status_level(struct device_node *np,
 	unsigned int status = 0, level = 0;
 	unsigned long temp_rate = 0;
 	int count, i;
+
+	if (dmcfreq->rate_low == 0)
+		return -EINVAL;
 
 	prop = of_find_property(np, porp_name, NULL);
 	if (!prop)
@@ -2365,37 +2423,6 @@ static int rockchip_get_system_status_level(struct device_node *np,
 
 	if (count % 2)
 		return -EINVAL;
-
-	if (dmcfreq->freq_count == 1) {
-		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_high = dmcfreq->freq_info_rate[0];
-	} else if (dmcfreq->freq_count == 2) {
-		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[1];
-		dmcfreq->rate_high = dmcfreq->freq_info_rate[1];
-	} else if (dmcfreq->freq_count == 3) {
-		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
-		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[1];
-		dmcfreq->rate_high = dmcfreq->freq_info_rate[2];
-	} else if (dmcfreq->freq_count == 4) {
-		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
-		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[2];
-		dmcfreq->rate_high = dmcfreq->freq_info_rate[3];
-	} else if (dmcfreq->freq_count == 5 || dmcfreq->freq_count == 6) {
-		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
-		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
-		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[dmcfreq->freq_count - 2];
-		dmcfreq->rate_high = dmcfreq->freq_info_rate[dmcfreq->freq_count - 1];
-	} else {
-		return -EINVAL;
-	}
-
-	dmcfreq->auto_min_rate = dmcfreq->rate_low;
 
 	for (i = 0; i < count / 2; i++) {
 		of_property_read_u32_index(np, porp_name, 2 * i,
@@ -2981,6 +3008,41 @@ static int rockchip_dmcfreq_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static void rockchip_dmcfreq_level_rate_init(struct rockchip_dmcfreq *dmcfreq)
+{
+	if (dmcfreq->freq_count == 0 || dmcfreq->freq_count > MAX_FREQ_COUNT)
+		return;
+
+	if (dmcfreq->freq_count == 1) {
+		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_high = dmcfreq->freq_info_rate[0];
+	} else if (dmcfreq->freq_count == 2) {
+		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[1];
+		dmcfreq->rate_high = dmcfreq->freq_info_rate[1];
+	} else if (dmcfreq->freq_count == 3) {
+		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
+		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[1];
+		dmcfreq->rate_high = dmcfreq->freq_info_rate[2];
+	} else if (dmcfreq->freq_count == 4) {
+		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
+		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[2];
+		dmcfreq->rate_high = dmcfreq->freq_info_rate[3];
+	} else if (dmcfreq->freq_count == 5 || dmcfreq->freq_count == 6) {
+		dmcfreq->rate_low = dmcfreq->freq_info_rate[0];
+		dmcfreq->rate_mid_low = dmcfreq->freq_info_rate[1];
+		dmcfreq->rate_mid_high = dmcfreq->freq_info_rate[dmcfreq->freq_count - 2];
+		dmcfreq->rate_high = dmcfreq->freq_info_rate[dmcfreq->freq_count - 1];
+	}
+
+	dmcfreq->auto_min_rate = dmcfreq->rate_low;
+}
+
 static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct device *dev = dmcfreq->dev;
@@ -3006,15 +3068,25 @@ static void rockchip_dmcfreq_parse_dt(struct rockchip_dmcfreq *dmcfreq)
 		dmcfreq->auto_min_rate *= 1000;
 	}
 
-	if (rockchip_get_freq_map_talbe(np, "cpu-bw-dmc-freq",
-					&dmcfreq->cpu_bw_tbl))
-		dev_dbg(dev, "failed to get cpu bandwidth to dmc rate\n");
-	if (rockchip_get_freq_map_talbe(np, "vop-frame-bw-dmc-freq",
-					&dmcfreq->info.vop_frame_bw_tbl))
-		dev_dbg(dev, "failed to get vop frame bandwidth to dmc rate\n");
-	if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
-					&dmcfreq->info.vop_bw_tbl))
-		dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
+	if (rockchip_get_level_map_talbe(np, "cpu-bw-dmc-level", dmcfreq,
+					 &dmcfreq->cpu_bw_tbl)) {
+		if (rockchip_get_freq_map_talbe(np, "cpu-bw-dmc-freq",
+						&dmcfreq->cpu_bw_tbl))
+			dev_dbg(dev, "failed to get cpu bandwidth to dmc rate\n");
+	}
+	if (rockchip_get_level_map_talbe(np, "vop-frame-bw-dmc-level", dmcfreq,
+					 &dmcfreq->info.vop_frame_bw_tbl)) {
+		if (rockchip_get_freq_map_talbe(np, "vop-frame-bw-dmc-freq",
+						&dmcfreq->info.vop_frame_bw_tbl))
+			dev_dbg(dev, "failed to get vop frame bandwidth to dmc rate\n");
+	}
+	if (rockchip_get_level_map_talbe(np, "vop-bw-dmc-level", dmcfreq,
+					 &dmcfreq->info.vop_bw_tbl)) {
+		if (rockchip_get_freq_map_talbe(np, "vop-bw-dmc-freq",
+						&dmcfreq->info.vop_bw_tbl))
+			dev_err(dev, "failed to get vop bandwidth to dmc rate\n");
+	}
+
 	if (rockchip_get_rl_map_talbe(np, "vop-pn-msch-readlatency",
 				      &dmcfreq->info.vop_pn_rl_tbl))
 		dev_err(dev, "failed to get vop pn to msch rl\n");
@@ -3252,6 +3324,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	rockchip_dmcfreq_level_rate_init(data);
 	rockchip_dmcfreq_parse_dt(data);
 
 	platform_set_drvdata(pdev, data);

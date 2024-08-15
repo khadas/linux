@@ -395,3 +395,5 @@ static struct platform_driver rkx120_pwm_driver = {
 	.remove = rkx120_pwm_remove,
 };
 module_platform_driver(rkx120_pwm_driver);
+
+MODULE_LICENSE("GPL");

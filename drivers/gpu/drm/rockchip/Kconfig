@@ -44,25 +44,26 @@ config ROCKCHIP_DRM_SELF_TEST
 
 config ROCKCHIP_VOP
 	bool "Rockchip VOP driver"
-	default y if (CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
-		      CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
-		      CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
-		      CPU_RK3399 || CPU_RK322X || CPU_RK3328) && \
-		      !ROCKCHIP_MINI_KERNEL
+	depends on CPU_RK3036 || CPU_RK30XX || CPU_RK312X || \
+		   CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
+		   CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
+		   CPU_RK3399 || CPU_RK322X || CPU_RK3328 || \
+		   CPU_RK3576
+	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects support for the VOP driver. You should enable it
 	  on older SoCs.
 
 config ROCKCHIP_VOP2
 	bool "Rockchip VOP2 driver"
-	default y if CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588
+	depends on CPU_RK3528 || CPU_RK3562 || CPU_RK3568 || CPU_RK3588 || CPU_RK3576
+	default y
 	help
 	  This selects support for the VOP2 driver. The VOP2 hardware is
 	  first found on the RK3568.
 
 config ROCKCHIP_ANALOGIX_DP
 	bool "Rockchip specific extensions for Analogix DP driver"
-	depends on ROCKCHIP_VOP
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
 	help
@@ -129,6 +130,14 @@ config ROCKCHIP_LVDS
 	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
 	  driver.
 
+config ROCKCHIP_PANEL_NOTIFIER
+	tristate "Rockchip panel notifier"
+	depends on OF
+	help
+	  Say Y here if you want to enable support for the panel notifier. The
+	  notifier is used to notify other devices (such as TP) to perform the
+	  corresponding action when the panel is in different actions.
+
 config ROCKCHIP_RGB
 	bool "Rockchip RGB support"
 	depends on PINCTRL
@@ -164,7 +173,12 @@ config ROCKCHIP_DW_HDCP2
 	  Choose this option to enable support for the Synopsys
 	  Designware HDCP2 Controller.
 
+config ROCKCHIP_DP_MST_AUX_CLIENT
+	tristate "dp mst aux client"
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  This selects support dp mst device that not support aux client.
+
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
-source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 
 endif

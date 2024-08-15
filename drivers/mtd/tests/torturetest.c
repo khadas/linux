@@ -253,7 +253,7 @@ static int __init tort_init(void)
 		}
 	}
 
-	prandom_bytes(patt_random, mtd->erasesize);
+	get_random_bytes(patt_random, mtd->erasesize);
 
 	err = mtdtest_scan_for_bad_eraseblocks(mtd, bad_ebs, eb, ebcnt);
 	if (err)

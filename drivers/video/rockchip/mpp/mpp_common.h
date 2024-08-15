@@ -30,7 +30,7 @@
 #define MPP_WORK_TIMEOUT_DELAY		(500)
 
 #define MPP_MAX_MSG_NUM			(16)
-#define MPP_MAX_REG_TRANS_NUM		(60)
+#define MPP_MAX_REG_TRANS_NUM		(80)
 #define MPP_MAX_TASK_CAPACITY		(16)
 
 /* grf mask for get value */
@@ -58,6 +58,7 @@ enum MPP_DEVICE_TYPE {
 	MPP_DEVICE_VEPU1	= 17, /* 0x00020000 */
 	MPP_DEVICE_VEPU2	= 18, /* 0x00040000 */
 	MPP_DEVICE_VEPU2_JPEG	= 19, /* 0x00080000 */
+	MPP_DEVICE_RKJPEGE	= 20, /* 0x00100000 */
 	MPP_DEVICE_VEPU22	= 24, /* 0x01000000 */
 
 	MPP_DEVICE_IEP2		= 28, /* 0x10000000 */
@@ -84,6 +85,7 @@ enum MPP_DRIVER_TYPE {
 	MPP_DRIVER_RKVENC2,
 	MPP_DRIVER_AV1DEC,
 	MPP_DRIVER_VDPP,
+	MPP_DRIVER_JPGENC,
 	MPP_DRIVER_BUTT,
 };
 
@@ -195,7 +197,11 @@ struct mpp_hw_info {
 	u32 reg_end;
 	/* register of enable hardware */
 	int reg_en;
+	/* register of codec format */
+	int reg_fmt;
+	u32 reg_ret_status;
 	void *link_info;
+	u32 magic_base;
 };
 
 struct mpp_trans_info {
@@ -389,8 +395,7 @@ enum mpp_task_state {
 	TASK_TIMING_RUN_END	= 21,
 	TASK_TIMING_IRQ		= 22,
 	TASK_TIMING_TO_CANCEL	= 23,
-	TASK_TIMING_ISR		= 24,
-	TASK_TIMING_FINISH	= 25,
+	TASK_TIMING_FINISH	= 24,
 };
 
 /* The context for the a task */
@@ -429,7 +434,6 @@ struct mpp_task {
 	ktime_t on_run_end;
 	ktime_t on_irq;
 	ktime_t on_cancel_timeout;
-	ktime_t on_isr;
 	ktime_t on_finish;
 
 	/* hardware info for current task */
@@ -437,6 +441,7 @@ struct mpp_task {
 	u32 task_index;
 	u32 task_id;
 	u32 *reg;
+	u32 irq_status;
 	/* event for session wait thread */
 	wait_queue_head_t wait;
 
@@ -541,6 +546,7 @@ struct mpp_service {
  * @set_freq	Set freq to hardware.
  * @reduce_freq	Reduce freq when hardware is not running.
  * @reset	When error, reset hardware.
+ * @hack_run	Hack run for some soc
  */
 struct mpp_hw_ops {
 	int (*init)(struct mpp_dev *mpp);
@@ -554,6 +560,7 @@ struct mpp_hw_ops {
 	int (*reduce_freq)(struct mpp_dev *mpp);
 	int (*reset)(struct mpp_dev *mpp);
 	int (*set_grf)(struct mpp_dev *mpp);
+	int (*hack_run)(struct mpp_dev *mpp);
 };
 
 /*
@@ -596,6 +603,7 @@ struct mpp_dev_ops {
 	int (*free_session)(struct mpp_session *session);
 	int (*dump_session)(struct mpp_session *session, struct seq_file *seq);
 	int (*dump_dev)(struct mpp_dev *mpp);
+	int (*link_irq)(struct mpp_dev *mpp);
 };
 
 struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev);
@@ -651,7 +659,6 @@ int mpp_power_off(struct mpp_dev *mpp);
 int mpp_dev_reset(struct mpp_dev *mpp);
 
 irqreturn_t mpp_dev_irq(int irq, void *param);
-irqreturn_t mpp_dev_isr_sched(int irq, void *param);
 
 struct reset_control *mpp_reset_control_get(struct mpp_dev *mpp,
 					    enum MPP_RESET_TYPE type,
@@ -843,6 +850,7 @@ extern struct platform_driver rockchip_jpgdec_driver;
 extern struct platform_driver rockchip_rkvdec2_driver;
 extern struct platform_driver rockchip_rkvenc2_driver;
 extern struct platform_driver rockchip_av1dec_driver;
+extern struct platform_driver rockchip_jpgenc_driver;
 extern struct platform_driver rockchip_vdpp_driver;
 
 #endif

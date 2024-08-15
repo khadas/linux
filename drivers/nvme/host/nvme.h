@@ -156,6 +156,11 @@ enum nvme_quirks {
 	NVME_QUIRK_NO_SECONDARY_TEMP_THRESH	= (1 << 19),
 
 	/*
+	 * Disables simple suspend/resume path.
+	 */
+	NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND	= (1 << 20),
+
+	/*
 	 * Limit io queue depth to 32
 	 */
 	NVME_QUIRK_LIMIT_IOQD32			= (1 << 31),
@@ -381,6 +386,11 @@ struct nvme_ctrl {
 	enum nvme_ctrl_type cntrltype;
 	enum nvme_dctype dctype;
 };
+
+static inline enum nvme_ctrl_state nvme_ctrl_state(struct nvme_ctrl *ctrl)
+{
+	return READ_ONCE(ctrl->state);
+}
 
 enum nvme_iopolicy {
 	NVME_IOPOLICY_NUMA,

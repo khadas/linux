@@ -263,7 +263,7 @@
 			compatible = "rockchip,rk618-lvds";
 			clocks = <&clock LVDS_CLK>;
 			clock-names = "lvds";
-			dual-channel;
+			rockchip,dual-channel;
 			status = "okay";
 
 			ports {

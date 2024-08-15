@@ -272,7 +272,11 @@ static int iep2_process_reg_fd(struct mpp_session *session,
 		}
 
 		mem_region->reg_idx = iep2_addr_rnum[i];
-		mpp_debug(DEBUG_IOMMU, "reg[%3d]: %3d => %pad + offset %10d\n",
+
+		if (session->msg_flags & MPP_FLAGS_REG_NO_OFFSET)
+			offset = mpp_query_reg_offset_info(&task->off_inf, mem_region->reg_idx);
+
+		mpp_debug(DEBUG_IOMMU, "reg[%3d]: %3d => %pad + offset %u\n",
 			  iep2_addr_rnum[i], usr_fd, &mem_region->iova, offset);
 		paddr[i] = mem_region->iova + offset;
 	}
@@ -627,7 +631,9 @@ static int iep2_irq(struct mpp_dev *mpp)
 {
 	u32 work_mode = mpp_read(mpp, IEP2_REG_WORK_MODE);
 
-	if (work_mode && !(work_mode & IEP2_REG_IEP2_MODE))
+	mpp_debug_enter();
+
+	if (work_mode && IEP2_GET_IEP2_MODE(work_mode) != IEP2_REG_IEP2_MODE)
 		return IRQ_NONE;
 	mpp->irq_status = mpp_read(mpp, IEP2_REG_INT_STS);
 	mpp_write(mpp, IEP2_REG_INT_CLR, 0xffffffff);
@@ -643,6 +649,8 @@ static int iep2_isr(struct mpp_dev *mpp)
 	struct mpp_task *mpp_task = NULL;
 	struct iep_task *task = NULL;
 	struct iep2_dev *iep = to_iep2_dev(mpp);
+
+	mpp_debug_enter();
 
 	mpp_task = mpp->cur_task;
 	task = to_iep_task(mpp_task);
@@ -993,7 +1001,7 @@ static int iep2_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
-					mpp_dev_isr_sched,
+					NULL,
 					IRQF_SHARED,
 					dev_name(dev), mpp);
 	if (ret) {

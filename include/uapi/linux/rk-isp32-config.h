@@ -14,6 +14,9 @@
 #define RKISP_CMD_GET_TB_HEAD_V32 \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkisp32_thunderboot_resmem_head)
 
+#define RKISP_CMD_SET_TB_HEAD_V32 \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 14, struct rkisp32_thunderboot_resmem_head)
+
 #define ISP32_MODULE_DPCC		ISP3X_MODULE_DPCC
 #define ISP32_MODULE_BLS		ISP3X_MODULE_BLS
 #define ISP32_MODULE_SDG		ISP3X_MODULE_SDG

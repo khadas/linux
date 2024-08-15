@@ -614,6 +614,58 @@ static int rk806_low_power_irqs(struct rk806 *rk806)
 	return 0;
 }
 
+static irqreturn_t rk806_vdc_irq(int irq, void *data)
+{
+	struct rk806 *rk806 = data;
+
+	pm_wakeup_dev_event(rk806->dev, 2000, false);
+	return IRQ_HANDLED;
+}
+
+static void rk806_vdc_irqs_init(struct rk806 *rk806)
+{
+	int ret, vdc_irq_fall, vdc_irq_rise;
+
+	if (!rk806->pdata->vdc_wakeup_enable)
+		return;
+
+	vdc_irq_rise = regmap_irq_get_virq(rk806->irq_data, RK806_IRQ_VDC_RISE);
+	if (vdc_irq_rise < 0) {
+		dev_err(rk806->dev, "RK806: IRQ_VDC_RISE get failed!\n");
+		return;
+	}
+
+	ret = devm_request_threaded_irq(rk806->dev, vdc_irq_rise,
+					NULL,
+					rk806_vdc_irq,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"rk806_vdc_rise", rk806);
+	if (ret) {
+		dev_err(rk806->dev, "rk806: vdc_irq_rise request failed!\n");
+		return;
+	}
+	enable_irq_wake(vdc_irq_rise);
+
+	vdc_irq_fall = regmap_irq_get_virq(rk806->irq_data, RK806_IRQ_VDC_FALL);
+	if (vdc_irq_fall < 0) {
+		dev_err(rk806->dev, "RK806: IRQ_VDC_FALL get failed!\n");
+		return;
+	}
+
+	ret = devm_request_threaded_irq(rk806->dev, vdc_irq_fall,
+					NULL,
+					rk806_vdc_irq,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"rk806_vdc_fall", rk806);
+	if (ret) {
+		dev_err(rk806->dev, "rk806: vdc_irq_fall request failed!\n");
+		return;
+	}
+	enable_irq_wake(vdc_irq_fall);
+	device_init_wakeup(rk806->dev, true);
+}
+
+
 static int rk806_parse_dt(struct rk806 *rk806)
 {
 	struct rk806_platform_data *pdata;
@@ -627,6 +679,7 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	pdata->shutdown_temperture_threshold = 160;
 	pdata->hotdie_temperture_threshold = 115;
 	pdata->force_shutdown_enable = 1;
+	pdata->vdc_wakeup_enable = 0;
 
 	ret = device_property_read_u32(dev,
 				       "low_voltage_threshold",
@@ -678,6 +731,9 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	if (device_property_read_bool(dev, "pwron-on-time-500ms"))
 		rk806_field_write(rk806, PWRON_ON_TIME, 0x00);
 
+	if (device_property_read_bool(dev, "vdc-wakeup-enable"))
+		pdata->vdc_wakeup_enable = 1;
+
 	return 0;
 }
 
@@ -706,6 +762,7 @@ static int rk806_init(struct rk806 *rk806)
 	rk806_field_write(rk806, ENB2_2M, 0x01);
 
 	rk806_low_power_irqs(rk806);
+	rk806_vdc_irqs_init(rk806);
 
 	return 0;
 }

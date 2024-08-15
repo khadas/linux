@@ -1229,17 +1229,6 @@ config MFD_RK618
 	help
 	  if you say yes here you get support for the RK618 from Rockchip.
 
-config MFD_RK628
-	tristate "Rockchip RK628 MFD Driver"
-	depends on I2C
-	depends on OF
-	select MFD_CORE
-	select REGMAP_I2C
-	select REGMAP_IRQ
-	select PINCTRL_RK628
-	help
-	  if you say yes here you get support for the RK628 from Rockchip.
-
 config MFD_RK630
 	tristate "RK630 CORE module support"
 	select MFD_CORE
@@ -1314,6 +1303,14 @@ config MFD_RK1000
 
 source "drivers/mfd/display-serdes/Kconfig"
 source "drivers/mfd/rkx110_x120/Kconfig"
+
+config MFD_ROCKCHIP_FLEXBUS
+	tristate "Rockchip Flexbus"
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	select MFD_CORE
+	help
+	  Select this to get support for Rockchip Flexbus.
 
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"

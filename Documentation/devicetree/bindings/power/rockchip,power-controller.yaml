@@ -149,6 +149,11 @@ $defs:
           A number of phandles to shaping blocks which need to be saved and
           restored while power domain switches state.
 
+      rockchip,always-on:
+        description:
+          Forces this power domain to always be powered up.
+        type: boolean
+
       "#power-domain-cells":
         enum: [0, 1]
         description:

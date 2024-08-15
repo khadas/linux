@@ -90,7 +90,7 @@
 			reset-names = "srst_csihost_p",
 				      "srst_csihost_vicap";
 			csihost-idx = <0>;
-			rockchip,csi2 = <&mipi0_csi2>;
+			rockchip,csi2 = <&mipi0_csi2_hw>;
 			phys = <&mipi_dcphy0>;
 			phy-names = "dcphy";
 		};
@@ -109,7 +109,7 @@
 			reset-names = "srst_csihost_p",
 				      "srst_csihost_vicap";
 			csihost-idx = <1>;
-			rockchip,csi2 = <&mipi1_csi2>;
+			rockchip,csi2 = <&mipi1_csi2_hw>;
 			phys = <&mipi_dcphy1>;
 			phy-names = "dcphy";
 		};
@@ -132,7 +132,7 @@
 			csihost-idx = <2>;
 			rockchip,dphy-grf = <&mipidphy0_grf>;
 			rockchip,csi2-dphy = <&csi2_dphy0_hw>;
-			rockchip,csi2 = <&mipi2_csi2>;
+			rockchip,csi2 = <&mipi2_csi2_hw>;
 		};
 		/* only rk3588 */
 		csi2_dphy3 {
@@ -154,7 +154,7 @@
 			csihost-idx = <4>;
 			rockchip,dphy-grf = <&mipidphy1_grf>;
 			rockchip,csi2-dphy = <&csi2_dphy1_hw>;
-			rockchip,csi2 = <&mipi4_csi2>;
+			rockchip,csi2 = <&mipi4_csi2_hw>;
 		};
 		rkcif_dvp {
 			status = "disabled";

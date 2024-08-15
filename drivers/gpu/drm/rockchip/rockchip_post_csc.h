@@ -12,7 +12,7 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
-int rockchip_calc_post_csc(struct post_csc *csc, struct post_csc_coef *csc_coef,
-			   int csc_mode, bool is_input_yuv, bool is_output_yuv);
+int rockchip_calc_post_csc(struct post_csc *csc_cfg, struct post_csc_coef *csc_simple_coef,
+			   struct post_csc_convert_mode *convert_mode);
 
 #endif

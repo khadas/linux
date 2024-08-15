@@ -933,6 +933,7 @@ uint
 bcmsdh_set_mode(void *sdh, uint mode)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+
 	return (sdioh_set_mode(bcmsdh->sdioh, mode));
 }
 

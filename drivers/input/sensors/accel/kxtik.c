@@ -341,7 +341,7 @@ static const struct i2c_device_id gsensor_kxtik_id[] = {
 
 static struct i2c_driver gsensor_kxtik_driver = {
 	.probe = gsensor_kxtik_probe,
-	.remove = gsensor_kxtik_remove,
+	.remove = (void *)gsensor_kxtik_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_kxtik_id,
 	.driver = {

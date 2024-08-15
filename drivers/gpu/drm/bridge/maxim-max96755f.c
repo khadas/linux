@@ -179,21 +179,17 @@ static int max96755f_bridge_attach(struct drm_bridge *bridge,
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
-	ser->dsi = max96755f_attach_dsi(ser, ser->dsi_node);
-	if (IS_ERR(ser->dsi))
-		return PTR_ERR(ser->dsi);
-
 	return 0;
 }
 
 static void max96755f_bridge_detach(struct drm_bridge *bridge)
 {
-	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+}
 
-	if (ser->dsi) {
-		mipi_dsi_detach(ser->dsi);
-		mipi_dsi_device_unregister(ser->dsi);
-	}
+static void max96755f_detach_dsi(struct max96755f_bridge *ser)
+{
+	mipi_dsi_detach(ser->dsi);
+	mipi_dsi_device_unregister(ser->dsi);
 }
 
 static void max96755f_mipi_dsi_rx_config(struct max96755f_bridge *ser)
@@ -548,12 +544,26 @@ static int max96755f_bridge_probe(struct platform_device *pdev)
 
 	drm_bridge_add(&ser->bridge);
 
+	ser->dsi = max96755f_attach_dsi(ser, ser->dsi_node);
+	if (IS_ERR(ser->dsi)) {
+		dev_err(ser->dev, "failed to attach dsi\n");
+		ret = PTR_ERR(ser->dsi);
+		goto err_remove_bridge;
+	}
+
 	return 0;
+
+err_remove_bridge:
+	drm_bridge_remove(&ser->bridge);
+	return ret;
 }
 
 static int max96755f_bridge_remove(struct platform_device *pdev)
 {
 	struct max96755f_bridge *ser = platform_get_drvdata(pdev);
+
+	if (ser->dsi)
+		max96755f_detach_dsi(ser);
 
 	drm_bridge_remove(&ser->bridge);
 
