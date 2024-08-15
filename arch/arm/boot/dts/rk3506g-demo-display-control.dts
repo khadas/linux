@@ -133,6 +133,31 @@
 		};
 	};
 
+	/* Only lineout, no hpout */
+	rk730_sound: rk730-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-rk730";
+		spk-con-gpio = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&sai1>;
+		rockchip,codec = <&rk730>;
+		rockchip,audio-routing =
+			"Headphone", "LOUT1",
+			"Headphone", "ROUT1",
+			"Speaker", "LOUT2",
+			"Speaker", "ROUT2",
+			"Headphone", "Headphone Power",
+			"Headphone", "Headphone Power",
+			"Speaker", "Speaker Power",
+			"Speaker", "Speaker Power",
+			"MIC2", "Main Mic",
+			"MIC1", "Headset Mic";
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -404,6 +429,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io4_i2c2_scl &rm_io5_i2c2_sda>;
 
+	rk730: rk730@17 {
+		#sound-dai-cells = <0>;
+		compatible = "rockchip,rk730";
+		reg = <0x17>;
+		clocks = <&mclkout_sai1>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai1>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rm_io8_sai1_mclk>;
+	};
+
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
@@ -536,6 +573,15 @@
 
 &route_dsi{
 	status = "okay";
+};
+
+&sai1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io9_sai1_sclk
+		     &rm_io10_sai1_lrck
+		     &rm_io11_sai1_sdi
+		     &rm_io12_sai1_sdo0>;
 };
 
 &saradc {
