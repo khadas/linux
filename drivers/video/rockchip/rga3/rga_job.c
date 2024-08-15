@@ -273,6 +273,7 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	scheduler->running_job = NULL;
 
 	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+	job->session->last_active = now;
 	set_bit(RGA_JOB_STATE_DONE, &job->state);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
@@ -747,6 +748,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 						ktime_us_delta(ktime_get(), job->hw_recoder_time);
 					scheduler->ops->soft_reset(scheduler);
 				}
+				job->session->last_active = ktime_get();
 
 				pr_err("reset core[%d] by request[%d] abort",
 				       scheduler->core, request->id);

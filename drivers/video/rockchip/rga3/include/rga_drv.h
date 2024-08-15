@@ -69,6 +69,7 @@
 
 /* load interval: 1000ms */
 #define RGA_LOAD_INTERVAL_US 1000000
+#define RGA_LOAD_ACTIVE_MAX_US 5000000
 
 /* timer interval: 1000ms */
 #define RGA_TIMER_INTERVAL_NS 1000000000
@@ -236,6 +237,8 @@ struct rga_session {
 	pid_t tgid;
 
 	char *pname;
+
+	ktime_t last_active;
 };
 
 struct rga_job_buffer {

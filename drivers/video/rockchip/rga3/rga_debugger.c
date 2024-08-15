@@ -192,11 +192,12 @@ static int rga_load_show(struct seq_file *m, void *data)
 	int i;
 	int load;
 	u32 busy_time_total;
+	ktime_t now;
 
 	session_manager = rga_drvdata->session_manager;
 
 	seq_printf(m, "num of scheduler = %d\n", rga_drvdata->num_of_scheduler);
-	seq_printf(m, "================= load ==================\n");
+	seq_puts(m, "================= load ==================\n");
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		scheduler = rga_drvdata->scheduler[i];
@@ -215,13 +216,20 @@ static int rga_load_show(struct seq_file *m, void *data)
 			load = 100;
 
 		seq_printf(m, "\t load = %d%%\n", load);
-		seq_printf(m, "-----------------------------------\n");
+		seq_puts(m, "-----------------------------------\n");
 	}
+
+	seq_puts(m, "=========================================\n");
+	seq_puts(m, "<session>  <status>  <tgid>  <process>\n");
 
 	mutex_lock(&session_manager->lock);
 
+	now = ktime_get();
 	idr_for_each_entry(&session_manager->ctx_id_idr, session, id)
-		seq_printf(m, "\t process %d: pid = %d, name: %s\n", id,
+		seq_printf(m, "%-9d  %-8s  %-6d  %-s\n",
+			session->id,
+			ktime_us_delta(now, session->last_active) < RGA_LOAD_ACTIVE_MAX_US ?
+				"active" : "idle",
 			session->tgid, session->pname);
 
 	mutex_unlock(&session_manager->lock);

@@ -2116,6 +2116,7 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;
+	job->session->last_active = now;
 
 	if (DEBUGGER_EN(REG))
 		rga3_dump_read_back_reg(scheduler);

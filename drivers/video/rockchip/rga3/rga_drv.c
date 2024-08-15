@@ -570,6 +570,8 @@ static struct rga_session *rga_session_init(void)
 	session->tgid = current->tgid;
 	session->pname = kstrdup_quotable_cmdline(current, GFP_KERNEL);
 
+	session->last_active = ktime_get();
+
 	return session;
 }
 
