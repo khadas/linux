@@ -136,7 +136,7 @@
 };
 
 &dp2lvds_backlight0 {
-	pwms = <&pwm2_8ch_0 0 25000 0>;
+	pwms = <&pwm2_8ch_7 0 25000 0>;
 	//pinctrl-names = "default";
 	//pinctrl-0 = <&bl2_enable_pin>;
 	//enable-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
@@ -185,8 +185,8 @@
 		port@1 {
 			reg = <1>;
 
-			edp_out_i2c2_max96745: endpoint {
-				remote-endpoint = <&i2c2_max96745_from_edp>;
+			edp_out_i2c3_max96745: endpoint {
+				remote-endpoint = <&i2c3_max96745_from_edp>;
 			};
 		};
 	};
@@ -205,7 +205,7 @@
 };
 
 &edp2lvds_backlight0 {
-	pwms = <&pwm2_8ch_5 0 25000 0>;
+	pwms = <&pwm0_2ch_0 0 25000 0>;
 	//pinctrl-names = "default";
 	//pinctrl-0 = <&bl4_enable_pin>;
 	//enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
@@ -566,7 +566,7 @@
 		reg = <0x42>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c5_serdes_pins>;
-		lock-gpios = <&gpio2 RK_PD2 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-bridge-split = <0x02>;
@@ -1070,8 +1070,8 @@
 	i2c5_ilitek: i2c5-ilitek@41 {
 		compatible = "ilitek,ili251x";
 		reg = <0x41>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio_dp>;
 		//reset-gpio = <&gpio0 RK_PD1 GPIO_ACTIVE_LOW>;
@@ -1080,16 +1080,16 @@
 	};
 };
 
-&i2c2 {
-	pinctrl-0 = <&i2c2m3_xfer>;
+&i2c3 {
+	pinctrl-0 = <&i2c3m0_xfer>;
 	clock-frequency = <400000>;
 	status = "okay";
 
-	i2c2_max96745: i2c2-max96745@42 {
+	i2c3_max96745: i2c3-max96745@42 {
 		compatible = "maxim,max96745";
 		reg = <0x42>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2c2_serdes_pins>;
+		pinctrl-0 = <&i2c3_serdes_pins>;
 		lock-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1402,7 +1402,7 @@
 			6421	0003
 		];
 
-		i2c2_max96745_pinctrl: i2c2-max96745-pinctrl {
+		i2c3_max96745_pinctrl: i2c3-max96745-pinctrl {
 			compatible = "maxim,max96745-pinctrl";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c45_max96745_pinctrl_pins>;
@@ -1431,17 +1431,17 @@
 				};
 			};
 
-			i2c2_max96745_gpio: i2c2-max96745-gpio {
+			i2c3_max96745_gpio: i2c3-max96745-gpio {
 				compatible = "maxim,max96745-gpio";
 				status = "okay";
 
 				gpio-controller;
 				#gpio-cells = <2>;
-				gpio-ranges = <&i2c2_max96745_pinctrl 0 280 25>;
+				gpio-ranges = <&i2c3_max96745_pinctrl 0 280 25>;
 			};
 		};
 
-		i2c2_max96745_bridge: i2c2-max96745-bridge {
+		i2c3_max96745_bridge: i2c3-max96745-bridge {
 			compatible = "maxim,max96745-bridge";
 			status = "okay";
 		};
@@ -1453,22 +1453,22 @@
 			port@0 {
 				reg = <0>;
 
-				i2c2_max96745_from_edp: endpoint {
-					remote-endpoint = <&edp_out_i2c2_max96745>;
+				i2c3_max96745_from_edp: endpoint {
+					remote-endpoint = <&edp_out_i2c3_max96745>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
 
-				i2c2_max96745_out_i2c2_max96752: endpoint {
-					remote-endpoint = <&i2c2_max96752_from_i2c2_max96745>;
+				i2c3_max96745_out_i2c3_max96752: endpoint {
+					remote-endpoint = <&i2c3_max96752_from_i2c3_max96745>;
 				};
 			};
 		};
 	};
 
-	i2c2_max96752: i2c2-max96752@4a {
+	i2c3_max96752: i2c3-max96752@4a {
 		compatible = "maxim,max96752";
 		reg = <0x4a>;
 		#address-cells = <1>;
@@ -1493,16 +1493,16 @@
 			01ea 0005
 		];
 
-		i2c2_max96752_pinctrl: i2c2-max96752-pinctrl {
+		i2c3_max96752_pinctrl: i2c3-max96752-pinctrl {
 			compatible = "maxim,max96752-pinctrl";
 			status = "okay";
 
 			pinctrl-names = "default","init","sleep";
-			pinctrl-0 = <&i2c2_max96752_panel_pins>;
-			pinctrl-1 = <&i2c2_max96752_panel_pins>;
-			pinctrl-2 = <&i2c2_max96752_panel_sleep_pins>;
+			pinctrl-0 = <&i2c3_max96752_panel_pins>;
+			pinctrl-1 = <&i2c3_max96752_panel_pins>;
+			pinctrl-2 = <&i2c3_max96752_panel_sleep_pins>;
 
-			i2c2_max96752_panel_pins: panel-pins {
+			i2c3_max96752_panel_pins: panel-pins {
 				lcd-rst-pin {
 					pins = "MAX96752_GPIO10";
 					function = "DES_TXID10_OUTPUT_HIGH";
@@ -1537,7 +1537,7 @@
 				};
 			};
 
-			i2c2_max96752_panel_sleep_pins: panel-sleep-pins {
+			i2c3_max96752_panel_sleep_pins: panel-sleep-pins {
 				lcd-rst-pin {
 					pins = "MAX96752_GPIO10";
 					function = "DES_TXID10_OUTPUT_LOW";
@@ -1554,17 +1554,17 @@
 				};
 			};
 
-			i2c2_max96752_gpio: i2c2-max96752-gpio {
+			i2c3_max96752_gpio: i2c3-max96752-gpio {
 				compatible = "maxim,max96752-gpio";
 				status = "okay";
 
 				gpio-controller;
 				#gpio-cells = <2>;
-				gpio-ranges = <&i2c2_max96752_pinctrl 0 305 15>;
+				gpio-ranges = <&i2c3_max96752_pinctrl 0 305 15>;
 			};
 		};
 
-		i2c2_max96752_panel: i2c2-max96752-panel {
+		i2c3_max96752_panel: i2c3-max96752-panel {
 			compatible = "maxim,max96752-panel";
 			status = "okay";
 
@@ -1588,22 +1588,22 @@
 			};
 
 			port {
-				i2c2_max96752_from_i2c2_max96745: endpoint {
-					remote-endpoint = <&i2c2_max96745_out_i2c2_max96752>;
+				i2c3_max96752_from_i2c3_max96745: endpoint {
+					remote-endpoint = <&i2c3_max96745_out_i2c3_max96752>;
 				};
 			};
 		};
 	};
 
-	i2c2_himax: i2c2-himax@45 {
+	i2c3_himax: i2c3-himax@45 {
 		compatible = "himax,hxcommon";
 		reg = <0x45>;
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&touch_gpio_edp>;
 		pinctrl-1 = <&touch_gpio_edp>;
 		himax,location = "himax-touch-edp";
-		himax,irq-gpio = <&gpio4 RK_PC1 IRQ_TYPE_EDGE_FALLING>;
-		himax,rst-gpio = <&i2c2_max96752_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,irq-gpio = <&gpio3 RK_PD6 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c3_max96752_gpio 5 GPIO_ACTIVE_LOW>;
 		himax,panel-coords = <0 1920 0 720>;
 		himax,display-coords = <0 1920 0 720>;
 		status = "okay";
@@ -1617,21 +1617,21 @@
 &pinctrl {
 	serdes {
 		/*EDP*/
-		i2c2_serdes_pins: i2c2-serdes-pins {
+		i2c3_serdes_pins: i2c3-serdes-pins {
 			rockchip,pins =
-				<2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,/*lock*/
-				<2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;/*err*/
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>,/*lock*/
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;/*err*/
 		};
 		/*DP*/
 		i2c5_serdes_pins: i2c5-serdes-pins {
 			rockchip,pins =
-				<2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,/*err*/
-				<2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;/*lock*/
+				<0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>,/*err*/
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;/*lock*/
 		};
 		/*DSI*/
 		i2c8_serdes_pins: i2c8-serdes-pins {
 			rockchip,pins =
-				<2 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>,/*err*/
+				<2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_up>,/*err*/
 				<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;/*lock*/
 		};
 	};
@@ -1644,15 +1644,15 @@
 };
 
 /* dp->serdes->lvds_panel */
-&pwm2_8ch_0 {
-	pinctrl-0 = <&pwm2m2_ch0>;
+&pwm2_8ch_7 {
+	pinctrl-0 = <&pwm2m3_ch7>;
 	status = "okay";
 };
 
 
 /* edp->serdes->lvds_panel */
-&pwm2_8ch_5 {
-	pinctrl-0 = <&pwm2m1_ch5>;
+&pwm0_2ch_0 {
+	pinctrl-0 = <&pwm0m3_ch0>;
 	status = "okay";
 };
 
