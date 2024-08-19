@@ -12,6 +12,22 @@
 #include "rga_drv.h"
 #include "rga_hw_config.h"
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) "%s: " fmt, "rga"
+
+#define rga_log(fmt, args...) \
+	pr_info("%-6d %-6d: " fmt, get_current()->tgid, get_current()->pid, ##args)
+#define rga_err(fmt, args...) \
+	pr_err("%-6d %-6d: " fmt, get_current()->tgid, get_current()->pid, ##args)
+
+#define rga_dev_log(dev, fmt, args...) \
+	dev_info(dev, "%-6d %-6d: " fmt, current->tgid, current->pid, ##args)
+#define rga_dev_err(dev, fmt, args...) \
+	dev_err(dev, "%-6d %-6d: " fmt, current->tgid, current->pid, ##args)
+
 #define RGA_GET_PAGE_COUNT(size) (((size) >> PAGE_SHIFT) + (((size) & (~PAGE_MASK)) ? 1 : 0))
 
 bool rga_is_rgb_format(uint32_t format);
@@ -46,5 +62,6 @@ int rga_image_size_cal(int w, int h, int format,
 		       int *yrgb_size, int *uv_size, int *v_size);
 void rga_dump_memory_parm(struct rga_memory_parm *parm);
 void rga_dump_external_buffer(struct rga_external_buffer *buffer);
+void rga_dump_req(struct rga_req *req);
 
 #endif

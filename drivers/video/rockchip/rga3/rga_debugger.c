@@ -7,8 +7,6 @@
  *	Huang Lee <Putin.li@rock-chips.com>
  */
 
-#define pr_fmt(fmt) "rga_debugger: " fmt
-
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/syscalls.h>
@@ -862,54 +860,6 @@ void rga_request_task_debug_info(struct seq_file *m, struct rga_req *req)
 	seq_printf(m, "\t\t alpha: rop_mode = %x\n", req->alpha_rop_mode);
 	seq_printf(m, "\t\t yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 	seq_printf(m, "\t\t set core = %d, priority = %d, in_fence_fd = %d\n",
-		req->core, req->priority, req->in_fence_fd);
-}
-
-void rga_cmd_print_debug_info(struct rga_req *req)
-{
-	pr_info("render_mode = %d, bitblit_mode=%d, rotate_mode = %d\n",
-		req->render_mode, req->bsfilter_flag,
-		req->rotate_mode);
-
-	pr_info("src: y = %lx uv = %lx v = %lx aw = %d ah = %d vw = %d vh = %d\n",
-		 (unsigned long)req->src.yrgb_addr,
-		 (unsigned long)req->src.uv_addr,
-		 (unsigned long)req->src.v_addr,
-		 req->src.act_w, req->src.act_h,
-		 req->src.vir_w, req->src.vir_h);
-	pr_info("src: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
-		req->src.x_offset, req->src.y_offset,
-		 req->src.format, req->src.rd_mode);
-
-	if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0
-		|| req->pat.v_addr != 0) {
-		pr_info("pat: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-			 (unsigned long)req->pat.yrgb_addr,
-			 (unsigned long)req->pat.uv_addr,
-			 (unsigned long)req->pat.v_addr,
-			 req->pat.act_w, req->pat.act_h,
-			 req->pat.vir_w, req->pat.vir_h);
-		pr_info("pat: xoff = %d yoff = %d, format = 0x%x, rd_mode = %d\n",
-			req->pat.x_offset, req->pat.y_offset,
-			req->pat.format, req->pat.rd_mode);
-	}
-
-	pr_info("dst: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-		 (unsigned long)req->dst.yrgb_addr,
-		 (unsigned long)req->dst.uv_addr,
-		 (unsigned long)req->dst.v_addr,
-		 req->dst.act_w, req->dst.act_h,
-		 req->dst.vir_w, req->dst.vir_h);
-	pr_info("dst: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
-		req->dst.x_offset, req->dst.y_offset,
-		req->dst.format, req->dst.rd_mode);
-
-	pr_info("mmu: mmu_flag=%x en=%x\n",
-		req->mmu_info.mmu_flag, req->mmu_info.mmu_en);
-	pr_info("alpha: rop_mode = %x\n", req->alpha_rop_mode);
-	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
-	pr_info("imterplotion: horiz = 0x%x, verti = 0x%x\n", req->interp.horiz, req->interp.verti);
-	pr_info("set core = %d, priority = %d, in_fence_fd = %d\n",
 		req->core, req->priority, req->in_fence_fd);
 }
 

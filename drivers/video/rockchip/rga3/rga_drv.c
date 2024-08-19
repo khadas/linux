@@ -5,8 +5,6 @@
  * Author: Huang Lee <Putin.li@rock-chips.com>
  */
 
-#define pr_fmt(fmt) "rga: " fmt
-
 #include "rga2_reg_info.h"
 #include "rga3_reg_info.h"
 #include "rga_dma_buf.h"
@@ -44,7 +42,7 @@ static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf,
 
 	buffer.handle = rga_mm_import_buffer(&buffer, session);
 	if (buffer.handle == 0) {
-		pr_err("can not import dma_buf %p\n", dma_buf);
+		rga_err("can not import dma_buf %p\n", dma_buf);
 		return -EFAULT;
 	}
 	channel_info->yrgb_addr = buffer.handle;
@@ -115,14 +113,14 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	mutex_lock(&request_manager->lock);
 	request = rga_request_lookup(request_manager, mpi_job->ctx_id);
 	if (IS_ERR_OR_NULL(request)) {
-		pr_err("can not find request from id[%d]", mpi_job->ctx_id);
+		rga_err("can not find request from id[%d]", mpi_job->ctx_id);
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
 
 	if (request->task_count > 1) {
 		/* TODO */
-		pr_err("Currently request does not support multiple tasks!");
+		rga_err("Currently request does not support multiple tasks!");
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
@@ -168,7 +166,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.src,
 						 request->session);
 		if (ret < 0) {
-			pr_err("src channel set buffer handle failed!\n");
+			rga_err("src channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -178,7 +176,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.pat,
 						 request->session);
 		if (ret < 0) {
-			pr_err("src1 channel set buffer handle failed!\n");
+			rga_err("src1 channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -188,7 +186,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.dst,
 						 request->session);
 		if (ret < 0) {
-			pr_err("dst channel set buffer handle failed!\n");
+			rga_err("dst channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -198,16 +196,16 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	mpi_cmd.mmu_info.mmu_flag = 0;
 
 	if (DEBUGGER_EN(MSG))
-		rga_cmd_print_debug_info(&mpi_cmd);
+		rga_dump_req(&mpi_cmd);
 
 	ret = rga_request_mpi_submit(&mpi_cmd, request);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
-				pr_err("%s, commit mpi job failed, by a software interrupt.\n",
+				rga_err("%s, commit mpi job failed, by a software interrupt.\n",
 					__func__);
 		} else {
-			pr_err("%s, commit mpi job failed\n", __func__);
+			rga_err("%s, commit mpi job failed\n", __func__);
 		}
 
 		goto err_put_request;
@@ -256,7 +254,7 @@ int rga_kernel_commit(struct rga_req *cmd)
 
 	request_id = rga_request_alloc(0, session);
 	if (request_id < 0) {
-		pr_err("request alloc error!\n");
+		rga_err("request alloc error!\n");
 		ret = request_id;
 		return ret;
 	}
@@ -269,25 +267,25 @@ int rga_kernel_commit(struct rga_req *cmd)
 
 	ret = rga_request_check(&kernel_request);
 	if (ret < 0) {
-		pr_err("user request check error!\n");
+		rga_err("user request check error!\n");
 		goto err_free_request_by_id;
 	}
 
 	request = rga_request_kernel_config(&kernel_request);
 	if (IS_ERR(request)) {
-		pr_err("request[%d] config failed!\n", kernel_request.id);
+		rga_err("request[%d] config failed!\n", kernel_request.id);
 		ret = -EFAULT;
 		goto err_free_request_by_id;
 	}
 
 	if (DEBUGGER_EN(MSG)) {
-		pr_info("kernel blit mode: request id = %d", kernel_request.id);
-		rga_cmd_print_debug_info(cmd);
+		rga_log("kernel blit mode: request id = %d", kernel_request.id);
+		rga_dump_req(cmd);
 	}
 
 	ret = rga_request_submit(request);
 	if (ret < 0) {
-		pr_err("request[%d] submit failed!\n", kernel_request.id);
+		rga_err("request[%d] submit failed!\n", kernel_request.id);
 		goto err_put_request;
 	}
 
@@ -305,7 +303,7 @@ err_free_request_by_id:
 
 	request = rga_request_lookup(request_manager, request_id);
 	if (IS_ERR_OR_NULL(request)) {
-		pr_err("can not find request from id[%d]", request_id);
+		rga_err("can not find request from id[%d]", request_id);
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
@@ -434,7 +432,7 @@ static void rga_power_enable_all(void)
 		scheduler = rga_drvdata->scheduler[i];
 		ret = rga_power_enable(scheduler);
 		if (ret < 0)
-			pr_err("power enable failed");
+			rga_err("power enable failed");
 	}
 }
 
@@ -539,13 +537,13 @@ static struct rga_session *rga_session_init(void)
 
 	session_manager = rga_drvdata->session_manager;
 	if (session_manager == NULL) {
-		pr_err("rga_session_manager is null!\n");
+		rga_err("rga_session_manager is null!\n");
 		return ERR_PTR(-EFAULT);
 	}
 
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session) {
-		pr_err("rga_session alloc failed\n");
+		rga_err("rga_session alloc failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -557,7 +555,7 @@ static struct rga_session *rga_session_init(void)
 	if (new_id < 0) {
 		mutex_unlock(&session_manager->lock);
 
-		pr_err("rga_session alloc id failed!\n");
+		rga_err("rga_session alloc id failed!\n");
 		kfree(session);
 		return ERR_PTR(new_id);
 	}
@@ -598,32 +596,32 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 	if (unlikely(copy_from_user(&buffer_pool,
 				    (struct rga_buffer_pool *)arg,
 				    sizeof(buffer_pool)))) {
-		pr_err("rga_buffer_pool copy_from_user failed!\n");
+		rga_err("rga_buffer_pool copy_from_user failed!\n");
 		return -EFAULT;
 	}
 
 	if (buffer_pool.size > RGA_BUFFER_POOL_SIZE_MAX) {
-		pr_err("Cannot import more than %d buffers at a time!\n",
+		rga_err("Cannot import more than %d buffers at a time!\n",
 		       RGA_BUFFER_POOL_SIZE_MAX);
 		return -EFBIG;
 	}
 
 	if (buffer_pool.buffers_ptr == 0) {
-		pr_err("Import buffers is NULL!\n");
+		rga_err("Import buffers is NULL!\n");
 		return -EFAULT;
 	}
 
 	external_buffer = kmalloc(sizeof(struct rga_external_buffer) * buffer_pool.size,
 				  GFP_KERNEL);
 	if (external_buffer == NULL) {
-		pr_err("external buffer list alloc error!\n");
+		rga_err("external buffer list alloc error!\n");
 		return -ENOMEM;
 	}
 
 	if (unlikely(copy_from_user(external_buffer,
 				    u64_to_user_ptr(buffer_pool.buffers_ptr),
 				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
-		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
+		rga_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
 		ret = -EFAULT;
 
 		goto err_free_external_buffer;
@@ -631,13 +629,13 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 
 	for (i = 0; i < buffer_pool.size; i++) {
 		if (DEBUGGER_EN(MSG)) {
-			pr_info("import buffer info:\n");
+			rga_log("import buffer info:\n");
 			rga_dump_external_buffer(&external_buffer[i]);
 		}
 
 		ret = rga_mm_import_buffer(&external_buffer[i], session);
 		if (ret <= 0) {
-			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = %s(0x%x)\n",
+			rga_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = %s(0x%x)\n",
 			       i, (unsigned long)external_buffer[i].memory,
 			       rga_get_memory_type_str(external_buffer[i].type),
 			       external_buffer[i].type);
@@ -651,7 +649,7 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 	if (unlikely(copy_to_user(u64_to_user_ptr(buffer_pool.buffers_ptr),
 				  external_buffer,
 				  sizeof(struct rga_external_buffer) * buffer_pool.size))) {
-		pr_err("rga_buffer_pool external_buffer list copy_to_user failed\n");
+		rga_err("rga_buffer_pool external_buffer list copy_to_user failed\n");
 		ret = -EFAULT;
 
 		goto err_free_external_buffer;
@@ -672,32 +670,32 @@ static long rga_ioctl_release_buffer(unsigned long arg)
 	if (unlikely(copy_from_user(&buffer_pool,
 				    (struct rga_buffer_pool *)arg,
 				    sizeof(buffer_pool)))) {
-		pr_err("rga_buffer_pool  copy_from_user failed!\n");
+		rga_err("rga_buffer_pool  copy_from_user failed!\n");
 		return -EFAULT;
 	}
 
 	if (buffer_pool.size > RGA_BUFFER_POOL_SIZE_MAX) {
-		pr_err("Cannot release more than %d buffers at a time!\n",
+		rga_err("Cannot release more than %d buffers at a time!\n",
 		       RGA_BUFFER_POOL_SIZE_MAX);
 		return -EFBIG;
 	}
 
 	if (buffer_pool.buffers_ptr == 0) {
-		pr_err("Release buffers is NULL!\n");
+		rga_err("Release buffers is NULL!\n");
 		return -EFAULT;
 	}
 
 	external_buffer = kmalloc(sizeof(struct rga_external_buffer) * buffer_pool.size,
 				  GFP_KERNEL);
 	if (external_buffer == NULL) {
-		pr_err("external buffer list alloc error!\n");
+		rga_err("external buffer list alloc error!\n");
 		return -ENOMEM;
 	}
 
 	if (unlikely(copy_from_user(external_buffer,
 				    u64_to_user_ptr(buffer_pool.buffers_ptr),
 				    sizeof(struct rga_external_buffer) * buffer_pool.size))) {
-		pr_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
+		rga_err("rga_buffer_pool external_buffer list copy_from_user failed\n");
 		ret = -EFAULT;
 
 		goto err_free_external_buffer;
@@ -705,11 +703,11 @@ static long rga_ioctl_release_buffer(unsigned long arg)
 
 	for (i = 0; i < buffer_pool.size; i++) {
 		if (DEBUGGER_EN(MSG))
-			pr_info("release buffer handle[%d]\n", external_buffer[i].handle);
+			rga_log("release buffer handle[%d]\n", external_buffer[i].handle);
 
 		ret = rga_mm_release_buffer(external_buffer[i].handle);
 		if (ret < 0) {
-			pr_err("buffer[%d] mm release buffer failed! handle = %d\n",
+			rga_err("buffer[%d] mm release buffer failed! handle = %d\n",
 			       i, external_buffer[i].handle);
 
 			goto err_free_external_buffer;
@@ -727,14 +725,14 @@ static long rga_ioctl_request_create(unsigned long arg, struct rga_session *sess
 	uint32_t flags;
 
 	if (copy_from_user(&flags, (void *)arg, sizeof(uint32_t))) {
-		pr_err("%s failed to copy from usrer!\n", __func__);
+		rga_err("%s failed to copy from user!\n", __func__);
 		return -EFAULT;
 	}
 
 	id = rga_request_alloc(flags, session);
 
 	if (copy_to_user((void *)arg, &id, sizeof(uint32_t))) {
-		pr_err("%s failed to copy to usrer!\n", __func__);
+		rga_err("%s failed to copy to user!\n", __func__);
 		return -EFAULT;
 	}
 
@@ -753,29 +751,29 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 	if (unlikely(copy_from_user(&user_request,
 				    (struct rga_user_request *)arg,
 				    sizeof(user_request)))) {
-		pr_err("%s copy_from_user failed!\n", __func__);
+		rga_err("%s copy_from_user failed!\n", __func__);
 		return -EFAULT;
 	}
 
 	ret = rga_request_check(&user_request);
 	if (ret < 0) {
-		pr_err("user request check error!\n");
+		rga_err("user request check error!\n");
 		return ret;
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_info("config request id = %d", user_request.id);
+		rga_log("config request id = %d", user_request.id);
 
 	request = rga_request_config(&user_request);
 	if (IS_ERR_OR_NULL(request)) {
-		pr_err("request[%d] config failed!\n", user_request.id);
+		rga_err("request[%d] config failed!\n", user_request.id);
 		return -EFAULT;
 	}
 
 	if (run_enbale) {
 		ret = rga_request_submit(request);
 		if (ret < 0) {
-			pr_err("request[%d] submit failed!\n", user_request.id);
+			rga_err("request[%d] submit failed!\n", user_request.id);
 			return -EFAULT;
 		}
 
@@ -783,7 +781,7 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 			user_request.release_fence_fd = request->release_fence_fd;
 			if (copy_to_user((struct rga_req *)arg,
 					 &user_request, sizeof(user_request))) {
-				pr_err("copy_to_user failed\n");
+				rga_err("copy_to_user failed\n");
 				return -EFAULT;
 			}
 		}
@@ -804,23 +802,23 @@ static long rga_ioctl_request_cancel(unsigned long arg)
 
 	request_manager = rga_drvdata->pend_request_manager;
 	if (request_manager == NULL) {
-		pr_err("rga_pending_request_manager is null!\n");
+		rga_err("rga_pending_request_manager is null!\n");
 		return -EFAULT;
 	}
 
 	if (unlikely(copy_from_user(&id, (uint32_t *)arg, sizeof(uint32_t)))) {
-		pr_err("request id copy_from_user failed!\n");
+		rga_err("request id copy_from_user failed!\n");
 		return -EFAULT;
 	}
 
 	if (DEBUGGER_EN(MSG))
-		pr_info("config cancel request id = %d", id);
+		rga_log("config cancel request id = %d", id);
 
 	mutex_lock(&request_manager->lock);
 
 	request = rga_request_lookup(request_manager, id);
 	if (IS_ERR_OR_NULL(request)) {
-		pr_err("can not find request from id[%d]", id);
+		rga_err("can not find request from id[%d]", id);
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
@@ -843,7 +841,7 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 
 	request_id = rga_request_alloc(0, session);
 	if (request_id < 0) {
-		pr_err("request alloc error!\n");
+		rga_err("request alloc error!\n");
 		ret = request_id;
 		return ret;
 	}
@@ -856,13 +854,13 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 
 	ret = rga_request_check(&user_request);
 	if (ret < 0) {
-		pr_err("user request check error!\n");
+		rga_err("user request check error!\n");
 		goto err_free_request_by_id;
 	}
 
 	request = rga_request_config(&user_request);
 	if (IS_ERR(request)) {
-		pr_err("request[%d] config failed!\n", user_request.id);
+		rga_err("request[%d] config failed!\n", user_request.id);
 		ret = -EFAULT;
 		goto err_free_request_by_id;
 	}
@@ -873,14 +871,14 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 
 	ret = rga_request_submit(request);
 	if (ret < 0) {
-		pr_err("request[%d] submit failed!\n", user_request.id);
+		rga_err("request[%d] submit failed!\n", user_request.id);
 		goto err_put_request;
 	}
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		rga_req->out_fence_fd = request->release_fence_fd;
 		if (copy_to_user((struct rga_req *)arg, rga_req, sizeof(struct rga_req))) {
-			pr_err("copy_to_user failed\n");
+			rga_err("copy_to_user failed\n");
 			ret = -EFAULT;
 			goto err_put_request;
 		}
@@ -898,7 +896,7 @@ err_free_request_by_id:
 
 	request = rga_request_lookup(request_manager, request_id);
 	if (IS_ERR_OR_NULL(request)) {
-		pr_err("can not find request from id[%d]", request_id);
+		rga_err("can not find request from id[%d]", request_id);
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
@@ -922,7 +920,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	struct rga_session *session = file->private_data;
 
 	if (!rga) {
-		pr_err("rga_drvdata is null, rga is not init\n");
+		rga_err("rga_drvdata is null, rga is not init\n");
 		return -ENODEV;
 	}
 
@@ -1050,7 +1048,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	case RGA_IMPORT_DMA:
 	case RGA_RELEASE_DMA:
 	default:
-		pr_err("unknown ioctl cmd!\n");
+		rga_err("unknown ioctl cmd!\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -1140,7 +1138,7 @@ static irqreturn_t rga_isr_thread(int irq, void *data)
 
 	job = rga_job_done(scheduler);
 	if (job == NULL) {
-		pr_err("isr thread invalid job!\n");
+		rga_err("isr thread invalid job!\n");
 		return IRQ_HANDLED;
 	}
 
