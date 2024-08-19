@@ -2747,9 +2747,8 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 			return -EINVAL;
 		}
 	}
-	// channel->fmt_val = fmt->csi_fmt_val;
-	/* set cif input format yuv422*/
-	channel->fmt_val = CSI_WRDDR_TYPE_YUV422;
+
+	channel->fmt_val = fmt->csi_fmt_val;
 	VEHICLE_INFO("%s, LINE=%d, channel->fmt_val = 0x%x, fmt->csi_fmt_val= 0x%x",
 				__func__, __LINE__, channel->fmt_val, fmt->csi_fmt_val);
 	/*
@@ -3225,6 +3224,7 @@ static int vehicle_cif_csi2_s_stream(struct vehicle_cif *cif,
 		} else {
 			val |= infmt->csi_yuv_order;
 		}
+
 		rkcif_write_reg(cif, get_reg_index_of_id_ctrl0(channel->id), val);
 		cif->state = RKCIF_STATE_STREAMING;
 	} else {
@@ -3266,7 +3266,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 	channel = &cif->channels[0];
 
 	if (enable) {
-		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE | channel->fmt_val |
+		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
 		      channel->id << 8 | channel->data_type << 10;
 
@@ -3275,7 +3275,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 			VEHICLE_INFO("Input fmt is invalid, use default!\n");
 			val |= CSI_YUV_INPUT_ORDER_UYVY;
 		} else {
-			val |= infmt->csi_yuv_order;
+			val |= infmt->csi_yuv_order | infmt->csi_fmt_val;
 		}
 
 		if (cfg->output_format == CIF_OUTPUT_FORMAT_420) {
@@ -5136,7 +5136,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3568_cif_rsts[i])
+			if (rk3588_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3588_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3588_cif_rsts[i]);
@@ -5148,7 +5148,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3568_cif_rsts[i])
+			if (rk3562_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3562_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3562_cif_rsts[i]);
@@ -5181,13 +5181,15 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 
 	/*  3. request cif irq & mipi csi irq1-2 */
 	if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF) {
-		ret = request_irq(cif->irq, rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
+		ret = devm_request_irq(dev, cif->irq,
+				rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
 		}
 	} else {
-		ret = request_irq(cif->irq, rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
+		ret = devm_request_irq(dev, cif->irq,
+				rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
@@ -5197,14 +5199,14 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	VEHICLE_DG("%s(%d):\n", __func__, __LINE__);
 
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		ret = request_irq(cif->csi2_irq1, vehicle_csirx_irq1,
+		ret = devm_request_irq(dev, cif->csi2_irq1, vehicle_csirx_irq1,
 				IRQF_SHARED, "vehicle_csi_intr1", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq1 failed!\n");
 			return -EINVAL;
 		}
 
-		ret = request_irq(cif->csi2_irq2, vehicle_csirx_irq2,
+		ret = devm_request_irq(dev, cif->csi2_irq2, vehicle_csirx_irq2,
 				IRQF_SHARED, "vehicle_csi_intr2", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq2 failed!\n");
@@ -5318,10 +5320,10 @@ int vehicle_cif_deinit(struct vehicle_cif *cif)
 		mutex_destroy(&dphy_hw->mutex);
 	}
 
-	free_irq(cif->irq, cif);
+	devm_free_irq(dev, cif->irq, cif);
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		free_irq(cif->csi2_irq1, cif);
-		free_irq(cif->csi2_irq2, cif);
+		devm_free_irq(dev, cif->csi2_irq1, cif);
+		devm_free_irq(dev, cif->csi2_irq2, cif);
 	}
 	if (cif->err_state.err_print_wq) {
 		flush_workqueue(cif->err_state.err_print_wq);

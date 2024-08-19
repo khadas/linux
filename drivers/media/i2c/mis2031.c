@@ -416,6 +416,10 @@ static const struct mis2031_mode supported_modes[] = {
 	}
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SGRBG10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	MIS2031_LINK_FREQ_185
 };
@@ -689,11 +693,9 @@ static int mis2031_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct mis2031 *mis2031 = to_mis2031(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = mis2031->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -743,6 +745,69 @@ static int mis2031_g_frame_interval(struct v4l2_subdev *sd,
 		fi->interval = mis2031->cur_fps;
 	else
 		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct mis2031_mode *mis2031_find_mode(struct mis2031 *mis2031, int fps)
+{
+	const struct mis2031_mode *mode = NULL;
+	const struct mis2031_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == mis2031->cur_mode->width &&
+		    mode->height == mis2031->cur_mode->height &&
+		    mode->hdr_mode == mis2031->cur_mode->hdr_mode &&
+		    mode->bus_fmt == mis2031->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int mis2031_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct mis2031 *mis2031 = to_mis2031(sd);
+	const struct mis2031_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (mis2031->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = mis2031_find_mode(mis2031, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	mis2031->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(mis2031->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(mis2031->vblank, vblank_def,
+				 MIS2031_VTS_MAX - mode->height,
+				 1, vblank_def);
+	mis2031->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -802,7 +867,8 @@ static long mis2031_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == mis2031->cur_mode->bus_fmt) {
 				mis2031->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1205,6 +1271,7 @@ static const struct v4l2_subdev_core_ops mis2031_core_ops = {
 static const struct v4l2_subdev_video_ops mis2031_video_ops = {
 	.s_stream = mis2031_s_stream,
 	.g_frame_interval = mis2031_g_frame_interval,
+	.s_frame_interval = mis2031_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mis2031_pad_ops = {

@@ -626,7 +626,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 	int i;
 	unsigned long flags;
 	enum rga_scheduler_status scheduler_status;
-	int running_abort_count = 0, todo_abort_count = 0;
+	int running_abort_count = 0, todo_abort_count = 0, all_task_count = 0;
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_job *job, *job_q;
 	LIST_HEAD(list_to_free);
@@ -679,8 +679,12 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 		rga_job_cleanup(job);
 	}
 
+	all_task_count = request->finished_task_count + request->failed_task_count +
+			 running_abort_count + todo_abort_count;
+
 	/* This means it has been cleaned up. */
-	if (running_abort_count + todo_abort_count == 0)
+	if (running_abort_count + todo_abort_count == 0 &&
+	    all_task_count == request->task_count)
 		return 1;
 
 	pr_err("request[%d] abort! finished %d failed %d running_abort %d todo_abort %d\n",
@@ -1126,6 +1130,7 @@ int rga_request_submit(struct rga_request *request)
 	request->is_done = false;
 	request->finished_task_count = 0;
 	request->failed_task_count = 0;
+	request->ret = 0;
 	request->current_mm = current_mm;
 
 	/* Unlock after ensuring that the current request will not be resubmitted. */
@@ -1204,6 +1209,9 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	int ret = 0;
 	struct rga_job *job = NULL;
 	unsigned long flags;
+	struct rga_pending_request_manager *request_manager;
+
+	request_manager = rga_drvdata->pend_request_manager;
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		pr_err("mpi unsupported async mode!\n");
@@ -1229,8 +1237,17 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	request->is_done = false;
 	request->finished_task_count = 0;
 	request->failed_task_count = 0;
+	request->ret = 0;
 
 	spin_unlock_irqrestore(&request->lock, flags);
+
+	/*
+	 * The mpi submit will use the request repeatedly, so an additional
+	 * get() is added here.
+	 */
+	mutex_lock(&request_manager->lock);
+	rga_request_get(request);
+	mutex_unlock(&request_manager->lock);
 
 	job = rga_job_commit(req, request);
 	if (IS_ERR_OR_NULL(job)) {

@@ -48,7 +48,7 @@
 #define OV13850_MODE_STREAMING		BIT(0)
 
 #define OV13850_REG_EXPOSURE		0x3500
-#define	OV13850_EXPOSURE_MIN		4
+#define	OV13850_EXPOSURE_MIN		2
 #define	OV13850_EXPOSURE_STEP		1
 #define OV13850_VTS_MAX			0x7fff
 
@@ -102,6 +102,7 @@ struct regval {
 };
 
 struct ov13850_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -109,6 +110,8 @@ struct ov13850_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct ov13850 {
@@ -132,6 +135,8 @@ struct ov13850 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
@@ -140,6 +145,8 @@ struct ov13850 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_ov13850(sd) container_of(sd, struct ov13850, subdev)
@@ -645,6 +652,7 @@ static const struct regval ov13850_4224x3136_regs[] = {
 
 static const struct ov13850_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 2112,
 		.height = 1568,
 		.max_fps = {
@@ -655,7 +663,10 @@ static const struct ov13850_mode supported_modes[] = {
 		.hts_def = 0x12c0,
 		.vts_def = 0x0680,
 		.reg_list = ov13850_2112x1568_regs,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},{
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.width = 4224,
 		.height = 3136,
 		.max_fps = {
@@ -666,7 +677,13 @@ static const struct ov13850_mode supported_modes[] = {
 		.hts_def = 0x12c0,
 		.vts_def = 0x0d00,
 		.reg_list = ov13850_4224x3136_regs,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -799,7 +816,7 @@ static int ov13850_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov13850->mutex);
 
 	mode = ov13850_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -819,6 +836,7 @@ static int ov13850_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(ov13850->vblank, vblank_def,
 					 OV13850_VTS_MAX - mode->height,
 					 1, vblank_def);
+		ov13850->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&ov13850->mutex);
@@ -844,7 +862,7 @@ static int ov13850_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&ov13850->mutex);
@@ -856,9 +874,9 @@ static int ov13850_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -870,7 +888,7 @@ static int ov13850_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -902,8 +920,79 @@ static int ov13850_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov13850 *ov13850 = to_ov13850(sd);
 	const struct ov13850_mode *mode = ov13850->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (ov13850->streaming)
+		fi->interval = ov13850->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct ov13850_mode *ov13850_find_mode(struct ov13850 *ov13850, int fps)
+{
+	const struct ov13850_mode *mode = NULL;
+	const struct ov13850_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == ov13850->cur_mode->width &&
+		    mode->height == ov13850->cur_mode->height) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int ov13850_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov13850 *ov13850 = to_ov13850(sd);
+	const struct ov13850_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OV13850_LANES;
+	int fps;
+
+	if (ov13850->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = ov13850_find_mode(ov13850, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	ov13850->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(ov13850->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(ov13850->vblank, vblank_def,
+				 OV13850_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(ov13850->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(ov13850->link_freq,
+			   mode->link_freq_idx);
+	ov13850->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1219,7 +1308,7 @@ static int ov13850_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&ov13850->mutex);
@@ -1236,7 +1325,7 @@ static int ov13850_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	fie->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1279,6 +1368,7 @@ static const struct v4l2_subdev_core_ops ov13850_core_ops = {
 static const struct v4l2_subdev_video_ops ov13850_video_ops = {
 	.s_stream = ov13850_s_stream,
 	.g_frame_interval = ov13850_g_frame_interval,
+	.s_frame_interval = ov13850_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov13850_pad_ops = {
@@ -1296,6 +1386,14 @@ static const struct v4l2_subdev_ops ov13850_subdev_ops = {
 	.pad	= &ov13850_pad_ops,
 };
 
+static void ov13850_modify_fps_info(struct ov13850 *ov13850)
+{
+	const struct ov13850_mode *mode = ov13850->cur_mode;
+
+	ov13850->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      ov13850->cur_vts;
+}
+
 static int ov13850_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov13850 *ov13850 = container_of(ctrl->handler,
@@ -1308,7 +1406,7 @@ static int ov13850_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = ov13850->cur_mode->height + ctrl->val - 4;
+		max = ov13850->cur_mode->height + ctrl->val - 16;
 		__v4l2_ctrl_modify_range(ov13850->exposure,
 					 ov13850->exposure->minimum, max,
 					 ov13850->exposure->step,
@@ -1343,6 +1441,8 @@ static int ov13850_set_ctrl(struct v4l2_ctrl *ctrl)
 					OV13850_REG_VTS,
 					OV13850_REG_VALUE_16BIT,
 					ctrl->val + ov13850->cur_mode->height);
+		ov13850->cur_vts = ctrl->val + ov13850->cur_mode->height;
+		ov13850_modify_fps_info(ov13850);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov13850_enable_test_pattern(ov13850, ctrl->val);
@@ -1366,7 +1466,6 @@ static int ov13850_initialize_controls(struct ov13850 *ov13850)
 {
 	const struct ov13850_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1378,12 +1477,12 @@ static int ov13850_initialize_controls(struct ov13850 *ov13850)
 		return ret;
 	handler->lock = &ov13850->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+	ov13850->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
 				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	if (ov13850->link_freq)
+		ov13850->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+	ov13850->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
 			  0, OV13850_PIXEL_RATE, 1, OV13850_PIXEL_RATE);
 
 	h_blank = mode->hts_def - mode->width;
@@ -1398,7 +1497,7 @@ static int ov13850_initialize_controls(struct ov13850 *ov13850)
 				OV13850_VTS_MAX - mode->height,
 				1, vblank_def);
 
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 16;
 	ov13850->exposure = v4l2_ctrl_new_std(handler, &ov13850_ctrl_ops,
 				V4L2_CID_EXPOSURE, OV13850_EXPOSURE_MIN,
 				exposure_max, OV13850_EXPOSURE_STEP,

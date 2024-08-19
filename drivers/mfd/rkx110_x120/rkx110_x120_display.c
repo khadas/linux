@@ -185,11 +185,65 @@ int rk_serdes_display_route_enable(struct rk_serdes *serdes, struct rk_serdes_ro
 
 int rk_serdes_display_route_disable(struct rk_serdes *serdes, struct rk_serdes_route *route)
 {
-	if (route->remote0_port0 & RK_SERDES_DSI_TX0)
-		rkx120_dsi_tx_disable(serdes, route, DEVICE_REMOTE0);
+	if (route->remote0_port0) {
+		switch (route->remote0_port0) {
+		case RK_SERDES_RGB_TX:
+			break;
+		case RK_SERDES_LVDS_TX0:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 0);
+			break;
+		case RK_SERDES_LVDS_TX1:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 1);
+			break;
+		case RK_SERDES_DUAL_LVDS_TX:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 0);
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 1);
+			break;
+		case RK_SERDES_DSI_TX0:
+			rkx120_dsi_tx_disable(serdes, route, DEVICE_REMOTE0);
+			break;
+		default:
+			dev_err(serdes->dev, "undefined remote0_port0\n");
+			break;
+		}
+	}
 
-	if (route->remote1_port0 & RK_SERDES_DSI_TX0)
-		rkx120_dsi_tx_disable(serdes, route, DEVICE_REMOTE1);
+	if (route->remote1_port0) {
+		switch (route->remote1_port0) {
+		case RK_SERDES_RGB_TX:
+			break;
+		case RK_SERDES_LVDS_TX0:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE1, 0);
+			break;
+		case RK_SERDES_LVDS_TX1:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE1, 1);
+			break;
+		case RK_SERDES_DUAL_LVDS_TX:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE1, 0);
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE1, 1);
+			break;
+		case RK_SERDES_DSI_TX0:
+			rkx120_dsi_tx_disable(serdes, route, DEVICE_REMOTE1);
+			break;
+		default:
+			dev_err(serdes->dev, "undefined remote1_port0\n");
+			break;
+		}
+	}
+
+	if (route->remote0_port1) {
+		switch (route->remote0_port1) {
+		case RK_SERDES_LVDS_TX0:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 0);
+			break;
+		case RK_SERDES_LVDS_TX1:
+			rkx120_lvds_tx_disable(serdes, route, DEVICE_REMOTE0, 1);
+			break;
+		default:
+			dev_err(serdes->dev, "undefined remote0_port1\n");
+			break;
+		}
+	}
 
 	if (serdes->version == SERDES_V1) {
 		rk_serdes_display_video_start(serdes, route, false);

@@ -529,7 +529,8 @@ mpp_iommu_probe(struct device *dev)
 		goto err_put_group;
 	}
 
-	init_rwsem(&info->rw_sem);
+	init_rwsem(&info->rw_sem_self);
+	info->rw_sem = &info->rw_sem_self;
 	spin_lock_init(&info->dev_lock);
 	info->dev = dev;
 	info->pdev = pdev;

@@ -5,6 +5,8 @@
 
 #include <dt-bindings/soc/rockchip-amp.h>
 
+#define CPU_GET_AFFINITY(cpu, cluster) ((cpu) << 0 | ((cluster) << 8))
+
 / {
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";

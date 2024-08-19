@@ -1419,6 +1419,10 @@ static const struct sc4210_mode supported_modes_4lane[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
+
 static const s64 link_freq_items[] = {
 	SC4210_LINK_FREQ_2LANE_LINEAR,
 	SC4210_LINK_FREQ_2LANE_HDR2,
@@ -1611,11 +1615,9 @@ static int sc4210_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc4210 *sc4210 = to_sc4210(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc4210->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1651,6 +1653,76 @@ static int sc4210_g_frame_interval(struct v4l2_subdev *sd,
 	else
 		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct sc4210_mode *sc4210_find_mode(struct sc4210 *sc4210, int fps)
+{
+	const struct sc4210_mode *mode = NULL;
+	const struct sc4210_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < sc4210->support_modes_num; i++) {
+		mode = &sc4210->support_modes[i];
+		if (mode->width == sc4210->cur_mode->width &&
+		    mode->height == sc4210->cur_mode->height &&
+		    mode->hdr_mode == sc4210->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc4210->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc4210_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc4210 *sc4210 = to_sc4210(sd);
+	const struct sc4210_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = sc4210->lane_num;
+	int fps;
+
+	if (sc4210->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc4210_find_mode(sc4210, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc4210->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc4210->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc4210->vblank, vblank_def,
+				 SC4210_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(sc4210->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(sc4210->link_freq,
+			   mode->mipi_freq_idx);
+	sc4210->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1890,8 +1962,9 @@ static long sc4210_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = sc4210->cur_mode->height;
 		for (i = 0; i < sc4210->support_modes_num; i++) {
 			if (w == sc4210->support_modes[i].width &&
-				h == sc4210->support_modes[i].height &&
-				sc4210->support_modes[i].hdr_mode == hdr->hdr_mode) {
+			    h == sc4210->support_modes[i].height &&
+			    sc4210->support_modes[i].hdr_mode == hdr->hdr_mode &&
+			    sc4210->support_modes[i].bus_fmt == sc4210->cur_mode->bus_fmt) {
 				sc4210->cur_mode = &sc4210->support_modes[i];
 				break;
 			}
@@ -2304,6 +2377,7 @@ static const struct v4l2_subdev_core_ops sc4210_core_ops = {
 static const struct v4l2_subdev_video_ops sc4210_video_ops = {
 	.s_stream = sc4210_s_stream,
 	.g_frame_interval = sc4210_g_frame_interval,
+	.s_frame_interval = sc4210_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc4210_pad_ops = {

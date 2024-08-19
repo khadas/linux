@@ -96,6 +96,7 @@ struct regval {
 };
 
 struct gc0403_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -127,6 +128,8 @@ struct gc0403 {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_gc0403(sd) container_of(sd, struct gc0403, subdev)
@@ -396,6 +399,7 @@ static const struct regval gc0403_768x576_regs[] = {
 
 static const struct gc0403_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 640,
 		.height = 480,
 		.max_fps = {
@@ -408,6 +412,7 @@ static const struct gc0403_mode supported_modes[] = {
 		.reg_list = gc0403_vga_regs,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 768,
 		.height = 576,
 		.max_fps = {
@@ -419,6 +424,10 @@ static const struct gc0403_mode supported_modes[] = {
 		.vts_def = 663,
 		.reg_list = gc0403_768x576_regs,
 	}
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 /* sensor register write */
@@ -532,7 +541,7 @@ static int gc0403_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&gc0403->mutex);
 
 	mode = gc0403_find_best_fit(fmt);
-	fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -545,6 +554,7 @@ static int gc0403_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		gc0403->cur_mode = mode;
+		gc0403->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc0403->mutex);
@@ -570,7 +580,7 @@ static int gc0403_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&gc0403->mutex);
@@ -582,10 +592,9 @@ static int gc0403_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-
-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -614,7 +623,71 @@ static int gc0403_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc0403 *gc0403 = to_gc0403(sd);
 	const struct gc0403_mode *mode = gc0403->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc0403->streaming)
+		fi->interval = gc0403->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+	return 0;
+}
+
+static const struct gc0403_mode *gc0403_find_mode(struct gc0403 *gc0403, int fps)
+{
+	const struct gc0403_mode *mode = NULL;
+	const struct gc0403_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc0403->cur_mode->width &&
+		    mode->height == gc0403->cur_mode->height &&
+		    mode->bus_fmt == gc0403->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc0403_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc0403 *gc0403 = to_gc0403(sd);
+	const struct gc0403_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc0403->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc0403_find_mode(gc0403, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc0403->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc0403->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc0403->vblank, vblank_def,
+				 0xffff,
+				 1, vblank_def);
+	gc0403->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -913,7 +986,7 @@ static int gc0403_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc0403_g_mbus_config(struct v4l2_subdev *sd,
+static int gc0403_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -921,7 +994,7 @@ static int gc0403_g_mbus_config(struct v4l2_subdev *sd,
 	val = 1 << (GC0403_LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -949,7 +1022,7 @@ static struct v4l2_subdev_core_ops gc0403_core_ops = {
 static const struct v4l2_subdev_video_ops gc0403_video_ops = {
 	.s_stream = gc0403_s_stream,
 	.g_frame_interval = gc0403_g_frame_interval,
-	.g_mbus_config = gc0403_g_mbus_config,
+	.s_frame_interval = gc0403_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc0403_pad_ops = {
@@ -958,6 +1031,7 @@ static const struct v4l2_subdev_pad_ops gc0403_pad_ops = {
 	.enum_frame_interval = gc0403_enum_frame_interval,
 	.get_fmt = gc0403_get_fmt,
 	.set_fmt = gc0403_set_fmt,
+	.get_mbus_config = gc0403_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops gc0403_subdev_ops = {
@@ -965,6 +1039,14 @@ static const struct v4l2_subdev_ops gc0403_subdev_ops = {
 	.video	= &gc0403_video_ops,
 	.pad	= &gc0403_pad_ops,
 };
+
+static void gc0403_modify_fps_info(struct gc0403 *gc0403)
+{
+	const struct gc0403_mode *mode = gc0403->cur_mode;
+
+	gc0403->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc0403->cur_vts;
+}
 
 static int gc0403_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1043,6 +1125,8 @@ static int gc0403_set_ctrl(struct v4l2_ctrl *ctrl)
 				       (ctrl->val) >> 8);
 		ret |= gc0403_write_reg(gc0403->client, GC0403_REG_VBLK_L,
 				       (ctrl->val) & 0xff);
+		gc0403->cur_vts = ctrl->val + gc0403->cur_mode->height;
+		gc0403_modify_fps_info(gc0403);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",

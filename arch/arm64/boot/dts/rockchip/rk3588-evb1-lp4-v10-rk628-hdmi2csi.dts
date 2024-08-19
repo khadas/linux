@@ -39,40 +39,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			hdmi_mipi2_in: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&hdmiin_out1>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			csidphy0_out: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&mipi2_csi2_input>;
-			};
-		};
-	};
-};
-
-&csi2_dphy0_hw {
-	status = "okay";
-};
-
-&csi2_dcphy0 {
-	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
 			hdmi_mipi0_in: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&hdmiin_out0>;
@@ -92,7 +58,46 @@
 	};
 };
 
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi_mipi2_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&hdmiin_out1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
 &i2c3 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	rk628_csi_1: rk628_csi_1@50 {
@@ -113,6 +118,15 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "HDMI-MIPI2";
 		rockchip,camera-module-lens-name = "RK628-CSI";
+
+		multi-dev-info {
+			dev-idx-l = <2>;
+			dev-idx-r = <4>;
+			combine-idx = <2>;
+			pixel-offset = <0>;
+			dev-num = <2>;
+		};
+
 		port {
 			hdmiin_out1: endpoint {
 				remote-endpoint = <&hdmi_mipi2_in>;
@@ -123,6 +137,7 @@
 };
 
 &i2c5 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	rk628_csi: rk628_csi@50 {
@@ -143,6 +158,15 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "HDMI-MIPI";
 		rockchip,camera-module-lens-name = "RK628-CSI";
+
+		multi-dev-info {
+			dev-idx-l = <0>;
+			dev-idx-r = <1>;
+			combine-idx = <0>;
+			pixel-offset = <0>;
+			dev-num = <2>;
+		};
+
 		port {
 			hdmiin_out0: endpoint {
 				remote-endpoint = <&hdmi_mipi0_in>;
@@ -153,6 +177,10 @@
 };
 
 &mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
 	status = "okay";
 };
 

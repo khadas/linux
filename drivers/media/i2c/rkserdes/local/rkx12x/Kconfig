@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Rockchip Local Deserializer devices
+#
+config VIDEO_RK_DES_RKX12X
+	tristate "Rockchip deserializer rkx12x support"
+	depends on VIDEO_RKSERDES
+	help
+	  This driver supports the rkx12x deserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rkx12x.

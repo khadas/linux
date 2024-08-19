@@ -88,7 +88,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define IMX317_NAME			"imx317"
-#define IMX317_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
 
 static const struct regval *imx317_global_regs;
 
@@ -106,6 +105,7 @@ struct regval {
 };
 
 struct imx317_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -113,6 +113,8 @@ struct imx317_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct imx317 {
@@ -137,17 +139,19 @@ struct imx317 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
 	const struct imx317_mode *cur_mode;
 	unsigned int		lane_num;
 	unsigned int		cfg_num;
-	unsigned int		pixel_rate;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_imx317(sd) container_of(sd, struct imx317, subdev)
@@ -562,6 +566,7 @@ static const struct regval imx317_3864x2174_regs_4lane[] = {
 
 static const struct imx317_mode supported_modes_2lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -572,8 +577,11 @@ static const struct imx317_mode supported_modes_2lane[] = {
 		.hts_def = 0x0276,
 		.vts_def = 0x0f0a,
 		.reg_list = imx317_1932x1094_regs_2lane,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
@@ -584,11 +592,14 @@ static const struct imx317_mode supported_modes_2lane[] = {
 		.hts_def = 0x04E0,
 		.vts_def = 0x16DA,
 		.reg_list = imx317_3864x2174_regs_2lane,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 };
 
 static const struct imx317_mode supported_modes_4lane[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -599,8 +610,11 @@ static const struct imx317_mode supported_modes_4lane[] = {
 		.hts_def = 0x011E,
 		.vts_def = 0x20D0,
 		.reg_list = imx317_1932x1094_regs_4lane,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 3840,
 		.height = 2160,
 		.max_fps = {
@@ -611,10 +625,16 @@ static const struct imx317_mode supported_modes_4lane[] = {
 		.hts_def = 0x0210,
 		.vts_def = 0x11C6,
 		.reg_list = imx317_3864x2174_regs_4lane,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 };
 
 static const struct imx317_mode *supported_modes;
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+};
 
 static const s64 link_freq_menu_items[] = {
 	MIPI_FREQ,
@@ -750,7 +770,7 @@ static int imx317_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx317->mutex);
 
 	mode = imx317_find_best_fit(imx317, fmt);
-	fmt->format.code = IMX317_MEDIA_BUS_FMT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -770,6 +790,7 @@ static int imx317_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(imx317->vblank, vblank_def,
 					 IMX317_VTS_MAX - mode->height,
 					 1, vblank_def);
+		imx317->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&imx317->mutex);
@@ -795,7 +816,7 @@ static int imx317_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = IMX317_MEDIA_BUS_FMT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 	}
 	mutex_unlock(&imx317->mutex);
@@ -807,9 +828,9 @@ static int imx317_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = IMX317_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -823,7 +844,7 @@ static int imx317_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= imx317->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != IMX317_MEDIA_BUS_FMT)
+	if (fse->code != imx317->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -845,7 +866,80 @@ static int imx317_g_frame_interval(struct v4l2_subdev *sd,
 	struct imx317 *imx317 = to_imx317(sd);
 	const struct imx317_mode *mode = imx317->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (imx317->streaming)
+		fi->interval = imx317->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct imx317_mode *imx317_find_mode(struct imx317 *imx317, int fps)
+{
+	const struct imx317_mode *mode = NULL;
+	const struct imx317_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < imx317->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == imx317->cur_mode->width &&
+		    mode->height == imx317->cur_mode->height &&
+		    mode->bus_fmt == imx317->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int imx317_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct imx317 *imx317 = to_imx317(sd);
+	const struct imx317_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = imx317->lane_num;
+	int fps;
+
+	if (imx317->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = imx317_find_mode(imx317, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	imx317->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(imx317->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(imx317->vblank, vblank_def,
+				 IMX317_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(imx317->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(imx317->link_freq,
+			   mode->link_freq_idx);
+	imx317->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1157,7 +1251,7 @@ static int imx317_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = IMX317_MEDIA_BUS_FMT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&imx317->mutex);
@@ -1176,7 +1270,7 @@ static int imx317_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= imx317->cfg_num)
 		return -EINVAL;
 
-	fie->code = IMX317_MEDIA_BUS_FMT;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1220,6 +1314,7 @@ static const struct v4l2_subdev_core_ops imx317_core_ops = {
 static const struct v4l2_subdev_video_ops imx317_video_ops = {
 	.s_stream = imx317_s_stream,
 	.g_frame_interval = imx317_g_frame_interval,
+	.s_frame_interval = imx317_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx317_pad_ops = {
@@ -1236,6 +1331,14 @@ static const struct v4l2_subdev_ops imx317_subdev_ops = {
 	.video	= &imx317_video_ops,
 	.pad	= &imx317_pad_ops,
 };
+
+static void imx317_modify_fps_info(struct imx317 *imx317)
+{
+	const struct imx317_mode *mode = imx317->cur_mode;
+
+	imx317->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      imx317->cur_vts;
+}
 
 static int imx317_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1310,6 +1413,8 @@ static int imx317_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx317_write_reg(imx317->client, IMX317_REG_VTS_L,
 					IMX317_REG_VALUE_08BIT,
 					val & 0x0000FF);
+		imx317->cur_vts = ctrl->val + imx317->cur_mode->height;
+		imx317_modify_fps_info(imx317);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = imx317_enable_test_pattern(imx317, ctrl->val);
@@ -1336,6 +1441,8 @@ static int imx317_initialize_controls(struct imx317 *imx317)
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
+	int lane_num = imx317->lane_num;
+	u64 pixel_rate = 0;
 
 	handler = &imx317->ctrl_handler;
 	mode = imx317->cur_mode;
@@ -1348,8 +1455,9 @@ static int imx317_initialize_controls(struct imx317 *imx317)
 		V4L2_CID_LINK_FREQ, 0, 0,
 		link_freq_menu_items);
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, imx317->pixel_rate, 1, imx317->pixel_rate);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+	imx317->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+			  0, pixel_rate, 1, pixel_rate);
 
 	h_blank = mode->hts_def;
 	imx317->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
@@ -1433,6 +1541,7 @@ static int imx317_parse_of(struct imx317 *imx317)
 	struct device_node *endpoint;
 	struct fwnode_handle *fwnode;
 	int rval;
+	u64 pixel_rate = 0;
 
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint) {
@@ -1454,18 +1563,18 @@ static int imx317_parse_of(struct imx317 *imx317)
 		imx317->cfg_num = ARRAY_SIZE(supported_modes_4lane);
 		imx317_global_regs = imx317_global_regs_4lane;
 		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-		imx317->pixel_rate = MIPI_FREQ * 2U * imx317->lane_num / 10U;
-		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
-				 imx317->lane_num, imx317->pixel_rate);
+		pixel_rate = MIPI_FREQ * 2U * imx317->lane_num / 10U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%llu)\n",
+				 imx317->lane_num, pixel_rate);
 	} else {
 		imx317->cur_mode = &supported_modes_2lane[0];
 		supported_modes = supported_modes_2lane;
 		imx317->cfg_num = ARRAY_SIZE(supported_modes_2lane);
 		imx317_global_regs = imx317_global_regs_2lane;
 		/*pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-		imx317->pixel_rate = MIPI_FREQ * 2U * (imx317->lane_num) / 10U;
-		dev_info(dev, "lane_num(%d)  pixel_rate(%u), not supported yet!\n",
-				 imx317->lane_num, imx317->pixel_rate);
+		pixel_rate = MIPI_FREQ * 2U * (imx317->lane_num) / 10U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%llu), not supported yet!\n",
+				 imx317->lane_num, pixel_rate);
 	}
 	return 0;
 }

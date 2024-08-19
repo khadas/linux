@@ -125,6 +125,8 @@ struct os04d10_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct os04d10 {
@@ -146,6 +148,8 @@ struct os04d10 {
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	struct v4l2_fract	cur_fps;
 	bool			streaming;
@@ -168,6 +172,308 @@ struct os04d10 {
  * Xclk 24Mhz
  */
 static const struct regval os04d10_global_regs[] = {
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 120fps
+ * mipi_datarate per lane 720Mbps, 2lane
+ * 4X4 binning to 640X360
+ */
+static const struct regval os04d10_linear_10_640x360_regs[] = {
+	{0xfd, 0x00},
+	{0x20, 0x00},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x41, 0xa8},
+	{0x45, 0x24},
+	{0x30, 0x02},
+	{0x31, 0x24},
+	{0x35, 0xc9},
+	{0x38, 0x15},
+	{0xfd, 0x01},
+	{0x03, 0x00},
+	{0x04, 0x04},
+	{0x06, 0x01},
+	{0x24, 0xff},
+	{0x31, 0x26},
+	{0x02, 0x01},
+	{0x42, 0x5a},
+	{0x47, 0x0c},
+	{0x45, 0x02},
+	{0x48, 0x0c},
+	{0x4b, 0x88},
+	{0xd4, 0x05},
+	{0xd5, 0xd2},
+	{0xd7, 0x05},
+	{0xd8, 0xd2},
+	{0x50, 0x01},
+	{0x51, 0x11},
+	{0x52, 0x18},
+	{0x53, 0x01},
+	{0x54, 0x01},
+	{0x55, 0x01},
+	{0x57, 0x08},
+	{0x5c, 0x40},
+	{0x7c, 0x06},
+	{0x7d, 0x05},
+	{0x7e, 0x05},
+	{0x7f, 0x05},
+	{0x90, 0x60},
+	{0x91, 0x0f},
+	{0x92, 0x35},
+	{0x93, 0x36},
+	{0x94, 0x0f},
+	{0x95, 0x7e},
+	{0x98, 0x5d},
+	{0xa8, 0x50},
+	{0xaa, 0x14},
+	{0xab, 0x05},
+	{0xac, 0x14},
+	{0xad, 0x05},
+	{0xae, 0x4a},
+	{0xaf, 0x0e},
+	{0xb2, 0x07},
+	{0xb3, 0x0c},
+	{0xc9, 0x28},
+	{0xca, 0x5e},
+	{0xcb, 0x5e},
+	{0xcc, 0x5e},
+	{0xcd, 0x5e},
+	{0xce, 0x5c},
+	{0xcf, 0x5c},
+	{0xd0, 0x5c},
+	{0xd1, 0x5c},
+	{0xd2, 0x7c},
+	{0xd3, 0x7c},
+	{0xdb, 0x0f},
+	{0xfd, 0x01},
+	{0x46, 0x77},
+	{0xdd, 0x00},
+	{0xde, 0x3f},
+	{0xfd, 0x03},
+	{0x2b, 0x0a},
+	{0x01, 0x22},
+	{0x02, 0x03},
+	{0x00, 0x06},
+	{0x2a, 0x22},
+	{0x29, 0x0b},
+	{0x1e, 0x10},
+	{0x1f, 0x02},
+	{0x1a, 0x24},
+	{0x1b, 0x62},
+	{0x1c, 0xce},
+	{0x1d, 0xd3},
+	{0x04, 0x0f},
+	{0x36, 0x00},
+	{0x37, 0x05},
+	{0x38, 0x09},
+	{0x39, 0x19},
+	{0x3a, 0x38},
+	{0x3b, 0x22},
+	{0x3c, 0x22},
+	{0x3d, 0x22},
+	{0x3e, 0x03},
+	{0xfd, 0x02},
+	{0xc1, 0x05},
+	{0x8c, 0x03},
+	{0x8d, 0x01},
+	{0x95, 0x02},
+	{0x98, 0x02},
+	{0x5e, 0x22},
+	{0xa1, 0x00},
+	{0xa2, 0x01},
+	{0xa3, 0x68},
+	{0xa5, 0x02},
+	{0xa6, 0x02},
+	{0xa7, 0x80},
+	{0x8e, 0x02},
+	{0x8f, 0x80},
+	{0x90, 0x01},
+	{0x91, 0x68},
+	{0xce, 0x65},
+	{0xfd, 0x03},
+	{0x03, 0x30},
+	{0x05, 0x00},
+	{0x12, 0x70},
+	{0x13, 0x70},
+	{0x16, 0x13},
+	{0x21, 0xca},
+	{0x27, 0x95},
+	{0x2c, 0x55},
+	{0x2d, 0x08},
+	{0x2e, 0xca},
+	{0x3f, 0xe7},
+	{0xfd, 0x00},
+	{0x8b, 0x01},
+	{0x8d, 0x00},
+	{0xfd, 0x01},
+	{0x01, 0x02},
+	{0xfd, 0x05},
+	{0xc4, 0x62},
+	{0xc5, 0x62},
+	{0xc6, 0x62},
+	{0xc7, 0x62},
+	{0xce, 0x3e},
+	{0xf0, 0x40},
+	{0xf1, 0x40},
+	{0xf2, 0x40},
+	{0xf3, 0x40},
+	{0xf4, 0x00},
+	{0xf9, 0x03},
+	{0xfa, 0x5d},
+	{0xfb, 0x6b},
+	{0xb1, 0x01},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 24Mhz
+ * max_framerate 30fps
+ * mipi_datarate per lane 720Mbps, 2lane
+ * raw 10
+ * 2560 x 1440
+ */
+static const struct regval os04d10_linear_10_2560x1440_regs[] = {
+	{0xfd, 0x00},
+	{0x20, 0x00},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x20, 0x01},
+	{0x41, 0xa8},
+	{0x45, 0x24},
+	{0x31, 0x20},
+	{0x38, 0x15},
+	{0xfd, 0x01},
+	{0x03, 0x00},
+	{0x04, 0x04},
+	{0x06, 0x01},
+	{0x24, 0xff},
+	{0x02, 0x01},
+	{0x42, 0x5a},
+	{0x47, 0x0c},
+	{0x45, 0x02},
+	{0x48, 0x0c},
+	{0x4b, 0x88},
+	{0xd4, 0x05},
+	{0xd5, 0xd2},
+	{0xd7, 0x05},
+	{0xd8, 0xd2},
+	{0x50, 0x01},
+	{0x51, 0x11},
+	{0x52, 0x18},
+	{0x53, 0x01},
+	{0x54, 0x01},
+	{0x55, 0x01},
+	{0x57, 0x08},
+	{0x5c, 0x40},
+	{0x7c, 0x06},
+	{0x7d, 0x05},
+	{0x7e, 0x05},
+	{0x7f, 0x05},
+	{0x90, 0x60},
+	{0x91, 0x0f},
+	{0x92, 0x35},
+	{0x93, 0x36},
+	{0x94, 0x0f},
+	{0x95, 0x7e},
+	{0x98, 0x5d},
+	{0xa8, 0x50},
+	{0xaa, 0x14},
+	{0xab, 0x05},
+	{0xac, 0x14},
+	{0xad, 0x05},
+	{0xae, 0x4a},
+	{0xaf, 0x0e},
+	{0xb2, 0x07},
+	{0xb3, 0x0c},
+	{0xc9, 0x28},
+	{0xca, 0x5e},
+	{0xcb, 0x5e},
+	{0xcc, 0x5e},
+	{0xcd, 0x5e},
+	{0xce, 0x5c},
+	{0xcf, 0x5c},
+	{0xd0, 0x5c},
+	{0xd1, 0x5c},
+	{0xd2, 0x7c},
+	{0xd3, 0x7c},
+	{0xdb, 0x0f},
+	{0xfd, 0x01},
+	{0x46, 0x77},
+	{0xdd, 0x00},
+	{0xde, 0x3f},
+	{0xfd, 0x03},
+	{0x2b, 0x0a},
+	{0x01, 0x22},
+	{0x02, 0x03},
+	{0x00, 0x06},
+	{0x2a, 0x22},
+	{0x29, 0x0b},
+	{0x1e, 0x10},
+	{0x1f, 0x02},
+	{0x1a, 0x24},
+	{0x1b, 0x62},
+	{0x1c, 0xce},
+	{0x1d, 0xd3},
+	{0x04, 0x0f},
+	{0x36, 0x00},
+	{0x37, 0x05},
+	{0x38, 0x09},
+	{0x39, 0x19},
+	{0x3a, 0x38},
+	{0x3b, 0x22},
+	{0x3c, 0x22},
+	{0x3d, 0x22},
+	{0x3e, 0x03},
+	{0xfd, 0x02},
+	{0x5e, 0x22},
+	{0xa1, 0x04},
+	{0xa2, 0x05},
+	{0xa3, 0xa0},
+	{0xa5, 0x04},
+	{0xa6, 0x0a},
+	{0xa7, 0x00},
+	{0x8e, 0x0a},
+	{0x8f, 0x00},
+	{0x90, 0x05},
+	{0x91, 0xa0},
+	{0xce, 0x65},
+	{0xfd, 0x03},
+	{0x03, 0x30},
+	{0x05, 0x00},
+	{0x12, 0x70},
+	{0x13, 0x70},
+	{0x16, 0x13},
+	{0x21, 0xca},
+	{0x27, 0x95},
+	{0x2c, 0x55},
+	{0x2d, 0x08},
+	{0x2e, 0xca},
+	{0x3f, 0xe7},
+	{0xfd, 0x00},
+	{0x8b, 0x01},
+	{0x8d, 0x00},
+	{0xfd, 0x01},
+	{0x01, 0x02},
+	{0xfd, 0x05},
+	{0xc4, 0x62},
+	{0xc5, 0x62},
+	{0xc6, 0x62},
+	{0xc7, 0x62},
+	{0xf0, 0x40},
+	{0xf1, 0x40},
+	{0xf2, 0x40},
+	{0xf3, 0x40},
+	{0xf4, 0x00},
+	{0xf9, 0x03},
+	{0xfa, 0x5d},
+	{0xfb, 0x6b},
+	{0xb1, 0x01},
 	{REG_NULL, 0x00},
 };
 
@@ -308,6 +614,23 @@ static const struct regval os04d10_linear_10_2568x1448_regs[] = {
 
 static const struct os04d10_mode supported_modes[] = {
 	{
+		.width = 2560,
+		.height = 1440,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0080,
+		.hts_def = 0x032e,
+		.vts_def = 0x05c1,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.reg_list = os04d10_linear_10_2560x1440_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
+	},
+	{
 		.width = 2568,
 		.height = 1448,
 		.max_fps = {
@@ -321,7 +644,30 @@ static const struct os04d10_mode supported_modes[] = {
 		.reg_list = os04d10_linear_10_2568x1448_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
+	},
+	{
+		.width = 640,
+		.height = 360,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 1200000,
+		},
+		.exp_def = 0x0080,
+		.hts_def = 0x032e,
+		.vts_def = 0x0171,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.reg_list = os04d10_linear_10_640x360_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	}
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -544,11 +890,9 @@ static int os04d10_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct os04d10 *os04d10 = to_os04d10(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = os04d10->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -560,7 +904,7 @@ static int os04d10_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != supported_modes[0].bus_fmt)
+	if (fse->code != supported_modes[fse->index].bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -600,6 +944,76 @@ static int os04d10_g_frame_interval(struct v4l2_subdev *sd,
 	else
 		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct os04d10_mode *os04d10_find_mode(struct os04d10 *os04d10, int fps)
+{
+	const struct os04d10_mode *mode = NULL;
+	const struct os04d10_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == os04d10->cur_mode->width &&
+		    mode->height == os04d10->cur_mode->height &&
+		    mode->hdr_mode == os04d10->cur_mode->hdr_mode &&
+		    mode->bus_fmt == os04d10->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int os04d10_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct os04d10 *os04d10 = to_os04d10(sd);
+	const struct os04d10_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OS04D10_LANES;
+	int fps;
+
+	if (os04d10->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = os04d10_find_mode(os04d10, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	os04d10->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(os04d10->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(os04d10->vblank, vblank_def,
+				 OS04D10_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(os04d10->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(os04d10->link_freq,
+			   mode->link_freq_idx);
+	os04d10->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -871,32 +1285,30 @@ static int __os04d10_power_on(struct os04d10 *os04d10)
 			dev_err(dev, "could not set pins\n");
 	}
 
-	if (os04d10->is_thunderboot)
-		return 0;
+	if (!os04d10->is_thunderboot) {
+		if (!IS_ERR(os04d10->reset_gpio))
+			gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
+		usleep_range(5000, 6000);
 
-	usleep_range(5000, 6000);
+		ret = regulator_bulk_enable(OS04D10_NUM_SUPPLIES, os04d10->supplies);
+		if (ret < 0) {
+			dev_err(dev, "Failed to enable regulators\n");
+			goto disable_clk;
+		}
 
-	ret = regulator_bulk_enable(OS04D10_NUM_SUPPLIES, os04d10->supplies);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulators\n");
-		goto disable_clk;
-	}
+		if (!IS_ERR(os04d10->reset_gpio))
+			gpiod_set_value_cansleep(os04d10->reset_gpio, 1);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		gpiod_set_value_cansleep(os04d10->reset_gpio, 1);
+		usleep_range(500, 1000);
 
-	usleep_range(500, 1000);
+		if (!IS_ERR(os04d10->reset_gpio))
+			usleep_range(8000, 10000);
+		else
+			usleep_range(12000, 16000);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		usleep_range(8000, 10000);
-	else
 		usleep_range(12000, 16000);
-
-	usleep_range(12000, 16000);
-
+	}
 	ret = clk_set_rate(os04d10->xvclk, OS04D10_XVCLK_FREQ);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
@@ -907,6 +1319,9 @@ static int __os04d10_power_on(struct os04d10 *os04d10)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+
+	if (os04d10->is_thunderboot)
+		return 0;
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = os04d10_cal_delay(8192);
@@ -1052,6 +1467,7 @@ static const struct v4l2_subdev_core_ops os04d10_core_ops = {
 static const struct v4l2_subdev_video_ops os04d10_video_ops = {
 	.s_stream = os04d10_s_stream,
 	.g_frame_interval = os04d10_g_frame_interval,
+	.s_frame_interval = os04d10_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops os04d10_pad_ops = {
@@ -1134,10 +1550,10 @@ static int os04d10_set_ctrl(struct v4l2_ctrl *ctrl)
 					OS04D10_REG_PAGE_CIS_TIMING);
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_H,
-					 ((ctrl->val + os04d10->cur_mode->height) >> 8) & 0xff);
+					 ((ctrl->val >> 8) & 0xff));
 		ret |= os04d10_write_reg(os04d10->client,
 					 OS04D10_REG_VTS_L,
-					 (ctrl->val + os04d10->cur_mode->height) & 0xff);
+					 ctrl->val & 0xff);
 		ret |= os04d10_write_reg(os04d10->client, OS04D10_REG_EXP_UPDATE, 0x01);
 		os04d10->cur_vts = ctrl->val + os04d10->cur_mode->height;
 		os04d10_modify_fps_info(os04d10);
@@ -1190,7 +1606,6 @@ static int os04d10_initialize_controls(struct os04d10 *os04d10)
 {
 	const struct os04d10_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
@@ -1202,12 +1617,12 @@ static int os04d10_initialize_controls(struct os04d10 *os04d10)
 		return ret;
 	handler->lock = &os04d10->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	os04d10->link_freq = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+						    0, 0, link_freq_menu_items);
+	if (os04d10->link_freq)
+		os04d10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+	os04d10->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
 			  0, PIXEL_RATE_WITH_360M_10BIT, 1, PIXEL_RATE_WITH_360M_10BIT);
 
 	h_blank = mode->hts_def - mode->width;
@@ -1352,7 +1767,7 @@ static int os04d10_probe(struct i2c_client *client,
 	if (IS_ERR(os04d10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	if (!IS_ERR(os04d10->reset_gpio))
+	if (!IS_ERR(os04d10->reset_gpio) && !os04d10->is_thunderboot)
 		gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
 
 	os04d10->pinctrl = devm_pinctrl_get(dev);

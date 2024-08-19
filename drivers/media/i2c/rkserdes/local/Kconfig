@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Rockchip Local Deserializer devices
+#
+menu "Rockchip Local Deserializer devices support"
+	visible if VIDEO_RKSERDES
+
+source "drivers/media/i2c/rkserdes/local/rkx12x/Kconfig"
+
+endmenu

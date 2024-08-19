@@ -38,6 +38,8 @@
 #define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
 #define RKMODULE_SLAVE_MODE		"slave"
 
+#define RKMODULE_CAMERA_STANDBY_HW	"rockchip,camera-module-stb"
+
 /* BT.656 & BT.1120 multi channel
  * On which channels it can send video data
  * related with struct rkmodule_bt656_mbus_info
@@ -185,6 +187,12 @@
 
 #define RKMODULE_GET_SKIP_FRAME  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 41, __u32)
+
+#define RKMODULE_GET_DSI_MODE       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 42, __u32)
+
+#define RKCIS_CMD_FLASH_LIGHT_CTRL  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 43, struct rk_light_param)
 
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
@@ -458,6 +466,14 @@ enum rkmodule_csi_dsi_seq {
 	RKMODULE_DSI_INPUT,
 };
 
+/*
+ * DSI input mode
+ */
+enum rkmodule_dsi_mode {
+	RKMODULE_DSI_VIDEO = 0,
+	RKMODULE_DSI_COMMAND,
+};
+
 /**
  * lcnt: line counter
  *     padnum: the pixels of padding row
@@ -669,6 +685,7 @@ struct rkmodule_channel_info {
 	__u32 bus_fmt;
 	__u32 data_type;
 	__u32 data_bit;
+	__u32 field;
 } __attribute__ ((packed));
 
 /*
@@ -685,12 +702,16 @@ struct rkmodule_channel_info {
  *         id3 reserved, can config by PAD3
  *
  * link to isp, the connection relationship is as follows
+ * PAD0 link to isp
+ * PAD1 link to csi rawwr0                             | hdr x2:L x3:M
+ * PAD2 link to csi rawwr1 if rv1126, rawwr3 if rk3568 | hdr      x3:L
+ * PAD3 link to csi rawwr2                             | hdr x2:M x3:S
  */
 enum rkmodule_max_pad {
-	PAD0, /* link to isp */
-	PAD1, /* link to csi wr0 | hdr x2:L x3:M */
-	PAD2, /* link to csi wr1 | hdr      x3:L */
-	PAD3, /* link to csi wr2 | hdr x2:M x3:S */
+	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
 	PAD_MAX,
 };
 
@@ -812,5 +833,18 @@ struct rkmodule_capture_info {
 		struct rkmodule_multi_combine_info multi_combine_info;
 	};
 };
+
+enum rk_light_type {
+	LIGHT_PWM,
+	LIGHT_GPIO,
+};
+
+struct rk_light_param {
+	__u8 light_type;
+	__u8 light_enable;
+	__u64 duty_cycle;
+	__u64 period;
+	__u32 polarity;
+} __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

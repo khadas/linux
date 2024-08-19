@@ -1336,7 +1336,7 @@ static const struct i2c_device_id gsensor_mc3230_id[] = {
 
 static struct i2c_driver gsensor_mc3230_driver = {
 	.probe = gsensor_mc3230_probe,
-	.remove = gsensor_mc3230_remove,
+	.remove = (void *)gsensor_mc3230_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_mc3230_id,
 	.driver = {

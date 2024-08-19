@@ -1417,6 +1417,11 @@ static const struct sc4238_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SBGGR12_1X12,
+};
+
 static const s64 link_freq_menu_items[] = {
 	MIPI_FREQ_200M,
 	MIPI_FREQ_360M,
@@ -1617,11 +1622,9 @@ static int sc4238_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc4238 *sc4238 = to_sc4238(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc4238->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1673,6 +1676,74 @@ static int sc4238_g_frame_interval(struct v4l2_subdev *sd,
 		fi->interval = sc4238->cur_fps;
 	else
 		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct sc4238_mode *sc4238_find_mode(struct sc4238 *sc4238, int fps)
+{
+	const struct sc4238_mode *mode = NULL;
+	const struct sc4238_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < sc4238->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc4238->cur_mode->width &&
+		    mode->height == sc4238->cur_mode->height &&
+		    mode->hdr_mode == sc4238->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc4238->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc4238_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc4238 *sc4238 = to_sc4238(sd);
+	const struct sc4238_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (sc4238->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc4238_find_mode(sc4238, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc4238->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc4238->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc4238->vblank, vblank_def,
+				 SC4238_VTS_MAX - mode->height,
+				 1, vblank_def);
+	__v4l2_ctrl_s_ctrl_int64(sc4238->pixel_rate,
+				 mode->pixel_rate);
+	__v4l2_ctrl_s_ctrl(sc4238->link_freq,
+				 mode->link_freq);
+	sc4238->cur_fps = mode->max_fps;
+	sc4238->cur_vts = mode->vts_def;
 
 	return 0;
 }
@@ -1914,7 +1985,8 @@ static long sc4238_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < sc4238->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
 			h == supported_modes[i].height &&
-			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode &&
+			supported_modes[i].bus_fmt == sc4238->cur_mode->bus_fmt) {
 				sc4238->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -2389,6 +2461,7 @@ static const struct v4l2_subdev_core_ops sc4238_core_ops = {
 static const struct v4l2_subdev_video_ops sc4238_video_ops = {
 	.s_stream = sc4238_s_stream,
 	.g_frame_interval = sc4238_g_frame_interval,
+	.s_frame_interval = sc4238_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc4238_pad_ops = {

@@ -53,11 +53,10 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 {
 	struct rkisp_device *dev = stream->ispdev;
 	u32 val = stream->config->dual_crop.yuvmode_mask;
-	bool is_unite = !!dev->hw_dev->unite;
 	struct v4l2_rect tmp = *rect;
 	u32 reg;
 
-	if (is_unite) {
+	if (dev->unite_div > ISP_UNITE_DIV1) {
 		tmp.width /= 2;
 		if (stream->id == RKISP_STREAM_FBC)
 			tmp.width &= ~0xf;
@@ -67,6 +66,8 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 	reg = stream->config->dual_crop.h_size;
 	rkisp_write(dev, reg, tmp.width, false);
 
+	if (dev->unite_div == ISP_UNITE_DIV4)
+		tmp.height /= 2;
 	reg = stream->config->dual_crop.v_offset;
 	rkisp_unite_write(dev, reg, tmp.top, false);
 	reg = stream->config->dual_crop.v_size;
@@ -76,21 +77,23 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		val |= CIF_DUAL_CROP_GEN_CFG_UPD;
 	else
 		val |= CIF_DUAL_CROP_CFG_UPD;
-	if (is_unite) {
+
+	if (dev->unite_div > ISP_UNITE_DIV1) {
 		u32 right_w, left_w = tmp.width;
 
 		reg = stream->config->dual_crop.h_offset;
-		rkisp_next_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, false);
+		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT, false);
 		reg = stream->config->dual_crop.h_size;
 		right_w = rect->width - left_w;
-		rkisp_next_write(dev, reg, right_w, false);
+		rkisp_idx_write(dev, reg, right_w, ISP_UNITE_RIGHT, false);
+
 		reg = stream->config->dual_crop.ctrl;
-		rkisp_next_set_bits(dev, reg, 0, val, false);
+		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_RIGHT, false);
 		/* output with scale */
 		if (stream->out_fmt.width < rect->width) {
 			left_w += RKMOUDLE_UNITE_EXTEND_PIXEL;
 			reg = stream->config->dual_crop.h_size;
-			rkisp_write(dev, reg, left_w, false);
+			rkisp_idx_write(dev, reg, left_w, ISP_UNITE_LEFT, false);
 		}
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "left dcrop (%d, %d) %dx%d\n",
@@ -98,6 +101,23 @@ void rkisp_config_dcrop(struct rkisp_stream *stream,
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "right dcrop (%d, %d) %dx%d\n",
 			 RKMOUDLE_UNITE_EXTEND_PIXEL, tmp.top, right_w, tmp.height);
+	}
+	if (dev->unite_div == ISP_UNITE_DIV4) {
+		reg = stream->config->dual_crop.h_offset;
+		rkisp_idx_write(dev, reg, tmp.left, ISP_UNITE_LEFT_B, false);
+		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT_B, false);
+
+		reg = stream->config->dual_crop.h_size;
+		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_LEFT_B, false);
+		rkisp_idx_write(dev, reg, tmp.width, ISP_UNITE_RIGHT_B, false);
+
+		reg = stream->config->dual_crop.v_offset;
+		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_LEFT_B, false);
+		rkisp_idx_write(dev, reg, RKMOUDLE_UNITE_EXTEND_PIXEL, ISP_UNITE_RIGHT_B, false);
+
+		reg = stream->config->dual_crop.ctrl;
+		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_LEFT_B, false);
+		rkisp_idx_set_bits(dev, reg, 0, val, ISP_UNITE_RIGHT_B, false);
 	}
 	if (val) {
 		reg = stream->config->dual_crop.ctrl;
@@ -218,7 +238,7 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 		rkisp_write(dev, scale_vc_addr, scale_vc, false);
 	}
 
-	if (dev->hw_dev->unite) {
+	if (dev->unite_div > ISP_UNITE_DIV1) {
 		u32 hy_size_reg, hc_size_reg, hy_offs_mi_reg, hc_offs_mi_reg, in_crop_offs_reg;
 		u32 isp_in_w = in_y->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		u32 scl_w = out_y->width / 2;
@@ -271,11 +291,13 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 
 			extend = right_crop_y & ~0x1;
 			reg = stream->config->dual_crop.h_offset;
-			rkisp_next_write(dev, reg, extend, false);
+			rkisp_idx_write(dev, reg, extend, ISP_UNITE_RIGHT, false);
 			reg = stream->config->dual_crop.h_size;
-			rkisp_next_write(dev, reg, isp_in_w - extend, false);
+			rkisp_idx_write(dev, reg, isp_in_w - extend, ISP_UNITE_RIGHT, false);
 			reg = stream->config->dual_crop.ctrl;
-			rkisp_next_write(dev, reg, rkisp_next_read_reg_cache(dev, reg), false);
+			rkisp_idx_write(dev, reg,
+					rkisp_idx_read_reg_cache(dev, reg, ISP_UNITE_RIGHT),
+					ISP_UNITE_RIGHT, false);
 		}
 		right_scl_in_y = right_crop_y - extend;
 		right_scl_in_c = right_crop_c - extend;
@@ -288,25 +310,26 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 		rkisp_write(dev, in_crop_offs_reg, 0, false);
 
 		/* right isp */
-		rkisp_next_write(dev, hy_size_reg, scl_w, false);
-		rkisp_next_write(dev, hc_size_reg, scl_w, false);
-		rkisp_next_write(dev, scale_hy_addr, scale_hy, false);
-		rkisp_next_write(dev, scale_hcb_addr, scale_hc, false);
-		rkisp_next_write(dev, scale_hcr_addr, scale_hc, false);
-		rkisp_next_write(dev, scale_vy_addr, scale_vy, false);
-		rkisp_next_write(dev, scale_vc_addr, scale_vc, false);
-		rkisp_next_write(dev, stream->config->rsz.phase_hy, phase_left_y, false);
-		rkisp_next_write(dev, stream->config->rsz.phase_hc, phase_left_c, false);
-		rkisp_next_write(dev, stream->config->rsz.phase_vy, 0, false);
-		rkisp_next_write(dev, stream->config->rsz.phase_vc, 0, false);
-		rkisp_next_write(dev, hy_offs_mi_reg, scl_w & 15, false);
-		rkisp_next_write(dev, hc_offs_mi_reg, scl_w & 15, false);
-		rkisp_next_write(dev, in_crop_offs_reg,
-				 right_scl_in_c << 4 | right_scl_in_y, false);
+		rkisp_idx_write(dev, hy_size_reg, scl_w, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, hc_size_reg, scl_w, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, scale_hy_addr, scale_hy, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, scale_hcb_addr, scale_hc, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, scale_hcr_addr, scale_hc, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, scale_vy_addr, scale_vy, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, scale_vc_addr, scale_vc, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, stream->config->rsz.phase_hy, phase_left_y, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, stream->config->rsz.phase_hc, phase_left_c, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, stream->config->rsz.phase_vy, 0, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, stream->config->rsz.phase_vc, 0, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, hy_offs_mi_reg, scl_w & 15, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, hc_offs_mi_reg, scl_w & 15, ISP_UNITE_RIGHT, false);
+		rkisp_idx_write(dev, in_crop_offs_reg,
+				right_scl_in_c << 4 | right_scl_in_y, ISP_UNITE_RIGHT, false);
 
 		rsz_ctrl |= ISP3X_SCL_CLIP_EN;
-		rkisp_next_write(dev, rsz_ctrl_addr,
-				 rsz_ctrl | ISP3X_SCL_HPHASE_EN | ISP3X_SCL_IN_CLIP_EN, false);
+		rkisp_idx_write(dev, rsz_ctrl_addr,
+				rsz_ctrl | ISP3X_SCL_HPHASE_EN | ISP3X_SCL_IN_CLIP_EN,
+				ISP_UNITE_RIGHT, false);
 		v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 			 "scl:%dx%d, scl factor[hy:%d hc:%d vy:%d vc:%d]\n",
 			 scl_w, out_y->height, scale_hy, scale_hc, scale_vy, scale_vc);
@@ -328,12 +351,12 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 	u32 rsz_ctrl = 0, val, hy, hc;
 	bool is_avg = false;
 
-	rkisp_write(dev, ISP32_SELF_SCALE_HY_OFFS, 0, true);
-	rkisp_write(dev, ISP32_SELF_SCALE_HC_OFFS, 0, true);
-	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_HY, 0, true);
-	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_HC, 0, true);
-	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_VY, 0, true);
-	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_VC, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_HY_OFFS, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_HC_OFFS, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_HY, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_HC, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_VY, 0, true);
+	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_VC, 0, true);
 
 	val = in_y->width | in_y->height << 16;
 	rkisp_write(dev, ISP32_SELF_SCALE_SRC_SIZE, val, false);
@@ -386,10 +409,10 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	}
 
 	/* No phase offset */
-	rkisp_write(dev, stream->config->rsz.phase_hy, 0, true);
-	rkisp_write(dev, stream->config->rsz.phase_hc, 0, true);
-	rkisp_write(dev, stream->config->rsz.phase_vy, 0, true);
-	rkisp_write(dev, stream->config->rsz.phase_vc, 0, true);
+	rkisp_unite_write(dev, stream->config->rsz.phase_hy, 0, true);
+	rkisp_unite_write(dev, stream->config->rsz.phase_hc, 0, true);
+	rkisp_unite_write(dev, stream->config->rsz.phase_vy, 0, true);
+	rkisp_unite_write(dev, stream->config->rsz.phase_vc, 0, true);
 
 	/* Linear interpolation */
 	for (i = 0; i < 64; i++) {

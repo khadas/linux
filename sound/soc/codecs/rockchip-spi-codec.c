@@ -148,8 +148,7 @@ static int spi_codec_ext_ch_mute_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct spi_codec_private *priv = snd_soc_component_get_drvdata(component);
-	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int ch = mc->reg;
+	unsigned int ch = (unsigned int)kcontrol->private_value;
 
 	ucontrol->value.integer.value[0] = priv->tdm_mute[ch];
 
@@ -161,8 +160,7 @@ static int spi_codec_ext_ch_mute_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct spi_codec_private *priv = snd_soc_component_get_drvdata(component);
-	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int ch = mc->reg;
+	unsigned int ch = (unsigned int)kcontrol->private_value;
 
 	priv->tdm_mute[ch] = ucontrol->value.integer.value[0];
 

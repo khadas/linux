@@ -256,7 +256,9 @@ static int rockchip_combphy_init(struct phy *phy)
 	if (cfg->pipe_phy_grf_reset.enable)
 		param_write(priv->phy_grf, &cfg->pipe_phy_grf_reset, false);
 
-	if (priv->mode == PHY_TYPE_USB3) {
+	if (priv->mode == PHY_TYPE_USB3 &&
+	    !device_property_present(priv->dev, "rockchip,dis-u3otg0-port") &&
+	    !device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
 		ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready,
 						priv, val,
 						val == cfg->pipe_phy_status.enable,

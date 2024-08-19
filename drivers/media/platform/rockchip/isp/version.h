@@ -483,6 +483,45 @@
  * 20.more time to wait isp end
  * 21.add mode for rv1106 suspend without rtt
  * 22.fix is_on false cause pm isp die
+ *
+ * v2.5.0 (AIQ v5.5.0)
+ * 1.wrap mode first done don't send event
+ * 2.fix 4k and dual_sensor pm oneframe error
+ * 3.isp32 using ktime_get_boottime_ns
+ * 4.fix wait timeout with thunderboot
+ * 5.add buf cnt info to procfs
+ * 6.sync irq_ends
+ * 7.fix resume mi no enable
+ * 8.fix isp32 lost buf
+ * 9.frame start to check and config next buf
+ * 10.fix isp stop to enable isp ctrl
+ * 11.fix isp32 buf no update to hw
+ * 12.add rkisp_buf_dbg
+ * 13.fix isp stop to read stats buf
+ * 14.support multiple wrap
+ * 15.dvbm buf support from rockit
+ * 16.add RKISP_CMD_SET_TB_HEAD_V32 API
+ * 17.add ioctl to get bay3d buf
+ * 18.fix isp32 lite frame buffer data read
+ * 19.support 8k for isp32 lite
+ *
+ * v2.5.1
+ * 1.rockit buf add offset
+ * 2.support multi wrap channel
+ * 3.fix waiting for isp end
+ * 4.fix isp32 bp no output if suspend
+ * 5.fix params buffersize for tb case
+ * 6.skip s_stream of sensor while connect to vicap sditf
+ * 7.open to wait thunderboot ready
+ * 8.default readback mode for multi sensor
+ * 9.rdbk_auto mode stop to clean buf list
+ * 10.fix dmarx deadlock
+ * 11.fix dmatx config
+ * 12.fix cac repeat enable
+ * 13.skip mbus if link to vicap
+ * 14.fix rockit switch resolution
+ * 15.fix cmsk mp can't disable
+ * 16.fix cac for multi sensor
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

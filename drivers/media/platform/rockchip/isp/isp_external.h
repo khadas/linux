@@ -4,6 +4,8 @@
 #ifndef _RKISP_EXTERNAL_H
 #define _RKISP_EXTERNAL_H
 
+#include <linux/iopoll.h>
+
 #define RKISP_VICAP_CMD_MODE \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 0, struct rkisp_vicap_mode)
 
@@ -25,6 +27,12 @@
 #define RKISP_VICAP_BUF_CNT 3
 #define RKISP_VICAP_BUF_CNT_MAX 8
 #define RKISP_RX_BUF_POOL_MAX (RKISP_VICAP_BUF_CNT_MAX * 3)
+
+#define rkisp_cond_poll_timeout(cond, sleep_us, timeout_us) \
+({ \
+	int __val; \
+	read_poll_timeout((int), __val, cond, sleep_us, timeout_us, false, 0); \
+})
 
 struct rkisp_vicap_input {
 	u8 merge_num;

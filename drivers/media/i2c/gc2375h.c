@@ -196,6 +196,8 @@ struct gc2375h {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_gc2375h(sd) container_of(sd, struct gc2375h, subdev)
@@ -583,6 +585,7 @@ static int gc2375h_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc2375h->vblank, vblank_def,
 					 GC2375H_VTS_MAX - mode->height,
 					 1, vblank_def);
+		gc2375h->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc2375h->mutex);
@@ -653,7 +656,70 @@ static int gc2375h_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2375h *gc2375h = to_gc2375h(sd);
 	const struct gc2375h_mode *mode = gc2375h->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc2375h->streaming)
+		fi->interval = gc2375h->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+	return 0;
+}
+
+static const struct gc2375h_mode *gc2375h_find_mode(struct gc2375h *gc2375h, int fps)
+{
+	const struct gc2375h_mode *mode = NULL;
+	const struct gc2375h_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < gc2375h->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc2375h->cur_mode->width &&
+		    mode->height == gc2375h->cur_mode->height) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc2375h_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc2375h *gc2375h = to_gc2375h(sd);
+	const struct gc2375h_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc2375h->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc2375h_find_mode(gc2375h, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc2375h->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc2375h->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc2375h->vblank, vblank_def,
+				 GC2375H_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc2375h->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1005,7 +1071,7 @@ static int gc2375h_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc2375h_g_mbus_config(struct v4l2_subdev *sd,
+static int gc2375h_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
 	u32 val = 0;
@@ -1013,7 +1079,7 @@ static int gc2375h_g_mbus_config(struct v4l2_subdev *sd,
 	val = 1 << (GC2375H_LANES - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1041,7 +1107,7 @@ static const struct v4l2_subdev_core_ops gc2375h_core_ops = {
 static const struct v4l2_subdev_video_ops gc2375h_video_ops = {
 	.s_stream = gc2375h_s_stream,
 	.g_frame_interval = gc2375h_g_frame_interval,
-	.g_mbus_config = gc2375h_g_mbus_config,
+	.s_frame_interval = gc2375h_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2375h_pad_ops = {
@@ -1050,6 +1116,7 @@ static const struct v4l2_subdev_pad_ops gc2375h_pad_ops = {
 	.enum_frame_interval = gc2375h_enum_frame_interval,
 	.get_fmt = gc2375h_get_fmt,
 	.set_fmt = gc2375h_set_fmt,
+	.get_mbus_config = gc2375h_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops gc2375h_subdev_ops = {
@@ -1207,6 +1274,14 @@ static int gc2375h_set_gain_reg(struct gc2375h *gc2375h, u32 a_gain)
 	return ret;
 }
 
+static void gc2375h_modify_fps_info(struct gc2375h *gc2375h)
+{
+	const struct gc2375h_mode *mode = gc2375h->cur_mode;
+
+	gc2375h->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc2375h->cur_vts;
+}
+
 static int gc2375h_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc2375h *gc2375h = container_of(ctrl->handler,
@@ -1256,6 +1331,8 @@ static int gc2375h_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc2375h_write_reg(gc2375h->client,
 			 GC2375H_REG_VTS_L,
 			 (ctrl->val & 0xff));
+		gc2375h->cur_vts = ctrl->val + gc2375h->cur_mode->height;
+		gc2375h_modify_fps_info(gc2375h);
 		break;
 
 	default:

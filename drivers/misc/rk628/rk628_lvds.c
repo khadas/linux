@@ -5,8 +5,9 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
+#include <linux/media-bus-format.h>
 #include "rk628.h"
-
+#include "rk628_lvds.h"
 #include "rk628_combtxphy.h"
 #include "rk628_config.h"
 #include "panel.h"
@@ -24,13 +25,12 @@ static inline void lvds_update_bits(struct rk628 *rk628, u32 reg,
 
 int rk628_lvds_parse(struct rk628 *rk628, struct device_node *lvds_np)
 {
-	const char *string;
+	const char *string = NULL;
 	int ret;
+	u32 bus_format;
 
 	if (!of_device_is_available(lvds_np))
 		return -EINVAL;
-
-	rk628->output_mode = OUTPUT_MODE_LVDS;
 
 	if (!of_property_read_string(lvds_np, "bus-format", &string)) {
 		if (!strcmp(string, "jeida_24"))
@@ -41,6 +41,24 @@ int rk628_lvds_parse(struct rk628 *rk628, struct device_node *lvds_np)
 			rk628->lvds.format = LVDS_FORMAT_VESA_18BIT;
 		else
 			rk628->lvds.format = LVDS_FORMAT_VESA_24BIT;
+	}
+	/* fallback to u32 type */
+	if (!string || strlen(string) == 0) {
+		if (!of_property_read_u32(lvds_np, "bus-format", &bus_format)) {
+			switch (bus_format) {
+			case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+				rk628->lvds.format = LVDS_FORMAT_JEIDA_24BIT;
+				break;
+			case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+				rk628->lvds.format = LVDS_FORMAT_JEIDA_18BIT;
+				break;
+			case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+				rk628->lvds.format = LVDS_FORMAT_VESA_24BIT;
+				break;
+			default:
+				rk628->lvds.format = LVDS_FORMAT_VESA_18BIT;
+			}
+		}
 	}
 
 	if (!of_property_read_string(lvds_np, "link-type", &string)) {
@@ -68,10 +86,17 @@ void rk628_lvds_enable(struct rk628 *rk628)
 	enum lvds_link_type link_type = rk628->lvds.link_type;
 	enum lvds_format format = rk628->lvds.format;
 	const struct rk628_display_mode *mode = &rk628->dst_mode;
-	u32 val, bus_width;
+	u32 val, mask, bus_width;
 
-	lvds_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			 SW_OUTPUT_MODE(OUTPUT_MODE_LVDS));
+	mask = SW_OUTPUT_MODE_MASK;
+	val = SW_OUTPUT_MODE(OUTPUT_MODE_LVDS);
+
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_OUTPUT_COMBTX_MODE_MASK;
+		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_LVDS);
+	}
+
+	lvds_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 
 	switch (link_type) {
 	case LVDS_DUAL_LINK_ODD_EVEN_PIXELS:

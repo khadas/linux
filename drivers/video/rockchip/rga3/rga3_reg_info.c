@@ -1755,32 +1755,71 @@ static int rga3_scale_check(const struct rga3_req *req)
 	u32 win0_saw, win0_sah, win0_daw, win0_dah;
 	u32 win1_saw, win1_sah, win1_daw, win1_dah;
 
-	win0_saw = req->win0.src_act_w;
-	win0_sah = req->win0.src_act_h;
-	win0_daw = req->win0.dst_act_w;
-	win0_dah = req->win0.dst_act_h;
+	if (req->rotate_mode & RGA3_ROT_BIT_ROT_90) {
+		if (req->win1.yrgb_addr != 0) {
+			/* ABB */
+			if (req->win0.yrgb_addr == req->wr.yrgb_addr) {
+				/* win0 do not need rotate, but net equal to wr */
+				win0_saw = req->win0.src_act_h;
+				win0_sah = req->win0.src_act_w;
+				win0_daw = req->win0.dst_act_h;
+				win0_dah = req->win0.dst_act_w;
+
+				win1_saw = req->win1.dst_act_w;
+				win1_sah = req->win1.dst_act_h;
+				win1_daw = req->win1.dst_act_h;
+				win1_dah = req->win1.dst_act_w;
+			} else {
+				win0_saw = req->win0.src_act_w;
+				win0_sah = req->win0.src_act_h;
+				win0_daw = req->win0.dst_act_w;
+				win0_dah = req->win0.dst_act_h;
+
+				win1_saw = req->win1.src_act_w;
+				win1_sah = req->win1.src_act_h;
+				win1_daw = req->win1.dst_act_w;
+				win1_dah = req->win1.dst_act_h;
+			}
+		} else {
+			win0_saw = req->win0.src_act_w;
+			win0_sah = req->win0.src_act_h;
+			win0_daw = req->win0.dst_act_h;
+			win0_dah = req->win0.dst_act_w;
+		}
+	} else {
+		win0_saw = req->win0.src_act_w;
+		win0_sah = req->win0.src_act_h;
+		win0_daw = req->win0.dst_act_w;
+		win0_dah = req->win0.dst_act_h;
+
+		if (req->win1.yrgb_addr != 0) {
+			win1_saw = req->win1.src_act_w;
+			win1_sah = req->win1.src_act_h;
+			win1_daw = req->win1.dst_act_w;
+			win1_dah = req->win1.dst_act_h;
+		}
+	}
 
 	if (((win0_saw >> 3) > win0_daw) || ((win0_sah >> 3) > win0_dah)) {
-		pr_info("win0 unsupported to scaling less than 1/8 times.\n");
+		pr_info("win0 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 	if (((win0_daw >> 3) > win0_saw) || ((win0_dah >> 3) > win0_sah)) {
-		pr_info("win0 unsupported to scaling more than 8 times.\n");
+		pr_info("win0 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 
 	if (req->win1.yrgb_addr != 0) {
-		win1_saw = req->win1.src_act_w;
-		win1_sah = req->win1.src_act_h;
-		win1_daw = req->win1.dst_act_w;
-		win1_dah = req->win1.dst_act_h;
-
 		if (((win1_saw >> 3) > win1_daw) || ((win1_sah >> 3) > win1_dah)) {
-			pr_info("win1 unsupported to scaling less than 1/8 times.\n");
+			pr_info("win1 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 		if (((win1_daw >> 3) > win1_saw) || ((win1_dah >> 3) > win1_sah)) {
-			pr_info("win1 unsupported to scaling more than 8 times.\n");
+			pr_info("win1 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 	}

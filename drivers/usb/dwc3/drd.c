@@ -421,6 +421,11 @@ static void dwc3_drd_update(struct dwc3 *dwc)
 		if (id < 0)
 			id = 0;
 
+		if ((id > 0) && dwc->dr_mode == USB_DR_MODE_OTG &&
+		    of_device_is_compatible(dwc->dev->parent->of_node,
+					    "rockchip,rk3399-dwc3"))
+			return;
+
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 		if (extcon_get_state(dwc->edev, EXTCON_USB))
 			dwc->desired_role_sw_mode = USB_DR_MODE_PERIPHERAL;
@@ -574,6 +579,7 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 		dwc->role_switch_default_mode = USB_DR_MODE_PERIPHERAL;
 		mode = DWC3_GCTL_PRTCAP_DEVICE;
 	}
+	dwc3_set_mode(dwc, mode);
 
 	dwc3_role_switch.fwnode = dev_fwnode(dwc->dev);
 	dwc3_role_switch.set = dwc3_usb_role_switch_set;
@@ -583,7 +589,6 @@ static int dwc3_setup_role_switch(struct dwc3 *dwc)
 	if (IS_ERR(dwc->role_sw))
 		return PTR_ERR(dwc->role_sw);
 
-	dwc3_set_mode(dwc, mode);
 	return 0;
 }
 #else

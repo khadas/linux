@@ -183,6 +183,8 @@ int rkcif_rockit_buf_queue(struct rockit_rkcif_cfg *input_rockit_cfg)
 	list_add_tail(&rkcif_buf->cif_buf.queue, &stream->rockit_buf_head);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
+	if (stream->lack_buf_cnt)
+		rkcif_check_buffer_update_pingpong_rockit(stream, stream->id);
 	return 0;
 }
 

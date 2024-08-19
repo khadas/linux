@@ -35,6 +35,12 @@
 #define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
 #define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
 
+/* Supported link rate in eDP 1.4 */
+#define EDP_LINK_BW_2_16			0x08
+#define EDP_LINK_BW_2_43			0x09
+#define EDP_LINK_BW_3_24			0x0c
+#define EDP_LINK_BW_4_32			0x10
+
 struct gpio_desc;
 
 enum link_lane_count_type {
@@ -182,6 +188,9 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
+	int			nr_link_rate_table;
+	int			link_rate_table[DP_MAX_SUPPORTED_RATES];
+	int			link_rate_select;
 	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
 	bool			fast_train_enable;

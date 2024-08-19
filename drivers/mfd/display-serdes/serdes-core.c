@@ -327,13 +327,6 @@ int serdes_set_pinctrl_default(struct serdes *serdes)
 {
 	int ret = 0;
 
-	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_default))) {
-		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_default);
-		if (ret)
-			dev_err(serdes->dev, "could not set default pins\n");
-		SERDES_DBG_MFD("%s: name=%s default\n", __func__, dev_name(serdes->dev));
-	}
-
 	if ((!IS_ERR(serdes->pinctrl_node)) && (!IS_ERR(serdes->pins_init))) {
 		ret = pinctrl_select_state(serdes->pinctrl_node, serdes->pins_init);
 		if (ret)

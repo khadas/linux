@@ -38,7 +38,6 @@
 
 #define DRIVER_VERSION          KERNEL_VERSION(0, 0x01, 0x02)
 #define GC2053_NAME             "gc2053"
-#define GC2053_MEDIA_BUS_FMT    MEDIA_BUS_FMT_SGRBG10_1X10
 
 #define MIPI_FREQ_297M          297000000
 #define GC2053_XVCLK_FREQ       24000000
@@ -102,6 +101,7 @@ struct regval {
 };
 
 struct gc2053_mode {
+	u32 bus_fmt;
 	u32 width;
 	u32 height;
 	struct v4l2_fract max_fps;
@@ -150,6 +150,8 @@ struct gc2053 {
 	struct rkmodule_awb_cfg awb_cfg;
 	struct rkmodule_lsc_cfg lsc_cfg;
 	u8			flip;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 /*
@@ -325,6 +327,7 @@ static __maybe_unused const struct regval gc2053_slave_mode_regs[] = {
 
 static const struct gc2053_mode supported_modes[] = {
 	{
+		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.width = 1920,
 		.height = 1080,
 		.max_fps = {
@@ -338,6 +341,10 @@ static const struct gc2053_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SGRBG10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -538,6 +545,16 @@ static int gc2053_set_gain(struct gc2053 *gc2053, u32 gain)
 	return ret;
 }
 
+static void gc2053_modify_fps_info(struct gc2053 *gc2053)
+{
+	const struct gc2053_mode *mode = gc2053->cur_mode;
+
+	gc2053->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc2053->cur_vts;
+}
+
+static int gc2053_set_flip(struct gc2053 *gc2053, u8 mode);
+
 static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc2053 *gc2053 = container_of(ctrl->handler,
@@ -581,18 +598,24 @@ static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc2053_write_reg(gc2053->client, GC2053_REG_VTS_L, vts & 0xff);
 		/* TBD: master and slave not sync to streaming, but except sleep 20ms below */
 		usleep_range(20000, 50000);
+		gc2053->cur_vts = ctrl->val + gc2053->cur_mode->height;
+		gc2053_modify_fps_info(gc2053);
 		break;
 	case V4L2_CID_HFLIP:
 		if (ctrl->val)
 			gc2053->flip |= GC_MIRROR_BIT_MASK;
 		else
 			gc2053->flip &= ~GC_MIRROR_BIT_MASK;
+
+		gc2053_set_flip(gc2053, gc2053->flip);
 		break;
 	case V4L2_CID_VFLIP:
 		if (ctrl->val)
 			gc2053->flip |= GC_FLIP_BIT_MASK;
 		else
 			gc2053->flip &= ~GC_FLIP_BIT_MASK;
+
+		gc2053_set_flip(gc2053, gc2053->flip);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1136,7 +1159,73 @@ static int gc2053_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2053 *gc2053 = to_gc2053(sd);
 	const struct gc2053_mode *mode = gc2053->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc2053->streaming)
+		fi->interval = gc2053->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc2053_mode *gc2053_find_mode(struct gc2053 *gc2053, int fps)
+{
+	const struct gc2053_mode *mode = NULL;
+	const struct gc2053_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc2053->cur_mode->width &&
+		    mode->height == gc2053->cur_mode->height &&
+		    mode->bus_fmt == gc2053->cur_mode->bus_fmt &&
+		    mode->hdr_mode == gc2053->cur_mode->hdr_mode) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc2053_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc2053 *gc2053 = to_gc2053(sd);
+	const struct gc2053_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc2053->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc2053_find_mode(gc2053, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc2053->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc2053->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc2053->vblank, vblank_def,
+				 GC2053_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc2053->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1161,9 +1250,9 @@ static int gc2053_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = GC2053_MEDIA_BUS_FMT;
+	code->code = bus_code[code->index];
 	return 0;
 }
 
@@ -1176,7 +1265,7 @@ static int gc2053_enum_frame_sizes(struct v4l2_subdev *sd,
 	if (fse->index >= gc2053->cfg_num)
 		return -EINVAL;
 
-	if (fse->code != GC2053_MEDIA_BUS_FMT)
+	if (fse->code != gc2053->cur_mode->bus_fmt)
 		return -EINVAL;
 
 	fse->min_width  = supported_modes[fse->index].width;
@@ -1195,7 +1284,7 @@ static int gc2053_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= gc2053->cfg_num)
 		return -EINVAL;
 
-	fie->code = GC2053_MEDIA_BUS_FMT;
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
@@ -1214,7 +1303,7 @@ static int gc2053_set_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&gc2053->mutex);
 
 	mode = gc2053_find_best_fit(gc2053, fmt);
-	fmt->format.code = GC2053_MEDIA_BUS_FMT;
+	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
@@ -1234,6 +1323,7 @@ static int gc2053_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc2053->vblank, vblank_def,
 					 GC2053_VTS_MAX - mode->height,
 					 1, vblank_def);
+		gc2053->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc2053->mutex);
@@ -1258,7 +1348,7 @@ static int gc2053_get_fmt(struct v4l2_subdev *sd,
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
-		fmt->format.code = GC2053_MEDIA_BUS_FMT;
+		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
 
 		/* format info: width/height/data type/virctual channel */
@@ -1284,7 +1374,7 @@ static int gc2053_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
-	try_fmt->code = GC2053_MEDIA_BUS_FMT;
+	try_fmt->code = def_mode->bus_fmt;
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	mutex_unlock(&gc2053->mutex);
@@ -1341,6 +1431,7 @@ static const struct v4l2_subdev_core_ops gc2053_core_ops = {
 static const struct v4l2_subdev_video_ops gc2053_video_ops = {
 	.s_stream = gc2053_s_stream,
 	.g_frame_interval = gc2053_g_frame_interval,
+	.s_frame_interval = gc2053_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc2053_pad_ops = {

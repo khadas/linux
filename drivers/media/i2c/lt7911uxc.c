@@ -708,13 +708,11 @@ static void lt7911uxc_cphy_timing_config(struct v4l2_subdev *sd)
 	struct lt7911uxc *lt7911uxc = to_lt7911uxc(sd);
 
 	if (lt7911uxc->bus_cfg.bus_type == V4L2_MBUS_CSI2_CPHY) {
-		lt7911uxc_i2c_enable(sd);
 		while (i2c_rd8(sd, HS_RQST_PRE_REG) != 0x3c) {
 			i2c_wr8(sd, HS_RQST_PRE_REG, 0x3c);
 			usleep_range(500, 600);
 		}
 		// i2c_wr8(sd, HS_TRAIL, 0x0b);
-		lt7911uxc_i2c_disable(sd);
 	}
 
 	v4l2_dbg(1, debug, sd, "%s config timing succeed\n", __func__);

@@ -746,6 +746,25 @@
 		status = "disabled";
 	};
 
+	pdm: pdm@ff0a0000 {
+		compatible = "rockchip,px30-pdm";
+		reg = <0x0 0xff0a0000 0x0 0x1000>;
+		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk";
+		dmas = <&dmac 24>;
+		dma-names = "rx";
+		resets = <&cru SRST_PDM>;
+		reset-names = "pdm-m";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdm_clk0m0
+			     &pdm_clk1
+			     &pdm_sdi0m0
+			     &pdm_sdi1
+			     &pdm_sdi2
+			     &pdm_sdi3>;
+		status = "disabled";
+	};
+
 	crypto: crypto@ff0b0000 {
 		compatible = "rockchip,px30-crypto";
 		reg = <0x0 0xff0b0000 0x0 0x400>, <0x0 0xff0b0480 0x0 0x3B80>;

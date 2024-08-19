@@ -380,7 +380,7 @@ static const struct i2c_device_id angle_kxtik_id[] = {
 
 static struct i2c_driver angle_kxtik_driver = {
 	.probe = angle_kxtik_probe,
-	.remove = angle_kxtik_remove,
+	.remove = (void *)angle_kxtik_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = angle_kxtik_id,
 	.driver = {
