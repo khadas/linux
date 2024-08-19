@@ -20752,10 +20752,6 @@ out2:
 out1:
 	netif_napi_del(&tp->napi);
 	tasklet_kill(&tp->tx_tl);
-	cancel_delayed_work_sync(&tp->hw_phy_work);
-	if (tp->rtl_ops.unload)
-		tp->rtl_ops.unload(tp);
-	rtl8152_release_firmware(tp);
 	usb_set_intfdata(intf, NULL);
 out:
 	free_netdev(netdev);
