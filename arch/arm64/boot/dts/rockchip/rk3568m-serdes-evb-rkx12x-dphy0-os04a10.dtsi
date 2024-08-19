@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	rkx12x_dphy0_osc: rkx12x-dphy0-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <24000000>;
+		clock-output-names = "rkx12x-dphy0-osc";
+	};
+
+	rkx12x_dphy0_poc_regulator: rkx12x-dphy0-poc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "rkx12x_dphy0_poc";
+	};
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy0_in_rkx12x: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&rkx12x_dphy0_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi2_dphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_vir0_in>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	rkx12x_dphy0: rkx121@54 {
+		compatible = "rockchip,des,rkx121";
+		status = "okay";
+		reg = <0x54>;
+		clock-names = "xvclk";
+		clocks = <&rkx12x_dphy0_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rkx12x_dphy0_enable>, <&rkx12x_dphy0_reset>, <&rkx12x_dphy0_irq>;
+		enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT1607-FV1";
+		rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
+		rockchip,camera-module-sensor-name = "os04a10";
+
+		port {
+			rkx12x_dphy0_out: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_rkx12x>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_SBGGR10_1X10>;
+			sensor-width = <2688>;
+			sensor-height = <1520>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <300000>;
+			exp-def = <0x0240>;
+			hts-def = <0x0b70>;
+			vts-def = <0x0cb0>;
+			bpp = <10>;
+			link-freq-idx = <8>;
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			stream-port = <0>; /* port: 0 or 1 */
+			stream-interface = <0>; /* interface: 0 = csi, 1 = dvp */
+			serdes-dclk-hz = <400000000>; // serdes dclk freq
+
+			/* rklink lane config start */
+			link-rate = <1>; /* 4GBPS_83MBPS */
+			link-line = <0>; /* 0: common, 1: short, 2: long */
+			lane-engine-id = <0>;
+			lane-engine-delay = <12288>;
+			lane-remote-ser = <&rkx12x_dphy0_ser0>; // remote serializer
+			lane-remote-cam = <&rkx12x_dphy0_cam0>; // remote camera
+			/* rklink lane config end */
+
+			/* txphy config start */
+			txphy-clock-mode = <0>; /* 0: continuous, 1: non-continuous */
+			/* txphy config end */
+
+			/* csi2tx config start */
+			csi2tx-format = <3>; /* default: 3 */
+			/* csi2tx config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				/*
+				 * rkx12x register init sequence
+				 *   reg_addr: 32bits
+				 *     reg_addr = FFFFFFFF: register end
+				 *     reg_addr = FFFFFFFE: delay (unit: us)
+				 *   reg_val: 32bits
+				 *   val_mask: 32bits
+				 */
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				// Note: Serializer node defined before camera node
+				rkx12x_dphy0_ser0: rkx111@57 {
+					compatible = "rockchip,ser,rkx111";
+					reg = <0x57>;
+
+					stream-interface = <0>; // 0: MIPI, 1: DVP, 2: LVDS
+					serdes-dclk-hz = <400000000>; // serdes dclk freq
+					camera-mclk-hz = <24000000>; // camera mclk freq
+					camera-mclk-id = <1>; // camera mclk id: 0 or 1
+
+					rxphy-data-lanes = <1 2 3 4>; // rxphy data lane
+
+					vicap-csi {
+						csi-vc-id-0 {
+							vc-id = <0>; // vc id: 0 ~ 3
+
+							virtual-channel = <0>; // vc: 0 ~ 3
+							width = <2688>;
+							height = <1520>;
+							data-type = <0x2b>; // vicap data type, same as mipi data type
+							parse-type = <1>; // vicap parse type: 0 - RAW8, 1 - RAW10, 2 - RAW12, 4 - YUV422
+						};
+					};
+
+					linktx {
+						lane-config-0 {
+							lane-id = <0>; // Lane ID: 0/1
+							dsource-id = <0>;
+						};
+					};
+
+					/* serializer init sequence start */
+					ser-init-sequence {
+						status = "okay";
+
+						/*
+						 * rkx11x register init sequence
+						 *   reg_addr: 32bits
+						 *     reg_addr = FFFFFFFF: register end
+						 *     reg_addr = FFFFFFFE: delay (unit: us)
+						 *   reg_val: 32bits
+						 *   val_mask: 32bits
+						 */
+						init-sequence = [
+							/* camera gpio: reset, pwren, pwdn */
+							00010008 0E000000 00000000 // iomux: GPIO0_B3
+							00010004 01C70000 00000000 // iomux: GPIO0_A5 and GPIO0_A7
+							00040008 08A008A0 00000000 // output direction: GPIO0_A5 GPIO0_A7 and GPIO0_B3
+							00040000 00200000 00000000 // RESET (GPIO0_A5): active level = 0: output 0
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+							00040000 08000800 00000000 // PWREN (GPIO0_B3): active level = 1: output 1
+							FFFFFFFE 00002710 00000000 // delay: 10000us
+							00040000 00800800 00000000 // PWDN (GPIO0_A7) active level = 0: output 1
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+							00040000 00200020 00000000 // RESET (GPIO0_A5): deactive level = 1: output 1
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+						];
+					};
+					/* serializer init sequence end */
+				};
+
+				rkx12x_dphy0_cam0: os04a10@36 {
+					compatible = "rockchip,ovti,os04a10";
+					reg = <0x36>;
+
+					cam-remote-ser = <&rkx12x_dphy0_ser0>; // remote serializer
+
+					poc-supply = <&rkx12x_dphy0_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "CMK-OT1607-FV1";
+					rockchip,camera-module-lens-name = "M12-40IRC-4MP-F16";
+
+					/* port config start */
+					port {
+						rkx12x_dphy0_cam0_out: endpoint {
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
+				};
+			};
+		};
+		/* i2c-mux end */
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_vir0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csi2_dphy0_out>;
+		};
+	};
+};
+
+&pinctrl {
+	rkx12x-dphy0 {
+		rkx12x_dphy0_enable: rkx12x-dphy0-enable {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rkx12x_dphy0_reset: rkx12x-dphy0-reset {
+			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rkx12x_dphy0_irq: rkx12x-dphy0-irq {
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

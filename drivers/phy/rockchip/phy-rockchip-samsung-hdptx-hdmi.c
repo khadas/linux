@@ -728,6 +728,7 @@ struct rockchip_hdptx_phy {
 	struct reset_control *lcpll_reset;
 
 	bool earc_en;
+	bool initialized;
 	int count;
 };
 
@@ -892,7 +893,7 @@ static inline void hdptx_grf_write(struct rockchip_hdptx_phy *hdptx, u32 reg, u3
 	regmap_write(hdptx->grf, reg, val);
 }
 
-static inline u8 hdptx_grf_read(struct rockchip_hdptx_phy *hdptx, u32 reg)
+static inline u32 hdptx_grf_read(struct rockchip_hdptx_phy *hdptx, u32 reg)
 {
 	u32 val;
 
@@ -2045,12 +2046,54 @@ static void rockchip_hdptx_phy_runtime_disable(void *data)
 	pm_runtime_disable(hdptx->dev);
 }
 
+#define PLL_REF_CLK 24000000ULL
+
+static unsigned long hdptx_cal_current_rate(struct rockchip_hdptx_phy *hdptx)
+{
+	u8 mdiv, sdiv, sdm_num, sdm_deno, sdc_n, sdc_num, sdc_deno;
+	u64 fout, sdm;
+	bool sdm_en, sdm_num_sign;
+
+	mdiv = hdptx_read(hdptx, CMN_REG0051);
+	sdm_en = hdptx_read(hdptx, CMN_REG005E) & ROPLL_SDM_EN_MASK;
+	sdm_num_sign = hdptx_read(hdptx, CMN_REG0064) & ROPLL_SDM_NUM_SIGN_RBR_MASK;
+	sdm_num = hdptx_read(hdptx, CMN_REG0065);
+	sdm_deno = hdptx_read(hdptx, CMN_REG0060);
+	sdc_n = (hdptx_read(hdptx, CMN_REG0069) & ROPLL_SDC_N_RBR_MASK) + 3;
+	sdc_num = hdptx_read(hdptx, CMN_REG006C);
+	sdc_deno = hdptx_read(hdptx, CMN_REG0070);
+	sdiv = ((hdptx_read(hdptx, CMN_REG0086) & PLL_PCG_POSTDIV_SEL_MASK) >> 4) + 1;
+
+	fout = PLL_REF_CLK * mdiv;
+	if (sdm_en) {
+		sdm = div_u64(PLL_REF_CLK * sdc_deno * mdiv * sdm_num,
+			      16 * sdm_deno * (sdc_deno * sdc_n - sdc_num));
+
+		if (sdm_num_sign)
+			fout = fout - sdm;
+		else
+			fout = fout + sdm;
+	}
+
+	fout = div_u64(fout * 2, sdiv * 10);
+
+	return fout;
+}
+
 static unsigned long hdptx_phy_clk_recalc_rate(struct clk_hw *hw,
 					       unsigned long parent_rate)
 {
 	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
+	u32 val;
 
-	return hdptx->rate;
+	if (hdptx->rate)
+		return hdptx->rate;
+
+	val = hdptx_grf_read(hdptx, GRF_HDPTX_CON0);
+	if (!(val & HDPTX_I_PLL_EN))
+		return 0;
+
+	return hdptx_cal_current_rate(hdptx);
 }
 
 static long hdptx_phy_clk_round_rate(struct clk_hw *hw, unsigned long rate,
@@ -2107,14 +2150,23 @@ static int hdptx_phy_clk_enable(struct clk_hw *hw)
 	}
 
 	if (hdptx->rate) {
-		if (hdptx->rate > HDMI20_MAX_RATE) {
-			if  (hdptx->rate == FRL_8G_4LANES)
-				ret = hdptx_lcpll_ropll_cmn_config(hdptx, hdptx->rate / 100);
-			else
-				ret = hdptx_lcpll_cmn_config(hdptx, hdptx->rate / 100);
+		/* hdmi phy is initialized in uboot, don't re-init phy pll */
+		if (hdptx->initialized) {
+			hdptx->initialized = false;
 		} else {
-			ret = hdptx_ropll_cmn_config(hdptx, hdptx->rate / 100);
+			if (hdptx->rate > HDMI20_MAX_RATE) {
+				if  (hdptx->rate == FRL_8G_4LANES)
+					ret = hdptx_lcpll_ropll_cmn_config(hdptx,
+									   hdptx->rate / 100);
+				else
+					ret = hdptx_lcpll_cmn_config(hdptx, hdptx->rate / 100);
+			} else {
+				ret = hdptx_ropll_cmn_config(hdptx, hdptx->rate / 100);
+			}
 		}
+	} else {
+		/* default frequency */
+		hdptx_ropll_cmn_config(hdptx, 742500);
 	}
 
 	if (!ret)
@@ -2331,11 +2383,16 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	reset_control_deassert(hdptx->cmn_reset);
 	reset_control_deassert(hdptx->init_reset);
 
+	platform_set_drvdata(pdev, hdptx);
+	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE) {
+		hdptx->initialized = true;
+		hdptx->rate = hdptx_cal_current_rate(hdptx);
+	}
+
 	ret = rockchip_hdptx_phy_clk_register(hdptx);
 	if (ret)
 		goto err_regsmap;
 
-	platform_set_drvdata(pdev, hdptx);
 	dev_info(dev, "hdptx phy init success\n");
 	return 0;
 

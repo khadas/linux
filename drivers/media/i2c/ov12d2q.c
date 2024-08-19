@@ -133,6 +133,8 @@ struct ov12d2q_mode {
 	const struct regval *reg_list;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
+	u32 link_freq_idx;
+	u32 bpp;
 };
 
 struct ov12d2q {
@@ -172,6 +174,8 @@ struct ov12d2q {
 	bool			is_thunderboot_ng;
 	bool			is_first_streamoff;
 	u8			flip;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_ov12d2q(sd) container_of(sd, struct ov12d2q, subdev)
@@ -1944,6 +1948,8 @@ static const struct ov12d2q_mode supported_modes[] = {
 		.reg_list = ov12d2q_2256x1256_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
@@ -1959,7 +1965,13 @@ static const struct ov12d2q_mode supported_modes[] = {
 		.reg_list = ov12d2q_4512x2512_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.link_freq_idx = 0,
+		.bpp = 10,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -2124,6 +2136,7 @@ static int ov12d2q_set_fmt(struct v4l2_subdev *sd,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(ov12d2q->link_freq,
 				   dst_link_freq);
+		ov12d2q->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&ov12d2q->mutex);
@@ -2165,11 +2178,9 @@ static int ov12d2q_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct ov12d2q *ov12d2q = to_ov12d2q(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = ov12d2q->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -2216,8 +2227,81 @@ static int ov12d2q_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov12d2q *ov12d2q = to_ov12d2q(sd);
 	const struct ov12d2q_mode *mode = ov12d2q->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (ov12d2q->streaming)
+		fi->interval = ov12d2q->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct ov12d2q_mode *ov12d2q_find_mode(struct ov12d2q *ov12d2q, int fps)
+{
+	const struct ov12d2q_mode *mode = NULL;
+	const struct ov12d2q_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == ov12d2q->cur_mode->width &&
+		    mode->height == ov12d2q->cur_mode->height &&
+		    mode->hdr_mode == ov12d2q->cur_mode->hdr_mode &&
+		    mode->bus_fmt == ov12d2q->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int ov12d2q_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov12d2q *ov12d2q = to_ov12d2q(sd);
+	const struct ov12d2q_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = OV12D2Q_LANES;
+	int fps;
+
+	if (ov12d2q->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = ov12d2q_find_mode(ov12d2q, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	ov12d2q->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(ov12d2q->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(ov12d2q->vblank, vblank_def,
+				 OV12D2Q_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(ov12d2q->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(ov12d2q->link_freq,
+			   mode->link_freq_idx);
+	ov12d2q->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -2271,8 +2355,9 @@ static long ov12d2q_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = ov12d2q->cur_mode->height;
 		for (i = 0; i < ov12d2q->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
-			h == supported_modes[i].height &&
-			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			    h == supported_modes[i].height &&
+			    supported_modes[i].hdr_mode == hdr_cfg->hdr_mode &&
+			    supported_modes[i].bus_fmt == ov12d2q->cur_mode->bus_fmt) {
 				ov12d2q->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -2289,6 +2374,7 @@ static long ov12d2q_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(ov12d2q->vblank, h,
 						 OV12D2Q_VTS_MAX - ov12d2q->cur_mode->height,
 						 1, h);
+			ov12d2q->cur_fps = ov12d2q->cur_mode->max_fps;
 			dev_info(&ov12d2q->client->dev,
 				"sensor mode: %d\n",
 				ov12d2q->cur_mode->hdr_mode);
@@ -2714,6 +2800,7 @@ static const struct v4l2_subdev_core_ops ov12d2q_core_ops = {
 static const struct v4l2_subdev_video_ops ov12d2q_video_ops = {
 	.s_stream = ov12d2q_s_stream,
 	.g_frame_interval = ov12d2q_g_frame_interval,
+	.s_frame_interval = ov12d2q_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov12d2q_pad_ops = {
@@ -2730,6 +2817,14 @@ static const struct v4l2_subdev_ops ov12d2q_subdev_ops = {
 	.video	= &ov12d2q_video_ops,
 	.pad	= &ov12d2q_pad_ops,
 };
+
+static void ov12d2q_modify_fps_info(struct ov12d2q *ov12d2q)
+{
+	const struct ov12d2q_mode *mode = ov12d2q->cur_mode;
+
+	ov12d2q->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      ov12d2q->cur_vts;
+}
 
 static int ov12d2q_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -2794,6 +2889,8 @@ static int ov12d2q_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov12d2q_write_reg(ov12d2q->client, OV12D2Q_REG_VTS,
 					OV12D2Q_REG_VALUE_16BIT,
 					ctrl->val + ov12d2q->cur_mode->height);
+		ov12d2q->cur_vts = ctrl->val + ov12d2q->cur_mode->height;
+		ov12d2q_modify_fps_info(ov12d2q);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

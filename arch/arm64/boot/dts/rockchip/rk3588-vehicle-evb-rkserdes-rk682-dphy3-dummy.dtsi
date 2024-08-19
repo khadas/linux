@@ -1,0 +1,319 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	rk682_dphy3_osc: rk682-dphy3-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <24000000>;
+		clock-output-names = "rk682-dphy3-osc";
+	};
+
+	rk682_dphy3_poc_regulator: rk682-dphy3-poc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "rk682_dphy3_poc";
+	};
+};
+
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy3_in_rk682: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&rk682_dphy3_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi2_dphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c6 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6m3_xfer>;
+
+	rk682_dphy3: rk682@55 {
+		compatible = "rockchip,des,rk682";
+		status = "okay";
+		reg = <0x55>;
+		clock-names = "xvclk";
+		clocks = <&rk682_dphy3_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk682_dphy3_enable>, <&rk682_dphy3_reset>, <&rk682_dphy3_irq>;
+		enable-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-sensor-name = "dummy";
+
+		port {
+			rk682_dphy3_out: endpoint {
+				remote-endpoint = <&mipi_dphy3_in_rk682>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		/* support mode config start */
+		support-mode-config {
+			status = "okay";
+
+			bus-format = <MEDIA_BUS_FMT_YUYV8_2X8>;
+			sensor-width = <1920>;
+			sensor-height = <1280>;
+			max-fps-numerator = <10000>;
+			max-fps-denominator = <300000>;
+			bpp = <16>;
+			link-freq-idx = <8>;
+		};
+		/* support mode config end */
+
+		/* serdes local device start */
+		serdes-local-device {
+			status = "okay";
+
+			stream-port = <0>; /* port: 0 or 1 */
+			stream-interface = <0>; /* interface: 0 = csi, 1 = dvp */
+			serdes-dclk-hz = <400000000>; // serdes dclk freq
+
+			/* rklink lane config start */
+			link-rate = <1>; /* 4GBPS_83MBPS */
+			link-line = <0>; /* 0: common, 1: short, 2: long */
+			lane-engine-id = <0>;
+			lane-engine-delay = <12288>;
+			lane-remote-ser = <&rk682_dphy3_ser0>; // remote serializer
+			lane-remote-cam = <&rk682_dphy3_cam0>; // remote camera
+			/* rklink lane config end */
+
+			/* txphy config start */
+			txphy-clock-mode = <0>; /* 0: continuous, 1: non-continuous */
+			/* txphy config end */
+
+			/* csi2tx config start */
+			csi2tx-format = <3>; /* default: 3 */
+			/* csi2tx config end */
+
+			/* local device extra init sequence */
+			extra-init-sequence {
+				status = "disabled";
+
+				/*
+				 * rk682 register init sequence
+				 *   reg_addr: 32bits
+				 *     reg_addr = FFFFFFFF: register end
+				 *     reg_addr = FFFFFFFE: delay (unit: us)
+				 *   reg_val: 32bits
+				 *   val_mask: 32bits
+				 */
+				init-sequence = [
+					// common init sequence such as fsync / gpio and so on
+				];
+			};
+		};
+		/* serdes local device end */
+
+		/* i2c-mux start */
+		i2c-mux {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			i2c@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0>;
+
+				// Note: Serializer node defined before camera node
+				rk682_dphy3_ser0: rk671@57 {
+					compatible = "rockchip,ser,rk671";
+					reg = <0x57>;
+
+					stream-interface = <0>; // 0: MIPI, 1: DVP, 2: LVDS
+					serdes-dclk-hz = <400000000>; // serdes dclk freq
+					camera-mclk-hz = <24000000>; // camera mclk freq
+					camera-mclk-id = <0>; // mclk id: 0 or 1
+
+					rxphy-data-lanes = <1 2 3 4>; // rxphy data lane
+
+					vicap-csi {
+						csi-vc-id-0 {
+							vc-id = <0>; // vc id: 0 ~ 3
+
+							virtual-channel = <0>; // vc: 0 ~ 3
+							width = <1920>;
+							height = <1280>;
+							data-type = <0x1e>; // vicap data type, same as mipi data type
+							parse-type = <4>; // vicap parse type: 0 - RAW8, 1 - RAW10, 2 - RAW12, 4 - YUV422
+						};
+					};
+
+					linktx {
+						lane-config-0 {
+							lane-id = <0>; // Lane ID: 0/1
+							dsource-id = <0>;
+						};
+					};
+
+					/* serializer init sequence start */
+					ser-init-sequence {
+						status = "okay";
+
+						/*
+						 * rkx11x register init sequence
+						 *   reg_addr: 32bits
+						 *     reg_addr = FFFFFFFF: register end
+						 *     reg_addr = FFFFFFFE: delay (unit: us)
+						 *   reg_val: 32bits
+						 *   val_mask: 32bits
+						 */
+						init-sequence = [
+							/* camera gpio: reset */
+							00010004 00380000 00000000 // iomux: GPIO0_A6
+							00040008 00400040 00000000 // output direction: GPIO0_A6
+							00040000 00400040 00000000 // FLASH_WP (GPIO0_A6): output 1
+							00010004 01C00000 00000000 // iomux: GPIO0_A7
+							00040008 00800080 00000000 // output direction: GPIO0_A7
+							00040000 00800000 00000000 // RESET (GPIO0_A7): active level = 0: output 0
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+							00040000 00800080 00000000 // RESET (GPIO0_A7) deactive level = 1: output 1
+							FFFFFFFE 000003E8 00000000 // delay: 1000us
+						];
+					};
+					/* serializer init sequence end */
+				};
+
+				rk682_dphy3_cam0: dummy@30 {
+					compatible = "rockchip,cam,dummy";
+					reg = <0x30>;
+
+					cam-remote-ser = <&rk682_dphy3_ser0>; // remote serializer
+
+					poc-supply = <&rk682_dphy3_poc_regulator>;
+
+					rockchip,camera-module-index = <0>;
+					rockchip,camera-module-facing = "back";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
+
+					/* port config start */
+					port {
+						rk682_dphy3_cam0_out: endpoint {
+							data-lanes = <1 2 3 4>;
+						};
+					};
+					/* port config end */
+				};
+			};
+		};
+		/* i2c-mux end */
+	};
+};
+
+&mipi4_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi2_dphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4 {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi4_in: endpoint {
+			remote-endpoint = <&mipi4_csi2_output>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	rk682-dphy3 {
+		rk682_dphy3_enable: rk682-dphy3-enable {
+			rockchip,pins = <3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rk682_dphy3_reset: rk682-dphy3-reset {
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		rk682_dphy3_irq: rk682-dphy3-irq {
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

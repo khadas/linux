@@ -67,6 +67,10 @@ bool rkisp_irq_dbg;
 module_param_named(irq_dbg, rkisp_irq_dbg, bool, 0644);
 MODULE_PARM_DESC(irq_dbg, "rkisp interrupt runtime");
 
+bool rkisp_buf_dbg;
+module_param_named(buf_dbg, rkisp_buf_dbg, bool, 0644);
+MODULE_PARM_DESC(buf_dbg, "rkisp check output buf");
+
 static bool rkisp_rdbk_auto;
 module_param_named(rdbk_auto, rkisp_rdbk_auto, bool, 0644);
 MODULE_PARM_DESC(irq_dbg, "rkisp and vicap auto readback mode");
@@ -179,7 +183,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl *ctrl;
 	u64 data_rate = 0;
-	int i, fps;
+	int i, fps, size;
 
 	hw_dev->isp_size[dev->dev_id].is_on = true;
 	if (hw_dev->is_runing) {
@@ -196,14 +200,16 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 				fps = hw_dev->isp_size[i].fps;
 				if (!fps)
 					fps = 30;
-				data_rate += (fps * hw_dev->isp_size[i].size);
+				size = hw_dev->isp_size[i].size * hw_dev->isp[i]->unite_div;
+				data_rate += (fps * size);
 			}
 		} else {
 			i = dev->dev_id;
 			fps = hw_dev->isp_size[i].fps;
 			if (!fps)
 				fps = 30;
-			data_rate = fps * hw_dev->isp_size[i].size;
+			size = hw_dev->isp_size[i].size * dev->unite_div;
+			data_rate = fps * size;
 		}
 		goto end;
 	}
@@ -336,8 +342,10 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 			goto err;
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; ++i) {
-			if ((dev->vicap_in.merge_num > 1) &&
-			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+			if (((dev->vicap_in.merge_num > 1) &&
+			     (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR)) ||
+			    (dev->isp_inp & INP_CIF && IS_HDR_RDBK(dev->rd_mode) &&
+			     (!dev->is_rdbk_auto)))
 				continue;
 			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
@@ -356,8 +364,10 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 		}
 		/* sensor -> phy */
 		for (i = p->num_subdevs - 1; i >= 0; --i) {
-			if ((dev->vicap_in.merge_num > 1) &&
-			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+			if (((dev->vicap_in.merge_num > 1) &&
+			     (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR)) ||
+			    (dev->isp_inp & INP_CIF && IS_HDR_RDBK(dev->rd_mode) &&
+			     (!dev->is_rdbk_auto)))
 				continue;
 			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		}
@@ -866,7 +876,7 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 		return ret;
 
 	if (isp_dev->hw_dev->unite)
-		mult = 2;
+		mult = ISP_UNITE_MAX;
 	isp_dev->sw_base_addr = devm_kzalloc(dev, RKISP_ISP_SW_MAX_SIZE * mult, GFP_KERNEL);
 	if (!isp_dev->sw_base_addr)
 		return -ENOMEM;
@@ -1167,7 +1177,7 @@ static void rkisp_pm_complete(struct device *dev)
 	}
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		stream = &isp_dev->cap_dev.stream[i];
-		if (i == RKISP_STREAM_VIR || !stream->streaming || !stream->curr_buf)
+		if (i == RKISP_STREAM_VIR || !stream->streaming)
 			continue;
 		/* skip first frame due to hw no reference frame information */
 		if (isp_dev->is_first_double)

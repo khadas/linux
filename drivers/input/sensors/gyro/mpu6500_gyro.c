@@ -186,7 +186,7 @@ static const struct i2c_device_id gyro_mpu6500_id[] = {
 
 static struct i2c_driver gyro_mpu6500_driver = {
 	.probe = gyro_mpu6500_probe,
-	.remove = gyro_mpu6500_remove,
+	.remove = (void *)gyro_mpu6500_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gyro_mpu6500_id,
 	.driver = {

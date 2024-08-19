@@ -271,7 +271,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 1
 	 */
 
-	MUX(USB480M, "usb480m", mux_usb480m_p, CLK_SET_RATE_PARENT,
+	MUX(USB480M, "usb480m", mux_usb480m_p, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			PX30_MODE_CON, 8, 2, MFLAGS),
 	FACTOR(0, "xin12m", "xin24m", 0, 1, 2),
 

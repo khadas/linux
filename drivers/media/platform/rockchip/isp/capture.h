@@ -57,6 +57,14 @@
 #define DMATX2_VDEV_NAME DRIVER_NAME	"_rawwr2"
 #define DMATX3_VDEV_NAME DRIVER_NAME	"_rawwr3"
 
+#define STREAM_MAX_MP_RSZ_OUTPUT_WIDTH		4416
+#define STREAM_MAX_MP_RSZ_OUTPUT_HEIGHT		3312
+#define STREAM_MAX_SP_RSZ_OUTPUT_WIDTH		1920
+#define STREAM_MAX_SP_RSZ_OUTPUT_HEIGHT		1080
+#define STREAM_MIN_RSZ_OUTPUT_WIDTH		32
+#define STREAM_MIN_RSZ_OUTPUT_HEIGHT		32
+#define STREAM_OUTPUT_STEP_WISE			8
+
 struct rkisp_stream;
 
 enum {
@@ -342,4 +350,5 @@ int rkisp_fop_release(struct file *file);
 int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
 			     struct rkisp_tb_stream_info *info);
 int rkisp_free_tb_stream_buf(struct rkisp_stream *stream);
+int rkisp_stream_buf_cnt(struct rkisp_stream *stream);
 #endif /* _RKISP_PATH_VIDEO_H */

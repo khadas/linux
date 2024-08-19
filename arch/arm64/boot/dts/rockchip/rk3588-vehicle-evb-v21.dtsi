@@ -287,7 +287,7 @@
 
 	rk3308 {
 		rk3308_reset: rk3308-reset {
-			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -344,6 +344,7 @@
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&rk3308_reset>;
+		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -387,6 +388,7 @@
 };
 
 &usbdp_phy1 {
+	maximum-speed = "high-speed";
 	rockchip,dp-lane-mux = <3 2 1 0>;
 	status = "okay";
 };
@@ -396,7 +398,6 @@
 };
 
 &usbdp_phy1_u3 {
-	maximum-speed = "high-speed";
 	status = "okay";
 };
 

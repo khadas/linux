@@ -790,7 +790,6 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	u32 byte_clk, mipi_clk, mipi_data_rate;
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
-	lt6911uxe_i2c_enable(sd);
 
 	clk_h = i2c_rd8(sd, PCLK_H);
 	clk_m = i2c_rd8(sd, PCLK_M);
@@ -835,7 +834,6 @@ static int lt6911uxe_get_detected_timings(struct v4l2_subdev *sd,
 	vfp = (val_h << 8) | val_l;
 
 	vbp = vtotal - vact - vs - vfp;
-	lt6911uxe_i2c_disable(sd);
 
 	lt6911uxe->nosignal = false;
 	lt6911uxe->is_audio_present = true;
@@ -963,7 +961,6 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 {
 	struct lt6911uxe *lt6911uxe = to_lt6911uxe(sd);
 
-	lt6911uxe_i2c_enable(sd);
 	if (enable) {
 		lt6911uxe_config_dphy_timing(sd);
 		usleep_range(5000, 6000);
@@ -971,7 +968,6 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 	} else {
 		i2c_wr8(&lt6911uxe->sd, STREAM_CTL, DISABLE_STREAM);
 	}
-	lt6911uxe_i2c_disable(sd);
 	msleep(20);
 
 	v4l2_dbg(2, debug, sd, "%s: %sable\n",

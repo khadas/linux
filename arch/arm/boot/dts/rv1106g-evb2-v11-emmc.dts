@@ -271,8 +271,6 @@
 };
 
 &sfc {
-	assigned-clocks = <&cru SCLK_SFC>;
-	assigned-clock-rates = <125000000>;
 	status = "disabled";
 
 	flash@0 {

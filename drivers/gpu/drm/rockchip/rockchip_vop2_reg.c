@@ -32,9 +32,7 @@
 
 static const uint32_t formats_for_cluster[] = {
 	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_ARGB2101010,
 	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_ABGR2101010,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XBGR8888,
@@ -2228,6 +2226,7 @@ static const struct vop2_win_regs rk3528_cluster0_win_data = {
 	.y2r_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x7, 10),
+	.ymirror = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 21),
 	.axi_yrgb_id = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL2, 0x1f, 0),
 	.axi_uv_id = VOP_REG(RK3528_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
 };
@@ -2250,6 +2249,7 @@ static const struct vop2_win_regs rk3568_cluster0_win_data = {
 	.y2r_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x3, 10),
+	.ymirror = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL0, 0x1, 21),
 	.axi_yrgb_id = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL2, 0x1f, 0),
 	.axi_uv_id = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 13),
@@ -2273,6 +2273,7 @@ static const struct vop2_win_regs rk3568_cluster1_win_data = {
 	.y2r_en = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 8),
 	.r2y_en = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 9),
 	.csc_mode = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x3, 10),
+	.ymirror = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL0, 0x1, 21),
 	.axi_yrgb_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 0),
 	.axi_uv_id = VOP_REG(RK3568_CLUSTER1_WIN0_CTRL2, 0x1f, 5),
 	.axi_id = VOP_REG(RK3568_CLUSTER1_CTRL, 0x1, 13),

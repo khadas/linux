@@ -713,8 +713,8 @@ static int rkvdec2_devfreq_target(struct device *dev,
 	struct dev_pm_opp *opp;
 	unsigned long target_volt, target_freq;
 	int ret = 0;
-
-	struct rkvdec2_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct devfreq *devfreq = dec->devfreq;
 	struct devfreq_dev_status *stat = &devfreq->last_status;
 	unsigned long old_clk_rate = stat->current_frequency;
@@ -776,7 +776,8 @@ static int rkvdec2_devfreq_get_dev_status(struct device *dev,
 static int rkvdec2_devfreq_get_cur_freq(struct device *dev,
 					unsigned long *freq)
 {
-	struct rkvdec2_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 	*freq = dec->core_last_rate_hz;
 
@@ -816,13 +817,14 @@ static struct devfreq_governor devfreq_vdec2_ondemand = {
 static unsigned long rkvdec2_get_static_power(struct devfreq *devfreq,
 					      unsigned long voltage)
 {
-	struct rkvdec2_dev *dec = devfreq->data;
+	struct device *dev = devfreq->dev.parent;
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
-	if (!dec->model_data)
+	if (!dec || !dec->model_data)
 		return 0;
-	else
-		return rockchip_ipa_get_static_power(dec->model_data,
-						     voltage);
+
+	return rockchip_ipa_get_static_power(dec->model_data, voltage);
 }
 
 static struct devfreq_cooling_power vdec2_cooling_power_data = {
@@ -1611,6 +1613,7 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	struct rkvdec2_dev *dec = NULL;
 	struct mpp_dev *mpp = NULL;
 	const struct of_device_id *match = NULL;
+	irq_handler_t irq_proc = NULL;
 	int ret = 0;
 
 	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
@@ -1635,20 +1638,18 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	rkvdec2_alloc_rcbbuf(pdev, dec);
 	rkvdec2_link_init(pdev, dec);
 
+	irq_proc = mpp_dev_irq;
 	if (dec->link_dec) {
-		ret = devm_request_threaded_irq(dev, mpp->irq,
-						rkvdec2_link_irq_proc, NULL,
-						IRQF_SHARED, dev_name(dev), mpp);
+		irq_proc = rkvdec2_link_irq_proc;
 		mpp->dev_ops->process_task = rkvdec2_link_process_task;
 		mpp->dev_ops->wait_result = rkvdec2_link_wait_result;
 		mpp->dev_ops->task_worker = rkvdec2_link_worker;
 		mpp->dev_ops->deinit = rkvdec2_link_session_deinit;
 		kthread_init_work(&mpp->work, rkvdec2_link_worker);
-	} else {
-		ret = devm_request_threaded_irq(dev, mpp->irq,
-						mpp_dev_irq, mpp_dev_isr_sched,
-						IRQF_SHARED, dev_name(dev), mpp);
 	}
+
+	ret = devm_request_threaded_irq(dev, mpp->irq, irq_proc, NULL,
+					IRQF_SHARED, dev_name(dev), mpp);
 	if (ret) {
 		dev_err(dev, "register interrupter runtime failed\n");
 		return -EINVAL;

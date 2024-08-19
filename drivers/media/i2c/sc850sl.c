@@ -73,7 +73,7 @@
 #define SC850SL_REG_DGAIN		0x3e06
 #define SC850SL_REG_AGAIN		0x3e08
 #define SC850SL_REG_AGAIN_FINE		0x3e09
-//#define SC850SL_REG_DGAIN_FINE		0x3e07
+#define SC850SL_REG_DGAIN_FINE		0x3e07
 
 //short fram gain reg
 #define SC850SL_SF_REG_AGAIN		0x3e12
@@ -370,7 +370,6 @@ static __maybe_unused const struct regval sc850sl_linear10bit_3840x2160_regs[] =
 	{0x59fd, 0x3f},
 	{0x59fe, 0x38},
 	{0x59ff, 0x30},
-	{0x0100, 0x01},
 	/*
 	 * [gain < 2x] {0x363c, 0x05},
 	 * [gain >=2x] {0x363c, 0x07},
@@ -412,7 +411,9 @@ static const struct sc850sl_mode supported_modes[] = {
 	},
 };
 
-
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
 
 static const char * const sc850sl_test_pattern_menu[] = {
 	"Disabled",
@@ -620,11 +621,9 @@ static int sc850sl_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc850sl *sc850sl = to_sc850sl(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc850sl->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -679,6 +678,75 @@ static int sc850sl_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const struct sc850sl_mode *sc850sl_find_mode(struct sc850sl *sc850sl, int fps)
+{
+	const struct sc850sl_mode *mode = NULL;
+	const struct sc850sl_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < sc850sl->cfg_num; i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc850sl->cur_mode->width &&
+		    mode->height == sc850sl->cur_mode->height &&
+		    mode->hdr_mode == sc850sl->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc850sl->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc850sl_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc850sl *sc850sl = to_sc850sl(sd);
+	const struct sc850sl_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	int fps;
+
+	if (sc850sl->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc850sl_find_mode(sc850sl, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc850sl->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc850sl->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc850sl->vblank, vblank_def,
+				 SC850SL_VTS_MAX - mode->height,
+				 1, vblank_def);
+	__v4l2_ctrl_s_ctrl(sc850sl->link_freq, mode->mipi_freq_idx);
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] /
+		     mode->bpp * 2 * SC850SL_4LANES;
+	__v4l2_ctrl_s_ctrl_int64(sc850sl->pixel_rate, pixel_rate);
+	sc850sl->cur_fps = mode->max_fps;
+	sc850sl->cur_vts = mode->vts_def;
+
+	return 0;
+}
+
 static int sc850sl_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
@@ -713,7 +781,7 @@ static void sc850sl_get_module_inf(struct sc850sl *sc850sl,
 }
 
 static void sc850sl_get_gain_reg(u32 val, u32 *again_reg, u32 *again_fine_reg,
-				 u32 *dgain_reg)
+				 u32 *dgain_reg, u32 *dgain_fine_reg)
 {
 	u8 u8Reg0x3e09 = 0x40, u8Reg0x3e08 = 0x03;
 	u32 aCoarseGain = 0;
@@ -757,16 +825,19 @@ static void sc850sl_get_gain_reg(u32 val, u32 *again_reg, u32 *again_fine_reg,
 	u8Reg0x3e09 = aFineGain;
 	//dcg = 2.72  -->  2.72*1024=2785.28
 	u8Reg0x3e08 = (again > 200) ? (u8Reg0x3e08 | 0x20) : (u8Reg0x3e08 & 0x1f);
-
+	*dgain_fine_reg = val * 128 / again / dgain;
 	//dgain
-	if (dgain <= 1) { /*1x ~ 2x*/
+	if (dgain < 2) {	/*1x ~ 2x*/
 		*dgain_reg = 0x00;
-	} else if (dgain <= 2) { /*2x ~ 4x*/
+	} else if (dgain < 4) { /*2x ~ 4x*/
 		*dgain_reg = 0x01;
-	} else if (dgain <= 4) { /*4x ~ 8x*/
+		*dgain_fine_reg += (dgain - 2) * 64;
+	} else if (dgain < 8) { /*4x ~ 8x*/
 		*dgain_reg = 0x03;
+		*dgain_fine_reg += (dgain - 4) * 32;
 	} else {
 		*dgain_reg = 0x07;
+		*dgain_fine_reg = 0x80;
 	}
 
 	*again_reg = u8Reg0x3e08;
@@ -812,8 +883,9 @@ static long sc850sl_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = sc850sl->cur_mode->height;
 		for (i = 0; i < sc850sl->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
-			h == supported_modes[i].height &&
-			supported_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			    h == supported_modes[i].height &&
+			    supported_modes[i].hdr_mode == hdr_cfg->hdr_mode &&
+			    supported_modes[i].bus_fmt == sc850sl->cur_mode->bus_fmt) {
 				sc850sl_change_mode(sc850sl, &supported_modes[i]);
 				break;
 			}
@@ -1315,6 +1387,7 @@ static const struct v4l2_subdev_core_ops sc850sl_core_ops = {
 static const struct v4l2_subdev_video_ops sc850sl_video_ops = {
 	.s_stream = sc850sl_s_stream,
 	.g_frame_interval = sc850sl_g_frame_interval,
+	.s_frame_interval = sc850sl_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc850sl_pad_ops = {
@@ -1347,7 +1420,7 @@ static int sc850sl_set_ctrl(struct v4l2_ctrl *ctrl)
 					     struct sc850sl, ctrl_handler);
 	struct i2c_client *client = sc850sl->client;
 	s64 max;
-	u32 again, again_fine, dgain;
+	u32 again, again_fine, dgain, dgain_fine;
 	int ret = 0;
 	u32 val;
 
@@ -1355,7 +1428,7 @@ static int sc850sl_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = sc850sl->cur_mode->height + ctrl->val - 8;
+		max = sc850sl->cur_mode->height + ctrl->val - 4;
 		__v4l2_ctrl_modify_range(sc850sl->exposure,
 					 sc850sl->exposure->minimum, max,
 					 sc850sl->exposure->step,
@@ -1389,9 +1462,10 @@ static int sc850sl_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (sc850sl->cur_mode->hdr_mode != NO_HDR)
 			goto out_ctrl;
-		sc850sl_get_gain_reg(ctrl->val, &again, &again_fine, &dgain);
-		dev_dbg(&client->dev, "recv_gain:%d set again 0x%x, again_fine 0x%x, set dgain 0x%x\n",
-			ctrl->val, again, again_fine, dgain);
+		sc850sl_get_gain_reg(ctrl->val, &again, &again_fine, &dgain, &dgain_fine);
+		dev_dbg(&client->dev,
+			"recv_gain:%d set again 0x%x, again_fine 0x%x, set dgain 0x%x, dgain_fine 0x%x\n",
+			ctrl->val, again, again_fine, dgain, dgain_fine);
 
 		ret |= sc850sl_write_reg(sc850sl->client,
 					SC850SL_REG_AGAIN,
@@ -1405,6 +1479,10 @@ static int sc850sl_set_ctrl(struct v4l2_ctrl *ctrl)
 					SC850SL_REG_DGAIN,
 					SC850SL_REG_VALUE_08BIT,
 					dgain);
+		ret |= sc850sl_write_reg(sc850sl->client,
+					SC850SL_REG_DGAIN_FINE,
+					SC850SL_REG_VALUE_08BIT,
+					dgain_fine);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = sc850sl_write_reg(sc850sl->client, SC850SL_REG_VTS,

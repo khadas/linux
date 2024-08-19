@@ -43,24 +43,9 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge_split *ser
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-
-	if (serdes->chip_data->name) {
-		if ((!strcmp(serdes->chip_data->name, "bu18tl82")) ||
-		    (!strcmp(serdes->chip_data->name, "bu18rl82"))) {
-			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-					  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET;
-			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_BURST 0x%lx\n",
-				       __func__, serdes->chip_data->name, dsi->mode_flags);
-		} else {
-			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-			       __func__, serdes->chip_data->name, dsi->mode_flags);
-		}
-	} else {
-		dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-		SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-			   __func__, serdes->chip_data->name, dsi->mode_flags);
-	}
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
+		       __func__, serdes->chip_data->name, dsi->mode_flags);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {

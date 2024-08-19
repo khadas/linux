@@ -15,9 +15,9 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .width = 960,
 	 .height = 576,
 	 .max_fps = {
-			.numerator = 10000,
-			.denominator = 250000,
-			},
+		     .numerator = 10000,
+		     .denominator = 250000,
+		     },
 	 .link_freq_value = TP9951_LINK_FREQ_148M,
 	 .common_reg_list = NULL,
 	 .common_reg_size = 0,
@@ -35,9 +35,9 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .width = 960,
 	 .height = 480,
 	 .max_fps = {
-			.numerator = 10000,
-			.denominator = 250000,
-			},
+		     .numerator = 10000,
+		     .denominator = 250000,
+		     },
 	 .link_freq_value = TP9951_LINK_FREQ_148M,
 	 .common_reg_list = NULL,
 	 .common_reg_size = 0,
@@ -55,11 +55,11 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .width = 1920,
 	 .height = 1080,
 	 .max_fps = {
-			.numerator = 10000,
-			.denominator = 250000,
-			},
-	//	.link_freq_value = TP9951_LINK_FREQ_594M,
-	 .link_freq_value = TP9951_LINK_FREQ_297M,
+		     .numerator = 10000,
+		     .denominator = 250000,
+		     },
+	.link_freq_value = TP9951_LINK_FREQ_594M,
+	//.link_freq_value = TP9951_LINK_FREQ_297M,
 	 .common_reg_list = NULL,
 	 .common_reg_size = 0,
 	 .bpp = TP9951_BITS_PER_SAMPLE,
@@ -76,9 +76,9 @@ static struct techpoint_video_modes supported_modes[] = {
 	 .width = 1280,
 	 .height = 720,
 	 .max_fps = {
-			.numerator = 10000,
-			.denominator = 250000,
-			},
+		     .numerator = 10000,
+		     .denominator = 250000,
+		     },
 	 .link_freq_value = TP9951_LINK_FREQ_297M,
 	 .common_reg_list = NULL,
 	 .common_reg_size = 0,
@@ -136,12 +136,12 @@ int tp9951_get_all_input_status(struct techpoint *techpoint, u8 *detect_status)
 }
 
 static void tp9951_set_mipi_out(struct i2c_client *client,
-								enum techpoint_support_reso reso,
-								unsigned char lane)
+				enum techpoint_support_reso reso,
+				unsigned char lane)
 {
 	u8 tmp;
 	//mipi setting
-	techpoint_write_reg(client, 0x40, 0x08); //select MIPI page
+	techpoint_write_reg(client, PAGE_REG, 0x08); //select MIPI page
 	techpoint_write_reg(client, 0x02, 0x7d);
 	techpoint_write_reg(client, 0x03, 0x75);
 	techpoint_write_reg(client, 0x04, 0x75);
@@ -213,11 +213,11 @@ static void tp9951_set_mipi_out(struct i2c_client *client,
 		}
 	}
 
-	techpoint_write_reg(client, 0x40, 0x00); //back to decoder page
+	techpoint_write_reg(client, PAGE_REG, 0x00); //back to decoder page
 	techpoint_read_reg(client, 0x06, &tmp); //PLL reset
 	techpoint_write_reg(client, 0x06, 0x80 | tmp);
 
-	techpoint_write_reg(client, 0x40, 0x08); //back to mipi page
+	techpoint_write_reg(client, PAGE_REG, 0x08); //back to mipi page
 
 	techpoint_read_reg(client, 0x14, &tmp); //PLL reset
 	techpoint_write_reg(client, 0x14, 0x80 | tmp);
@@ -226,21 +226,21 @@ static void tp9951_set_mipi_out(struct i2c_client *client,
 	/* Enable MIPI CSI2 output */
 	techpoint_write_reg(client, 0x28, 0x02);	 //stream off
 	techpoint_write_reg(client, 0x28, 0x00);	 //stream on
-	techpoint_write_reg(client, 0x40, 0x00);	 //back to decoder page
+	techpoint_write_reg(client, PAGE_REG, 0x00);	 //back to decoder page
 }
 
 int tp9951_set_channel_reso(struct i2c_client *client, int ch,
-				enum techpoint_support_reso reso)
+			    enum techpoint_support_reso reso)
 {
 	int val = reso;
 
 	dev_info(&client->dev, "##$$ %s", __func__);
-	techpoint_write_reg(client, 0x40, 0x00);	 //select decoder page
-	techpoint_write_reg(client, 0x06, 0x12);	 //default value
-	techpoint_write_reg(client, 0x42, 0x00);	 //common setting for all format
-	techpoint_write_reg(client, 0x4e, 0x00);	 //common setting for MIPI output
-	techpoint_write_reg(client, 0x54, 0x00);	 //common setting for MIPI output
-	techpoint_write_reg(client, 0x41, ch);		 //video MUX select
+	techpoint_write_reg(client, 0x40, 0x00);	//select decoder page
+	techpoint_write_reg(client, 0x06, 0x12);	//default value
+	techpoint_write_reg(client, 0x42, 0x00);	//common setting for all format
+	techpoint_write_reg(client, 0x4e, 0x00);	//common setting for MIPI output
+	techpoint_write_reg(client, 0x54, 0x00);	//common setting for MIPI output
+	techpoint_write_reg(client, 0x41, ch);	//video MUX select
 
 	switch (val) {
 	case TECHPOINT_S_RESO_720P_25:
@@ -317,8 +317,8 @@ int tp9951_set_channel_reso(struct i2c_client *client, int ch,
 		techpoint_write_reg(client, 0x18, 0x29);
 		techpoint_write_reg(client, 0x19, 0x38);
 		techpoint_write_reg(client, 0x1a, 0x47);
-		techpoint_write_reg(client, 0x1c, 0x0a);//1920*1080, 25fps
-		techpoint_write_reg(client, 0x1d, 0x50);//
+		techpoint_write_reg(client, 0x1c, 0x0a);	//1920*1080, 25fps
+		techpoint_write_reg(client, 0x1d, 0x50);
 
 		techpoint_write_reg(client, 0x20, 0x30);
 		techpoint_write_reg(client, 0x21, 0x84);
@@ -361,65 +361,65 @@ int tp9951_set_channel_reso(struct i2c_client *client, int ch,
 		break;
 	case TECHPOINT_S_RESO_1080P_30:		// FHD30
 		dev_err(&client->dev, "set channel PAL\n");
-			techpoint_write_reg(client, 0x02, 0x40);
-			techpoint_write_reg(client, 0x07, 0xc0);
-			techpoint_write_reg(client, 0x0b, 0xc0);
-			techpoint_write_reg(client, 0x0c, 0x03);
-			techpoint_write_reg(client, 0x0d, 0x50);
+		techpoint_write_reg(client, 0x02, 0x40);
+		techpoint_write_reg(client, 0x07, 0xc0);
+		techpoint_write_reg(client, 0x0b, 0xc0);
+		techpoint_write_reg(client, 0x0c, 0x03);
+		techpoint_write_reg(client, 0x0d, 0x50);
 
-			techpoint_write_reg(client, 0x15, 0x03);
-			techpoint_write_reg(client, 0x16, 0xd2);
-			techpoint_write_reg(client, 0x17, 0x80);
-			techpoint_write_reg(client, 0x18, 0x29);
-			techpoint_write_reg(client, 0x19, 0x38);
-			techpoint_write_reg(client, 0x1a, 0x47);
-			techpoint_write_reg(client, 0x1c, 0x08);  //1920*1080, 30fps
-			techpoint_write_reg(client, 0x1d, 0x98);  //
+		techpoint_write_reg(client, 0x15, 0x03);
+		techpoint_write_reg(client, 0x16, 0xd2);
+		techpoint_write_reg(client, 0x17, 0x80);
+		techpoint_write_reg(client, 0x18, 0x29);
+		techpoint_write_reg(client, 0x19, 0x38);
+		techpoint_write_reg(client, 0x1a, 0x47);
+		techpoint_write_reg(client, 0x1c, 0x08);  //1920*1080, 30fps
+		techpoint_write_reg(client, 0x1d, 0x98);  //
 
-			techpoint_write_reg(client, 0x20, 0x30);
-			techpoint_write_reg(client, 0x21, 0x84);
-			techpoint_write_reg(client, 0x22, 0x36);
-			techpoint_write_reg(client, 0x23, 0x3c);
+		techpoint_write_reg(client, 0x20, 0x30);
+		techpoint_write_reg(client, 0x21, 0x84);
+		techpoint_write_reg(client, 0x22, 0x36);
+		techpoint_write_reg(client, 0x23, 0x3c);
 
-			techpoint_write_reg(client, 0x2b, 0x60);
-			techpoint_write_reg(client, 0x2c, 0x2a);
-			techpoint_write_reg(client, 0x2d, 0x30);
-			techpoint_write_reg(client, 0x2e, 0x70);
+		techpoint_write_reg(client, 0x2b, 0x60);
+		techpoint_write_reg(client, 0x2c, 0x2a);
+		techpoint_write_reg(client, 0x2d, 0x30);
+		techpoint_write_reg(client, 0x2e, 0x70);
 
-			techpoint_write_reg(client, 0x30, 0x48);
-			techpoint_write_reg(client, 0x31, 0xbb);
-			techpoint_write_reg(client, 0x32, 0x2e);
-			techpoint_write_reg(client, 0x33, 0x90);
+		techpoint_write_reg(client, 0x30, 0x48);
+		techpoint_write_reg(client, 0x31, 0xbb);
+		techpoint_write_reg(client, 0x32, 0x2e);
+		techpoint_write_reg(client, 0x33, 0x90);
 
-			techpoint_write_reg(client, 0x35, 0x05);
-			techpoint_write_reg(client, 0x38, 0x00);
-			techpoint_write_reg(client, 0x39, 0x1C);
+		techpoint_write_reg(client, 0x35, 0x05);
+		techpoint_write_reg(client, 0x38, 0x00);
+		techpoint_write_reg(client, 0x39, 0x1C);
 
-			if (STD_HDA) { //AHD1080p30 extra
-				techpoint_write_reg(client, 0x02, 0x44);
-				techpoint_write_reg(client, 0x0d, 0x72);
+		if (STD_HDA) { //AHD1080p30 extra
+			techpoint_write_reg(client, 0x02, 0x44);
+			techpoint_write_reg(client, 0x0d, 0x72);
 
-				techpoint_write_reg(client, 0x15, 0x01);
-				techpoint_write_reg(client, 0x16, 0xf0);
-				techpoint_write_reg(client, 0x18, 0x2a);
+			techpoint_write_reg(client, 0x15, 0x01);
+			techpoint_write_reg(client, 0x16, 0xf0);
+			techpoint_write_reg(client, 0x18, 0x2a);
 
-				techpoint_write_reg(client, 0x20, 0x38);
-				techpoint_write_reg(client, 0x21, 0x46);
+			techpoint_write_reg(client, 0x20, 0x38);
+			techpoint_write_reg(client, 0x21, 0x46);
 
-				techpoint_write_reg(client, 0x25, 0xfe);
-				techpoint_write_reg(client, 0x26, 0x0d);
+			techpoint_write_reg(client, 0x25, 0xfe);
+			techpoint_write_reg(client, 0x26, 0x0d);
 
-				techpoint_write_reg(client, 0x2c, 0x3a);
-				techpoint_write_reg(client, 0x2d, 0x54);
-				techpoint_write_reg(client, 0x2e, 0x40);
+			techpoint_write_reg(client, 0x2c, 0x3a);
+			techpoint_write_reg(client, 0x2d, 0x54);
+			techpoint_write_reg(client, 0x2e, 0x40);
 
-				techpoint_write_reg(client, 0x30, 0xa5);
-				techpoint_write_reg(client, 0x31, 0x95);
-				techpoint_write_reg(client, 0x32, 0xe0);
-				techpoint_write_reg(client, 0x33, 0x60);
-			}
+			techpoint_write_reg(client, 0x30, 0xa5);
+			techpoint_write_reg(client, 0x31, 0x95);
+			techpoint_write_reg(client, 0x32, 0xe0);
+			techpoint_write_reg(client, 0x33, 0x60);
+		}
 
-			tp9951_set_mipi_out(client, reso, MIPI_2LANE);	// 2 lane
+		tp9951_set_mipi_out(client, reso, MIPI_2LANE);	// 2 lane
 	break;
 
 	case TECHPOINT_S_RESO_PAL:
@@ -590,7 +590,7 @@ int tp9951_get_channel_reso(struct i2c_client *client, int ch)
 
 	techpoint_write_reg(client, 0x40, ch);
 	techpoint_read_reg(client, 0x03, &detect_fmt);
-	reso = detect_fmt & 0x7;
+	reso = detect_fmt & 0x7;	// CVSTD[2-0]
 
 	switch (reso) {
 	case TP9951_CVSTD_720P_25:
@@ -624,15 +624,13 @@ int tp9951_get_channel_reso(struct i2c_client *client, int ch)
 
 int tp9951_set_quick_stream(struct i2c_client *client, u32 stream)
 {
-	// mutex_lock(&techpoint->mutex);
 	if (stream) {
-		techpoint_write_reg(client, 0x40, 0x8);
-		techpoint_write_reg(client, 0x28, 0x0);
+		techpoint_write_reg(client, PAGE_REG, 0x08);
+		techpoint_write_reg(client, 0x28, 0x00);
 	} else {
-		techpoint_write_reg(client, 0x40, 0x8);
-		techpoint_write_reg(client, 0x28, 0x2);
+		techpoint_write_reg(client, PAGE_REG, 0x08);
+		techpoint_write_reg(client, 0x28, 0x02);
 		usleep_range(40 * 1000, 50 * 1000);
 	}
-	// mutex_unlock(&techpoint->mutex);
 	return 0;
 }

@@ -346,11 +346,11 @@ static int rk_dsm_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(rd->regmap, I2S_RXCR0,
 				   DSM_I2S_RXCR0_VDW_MASK,
 				   DSM_I2S_RXCR0_VDW(val));
-		regmap_update_bits(rd->regmap, DACPWM_CTRL,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_MASK |
-				   DSM_DACPWM_CTRL_PWM_EN_MASK,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_EN |
-				   DSM_DACPWM_CTRL_PWM_EN);
+		regmap_update_bits(rd->regmap, DACDSM_CTRL,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_MASK |
+				   DSM_DACDSM_CTRL_DSM_EN_MASK,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_EN |
+				   DSM_DACDSM_CTRL_DSM_EN);
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -400,11 +400,11 @@ static void rk_dsm_pcm_shutdown(struct snd_pcm_substream *substream,
 	gpiod_set_value(rd->pa_ctl, 0);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_update_bits(rd->regmap, DACPWM_CTRL,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_MASK |
-				   DSM_DACPWM_CTRL_PWM_EN_MASK,
-				   DSM_DACPWM_CTRL_PWM_MODE_CKE_DIS |
-				   DSM_DACPWM_CTRL_PWM_DIS);
+		regmap_update_bits(rd->regmap, DACDSM_CTRL,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_MASK |
+				   DSM_DACDSM_CTRL_DSM_EN_MASK,
+				   DSM_DACDSM_CTRL_DSM_MODE_CKE_DIS |
+				   DSM_DACDSM_CTRL_DSM_DIS);
 		regmap_update_bits(rd->regmap, I2S_XFER,
 				   DSM_I2S_XFER_RXS_MASK,
 				   DSM_I2S_XFER_RXS_STOP);
@@ -583,9 +583,9 @@ static int rk_dsm_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	regmap_update_bits(rd->regmap, DACPWM_CTRL,
-			   DSM_DACPWM_CTRL_PWM_MODE_MASK,
-			   DSM_DACPWM_CTRL_PWM_MODE_0);
+	regmap_update_bits(rd->regmap, DACDSM_CTRL,
+			   DSM_DACDSM_CTRL_DSM_MODE_MASK,
+			   DSM_DACDSM_CTRL_DSM_MODE_0);
 
 	rd->pa_ctl = devm_gpiod_get_optional(&pdev->dev, "pa-ctl",
 					     GPIOD_OUT_LOW);

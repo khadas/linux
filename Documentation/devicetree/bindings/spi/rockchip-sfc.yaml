@@ -59,6 +59,11 @@ required:
   - clocks
   - clock-names
 
+Optional properties:
+  - sfc-cs-gpios: specifies the gpio pins to be used for chipselects.
+    The gpios will be referred to as reg = <index> in the SPI child nodes.
+    If unspecified, a single SPI device without a chip select can be used.
+
 unevaluatedProperties: false
 
 examples:
@@ -76,6 +81,7 @@ examples:
         pinctrl-0 = <&sfc_clk &sfc_cs &sfc_bus2>;
         pinctrl-names = "default";
         power-domains = <&power PX30_PD_MMC_NAND>;
+        sfc-cs-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>, <&gpio4 RK_PA5 GPIO_ACTIVE_LOW>;
         #address-cells = <1>;
         #size-cells = <0>;
 

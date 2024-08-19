@@ -43,24 +43,9 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_br
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-
-	if (serdes->chip_data->name) {
-		if ((!strcmp(serdes->chip_data->name, "bu18tl82")) ||
-		    (!strcmp(serdes->chip_data->name, "bu18rl82"))) {
-			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-					  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET;
-			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_BURST 0x%lx\n",
-				       __func__, serdes->chip_data->name, dsi->mode_flags);
-		} else {
-			dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-			SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-			       __func__, serdes->chip_data->name, dsi->mode_flags);
-		}
-	} else {
-		dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-		SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
-			   __func__, serdes->chip_data->name, dsi->mode_flags);
-	}
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+	SERDES_DBG_MFD("%s: %s dsi_mode MIPI_DSI_MODE_VIDEO_SYNC_PULSE 0x%lx\n",
+		       __func__, serdes->chip_data->name, dsi->mode_flags);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
@@ -202,7 +187,8 @@ static void serdes_bridge_enable(struct drm_bridge *bridge)
 
 	if (!ret) {
 		extcon_set_state_sync(serdes->extcon, EXTCON_JACK_VIDEO_OUT, true);
-		SERDES_DBG_MFD("%s: extcon is true\n", __func__);
+		SERDES_DBG_MFD("%s: %s-%s extcon is true\n", __func__, dev_name(serdes->dev),
+			       serdes->chip_data->name);
 	}
 
 	SERDES_DBG_MFD("%s: %s-%s ret=%d\n", __func__, dev_name(serdes->dev),
@@ -219,6 +205,9 @@ serdes_bridge_detect(struct drm_bridge *bridge)
 	if (serdes->chip_data->bridge_ops->detect)
 		status = serdes->chip_data->bridge_ops->detect(serdes);
 
+	SERDES_DBG_MFD("%s:%s %s, %s\n", __func__, dev_name(serdes->dev),
+		       serdes->chip_data->name,
+		       (status == connector_status_connected) ? "connected" : "disconnect");
 	return status;
 }
 
@@ -238,7 +227,7 @@ static int serdes_bridge_get_modes(struct drm_bridge *bridge,
 	if (serdes_bridge->panel)
 		ret = drm_panel_get_modes(serdes_bridge->panel, connector);
 
-	SERDES_DBG_MFD("%s:name=%s, node=%s\n", __func__,
+	SERDES_DBG_MFD("%s:%s %s, node=%s\n", __func__, dev_name(serdes->dev),
 		       serdes->chip_data->name, serdes_bridge->dev->of_node->name);
 
 	return ret;

@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/rk3568-cru.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
@@ -132,7 +133,6 @@
 		nvmem-cell-names = "leakage", "pvtm", "mbist-vmin", "opp-info",
 				   "specification_serial_number", "remark_spec_serial_number";
 		rockchip,supported-hw;
-		rockchip,max-volt = <1150000>;
 		rockchip,pvtm-voltage-sel = <
 			0        84000   0
 			84001    87000   1
@@ -2785,6 +2785,30 @@
 		status = "disabled";
 	};
 
+	nfc: nand-controller@fe330000 {
+		compatible = "rockchip,px30-nfc";
+		reg = <0x0 0xfe330000 0x0 0x4000>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_NANDC>, <&cru NCLK_NANDC>;
+		clock-names = "ahb", "nfc";
+		assigned-clocks = <&cru NCLK_NANDC>;
+		assigned-clock-rates = <150000000>;
+		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		nand@0 {
+			reg = <0>;
+			label = "rk-nand";
+			nand-bus-width = <8>;
+			nand-ecc-mode = "hw";
+			nand-ecc-step-size = <1024>;
+			nand-ecc-strength = <16>;
+			nand-is-boot-medium;
+			rockchip,boot-blks = <8>;
+			rockchip,boot-ecc-strength = <16>;
+		};
+	};
+
 	nandc0: nandc@fe330000 {
 		compatible = "rockchip,rk-nandc-v9";
 		reg = <0x0 0xfe330000 0x0 0x4000>;
@@ -2932,6 +2956,7 @@
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
+		i2s-lrck-gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>; /* i2s1m0_lrcktx */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1m0_sclktx
@@ -2960,6 +2985,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>; /* i2s2m0_lrcktx */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2m0_sclktx
@@ -2982,6 +3008,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>; /* i2s3m0_lrck */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s3m0_sclk

@@ -132,6 +132,96 @@ module_param_named(always_on, pm_domain_always_on, bool, 0644);
 MODULE_PARM_DESC(always_on,
 		 "Always keep pm domains power on except for system suspend.");
 
+#if 0
+#define NAME_LEN 20
+
+static bool rockchip_pmu_domain_is_on(struct rockchip_pm_domain *pd);
+static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on);
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd);
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd);
+
+/*
+ * power on : echo gpu 1 > /sys/module/pm_domains/parameters/status
+ * power off: echo gpu 0 > /sys/module/pm_domains/parameters/status
+ */
+static int pd_set_status(const char *val, const struct kernel_param *kp)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+	char name[NAME_LEN] = { 0 };
+	int status = 0;
+	int i;
+	bool is_on;
+
+	if (!g_pmu)
+		return 0;
+
+	if (strlen(val) > (NAME_LEN - 2))
+		return -EINVAL;
+
+	if (sscanf(val, "%s %d", name, &status) != 2) {
+		pr_info("power on : echo gpu 1 > /sys/module/pm_domains/parameters/status\n");
+		pr_info("power off: echo gpu 0 > /sys/module/pm_domains/parameters/status\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
+		genpd = g_pmu->genpd_data.domains[i];
+		if (!genpd)
+			continue;
+		if (strncmp(genpd->name, name, strlen(name)))
+			continue;
+		pd = container_of(genpd, struct rockchip_pm_domain, genpd);
+		pr_info("set %s %d\n", genpd->name, status);
+		if (!rockchip_pd_power(pd, status)) {
+			rockchip_pmu_lock(pd);
+			is_on = rockchip_pmu_domain_is_on(pd);
+			rockchip_pmu_unlock(pd);
+			pr_info("get %s %d\n", genpd->name, is_on);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * cat /sys/module/pm_domains/parameters/status
+ */
+static int pd_get_status(char *buffer, const struct kernel_param *kp)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+	int i;
+	int len = 0;
+	bool is_on;
+
+	if (!g_pmu)
+		return 0;
+
+	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
+		genpd = g_pmu->genpd_data.domains[i];
+		if (!genpd)
+			continue;
+		pd = container_of(genpd, struct rockchip_pm_domain, genpd);
+		rockchip_pmu_lock(pd);
+		is_on = rockchip_pmu_domain_is_on(pd);
+		rockchip_pmu_unlock(pd);
+		len += sprintf(buffer + len, "%s %d\n", genpd->name, is_on);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops pd_status_ops = {
+	.set = pd_set_status,
+	.get = pd_get_status,
+};
+
+module_param_cb(status, &pd_status_ops, NULL, 0600);
+MODULE_PARM_DESC(status, "Change pd status.");
+#endif
+
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
 	mutex_lock(&pd->pmu->mutex);
@@ -186,7 +276,7 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.keepon_startup = keepon,			\
 }
 
-#define DOMAIN_M_C_SD(_name, pwr, status, req, idle, ack, clk, mem, wakeup, keepon)	\
+#define DOMAIN_M_G_SD(_name, pwr, status, req, idle, ack, g_mask, mem, wakeup, keepon)	\
 {							\
 	.name = _name,					\
 	.pwr_w_mask = (pwr) << 16,			\
@@ -196,8 +286,8 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.req_mask = (req),				\
 	.idle_mask = (idle),				\
 	.ack_mask = (ack),				\
-	.clk_ungate_mask = (clk),			\
-	.clk_ungate_w_mask = (clk) << 16,		\
+	.clk_ungate_mask = (g_mask),			\
+	.clk_ungate_w_mask = (g_mask) << 16,		\
 	.mem_num = (mem),				\
 	.active_wakeup = wakeup,			\
 	.keepon_startup = keepon,			\
@@ -287,11 +377,11 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 #define DOMAIN_RK3528(pwr, req, always, wakeup) \
 	DOMAIN_M_A(pwr, pwr, req, req, req, always, wakeup, false)
 
-#define DOMAIN_RK3562(name, pwr, req, mem, wakeup)		\
-	DOMAIN_M_C_SD(name, pwr, pwr, req, req, req, req, mem, wakeup, false)
+#define DOMAIN_RK3562(name, pwr, req, g_mask, mem, wakeup)		\
+	DOMAIN_M_G_SD(name, pwr, pwr, req, req, req, g_mask, mem, wakeup, false)
 
-#define DOMAIN_RK3562_PROTECT(name, pwr, req, mem, wakeup)		\
-	DOMAIN_M_C_SD(name, pwr, pwr, req, req, req, req, mem, wakeup, true)
+#define DOMAIN_RK3562_PROTECT(name, pwr, req, g_mask, mem, wakeup)		\
+	DOMAIN_M_G_SD(name, pwr, pwr, req, req, req, g_mask, mem, wakeup, true)
 
 #define DOMAIN_RK3568(name, pwr, req, wakeup)			\
 	DOMAIN_M(name, pwr, pwr, req, req, req, wakeup, false)
@@ -1783,14 +1873,15 @@ static const struct rockchip_domain_info rk3528_pm_domains[] = {
 };
 
 static const struct rockchip_domain_info rk3562_pm_domains[] = {
-	[RK3562_PD_GPU]		= DOMAIN_RK3562("gpu",         BIT(0), BIT(1), 0, false),
-	[RK3562_PD_NPU]		= DOMAIN_RK3562("npu",         BIT(1), BIT(2), 0, false),
-	[RK3562_PD_VDPU]	= DOMAIN_RK3562("vdpu",        BIT(2), BIT(6), 0, false),
-	[RK3562_PD_VEPU]	= DOMAIN_RK3562("vepu",        BIT(3), BIT(7), 0, false),
-	[RK3562_PD_RGA]		= DOMAIN_RK3562("rga",         BIT(4), BIT(5), 0, false),
-	[RK3562_PD_VI]		= DOMAIN_RK3562("vi",          BIT(5), BIT(3), 0, false),
-	[RK3562_PD_VO]		= DOMAIN_RK3562_PROTECT("vo",  BIT(6), BIT(4), 16, false),
-	[RK3562_PD_PHP]		= DOMAIN_RK3562("php",         BIT(7), BIT(8), 0, false),
+					     /* name           pwr     req     g_mask  mem wakeup */
+	[RK3562_PD_GPU]		= DOMAIN_RK3562("gpu",         BIT(0), BIT(1), BIT(1), 0, false),
+	[RK3562_PD_NPU]		= DOMAIN_RK3562("npu",         BIT(1), BIT(2), BIT(2), 0, false),
+	[RK3562_PD_VDPU]	= DOMAIN_RK3562("vdpu",        BIT(2), BIT(6), BIT(6), 0, false),
+	[RK3562_PD_VEPU]	= DOMAIN_RK3562("vepu",        BIT(3), BIT(7), BIT(7) | BIT(3), 0, false),
+	[RK3562_PD_RGA]		= DOMAIN_RK3562("rga",         BIT(4), BIT(5), BIT(5) | BIT(4), 0, false),
+	[RK3562_PD_VI]		= DOMAIN_RK3562("vi",          BIT(5), BIT(3), BIT(3), 0, false),
+	[RK3562_PD_VO]		= DOMAIN_RK3562_PROTECT("vo",  BIT(6), BIT(4), BIT(4), 16, false),
+	[RK3562_PD_PHP]		= DOMAIN_RK3562("php",         BIT(7), BIT(8), BIT(8), 0, false),
 };
 
 static const struct rockchip_domain_info rk3568_pm_domains[] = {

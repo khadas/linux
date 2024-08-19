@@ -24,6 +24,10 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include <video/display_timing.h>
+#include <video/videomode.h>
+#include <video/of_display_timing.h>
+
 #include <uapi/linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
@@ -250,6 +254,9 @@ struct rockchip_hdmi {
 	struct pinctrl *p;
 	struct pinctrl_state *idle_state;
 	struct pinctrl_state *default_state;
+	bool timing_force_output;
+	struct drm_display_mode force_mode;
+	u32 force_bus_format;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -461,7 +468,7 @@ static struct dw_hdmi_phy_config rockchip_phy_config[] = {
 	{ 74250000,  0x8009, 0x0004, 0x0272},
 	{ 165000000, 0x802b, 0x0004, 0x0209},
 	{ 297000000, 0x8039, 0x0005, 0x028d},
-	{ 594000000, 0x8039, 0x0000, 0x019d},
+	{ 600000000, 0x8039, 0x0000, 0x019d},
 	{ ~0UL,	     0x0000, 0x0000, 0x0000},
 	{ ~0UL,      0x0000, 0x0000, 0x0000},
 };
@@ -803,6 +810,45 @@ static int hdmi_bus_fmt_to_color_format(unsigned int bus_format)
 	case MEDIA_BUS_FMT_RGB161616_1X48:
 	default:
 		return RK_IF_FORMAT_RGB;
+	}
+}
+
+static void parse_bus_format(u32 bus_format, u32 *format, u32 *colordepth)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 10;
+		break;
+	default:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 8;
 	}
 }
 
@@ -1247,6 +1293,11 @@ static irqreturn_t rockchip_hdmi_hardirq(int irq, void *dev_id)
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
 
+	if (!hdmi->id)
+		intr_stat = intr_stat & RK3588_HDMI0_OHPD_INT;
+	else
+		intr_stat = intr_stat & RK3588_HDMI1_OHPD_INT;
+
 	if (intr_stat) {
 		dev_dbg(hdmi->dev, "hpd irq %#x\n", intr_stat);
 
@@ -1271,9 +1322,6 @@ static irqreturn_t rockchip_hdmi_irq(int irq, void *dev_id)
 	bool stat;
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
-
-	if (!intr_stat)
-		return IRQ_NONE;
 
 	if (!hdmi->id) {
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
@@ -1377,6 +1425,8 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	int ret, val, phy_table_size;
 	u32 *phy_config;
 	struct device_node *np = hdmi->dev->of_node;
+	struct display_timing timing;
+	struct videomode vm;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -1485,7 +1535,7 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
-						    GPIOD_OUT_HIGH);
+						    GPIOD_ASIS);
 	if (IS_ERR(hdmi->enable_gpio)) {
 		ret = PTR_ERR(hdmi->enable_gpio);
 		dev_err(hdmi->dev, "failed to request enable GPIO: %d\n", ret);
@@ -1515,6 +1565,24 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		kfree(phy_config);
 	} else {
 		dev_dbg(hdmi->dev, "use default hdmi phy table\n");
+	}
+
+	if (of_property_read_bool(np, "force-output")) {
+		hdmi->timing_force_output = true;
+
+		ret = of_get_display_timing(np, "force_timing", &timing);
+		if (ret < 0) {
+			dev_err(hdmi->dev, "can't get force timing\n");
+			hdmi->timing_force_output = false;
+			return ret;
+		}
+
+		videomode_from_timing(&timing, &vm);
+		drm_display_mode_from_videomode(&vm, &hdmi->force_mode);
+		hdmi->force_mode.type |= DRM_MODE_TYPE_PREFERRED;
+
+		if (of_property_read_u32(np, "force-bus-format", &hdmi->force_bus_format))
+			hdmi->force_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	}
 
 	hdmi->hpd_gpiod = devm_gpiod_get_optional(hdmi->dev, "hpd", GPIOD_IN);
@@ -1584,6 +1652,14 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	return 0;
 }
 
+static bool is_hdmi2_mode(const struct drm_display_mode *mode)
+{
+	if (mode->clock > 340000 && mode->clock <= 600000)
+		return true;
+
+	return false;
+}
+
 static enum drm_mode_status
 dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 			    const struct drm_display_info *info,
@@ -1613,6 +1689,34 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 
 	hdmi = to_rockchip_hdmi(encoder);
 
+	if (!hdmi->skip_check_420_mode) {
+		u32 max_tmds_clock = connector->display_info.max_tmds_clock;
+
+		/* some sinks edid max_tmds_clocks are 0, we think it only support hdmi1.4 */
+		if (!connector->display_info.max_tmds_clock)
+			max_tmds_clock = 340000;
+
+		/* edid isn't support yuv420 and max_tmds_clock is less than mode pixel clk */
+		if (mode->clock < 600000 && max_tmds_clock < mode->clock &&
+		    (!drm_mode_is_420(&connector->display_info, mode) ||
+		     !connector->ycbcr_420_allowed))
+			return MODE_BAD;
+
+		/* edid isn't support yuv420 and hdmitx only support hdmi1.4 clk */
+		if (hdmi->max_tmdsclk <= 340000 && is_hdmi2_mode(mode) &&
+		    !drm_mode_is_420(&connector->display_info, mode))
+			return MODE_BAD;
+
+		/*
+		 * hdmi cts hf1-31 required filtering yuv420 mode that frequency
+		 * exceeds the max_tmds_clock of edid.
+		 */
+		if (drm_mode_is_420(&connector->display_info, mode) &&
+		    max_tmds_clock < (mode->clock / 2) &&
+		    is_hdmi2_mode(mode))
+			return MODE_BAD;
+	};
+
 	if (hdmi->is_hdmi_qp) {
 		if (!hdmi->enable_gpio && mode->clock > 600000)
 			return MODE_BAD;
@@ -1627,23 +1731,6 @@ dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 	 */
 	if (mode->clock > INT_MAX / 1000)
 		return MODE_BAD;
-
-	/*
-	 * If sink max TMDS clock < 340MHz, we should check the mode pixel
-	 * clock > 340MHz is YCbCr420 or not and whether the platform supports
-	 * YCbCr420.
-	 */
-	if (!hdmi->skip_check_420_mode) {
-		if (mode->clock > 340000 &&
-		    connector->display_info.max_tmds_clock < 340000 &&
-		    (!drm_mode_is_420(&connector->display_info, mode) ||
-		     !connector->ycbcr_420_allowed))
-			return MODE_BAD;
-
-		if (hdmi->max_tmdsclk <= 340000 && mode->clock > 340000 &&
-		    !drm_mode_is_420(&connector->display_info, mode))
-			return MODE_BAD;
-	};
 
 	if (hdmi->phy) {
 		if (hdmi->is_hdmi_qp)
@@ -1728,9 +1815,9 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	if (hdmi->is_hdmi_qp) {
 		if (hdmi->link_cfg.frl_mode)
-			gpiod_set_value(hdmi->enable_gpio, 0);
+			gpiod_direction_output(hdmi->enable_gpio, 0);
 		else
-			gpiod_set_value(hdmi->enable_gpio, 1);
+			gpiod_direction_output(hdmi->enable_gpio, 1);
 	}
 
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
@@ -2149,6 +2236,9 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 				*color_format = RK_IF_FORMAT_YCBCR420;
 		}
 	}
+
+	if (hdmi->timing_force_output)
+		parse_bus_format(hdmi->force_bus_format, color_format, &color_depth);
 
 	if (*color_format == RK_IF_FORMAT_YCBCR420) {
 		*output_mode = ROCKCHIP_OUT_MODE_YUV420;
@@ -2601,6 +2691,23 @@ static void dw_hdmi_rockchip_set_hdcp14_mem(void *data, bool enable)
 		regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON7, val);
 }
 
+static struct drm_display_mode *dw_hdmi_rockchip_get_force_timing(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!hdmi->timing_force_output)
+		return NULL;
+
+	return &hdmi->force_mode;
+}
+
+static u32 dw_hdmi_rockchip_get_refclk_rate(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return clk_get_rate(hdmi->hdmitx_ref);
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -2649,41 +2756,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	struct rockchip_drm_private *private = connector->dev->dev_private;
 	int ret;
 
-	switch (color) {
-	case MEDIA_BUS_FMT_RGB101010_1X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_RGB;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_YUV8_1X24:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR444;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_YUV10_1X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR444;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_UYVY10_1X20:
-	case MEDIA_BUS_FMT_YUYV10_1X20:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR420;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR420;
-		hdmi->colordepth = 10;
-		break;
-	default:
-		hdmi->hdmi_output = RK_IF_FORMAT_RGB;
-		hdmi->colordepth = 8;
-	}
+	parse_bus_format(color, &hdmi->hdmi_output, &hdmi->colordepth);
 
 	hdmi->bus_format = color;
 	hdmi->prev_bus_format = color;
@@ -3544,6 +3617,10 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_set_ddc_io;
 	plat_data->set_hdcp14_mem =
 		dw_hdmi_rockchip_set_hdcp14_mem;
+	plat_data->get_force_timing =
+		dw_hdmi_rockchip_get_force_timing;
+	plat_data->get_refclk_rate =
+		dw_hdmi_rockchip_get_refclk_rate;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);

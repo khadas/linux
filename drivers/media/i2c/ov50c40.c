@@ -192,6 +192,8 @@ struct ov50c40 {
 	bool			is_first_streamoff;
 	struct otp_info		*otp;
 	u32			spd_id;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 };
 
 #define to_ov50c40(sd) container_of(sd, struct ov50c40, subdev)
@@ -5745,7 +5747,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.exp_def = 0x0840,
 		.hts_def = 0x41a * 4,
 		.vts_def = 0x0c66,
-		.mipi_freq_idx = 2,
+		.mipi_freq_idx = 3,
 		.bpp = 10,
 		.reg_list = ov50c40_10bit_4096x3072_dphy_30fps_regs,
 		.hdr_mode = NO_HDR,
@@ -5818,7 +5820,7 @@ static const struct ov50c40_mode supported_modes_dphy[] = {
 		.exp_def = 0x0840,
 		.hts_def = 0x3e8 * 8,
 		.vts_def = 0x0d05,
-		.mipi_freq_idx = 2,
+		.mipi_freq_idx = 3,
 		.bpp = 10,
 		.reg_list = ov50c40_10bit_4096x3072_dphy_30fps_nopd_regs,
 		.hdr_mode = NO_HDR,
@@ -5882,6 +5884,10 @@ static const struct ov50c40_mode supported_modes_cphy[] = {
 		.spd = &ov50c40_spd,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SGBRG10_1X10,
 };
 
 static const s64 link_freq_items[] = {
@@ -6049,6 +6055,7 @@ static int ov50c40_set_fmt(struct v4l2_subdev *sd,
 					 pixel_rate);
 		__v4l2_ctrl_s_ctrl(ov50c40->link_freq,
 				   mode->mipi_freq_idx);
+		ov50c40->cur_fps = mode->max_fps;
 	}
 	dev_info(&ov50c40->client->dev, "%s: mode->mipi_freq_idx(%d)",
 		 __func__, mode->mipi_freq_idx);
@@ -6088,11 +6095,9 @@ static int ov50c40_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct ov50c40 *ov50c40 = to_ov50c40(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = ov50c40->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -6137,8 +6142,81 @@ static int ov50c40_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov50c40 *ov50c40 = to_ov50c40(sd);
 	const struct ov50c40_mode *mode = ov50c40->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (ov50c40->streaming)
+		fi->interval = ov50c40->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct ov50c40_mode *ov50c40_find_mode(struct ov50c40 *ov50c40, int fps)
+{
+	const struct ov50c40_mode *mode = NULL;
+	const struct ov50c40_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ov50c40->cfg_num; i++) {
+		mode = &ov50c40->support_modes[i];
+		if (mode->width == ov50c40->cur_mode->width &&
+		    mode->height == ov50c40->cur_mode->height &&
+		    mode->hdr_mode == ov50c40->cur_mode->hdr_mode &&
+		    mode->bus_fmt == ov50c40->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int ov50c40_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov50c40 *ov50c40 = to_ov50c40(sd);
+	const struct ov50c40_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	u32 lane_num = ov50c40->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	int fps;
+
+	if (ov50c40->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = ov50c40_find_mode(ov50c40, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	ov50c40->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(ov50c40->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(ov50c40->vblank, vblank_def,
+				 OV50C40_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lane_num;
+
+	__v4l2_ctrl_s_ctrl_int64(ov50c40->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(ov50c40->link_freq,
+			   mode->mipi_freq_idx);
+	ov50c40->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -6292,8 +6370,9 @@ static long ov50c40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		h = ov50c40->cur_mode->height;
 		for (i = 0; i < ov50c40->cfg_num; i++) {
 			if (w == ov50c40->support_modes[i].width &&
-			h == ov50c40->support_modes[i].height &&
-			ov50c40->support_modes[i].hdr_mode == hdr_cfg->hdr_mode) {
+			    h == ov50c40->support_modes[i].height &&
+			    ov50c40->support_modes[i].hdr_mode == hdr_cfg->hdr_mode &&
+			    ov50c40->support_modes[i].bus_fmt == ov50c40->cur_mode->bus_fmt) {
 				ov50c40->cur_mode = &ov50c40->support_modes[i];
 				break;
 			}
@@ -6310,6 +6389,7 @@ static long ov50c40_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(ov50c40->vblank, h,
 				OV50C40_VTS_MAX - ov50c40->cur_mode->height,
 				1, h);
+			ov50c40->cur_fps = ov50c40->cur_mode->max_fps;
 			dev_info(&ov50c40->client->dev,
 				"sensor mode: %d\n",
 				ov50c40->cur_mode->hdr_mode);
@@ -6772,6 +6852,7 @@ static const struct v4l2_subdev_core_ops ov50c40_core_ops = {
 static const struct v4l2_subdev_video_ops ov50c40_video_ops = {
 	.s_stream = ov50c40_s_stream,
 	.g_frame_interval = ov50c40_g_frame_interval,
+	.s_frame_interval = ov50c40_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov50c40_pad_ops = {
@@ -6791,6 +6872,14 @@ static const struct v4l2_subdev_ops ov50c40_subdev_ops = {
 	.video	= &ov50c40_video_ops,
 	.pad	= &ov50c40_pad_ops,
 };
+
+static void ov50c40_modify_fps_info(struct ov50c40 *ov50c40)
+{
+	const struct ov50c40_mode *mode = ov50c40->cur_mode;
+
+	ov50c40->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      ov50c40->cur_vts;
+}
 
 static int ov50c40_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -6861,6 +6950,8 @@ static int ov50c40_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov50c40_write_reg(ov50c40->client, OV50C40_REG_VTS,
 					OV50C40_REG_VALUE_16BIT,
 					vts);
+		ov50c40->cur_vts = ctrl->val + ov50c40->cur_mode->height;
+		ov50c40_modify_fps_info(ov50c40);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

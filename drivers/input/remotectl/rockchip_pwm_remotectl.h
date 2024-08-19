@@ -6,6 +6,7 @@
 
 #define MAX_NUM_KEYS			60
 #define PWM_PWR_KEY_CAPURURE_MAX	10
+#define PWM_PWR_KEY_CAPURURE_MAX_V4	16
 
 /* PWM0 registers  */
 #define PWM_REG_CNTR			0x00  /* Counter Register */
@@ -93,52 +94,109 @@ enum pwm_div {
 	PWM_DIV128	= (0x7 << 12),
 };
 
+/*
+ * regs for pwm v4
+ */
+#define	PWM_REG_VERSION_V4			0x0
+#define	PWM_REG_ENABLE_V4			0x4
+#define	PWM_REG_CLK_CTRL_V4			0x8
+#define	PWM_REG_CTRL_V4				0xC
+#define	PWM_REG_HPR_V4				0x2C
+#define	PWM_REG_LPR_V4				0x30
+#define	PWM_REG_INTSTS_V4			0x70
+#define	PWM_REG_INT_EN_V4			0x74
+#define	PWM_REG_MATCH_ARBITER_V4		0x100
+#define	PWM_REG_MATCH_CTRL_V4			0x104
+#define	PWM_REG_MATCH_LPRE_V4			0x108
+#define	PWM_REG_MATCH_HPRE_V4			0x10C
+#define	PWM_REG_MATCH_LD_V4			0x110
+#define	PWM_REG_MATCH_HD_ZERO_V4		0x114
+#define	PWM_REG_MATCH_HD_ONE_V4			0x118
+#define	PWM_REG_CAPTURE_VALUE0_V4		0x11C
+#define	PWM_REG_CAPTURE_VALUE_V4		0x15C
+
+
+#define HIWORD_UPDATE(v, l, h)	(((v) << (l)) | (GENMASK(h, l) << 16))
+
+/* VERSION_ID */
+#define	CHANNLE_INDEX_SHIFT		4
+#define	CHANNLE_INDEX_MASK		(0xf << CHANNLE_INDEX_SHIFT)
+
+/* PWM_CTRL */
+#define	PWM_MODE(v)			HIWORD_UPDATE(v, 0, 1)
+#define	CAPTURE_MODE			2
+#define	CLK_SCALE(v)			HIWORD_UPDATE(v, 4, 12)
+
+/* INTSTS */
+#define	CAP_LPR_INTSTS_SHIFT		0
+#define	CAP_HPR_INTSTS_SHIFT		1
+#define	PWR_INTSTS_SHIFT		5
+#define	CAP_LPR_INT			BIT(CAP_LPR_INTSTS_SHIFT)
+#define	CAP_HPR_INT			BIT(CAP_HPR_INTSTS_SHIFT)
+#define	PWR_INT				BIT(PWR_INTSTS_SHIFT)
+
+/* INT_EN */
+#define	CAP_LPR_INT_EN(v)		HIWORD_UPDATE(v, 0, 0)
+#define	CAP_HPR_INT_EN(v)		HIWORD_UPDATE(v, 1, 1)
+#define	PWR_INT_EN(v)			HIWORD_UPDATE(v, 5, 5)
+
+/* INT_MASK */
+#define	CAP_LPR_INT_MASK(v)		HIWORD_UPDATE(v, 0, 0)
+#define	CAP_HPR_INT_MASK(v)		HIWORD_UPDATE(v, 1, 1)
+#define	PWR_INT_MASK(v)			HIWORD_UPDATE(v, 5, 5)
+
+/* PWRMATCH_ARBITER */
+#define	PWRMATCH_GRANT_SHIFT		0
+#define	PWRMATCH_READ_LOCK_SHIFT	16
+#define	PWRKEY_EN(v)			HIWORD_UPDATE(v, 0, 0)
+#define	PWM_CLK_EN(v)			HIWORD_UPDATE(v, 0, 0)
+#define	PWM_EN(v)			HIWORD_UPDATE(v, 1, 1)
+
+
 /*  NEC Protocol */
-#define RK_PWM_TIME_PRE_MIN		4000
-#define RK_PWM_TIME_PRE_MAX		5000
+#define	RK_PWM_TIME_PRE_MIN		4000
+#define	RK_PWM_TIME_PRE_MAX		5000
 
-#define RK_PWM_TIME_PRE_MIN_LOW		8000
-#define RK_PWM_TIME_PRE_MAX_LOW		10000
+#define	RK_PWM_TIME_PRE_MIN_LOW		8000
+#define	RK_PWM_TIME_PRE_MAX_LOW		10000
 
-#define RK_PWM_TIME_BIT0_MIN		390
-#define RK_PWM_TIME_BIT0_MAX		730
+#define	RK_PWM_TIME_BIT0_MIN		390
+#define	RK_PWM_TIME_BIT0_MAX		730
 
-#define RK_PWM_TIME_BIT1_MIN		1300
-#define RK_PWM_TIME_BIT1_MAX		2000
+#define	RK_PWM_TIME_BIT1_MIN		1300
+#define	RK_PWM_TIME_BIT1_MAX		2000
 
-#define RK_PWM_TIME_BIT_MIN_LOW		390
-#define RK_PWM_TIME_BIT_MAX_LOW		730
+#define	RK_PWM_TIME_BIT_MIN_LOW		390
+#define	RK_PWM_TIME_BIT_MAX_LOW		730
 
-#define RK_PWM_TIME_RPT_MIN		2000
-#define RK_PWM_TIME_RPT_MAX		2500
+#define	RK_PWM_TIME_RPT_MIN		2000
+#define	RK_PWM_TIME_RPT_MAX		2500
 
-#define RK_PWM_TIME_SEQ1_MIN		95000
-#define RK_PWM_TIME_SEQ1_MAX		98000
+#define	RK_PWM_TIME_SEQ1_MIN		95000
+#define	RK_PWM_TIME_SEQ1_MAX		98000
 
-#define RK_PWM_TIME_SEQ2_MIN		30000
-#define RK_PWM_TIME_SEQ2_MAX		55000
-
-
-#define PWM_REG_INTSTS(n)		((3 - (n)) * 0x10 + 0x10)
-#define PWM_REG_INT_EN(n)		((3 - (n)) * 0x10 + 0x14)
-#define RK_PWM_VERSION_ID(n)		((3 - (n)) * 0x10 + 0x2c)
-#define PWM_REG_PWRMATCH_CTRL(n)	((3 - (n)) * 0x10 + 0x50)
-#define PWM_REG_PWRMATCH_LPRE(n)	((3 - (n)) * 0x10 + 0x54)
-#define PWM_REG_PWRMATCH_HPRE(n)	((3 - (n)) * 0x10 + 0x58)
-#define PWM_REG_PWRMATCH_LD(n)		((3 - (n)) * 0x10 + 0x5C)
-#define PWM_REG_PWRMATCH_HD_ZERO(n)	((3 - (n)) * 0x10 + 0x60)
-#define PWM_REG_PWRMATCH_HD_ONE(n)	((3 - (n)) * 0x10 + 0x64)
-#define PWM_PWRMATCH_VALUE(n)		((3 - (n)) * 0x10 + 0x68)
-#define PWM_PWRCAPTURE_VALUE(n)		((3 - (n)) * 0x10 + 0x9c)
-
-#define PWM_CH_INT(n)			BIT(n)
-#define PWM_CH_POL(n)			BIT(n+8)
-
-#define PWM_CH_INT_ENABLE(n)		BIT(n)
-#define PWM_PWR_INT_ENABLE		BIT(7)
-#define CH3_PWRKEY_ENABLE		BIT(3)
+#define	RK_PWM_TIME_SEQ2_MIN		30000
+#define	RK_PWM_TIME_SEQ2_MAX		55000
 
 
+#define	PWM_REG_INTSTS(n)		((3 - (n)) * 0x10 + 0x10)
+#define	PWM_REG_INT_EN(n)		((3 - (n)) * 0x10 + 0x14)
+#define	RK_PWM_VERSION_ID(n)		((3 - (n)) * 0x10 + 0x2c)
+#define	PWM_REG_PWRMATCH_CTRL(n)	((3 - (n)) * 0x10 + 0x50)
+#define	PWM_REG_PWRMATCH_LPRE(n)	((3 - (n)) * 0x10 + 0x54)
+#define	PWM_REG_PWRMATCH_HPRE(n)	((3 - (n)) * 0x10 + 0x58)
+#define	PWM_REG_PWRMATCH_LD(n)		((3 - (n)) * 0x10 + 0x5C)
+#define	PWM_REG_PWRMATCH_HD_ZERO(n)	((3 - (n)) * 0x10 + 0x60)
+#define	PWM_REG_PWRMATCH_HD_ONE(n)	((3 - (n)) * 0x10 + 0x64)
+#define	PWM_PWRMATCH_VALUE(n)		((3 - (n)) * 0x10 + 0x68)
+#define	PWM_PWRCAPTURE_VALUE(n)		((3 - (n)) * 0x10 + 0x9c)
+
+#define	PWM_CH_INT(n)			BIT(n)
+#define	PWM_CH_POL(n)			BIT(n+8)
+
+#define	PWM_CH_INT_ENABLE(n)		BIT(n)
+#define	PWM_PWR_INT_ENABLE		BIT(7)
+#define	CH3_PWRKEY_ENABLE		BIT(3)
 
 
 typedef enum _RMC_STATE {
@@ -149,6 +207,10 @@ typedef enum _RMC_STATE {
 	RMC_SEQUENCE,
 } eRMC_STATE;
 
+enum {
+	IR_SUSPEND_MODE = 0,
+	IR_WORK_MODE
+};
 
 struct RKxx_remotectl_platform_data {
 	int nbuttons;

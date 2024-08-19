@@ -159,6 +159,7 @@ struct sc2336 {
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct v4l2_fract	cur_fps;
 };
 
 #define to_sc2336(sd) container_of(sd, struct sc2336, subdev)
@@ -346,6 +347,10 @@ static const struct sc2336_mode supported_modes[] = {
 		.link_freq_idx = 0,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+};
+
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -569,6 +574,7 @@ static int sc2336_set_fmt(struct v4l2_subdev *sd,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(sc2336->link_freq,
 				   dst_link_freq);
+		sc2336->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&sc2336->mutex);
@@ -611,11 +617,9 @@ static int sc2336_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc2336 *sc2336 = to_sc2336(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc2336->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -661,7 +665,80 @@ static int sc2336_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc2336 *sc2336 = to_sc2336(sd);
 	const struct sc2336_mode *mode = sc2336->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (sc2336->streaming)
+		fi->interval = sc2336->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct sc2336_mode *sc2336_find_mode(struct sc2336 *sc2336, int fps)
+{
+	const struct sc2336_mode *mode = NULL;
+	const struct sc2336_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc2336->cur_mode->width &&
+		    mode->height == sc2336->cur_mode->height &&
+		    mode->hdr_mode == sc2336->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc2336->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc2336_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc2336 *sc2336 = to_sc2336(sd);
+	const struct sc2336_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	u64 pixel_rate = 0;
+	int fps;
+
+	if (sc2336->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc2336_find_mode(sc2336, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc2336->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc2336->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc2336->vblank, vblank_def,
+				 SC2336_VTS_MAX - mode->height,
+				 1, vblank_def);
+	pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] /
+		     SC2336_BITS_PER_SAMPLE * 2 * SC2336_LANES;
+	__v4l2_ctrl_s_ctrl_int64(sc2336->pixel_rate,
+				 pixel_rate);
+	__v4l2_ctrl_s_ctrl(sc2336->link_freq,
+			   mode->link_freq_idx);
+	sc2336->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -722,7 +799,8 @@ static long sc2336_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == sc2336->cur_mode->bus_fmt) {
 				sc2336->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -738,6 +816,7 @@ static long sc2336_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc2336->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(sc2336->vblank, h,
 						 SC2336_VTS_MAX - sc2336->cur_mode->height, 1, h);
+			sc2336->cur_fps = sc2336->cur_mode->max_fps;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1130,6 +1209,7 @@ static const struct v4l2_subdev_core_ops sc2336_core_ops = {
 static const struct v4l2_subdev_video_ops sc2336_video_ops = {
 	.s_stream = sc2336_s_stream,
 	.g_frame_interval = sc2336_g_frame_interval,
+	.s_frame_interval = sc2336_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc2336_pad_ops = {
@@ -1146,6 +1226,14 @@ static const struct v4l2_subdev_ops sc2336_subdev_ops = {
 	.video	= &sc2336_video_ops,
 	.pad	= &sc2336_pad_ops,
 };
+
+static void sc2336_modify_fps_info(struct sc2336 *sc2336)
+{
+	const struct sc2336_mode *mode = sc2336->cur_mode;
+
+	sc2336->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      sc2336->cur_vts;
+}
 
 static int sc2336_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1209,6 +1297,7 @@ static int sc2336_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc2336->cur_mode->height)
 					 & 0xff);
 		sc2336->cur_vts = ctrl->val + sc2336->cur_mode->height;
+		sc2336_modify_fps_info(sc2336);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc2336_enable_test_pattern(sc2336, ctrl->val);

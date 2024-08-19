@@ -819,7 +819,8 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &rgb->encoder;
-	struct drm_connector *connector;
+	struct drm_connector *connector = NULL;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	int ret;
 
 	if (rgb->np_mcu_panel) {
@@ -871,8 +872,6 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 	drm_encoder_helper_add(encoder, &rockchip_rgb_encoder_helper_funcs);
 
 	if (rgb->panel) {
-		struct rockchip_drm_private *private = drm_dev->dev_private;
-
 		connector = &rgb->connector;
 		connector->interlace_allowed = true;
 		ret = drm_connector_init(drm_dev, connector,
@@ -894,12 +893,9 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 				      "failed to attach encoder: %d\n", ret);
 			goto err_free_connector;
 		}
-		rgb->sub_dev.connector = &rgb->connector;
-		rgb->sub_dev.of_node = rgb->dev->of_node;
-		rgb->sub_dev.loader_protect = rockchip_rgb_encoder_loader_protect;
-		drm_object_attach_property(&connector->base, private->connector_id_prop, 0);
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	} else {
+		struct list_head *connector_list;
+
 		rgb->bridge->encoder = encoder;
 		ret = drm_bridge_attach(encoder, rgb->bridge, NULL, 0);
 		if (ret) {
@@ -907,6 +903,19 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 				      "failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
+		connector_list = &rgb->bridge->dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head)
+			if (drm_connector_has_possible_encoder(connector, &rgb->encoder))
+				break;
+	}
+
+	if (connector) {
+		rgb->sub_dev.connector = connector;
+		rgb->sub_dev.of_node = rgb->dev->of_node;
+		rgb->sub_dev.loader_protect = rockchip_rgb_encoder_loader_protect;
+		drm_object_attach_property(&connector->base, private->connector_id_prop, rgb->id);
+		rockchip_drm_register_sub_dev(&rgb->sub_dev);
 	}
 
 	return 0;

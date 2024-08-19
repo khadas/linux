@@ -153,6 +153,7 @@ struct gc3003 {
 	bool			has_init_exp;
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
+	struct v4l2_fract	cur_fps;
 };
 
 #define to_gc3003(sd) container_of(sd, struct gc3003, subdev)
@@ -779,6 +780,10 @@ static const struct gc3003_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SRGGB10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	GC3003_LINK_FREQ_LINEAR,
 };
@@ -934,6 +939,7 @@ static int gc3003_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(gc3003->link_freq,
 				   gc3003->cur_link_freq);
 		gc3003->cur_vts = mode->vts_def;
+		gc3003->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc3003->mutex);
@@ -971,11 +977,9 @@ static int gc3003_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct gc3003 *gc3003 = to_gc3003(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = gc3003->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1055,7 +1059,73 @@ static int gc3003_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc3003 *gc3003 = to_gc3003(sd);
 	const struct gc3003_mode *mode = gc3003->cur_mode;
 
-	fi->interval = mode->max_fps;
+	if (gc3003->streaming)
+		fi->interval = gc3003->cur_fps;
+	else
+		fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static const struct gc3003_mode *gc3003_find_mode(struct gc3003 *gc3003, int fps)
+{
+	const struct gc3003_mode *mode = NULL;
+	const struct gc3003_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == gc3003->cur_mode->width &&
+		    mode->height == gc3003->cur_mode->height &&
+		    mode->hdr_mode == gc3003->cur_mode->hdr_mode &&
+		    mode->bus_fmt == gc3003->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int gc3003_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct gc3003 *gc3003 = to_gc3003(sd);
+	const struct gc3003_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (gc3003->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = gc3003_find_mode(gc3003, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	gc3003->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(gc3003->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(gc3003->vblank, vblank_def,
+				 GC3003_VTS_MAX - mode->height,
+				 1, vblank_def);
+	gc3003->cur_fps = mode->max_fps;
 
 	return 0;
 }
@@ -1124,7 +1194,8 @@ static long gc3003_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < gc3003->cfg_num; i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == gc3003->cur_mode->bus_fmt) {
 				gc3003->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1147,11 +1218,12 @@ static long gc3003_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			gc3003->cur_link_freq = 0;
 			gc3003->cur_pixel_rate = GC3003_PIXEL_RATE_LINEAR;
 
-		__v4l2_ctrl_s_ctrl_int64(gc3003->pixel_rate,
-					 gc3003->cur_pixel_rate);
-		__v4l2_ctrl_s_ctrl(gc3003->link_freq,
-				   gc3003->cur_link_freq);
-		gc3003->cur_vts = gc3003->cur_mode->vts_def;
+			__v4l2_ctrl_s_ctrl_int64(gc3003->pixel_rate,
+						 gc3003->cur_pixel_rate);
+			__v4l2_ctrl_s_ctrl(gc3003->link_freq,
+					   gc3003->cur_link_freq);
+			gc3003->cur_vts = gc3003->cur_mode->vts_def;
+			gc3003->cur_fps = gc3003->cur_mode->max_fps;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1629,6 +1701,7 @@ static const struct v4l2_subdev_core_ops gc3003_core_ops = {
 static const struct v4l2_subdev_video_ops gc3003_video_ops = {
 	.s_stream = gc3003_s_stream,
 	.g_frame_interval = gc3003_g_frame_interval,
+	.s_frame_interval = gc3003_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops gc3003_pad_ops = {
@@ -1646,6 +1719,14 @@ static const struct v4l2_subdev_ops gc3003_subdev_ops = {
 	.video	= &gc3003_video_ops,
 	.pad	= &gc3003_pad_ops,
 };
+
+static void gc3003_modify_fps_info(struct gc3003 *gc3003)
+{
+	const struct gc3003_mode *mode = gc3003->cur_mode;
+
+	gc3003->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc3003->cur_vts;
+}
 
 static int gc3003_set_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1693,6 +1774,7 @@ static int gc3003_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= gc3003_write_reg(gc3003->client, GC3003_REG_VTS_L,
 					GC3003_REG_VALUE_08BIT,
 					gc3003->cur_vts & 0xff);
+		gc3003_modify_fps_info(gc3003);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = gc3003_enable_test_pattern(gc3003, ctrl->val);

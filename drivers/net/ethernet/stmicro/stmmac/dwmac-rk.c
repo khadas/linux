@@ -2841,6 +2841,8 @@ static int rk_gmac_remove(struct platform_device *pdev)
 
 	rk_gmac_powerdown(bsp_priv);
 	dwmac_rk_remove_loopback_sysfs(&pdev->dev);
+	if (bsp_priv->phy_reset)
+		reset_control_put(bsp_priv->phy_reset);
 
 	return ret;
 }

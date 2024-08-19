@@ -1143,17 +1143,6 @@ config MFD_RK618
 	help
 	  if you say yes here you get support for the RK618 from Rockchip.
 
-config MFD_RK628
-	tristate "Rockchip RK628 MFD Driver"
-	depends on I2C
-	depends on OF
-	select MFD_CORE
-	select REGMAP_I2C
-	select REGMAP_IRQ
-	select PINCTRL_RK628
-	help
-	  if you say yes here you get support for the RK628 from Rockchip.
-
 config MFD_RK630
 	tristate "RK630 CORE module support"
 	select MFD_CORE

@@ -282,7 +282,7 @@ static const struct i2c_device_id gsensor_mpu6500_id[] = {
 
 static struct i2c_driver gsensor_mpu6500_driver = {
 	.probe = gsensor_mpu6500_probe,
-	.remove = gsensor_mpu6500_remove,
+	.remove = (void *)gsensor_mpu6500_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_mpu6500_id,
 	.driver = {

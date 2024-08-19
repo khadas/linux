@@ -620,6 +620,11 @@ static const struct sc223a_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+};
+
 static const __maybe_unused s64 link_freq_menu_items[] = {
 	SC223A_LINK_FREQ_405
 };
@@ -878,11 +883,9 @@ static int sc223a_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc223a *sc223a = to_sc223a(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc223a->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -933,6 +936,68 @@ static int sc223a_g_frame_interval(struct v4l2_subdev *sd,
 	else
 		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct sc223a_mode *sc223a_find_mode(struct sc223a *sc223a, int fps)
+{
+	const struct sc223a_mode *mode = NULL;
+	const struct sc223a_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc223a->cur_mode->width &&
+		    mode->height == sc223a->cur_mode->height &&
+		    mode->hdr_mode == sc223a->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc223a->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc223a_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc223a *sc223a = to_sc223a(sd);
+	const struct sc223a_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (sc223a->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc223a_find_mode(sc223a, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc223a->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc223a->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc223a->vblank, vblank_def,
+				 SC223A_VTS_MAX - mode->height,
+				 1, vblank_def);
+	sc223a->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1003,7 +1068,8 @@ static long sc223a_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
 			    mode == supported_modes[i].mode_id &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == sc223a->cur_mode->bus_fmt) {
 				sc223a->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1417,6 +1483,7 @@ static const struct v4l2_subdev_core_ops sc223a_core_ops = {
 static const struct v4l2_subdev_video_ops sc223a_video_ops = {
 	.s_stream = sc223a_s_stream,
 	.g_frame_interval = sc223a_g_frame_interval,
+	.s_frame_interval = sc223a_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc223a_pad_ops = {

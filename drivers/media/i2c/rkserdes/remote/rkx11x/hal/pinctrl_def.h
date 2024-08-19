@@ -1,0 +1,121 @@
+/* SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause */
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#ifndef __RKX11X_PINCTRL_DEF_H__
+#define __RKX11X_PINCTRL_DEF_H__
+
+/* rkx11x pin control */
+#define RKX11X_SER_GPIO_BANK0	(0)
+#define RKX11X_SER_GPIO_BANK1	(1)
+
+/*
+ * Elements values convention: ffff f000 0000 00ss dddd dddd eepp xxxx
+ * - ffff f : Flag MUX/PUL/PEN/DRV/SMT
+ * - ss : Schmitt value
+ * - dddd dddd : Drive Level value
+ * - ee : Pull Enable value
+ * - pp : Pull Mode value
+ * - xxxx : IOMUX Function value
+ */
+#define RKX11X_FLAG_MUX		(1 << 31)
+#define RKX11X_FLAG_PUL		(1 << 30)
+#define RKX11X_FLAG_PEN		(1 << 29)
+#define RKX11X_FLAG_DRV		(1 << 28)
+#define RKX11X_FLAG_SMT		(1 << 27)
+#define RKX11X_SHIFT_MUX	(0)
+#define RKX11X_SHIFT_PUL	(4)
+#define RKX11X_SHIFT_PEN	(6)
+#define RKX11X_SHIFT_DRV	(8)
+#define RKX11X_SHIFT_SMT	(16)
+#define RKX11X_MASK_MUX		(0xFU << RKX11X_SHIFT_MUX)
+#define RKX11X_MASK_PUL		(0x3U << RKX11X_SHIFT_PUL)
+#define RKX11X_MASK_PEN		(0x3U << RKX11X_SHIFT_PEN)
+#define RKX11X_MASK_DRV		(0xFFU << RKX11X_SHIFT_DRV)
+#define RKX11X_MASK_SMT		(0x3U << RKX11X_SHIFT_SMT)
+
+#define RKX11X_PIN_CONFIG_MUX_FUNC0		(0x0 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC1		(0x1 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC2		(0x2 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC3		(0x3 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC4		(0x4 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC5		(0x5 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC6		(0x6 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_FUNC7		(0x7 << RKX11X_SHIFT_MUX | RKX11X_FLAG_MUX)
+#define RKX11X_PIN_CONFIG_MUX_DEFAULT		RKX11X_PIN_CONFIG_MUX_FUNC0
+
+#define RKX11X_PIN_CONFIG_PUL_NORMAL		(0x0 << RKX11X_SHIFT_PUL | RKX11X_FLAG_PUL)
+#define RKX11X_PIN_CONFIG_PUL_UP		(0x1 << RKX11X_SHIFT_PUL | RKX11X_FLAG_PUL)
+#define RKX11X_PIN_CONFIG_PUL_DOWN		(0x2 << RKX11X_SHIFT_PUL | RKX11X_FLAG_PUL)
+#define RKX11X_PIN_CONFIG_PUL_KEEP		(0x3 << RKX11X_SHIFT_PUL | RKX11X_FLAG_PUL)
+#define RKX11X_PIN_CONFIG_PUL_DEFAULT		RKX11X_PIN_CONFIG_PUL_NORMAL
+
+#define RKX11X_PIN_CONFIG_PEN_DISABLE		(0x0 << RKX11X_SHIFT_PEN | RKX11X_FLAG_PEN)
+#define RKX11X_PIN_CONFIG_PEN_ENABLE		(0x1 << RKX11X_SHIFT_PEN | RKX11X_FLAG_PEN)
+#define RKX11X_PIN_CONFIG_PEN_DEFAULT		RKX11X_PIN_CONFIG_PEN_DISABLE
+
+#define RKX11X_PIN_CONFIG_DRV_LEVEL0		(0x0 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL1		(0x1 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL2		(0x2 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL3		(0x3 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL4		(0x4 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL5		(0x5 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL6		(0x6 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL7		(0x7 << RKX11X_SHIFT_DRV | RKX11X_FLAG_DRV)
+#define RKX11X_PIN_CONFIG_DRV_LEVEL_DEFAULT	RKX11X_PIN_CONFIG_DRV_LEVEL2
+
+#define RKX11X_PIN_CONFIG_SMT_DISABLE		(0x0 << RKX11X_SHIFT_SMT | RKX11X_FLAG_SMT)
+#define RKX11X_PIN_CONFIG_SMT_ENABLE		(0x1 << RKX11X_SHIFT_SMT | RKX11X_FLAG_SMT)
+#define RKX11X_PIN_CONFIG_SMT_DEFAULT		RKX11X_PIN_CONFIG_SMT_DISABLE
+
+#define RKX11X_PIN_CONFIG_MAX			0xFFFFFFFFU
+
+#define RKX11X_GPIO_PIN_A0			0x00000001U  /*!< Pin 0 selected    */
+#define RKX11X_GPIO_PIN_A1			0x00000002U  /*!< Pin 1 selected    */
+#define RKX11X_GPIO_PIN_A2			0x00000004U  /*!< Pin 2 selected    */
+#define RKX11X_GPIO_PIN_A3			0x00000008U  /*!< Pin 3 selected    */
+#define RKX11X_GPIO_PIN_A4			0x00000010U  /*!< Pin 4 selected    */
+#define RKX11X_GPIO_PIN_A5			0x00000020U  /*!< Pin 5 selected    */
+#define RKX11X_GPIO_PIN_A6			0x00000040U  /*!< Pin 6 selected    */
+#define RKX11X_GPIO_PIN_A7			0x00000080U  /*!< Pin 7 selected    */
+#define RKX11X_GPIO_PIN_B0			0x00000100U  /*!< Pin 8 selected    */
+#define RKX11X_GPIO_PIN_B1			0x00000200U  /*!< Pin 9 selected    */
+#define RKX11X_GPIO_PIN_B2			0x00000400U  /*!< Pin 10 selected   */
+#define RKX11X_GPIO_PIN_B3			0x00000800U  /*!< Pin 11 selected   */
+#define RKX11X_GPIO_PIN_B4			0x00001000U  /*!< Pin 12 selected   */
+#define RKX11X_GPIO_PIN_B5			0x00002000U  /*!< Pin 13 selected   */
+#define RKX11X_GPIO_PIN_B6			0x00004000U  /*!< Pin 14 selected   */
+#define RKX11X_GPIO_PIN_B7			0x00008000U  /*!< Pin 15 selected   */
+#define RKX11X_GPIO_PIN_C0			0x00010000U  /*!< Pin 16 selected   */
+#define RKX11X_GPIO_PIN_C1			0x00020000U  /*!< Pin 17 selected   */
+#define RKX11X_GPIO_PIN_C2			0x00040000U  /*!< Pin 18 selected   */
+#define RKX11X_GPIO_PIN_C3			0x00080000U  /*!< Pin 19 selected   */
+#define RKX11X_GPIO_PIN_C4			0x00100000U  /*!< Pin 20 selected   */
+#define RKX11X_GPIO_PIN_C5			0x00200000U  /*!< Pin 21 selected   */
+#define RKX11X_GPIO_PIN_C6			0x00400000U  /*!< Pin 22 selected   */
+#define RKX11X_GPIO_PIN_C7			0x00800000U  /*!< Pin 23 selected   */
+#define RKX11X_GPIO_PIN_D0			0x01000000U  /*!< Pin 24 selected   */
+#define RKX11X_GPIO_PIN_D1			0x02000000U  /*!< Pin 25 selected   */
+#define RKX11X_GPIO_PIN_D2			0x04000000U  /*!< Pin 26 selected   */
+#define RKX11X_GPIO_PIN_D3			0x08000000U  /*!< Pin 27 selected   */
+#define RKX11X_GPIO_PIN_D4			0x10000000U  /*!< Pin 28 selected   */
+#define RKX11X_GPIO_PIN_D5			0x20000000U  /*!< Pin 29 selected   */
+#define RKX11X_GPIO_PIN_D6			0x40000000U  /*!< Pin 30 selected   */
+#define RKX11X_GPIO_PIN_D7			0x80000000U  /*!< Pin 31 selected   */
+#define RKX11X_GPIO_PIN_ALL			0xFFFFFFFFU  /*!< All pins selected */
+
+/* passthrough function */
+#define RKX11X_PASSTHROUGH_GPI_GPO_0		(0)
+#define RKX11X_PASSTHROUGH_GPI_GPO_1		(1)
+#define RKX11X_PASSTHROUGH_GPI_GPO_2		(2)
+#define RKX11X_PASSTHROUGH_GPI_GPO_3		(3)
+#define RKX11X_PASSTHROUGH_GPI_GPO_4		(4)
+#define RKX11X_PASSTHROUGH_GPI_GPO_5		(5)
+#define RKX11X_PASSTHROUGH_GPI_GPO_6		(6)
+#define RKX11X_PASSTHROUGH_IRQ			(7)
+#define RKX11X_PASSTHROUGH_UART_0		(8)
+#define RKX11X_PASSTHROUGH_UART_1		(9)
+#define RKX11X_PASSTHROUGH_SPI			(10)
+
+#endif /* __RKX11X_PINCTRL_DEF_H__ */

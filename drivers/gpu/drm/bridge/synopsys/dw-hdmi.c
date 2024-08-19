@@ -284,8 +284,9 @@ struct dw_hdmi {
 	bool sink_has_audio;
 	bool hpd_state;
 	bool support_hdmi;
-	bool force_logo;
-	int force_output;
+	bool force_logo;		/* force uboot hdmi output specific resolution */
+	bool force_kernel_output;	/* force kernel hdmi output specific resolution */
+	int force_output;		/* force hdmi/dvi output mode */
 
 	struct delayed_work work;
 	struct workqueue_struct *workqueue;
@@ -429,10 +430,12 @@ static void repo_hpd_event(struct work_struct *p_work)
 		if (change) {
 			if (hdmi->plat_data->set_ddc_io)
 				hdmi->plat_data->set_ddc_io(data, hdmi->hpd_state);
+#if IS_REACHABLE(CONFIG_DRM_DW_HDMI_CEC)
 			if (hdmi->cec_adap->devnode.registered)
 				cec_queue_pin_hpd_event(hdmi->cec_adap,
 							hdmi->hpd_state,
 							ktime_get());
+#endif
 		}
 		drm_bridge_hpd_notify(&hdmi->bridge, status);
 	}
@@ -1663,6 +1666,9 @@ static bool dw_hdmi_support_scdc(struct dw_hdmi *hdmi,
 	if (hdmi->version < 0x200a)
 		return false;
 
+	if (hdmi->force_kernel_output)
+		return true;
+
 	/* Disable if no DDC bus */
 	if (!hdmi->ddc)
 		return false;
@@ -1977,17 +1983,14 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 			    const struct drm_display_info *display,
 			    const struct drm_display_mode *mode)
 {
-	int i, ret;
+	int ret;
 
-	/* HDMI Phy spec says to do the phy initialization sequence twice */
-	for (i = 0; i < 2; i++) {
-		dw_hdmi_phy_sel_data_en_pol(hdmi, 1);
-		dw_hdmi_phy_sel_interface_control(hdmi, 0);
+	dw_hdmi_phy_sel_data_en_pol(hdmi, 1);
+	dw_hdmi_phy_sel_interface_control(hdmi, 0);
 
-		ret = hdmi_phy_configure(hdmi, display);
-		if (ret)
-			return ret;
-	}
+	ret = hdmi_phy_configure(hdmi, display);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -2944,7 +2947,7 @@ static void dw_hdmi_update_power(struct dw_hdmi *hdmi)
 	}
 
 	if (force == DRM_FORCE_OFF) {
-		if (hdmi->initialized) {
+		if (hdmi->initialized && !hdmi->force_kernel_output) {
 			hdmi->initialized = false;
 			hdmi->disabled = true;
 			hdmi->logo_plug_out = true;
@@ -2988,6 +2991,9 @@ static enum drm_connector_status dw_hdmi_detect(struct dw_hdmi *hdmi)
 		dw_hdmi_update_phy_mask(hdmi);
 		mutex_unlock(&hdmi->mutex);
 	}
+
+	if (hdmi->force_kernel_output)
+		return connector_status_connected;
 
 	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 	mutex_lock(&hdmi->mutex);
@@ -3082,6 +3088,21 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_info *info = &connector->display_info;
 	void *data = hdmi->plat_data->phy_data;
 	int i,  ret = 0;
+
+	if (hdmi->force_kernel_output) {
+		mode = hdmi->plat_data->get_force_timing(data);
+		hdmi->support_hdmi = true;
+		hdmi->sink_is_hdmi = true;
+		hdmi->sink_has_audio = true;
+		mode = drm_mode_duplicate(connector->dev, mode);
+		drm_mode_debug_printmodeline(mode);
+		drm_mode_probed_add(connector, mode);
+		info->edid_hdmi_dc_modes = 0;
+		info->hdmi.y420_dc_modes = 0;
+		info->color_formats = 0;
+
+		return 1;
+	}
 
 	memset(metedata, 0, sizeof(*metedata));
 	edid = dw_hdmi_get_edid(hdmi, connector);
@@ -3284,7 +3305,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &val);
 
 		/* if plug out before hdmi bind, reset hdmi */
-		if (vmode->mtmdsclock >= 340000000 && !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40))
+		if (vmode->mtmdsclock >= 340000000 && !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40)
+		    && !hdmi->force_kernel_output)
 			hdmi->logo_plug_out = true;
 	}
 
@@ -3953,6 +3975,9 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	enum drm_mode_status mode_status = MODE_OK;
 
+	if (hdmi->force_kernel_output)
+		return MODE_OK;
+
 	if (hdmi->next_bridge)
 		return MODE_OK;
 
@@ -4106,7 +4131,7 @@ void dw_hdmi_setup_rx_sense(struct dw_hdmi *hdmi, bool hpd, bool rx_sense)
 {
 	mutex_lock(&hdmi->mutex);
 
-	if (!hdmi->force && !hdmi->force_logo) {
+	if (!hdmi->force && !hdmi->force_logo && !hdmi->force_kernel_output) {
 		/*
 		 * If the RX sense status indicates we're disconnected,
 		 * clear the software rxsense status.
@@ -4671,6 +4696,12 @@ static int get_force_logo_property(struct dw_hdmi *hdmi)
 	}
 	of_node_put(route);
 
+	if (!of_device_is_available(route_hdmi)) {
+		dev_dbg(hdmi->dev, "route-hdmi is disabled\n");
+		of_node_put(route_hdmi);
+		return 0;
+	}
+
 	hdmi->force_logo =
 		of_property_read_bool(route_hdmi, "force-output");
 
@@ -4851,6 +4882,9 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	ret = get_force_logo_property(hdmi);
 	if (ret)
 		goto err_iahb;
+
+	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
+		hdmi->force_kernel_output = true;
 
 	hdmi->logo_plug_out = false;
 	hdmi->initialized = false;

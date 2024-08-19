@@ -970,12 +970,11 @@ static int spi_nor_write_16bit_cr_and_check(struct spi_nor *nor, u8 cr)
 		return ret;
 
 	sr_cr[1] = cr;
+	sr_written = sr_cr[0];
 
 	ret = spi_nor_write_sr(nor, sr_cr, 2);
 	if (ret)
 		return ret;
-
-	sr_written = sr_cr[0];
 
 	ret = spi_nor_read_sr(nor, sr_cr);
 	if (ret)

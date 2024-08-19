@@ -111,7 +111,7 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 		ISP3X_RAWHIST_BIG1_BASE, ISP3X_RAWHIST_BIG2_BASE, ISP3X_RAWHIST_BIG3_BASE,
 		ISP3X_RAWAF_CTRL, ISP3X_RAWAWB_CTRL,
 	};
-	u32 i, *flag, *reg, size;
+	u32 i, j, *flag, *reg, size;
 
 	switch (dev->isp_ver) {
 	case ISP_V20:
@@ -138,7 +138,7 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 	for (i = 0; i < size; i++) {
 		flag = dev->sw_base_addr + reg[i] + RKISP_ISP_SW_REG_SIZE;
 		*flag = SW_REG_CACHE;
-		if (dev->hw_dev->unite) {
+		for (j = 1; j < ISP_UNITE_MAX && dev->hw_dev->unite; j++) {
 			flag += RKISP_ISP_SW_MAX_SIZE / 4;
 			*flag = SW_REG_CACHE;
 		}
@@ -441,6 +441,9 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		}, {
 			.base = MI_GAIN_WR_BASE,
 			.shd = MI_GAIN_WR_BASE_SHD,
+		}, {
+			.base = MI_WR_CTRL,
+			.shd = MI_WR_CTRL_SHD,
 		}
 	};
 
@@ -495,7 +498,34 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 			reg = reg_buf + backup[j].base;
 			reg1 = reg_buf + backup[j].shd;
 			backup[j].val = *reg;
-			writel(*reg1, base + backup[j].base);
+			if (backup[j].base == MI_WR_CTRL) {
+				val = *reg1 & 0xf;
+				val |= (*reg & ~0xf);
+			} else {
+				val = *reg1;
+			}
+			writel(val, base + backup[j].base);
+		}
+		if (dev->isp_ver == ISP_V32) {
+			reg = reg_buf + ISP32_MI_WR_CTRL2_SHD;
+			reg1 = reg_buf + ISP3X_MI_BP_WR_CTRL;
+			if (!!(*reg & ISP32_BP_EN_IN_SHD) != !!(*reg1 & ISP3X_BP_ENABLE)) {
+				val = !!(*reg & ISP32_BP_EN_IN_SHD);
+				val |= (*reg1 & ~ISP3X_BP_ENABLE);
+				writel(val, base + ISP3X_MI_BP_WR_CTRL);
+			}
+			reg1 = reg_buf + ISP32_MI_MPDS_WR_CTRL;
+			if (!!(*reg & ISP32_MPDS_EN_IN_SHD) != !!(*reg1 & ISP32_DS_ENABLE)) {
+				val = !!(*reg & ISP32_MPDS_EN_IN_SHD);
+				val |= (*reg1 & ~ISP32_DS_ENABLE);
+				writel(val, base + ISP32_MI_MPDS_WR_CTRL);
+			}
+			reg1 = reg_buf + ISP32_MI_BPDS_WR_CTRL;
+			if (!!(*reg & ISP32_BPDS_EN_IN_SHD) != !!(*reg1 & ISP32_DS_ENABLE)) {
+				val = !!(*reg & ISP32_BPDS_EN_IN_SHD);
+				val |= (*reg1 & ~ISP32_DS_ENABLE);
+				writel(val, base + ISP32_MI_BPDS_WR_CTRL);
+			}
 		}
 
 		/* update module */
@@ -522,6 +552,14 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		/* config base_reg */
 		for (j = 0; j < ARRAY_SIZE(backup); j++)
 			writel(backup[j].val, base + backup[j].base);
+		if (dev->isp_ver == ISP_V32) {
+			reg = reg_buf + ISP3X_MI_BP_WR_CTRL;
+			writel(*reg, base + ISP3X_MI_BP_WR_CTRL);
+			reg = reg_buf + ISP32_MI_MPDS_WR_CTRL;
+			writel(*reg, base + ISP32_MI_MPDS_WR_CTRL);
+			reg = reg_buf + ISP32_MI_BPDS_WR_CTRL;
+			writel(*reg, base + ISP32_MI_BPDS_WR_CTRL);
+		}
 		/* base_reg = shd_reg, write is base but read is shd */
 		val = rkisp_read_reg_cache(isp, ISP_MPFBC_HEAD_PTR);
 		writel(val, base + ISP_MPFBC_HEAD_PTR);
@@ -1273,8 +1311,10 @@ void rkisp_hw_enum_isp_size(struct rkisp_hw_dev *hw_dev)
 			hw_dev->is_single = false;
 		w = isp->isp_sdev.in_crop.width;
 		h = isp->isp_sdev.in_crop.height;
-		if (hw_dev->unite)
+		if (isp->unite_div > ISP_UNITE_DIV1)
 			w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		if (isp->unite_div == ISP_UNITE_DIV4)
+			h = h / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		hw_dev->isp_size[i].w = w;
 		hw_dev->isp_size[i].h = h;
 		hw_dev->isp_size[i].size = w * h;
@@ -1301,7 +1341,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	void __iomem *base = hw_dev->base_addr;
 	struct rkisp_device *isp;
 	int mult = hw_dev->unite ? 2 : 1;
-	int ret, i;
+	int ret, i, j;
 	void *buf;
 
 	ret = pinctrl_pm_select_default_state(dev);
@@ -1324,7 +1364,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 			buf = isp->sw_base_addr;
 			memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
 			memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
-			if (hw_dev->unite) {
+			for (j = 1; j < ISP_UNITE_MAX && hw_dev->unite; j++) {
 				buf += RKISP_ISP_SW_MAX_SIZE;
 				base = hw_dev->base_next_addr;
 				memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);

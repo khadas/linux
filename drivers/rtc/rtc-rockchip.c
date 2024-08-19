@@ -86,6 +86,7 @@
 
 #define RTC_VREF_INIT			0x40
 
+#define CLK_32K_ENABLE			BIT(5)
 #define D2A_POR_REG_SEL1		BIT(4)
 #define D2A_POR_REG_SEL0		BIT(1)
 
@@ -124,6 +125,7 @@ struct rockchip_rtc {
 	unsigned int flag;
 	unsigned int mode;
 	struct delayed_work trim_work;
+	bool suspend_bypass;
 };
 
 static unsigned int rockchip_rtc_write(struct regmap *map,
@@ -590,6 +592,9 @@ static int rockchip_rtc_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rockchip_rtc *rtc = dev_get_drvdata(&pdev->dev);
 
+	if (rtc->suspend_bypass)
+		return 0;
+
 	if (device_may_wakeup(dev))
 		enable_irq_wake(rtc->irq);
 
@@ -618,6 +623,9 @@ static int rockchip_rtc_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rockchip_rtc *rtc = dev_get_drvdata(&pdev->dev);
 	int ret;
+
+	if (rtc->suspend_bypass)
+		return 0;
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(rtc->irq);
@@ -717,8 +725,10 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 				     "Failed to add clk disable action.");
 
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_VPTAT_TRIM,
-				       D2A_POR_REG_SEL1,
-				       D2A_POR_REG_SEL1);
+				       D2A_POR_REG_SEL1 |
+				       CLK_32K_ENABLE,
+				       D2A_POR_REG_SEL1 |
+				       CLK_32K_ENABLE);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to write RTC_VPTAT_TRIM\n");
@@ -787,6 +797,10 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to request alarm IRQ %d\n",
 				     rtc->irq);
+
+	/* If rtc 32k used as time for deep sleep, the rtc suspend func bypass do nothing. */
+	rtc->suspend_bypass = device_property_read_bool(&pdev->dev,
+							"rockchip,rtc-suspend-bypass");
 
 	INIT_DELAYED_WORK(&rtc->trim_work, rockchip_rtc_compensation_delay_work);
 	rockchip_rtc_trim_start(rtc);

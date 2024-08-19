@@ -938,7 +938,7 @@ static const struct i2c_device_id gsensor_stk8baxx_id[] = {
 
 static struct i2c_driver gsensor_stk8baxx_driver = {
 	.probe = gsensor_stk8baxx_probe,
-	.remove = gsensor_stk8baxx_remove,
+	.remove = (void *)gsensor_stk8baxx_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_stk8baxx_id,
 	.driver = {

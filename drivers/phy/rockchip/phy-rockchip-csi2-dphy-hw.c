@@ -88,6 +88,8 @@
 #define CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT	4
 #define CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT	6
 
+#define CSI2PHY_CLK_CONTINUE_MODE_MASK GENMASK(5, 4)
+
 enum csi2_dphy_index {
 	DPHY0 = 0x0,
 	DPHY1,
@@ -719,7 +721,7 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
-	u32 val = 0, pre_val;
+	u32 val = 0, pre_val = 0;
 	u8 lvds_width = 0;
 
 	if (!sensor_sd)
@@ -729,46 +731,6 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 		return -ENODEV;
 
 	mutex_lock(&hw->mutex);
-
-	/* set data lane num and enable clock lane */
-	/*
-	 * for rk356x: dphy0 is used just for full mode,
-	 *             dphy1 is used just for split mode,uses lane0_1,
-	 *             dphy2 is used just for split mode,uses lane2_3
-	 */
-	read_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, &pre_val);
-	if (hw->lane_mode == LANE_MODE_FULL) {
-		val |= (GENMASK(sensor->lanes - 1, 0) <<
-			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
-			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
-		if (sensor->mbus.flags & V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
-			write_csi2_dphy_reg(hw, CSI2PHY_CLK_CONTINUE_MODE, 0x30);
-	} else {
-		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
-			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
-
-		if (dphy->phy_index % 3 == DPHY1) {
-			val |= (GENMASK(sensor->lanes - 1, 0) <<
-				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
-			if (sensor->mbus.flags &
-			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
-				write_csi2_dphy_reg(
-					hw, CSI2PHY_CLK_CONTINUE_MODE, 0x30);
-		}
-
-		if (dphy->phy_index % 3 == DPHY2) {
-			val |= (GENMASK(sensor->lanes - 1, 0) <<
-				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
-			if (hw->drv_data->chip_id >= CHIP_ID_RK3588)
-				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
-			if (sensor->mbus.flags &
-			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
-				write_csi2_dphy_reg(
-					hw, CSI2PHY_CLK1_CONTINUE_MODE, 0x30);
-		}
-	}
-	val |= pre_val;
-	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);
 
 	/* Reset dphy digital part */
 	if (hw->lane_mode == LANE_MODE_FULL) {
@@ -781,6 +743,49 @@ static int csi2_dphy_hw_stream_on(struct csi2_dphy *dphy,
 			write_csi2_dphy_reg(hw, CSI2PHY_DUAL_CLK_EN, 0x5f);
 		}
 	}
+
+	/* set data lane num and enable clock lane */
+	/*
+	 * for rk356x: dphy0 is used just for full mode,
+	 *             dphy1 is used just for split mode,uses lane0_1,
+	 *             dphy2 is used just for split mode,uses lane2_3
+	 */
+	val = 0;
+	read_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, &pre_val);
+	if (hw->lane_mode == LANE_MODE_FULL) {
+		val |= (GENMASK(sensor->lanes - 1, 0) <<
+			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
+			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+		if (sensor->mbus.flags & V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+			write_csi2_dphy_reg_mask(hw, CSI2PHY_CLK_CONTINUE_MODE,
+						0x30, CSI2PHY_CLK_CONTINUE_MODE_MASK);
+	} else {
+		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
+			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+
+		if (dphy->phy_index % 3 == DPHY1) {
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
+			if (sensor->mbus.flags &
+			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+				write_csi2_dphy_reg_mask(hw, CSI2PHY_CLK_CONTINUE_MODE,
+							0x30, CSI2PHY_CLK_CONTINUE_MODE_MASK);
+		}
+
+		if (dphy->phy_index % 3 == DPHY2) {
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
+			if (hw->drv_data->chip_id >= CHIP_ID_RK3588)
+				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
+			if (sensor->mbus.flags &
+			    V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)
+				write_csi2_dphy_reg_mask(hw, CSI2PHY_CLK1_CONTINUE_MODE,
+							0x30, CSI2PHY_CLK_CONTINUE_MODE_MASK);
+		}
+	}
+	val |= pre_val;
+	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, val);
+
 	csi2_dphy_config_dual_mode(dphy, sensor);
 
 	/* not into receive mode/wait stopstate */

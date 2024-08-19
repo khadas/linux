@@ -226,8 +226,8 @@
 		reset-gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_LOW>;
 		plugin-det-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
 		status = "okay";
-		rk628,hdmi-in;
-		rk628-dsi {
+		rk628-hdmi-in;
+		rk628-dsi-out {
 			//rockchip,dual-channel;
 			dsi,eotp;
 			dsi,video-mode;

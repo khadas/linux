@@ -41,10 +41,20 @@ static void rk628_combtxphy_dsi_power_on(struct rk628 *rk628)
 	if (ret < 0)
 		dev_err(rk628->dev, "phy is not lock\n");
 
-
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON9,
-			      SW_DSI_FSET_EN_MASK | SW_DSI_RCAL_EN_MASK,
-			      SW_DSI_FSET_EN | SW_DSI_RCAL_EN);
+			SW_DSI_FSET_EN_MASK | SW_DSI_RCAL_EN_MASK,
+			SW_DSI_FSET_EN | SW_DSI_RCAL_EN(1));
+
+	if (rk628->version == RK628F_VERSION) {
+		rk628_i2c_update_bits(rk628, COMBTXPHY_CON6,
+				      SW_PLL_CTL_CON0_MASK,
+				      SW_PLL_CTL_CON0(1));
+		rk628_i2c_update_bits(rk628, COMBTXPHY_CON9,
+				      SW_DSI_LPTX_SR_TRIM_MASK |
+				      SW_DSI_HSTX_AMP_TRIM_MASK,
+				      SW_DSI_LPTX_SR_TRIM(0) |
+				      SW_DSI_HSTX_AMP_TRIM(4));
+	}
 
 	usleep_range(200, 400);
 }
@@ -57,11 +67,15 @@ static void rk628_combtxphy_lvds_power_on(struct rk628 *rk628)
 	int ret;
 
 	/* Adjust terminal resistance 133 ohm, bypass 0.95v ldo for driver. */
+	if (rk628->version == RK628F_VERSION)
+		val = TX_COM_VOLT_ADJ(3);
+	else
+		val = TX_COM_VOLT_ADJ(0);
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON7,
 			      SW_TX_RTERM_MASK | SW_TX_MODE_MASK |
 			      BYPASS_095V_LDO_MASK | TX_COM_VOLT_ADJ_MASK,
 			      SW_TX_RTERM(6) | SW_TX_MODE(3) |
-			      BYPASS_095V_LDO(1) | TX_COM_VOLT_ADJ(0));
+			      BYPASS_095V_LDO(1) | val);
 
 	rk628_i2c_write(rk628, COMBTXPHY_CON10, TX7_CKDRV_EN | TX2_CKDRV_EN);
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON0,
@@ -263,7 +277,9 @@ void rk628_combtxphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		else
 			combtxphy->rate_div = 1;
 		fvco = bus_width * combtxphy->rate_div;
-		ref_clk = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP) / 1000; /* khz */
+		ref_clk = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
+		ref_clk = DIV_ROUND_CLOSEST_ULL(ref_clk, 1000); /* khz */
+
 		if (combtxphy->division_mode)
 			ref_clk /= 2;
 		/*
@@ -284,7 +300,7 @@ void rk628_combtxphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		/*
 		 * ref_clk / ref_div * 8 * fb_div = FVCO
 		 */
-		pre_clk = (unsigned long long)fvco / 8 * combtxphy->ref_div * 1024;
+		pre_clk = (unsigned long long)fvco * combtxphy->ref_div / 8 * 1024;
 		do_div(pre_clk, ref_clk);
 		fb_div = pre_clk / 1024;
 

@@ -268,6 +268,7 @@ struct dw_dp_hdcp {
 	u8 hdcp_content_type;
 	bool hdcp2_encrypted;
 	bool hdcp_encrypted;
+	bool is_repeater;
 };
 
 struct drm_dp_link_caps {
@@ -335,7 +336,15 @@ struct dw_dp_sdp {
 	unsigned long flags;
 };
 
+enum gpio_hpd_state {
+	GPIO_STATE_IDLE,
+	GPIO_STATE_PLUG,
+	GPIO_STATE_UNPLUG,
+};
+
 struct dw_dp_hotplug {
+	struct delayed_work state_work;
+	enum gpio_hpd_state state;
 	bool long_hpd;
 	bool status;
 };
@@ -363,6 +372,7 @@ struct dw_dp {
 	struct reset_control *rstc;
 	struct regmap *grf;
 	struct completion complete;
+	struct completion hdcp_complete;
 	int irq;
 	int hpd_irq;
 	int id;
@@ -660,6 +670,7 @@ static int _dw_dp_hdcp2_enable(struct dw_dp *dp)
 
 static bool dw_dp_hdcp_capable(struct dw_dp *dp)
 {
+	struct dw_dp_hdcp *hdcp = &dp->hdcp;
 	int ret;
 	u8 bcaps;
 
@@ -668,6 +679,7 @@ static bool dw_dp_hdcp_capable(struct dw_dp *dp)
 		dev_err(dp->dev, "get hdcp capable failed:%d\n", ret);
 		return false;
 	}
+	hdcp->is_repeater = (bcaps & DP_BCAPS_REPEATER_PRESENT) ? true : false;
 
 	return bcaps & DP_BCAPS_HDCP_CAPABLE;
 }
@@ -685,50 +697,14 @@ static int _dw_dp_hdcp_disable(struct dw_dp *dp)
 	return 0;
 }
 
-static int dw_dp_hdcp_auth_check(struct dw_dp *dp)
-{
-	u32 val;
-	int ret;
-
-	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HDCPAPIINTSTAT, val,
-				       FIELD_GET(HDCP_ENGAGED, val), 1000, 1000000);
-	if (ret) {
-		if (val & HDCP_FAILED) {
-			dev_err(dp->dev, " HDCP authentication process failed\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_FAILED);
-		}
-
-		if (val & AUXRESPNACK7TIMES) {
-			dev_err(dp->dev, "Aux received nack response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPNACK7TIMES);
-		}
-
-		if (val & AUXRESPTIMEOUT) {
-			dev_err(dp->dev, "Aux did not receive a response and timedout\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPTIMEOUT);
-		}
-
-		if (val & AUXRESPDEFER7TIMES) {
-			dev_err(dp->dev, "Aux received defer response continuously for 7 times\n");
-			regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, AUXRESPDEFER7TIMES);
-		}
-
-		dev_err(dp->dev, "HDCP authentication timeout\n");
-	} else {
-		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP_ENGAGED);
-		dp->hdcp.hdcp_encrypted = true;
-		dev_info(dp->dev, "HDCP authentication succeed\n");
-	}
-
-	return ret;
-}
-
 static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 {
+	unsigned long timeout;
 	int ret;
 	u8 rev;
 	struct dw_dp_hdcp *hdcp = &dp->hdcp;
 
+	timeout = msecs_to_jiffies(hdcp->is_repeater ? 5200 : 1000);
 	hdcp->status = HDCP_TX_1;
 
 	dw_dp_hdcp_rng_init(dp);
@@ -741,15 +717,21 @@ static int _dw_dp_hdcp_enable(struct dw_dp *dp)
 	if (ret < 0)
 		return ret;
 
-	if (rev >= DP_DPCD_REV_12)
+	if (rev > DP_DPCD_REV_12)
 		regmap_update_bits(dp->regmap, DPTX_HDCPCFG, DPCD12PLUS, DPCD12PLUS);
 
 	regmap_update_bits(dp->regmap, DPTX_HDCPCFG, ENABLE_HDCP | ENABLE_HDCP_13,
 			   ENABLE_HDCP | ENABLE_HDCP_13);
 
-	return dw_dp_hdcp_auth_check(dp);
+	ret = wait_for_completion_timeout(&dp->hdcp_complete, timeout);
+	if (!ret) {
+		dev_err(dp->dev, "HDCP authentication timeout\n");
+		return -ETIMEDOUT;
+	}
 
-	return ret;
+	hdcp->hdcp_encrypted = true;
+
+	return 0;
 }
 
 static int dw_dp_hdcp_enable(struct dw_dp *dp, u8 content_type)
@@ -912,11 +894,35 @@ static void dw_dp_handle_hdcp_event(struct dw_dp *dp)
 
 	regmap_read(dp->regmap, DPTX_HDCPAPIINTSTAT, &value);
 
-	if (value & HDCP22_GPIOINT) {
+	if (value & KSVACCESSINT)
+		dev_err(dp->dev, "Notify ksv access\n");
+
+	if (value & AUXRESPDEFER7TIMES)
+		dev_err_ratelimited(dp->dev,
+				    "Aux received defer response continuously for 7 times\n");
+
+	if (value & AUXRESPTIMEOUT)
+		dev_err(dp->dev, "Aux did not receive a response and timedout\n");
+
+	if (value & AUXRESPNACK7TIMES)
+		dev_err_ratelimited(dp->dev,
+				    "Aux received nack response continuously for 7 times\n");
+
+	if (value & KSVSHA1CALCDONEINT)
+		dev_info(dp->dev, "Notify SHA1 verification has been done\n");
+
+	if (value & HDCP22_GPIOINT)
 		dev_info(dp->dev, "A change in HDCP22 GPIO Output status\n");
-		regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, HDCP22_GPIOINT);
+
+	if (value & HDCP_FAILED)
+		dev_err(dp->dev, " HDCP authentication process failed\n");
+
+	if (value & HDCP_ENGAGED) {
+		complete(&dp->hdcp_complete);
+		dev_info(dp->dev, "HDCP authentication succeed\n");
 	}
 
+	regmap_write(dp->regmap, DPTX_HDCPAPIINTCLR, value);
 	mutex_unlock(&dp->irq_lock);
 }
 
@@ -932,6 +938,8 @@ static const struct drm_prop_enum_list color_format_enum_list[] = {
 	{ RK_IF_FORMAT_YCBCR444, "ycbcr444" },
 	{ RK_IF_FORMAT_YCBCR422, "ycbcr422" },
 	{ RK_IF_FORMAT_YCBCR420, "ycbcr420" },
+	{ RK_IF_FORMAT_YCBCR_HQ, "ycbcr_high_subsampling" },
+	{ RK_IF_FORMAT_YCBCR_LQ, "ycbcr_low_subsampling" },
 };
 
 static const struct dw_dp_output_format *dw_dp_get_output_format(u32 bus_format)
@@ -1359,7 +1367,7 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	}
 
 	if ((dp_new_state->color_format < RK_IF_FORMAT_RGB) ||
-	    (dp_new_state->color_format > RK_IF_FORMAT_YCBCR420)) {
+	    (dp_new_state->color_format > RK_IF_FORMAT_YCBCR_LQ)) {
 		dev_err(dp->dev, "set invalid color format:%d\n", dp_new_state->color_format);
 		return -EINVAL;
 	}
@@ -2464,28 +2472,56 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	return 0;
 }
 
+static void dw_dp_gpio_hpd_state_work(struct work_struct *work)
+{
+	struct dw_dp_hotplug *hotplug = container_of(to_delayed_work(work), struct dw_dp_hotplug,
+						     state_work);
+	struct dw_dp *dp = container_of(hotplug, struct dw_dp, hotplug);
+
+	mutex_lock(&dp->irq_lock);
+	if (hotplug->state == GPIO_STATE_UNPLUG) {
+		dev_dbg(dp->dev, "hpd state unplug to idle\n");
+		dp->hotplug.long_hpd = true;
+		dp->hotplug.status = false;
+		dp->hotplug.state = GPIO_STATE_IDLE;
+		schedule_work(&dp->hpd_work);
+	}
+	mutex_unlock(&dp->irq_lock);
+}
+
 static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 {
 	struct dw_dp *dp = arg;
 	bool hpd = dw_dp_detect(dp);
 
+	dev_dbg(dp->dev, "trigger gpio to %s\n", hpd ? "high" : "low");
 	mutex_lock(&dp->irq_lock);
-
-	dp->hotplug.long_hpd = true;
-
-	if (dp->hotplug.status && !hpd) {
-		usleep_range(2000, 2001);
-
-		hpd = dw_dp_detect(dp);
-		if (hpd)
+	if (dp->hotplug.state == GPIO_STATE_IDLE) {
+		if (hpd) {
+			dev_dbg(dp->dev, "hpd state idle to plug\n");
+			dp->hotplug.long_hpd = true;
+			dp->hotplug.status = hpd;
+			dp->hotplug.state = GPIO_STATE_PLUG;
+			schedule_work(&dp->hpd_work);
+		}
+	} else if (dp->hotplug.state == GPIO_STATE_PLUG) {
+		if (!hpd) {
+			dev_dbg(dp->dev, "hpd state plug to unplug\n");
+			dp->hotplug.state = GPIO_STATE_UNPLUG;
+			schedule_delayed_work(&dp->hotplug.state_work, msecs_to_jiffies(2));
+		}
+	} else if (dp->hotplug.state == GPIO_STATE_UNPLUG) {
+		if (hpd) {
+			dev_dbg(dp->dev, "hpd state unplug to plug\n");
+			cancel_delayed_work_sync(&dp->hotplug.state_work);
 			dp->hotplug.long_hpd = false;
+			dp->hotplug.status = hpd;
+			dp->hotplug.state = GPIO_STATE_PLUG;
+			schedule_work(&dp->hpd_work);
+		}
 	}
-
-	dp->hotplug.status = hpd;
-
 	mutex_unlock(&dp->irq_lock);
 
-	schedule_work(&dp->hpd_work);
 
 	return IRQ_HANDLED;
 }
@@ -2552,10 +2588,26 @@ static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted
 {
 	int min_hbp = 16;
 	int min_hsync = 9;
+	int align_hfp = 2;
+	int unalign_pixel;
+
+	/*
+	 * Here are some limits for the video timing output by dp port:
+	 * 1. the hfp should be 2 pixels align;
+	 * 2. the minimum hsync should be 9 pixel;
+	 * 3. the minimum hbp should be 16 pixel;
+	 */
 
 	if (dp->split_mode) {
 		min_hbp *= 2;
 		min_hsync *= 2;
+		align_hfp *= 2;
+	}
+
+	unalign_pixel = (adjusted_mode->hsync_start - adjusted_mode->hdisplay) % align_hfp;
+	if (unalign_pixel) {
+		adjusted_mode->hsync_start += align_hfp - unalign_pixel;
+		dev_warn(dp->dev, "hfp is not align, fixup to align hfp\n");
 	}
 
 	if (adjusted_mode->hsync_end - adjusted_mode->hsync_start < min_hsync) {
@@ -2853,6 +2905,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_property *prop;
 	struct drm_device *dev = bridge->dev;
+	struct rockchip_drm_private *private = dev->dev_private;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -2938,6 +2991,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.hdr_output_metadata_property,
 				   0);
+	drm_object_attach_property(&dp->connector.base, private->connector_id_prop, dp->id);
 
 	return 0;
 }
@@ -3117,14 +3171,14 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
-	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
-		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
-
 	ret = dw_dp_video_enable(dp);
 	if (ret < 0) {
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
 		return;
 	}
+
+	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		dw_dp_hdcp_enable(dp, conn_state->hdcp_content_type);
 
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
@@ -3249,6 +3303,21 @@ static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
 	return edid;
 }
 
+static void dw_dp_swap_fmts(u32 *fmt, int count)
+{
+	int i;
+	u32 temp_fmt;
+
+	if (!count)
+		return;
+
+	for (i = 0; i < count / 2; i++) {
+		temp_fmt = fmt[i];
+		fmt[i] = fmt[count - i - 1];
+		fmt[count - i - 1] = temp_fmt;
+	}
+}
+
 static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 					struct drm_bridge_state *bridge_state,
 					struct drm_crtc_state *crtc_state,
@@ -3301,6 +3370,10 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		    !link->vsc_sdp_extension_for_colorimetry_supported)
 			continue;
 
+		if (!drm_mode_is_420(di, &mode) &&
+		    fmt->color_format == DRM_COLOR_FORMAT_YCRCB420)
+			continue;
+
 		if (drm_mode_is_420_only(di, &mode) &&
 		    fmt->color_format != DRM_COLOR_FORMAT_YCRCB420)
 			continue;
@@ -3309,7 +3382,11 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			continue;
 
 		if (dp_state->bpc != 0) {
-			if ((fmt->bpc != dp_state->bpc) ||
+			if (fmt->bpc != dp_state->bpc)
+				continue;
+
+			if (dp_state->color_format != RK_IF_FORMAT_YCBCR_HQ &&
+			    dp_state->color_format != RK_IF_FORMAT_YCBCR_LQ &&
 			    (fmt->color_format != BIT(dp_state->color_format)))
 				continue;
 		}
@@ -3319,6 +3396,9 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 
 		output_fmts[j++] = fmt->bus_format;
 	}
+
+	if (dp_state->color_format == RK_IF_FORMAT_YCBCR_LQ)
+		dw_dp_swap_fmts(output_fmts, j);
 
 	*num_output_fmts = j;
 
@@ -3422,7 +3502,7 @@ static void dw_dp_handle_test_request(struct dw_dp *dp)
 
 	switch (request) {
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
-		dev_dbg(dp->dev, "PHY_PATTERN test requested\n");
+		dev_info(dp->dev, "PHY_PATTERN test requested\n");
 		response = dw_dp_autotest_phy_pattern(dp);
 		break;
 	default:
@@ -3475,13 +3555,13 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 
 	switch (data->phy_pattern) {
 	case DP_PHY_TEST_PATTERN_NONE:
-		dev_dbg(dp->dev, "Disable Phy Test Pattern\n");
+		dev_info(dp->dev, "Disable Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_NONE);
 		break;
 	case DP_PHY_TEST_PATTERN_D10_2:
-		dev_dbg(dp->dev, "Set D10.2 Phy Test Pattern\n");
+		dev_info(dp->dev, "Set D10.2 Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_1);
@@ -3489,17 +3569,17 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 	case DP_PHY_TEST_PATTERN_ERROR_COUNT:
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
-		dev_dbg(dp->dev, "Set Error Count Phy Test Pattern\n");
+		dev_info(dp->dev, "Set Error Count Phy Test Pattern\n");
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_SERM);
 		break;
 	case DP_PHY_TEST_PATTERN_PRBS7:
-		dev_dbg(dp->dev, "Set PRBS7 Phy Test Pattern\n");
+		dev_info(dp->dev, "Set PRBS7 Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_PBRS7);
 		break;
 	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
-		dev_dbg(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
+		dev_info(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 1));
 		regmap_write(dp->regmap, DPTX_CUSTOMPAT0, 0x3e0f83e0);
@@ -3508,13 +3588,13 @@ static void dw_dp_phy_pattern_update(struct dw_dp *dp)
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CUSTOM_80BIT);
 		break;
 	case DP_PHY_TEST_PATTERN_CP2520:
-		dev_dbg(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
+		dev_info(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_CP2520_1);
 		break;
 	case DP_PHY_TEST_PATTERN_SEL_MASK:
-		dev_dbg(dp->dev, "Set TPS4  Phy Test Pattern\n");
+		dev_info(dp->dev, "Set TPS4  Phy Test Pattern\n");
 		regmap_update_bits(dp->regmap, DPTX_CCTL, SCRAMBLE_DIS,
 				   FIELD_PREP(SCRAMBLE_DIS, 0));
 		dw_dp_phy_set_pattern(dp, DPTX_PHY_PATTERN_TPS_4);
@@ -3549,7 +3629,7 @@ static void dw_dp_process_phy_request(struct dw_dp *dp)
 	dw_dp_phy_pattern_update(dp);
 	drm_dp_set_phy_test_pattern(&dp->aux, data, link_status[DP_DPCD_REV]);
 
-	dev_dbg(dp->dev, "phy test rate:%d, lane count:%d, ssc:%d, vs:%d, pe: %d\n",
+	dev_info(dp->dev, "phy test rate:%d, lane count:%d, ssc:%d, vs:%d, pe: %d\n",
 		 data->link_rate, data->num_lanes, spread, dp->link.train.adjust.voltage_swing[0],
 		 dp->link.train.adjust.pre_emphasis[0]);
 }
@@ -4054,7 +4134,9 @@ static int dw_dp_probe(struct platform_device *pdev)
 
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
+	INIT_DELAYED_WORK(&dp->hotplug.state_work, dw_dp_gpio_hpd_state_work);
 	init_completion(&dp->complete);
+	init_completion(&dp->hdcp_complete);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -4199,6 +4281,7 @@ static int dw_dp_remove(struct platform_device *pdev)
 
 	component_del(dp->dev, &dw_dp_component_ops);
 	cancel_work_sync(&dp->hpd_work);
+	cancel_delayed_work_sync(&dp->hotplug.state_work);
 
 	return 0;
 }

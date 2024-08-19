@@ -16,6 +16,7 @@
  * V0.0X01.0X08
  *	1. add support wakeup & sleep for aov function
  *	2. using 60fps output default
+ * V0.0X01.0X09 add support hw standby mode in aov
  */
 
 #include <linux/clk.h>
@@ -40,7 +41,7 @@
 #include "cam-tb-setup.h"
 #include "cam-sleep-wakeup.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x09)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -50,7 +51,7 @@
 #define SC200AI_BITS_PER_SAMPLE		10
 #define SC200AI_LINK_FREQ_371		371250000// 742.5Mbps
 
-#define PIXEL_RATE_WITH_371M_10BIT		(SC200AI_LINK_FREQ_371 * 2 * \
+#define PIXEL_RATE_WITH_371M_10BIT	(SC200AI_LINK_FREQ_371 * 2 * \
 					SC200AI_LANES / SC200AI_BITS_PER_SAMPLE)
 
 #define SC200AI_XVCLK_FREQ		27000000
@@ -61,6 +62,10 @@
 #define SC200AI_REG_CTRL_MODE		0x0100
 #define SC200AI_MODE_SW_STANDBY		0x0
 #define SC200AI_MODE_STREAMING		BIT(0)
+
+#define SC200AI_REG_MIPI_CTRL		0x3019
+#define SC200AI_MIPI_CTRL_ON		0x0c
+#define SC200AI_MIPI_CTRL_OFF		0x0f
 
 #define SC200AI_REG_EXPOSURE_H		0x3e00
 #define SC200AI_REG_EXPOSURE_M		0x3e01
@@ -102,12 +107,12 @@
 
 #define SC200AI_FLIP_MIRROR_REG		0x3221
 
-#define SC200AI_FETCH_EXP_H(VAL)		(((VAL) >> 12) & 0xF)
-#define SC200AI_FETCH_EXP_M(VAL)		(((VAL) >> 4) & 0xFF)
-#define SC200AI_FETCH_EXP_L(VAL)		(((VAL) & 0xF) << 4)
+#define SC200AI_FETCH_EXP_H(VAL)	(((VAL) >> 12) & 0xF)
+#define SC200AI_FETCH_EXP_M(VAL)	(((VAL) >> 4) & 0xFF)
+#define SC200AI_FETCH_EXP_L(VAL)	(((VAL) & 0xF) << 4)
 
-#define SC200AI_FETCH_AGAIN_H(VAL)		(((VAL) >> 8) & 0x03)
-#define SC200AI_FETCH_AGAIN_L(VAL)		((VAL) & 0xFF)
+#define SC200AI_FETCH_AGAIN_H(VAL)	(((VAL) >> 8) & 0x03)
+#define SC200AI_FETCH_AGAIN_L(VAL)	((VAL) & 0xFF)
 
 #define SC200AI_FETCH_MIRROR(VAL, ENABLE)	(ENABLE ? VAL | 0x06 : VAL & 0xf9)
 #define SC200AI_FETCH_FLIP(VAL, ENABLE)		(ENABLE ? VAL | 0x60 : VAL & 0x9f)
@@ -179,10 +184,12 @@ struct sc200ai {
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
+	u32			standby_hw;
 	u32			cur_vts;
 	bool			has_init_exp;
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
+	bool			is_standby;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct cam_sw_info	*cam_sw_inf;
 };
@@ -662,6 +669,10 @@ static const struct sc200ai_mode supported_modes[] = {
 	},
 };
 
+static const u32 bus_code[] = {
+	MEDIA_BUS_FMT_SBGGR10_1X10,
+};
+
 static const s64 link_freq_menu_items[] = {
 	SC200AI_LINK_FREQ_371
 };
@@ -766,42 +777,43 @@ static int sc200ai_set_gain_reg(struct sc200ai *sc200ai, u32 gain, int mode)
 	else if (gain > SC200AI_GAIN_MAX * 16)
 		gain = SC200AI_GAIN_MAX * 16;
 
-	if (gain < 2 * 1024) {               // start again
+	if (gain < 2 * 1024) {		/* start again 1.0x --2.0x */
 		Dcg_gainx100 = 100;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x03;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 3456) {
+	} else if (gain < 3481) {	/* 2.0x ~ 3.4x  1024 * 3.4 = 3481*/
 		Dcg_gainx100 = 100;
 		Coarse_gain = 2;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x07;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 6908) {
+	} else if (gain < 6963) {	/* 3.4x ~ 6.8x  1024 * 6.8 = 6963*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 1;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x23;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 13817) {
+	} else if (gain < 13926) {	/* 6.8x ~ 13.6x  1024 * 13.6 = 13926*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 2;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x27;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 27635) {
+	} else if (gain < 27852) {	/* 13.6x ~ 27.2x  1024 * 27.2 = 27852*/
 		Dcg_gainx100 = 340;
 		Coarse_gain = 4;
 		DIG_gain = 1;
 		Coarse_gain_reg = 0x2f;
 		DIG_gain_reg = 0x0;
 		DIG_Fine_gain_reg = 0x80;
-	} else if (gain <= 55270) {           // end again
+	} else if (gain <= 55270) {	/* 27.2x ~ 53.975x  1024 * 53.975 = 27852*/
+		// End again
 		Dcg_gainx100 = 340;
 		Coarse_gain = 8;
 		DIG_gain = 1;
@@ -1077,11 +1089,9 @@ static int sc200ai_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct sc200ai *sc200ai = to_sc200ai(sd);
-
-	if (code->index != 0)
+	if (code->index >= ARRAY_SIZE(bus_code))
 		return -EINVAL;
-	code->code = sc200ai->cur_mode->bus_fmt;
+	code->code = bus_code[code->index];
 
 	return 0;
 }
@@ -1132,6 +1142,68 @@ static int sc200ai_g_frame_interval(struct v4l2_subdev *sd,
 	else
 		fi->interval = mode->max_fps;
 
+	return 0;
+}
+
+static const struct sc200ai_mode *sc200ai_find_mode(struct sc200ai *sc200ai, int fps)
+{
+	const struct sc200ai_mode *mode = NULL;
+	const struct sc200ai_mode *match = NULL;
+	int cur_fps = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		if (mode->width == sc200ai->cur_mode->width &&
+		    mode->height == sc200ai->cur_mode->height &&
+		    mode->hdr_mode == sc200ai->cur_mode->hdr_mode &&
+		    mode->bus_fmt == sc200ai->cur_mode->bus_fmt) {
+			cur_fps = DIV_ROUND_CLOSEST(mode->max_fps.denominator, mode->max_fps.numerator);
+			if (cur_fps == fps) {
+				match = mode;
+				break;
+			}
+		}
+	}
+	return match;
+}
+
+static int sc200ai_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sc200ai *sc200ai = to_sc200ai(sd);
+	const struct sc200ai_mode *mode = NULL;
+	struct v4l2_fract *fract = &fi->interval;
+	s64 h_blank, vblank_def;
+	int fps;
+
+	if (sc200ai->streaming)
+		return -EBUSY;
+
+	if (fi->pad != 0)
+		return -EINVAL;
+
+	if (fract->numerator == 0) {
+		v4l2_err(sd, "error param, check interval param\n");
+		return -EINVAL;
+	}
+	fps = DIV_ROUND_CLOSEST(fract->denominator, fract->numerator);
+	mode = sc200ai_find_mode(sc200ai, fps);
+	if (mode == NULL) {
+		v4l2_err(sd, "couldn't match fi\n");
+		return -EINVAL;
+	}
+
+	sc200ai->cur_mode = mode;
+
+	h_blank = mode->hts_def - mode->width;
+	__v4l2_ctrl_modify_range(sc200ai->hblank, h_blank,
+				 h_blank, 1, h_blank);
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(sc200ai->vblank, vblank_def,
+				 SC200AI_VTS_MAX - mode->height,
+				 1, vblank_def);
+	sc200ai->cur_fps = mode->max_fps;
 	return 0;
 }
 
@@ -1201,7 +1273,8 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 			if (w == supported_modes[i].width &&
 			    h == supported_modes[i].height &&
-			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+			    supported_modes[i].hdr_mode == hdr->hdr_mode &&
+			    supported_modes[i].bus_fmt == sc200ai->cur_mode->bus_fmt) {
 				sc200ai->cur_mode = &supported_modes[i];
 				break;
 			}
@@ -1231,15 +1304,47 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 		stream = *((u32 *)arg);
 
-		if (stream) {
-			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 1);
-			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
-				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_STREAMING);
-		} else {
-			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
-				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
-			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
+		if (sc200ai->standby_hw) { // hardware standby
+			if (stream) {
+				if (!IS_ERR(sc200ai->pwdn_gpio))
+					gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 1);
+				ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_ON);
+
+				ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MODE_STREAMING);
+
+				dev_info(&sc200ai->client->dev, "quickstream, streaming on: exit standby mode\n");
+				sc200ai->is_standby = false;
+			} else {
+				ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
+
+				ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_OFF);
+
+				if (!IS_ERR(sc200ai->pwdn_gpio))
+					gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
+
+				dev_info(&sc200ai->client->dev, "quickstream, streaming off: enter standby mode\n");
+				sc200ai->is_standby = true;
+			}
+		} else {	// software standby
+			if (stream) {
+				ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_ON);
+
+				ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MODE_STREAMING);
+			} else {
+				ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
+
+				ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+					SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_OFF);
+			}
 		}
+
 		break;
 	case RKMODULE_GET_CHANNEL_INFO:
 		ch_info = (struct rkmodule_channel_info *)arg;
@@ -1601,20 +1706,35 @@ static int __maybe_unused sc200ai_resume(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct sc200ai *sc200ai = to_sc200ai(sd);
 
-	cam_sw_prepare_wakeup(sc200ai->cam_sw_inf, dev);
+	if (sc200ai->standby_hw) {
+		dev_info(dev, "resume standby!");
+		if (sc200ai->is_standby)
+			sc200ai->is_standby = false;
 
-	usleep_range(4000, 5000);
-	cam_sw_write_array(sc200ai->cam_sw_inf);
+		if (!IS_ERR(sc200ai->pwdn_gpio))
+			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 1);
 
-	if (__v4l2_ctrl_handler_setup(&sc200ai->ctrl_handler))
-		dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+		if (__v4l2_ctrl_handler_setup(&sc200ai->ctrl_handler))
+			dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
 
-	if (sc200ai->has_init_exp && sc200ai->cur_mode != NO_HDR) {	// hdr mode
-		ret = sc200ai_ioctl(&sc200ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
-				    &sc200ai->cam_sw_inf->hdr_ae);
-		if (ret) {
-			dev_err(&sc200ai->client->dev, "set exp fail in hdr mode\n");
-			return ret;
+		if (!IS_ERR(sc200ai->pwdn_gpio))
+			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
+	} else {
+		cam_sw_prepare_wakeup(sc200ai->cam_sw_inf, dev);
+
+		usleep_range(4000, 5000);
+		cam_sw_write_array(sc200ai->cam_sw_inf);
+
+		if (__v4l2_ctrl_handler_setup(&sc200ai->ctrl_handler))
+			dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+
+		if (sc200ai->has_init_exp && sc200ai->cur_mode != NO_HDR) {	// hdr mode
+			ret = sc200ai_ioctl(&sc200ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
+					&sc200ai->cam_sw_inf->hdr_ae);
+			if (ret) {
+				dev_err(&sc200ai->client->dev, "set exp fail in hdr mode\n");
+				return ret;
+			}
 		}
 	}
 	return 0;
@@ -1626,9 +1746,14 @@ static int __maybe_unused sc200ai_suspend(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct sc200ai *sc200ai = to_sc200ai(sd);
 
+	if (sc200ai->standby_hw) {
+		dev_info(dev, "suspend standby!");
+		return 0;
+	}
+
 	cam_sw_write_array_cb_init(sc200ai->cam_sw_inf, client,
-				   (void *)sc200ai->cur_mode->reg_list,
-				   (sensor_write_array)sc200ai_write_array);
+		(void *)sc200ai->cur_mode->reg_list,
+		(sensor_write_array)sc200ai_write_array);
 	cam_sw_prepare_sleep(sc200ai->cam_sw_inf);
 
 	return 0;
@@ -1698,7 +1823,9 @@ static int sc200ai_enum_frame_interval(struct v4l2_subdev *sd,
 static const struct dev_pm_ops sc200ai_pm_ops = {
 	SET_RUNTIME_PM_OPS(sc200ai_runtime_suspend,
 			   sc200ai_runtime_resume, NULL)
+#ifdef CONFIG_VIDEO_CAM_SLEEP_WAKEUP
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(sc200ai_suspend, sc200ai_resume)
+#endif
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -1718,6 +1845,7 @@ static const struct v4l2_subdev_core_ops sc200ai_core_ops = {
 static const struct v4l2_subdev_video_ops sc200ai_video_ops = {
 	.s_stream = sc200ai_s_stream,
 	.g_frame_interval = sc200ai_g_frame_interval,
+	.s_frame_interval = sc200ai_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sc200ai_pad_ops = {
@@ -1767,6 +1895,11 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
+
+	if (sc200ai->standby_hw && sc200ai->is_standby) {
+		dev_dbg(&client->dev, "%s: is_standby = true, will return\n", __func__);
+		return 0;
+	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -1906,6 +2039,7 @@ static int sc200ai_initialize_controls(struct sc200ai *sc200ai)
 
 	sc200ai->subdev.ctrl_handler = handler;
 	sc200ai->has_init_exp = false;
+	sc200ai->is_standby = false;
 
 	return 0;
 
@@ -1934,7 +2068,7 @@ static int sc200ai_check_sensor_id(struct sc200ai *sc200ai,
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
+	dev_info(dev, "Detected SC200AI (%06x) sensor\n", CHIP_ID);
 
 	return 0;
 }
@@ -2023,6 +2157,9 @@ static int sc200ai_probe(struct i2c_client *client,
 				       &sc200ai->module_name);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
 				       &sc200ai->len_name);
+	/* Compatible with non-standby mode if this attribute is not configured in dts*/
+	of_property_read_u32(node, RKMODULE_CAMERA_STANDBY_HW,
+			     &sc200ai->standby_hw);
 	if (ret) {
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;

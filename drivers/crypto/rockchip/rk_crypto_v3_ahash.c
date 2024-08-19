@@ -42,6 +42,12 @@ static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_SM3]    = CRYPTO_SM3,
 };
 
+static inline bool is_check_hash_valid(struct rk_crypto_dev *dev)
+{
+	/* crypto < v4 need to check hash valid */
+	return CRYPTO_MAJOR_VER(CRYPTO_READ(dev, CRYPTO_CRYPTO_VERSION)) < CRYPTO_MAJOR_VER_4;
+}
+
 static void rk_hash_reset(struct rk_crypto_dev *rk_dev)
 {
 	int ret;
@@ -208,11 +214,6 @@ static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 		base->complete(base, err);
 }
 
-static inline void clear_hash_out_reg(struct rk_crypto_dev *rk_dev)
-{
-	rk_crypto_clear_regs(rk_dev, CRYPTO_HASH_DOUT_0, 16);
-}
-
 static int write_key_reg(struct rk_crypto_dev *rk_dev, const u8 *key,
 			  u32 key_len)
 {
@@ -231,8 +232,6 @@ static int rk_hw_hash_init(struct rk_crypto_dev *rk_dev, u32 algo, u32 type)
 		goto exit;
 
 	rk_hash_reset(rk_dev);
-
-	clear_hash_out_reg(rk_dev);
 
 	reg_ctrl = hash_algo2bc[algo] | CRYPTO_HW_PAD_ENABLE;
 
@@ -368,13 +367,15 @@ static int rk_ahash_get_result(struct rk_crypto_dev *rk_dev,
 
 	memset(ctx->priv, 0x00, sizeof(struct rk_hash_mid_data));
 
-	ret = read_poll_timeout_atomic(CRYPTO_READ, reg_ctrl,
-				       reg_ctrl & CRYPTO_HASH_IS_VALID,
-				       RK_POLL_PERIOD_US,
-				       RK_POLL_TIMEOUT_US, false,
-				       rk_dev, CRYPTO_HASH_VALID);
-	if (ret)
-		goto exit;
+	if (is_check_hash_valid(rk_dev)) {
+		ret = read_poll_timeout_atomic(CRYPTO_READ, reg_ctrl,
+					       reg_ctrl & CRYPTO_HASH_IS_VALID,
+					       RK_POLL_PERIOD_US,
+					       RK_POLL_TIMEOUT_US, false,
+					       rk_dev, CRYPTO_HASH_VALID);
+		if (ret)
+			goto exit;
+	}
 
 	rk_crypto_read_regs(rk_dev, CRYPTO_HASH_DOUT_0, data, data_len);
 

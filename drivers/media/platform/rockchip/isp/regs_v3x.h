@@ -1897,7 +1897,7 @@
 
 #define ISP3X_SW_CMSK_FORCE_UPD		BIT(31)
 
-#define ISP3X_SW_CMSK_ORDER_MODE	BIT(1)
+#define ISP3X_SW_CMSK_ORDER_MODE	BIT(6)
 
 #define ISP3X_SW_CMSK_YUV(x, y, z)	(((x) & 0xff) | ((y) & 0xff) << 8 | ((z) & 0xff) << 16)
 
@@ -2230,7 +2230,7 @@
 
 /* GAIN */
 #define ISP3X_GAIN_2DDR_EN		BIT(24)
-#define ISP3X_GAIN_2DDR_mode(a)		(((a) & 0x3) << 25)
+#define ISP3X_GAIN_2DDR_MODE(a)		(((a) & 0x3) << 25)
 
 /* DPCC */
 #define ISP3X_DPCC_WORKING		BIT(30)
