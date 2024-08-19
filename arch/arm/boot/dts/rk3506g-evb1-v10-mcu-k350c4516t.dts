@@ -216,11 +216,11 @@
 
 &vop {
 	mcu-timing {
-		mcu-pix-total = <5>;
+		mcu-pix-total = <6>;
 		mcu-cs-pst = <1>;
-		mcu-cs-pend = <4>;
+		mcu-cs-pend = <5>;
 		mcu-rw-pst = <2>;
-		mcu-rw-pend = <3>;
+		mcu-rw-pend = <4>;
 
 		mcu-hold-mode = <0>;
 	};
