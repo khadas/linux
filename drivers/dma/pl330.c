@@ -2999,19 +2999,17 @@ static struct dma_async_tx_descriptor *pl330_prep_interleaved_dma(
 	}
 
 	if (xt->dir == DMA_MEM_TO_DEV) {
-		desc->rqcfg.src_inc = 1;
-		desc->rqcfg.dst_inc = 0;
 		src = xt->src_start;
 		dst = pch->fifo_dma;
 		full_buffer_bytes = (size + src_icg) * numf;
 	} else {
-		desc->rqcfg.src_inc = 0;
-		desc->rqcfg.dst_inc = 1;
 		src = pch->fifo_dma;
 		dst = xt->dst_start;
 		full_buffer_bytes = (size + dst_icg) * numf;
 	}
 
+	desc->rqcfg.src_inc = xt->src_inc;
+	desc->rqcfg.dst_inc = xt->dst_inc;
 	desc->rqtype = xt->dir;
 	desc->rqcfg.brst_size = pch->burst_sz;
 	desc->rqcfg.brst_len = pch->burst_len;
