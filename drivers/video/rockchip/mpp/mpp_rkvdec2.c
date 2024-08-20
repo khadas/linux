@@ -1340,19 +1340,21 @@ static int rkvdec2_set_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
-static int rkvdec2_soft_reset(struct mpp_dev *mpp)
+static int rkvdec2_vdpu382_reset(struct mpp_dev *mpp)
 {
 	int ret = 0;
 
 	/*
-	 * for rk3528 and rk3562
-	 * use mmu reset instead of rkvdec soft reset
+	 * only for rk3528 and rk3562
+	 * use mmu reset as soft reset
 	 * rkvdec will reset together when rkvdec_mmu force reset
 	 */
 	ret = rockchip_iommu_force_reset(mpp->dev);
-	if (ret)
-		mpp_err("soft mmu reset fail, ret %d\n", ret);
 	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+	if (ret) {
+		mpp_err("soft mmu reset fail, ret %d\n", ret);
+		return rkvdec2_reset(mpp);
+	}
 
 	return ret;
 
@@ -1379,16 +1381,12 @@ static int rkvdec2_sip_reset(struct mpp_dev *mpp)
 int rkvdec2_reset(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	int ret = 0;
 
 	mpp_debug_enter();
 
-	/* safe reset first*/
-	ret = rkvdec2_soft_reset(mpp);
-
 	/* cru reset */
-	if (ret && dec->rst_a && dec->rst_h) {
-		mpp_err("soft reset timeout, use cru reset\n");
+	if (dec->rst_a && dec->rst_h) {
+		mpp_err("cru reset\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_niu_a);
 		mpp_safe_reset(dec->rst_niu_h);
@@ -1474,6 +1472,15 @@ static struct mpp_hw_ops rkvdec_rk3588_hw_ops = {
 	.reset = rkvdec2_sip_reset,
 };
 
+static struct mpp_hw_ops rkvdec_vdpu382_hw_ops = {
+	.init = rkvdec2_init,
+	.clk_on = rkvdec2_clk_on,
+	.clk_off = rkvdec2_clk_off,
+	.get_freq = rkvdec2_get_freq,
+	.set_freq = rkvdec2_set_freq,
+	.reset = rkvdec2_vdpu382_reset,
+};
+
 static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
 	.init = rkvdec2_rk3576_init,
 	.exit = rkvdec2_rk3576_exit,
@@ -1546,7 +1553,7 @@ static const struct mpp_dev_var rkvdec_vdpu382_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_vdpu382_hw_info,
 	.trans_info = rkvdec_v2_trans,
-	.hw_ops = &rkvdec_v2_hw_ops,
+	.hw_ops = &rkvdec_vdpu382_hw_ops,
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 
