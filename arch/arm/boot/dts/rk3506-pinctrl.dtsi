@@ -1322,6 +1322,15 @@
 		};
 	};
 
+	dsmc_slv {
+		/omit-if-no-ref/
+		dsmc_slv_csn0_pull_pins: dsmc-slv-csn0-pull-pins {
+			rockchip,pins =
+				/* dsmc_slv_csn0 */
+				<1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	vo_lcdc {
 		/omit-if-no-ref/
 		bt1120_pins: bt1120-pins {

@@ -1422,6 +1422,10 @@
 		clocks = <&cru ACLK_DSMC_SLV>,
 			 <&cru HCLK_DSMC_SLV>;
 		clock-names = "aclk_dsmc_slv", "hclk_dsmc_slv";
+		pinctrl-names = "default", "active";
+		pinctrl-0 = <&dsmc_slv_csn0_pull_pins
+			     &dsmc_slv_bus8_pins>;
+		pinctrl-1 = <&dsmc_slv_csn0_pins>;
 		status = "disabled";
 	};
 
