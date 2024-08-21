@@ -472,7 +472,9 @@
 	pinctrl-names = "init";
 	pinctrl-0 = <&max96712_dphy3_pwdn
 			&max96712_dphy3_errb
-			&max96712_dphy3_lock>;
+			&max96712_dphy3_lock
+			&adsp_reset_l
+			&adsp_bootroom_l>;
 
 
 	gmac0 {
@@ -492,6 +494,16 @@
 
 		max96712_dphy3_lock: max96712-dphy3-lock {
 			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none_smt>;
+		};
+	};
+
+	adsp {
+		adsp_bootroom_l: adsp-bootroom-l {
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
+		};
+
+		adsp_reset_l: adsp-reset-l {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_output_low_pull_down>;
 		};
 	};
 

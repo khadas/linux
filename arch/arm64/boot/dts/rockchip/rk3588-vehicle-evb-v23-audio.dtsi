@@ -11,6 +11,7 @@
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&adsp_reset_h>;
 		status = "okay";
 	};
 
@@ -117,4 +118,11 @@
 			<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	adsp {
+		adsp_reset_h: adsp-reset-h {
+			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_output_high_pull_up>;
+		};
+	};
+
 };
