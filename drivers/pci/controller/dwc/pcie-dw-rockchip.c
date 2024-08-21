@@ -1225,18 +1225,18 @@ static int rk_pcie_really_probe(void *p)
 	if (ret)
 		goto release_driver;
 
-	ret = rk_pcie_phy_init(rk_pcie);
-	if (ret) {
-		dev_err(dev, "phy init failed\n");
-		goto disable_vpcie3v3;
-	}
-
 	reset_control_deassert(rk_pcie->rsts);
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
 		dev_err(dev, "clock init failed\n");
-		goto disable_phy;
+		goto disable_vpcie3v3;
+	}
+
+	ret = rk_pcie_phy_init(rk_pcie);
+	if (ret) {
+		dev_err(dev, "phy init failed\n");
+		goto disable_clk;
 	}
 
 	/*
@@ -1250,7 +1250,7 @@ static int rk_pcie_really_probe(void *p)
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
 		dev_err(dev, "pcie irq init failed\n");
-		goto disable_clk;
+		goto disable_phy;
 	}
 
 	platform_set_drvdata(pdev, rk_pcie);
@@ -1360,11 +1360,11 @@ remove_rst_wq:
 remove_irq_domain:
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);
-disable_clk:
-	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_phy:
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
+disable_clk:
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_vpcie3v3:
 	rk_pcie_disable_power(rk_pcie);
 release_driver:
