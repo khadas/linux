@@ -159,6 +159,30 @@ static int um19axxisw_ecc_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 }
 
+/*
+ * ecc bits: 0xC0[4,5]
+ * 0b00, No bit errors were detected
+ * 0b01, Bit errors were detected and corrected.
+ * 0b10, Multiple bit errors were detected and not corrected.
+ * 0b11, Bits errors were detected and corrected, bit error count
+ *	reach the bit flip detection threshold
+ */
+static int um19a9xisw_ecc_get_status(struct spinand_device *spinand,
+				     u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+
+	switch (status & STATUS_ECC_MASK) {
+	case STATUS_ECC_NO_BITFLIPS:
+	case STATUS_ECC_HAS_BITFLIPS:
+		return 0;
+	case STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+	default:
+		return nanddev_get_ecc_requirements(nand)->strength;
+	}
+}
+
 static const struct spinand_info unim_zl_spinand_table[] = {
 	SPINAND_INFO("TX25G01",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xF1),
@@ -208,6 +232,24 @@ static const struct spinand_info unim_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19axxisw_ecc_ecc_get_status)),
+	SPINAND_INFO("UM19A9LISW",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x0D),
+		     NAND_MEMORG(1, 2048, 128, 64, 512, 10, 1, 1, 1),
+		     NAND_ECCREQ(4, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19a9xisw_ecc_get_status)),
+	SPINAND_INFO("UM19A9HISW",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x0C),
+		     NAND_MEMORG(1, 2048, 128, 64, 512, 10, 1, 1, 1),
+		     NAND_ECCREQ(4, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19a9xisw_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops unim_spinand_manuf_ops = {
