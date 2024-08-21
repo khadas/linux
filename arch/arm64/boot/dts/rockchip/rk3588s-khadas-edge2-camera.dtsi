@@ -24,7 +24,7 @@
 			mipi_in_dcphy2: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&os08a10b_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -63,7 +63,7 @@
 			mipi_in_dcphy3: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&os08a10f_out1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -185,7 +185,7 @@
 		port {
 			os08a10b_out0: endpoint {
 				remote-endpoint = <&mipi_in_dcphy2>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -254,7 +254,7 @@
 		port {
 			os08a10f_out1: endpoint {
 				remote-endpoint = <&mipi_in_dcphy3>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
