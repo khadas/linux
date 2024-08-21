@@ -3335,6 +3335,7 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
 	const struct rockchip_usb2phy_cfg *phy_cfg = rphy->phy_cfg;
 	struct rockchip_usb2phy_port *rport;
+	struct regmap *base = get_reg_base(rphy);
 	unsigned int index;
 	bool iddig;
 	int ret = 0;
@@ -3378,6 +3379,15 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 			mutex_lock(&rport->mutex);
 			iddig = property_enabled(rphy->grf,
 						 &rport->port_cfg->utmi_iddig);
+			/* Recovery iddig control regs if otg force to host mode */
+			if (iddig != rport->prev_iddig && rport->prev_iddig == 0 &&
+			    rport->port_id == USB2PHY_PORT_OTG &&
+			    rport->mode == USB_DR_MODE_HOST) {
+				iddig = rport->prev_iddig;
+				property_enable(base, &rport->port_cfg->iddig_output, false);
+				property_enable(base, &rport->port_cfg->iddig_en, true);
+			}
+
 			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
 							     true);
 			mutex_unlock(&rport->mutex);
