@@ -156,8 +156,6 @@ struct rk_pcie_of_data {
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
-static int rk_pcie_disable_power(struct rk_pcie *rk_pcie);
-static int rk_pcie_enable_power(struct rk_pcie *rk_pcie);
 
 static inline u32 rk_pcie_readl_apb(struct rk_pcie *rk_pcie, u32 reg)
 {
@@ -273,6 +271,36 @@ static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
 		dev_info(pci->dev, "fifo_status = 0x%x\n",
 			 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_STATUS));
 #endif
+}
+
+static int rk_pcie_enable_power(struct rk_pcie *rk_pcie)
+{
+	int ret = 0;
+	struct device *dev = rk_pcie->pci->dev;
+
+	if (IS_ERR(rk_pcie->vpcie3v3))
+		return ret;
+
+	ret = regulator_enable(rk_pcie->vpcie3v3);
+	if (ret)
+		dev_err(dev, "fail to enable vpcie3v3 regulator\n");
+
+	return ret;
+}
+
+static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
+{
+	int ret = 0;
+	struct device *dev = rk_pcie->pci->dev;
+
+	if (IS_ERR(rk_pcie->vpcie3v3))
+		return ret;
+
+	ret = regulator_disable(rk_pcie->vpcie3v3);
+	if (ret)
+		dev_err(dev, "fail to disable vpcie3v3 regulator\n");
+
+	return ret;
 }
 
 static int rk_pcie_establish_link(struct dw_pcie *pci)
@@ -949,36 +977,6 @@ static int rk_pcie_init_irq_domain(struct rk_pcie *rockchip)
 	}
 
 	return 0;
-}
-
-static int rk_pcie_enable_power(struct rk_pcie *rk_pcie)
-{
-	int ret = 0;
-	struct device *dev = rk_pcie->pci->dev;
-
-	if (IS_ERR(rk_pcie->vpcie3v3))
-		return ret;
-
-	ret = regulator_enable(rk_pcie->vpcie3v3);
-	if (ret)
-		dev_err(dev, "fail to enable vpcie3v3 regulator\n");
-
-	return ret;
-}
-
-static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
-{
-	int ret = 0;
-	struct device *dev = rk_pcie->pci->dev;
-
-	if (IS_ERR(rk_pcie->vpcie3v3))
-		return ret;
-
-	ret = regulator_disable(rk_pcie->vpcie3v3);
-	if (ret)
-		dev_err(dev, "fail to disable vpcie3v3 regulator\n");
-
-	return ret;
 }
 
 #define RAS_DES_EVENT(ss, v) \
