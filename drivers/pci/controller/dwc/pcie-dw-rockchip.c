@@ -204,7 +204,7 @@ static void disable_aspm_l1ss(struct rk_pcie *rk_pcie)
 static inline void disable_aspm_l1ss(struct rk_pcie *rk_pcie) { return; }
 #endif
 
-static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
+static inline void rk_pcie_set_rc_mode(struct rk_pcie *rk_pcie)
 {
 	if (rk_pcie->supports_clkreq) {
 		/* Application is ready to have reference clock removed */
@@ -1231,6 +1231,7 @@ static int rk_pcie_really_probe(void *p)
 	const struct rk_pcie_of_data *data;
 	u32 val = 0;
 
+	/* 1. resource initialization */
 	match = of_match_device(rk_pcie_of_match, dev);
 	if (!match) {
 		ret = -EINVAL;
@@ -1251,19 +1252,21 @@ static int rk_pcie_really_probe(void *p)
 		goto release_driver;
 	}
 
+	/* 2. variables assignment */
+	rk_pcie->pci = pci;
+	rk_pcie->msi_vector_num = data ? data->msi_vector_num : 0;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
+	platform_set_drvdata(pdev, rk_pcie);
 
-	if (data)
-		rk_pcie->msi_vector_num = data->msi_vector_num;
-	rk_pcie->pci = pci;
-
+	/* 3. firmware resource */
 	ret = rk_pcie_resource_get(pdev, rk_pcie);
 	if (ret) {
-		dev_err(dev, "resource init failed\n");
+		dev_err_probe(dev, ret, "resource init failed\n");
 		goto release_driver;
 	}
 
+	/* 4. hardware io settings */
 	if (!IS_ERR_OR_NULL(rk_pcie->prsnt_gpio)) {
 		if (!gpiod_get_value(rk_pcie->prsnt_gpio)) {
 			dev_info(dev, "device isn't present\n");
@@ -1280,29 +1283,17 @@ static int rk_pcie_really_probe(void *p)
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
-		dev_err(dev, "clock init failed\n");
+		dev_err_probe(dev, ret, "clock init failed\n");
 		goto disable_vpcie3v3;
 	}
 
 	ret = rk_pcie_phy_init(rk_pcie);
 	if (ret) {
-		dev_err(dev, "phy init failed\n");
+		dev_err_probe(dev, ret, "phy init failed\n");
 		goto disable_clk;
 	}
 
-	ret = rk_pcie_init_irq_and_wq(rk_pcie, pdev);
-	if (ret)
-		goto disable_phy;
-
-	platform_set_drvdata(pdev, rk_pcie);
-
-	dw_pcie_dbi_ro_wr_en(pci);
-
-	rk_pcie_fast_link_setup(rk_pcie);
-
-	/* Set PCIe RC mode */
-	rk_pcie_set_mode(rk_pcie);
-
+	/* 5. signal test and capability settings */
 	if (rk_pcie->is_lpbk) {
 		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 		val |= PORT_LINK_LPBK_ENABLE;
@@ -1324,6 +1315,17 @@ static int rk_pcie_really_probe(void *p)
 		dw_pcie_writel_dbi(pci, val + 8, 0x3);
 		rk_pcie->have_rasdes = true;
 	}
+
+	/* 6. software process */
+	ret = rk_pcie_init_irq_and_wq(rk_pcie, pdev);
+	if (ret)
+		goto disable_phy;
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	rk_pcie_fast_link_setup(rk_pcie);
+
+	rk_pcie_set_rc_mode(rk_pcie);
 
 	ret = rk_add_pcie_port(rk_pcie, pdev);
 
@@ -1349,20 +1351,19 @@ static int rk_pcie_really_probe(void *p)
 
 	ret = rk_pcie_init_dma_trx(rk_pcie);
 	if (ret) {
-		dev_err(dev, "failed to add dma extension\n");
+		dev_err_probe(dev, ret, "failed to add dma extension\n");
 		goto deinit_irq_and_wq;
 	}
 
-	dw_pcie_dbi_ro_wr_dis(pci);
-
-	device_init_wakeup(dev, true);
-
-	/* Enable async system PM for multiports SoC */
-	device_enable_async_suspend(dev);
-
 	ret = rockchip_pcie_debugfs_init(rk_pcie);
 	if (ret < 0)
-		dev_err(dev, "failed to setup debugfs: %d\n", ret);
+		dev_err_probe(dev, ret, "failed to setup debugfs\n");
+
+	dw_pcie_dbi_ro_wr_dis(pci);
+
+	/* 7. framework misc settings */
+	device_init_wakeup(dev, true);
+	device_enable_async_suspend(dev); /* Enable async system PM for multiports SoC */
 
 	return 0;
 
@@ -1390,10 +1391,8 @@ static int rk_pcie_probe(struct platform_device *pdev)
 		struct task_struct *tsk;
 
 		tsk = kthread_run(rk_pcie_really_probe, pdev, "rk-pcie");
-		if (IS_ERR(tsk)) {
-			dev_err(&pdev->dev, "start rk-pcie thread failed\n");
-			return PTR_ERR(tsk);
-		}
+		if (IS_ERR(tsk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(tsk), "start rk-pcie thread failed\n");
 
 		return 0;
 	}
@@ -1605,8 +1604,7 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	rk_pcie_fast_link_setup(rk_pcie);
 
-	/* Set PCIe RC mode */
-	rk_pcie_set_mode(rk_pcie);
+	rk_pcie_set_rc_mode(rk_pcie);
 
 	dw_pcie_setup_rc(&rk_pcie->pci->pp);
 
