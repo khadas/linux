@@ -137,6 +137,7 @@ struct rk_pcie {
 	bool				hp_no_link;
 	bool				is_lpbk;
 	bool				is_comp;
+	bool				have_rasdes;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
@@ -1118,6 +1119,9 @@ static int rockchip_pcie_debugfs_init(struct rk_pcie *pcie)
 {
 	struct dentry *file;
 
+	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !pcie->have_rasdes)
+		return 0;
+
 	pcie->debugfs = debugfs_create_dir(dev_name(pcie->pci->dev), NULL);
 	if (!pcie->debugfs)
 		return -ENOMEM;
@@ -1311,6 +1315,16 @@ static int rk_pcie_really_probe(void *p)
 		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 	}
 
+	/* Enable RASDES Error event by default */
+	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+	if (!val) {
+		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
+	} else {
+		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
+		dw_pcie_writel_dbi(pci, val + 8, 0x3);
+		rk_pcie->have_rasdes = true;
+	}
+
 	ret = rk_add_pcie_port(rk_pcie, pdev);
 
 	if (rk_pcie->is_signal_test == true)
@@ -1346,21 +1360,9 @@ static int rk_pcie_really_probe(void *p)
 	/* Enable async system PM for multiports SoC */
 	device_enable_async_suspend(dev);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		ret = rockchip_pcie_debugfs_init(rk_pcie);
-		if (ret < 0)
-			dev_err(dev, "failed to setup debugfs: %d\n", ret);
-
-		/* Enable RASDES Error event by default */
-		val = dw_pcie_find_ext_capability(rk_pcie->pci, PCI_EXT_CAP_ID_VNDR);
-		if (!val) {
-			dev_err(dev, "Not able to find RASDES CAP!\n");
-			return 0;
-		}
-
-		dw_pcie_writel_dbi(rk_pcie->pci, val + 8, 0x1c);
-		dw_pcie_writel_dbi(rk_pcie->pci, val + 8, 0x3);
-	}
+	ret = rockchip_pcie_debugfs_init(rk_pcie);
+	if (ret < 0)
+		dev_err(dev, "failed to setup debugfs: %d\n", ret);
 
 	return 0;
 
