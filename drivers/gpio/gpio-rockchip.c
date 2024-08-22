@@ -262,6 +262,8 @@ static int rockchip_gpio_set_debounce(struct gpio_chip *gc,
 			clk_prepare_enable(bank->db_clk);
 		else
 			clk_disable_unprepare(bank->db_clk);
+	} else {
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -294,19 +296,7 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 
 	switch (param) {
 	case PIN_CONFIG_INPUT_DEBOUNCE:
-		rockchip_gpio_set_debounce(gc, offset, debounce);
-		/*
-		 * Rockchip's gpio could only support up to one period
-		 * of the debounce clock(pclk), which is far away from
-		 * satisftying the requirement, as pclk is usually near
-		 * 100MHz shared by all peripherals. So the fact is it
-		 * has crippled debounce capability could only be useful
-		 * to prevent any spurious glitches from waking up the system
-		 * if the gpio is conguired as wakeup interrupt source. Let's
-		 * still return -ENOTSUPP as before, to make sure the caller
-		 * of gpiod_set_debounce won't change its behaviour.
-		 */
-		return -ENOTSUPP;
+		return rockchip_gpio_set_debounce(gc, offset, debounce);
 	default:
 		return -ENOTSUPP;
 	}
