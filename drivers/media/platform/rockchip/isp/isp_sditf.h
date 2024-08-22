@@ -21,8 +21,10 @@ struct rkisp_sditf_device {
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V39)
 extern struct platform_driver rkisp_sditf_drv;
 void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq);
+void rkisp_sditf_reset_notify_vpss(struct rkisp_device *dev);
 #else
 static inline void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq) {}
+static inline void rkisp_sditf_reset_notify_vpss(struct rkisp_device *dev) {}
 #endif
 
 #endif

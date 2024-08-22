@@ -305,14 +305,29 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 	return 0;
 }
 
+static void rkvpss_reset_handle(struct rkvpss_device *vpss_dev)
+{
+	dev_info(vpss_dev->dev, "%s enter\n", __func__);
+	rkvpss_hw_reg_save(vpss_dev->hw_dev);
+
+	rkvpss_soft_reset(vpss_dev->hw_dev);
+
+	rkvpss_hw_reg_restore(vpss_dev->hw_dev);
+	dev_info(vpss_dev->dev, "%s exit\n", __func__);
+}
+
 static long rkvpss_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkvpss_subdev *sdev = v4l2_get_subdevdata(sd);
+	struct rkvpss_device *vpss_dev = sdev->dev;
 	long ret = 0;
 
 	switch (cmd) {
 	case RKISP_VPSS_CMD_SOF:
 		ret = rkvpss_sof(sdev, arg);
+		break;
+	case RKISP_VPSS_RESET_NOTIFY_VPSS:
+		rkvpss_reset_handle(vpss_dev);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

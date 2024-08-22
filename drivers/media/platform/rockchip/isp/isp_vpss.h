@@ -13,6 +13,9 @@
 #define RKISP_VPSS_GET_UNITE_MODE \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 2, unsigned int)
 
+#define RKISP_VPSS_RESET_NOTIFY_VPSS \
+	_IO('V', BASE_VIDIOC_PRIVATE + 3)
+
 struct rkisp_vpss_sof {
 	u32 irq;
 	u32 seq;

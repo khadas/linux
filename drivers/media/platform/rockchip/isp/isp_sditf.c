@@ -87,6 +87,14 @@ static int rkisp_sditf_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+void rkisp_sditf_reset_notify_vpss(struct rkisp_device *dev)
+{
+	struct rkisp_sditf_device *sditf = dev->sditf_dev;
+
+	v4l2_info(&dev->v4l2_dev, "%s\n", __func__);
+	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_RESET_NOTIFY_VPSS, NULL);
+}
+
 void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 {
 	struct rkisp_sditf_device *sditf = dev->sditf_dev;

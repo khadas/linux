@@ -1243,6 +1243,8 @@ static int rkisp_reset_handle(struct rkisp_device *dev)
 	u32 val;
 
 	dev_info(dev->dev, "%s enter\n", __func__);
+	if (dev->isp_ver == ISP_V39 && dev->sditf_dev && dev->sditf_dev->is_on)
+		rkisp_sditf_reset_notify_vpss(dev);
 	rkisp_hw_reg_save(dev->hw_dev);
 
 	rkisp_soft_reset(dev->hw_dev, true);
