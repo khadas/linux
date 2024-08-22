@@ -394,6 +394,93 @@ static bool rk_pcie_udma_enabled(struct rk_pcie *rk_pcie)
 				 PCIE_DMA_CTRL_OFF);
 }
 
+static void rk_pcie_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
+
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_ENB,
+			   cur->enb.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_LO,
+			   cur->ctx_reg.ctrllo.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_HI,
+			   cur->ctx_reg.ctrlhi.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_XFERSIZE,
+			   cur->ctx_reg.xfersize);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_LO,
+			   cur->ctx_reg.sarptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_HI,
+			   cur->ctx_reg.sarptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_LO,
+			   cur->ctx_reg.darptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_HI,
+			   cur->ctx_reg.darptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_DOORBELL,
+			   cur->start.asdword);
+}
+
+static void rk_pcie_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
+
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_ENB,
+			   cur->enb.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_LO,
+			   cur->ctx_reg.ctrllo.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_HI,
+			   cur->ctx_reg.ctrlhi.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_XFERSIZE,
+			   cur->ctx_reg.xfersize);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_LO,
+			   cur->ctx_reg.sarptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_HI,
+			   cur->ctx_reg.sarptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_LO,
+			   cur->ctx_reg.darptrlo);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_HI,
+			   cur->ctx_reg.darptrhi);
+	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_WEILO,
+			   cur->weilo.asdword);
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
+			   cur->start.asdword);
+}
+
+static void rk_pcie_start_dma_dwc(struct dma_trx_obj *obj, struct dma_table *table)
+{
+	int dir = table->dir;
+	int chn = table->chn;
+
+	int ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
+
+	if (dir == DMA_FROM_BUS)
+		rk_pcie_start_dma_rd(obj, table, ctr_off);
+	else if (dir == DMA_TO_BUS)
+		rk_pcie_start_dma_wr(obj, table, ctr_off);
+}
+
+static void rk_pcie_config_dma_dwc(struct dma_table *table)
+{
+	table->enb.enb = 0x1;
+	table->ctx_reg.ctrllo.lie = 0x1;
+	table->ctx_reg.ctrllo.rie = 0x0;
+	table->ctx_reg.ctrllo.td = 0x1;
+	table->ctx_reg.ctrlhi.asdword = 0x0;
+	table->ctx_reg.xfersize = table->buf_size;
+	if (table->dir == DMA_FROM_BUS) {
+		table->ctx_reg.sarptrlo = (u32)(table->bus & 0xffffffff);
+		table->ctx_reg.sarptrhi = (u32)(table->bus >> 32);
+		table->ctx_reg.darptrlo = (u32)(table->local & 0xffffffff);
+		table->ctx_reg.darptrhi = (u32)(table->local >> 32);
+	} else if (table->dir == DMA_TO_BUS) {
+		table->ctx_reg.sarptrlo = (u32)(table->local & 0xffffffff);
+		table->ctx_reg.sarptrhi = (u32)(table->local >> 32);
+		table->ctx_reg.darptrlo = (u32)(table->bus & 0xffffffff);
+		table->ctx_reg.darptrhi = (u32)(table->bus >> 32);
+	}
+	table->weilo.weight0 = 0x0;
+	table->start.stop = 0x0;
+	table->start.chnl = table->chn;
+}
+
 static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 {
 	if (!rk_pcie_udma_enabled(rk_pcie))
@@ -414,6 +501,10 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	/* Enable core read interrupt */
 	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK,
 			   0x0);
+
+	rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
+	rk_pcie->dma_obj->config_dma_func = rk_pcie_config_dma_dwc;
+
 	return 0;
 }
 
@@ -619,93 +710,6 @@ static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
 	phy_power_on(rk_pcie->phy);
 
 	return 0;
-}
-
-static void rk_pcie_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
-{
-	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
-
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_ENB,
-			   cur->enb.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_LO,
-			   cur->ctx_reg.ctrllo.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_CTRL_HI,
-			   cur->ctx_reg.ctrlhi.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_XFERSIZE,
-			   cur->ctx_reg.xfersize);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_LO,
-			   cur->ctx_reg.sarptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_SAR_PTR_HI,
-			   cur->ctx_reg.sarptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_LO,
-			   cur->ctx_reg.darptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_RD_DAR_PTR_HI,
-			   cur->ctx_reg.darptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_DOORBELL,
-			   cur->start.asdword);
-}
-
-static void rk_pcie_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
-{
-	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
-
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_ENB,
-			   cur->enb.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_LO,
-			   cur->ctx_reg.ctrllo.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_CTRL_HI,
-			   cur->ctx_reg.ctrlhi.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_XFERSIZE,
-			   cur->ctx_reg.xfersize);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_LO,
-			   cur->ctx_reg.sarptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_SAR_PTR_HI,
-			   cur->ctx_reg.sarptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_LO,
-			   cur->ctx_reg.darptrlo);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_DAR_PTR_HI,
-			   cur->ctx_reg.darptrhi);
-	dw_pcie_writel_dbi(rk_pcie->pci, ctr_off + PCIE_DMA_WR_WEILO,
-			   cur->weilo.asdword);
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
-			   cur->start.asdword);
-}
-
-static void rk_pcie_start_dma_dwc(struct dma_trx_obj *obj, struct dma_table *table)
-{
-	int dir = table->dir;
-	int chn = table->chn;
-
-	int ctr_off = PCIE_DMA_OFFSET + chn * 0x200;
-
-	if (dir == DMA_FROM_BUS)
-		rk_pcie_start_dma_rd(obj, table, ctr_off);
-	else if (dir == DMA_TO_BUS)
-		rk_pcie_start_dma_wr(obj, table, ctr_off);
-}
-
-static void rk_pcie_config_dma_dwc(struct dma_table *table)
-{
-	table->enb.enb = 0x1;
-	table->ctx_reg.ctrllo.lie = 0x1;
-	table->ctx_reg.ctrllo.rie = 0x0;
-	table->ctx_reg.ctrllo.td = 0x1;
-	table->ctx_reg.ctrlhi.asdword = 0x0;
-	table->ctx_reg.xfersize = table->buf_size;
-	if (table->dir == DMA_FROM_BUS) {
-		table->ctx_reg.sarptrlo = (u32)(table->bus & 0xffffffff);
-		table->ctx_reg.sarptrhi = (u32)(table->bus >> 32);
-		table->ctx_reg.darptrlo = (u32)(table->local & 0xffffffff);
-		table->ctx_reg.darptrhi = (u32)(table->local >> 32);
-	} else if (table->dir == DMA_TO_BUS) {
-		table->ctx_reg.sarptrlo = (u32)(table->local & 0xffffffff);
-		table->ctx_reg.sarptrhi = (u32)(table->local >> 32);
-		table->ctx_reg.darptrlo = (u32)(table->bus & 0xffffffff);
-		table->ctx_reg.darptrhi = (u32)(table->bus >> 32);
-	}
-	table->weilo.weight0 = 0x0;
-	table->start.stop = 0x0;
-	table->start.chnl = table->chn;
 }
 
 static void rk_pcie_hot_rst_work(struct work_struct *work)
@@ -1333,11 +1337,6 @@ static int rk_pcie_really_probe(void *p)
 	if (ret) {
 		dev_err(dev, "failed to add dma extension\n");
 		goto deinit_irq_and_wq;
-	}
-
-	if (rk_pcie->dma_obj) {
-		rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
-		rk_pcie->dma_obj->config_dma_func = rk_pcie_config_dma_dwc;
 	}
 
 	dw_pcie_dbi_ro_wr_dis(pci);
