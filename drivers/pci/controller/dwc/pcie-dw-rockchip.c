@@ -1168,6 +1168,50 @@ static const struct gpio_hotplug_slot_plat_ops rk_pcie_gpio_hp_plat_ops = {
 	.disable = rk_pcie_slot_disable,
 };
 
+static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_device *pdev)
+{
+	struct device *dev = rk_pcie->pci->dev;
+	int ret, irq;
+
+	/*
+	 * Misc interrupts was masked by default. However, they will be
+	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
+	 * as we don't need to ack them before registering irq. And they will be
+	 * unmasked later.
+	 */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
+
+	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
+	if (ret) {
+		dev_err(dev, "pcie irq init failed\n");
+		return ret;
+	}
+
+	/* Legacy interrupt is optional */
+	ret = rk_pcie_init_irq_domain(rk_pcie);
+	if (!ret) {
+		irq = platform_get_irq_byname(pdev, "legacy");
+		if (irq >= 0) {
+			irq_set_chained_handler_and_data(irq, rk_pcie_legacy_int_handler,
+							 rk_pcie);
+			/* Unmask all legacy interrupt from INTA~INTD  */
+			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+					   UNMASK_ALL_LEGACY_INT);
+		} else {
+			dev_info(dev, "missing legacy IRQ resource\n");
+		}
+	}
+
+	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
+	if (!rk_pcie->hot_rst_wq) {
+		dev_err(dev, "failed to create hot_rst workqueue\n");
+		return -ENOMEM;
+	}
+	INIT_WORK(&rk_pcie->hot_rst_work, rk_pcie_hot_rst_work);
+
+	return 0;
+}
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1178,7 +1222,6 @@ static int rk_pcie_really_probe(void *p)
 	const struct of_device_id *match;
 	const struct rk_pcie_of_data *data;
 	u32 val = 0;
-	int irq;
 
 	match = of_match_device(rk_pcie_of_match, dev);
 	if (!match) {
@@ -1239,40 +1282,15 @@ static int rk_pcie_really_probe(void *p)
 		goto disable_clk;
 	}
 
-	/*
-	 * Misc interrupts was masked by default. However, they will be
-	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
-	 * as we don't need to ack them before registering irq. And they will be
-	 * unmasked later.
-	 */
-	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
-
-	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
-	if (ret) {
-		dev_err(dev, "pcie irq init failed\n");
+	ret = rk_pcie_init_irq_and_wq(rk_pcie, pdev);
+	if (ret)
 		goto disable_phy;
-	}
 
 	platform_set_drvdata(pdev, rk_pcie);
 
 	dw_pcie_dbi_ro_wr_en(pci);
 
 	rk_pcie_fast_link_setup(rk_pcie);
-
-	/* Legacy interrupt is optional */
-	ret = rk_pcie_init_irq_domain(rk_pcie);
-	if (!ret) {
-		irq = platform_get_irq_byname(pdev, "legacy");
-		if (irq >= 0) {
-			irq_set_chained_handler_and_data(irq, rk_pcie_legacy_int_handler,
-							 rk_pcie);
-			/* Unmask all legacy interrupt from INTA~INTD  */
-			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
-					   UNMASK_ALL_LEGACY_INT);
-		} else {
-			dev_info(dev, "missing legacy IRQ resource\n");
-		}
-	}
 
 	/* Set PCIe RC mode */
 	rk_pcie_set_mode(rk_pcie);
@@ -1289,21 +1307,13 @@ static int rk_pcie_really_probe(void *p)
 		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 	}
 
-	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
-	if (!rk_pcie->hot_rst_wq) {
-		dev_err(dev, "failed to create hot_rst workqueue\n");
-		ret = -ENOMEM;
-		goto remove_irq_domain;
-	}
-	INIT_WORK(&rk_pcie->hot_rst_work, rk_pcie_hot_rst_work);
-
 	ret = rk_add_pcie_port(rk_pcie, pdev);
 
 	if (rk_pcie->is_signal_test == true)
 		return 0;
 
 	if (ret && !rk_pcie->slot_pluggable)
-		goto remove_rst_wq;
+		goto deinit_irq_and_wq;
 
 	if (rk_pcie->slot_pluggable) {
 		rk_pcie->hp_slot.plat_ops = &rk_pcie_gpio_hp_plat_ops;
@@ -1322,7 +1332,7 @@ static int rk_pcie_really_probe(void *p)
 	ret = rk_pcie_init_dma_trx(rk_pcie);
 	if (ret) {
 		dev_err(dev, "failed to add dma extension\n");
-		goto remove_rst_wq;
+		goto deinit_irq_and_wq;
 	}
 
 	if (rk_pcie->dma_obj) {
@@ -1355,9 +1365,8 @@ static int rk_pcie_really_probe(void *p)
 
 	return 0;
 
-remove_rst_wq:
+deinit_irq_and_wq:
 	destroy_workqueue(rk_pcie->hot_rst_wq);
-remove_irq_domain:
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);
 disable_phy:
