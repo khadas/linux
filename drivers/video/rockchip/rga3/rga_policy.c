@@ -148,7 +148,8 @@ static bool rga_check_format(const struct rga_hw_data *data,
 	return false;
 }
 
-static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_t w_stride)
+static bool rga_check_align(struct rga_job *job,
+			    uint32_t byte_stride_align, uint32_t format, uint16_t w_stride)
 {
 	int bit_stride, pixel_stride, align, gcd;
 
@@ -164,14 +165,14 @@ static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_
 	if (DEBUGGER_EN(MSG)) {
 		gcd = GET_GCD(pixel_stride, byte_stride_align * 8);
 		align = GET_LCM(pixel_stride, byte_stride_align * 8, gcd) / pixel_stride;
-		rga_log("unsupported width stride %d, 0x%x should be %d aligned!",
+		rga_job_log(job, "unsupported width stride %d, 0x%x should be %d aligned!",
 			w_stride, format, align);
 	}
 
 	return false;
 }
 
-static bool rga_check_channel(const struct rga_hw_data *data,
+static bool rga_check_channel(struct rga_job *job, const struct rga_hw_data *data,
 			      struct rga_img_info_t *img,
 			      const char *name, int input, int win_num)
 {
@@ -184,7 +185,7 @@ static bool rga_check_channel(const struct rga_hw_data *data,
 
 	if (!rga_check_resolution(range, img->act_w, img->act_h)) {
 		if (DEBUGGER_EN(MSG))
-			rga_log("%s resolution check error, input range[%dx%d ~ %dx%d], [w,h] = [%d, %d]\n",
+			rga_job_log(job, "%s resolution check error, input range[%dx%d ~ %dx%d], [w,h] = [%d, %d]\n",
 				name,
 				data->input_range.min.width, data->input_range.min.height,
 				data->input_range.max.width, data->input_range.max.height,
@@ -198,7 +199,7 @@ static bool rga_check_channel(const struct rga_hw_data *data,
 				  img->act_w + img->x_offset,
 				  img->act_h + img->y_offset)) {
 		if (DEBUGGER_EN(MSG))
-			rga_log("%s RGA3 resolution check error, input range[%dx%d ~ %dx%d], [w+x,h+y] = [%d, %d]\n",
+			rga_job_log(job, "%s RGA3 resolution check error, input range[%dx%d ~ %dx%d], [w+x,h+y] = [%d, %d]\n",
 				name,
 				data->input_range.min.width, data->input_range.min.height,
 				data->input_range.max.width, data->input_range.max.height,
@@ -209,14 +210,14 @@ static bool rga_check_channel(const struct rga_hw_data *data,
 
 	if (!rga_check_format(data, img->rd_mode, img->format, win_num)) {
 		if (DEBUGGER_EN(MSG))
-			rga_log("%s format check error, mode = %#x, format = %#x\n",
+			rga_job_log(job, "%s format check error, mode = %#x, format = %#x\n",
 				name, img->rd_mode, img->format);
 		return false;
 	}
 
-	if (!rga_check_align(data->byte_stride_align, img->format, img->vir_w)) {
+	if (!rga_check_align(job, data->byte_stride_align, img->format, img->vir_w)) {
 		if (DEBUGGER_EN(MSG))
-			rga_log("%s align check error, byte_stride_align[%d], format[%#x], vir_w[%d]\n",
+			rga_job_log(job, "%s align check error, byte_stride_align[%d], format[%#x], vir_w[%d]\n",
 				name, data->byte_stride_align, img->format, img->vir_w);
 		return false;
 	}
@@ -224,8 +225,8 @@ static bool rga_check_channel(const struct rga_hw_data *data,
 	return true;
 }
 
-static bool rga_check_scale(const struct rga_hw_data *data,
-				struct rga_req *rga_base)
+static bool rga_check_scale(struct rga_job *job, const struct rga_hw_data *data,
+			    struct rga_req *rga_base)
 {
 	struct rga_img_info_t *src0 = &rga_base->src;
 	struct rga_img_info_t *dst = &rga_base->dst;
@@ -257,7 +258,7 @@ static bool rga_check_scale(const struct rga_hw_data *data,
 	return true;
 check_error:
 	if (DEBUGGER_EN(MSG))
-		rga_log("scale check error, scale limit[1/%d ~ %d], src[%d, %d], dst[%d, %d]\n",
+		rga_job_log(job, "scale check error, scale limit[1/%d ~ %d], src[%d, %d], dst[%d, %d]\n",
 			(1 << data->max_downscale_factor), (1 << data->max_upscale_factor),
 			sw, sh, dw, dh);
 
@@ -285,7 +286,7 @@ int rga_job_assign(struct rga_job *job)
 	/* assigned by userspace */
 	if (rga_base->core > RGA_NONE_CORE) {
 		if (rga_base->core > RGA_CORE_MASK) {
-			rga_err("invalid setting core by user\n");
+			rga_job_err(job, "invalid setting core by user\n");
 			goto finish;
 		} else if (rga_base->core & RGA_CORE_MASK)
 			specified_cores = rga_base->core;
@@ -303,19 +304,19 @@ int rga_job_assign(struct rga_job *job)
 			continue;
 
 		if (DEBUGGER_EN(MSG))
-			rga_log("start policy on core = %d", scheduler->core);
+			rga_job_log(job, "start policy on core = %d", scheduler->core);
 
 		if (scheduler->data->mmu == RGA_MMU &&
 		    job->flags & RGA_JOB_UNSUPPORT_RGA_MMU) {
 			if (DEBUGGER_EN(MSG))
-				rga_log("RGA2 only support under 4G memory!\n");
+				rga_job_log(job, "RGA2 only support under 4G memory!\n");
 			continue;
 		}
 
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
 				if (DEBUGGER_EN(MSG))
-					rga_log("core = %d, break on feature\n",
+					rga_job_log(job, "core = %d, break on feature\n",
 						scheduler->core);
 				continue;
 			}
@@ -326,74 +327,74 @@ int rga_job_assign(struct rga_job *job)
 			if (src1->yrgb_addr > 0) {
 				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core[%#x], src0 break on rd_mode[%#x]\n",
+						rga_job_log(job, "core[%#x], src0 break on rd_mode[%#x]\n",
 							scheduler->core, src0->rd_mode);
 					continue;
 				}
 
 				if (!(src1->rd_mode & data->win[1].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core[%#x], src1 break on rd_mode[%#x]\n",
+						rga_job_log(job, "core[%#x], src1 break on rd_mode[%#x]\n",
 							scheduler->core, src1->rd_mode);
 					continue;
 				}
 
 				if (!(dst->rd_mode & data->win[2].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core[%#x], dst break on rd_mode[%#x]\n",
+						rga_job_log(job, "core[%#x], dst break on rd_mode[%#x]\n",
 							scheduler->core, dst->rd_mode);
 					continue;
 				}
 			} else {
 				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core[%#x], src break on rd_mode[%#x]\n",
+						rga_job_log(job, "core[%#x], src break on rd_mode[%#x]\n",
 							scheduler->core, src0->rd_mode);
 					continue;
 				}
 
 				if (!(dst->rd_mode & data->win[2].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core[%#x], dst break on rd_mode[%#x]\n",
+						rga_job_log(job, "core[%#x], dst break on rd_mode[%#x]\n",
 							scheduler->core, dst->rd_mode);
 					continue;
 				}
 			}
 
-			if (!rga_check_scale(data, rga_base)) {
+			if (!rga_check_scale(job, data, rga_base)) {
 				if (DEBUGGER_EN(MSG))
-					rga_log("core = %d, break on rga_check_scale",
+					rga_job_log(job, "core = %d, break on rga_check_scale",
 						scheduler->core);
 				continue;
 			}
 
-			if (!rga_check_channel(data, src0, "src0", true, 0)) {
+			if (!rga_check_channel(job, data, src0, "src0", true, 0)) {
 				if (DEBUGGER_EN(MSG))
-					rga_log("core = %d, break on src0",
+					rga_job_log(job, "core = %d, break on src0",
 						scheduler->core);
 				continue;
 			}
 
 			if (src1->yrgb_addr > 0) {
-				if (!rga_check_channel(data, src1, "src1", true, 1)) {
+				if (!rga_check_channel(job, data, src1, "src1", true, 1)) {
 					if (DEBUGGER_EN(MSG))
-						rga_log("core = %d, break on src1",
+						rga_job_log(job, "core = %d, break on src1",
 							scheduler->core);
 					continue;
 				}
 			}
 		}
 
-		if (!rga_check_channel(data, dst, "dst", false, 2)) {
+		if (!rga_check_channel(job, data, dst, "dst", false, 2)) {
 			if (DEBUGGER_EN(MSG))
-				rga_log("core = %d, break on dst",
+				rga_job_log(job, "core = %d, break on dst",
 					scheduler->core);
 			continue;
 		}
 
 		if (!rga_check_csc(data, rga_base)) {
 			if (DEBUGGER_EN(MSG))
-				rga_log("core = %d, break on rga_check_csc",
+				rga_job_log(job, "core = %d, break on rga_check_csc",
 					scheduler->core);
 			continue;
 		}
@@ -402,11 +403,11 @@ int rga_job_assign(struct rga_job *job)
 	}
 
 	if (DEBUGGER_EN(MSG))
-		rga_log("optional_cores = %d\n", optional_cores);
+		rga_job_log(job, "optional_cores = %d\n", optional_cores);
 
 	if (optional_cores == 0) {
 		core = -1;
-		rga_err("invalid function policy\n");
+		rga_job_err(job, "invalid function policy\n");
 		goto finish;
 	}
 
@@ -438,7 +439,7 @@ int rga_job_assign(struct rga_job *job)
 	/* TODO: need consider full load */
 finish:
 	if (DEBUGGER_EN(MSG))
-		rga_log("assign core: %d\n", core);
+		rga_job_log(job, "assign core: %d\n", core);
 
 	return core;
 }

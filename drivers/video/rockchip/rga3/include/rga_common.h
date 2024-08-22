@@ -28,6 +28,23 @@
 #define rga_dev_err(dev, fmt, args...) \
 	dev_err(dev, "%-6d %-6d: " fmt, current->tgid, current->pid, ##args)
 
+#define rga_job_log(job, fmt, args...) \
+	pr_info("%-6d %-6d: ID[%d]: " fmt, job->session->tgid, job->pid, job->request_id, ##args)
+#define rga_job_err(job, fmt, args...) \
+	pr_err("%-6d %-6d: ID[%d]: " fmt, job->session->tgid, job->pid, job->request_id, ##args)
+
+#define rga_req_log(request, fmt, args...) \
+	pr_info("%-6d %-6d: ID[%d]: " fmt, \
+	request->session->tgid, request->pid, request->id, ##args)
+#define rga_req_err(request, fmt, args...) \
+	pr_err("%-6d %-6d: ID[%d]: " fmt, request->session->tgid, request->pid, request->id, ##args)
+
+#define rga_buf_log(buf, fmt, args...) \
+	pr_info("%-6d %-6d: handle[%d]: " fmt, \
+	buf->session->tgid, current->pid, buf->handle, ##args)
+#define rga_buf_err(buf, fmt, args...) \
+	pr_err("%-6d %-6d: handle[%d]: " fmt, buf->session->tgid, current->pid, buf->handle, ##args)
+
 #define RGA_GET_PAGE_COUNT(size) (((size) >> PAGE_SHIFT) + (((size) & (~PAGE_MASK)) ? 1 : 0))
 
 bool rga_is_rgb_format(uint32_t format);
@@ -62,6 +79,6 @@ int rga_image_size_cal(int w, int h, int format,
 		       int *yrgb_size, int *uv_size, int *v_size);
 void rga_dump_memory_parm(struct rga_memory_parm *parm);
 void rga_dump_external_buffer(struct rga_external_buffer *buffer);
-void rga_dump_req(struct rga_req *req);
+void rga_dump_req(struct rga_request *request, struct rga_req *req);
 
 #endif

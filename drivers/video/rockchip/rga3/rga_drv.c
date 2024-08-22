@@ -120,7 +120,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	if (request->task_count > 1) {
 		/* TODO */
-		rga_err("Currently request does not support multiple tasks!");
+		rga_req_err(request, "Currently request does not support multiple tasks!");
 		mutex_unlock(&request_manager->lock);
 		return -EINVAL;
 	}
@@ -166,7 +166,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.src,
 						 request->session);
 		if (ret < 0) {
-			rga_err("src channel set buffer handle failed!\n");
+			rga_req_err(request, "src channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -176,7 +176,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.pat,
 						 request->session);
 		if (ret < 0) {
-			rga_err("src1 channel set buffer handle failed!\n");
+			rga_req_err(request, "src1 channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -186,7 +186,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 &mpi_cmd.dst,
 						 request->session);
 		if (ret < 0) {
-			rga_err("dst channel set buffer handle failed!\n");
+			rga_req_err(request, "dst channel set buffer handle failed!\n");
 			goto err_put_request;
 		}
 	}
@@ -196,16 +196,16 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	mpi_cmd.mmu_info.mmu_flag = 0;
 
 	if (DEBUGGER_EN(MSG))
-		rga_dump_req(&mpi_cmd);
+		rga_dump_req(request, &mpi_cmd);
 
 	ret = rga_request_mpi_submit(&mpi_cmd, request);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
-				rga_err("%s, commit mpi job failed, by a software interrupt.\n",
+				rga_req_err(request, "%s, commit mpi job failed, by a software interrupt.\n",
 					__func__);
 		} else {
-			rga_err("%s, commit mpi job failed\n", __func__);
+			rga_req_err(request, "%s, commit mpi job failed\n", __func__);
 		}
 
 		goto err_put_request;
@@ -267,25 +267,25 @@ int rga_kernel_commit(struct rga_req *cmd)
 
 	ret = rga_request_check(&kernel_request);
 	if (ret < 0) {
-		rga_err("user request check error!\n");
+		rga_err("ID[%d]: user request check error!\n", kernel_request.id);
 		goto err_free_request_by_id;
 	}
 
 	request = rga_request_kernel_config(&kernel_request);
 	if (IS_ERR(request)) {
-		rga_err("request[%d] config failed!\n", kernel_request.id);
+		rga_err("ID[%d]: config failed!\n", kernel_request.id);
 		ret = -EFAULT;
 		goto err_free_request_by_id;
 	}
 
 	if (DEBUGGER_EN(MSG)) {
-		rga_log("kernel blit mode: request id = %d", kernel_request.id);
-		rga_dump_req(cmd);
+		rga_req_log(request, "kernel blit mode:\n");
+		rga_dump_req(request, cmd);
 	}
 
 	ret = rga_request_submit(request);
 	if (ret < 0) {
-		rga_err("request[%d] submit failed!\n", kernel_request.id);
+		rga_req_err(request, "submit failed!\n");
 		goto err_put_request;
 	}
 
@@ -854,13 +854,13 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 
 	ret = rga_request_check(&user_request);
 	if (ret < 0) {
-		rga_err("user request check error!\n");
+		rga_err("ID[%d]: user request check error!\n", user_request.id);
 		goto err_free_request_by_id;
 	}
 
 	request = rga_request_config(&user_request);
 	if (IS_ERR(request)) {
-		rga_err("request[%d] config failed!\n", user_request.id);
+		rga_err("ID[%d]: config failed!\n", user_request.id);
 		ret = -EFAULT;
 		goto err_free_request_by_id;
 	}
@@ -871,14 +871,14 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 
 	ret = rga_request_submit(request);
 	if (ret < 0) {
-		rga_err("request[%d] submit failed!\n", user_request.id);
+		rga_req_err(request, "submit failed!\n");
 		goto err_put_request;
 	}
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		rga_req->out_fence_fd = request->release_fence_fd;
 		if (copy_to_user((struct rga_req *)arg, rga_req, sizeof(struct rga_req))) {
-			rga_err("copy_to_user failed\n");
+			rga_req_err(request, "copy_to_user failed\n");
 			ret = -EFAULT;
 			goto err_put_request;
 		}
