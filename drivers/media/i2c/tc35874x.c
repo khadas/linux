@@ -1283,23 +1283,6 @@ static void tc35874x_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 	}
 }
 
-/* --------------- CTRL OPS --------------- */
-
-static int tc35874x_get_ctrl(struct v4l2_ctrl *ctrl)
-{
-	int ret = -1;
-	struct tc35874x_state *state = container_of(ctrl->handler,
-			struct tc35874x_state, hdl);
-	struct v4l2_subdev *sd = &(state->sd);
-
-	if (ctrl->id == V4L2_CID_DV_RX_POWER_PRESENT) {
-		ret = tx_5v_power_present(sd);
-		*ctrl->p_new.p_s32 = ret;
-	}
-
-	return ret;
-}
-
 /* --------------- CORE OPS --------------- */
 
 static int tc35874x_log_status(struct v4l2_subdev *sd)
@@ -1473,9 +1456,15 @@ static int tc35874x_s_register(struct v4l2_subdev *sd,
 
 static int tc35874x_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
+	struct tc35874x_state *state = to_state(sd);
+	bool plugin;
 	u16 intstatus = i2c_rd16(sd, INTSTATUS);
 
 	v4l2_dbg(1, debug, sd, "%s: IntStatus = 0x%04x\n", __func__, intstatus);
+
+	plugin = tx_5v_power_present(sd);
+	v4l2_ctrl_s_ctrl(state->detect_tx_5v_ctrl, plugin);
+	v4l2_dbg(1, debug, sd, "%s: 5v_det:%d\n", __func__, plugin);
 
 	if (intstatus & MASK_HDMI_INT) {
 		u8 hdmi_int0 = i2c_rd8(sd, HDMI_INT0);
@@ -2029,12 +2018,6 @@ static long tc35874x_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-/* -------------------------------------------------------------------------- */
-
-static const struct v4l2_ctrl_ops tc35874x_ctrl_ops = {
-	.g_volatile_ctrl = tc35874x_get_ctrl,
-};
-
 static const struct v4l2_subdev_core_ops tc35874x_core_ops = {
 	.log_status = tc35874x_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -2345,11 +2328,8 @@ static int tc35874x_probe(struct i2c_client *client,
 		TC35874X_PIXEL_RATE_310M);
 
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&state->hdl,
-			&tc35874x_ctrl_ops, V4L2_CID_DV_RX_POWER_PRESENT,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
-
-	if (state->detect_tx_5v_ctrl)
-		state->detect_tx_5v_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	/* custom controls */
 	state->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(&state->hdl,
