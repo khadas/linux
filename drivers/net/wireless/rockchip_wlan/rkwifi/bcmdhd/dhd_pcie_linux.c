@@ -2403,11 +2403,6 @@ dhdpcie_start_host_dev(dhd_bus_t *bus)
 	ret = msm_pcie_pm_control(MSM_PCIE_RESUME, bus->dev->bus->number,
 		bus->dev, NULL, 0);
 #endif /* CONFIG_ARCH_MSM */
-#ifdef CONFIG_ARCH_TEGRA
-#ifndef CONFIG_ARCH_TEGRA_210_SOC
-	ret = tegra_pcie_pm_resume();
-#endif /* CONFIG_ARCH_TEGRA_210_SOC */
-#endif /* CONFIG_ARCH_TEGRA */
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (bus->rc_dev)
 		ret = rockchip_dw_pcie_pm_ctrl_for_user(bus->rc_dev, ROCKCHIP_PCIE_PM_CTRL_RESET);
@@ -2446,11 +2441,6 @@ dhdpcie_stop_host_dev(dhd_bus_t *bus)
 	ret = msm_pcie_pm_control(MSM_PCIE_SUSPEND, bus->dev->bus->number,
 		bus->dev, NULL, 0);
 #endif /* CONFIG_ARCH_MSM */
-#ifdef CONFIG_ARCH_TEGRA
-#ifndef CONFIG_ARCH_TEGRA_210_SOC
-	ret = tegra_pcie_pm_suspend();
-#endif /* CONFIG_ARCH_TEGRA_210_SOC */
-#endif /* CONFIG_ARCH_TEGRA */
 	if (ret) {
 		DHD_ERROR(("Failed to stop PCIe link\n"));
 		goto done;
