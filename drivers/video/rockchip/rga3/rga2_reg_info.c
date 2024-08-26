@@ -2621,10 +2621,11 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
-		rga_err("RAG2 core[%d] soft reset timeout.\n", scheduler->core);
+		rga_err("%s[%#x] soft reset timeout.\n",
+			rga_get_core_name(scheduler->core), scheduler->core);
 	else
-		rga_log("RGA2 core[%d] soft reset complete.\n", scheduler->core);
-
+		rga_log("%s[%#x] soft reset complete.\n",
+			rga_get_core_name(scheduler->core), scheduler->core);
 }
 
 static int rga2_check_param(struct rga_job *job,

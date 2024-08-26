@@ -66,6 +66,8 @@ int rga_get_pixel_stride_from_format(uint32_t format);
 
 const char *rga_get_format_name(uint32_t format);
 const char *rga_get_render_mode_str(uint8_t mode);
+const char *rga_get_store_mode_str(uint32_t mode);
+const char *rga_get_interp_str(uint8_t interp);
 const char *rga_get_rotate_mode_str(uint8_t mode);
 const char *rga_get_blend_mode_str(enum rga_alpha_blend_mode mode);
 const char *rga_get_memory_type_str(uint8_t type);

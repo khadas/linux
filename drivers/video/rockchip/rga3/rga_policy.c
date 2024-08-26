@@ -287,7 +287,7 @@ int rga_job_assign(struct rga_job *job)
 	if (rga_base->core > RGA_NONE_CORE) {
 		if (rga_base->core > RGA_CORE_MASK) {
 			rga_job_err(job, "invalid setting core by user\n");
-			goto finish;
+			return -1;
 		} else if (rga_base->core & RGA_CORE_MASK)
 			specified_cores = rga_base->core;
 	}
@@ -304,7 +304,8 @@ int rga_job_assign(struct rga_job *job)
 			continue;
 
 		if (DEBUGGER_EN(MSG))
-			rga_job_log(job, "start policy on core = %d", scheduler->core);
+			rga_job_log(job, "start policy on %s(%#x)",
+				rga_get_core_name(scheduler->core), scheduler->core);
 
 		if (scheduler->data->mmu == RGA_MMU &&
 		    job->flags & RGA_JOB_UNSUPPORT_RGA_MMU) {
@@ -316,7 +317,8 @@ int rga_job_assign(struct rga_job *job)
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
 				if (DEBUGGER_EN(MSG))
-					rga_job_log(job, "core = %d, break on feature\n",
+					rga_job_log(job, "%s(%#x), break on feature\n",
+						rga_get_core_name(scheduler->core),
 						scheduler->core);
 				continue;
 			}
@@ -327,50 +329,67 @@ int rga_job_assign(struct rga_job *job)
 			if (src1->yrgb_addr > 0) {
 				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core[%#x], src0 break on rd_mode[%#x]\n",
-							scheduler->core, src0->rd_mode);
+						rga_job_log(job, "%s(%#x), src0 break on %s(%#x)\n",
+							rga_get_core_name(scheduler->core),
+							scheduler->core,
+							rga_get_store_mode_str(src0->rd_mode),
+							src0->rd_mode);
 					continue;
 				}
 
 				if (!(src1->rd_mode & data->win[1].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core[%#x], src1 break on rd_mode[%#x]\n",
-							scheduler->core, src1->rd_mode);
+						rga_job_log(job, "%s(%#x), src1 break on %s(%#x)\n",
+							rga_get_core_name(scheduler->core),
+							scheduler->core,
+							rga_get_store_mode_str(src1->rd_mode),
+							src1->rd_mode);
 					continue;
 				}
 
 				if (!(dst->rd_mode & data->win[2].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core[%#x], dst break on rd_mode[%#x]\n",
-							scheduler->core, dst->rd_mode);
+						rga_job_log(job, "%s(%#x), dst break on %s(%#x)\n",
+							rga_get_core_name(scheduler->core),
+							scheduler->core,
+							rga_get_store_mode_str(dst->rd_mode),
+							dst->rd_mode);
 					continue;
 				}
 			} else {
 				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core[%#x], src break on rd_mode[%#x]\n",
-							scheduler->core, src0->rd_mode);
+						rga_job_log(job, "%s(%#x), src break on %s(%#x)\n",
+							rga_get_core_name(scheduler->core),
+							scheduler->core,
+							rga_get_store_mode_str(src0->rd_mode),
+							src0->rd_mode);
 					continue;
 				}
 
 				if (!(dst->rd_mode & data->win[2].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core[%#x], dst break on rd_mode[%#x]\n",
-							scheduler->core, dst->rd_mode);
+						rga_job_log(job, "%s(%#x), dst break on %s(%#x)\n",
+							rga_get_core_name(scheduler->core),
+							scheduler->core,
+							rga_get_store_mode_str(dst->rd_mode),
+							dst->rd_mode);
 					continue;
 				}
 			}
 
 			if (!rga_check_scale(job, data, rga_base)) {
 				if (DEBUGGER_EN(MSG))
-					rga_job_log(job, "core = %d, break on rga_check_scale",
+					rga_job_log(job, "%s(%#x), break on rga_check_scale",
+						rga_get_core_name(scheduler->core),
 						scheduler->core);
 				continue;
 			}
 
 			if (!rga_check_channel(job, data, src0, "src0", true, 0)) {
 				if (DEBUGGER_EN(MSG))
-					rga_job_log(job, "core = %d, break on src0",
+					rga_job_log(job, "%s(%#x), break on src0",
+						rga_get_core_name(scheduler->core),
 						scheduler->core);
 				continue;
 			}
@@ -378,7 +397,8 @@ int rga_job_assign(struct rga_job *job)
 			if (src1->yrgb_addr > 0) {
 				if (!rga_check_channel(job, data, src1, "src1", true, 1)) {
 					if (DEBUGGER_EN(MSG))
-						rga_job_log(job, "core = %d, break on src1",
+						rga_job_log(job, "%s(%#x), break on src1",
+							rga_get_core_name(scheduler->core),
 							scheduler->core);
 					continue;
 				}
@@ -387,14 +407,16 @@ int rga_job_assign(struct rga_job *job)
 
 		if (!rga_check_channel(job, data, dst, "dst", false, 2)) {
 			if (DEBUGGER_EN(MSG))
-				rga_job_log(job, "core = %d, break on dst",
+				rga_job_log(job, "%s(%#x), break on dst",
+					rga_get_core_name(scheduler->core),
 					scheduler->core);
 			continue;
 		}
 
 		if (!rga_check_csc(data, rga_base)) {
 			if (DEBUGGER_EN(MSG))
-				rga_job_log(job, "core = %d, break on rga_check_csc",
+				rga_job_log(job, "%s(%#x), break on rga_check_csc",
+					rga_get_core_name(scheduler->core),
 					scheduler->core);
 			continue;
 		}
@@ -402,13 +424,9 @@ int rga_job_assign(struct rga_job *job)
 		optional_cores |= scheduler->core;
 	}
 
-	if (DEBUGGER_EN(MSG))
-		rga_job_log(job, "optional_cores = %d\n", optional_cores);
-
 	if (optional_cores == 0) {
-		core = -1;
-		rga_job_err(job, "invalid function policy\n");
-		goto finish;
+		rga_job_err(job, "no core match\n");
+		return -1;
 	}
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
@@ -437,9 +455,10 @@ int rga_job_assign(struct rga_job *job)
 	}
 
 	/* TODO: need consider full load */
-finish:
 	if (DEBUGGER_EN(MSG))
-		rga_job_log(job, "assign core: %d\n", core);
+		rga_job_log(job, "matched cores = %#x, assign core: %s(%#x)\n",
+			optional_cores,
+			rga_get_core_name(core), core);
 
 	return core;
 }

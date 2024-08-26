@@ -534,6 +534,42 @@ const char *rga_get_render_mode_str(uint8_t mode)
 	}
 }
 
+const char *rga_get_store_mode_str(uint32_t mode)
+{
+	switch (mode) {
+	case RGA_RASTER_MODE:
+		return "raster";
+	case RGA_FBC_MODE:
+		return "afbc16x16";
+	case RGA_TILE_MODE:
+		return "tile8x8";
+	case RGA_TILE4x4_MODE:
+		return "tile4x4";
+	case RGA_RKFBC_MODE:
+		return "rkfbc64x4";
+	case RGA_AFBC32x8_MODE:
+		return "afbc32x8";
+	default:
+		return "unknown";
+	}
+}
+
+const char *rga_get_interp_str(uint8_t interp)
+{
+	switch (interp) {
+	case RGA_INTERP_DEFAULT:
+		return "default";
+	case RGA_INTERP_LINEAR:
+		return "bi-linear";
+	case RGA_INTERP_BICUBIC:
+		return "bi-cubic";
+	case RGA_INTERP_AVERAGE:
+		return "average_filter";
+	default:
+		return "unknown";
+	}
+}
+
 const char *rga_get_rotate_mode_str(uint8_t mode)
 {
 	switch (mode) {
@@ -824,51 +860,68 @@ void rga_dump_external_buffer(struct rga_external_buffer *buffer)
 	rga_dump_memory_parm(&buffer->memory_parm);
 }
 
+static void rga_dump_image_info(struct rga_request *request, const char *name,
+				struct rga_img_info_t *img, uint8_t handle_flag, int need_mmu)
+{
+	if (handle_flag) {
+		if (img->uv_addr && img->v_addr)
+			rga_req_log(request, "%s: handle[y,uv,v] = [%ld(%#lx), %ld(%#lx), %ld(%#lx)], mode = %s\n",
+				name,
+				(unsigned long)img->yrgb_addr, (unsigned long)img->yrgb_addr,
+				(unsigned long)img->uv_addr, (unsigned long)img->uv_addr,
+				(unsigned long)img->v_addr, (unsigned long)img->v_addr,
+				rga_get_store_mode_str(img->rd_mode));
+		else if (img->uv_addr)
+			rga_req_log(request, "%s: handle[y,uv] = [%ld(%#lx), %ld(%#lx)], mode = %s\n",
+				name,
+				(unsigned long)img->yrgb_addr, (unsigned long)img->yrgb_addr,
+				(unsigned long)img->uv_addr, (unsigned long)img->uv_addr,
+				rga_get_store_mode_str(img->rd_mode));
+		else
+			rga_req_log(request, "%s: handle = %ld(%#lx), mode = %s\n",
+				name,
+				(unsigned long)img->yrgb_addr, (unsigned long)img->yrgb_addr,
+				rga_get_store_mode_str(img->rd_mode));
+	} else {
+		if (img->yrgb_addr)
+			rga_req_log(request, "%s: fd = %ld(%#lx), mode = %s\n",
+				name,
+				(unsigned long)img->yrgb_addr, (unsigned long)img->yrgb_addr,
+				rga_get_store_mode_str(img->rd_mode));
+		else if (img->uv_addr)
+			rga_req_log(request, "%s: %s = %#lx, mode = %s\n",
+				name,
+				need_mmu ? "virt_addr" : "phys_addr", (unsigned long)img->uv_addr,
+				rga_get_store_mode_str(img->rd_mode));
+	}
+
+	rga_req_log(request, "%s: rect[x,y,w,h] = [%d, %d, %d, %d], stride[w,h] = [%d, %d], format = %s(%#x)\n",
+		name,
+		img->x_offset, img->y_offset, img->act_w, img->act_h, img->vir_w, img->vir_h,
+		rga_get_format_name(img->format), img->format);
+}
+
 void rga_dump_req(struct rga_request *request, struct rga_req *req)
 {
-	rga_req_log(request, "render_mode = %d, bitblit_mode=%d, rotate_mode = %d\n",
+	rga_req_log(request, "render_mode = %d, bitblit_mode = %d, rotate_mode = %d\n",
 		req->render_mode, req->bsfilter_flag,
 		req->rotate_mode);
 
-	rga_req_log(request, "src: y = %lx uv = %lx v = %lx aw = %d ah = %d vw = %d vh = %d\n",
-		 (unsigned long)req->src.yrgb_addr,
-		 (unsigned long)req->src.uv_addr,
-		 (unsigned long)req->src.v_addr,
-		 req->src.act_w, req->src.act_h,
-		 req->src.vir_w, req->src.vir_h);
-	rga_req_log(request, "src: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
-		req->src.x_offset, req->src.y_offset,
-		 req->src.format, req->src.rd_mode);
+	rga_dump_image_info(request, "src", &req->src, req->handle_flag,
+			    (req->mmu_info.mmu_flag >> 8) & 1);
+	if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0 || req->pat.v_addr != 0)
+		rga_dump_image_info(request, "pat", &req->pat, req->handle_flag,
+				    (req->mmu_info.mmu_flag >> 9) & 1);
+	rga_dump_image_info(request, "dst", &req->dst, req->handle_flag,
+			    (req->mmu_info.mmu_flag >> 10) & 1);
 
-	if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0
-		|| req->pat.v_addr != 0) {
-		rga_req_log(request, "pat: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-			 (unsigned long)req->pat.yrgb_addr,
-			 (unsigned long)req->pat.uv_addr,
-			 (unsigned long)req->pat.v_addr,
-			 req->pat.act_w, req->pat.act_h,
-			 req->pat.vir_w, req->pat.vir_h);
-		rga_req_log(request, "pat: xoff = %d yoff = %d, format = 0x%x, rd_mode = %d\n",
-			req->pat.x_offset, req->pat.y_offset,
-			req->pat.format, req->pat.rd_mode);
-	}
-
-	rga_req_log(request, "dst: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
-		 (unsigned long)req->dst.yrgb_addr,
-		 (unsigned long)req->dst.uv_addr,
-		 (unsigned long)req->dst.v_addr,
-		 req->dst.act_w, req->dst.act_h,
-		 req->dst.vir_w, req->dst.vir_h);
-	rga_req_log(request, "dst: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
-		req->dst.x_offset, req->dst.y_offset,
-		req->dst.format, req->dst.rd_mode);
-
-	rga_req_log(request, "mmu: mmu_flag=%x en=%x\n",
+	rga_req_log(request, "mmu: mmu_flag = %#x en = %#x\n",
 		req->mmu_info.mmu_flag, req->mmu_info.mmu_en);
-	rga_req_log(request, "alpha: rop_mode = %x\n", req->alpha_rop_mode);
-	rga_req_log(request, "yuv2rgb mode is %x\n", req->yuv2rgb_mode);
-	rga_req_log(request, "imterplotion: horiz = 0x%x, verti = 0x%x\n",
-		req->interp.horiz, req->interp.verti);
-	rga_req_log(request, "set core = %d, priority = %d, in_fence_fd = %d\n",
-		req->core, req->priority, req->in_fence_fd);
+	rga_req_log(request, "alpha: rop_mode = %#x\n", req->alpha_rop_mode);
+	rga_req_log(request, "csc = %#x\n", req->yuv2rgb_mode);
+	rga_req_log(request, "imterplotion: horiz = %s(%#x), verti = %s(%#x)\n",
+		rga_get_interp_str(req->interp.horiz), req->interp.horiz,
+		rga_get_interp_str(req->interp.verti), req->interp.verti);
+	rga_req_log(request, "core_mask = %#x, priority = %d, in_fence = %d(%#x)\n",
+		req->core, req->priority, req->in_fence_fd, req->in_fence_fd);
 }

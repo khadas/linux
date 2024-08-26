@@ -151,33 +151,6 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	return job;
 }
 
-static void rga_job_dump_info(struct rga_job *job)
-{
-	rga_job_log(job, "job: reqeust_id = %d, priority = %d, core = %d\n",
-		job->request_id, job->priority, job->core);
-}
-
-void rga_job_scheduler_dump_info(struct rga_scheduler_t *scheduler)
-{
-	struct rga_job *job_pos;
-
-	lockdep_assert_held(&scheduler->irq_lock);
-
-	rga_log("===============================================================\n");
-	rga_log("%s core = %d job_count = %d status = %d\n",
-		dev_driver_string(scheduler->dev),
-		scheduler->core, scheduler->job_count, scheduler->status);
-
-	if (scheduler->running_job)
-		rga_job_dump_info(scheduler->running_job);
-
-	list_for_each_entry(job_pos, &scheduler->todo_list, head) {
-		rga_job_dump_info(job_pos);
-	}
-
-	rga_log("===============================================================\n");
-}
-
 static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int ret = 0;
@@ -197,10 +170,6 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	}
 
 	set_bit(RGA_JOB_STATE_RUNNING, &job->state);
-
-	/* for debug */
-	if (DEBUGGER_EN(MSG))
-		rga_job_dump_info(job);
 
 	return ret;
 }
@@ -900,6 +869,9 @@ int rga_request_commit(struct rga_request *request)
 	int ret;
 	int i = 0;
 	struct rga_job *job;
+
+	if (DEBUGGER_EN(MSG))
+		rga_req_log(request, "commit process: %s\n", request->session->pname);
 
 	for (i = 0; i < request->task_count; i++) {
 		struct rga_req *req = &(request->task_list[i]);
