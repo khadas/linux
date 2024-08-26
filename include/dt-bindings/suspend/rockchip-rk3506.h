@@ -54,7 +54,7 @@
 #define RKPM_GPLL_ALIVE                  BIT(13)
 #define RKPM_V0PLL_ALIVE                 BIT(14)
 #define RKPM_V1PLL_ALIVE                 BIT(15)
-#define RKPM_SLP_RC_PWM1_CH(i)           ((((i) + 1) & 0xf) << 16)
+#define RKPM_GPIO4_IE_DIS                BIT(16)
 
 /*
  * Wakeup source:
