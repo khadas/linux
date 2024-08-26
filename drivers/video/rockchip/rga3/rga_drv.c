@@ -334,8 +334,8 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		/* if timer action on job running */
 		job = scheduler->running_job;
 		if (job) {
-			scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
-			job->hw_recoder_time = now;
+			scheduler->timer.busy_time += ktime_us_delta(now, job->timestamp.hw_recode);
+			job->timestamp.hw_recode = now;
 		}
 
 		scheduler->timer.busy_time_record = scheduler->timer.busy_time;
@@ -1123,6 +1123,8 @@ static irqreturn_t rga_irq_handler(int irq, void *data)
 {
 	irqreturn_t irq_ret = IRQ_NONE;
 	struct rga_scheduler_t *scheduler = data;
+
+	scheduler->running_job->timestamp.hw_done = ktime_get();
 
 	if (scheduler->ops->irq)
 		irq_ret = scheduler->ops->irq(scheduler);

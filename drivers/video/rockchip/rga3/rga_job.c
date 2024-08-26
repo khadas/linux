@@ -42,10 +42,6 @@ static void rga_job_get(struct rga_job *job)
 
 static int rga_job_cleanup(struct rga_job *job)
 {
-	if (DEBUGGER_EN(TIME))
-		rga_job_log(job, "job cleanup total cost time %lld us\n",
-			ktime_us_delta(ktime_get(), job->timestamp));
-
 	rga_job_put(job);
 
 	return 0;
@@ -123,7 +119,7 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	INIT_LIST_HEAD(&job->head);
 	kref_init(&job->refcount);
 
-	job->timestamp = ktime_get();
+	job->timestamp.init = ktime_get();
 	job->pid = current->pid;
 
 	job->rga_command_base = *rga_command_base;
@@ -226,7 +222,6 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job;
 	unsigned long flags;
-	ktime_t now = ktime_get();
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -240,8 +235,9 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	}
 	scheduler->running_job = NULL;
 
-	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
-	job->session->last_active = now;
+	scheduler->timer.busy_time +=
+		ktime_us_delta(job->timestamp.hw_done, job->timestamp.hw_recode);
+	job->session->last_active = job->timestamp.hw_done;
 	set_bit(RGA_JOB_STATE_DONE, &job->state);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
@@ -255,7 +251,7 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	if (DEBUGGER_EN(TIME))
 		rga_job_log(job, "hardware[%s] cost time %lld us, work cycle %d\n",
 			rga_get_core_name(scheduler->core),
-			ktime_us_delta(now, job->hw_running_time),
+			ktime_us_delta(job->timestamp.hw_done, job->timestamp.hw_execute),
 			job->work_cycle);
 
 	rga_mm_unmap_job_info(job);
@@ -298,13 +294,13 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	if (scheduler->running_job == NULL || scheduler->running_job->hw_running_time == 0) {
+	if (scheduler->running_job == NULL || scheduler->running_job->timestamp.hw_execute == 0) {
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 		return;
 	}
 
 	job = scheduler->running_job;
-	if (ktime_ms_delta(ktime_get(), job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
+	if (ktime_ms_delta(ktime_get(), job->timestamp.hw_execute) >= RGA_JOB_TIMEOUT_DELAY) {
 		job->ret = rga_job_timeout_query_state(job, job->ret);
 
 		scheduler->running_job = NULL;
@@ -355,6 +351,7 @@ static void rga_job_insert_todo_list(struct rga_job *job)
 			list_add_tail(&job->head, &scheduler->todo_list);
 	}
 
+	job->timestamp.insert = ktime_get();
 	scheduler->job_count++;
 	set_bit(RGA_JOB_STATE_PENDING, &job->state);
 
@@ -708,9 +705,10 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 				scheduler->status = RGA_SCHEDULER_ABORT;
 				list_add_tail(&job->head, &list_to_free);
 
-				if (job->hw_running_time != 0) {
+				if (job->timestamp.hw_execute != 0) {
 					scheduler->timer.busy_time +=
-						ktime_us_delta(ktime_get(), job->hw_recoder_time);
+						ktime_us_delta(ktime_get(),
+							       job->timestamp.hw_recode);
 					scheduler->ops->soft_reset(scheduler);
 				}
 				job->session->last_active = ktime_get();
@@ -996,6 +994,7 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 		rga_dma_fence_signal(request->release_fence, request->ret);
 
 		is_finished = true;
+		job->timestamp.done = ktime_get();
 
 		if (DEBUGGER_EN(MSG))
 			rga_job_log(job, "finished %d failed %d\n", finished_count, failed_count);
@@ -1015,9 +1014,17 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 	mutex_unlock(&request_manager->lock);
 
-	if (DEBUGGER_EN(TIME))
-		rga_job_log(job, "job done total cost time %lld us\n",
-			ktime_us_delta(ktime_get(), job->timestamp));
+	if (DEBUGGER_EN(TIME)) {
+		rga_job_log(job,
+			"stats: prepare %lld us, schedule %lld us, hardware %lld us, free %lld us\n",
+			ktime_us_delta(job->timestamp.insert, job->timestamp.init),
+			ktime_us_delta(job->timestamp.hw_execute, job->timestamp.insert),
+			ktime_us_delta(job->timestamp.hw_done, job->timestamp.hw_execute),
+			ktime_us_delta(ktime_get(), job->timestamp.hw_done));
+		rga_job_log(job, "total: job done cost %lld us, cleanup done cost %lld us\n",
+			ktime_us_delta(job->timestamp.done, job->timestamp.init),
+			ktime_us_delta(ktime_get(), job->timestamp.init));
+	}
 
 	rga_job_cleanup(job);
 

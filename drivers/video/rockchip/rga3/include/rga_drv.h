@@ -265,6 +265,17 @@ struct rga_job_buffer {
 	int page_count;
 };
 
+struct rga_job_timestamp {
+	ktime_t init;
+	ktime_t insert;
+	ktime_t hw_execute;
+	ktime_t hw_done;
+	ktime_t done;
+
+	/* The time only for hrtimer to calculate the load */
+	ktime_t hw_recode;
+};
+
 struct rga_job {
 	struct list_head head;
 
@@ -287,11 +298,8 @@ struct rga_job {
 	struct mm_struct *mm;
 
 	/* job time stamp */
-	ktime_t timestamp;
-	/* The time when the job is actually executed on the hardware */
-	ktime_t hw_running_time;
-	/* The time only for hrtimer to calculate the load */
-	ktime_t hw_recoder_time;
+	struct rga_job_timestamp timestamp;
+
 	unsigned int flags;
 	int request_id;
 	int priority;

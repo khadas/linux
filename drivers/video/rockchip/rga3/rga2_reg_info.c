@@ -3056,8 +3056,8 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga_job_log(job, "set register cost time %lld us\n",
 			ktime_us_delta(ktime_get(), now));
 
-	job->hw_running_time = now;
-	job->hw_recoder_time = now;
+	job->timestamp.hw_execute = now;
+	job->timestamp.hw_recode = now;
 	job->session->last_active = now;
 
 	if (DEBUGGER_EN(REG))
