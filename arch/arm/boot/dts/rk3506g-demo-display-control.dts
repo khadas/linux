@@ -133,6 +133,20 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
+	};
+
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -161,6 +175,26 @@
 		regulator-min-microvolt = <900000>;
 		regulator-max-microvolt = <900000>;
 		vin-supply = <&vcc3v3_sys>;
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart5m0_rtsn_pins>;
+		pinctrl-1 = <&uart5_gpios>;
+		BT,power_gpio = <&gpio3 RK_PB6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>;
+		wifi_chip_type = "rk960";
+		WIFI,host_wake_irq = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -408,6 +442,22 @@
 	};
 };
 
+&mmc {
+	max-frequency = <30000000>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	no-sd;
+	no-mmc;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk_pins &sdmmc_cmd_pins &sdmmc_bus4_pins>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	//sd-uhs-sdr104;
+	status = "okay";
+};
+
 &pinctrl {
 	/* usb {
 		usb_extcon_vbus: usb-extcon-vbus {
@@ -433,6 +483,13 @@
 		};
 	};
 
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+
 	tp {
 		tp_gpio: tp-gpio {
 			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,
@@ -443,6 +500,18 @@
 	tsadc {
 		wdt_tsadc_gpio: wdt-tsadc-gpio {
 			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart5_gpios: uart5-gpios {
+			rockchip,pins = <3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_wake_host: wifi-wake-host {
+			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -484,6 +553,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io13_uart4_rtsn &rm_io14_uart4_tx &rm_io15_uart4_rx>;
 	linux,rs485-enabled-at-boot-time;
+	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart5m0_xfer_pins &uart5m0_ctsn_pins>;
 	status = "okay";
 };
 
