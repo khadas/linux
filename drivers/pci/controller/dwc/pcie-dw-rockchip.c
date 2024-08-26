@@ -1218,6 +1218,42 @@ static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_devi
 	return 0;
 }
 
+static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
+{
+	struct dw_pcie *pci = rk_pcie->pci;
+	u32 val;
+
+	if (rk_pcie->is_lpbk) {
+		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
+		val |= PORT_LINK_LPBK_ENABLE;
+		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
+	}
+
+	if (rk_pcie->is_comp && rk_pcie->comp_prst[0]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+		val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
+		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+	}
+
+	/* Enable RASDES Error event by default */
+	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+	if (!val) {
+		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
+	} else {
+		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
+		dw_pcie_writel_dbi(pci, val + 8, 0x3);
+		rk_pcie->have_rasdes = true;
+	}
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	rk_pcie_fast_link_setup(rk_pcie);
+
+	rk_pcie_set_rc_mode(rk_pcie);
+
+	return 0;
+}
+
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1227,7 +1263,6 @@ static int rk_pcie_really_probe(void *p)
 	int ret;
 	const struct of_device_id *match;
 	const struct rk_pcie_of_data *data;
-	u32 val = 0;
 
 	/* 1. resource initialization */
 	match = of_match_device(rk_pcie_of_match, dev);
@@ -1291,39 +1326,17 @@ static int rk_pcie_really_probe(void *p)
 		goto disable_clk;
 	}
 
-	/* 5. signal test and capability settings */
-	if (rk_pcie->is_lpbk) {
-		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
-		val |= PORT_LINK_LPBK_ENABLE;
-		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
-	}
-
-	if (rk_pcie->is_comp && rk_pcie->comp_prst[0]) {
-		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
-		val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
-		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
-	}
-
-	/* Enable RASDES Error event by default */
-	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
-	if (!val) {
-		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
-	} else {
-		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
-		dw_pcie_writel_dbi(pci, val + 8, 0x3);
-		rk_pcie->have_rasdes = true;
+	/* 5. host registers manipulation */
+	ret = rk_pcie_host_config(rk_pcie);
+	if (ret) {
+		dev_err_probe(dev, ret, "rk_pcie_host_config failed\n");
+		goto disable_clk;
 	}
 
 	/* 6. software process */
 	ret = rk_pcie_init_irq_and_wq(rk_pcie, pdev);
 	if (ret)
 		goto disable_phy;
-
-	dw_pcie_dbi_ro_wr_en(pci);
-
-	rk_pcie_fast_link_setup(rk_pcie);
-
-	rk_pcie_set_rc_mode(rk_pcie);
 
 	ret = rk_add_pcie_port(rk_pcie, pdev);
 
