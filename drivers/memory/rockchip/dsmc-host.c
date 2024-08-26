@@ -557,6 +557,30 @@ static void rockchip_dsmc_interrupt_unmask(struct rockchip_dsmc *dsmc)
 	writel(INT_UNMASK(cs), dsmc->regs + DSMC_INT_MASK);
 }
 
+static int dmaengine_config_interleaved(struct dsmc_transfer *xfer,
+					struct dma_interleaved_template *xt,
+					enum dma_transfer_direction dir,
+					int numf)
+{
+	xt->frame_size = 1;
+	xt->sgl[0].size = xfer->brst_size * xfer->brst_len;
+	xt->numf = xfer->transfer_size / xt->sgl[0].size;
+
+	xt->dir = dir;
+
+	if (xt->dir == DMA_MEM_TO_DEV) {
+		xt->src_start = xfer->src_addr;
+		xt->src_inc = true;
+		xt->dst_inc = true;
+	} else {
+		xt->dst_start = xfer->dst_addr;
+		xt->src_inc = true;
+		xt->dst_inc = true;
+	}
+
+	return 0;
+}
+
 static void rockchip_dsmc_lb_dma_txcb(void *data)
 {
 	struct rockchip_dsmc *dsmc = data;
@@ -580,7 +604,8 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 {
 	struct dma_async_tx_descriptor *txdesc = NULL;
 	struct dsmc_transfer *xfer = &dsmc->xfer;
-
+	struct dma_interleaved_template xt;
+	unsigned long flags = DMA_CTRL_ACK;
 	struct dma_slave_config txconf = {
 		.direction = DMA_MEM_TO_DEV,
 		.dst_addr = xfer->dst_addr,
@@ -588,12 +613,13 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 		.dst_maxburst = xfer->brst_len,
 	};
 
+	memset(&xt, 0, sizeof(xt));
+
 	dmaengine_slave_config(dsmc->dma_req[cs], &txconf);
-	txdesc = dmaengine_prep_slave_single(
-			dsmc->dma_req[cs],
-			xfer->src_addr,
-			xfer->transfer_size,
-			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
+
+	dmaengine_config_interleaved(xfer, &xt, DMA_MEM_TO_DEV, 1);
+	txdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
+						flags | DMA_PREP_INTERRUPT);
 	if (!txdesc) {
 		dev_err(dev, "Not able to get tx desc for DMA xfer\n");
 		return -EIO;
@@ -615,6 +641,8 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 {
 	struct dma_async_tx_descriptor *rxdesc = NULL;
 	struct dsmc_transfer *xfer = &dsmc->xfer;
+	struct dma_interleaved_template xt;
+	unsigned long flags = DMA_CTRL_ACK;
 	struct dma_slave_config rxconf = {
 		.direction = DMA_DEV_TO_MEM,
 		.src_addr = xfer->src_addr,
@@ -622,12 +650,13 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 		.src_maxburst = xfer->brst_len,
 	};
 
+	memset(&xt, 0, sizeof(xt));
+
 	dmaengine_slave_config(dsmc->dma_req[cs], &rxconf);
-	rxdesc = dmaengine_prep_slave_single(
-			dsmc->dma_req[cs],
-			xfer->dst_addr,
-			xfer->transfer_size,
-			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+
+	dmaengine_config_interleaved(xfer, &xt, DMA_DEV_TO_MEM, 1);
+	rxdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
+						flags | DMA_PREP_INTERRUPT);
 	if (!rxdesc) {
 		dev_err(dev, "Not able to get rx desc for DMA xfer\n");
 		return -EIO;
