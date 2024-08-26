@@ -1615,8 +1615,11 @@ static int rk628_hdmirx_read_timing(struct rk628 *rk628,
 	rk628_i2c_read(rk628, HDMI_RX_PDEC_GCP_AVMUTE, &format);
 	format = (format & PKTDEC_GCP_CD_MASK) >> 4;
 	video_fmt = rk628_hdmirx_get_format(rk628);
+	rk628->color_format = video_fmt;
 	color_range = rk628_hdmirx_get_range(rk628);
+	rk628->color_range = color_range;
 	color_space = rk628_hdmirx_get_color_space(rk628);
+	rk628->color_space = color_space;
 	if (video_fmt == BUS_FMT_YUV420) {
 		//format:color depth, 5: 10bit, 4: 8bit
 		if (format == 5) {
@@ -1872,6 +1875,7 @@ EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pdec_ints)
 {
 	u32 md_mask, pded_madk;
+	u8 video_fmt, color_range, color_space;
 
 	md_mask = VACT_LIN_ISTS | HACT_PIX_ISTS |
 		  HS_CLK_ISTS | DE_ACTIVITY_ISTS |
@@ -1880,8 +1884,17 @@ bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pd
 		return true;
 
 	pded_madk = AVI_CKS_CHG_ISTS;
-	if (pdec_ints & pded_madk)
-		return true;
+	if (pdec_ints & pded_madk) {
+		video_fmt = rk628_hdmirx_get_format(rk628);
+		if (rk628->color_format != video_fmt)
+			return true;
+		color_range = rk628_hdmirx_get_range(rk628);
+		if (rk628->color_range != color_range)
+			return true;
+		color_space = rk628_hdmirx_get_color_space(rk628);
+		if (rk628->color_space != color_space)
+			return true;
+	}
 
 	return false;
 }
