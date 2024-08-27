@@ -50,6 +50,8 @@
 #define DSMC_RGN2_ATTR(n)				(0x1000 * ((n) + 1) + 0x58)
 #define DSMC_RGN3_ATTR(n)				(0x1000 * ((n) + 1) + 0x5c)
 
+#define DSMC_RDS_DLL_CTL(cs, byte)			(0x1000 * ((cs) + 1) + 0x30 + (byte) * 0x4)
+
 /* AXICTL */
 #define AXICTL_RD_NO_ERR_SHIFT				8
 #define AXICTL_RD_NO_ERR_MASK				0x1
@@ -97,9 +99,11 @@
 
 /* RDS_DLL0_CTL */
 #define RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_SHIFT		0
+#define RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK		0xff
 #define RDS_DLL0_CTL_RDS_0_CLK_SMP_SEL_SHIFT		31
 /* RDS_DLL1_CTL */
 #define RDS_DLL1_CTL_RDS_1_CLK_DELAY_NUM_SHIFT		0
+#define RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK		0xff
 #define RDS_DLL1_CTL_RDS_1_CLK_SMP_SEL_SHIFT		31
 
 /* MCR */
@@ -421,6 +425,7 @@ struct dsmc_ops {
 
 int rockchip_dsmc_ctrller_init(struct rockchip_dsmc *dsmc, uint32_t cs);
 int rockchip_dsmc_device_dectect(struct rockchip_dsmc *dsmc, uint32_t cs);
+int rockchip_dsmc_dll_training(struct rockchip_dsmc_device *priv);
 struct rockchip_dsmc_device *rockchip_dsmc_find_device_by_compat(const char *compat);
 const char *rockchip_dsmc_get_compat(int index);
 int rockchip_dsmc_lb_class_create(const char *name);

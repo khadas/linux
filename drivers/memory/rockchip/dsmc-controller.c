@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  */
+#include <linux/cacheflush.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -723,6 +724,121 @@ static void dsmc_lb_dma_clear_s2h_intrupt(struct rockchip_dsmc *dsmc, uint32_t c
 		writel(rgn_attr_tmp, dsmc->regs + DSMC_RGN0_ATTR(cs));
 	}
 }
+
+static void data_cpu_to_dsmc_io(uint32_t *data)
+{
+	uint32_t byte0, byte3;
+
+	byte0 = (*data >> 0) & 0xFF;
+	byte3 = (*data >> 24) & 0xFF;
+
+	*data &= 0x00FFFF00;
+
+	*data |= (byte3 << 0);
+	*data |= (byte0 << 24);
+}
+
+static int dsmc_dll_training_method(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs,
+				    uint32_t byte, uint32_t dll_num)
+{
+	uint32_t i, j;
+	uint32_t data;
+	uint32_t size = 0x100;
+	const struct dsmc_ops *ops = dsmc_dev->ops;
+	struct dsmc_config_cs *cfg = &dsmc_dev->dsmc.cfg.cs_cfg[cs];
+	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
+	struct dsmc_map *map = &dsmc_dev->dsmc.cs_map[cs].region_map[0];
+	uint32_t pattern[] = {0x5aa5f00f, 0xffff0000};
+	uint32_t mask;
+
+	if (cfg->io_width == MCR_IOWIDTH_X8) {
+		mask = 0xffffffff;
+	} else {
+		if (byte == 0)
+			mask = 0x0000ffff;
+		else
+			mask = 0xffff0000;
+	}
+
+	REG_CLRSETBITS(dsmc, DSMC_RDS_DLL_CTL(cs, byte),
+		       RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK,
+		       dll_num << RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_SHIFT);
+	for (j = 0; j < ARRAY_SIZE(pattern); j++) {
+		data_cpu_to_dsmc_io(&pattern[j]);
+		for (i = 0; i < size; i += 4)
+			ops->write(dsmc_dev, cs, 0, i, (pattern[j] + i) & mask);
+
+#ifdef CONFIG_ARM64
+		dcache_clean_inval_poc((unsigned long)map->virt, (unsigned long)(map->virt + size));
+#else
+		dmac_flush_range(map->virt, map->virt + size);
+#endif
+
+		for (i = 0; i < size; i += 4) {
+			ops->read(dsmc_dev, cs, 0, i, &data);
+			if (data != ((pattern[j] + i) & mask))
+				return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+int rockchip_dsmc_dll_training(struct rockchip_dsmc_device *priv)
+{
+	uint32_t cs, byte, dir;
+	uint32_t dll_max = 0xff, dll_min = 0;
+	int dll, dll_step = 10;
+	struct dsmc_config_cs *cfg;
+	struct rockchip_dsmc *dsmc = &priv->dsmc;
+	int ret;
+
+	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+		cfg = &priv->dsmc.cfg.cs_cfg[cs];
+		if (cfg->device_type == DSMC_UNKNOWN_DEVICE)
+			continue;
+		for (byte = MCR_IOWIDTH_X8; byte <= cfg->io_width; byte++) {
+			dir = 0;
+			dll = cfg->dll_num[byte];
+			while ((dll >= 0x0 && dll <= 0xff)) {
+				ret = dsmc_dll_training_method(priv, cs, byte, dll);
+				if (ret) {
+					if (dir)
+						dll_max = dll - dll_step;
+					else
+						dll_min = dll + dll_step;
+					dll = cfg->dll_num[byte];
+					dir++;
+				} else if (((dll + dll_step) > 0xff) || ((dll - dll_step) < 0)) {
+					if (dir)
+						dll_max = dll;
+					else
+						dll_min = dll;
+					dll = cfg->dll_num[byte];
+					dir++;
+				}
+				if (dir > 1)
+					break;
+				if (dir)
+					dll += dll_step;
+				else
+					dll -= dll_step;
+			}
+			dll = (dll_max + dll_min) / 2;
+			if ((dll >= 0xff) || (dll <= 0)) {
+				pr_err("DSMC: cs%d byte%d dll training error(0x%x)\n",
+				       cs, byte, dll);
+				return -1;
+			}
+			pr_info("DSMC: cs%d byte%d dll delay line result 0x%x\n", cs, byte, dll);
+			REG_CLRSETBITS(dsmc, DSMC_RDS_DLL_CTL(cs, byte),
+				       RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_MASK,
+				       dll << RDS_DLL0_CTL_RDS_0_CLK_DELAY_NUM_SHIFT);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_dsmc_dll_training);
 
 void rockchip_dsmc_lb_dma_hw_mode_dis(struct rockchip_dsmc *dsmc)
 {

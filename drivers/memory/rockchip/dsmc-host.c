@@ -1035,6 +1035,12 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 		goto err_release_dma;
 	}
 
+	if (rockchip_dsmc_dll_training(priv)) {
+		ret = -ENODEV;
+		dev_err(dev, "DSMC dll training fail!\n");
+		goto err_release_dma;
+	}
+
 	return 0;
 
 err_release_dma:
