@@ -11,6 +11,8 @@
 #include "dev.h"
 #include "common.h"
 
+MODULE_IMPORT_NS(DMA_BUF);
+
 static void flexbus_cif_init_dummy_vb2(struct flexbus_cif_device *dev,
 				struct flexbus_cif_dummy_buffer *buf)
 {
