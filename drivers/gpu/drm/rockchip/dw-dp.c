@@ -3814,17 +3814,6 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 	link->train.channel_equalized = false;
 }
 
-static void dw_dp_reset(struct dw_dp *dp)
-{
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 1));
-	udelay(100);
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 0));
-
-	dw_dp_init(dp);
-}
-
 static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 					     struct drm_atomic_state *state)
 {
@@ -3877,10 +3866,8 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
 
 	dw_dp_video_disable(dp, mst_enc->stream_id);
-	if (!dp->active_mst_links) {
+	if (!dp->active_mst_links)
 		dw_dp_link_disable(dp);
-		dw_dp_reset(dp);
-	}
 
 	pm_runtime_mark_last_busy(dp->dev);
 	pm_runtime_put_autosuspend(dp->dev);
@@ -4461,7 +4448,6 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_video_disable(dp, 0);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
-	dw_dp_reset(dp);
 
 	extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
 	dw_dp_audio_handle_plugged_change(dp->audio, false);
