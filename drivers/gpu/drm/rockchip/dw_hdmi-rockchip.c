@@ -1416,12 +1416,7 @@ static irqreturn_t rk3576_hdmi_thread(int irq, void *dev_id)
 
 	if (stat) {
 		hdmi->hpd_stat = true;
-		/*
-		 * Responding to hpd too early will cause the hdmi frl
-		 * hfr1-10 test to fail. The ln3 value of TE should have
-		 * been 3 but changed to 0.
-		 */
-		msecs = 450;
+		msecs = 150;
 	} else {
 		hdmi->hpd_stat = false;
 		msecs = 20;
