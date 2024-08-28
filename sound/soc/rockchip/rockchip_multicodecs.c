@@ -439,7 +439,7 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 					       mc_data->rx_slot_mask,
 					       mc_data->slots,
 					       mc_data->slot_width);
-		if (ret && ret != -EOPNOTSUPP) {
+		if (ret && ret != -ENOTSUPP) {
 			dev_err(card->dev, "cpu_dai: set_tdm_slot error\n");
 			return ret;
 		}
@@ -450,7 +450,7 @@ static int rk_dailink_init(struct snd_soc_pcm_runtime *rtd)
 						       mc_data->rx_slot_mask,
 						       mc_data->slots,
 						       mc_data->slot_width);
-			if (ret && ret != -EOPNOTSUPP) {
+			if (ret && ret != -ENOTSUPP) {
 				dev_err(card->dev, "codec_dai: set_tdm_slot error\n");
 				return ret;
 			}
