@@ -753,7 +753,7 @@ struct rga_req {
 
 	struct rga_gauss_config gauss_config;
 
-	uint8_t reservr[27];
+	uint8_t reservr[24];
 };
 
 struct rga_alpha_config {
