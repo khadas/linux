@@ -3439,9 +3439,14 @@ static int rk628_csi_probe(struct i2c_client *client,
 
 	rk628_csi_power_on(csi);
 	rk628_cru_initialize(csi->rk628);
-	rk628_clk_set_rate(rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 
 	rk628_version_parse(rk628);
+	if (rk628->version == RK628_UNKNOWN) {
+		v4l2_err(sd, "can't get rk628 version\n");
+		err = -ENODEV;
+		goto power_off;
+	}
+	rk628_clk_set_rate(rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 
 	if (rk628->version >= RK628F_VERSION) {
 		err = rk628_csi_get_multi_dev_info(csi);

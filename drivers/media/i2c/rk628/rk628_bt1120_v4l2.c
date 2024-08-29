@@ -2015,9 +2015,14 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 
 	rk628_bt1120_power_on(bt1120);
 	rk628_cru_initialize(rk628);
-	rk628_clk_set_rate(rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 
 	rk628_version_parse(rk628);
+	if (rk628->version == RK628_UNKNOWN) {
+		v4l2_err(sd, "can't get rk628 version\n");
+		err = -ENODEV;
+		goto power_off;
+	}
+	rk628_clk_set_rate(rk628, CGU_CLK_CPLL, CPLL_REF_CLK);
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	v4l2_i2c_subdev_init(sd, client, &rk628_bt1120_ops);
@@ -2166,6 +2171,7 @@ err_hdl:
 	mutex_destroy(&bt1120->confctl_mutex);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&bt1120->hdl);
+power_off:
 	rk628_bt1120_power_off(bt1120);
 	return err;
 }
