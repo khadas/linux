@@ -130,6 +130,20 @@ static inline void mipi_dphy_enablelane_deassert(struct rk628 *rk628, uint8_t mi
 	udelay(1);
 }
 
+static inline void mipi_dphy_enableclk_assert(struct rk628 *rk628, uint8_t mipi_id)
+{
+	rk628_i2c_update_bits(rk628, mipi_id ? CSITX1_DPHY_CTRL : CSITX_DPHY_CTRL,
+				DPHY_ENABLECLK, DPHY_ENABLECLK);
+	udelay(1);
+}
+
+static inline void mipi_dphy_enableclk_deassert(struct rk628 *rk628, uint8_t mipi_id)
+{
+	rk628_i2c_update_bits(rk628, mipi_id ? CSITX1_DPHY_CTRL : CSITX_DPHY_CTRL,
+				DPHY_ENABLECLK, 0);
+	udelay(1);
+}
+
 static inline void mipi_dphy_shutdownz_assert(struct rk628 *rk628)
 {
 	rk628_i2c_update_bits(rk628, GRF_MIPI_TX0_CON, CSI_PHYSHUTDOWNZ, 0);
@@ -227,9 +241,9 @@ int rk628_mipi_dphy_reset_assert(struct rk628 *rk628)
 	rk628_i2c_write(rk628, CSITX_SYS_CTRL0_IMD, 0x1);
 	if (rk628->version >= RK628F_VERSION)
 		rk628_i2c_write(rk628, CSITX1_SYS_CTRL0_IMD, 0x1);
-	mipi_dphy_enablelane_deassert(rk628, 0);
+	mipi_dphy_enableclk_deassert(rk628, 0);
 	if (rk628->version >= RK628F_VERSION)
-		mipi_dphy_enablelane_deassert(rk628, 1);
+		mipi_dphy_enableclk_deassert(rk628, 1);
 	mipi_dphy_shutdownz_assert(rk628);
 	mipi_dphy_rstz_assert(rk628);
 	rk628_testif_testclr_assert(rk628, 0);
@@ -248,9 +262,9 @@ int rk628_mipi_dphy_reset_assert(struct rk628 *rk628)
 	rk628_testif_testclr_deassert(rk628, 0);
 	if (rk628->version >= RK628F_VERSION)
 		rk628_testif_testclr_deassert(rk628, 1);
-	mipi_dphy_enablelane_assert(rk628, 0);
+	mipi_dphy_enableclk_assert(rk628, 0);
 	if (rk628->version >= RK628F_VERSION)
-		mipi_dphy_enablelane_assert(rk628, 1);
+		mipi_dphy_enableclk_assert(rk628, 1);
 
 	return 0;
 }
