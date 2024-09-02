@@ -2621,6 +2621,7 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
+		struct v4l2_pix_format_mplane pixm = { 0 };
 		const struct ispsd_in_fmt *in_fmt;
 
 		in_fmt = find_in_fmt(mf->code);
@@ -2631,6 +2632,14 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 
 		isp_sd->in_fmt = *in_fmt;
 		isp_sd->in_frm = *mf;
+		/* rawrd video format with isp input format change */
+		pixm.width = mf->width;
+		pixm.height = mf->height;
+		pixm.pixelformat = rkisp_mbus_pixelcode_to_v4l2(mf->code);
+		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
+		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
+		if (isp_dev->isp_ver == ISP_V20 || isp_dev->isp_ver == ISP_V30)
+			rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1], pixm);
 	} else if (fmt->pad == RKISP_ISP_PAD_SOURCE_PATH) {
 		const struct ispsd_out_fmt *out_fmt;
 

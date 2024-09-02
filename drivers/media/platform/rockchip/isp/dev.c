@@ -470,7 +470,7 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 	struct v4l2_subdev *isp;
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev_selection sel;
-	u32 i, width, height, code;
+	u32 width, height, code;
 
 	memset(&sel, 0, sizeof(sel));
 	memset(&fmt, 0, sizeof(fmt));
@@ -551,14 +551,6 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 	}
 
 	if (dev->isp_ver == ISP_V30) {
-		struct v4l2_pix_format_mplane pixm = {
-			.width = width,
-			.height = height,
-			.pixelformat = rkisp_mbus_pixelcode_to_v4l2(code),
-		};
-
-		for (i = RKISP_STREAM_RAWRD0; i <= RKISP_STREAM_RAWRD2; i++)
-			rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[i], pixm);
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_FBC,
 					 width, height, V4L2_PIX_FMT_FBC0);
 #ifdef RKISP_STREAM_BP_EN
@@ -567,25 +559,13 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 #endif
 	}
 
-	if (dev->isp_ver == ISP_V32 ||
-	    dev->isp_ver == ISP_V32_L ||
-	    dev->isp_ver == ISP_V39) {
-		struct v4l2_pix_format_mplane pixm = {
-			.width = width,
-			.height = height,
-			.pixelformat = rkisp_mbus_pixelcode_to_v4l2(code),
-		};
-
-		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
-		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
-		if (dev->isp_ver == ISP_V32) {
-			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
-						 width, height, V4L2_PIX_FMT_NV12);
-			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
-						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
-			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
-						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
-		}
+	if (dev->isp_ver == ISP_V32) {
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
+					 width, height, V4L2_PIX_FMT_NV12);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
+					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
+					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
 	}
 	if (dev->isp_ver == ISP_V39)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_LDC, width, height, V4L2_PIX_FMT_NV12);
