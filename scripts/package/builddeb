@@ -157,10 +157,12 @@ tmpdir="$objtree/debian/tmp"
 kernel_headers_dir="$objtree/debian/hdrtmp"
 libc_headers_dir="$objtree/debian/headertmp"
 dtb_dir="$objtree/debian/dtbtmp"
+dbg_dir=debian/dbgtmp
 packagename=linux-image"$LOCAL_VERSION"
 kernel_headers_packagename=linux-headers"$LOCAL_VERSION"
 dtb_packagename=linux-dtb"$LOCAL_VERSION"
 libc_headers_packagename=linux-libc-dev"$LOCAL_VERSION"
+dbg_packagename=linux-image-dbg"$LOCAL_VERSION"
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
@@ -191,7 +193,7 @@ esac
 BUILD_DEBUG=$(if_enabled_echo CONFIG_DEBUG_INFO Yes)
 
 # Setup the directory structure
-rm -rf "$tmpdir" "$kernel_headers_dir" "$libc_headers_dir" "$dtb_dir" $objtree/debian/files
+rm -rf "$tmpdir" "$kernel_headers_dir" "$libc_headers_dir" "$dtb_dir" "$dbg_dir" $objtree/debian/files
 mkdir -m 755 -p "$dtb_dir/DEBIAN"
 mkdir -p "$dtb_dir/boot/dtb-$version" "$dtb_dir/usr/share/doc/$dtb_packagename"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
