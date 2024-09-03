@@ -357,7 +357,6 @@
 			| RKPM_24M_OSC_DIS
 			| RKPM_32K_CLK
 			| RKPM_32K_SRC_RC
-			| RKPM_SLP_RC_PWM1_CH(1)
 			)
 		>;
 
