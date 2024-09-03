@@ -719,6 +719,16 @@
 };
 
 &rockchip_suspend {
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_ARMOFF_DDRPD
+		| RKPM_24M_OSC_DIS
+		| RKPM_32K_CLK
+		| RKPM_32K_SRC_RC
+		| RKPM_PWM0_CH0_REGULATOR
+		)
+	>;
+
 	rockchip,apios-suspend = <
 		(0
 		| RKPM_PWREN_CORE_GPIO0A2 | RKPM_PWREN_CORE_ACT_LOW
