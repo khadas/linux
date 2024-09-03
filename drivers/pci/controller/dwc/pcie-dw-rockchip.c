@@ -304,6 +304,34 @@ static int rk_pcie_disable_power(struct rk_pcie *rk_pcie)
 	return ret;
 }
 
+static void rk_pcie_retrain(struct dw_pcie *pci)
+{
+	u32 pcie_cap_off;
+	u16 lnk_stat, lnk_ctl;
+	int ret;
+
+	/*
+	 * Set retrain bit if current speed is 2.5 GB/s,
+	 * but the PCIe root port support is > 2.5 GB/s.
+	 */
+	if (pci->link_gen < 2)
+		return;
+
+	dev_info(pci->dev, "Retrain link..\n");
+	pcie_cap_off = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	lnk_stat = dw_pcie_readw_dbi(pci, pcie_cap_off + PCI_EXP_LNKSTA);
+	if ((lnk_stat & PCI_EXP_LNKSTA_CLS) == PCI_EXP_LNKSTA_CLS_2_5GB) {
+		lnk_ctl = dw_pcie_readw_dbi(pci, pcie_cap_off + PCI_EXP_LNKCTL);
+		lnk_ctl |= PCI_EXP_LNKCTL_RL;
+		dw_pcie_writew_dbi(pci, pcie_cap_off + PCI_EXP_LNKCTL, lnk_ctl);
+
+		ret = readw_poll_timeout(pci->dbi_base + pcie_cap_off + PCI_EXP_LNKSTA,
+			 lnk_stat, ((lnk_stat & PCI_EXP_LNKSTA_LT) == 0), 1000, HZ);
+		if (ret)
+			dev_err(pci->dev, "Retrain link timeout\n");
+	}
+}
+
 static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
 	int retries, power;
@@ -1683,6 +1711,9 @@ int rockchip_dw_pcie_pm_ctrl_for_user(struct pci_dev *dev, enum rockchip_pcie_pm
 	case ROCKCHIP_PCIE_PM_CTRL_RESET:
 		rockchip_dw_pcie_suspend(rk_pcie->pci->dev);
 		rockchip_dw_pcie_resume(rk_pcie->pci->dev);
+		break;
+	case ROCKCHIP_PCIE_PM_RETRAIN_LINK:
+		rk_pcie_retrain(pci);
 		break;
 	default:
 		dev_err(rk_pcie->pci->dev, "%s flag=%d invalid\n", __func__, flag);
