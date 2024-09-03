@@ -97,6 +97,7 @@ sourcename=$KDEB_SOURCENAME
 packagename=linux-image$LOCAL_VERSION
 kernel_headers_packagename=linux-headers$LOCAL_VERSION
 dtb_packagename=linux-dtb$LOCAL_VERSION
+dbg_packagename=linux-image-dbg$LOCAL_VERSION
 image_name=
 
 if [ "$ARCH" = "um" ] ; then
@@ -219,7 +220,7 @@ fi
 if is_enabled CONFIG_DEBUG_INFO; then
 cat <<EOF >> debian/control
 
-Package: linux-image-$version-dbg
+Package: $dbg_packagename
 Section: debug
 Architecture: $debarch
 Description: Linux kernel debugging symbols for $version
