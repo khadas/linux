@@ -571,6 +571,42 @@ static int rockchip_cpufreq_suspend(struct cpufreq_policy *policy)
 	return ret;
 }
 
+int rockchip_cpufreq_online(int cpu)
+{
+	struct cluster_info *cluster;
+	struct rockchip_opp_info *opp_info;
+
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster)
+		return -EINVAL;
+	opp_info = &cluster->opp_info;
+
+	opp_info->is_runtime_active = true;
+	if (opp_info->data && opp_info->data->set_read_margin)
+		opp_info->data->set_read_margin(opp_info->dev, opp_info,
+						opp_info->target_rm);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_online);
+
+int rockchip_cpufreq_offline(int cpu)
+{
+	struct cluster_info *cluster;
+	struct rockchip_opp_info *opp_info;
+
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster)
+		return -EINVAL;
+	opp_info = &cluster->opp_info;
+
+	opp_info->is_runtime_active = false;
+	opp_info->current_rm = UINT_MAX;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_offline);
+
 static int rockchip_cpufreq_add_monitor(struct cluster_info *cluster,
 					struct cpufreq_policy *policy)
 {
