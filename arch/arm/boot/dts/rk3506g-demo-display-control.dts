@@ -526,6 +526,14 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	rockchip,apios-suspend = <
+		(0
+		| RKPM_PWREN_SLEEP_GPIO0C1 | RKPM_PWREN_SLEEP_ACT_HIGH
+		)
+	>;
+};
+
 &route_dsi{
 	status = "okay";
 };
