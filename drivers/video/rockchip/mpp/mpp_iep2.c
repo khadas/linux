@@ -1129,6 +1129,7 @@ struct platform_driver rockchip_iep2_driver = {
 	.driver = {
 		.name = IEP2_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_iep2_match),
+		.pm = &mpp_common_pm_ops,
 	},
 };
 EXPORT_SYMBOL(rockchip_iep2_driver);

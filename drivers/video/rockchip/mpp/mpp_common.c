@@ -761,13 +761,11 @@ static int mpp_task_run(struct mpp_dev *mpp,
 			struct mpp_task *task)
 {
 	int ret;
-	u32 timing_en;
 	struct mpp_session *session = task->session;
 
 	mpp_debug_enter();
 
-	timing_en = mpp->srv->timing_en;
-	if (timing_en) {
+	if (mpp->srv->timing_en) {
 		task->on_run = ktime_get();
 		set_bit(TASK_TIMING_RUN, &task->state);
 	}
@@ -819,6 +817,71 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	return 0;
 }
 
+void mpp_dev_load(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct mpp_load_info *load_info = &mpp->load_info;
+	ktime_t now;
+	s64 time_diff_us;
+
+	if (!mpp->srv->load_interval) {
+		if (mpp->load_en) {
+			mpp_dev_load_clear(mpp);
+			mpp->srv->timing_en = 0;
+			mpp->load_en = 0;
+		}
+		return;
+	}
+
+	if (!mpp->load_en) {
+		mpp->srv->timing_en = 1;
+		mpp->load_en = 1;
+		load_info->load_time = ktime_get();
+		return;
+	}
+
+	if (!mpp_task->on_run)
+		return;
+
+	now = ktime_get();
+	time_diff_us = ktime_us_delta(now, load_info->load_time);
+	load_info->busy_time += ktime_us_delta(now, mpp_task->on_run);
+	if (mpp_task->hw_time)
+		load_info->hw_busy_time += mpp_task->hw_time;
+	else
+		load_info->hw_busy_time += ktime_us_delta(mpp_task->on_irq,
+							  mpp_task->on_sched_timeout);
+	/* 1s update */
+	if (time_diff_us > mpp->srv->load_interval * 1000) {
+		u32 tmp = div64_s64(load_info->busy_time * 10000, time_diff_us);
+		u32 load = tmp / 100;
+		u32 load_frac = tmp % 100;
+		u32 max_load = 100;
+
+		if (mpp->queue->core_count > 1)
+			max_load *= mpp->queue->core_count;
+
+		load_info->load = load > max_load ? max_load : load;
+		load_info->load_frac = load > max_load ? 0 : load_frac;
+
+		tmp = div64_s64(load_info->hw_busy_time * 10000, time_diff_us);
+		load = tmp / 100;
+		load_frac = tmp % 100;
+		load_info->utilization = load > max_load ? max_load : load;
+		load_info->utilization_frac = load > max_load ? 0 : load_frac;
+
+		load_info->busy_time = 0;
+		load_info->hw_busy_time = 0;
+		load_info->load_time = now;
+	}
+}
+
+void mpp_dev_load_clear(struct mpp_dev *mpp)
+{
+	struct mpp_load_info *load_info = &mpp->load_info;
+
+	memset(load_info, 0, sizeof(*load_info));
+}
+
 static void try_process_running_task(struct mpp_dev *mpp)
 {
 	struct mpp_task *mpp_task, *n;
@@ -842,7 +905,7 @@ static void try_process_running_task(struct mpp_dev *mpp)
 		if (mpp->auto_freq_en && mpp->hw_ops->reduce_freq &&
 		    list_empty(&mpp->queue->pending_list))
 			mpp->hw_ops->reduce_freq(mpp);
-
+		mpp_dev_load(mpp, mpp_task);
 		if (mpp->dev_ops->isr)
 			mpp->dev_ops->isr(mpp);
 		enable_irq(mpp->irq);
@@ -2553,6 +2616,25 @@ int mpp_clk_set_rate(struct mpp_clk_info *clk_info,
 
 	return 0;
 }
+
+static int __maybe_unused mpp_common_runtime_suspend(struct device *dev)
+{
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+
+	mpp_dev_load_clear(mpp);
+
+	return 0;
+}
+
+static int __maybe_unused mpp_common_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+const struct dev_pm_ops mpp_common_pm_ops = {
+	SET_RUNTIME_PM_OPS(mpp_common_runtime_suspend, mpp_common_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
 
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 static int fops_show_u32(struct seq_file *file, void *v)

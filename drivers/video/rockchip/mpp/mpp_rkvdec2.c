@@ -630,6 +630,7 @@ static int rkvdec_vdpu383_isr(struct mpp_dev *mpp)
 		return IRQ_HANDLED;
 	}
 	mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
+	mpp_task->hw_time = mpp_task->hw_cycles / (dec->cycle_clk->real_rate_hz / 1000000);
 	mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 	mpp->cur_task = NULL;
 	task = to_rkvdec2_task(mpp_task);
@@ -2043,6 +2044,8 @@ static int __maybe_unused rkvdec2_runtime_suspend(struct device *dev)
 
 		if (mpp->hw_ops->clk_off)
 			mpp->hw_ops->clk_off(mpp);
+
+		mpp_dev_load_clear(mpp);
 	}
 
 	return 0;
