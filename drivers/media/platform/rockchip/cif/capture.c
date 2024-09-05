@@ -8288,7 +8288,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	init_completion(&stream->stop_complete);
 	init_completion(&stream->start_complete);
 	stream->is_wait_stop_complete = false;
-	stream->thunderboot_skip_interval = get_rk_cam_skip_frame_interval();
+	stream->thunderboot_skip_interval = get_rk_cam_skip();
 	atomic_set(&stream->sub_stream_buf_cnt, 0);
 	spin_lock_init(&stream->fence_lock);
 	rkcif_fence_context_init(&stream->fence_ctx);

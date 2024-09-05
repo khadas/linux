@@ -3,36 +3,28 @@
 
 #ifndef CAM_TB_SETUP_H
 #define CAM_TB_SETUP_H
-
 #include <linux/types.h>
 
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
-u32 get_rk_cam_w(void);
-u32 get_rk_cam_h(void);
-u32 get_rk_cam_hdr(void);
-u32 get_rk_cam_fps(void);
-u32 get_rk_cam_skip_frame_interval(void);
+#define EXTERN_CAM_TB_PARAM(para) u32 get_##para(void)
 #else
-static inline u32 get_rk_cam_w(void)
-{
-	return 0;
-}
-static inline u32 get_rk_cam_h(void)
-{
-	return 0;
-}
-static inline u32 get_rk_cam_hdr(void)
-{
-	return 0;
-}
-static inline u32 get_rk_cam_fps(void)
-{
-	return 0;
-}
-static inline u32 get_rk_cam_skip_frame_interval(void)
-{
-	return 0;
+#define EXTERN_CAM_TB_PARAM(para) \
+static inline u32 get_##para(void) \
+{ \
+	return 0; \
 }
 #endif
+
+EXTERN_CAM_TB_PARAM(rk_cam_w);
+EXTERN_CAM_TB_PARAM(rk_cam_h);
+EXTERN_CAM_TB_PARAM(rk_cam_hdr);
+EXTERN_CAM_TB_PARAM(rk_cam_fps);
+EXTERN_CAM_TB_PARAM(rk_cam1_max_fps);
+EXTERN_CAM_TB_PARAM(rk_cam2_w);
+EXTERN_CAM_TB_PARAM(rk_cam2_h);
+EXTERN_CAM_TB_PARAM(rk_cam2_hdr);
+EXTERN_CAM_TB_PARAM(rk_cam2_fps);
+EXTERN_CAM_TB_PARAM(rk_cam2_max_fps);
+EXTERN_CAM_TB_PARAM(rk_cam_skip);
 
 #endif
