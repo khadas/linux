@@ -1313,6 +1313,8 @@ static int rk_pcie_really_probe(void *p)
 	if (ret)
 		goto release_driver;
 
+	reset_control_assert(rk_pcie->rsts);
+	udelay(10);
 	reset_control_deassert(rk_pcie->rsts);
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
