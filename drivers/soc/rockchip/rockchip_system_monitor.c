@@ -1088,19 +1088,8 @@ static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
 	}
 }
 
-int rockchip_monitor_suspend_low_temp_adjust(int cpu)
+static int rockchip_monitor_low_temp_adjust(struct monitor_dev_info *info)
 {
-	struct monitor_dev_info *info = NULL, *tmp;
-
-	list_for_each_entry(tmp, &monitor_dev_list, node) {
-		if (tmp->devp->type != MONITOR_TYPE_CPU)
-			continue;
-		if (cpumask_test_cpu(cpu, &tmp->devp->allowed_cpus)) {
-			info = tmp;
-			break;
-		}
-	}
-
 	if (!info || !info->is_low_temp_enabled)
 		return 0;
 
@@ -1114,6 +1103,24 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 		rockchip_low_temp_adjust(info, true);
 
 	return 0;
+}
+
+int rockchip_monitor_suspend_low_temp_adjust(int cpu)
+{
+	struct monitor_dev_info *info = NULL, *tmp;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(tmp, &monitor_dev_list, node) {
+		if (tmp->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		if (cpumask_test_cpu(cpu, &tmp->devp->allowed_cpus)) {
+			info = tmp;
+			break;
+		}
+	}
+	up_read(&mdev_list_sem);
+
+	return rockchip_monitor_low_temp_adjust(info);
 }
 EXPORT_SYMBOL(rockchip_monitor_suspend_low_temp_adjust);
 
@@ -1498,6 +1505,30 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void rockchip_system_monitor_first_cpu_online(struct cpumask *online_cpus)
+{
+	struct monitor_dev_info *tmp;
+	struct cpumask tmp_mask;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(tmp, &monitor_dev_list, node) {
+		if (tmp->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		/* Check if all allowed cpus of the cluster are offline */
+		cpumask_and(&tmp_mask, &tmp->devp->allowed_cpus, cpu_online_mask);
+		if (!cpumask_empty(&tmp_mask))
+			continue;
+		/* Check if the online cpus contain one allowed cpu of the cluster */
+		cpumask_and(&tmp_mask, &tmp->devp->allowed_cpus, online_cpus);
+		if (cpumask_empty(&tmp_mask))
+			continue;
+		rockchip_monitor_low_temp_adjust(tmp);
+	}
+	up_read(&mdev_list_sem);
+}
+#endif
+
 static void rockchip_system_monitor_cpu_on_off(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1528,6 +1559,7 @@ static void rockchip_system_monitor_cpu_on_off(void)
 	cpumask_xor(&online_cpus, cpu_online_mask, &online_cpus);
 	if (cpumask_empty(&online_cpus))
 		goto out;
+	rockchip_system_monitor_first_cpu_online(&online_cpus);
 	for_each_cpu(cpu, &online_cpus)
 		add_cpu(cpu);
 
@@ -1679,6 +1711,7 @@ static int rockchip_system_monitor_set_cpu_uevent_suppress(bool is_suppress)
 	struct monitor_dev_info *info;
 	struct cpufreq_policy *policy;
 
+	down_read(&mdev_list_sem);
 	list_for_each_entry(info, &monitor_dev_list, node) {
 		if (info->devp->type != MONITOR_TYPE_CPU)
 			continue;
@@ -1690,6 +1723,7 @@ static int rockchip_system_monitor_set_cpu_uevent_suppress(bool is_suppress)
 		else
 			dev_set_uevent_suppress(&policy->cdev->device, 0);
 	}
+	up_read(&mdev_list_sem);
 
 	return 0;
 }
