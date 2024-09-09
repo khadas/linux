@@ -176,16 +176,18 @@ static int ir_lookup_by_scancode(struct ir_map_tab *ir_map,
 {
 	int start = 0;
 	int end = ir_map->map_size - 1;
-	int mid;
+//	int mid;
 
 	while (start <= end) {
-		mid = (start + end) >> 1;
-		if (ir_map->codemap[mid].map.scancode < scancode)
-			start = mid + 1;
-		else if (ir_map->codemap[mid].map.scancode > scancode)
-			end = mid - 1;
-		else
-			return mid;
+//		mid = (start + end) >> 1;
+		if (ir_map->codemap[start].map.scancode == scancode) {
+			return start;
+		}
+		start = start + 1;
+//		else if (ir_map->codemap[mid].map.scancode > scancode)
+//			end = mid - 1;
+//		else
+//			return mid;
 	}
 
 	return -1;
@@ -297,7 +299,14 @@ static bool is_valid_custom(struct remote_dev *dev)
 	if (chip->cur_tab) {
 		dev->keyup_delay = chip->cur_tab->tab.release_delay;
 		return true;
-	}
+	} else {
+        dev_err(chip->dev, "use sys_custom_code 0x%x\n", chip->sys_custom_code);
+        chip->cur_tab = seek_map_tab(chip, chip->sys_custom_code);
+        if (chip->cur_tab) {
+            dev->keyup_delay = chip->cur_tab->tab.release_delay;
+            return true;
+        }
+    }
 	return false;
 }
 
@@ -339,10 +348,13 @@ static void amlremote_tasklet(unsigned long data)
 	 *may was set flag from get_scancode function
 	 */
 	spin_lock_irqsave(&chip->slock, flags);
+
 	if (chip->ir_contr[chip->ir_work].get_scancode)
 		scancode = chip->ir_contr[chip->ir_work].get_scancode(chip);
+
 	if (chip->ir_contr[chip->ir_work].get_decode_status)
 		status = chip->ir_contr[chip->ir_work].get_decode_status(chip);
+
 	if (status == REMOTE_NORMAL) {
 		chip->receive_scancode = scancode;  //Assign scancode to the new node variable
 		remote_dbg(chip->dev, "receive scancode=0x%x\n", scancode);
@@ -834,6 +846,7 @@ static int remote_probe(struct platform_device *pdev)
 	chip->r_dev = dev;
 	chip->dev = &pdev->dev;
 
+    chip->sys_custom_code = 0xFF00;
 	chip->r_dev->dev = &pdev->dev;
 	chip->r_dev->platform_data = (void *)chip;
 	chip->r_dev->getkeycode    = getkeycode;

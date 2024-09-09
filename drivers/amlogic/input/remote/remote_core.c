@@ -105,6 +105,16 @@ static void ir_do_keydown(struct remote_dev *dev, int scancode,
 		if (dev->keypressed)
 			ir_do_keyup(dev);
 
+    if (dev->setkey_mode) {
+        dev_err(dev->dev, "setkey mode force set keycode");
+        dev->keypressed = true;
+        dev->last_scancode = scancode;
+        dev->last_keycode = 63;
+        input_report_key(dev->input_device, 63, 1);
+        input_sync(dev->input_device);
+        return;
+    }
+
 		if (keycode != KEY_RESERVED) {
 			dev->keypressed = true;
 			dev->last_scancode = scancode;
@@ -115,6 +125,7 @@ static void ir_do_keydown(struct remote_dev *dev, int scancode,
 		} else {
 			dev_err(dev->dev, "no valid key to handle");
 		}
+
 	}
 }
 
@@ -228,6 +239,7 @@ int remote_register_device(struct remote_dev *dev)
 
 	ret = input_register_device(dev->input_device);
 
+    dev->setkey_mode = 0;
 	dev->debug_current     = 0;
 	dev->debug_buffer_size = 4096;
 	dev->debug_buffer = kzalloc(dev->debug_buffer_size, GFP_KERNEL);

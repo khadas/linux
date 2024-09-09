@@ -488,6 +488,72 @@ static ssize_t receive_scancode_show(struct device *dev,
 	return sprintf(buf, "0x%x\n", chip->receive_scancode);
 }
 
+static ssize_t custom_keymap_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    struct remote_chip *chip = dev_get_drvdata(dev);
+    struct ir_map_tab_list *map_tab;
+    unsigned long flags;
+    int i;
+
+    spin_lock_irqsave(&chip->slock, flags);
+    map_tab = seek_map_tab(chip, chip->sys_custom_code);
+    if (!map_tab) {
+        dev_err(chip->dev, "please set valid keymap name first\n");
+        spin_unlock_irqrestore(&chip->slock, flags);
+        return 0;
+    }
+    for (i = 0; i <  map_tab->tab.map_size; i++) {
+       dev_err(chip->dev, "custom_keymap_show %d keyCode 0x%x scanCode = 0x%x\n", i, map_tab->tab.codemap[i].map.keycode, map_tab->tab.codemap[i].map.scancode);
+    }
+    spin_unlock_irqrestore(&chip->slock, flags);
+    return 0;
+}
+
+static ssize_t custom_keymap_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    struct remote_chip *chip = dev_get_drvdata(dev);
+    struct ir_map_tab_list *map_tab;
+    unsigned long flags;
+    int i;
+    int keyCode, scanCode;
+
+    if (count != 3) {
+       return 0;
+    }
+
+    if (buf[0] == 0x00) {
+       chip->r_dev->setkey_mode = buf[2];
+       dev_err(chip->dev, "setkey_mode 0x%x\n", chip->r_dev->setkey_mode);
+       return count;
+    }
+
+    if (buf[0] == 0x01) {
+        chip->sys_custom_code = (buf[1] << 8 | buf[2]);
+        dev_err(chip->dev, "sys_custom_code 0x%x\n", chip->sys_custom_code);
+        return count;
+    }
+
+    if (buf[0] == 0x02) {
+        spin_lock_irqsave(&chip->slock, flags);
+        map_tab = seek_map_tab(chip, chip->sys_custom_code);
+        if (!map_tab) {
+            dev_err(chip->dev, "please set valid keymap name first\n");
+            spin_unlock_irqrestore(&chip->slock, flags);
+            return 0;
+        }
+        keyCode = (0xFF & buf[1]);
+        scanCode = (0xFF & buf[2]);
+        for (i = 0; i <  map_tab->tab.map_size; i++) {
+            if (map_tab->tab.codemap[i].map.keycode == keyCode) {
+                map_tab->tab.codemap[i].map.scancode = scanCode;
+            }
+        }
+
+        spin_unlock_irqrestore(&chip->slock, flags);
+    }
+    return count;
+}
+
 DEVICE_ATTR_RW(use_fifo);
 DEVICE_ATTR_RO(sum_cnt0);
 DEVICE_ATTR_RO(sum_cnt1);
@@ -502,6 +568,7 @@ DEVICE_ATTR_RW(debug_enable);
 DEVICE_ATTR_RW(debug_log);
 DEVICE_ATTR_RO(map_tables);
 DEVICE_ATTR_RO(receive_scancode);
+DEVICE_ATTR_RW(custom_keymap);
 
 static struct attribute *remote_attrs[] = {
 	&dev_attr_protocol.attr,
@@ -518,6 +585,7 @@ static struct attribute *remote_attrs[] = {
 	&dev_attr_sum_cnt1.attr,
 	&dev_attr_use_fifo.attr,
 	&dev_attr_receive_scancode.attr,
+	&dev_attr_custom_keymap.attr,
 	NULL,
 };
 

@@ -96,6 +96,7 @@ struct remote_dev {
 	unsigned long keyup_jiffies;
 	unsigned long keyup_delay;
 	bool keypressed;
+	char setkey_mode;
 
 	u32 last_scancode;
 	u32 last_keycode;
