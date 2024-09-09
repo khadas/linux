@@ -118,4 +118,4 @@ __setup("rk_cam_w=", rk_cam_w_setup);
 __setup("rk_cam_h=", rk_cam_h_setup);
 __setup("rk_cam_hdr=", rk_cam_hdr_setup);
 __setup("rk_cam_fps=", rk_cam_fps_setup);
-__setup("rk_cam_skip_frame_interval=", rk_cam_skip_frame_interval_setup);
+__setup("rk_cam_skip=", rk_cam_skip_frame_interval_setup);
