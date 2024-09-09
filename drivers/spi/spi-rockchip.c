@@ -173,6 +173,7 @@
 
 #define ROCKCHIP_SPI_REGISTER_SIZE		0x1000
 
+#define ROCKCHIP_SPI_XFER_TIMEOUT_MS		4000
 #define ROCKCHIP_AUTOSUSPEND_TIMEOUT		500
 
 enum rockchip_spi_xfer_mode {
@@ -584,7 +585,7 @@ static int rockchip_spi_pio_transfer(struct rockchip_spi *rs,
 
 	ms = 8LL * 1000LL * xfer->len;
 	do_div(ms, speed_hz);
-	ms += ms + 200; /* some tolerance */
+	ms += ROCKCHIP_SPI_XFER_TIMEOUT_MS; /* some tolerance */
 
 	if (ms > UINT_MAX || ctlr->slave)
 		ms = UINT_MAX;
@@ -790,7 +791,7 @@ static int rockchip_spi_transfer_wait(struct spi_controller *ctlr,
 
 		ms = 8LL * 1000LL * xfer->len;
 		do_div(ms, speed_hz);
-		ms += ms + 200; /* some tolerance */
+		ms += ROCKCHIP_SPI_XFER_TIMEOUT_MS; /* some tolerance */
 
 		if (ms > UINT_MAX)
 			ms = UINT_MAX;
