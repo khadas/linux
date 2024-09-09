@@ -251,6 +251,7 @@
 		resets = <&cru SRST_M_I2S7_8CH_RX>;
 		reset-names = "rx-m";
 		rockchip,capture-only;
+		rockchip,i2s-rx-wait-time-ms = <50>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
