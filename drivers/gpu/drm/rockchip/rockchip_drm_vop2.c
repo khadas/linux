@@ -1488,7 +1488,7 @@ static void vop2_wait_for_port_mux_done(struct vop2 *vop2)
 	ret = readx_poll_timeout_atomic(vop2_read_port_mux, vop2, port_mux_cfg,
 					port_mux_cfg == vop2->port_mux_cfg, 0, 50 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "jaco ret: %d, wait port_mux done timeout: 0x%x--0x%x\n", ret,
+		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
 			      port_mux_cfg, vop2->port_mux_cfg);
 }
 
@@ -9233,7 +9233,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 			VOP_CTRL_SET(vop2, mipi1_ds_mode, 1);
 
 		port_mux = vop2_get_mipi_port_mux(vop2, vp_data->id);
-		printk("jaco %d\n", __LINE__);
 
 		VOP_CTRL_SET(vop2, mipi1_en, 1);
 		VOP_CTRL_SET(vop2, mipi1_mux, port_mux);
