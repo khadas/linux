@@ -192,10 +192,10 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int mcu_remove(struct i2c_client *client)
+static void mcu_remove(struct i2c_client *client)
 {
 	kfree(g_mcu_data);
-	return 0;
+//	return 0;
 }
 
 static void mcu_shutdown(struct i2c_client *client)
