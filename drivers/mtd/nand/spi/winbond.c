@@ -242,6 +242,12 @@ static int winbond_spinand_init(struct spinand_device *spinand)
 				WINBOND_CFG_BUF_READ);
 	}
 
+	/* W25N01JWZEIG enable continuous read */
+	if (spinand->id.data[1] == 0xaa && spinand->id.data[2] == 0x21) {
+		spinand_upd_cfg(spinand, BIT(3), BIT(3));
+		dev_info(&spinand->spimem->spi->dev, "Enable buf_read\n");
+	}
+
 	return 0;
 }
 
