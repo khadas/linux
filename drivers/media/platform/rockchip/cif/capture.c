@@ -7689,9 +7689,9 @@ static int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
 	struct sditf_priv *priv = cif_dev->sditf[0];
 	int i = 0;
 
-	if (cif_dev->terminal_sensor.sd)
-		v4l2_subdev_call(cif_dev->terminal_sensor.sd,
-				 core, s_power, on);
+//	if (cif_dev->terminal_sensor.sd)
+//		v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+//				 core, s_power, on);
 	if (priv && cif_dev->sditf_cnt > 1) {
 		if (priv->is_combine_mode) {
 			for (i = 0; i < cif_dev->sditf_cnt; i++) {
