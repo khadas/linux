@@ -60,7 +60,6 @@ struct rknpu_gem_object {
 	struct page **pages;
 	struct sg_table *sgt;
 	struct drm_mm_node mm_node;
-	int iommu_domain_id;
 };
 
 enum rknpu_cache_type {
@@ -72,8 +71,7 @@ enum rknpu_cache_type {
 struct rknpu_gem_object *rknpu_gem_object_create(struct drm_device *dev,
 						 unsigned int flags,
 						 unsigned long size,
-						 unsigned long sram_size,
-						 int iommu_domain_id);
+						 unsigned long sram_size);
 
 /* destroy a buffer with gem object */
 void rknpu_gem_object_destroy(struct rknpu_gem_object *rknpu_obj);
