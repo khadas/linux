@@ -765,7 +765,18 @@ static int rockchip_sai_path_prepare(struct rk_sai_dev *sai,
 static int rockchip_sai_parse_paths(struct rk_sai_dev *sai,
 				    struct device_node *np)
 {
+	unsigned int val;
 	int ret;
+
+	if (!device_property_read_u32(sai->dev, "rockchip,tdm-tx-lanes", &val)) {
+		if ((val >= 1) && (val <= 4))
+			sai->tx_lanes = val;
+	}
+
+	if (!device_property_read_u32(sai->dev, "rockchip,tdm-rx-lanes", &val)) {
+		if ((val >= 1) && (val <= 4))
+			sai->rx_lanes = val;
+	}
 
 	ret = rockchip_sai_path_prepare(sai, np, 0);
 	if (ret < 0) {
