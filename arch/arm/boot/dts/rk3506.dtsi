@@ -1244,6 +1244,13 @@
 		log_leakage: log-leakage@1f {
 			reg = <0x1f 0x1>;
 		};
+		cpu_tsadc_trim_l: cpu-tsadc-trim-l@20 {
+			reg = <0x20 0x1>;
+		};
+		cpu_tsadc_trim_h: cpu-tsadc-trim-h@21 {
+			reg = <0x21 0x1>;
+			bits = <0 2>;
+		};
 	};
 
 	audio_codec: audio-codec@ff4f8000 {
@@ -1352,6 +1359,8 @@
 		rockchip,hw-tshut-temp = <120000>;
 		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		nvmem-cells = <&cpu_tsadc_trim_l>, <&cpu_tsadc_trim_h>;
+		nvmem-cell-names = "trim_l", "trim_h";
 		status = "disabled";
 	};
 
