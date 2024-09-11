@@ -95,6 +95,10 @@
 #define RK3576_IOC_MISC_CON0		0xa400
 #define RK3576_HDMITX_HPD_INT_MSK	BIT(2)
 #define RK3576_HDMITX_HPD_INT_CLR	BIT(1)
+#define RK3576_IOC_MISC_CON1		0Xa404
+#define RK3576_SET_DLY_EN_MASK		(0x3f << 8)
+#define RK3576_SET_DLY_EN		BIT(8)
+#define RK3576_SET_LNUM_MS_MASK		0xff
 #define RK3576_IOC_HDMITX_HPD_STATUS	0xa440
 #define RK3576_HDMITX_LOW_MORETHAN100MS	BIT(7)
 #define RK3576_HDMITX_HPD_PORT_LEVEL	BIT(6)
@@ -138,6 +142,11 @@
 #define RK3588_HDMI0_HPD_INT_CLR	BIT(12)
 #define RK3588_GRF_SOC_CON7		0x031c
 #define RK3588_SET_HPD_PATH_MASK	(0x3 << 12)
+#define RK3588_GRF_SOC_CON12		0x0330
+#define RK3588_SET_DLY_EN_MASK		(0x3f << 8)
+#define RK3588_SET_DLY_EN		BIT(8)
+#define RK3588_SET_LNUM_MS_MASK		0xff
+#define RK3588_GRF_SOC_CON13		0x0334
 #define RK3588_GRF_SOC_STATUS1		0x0384
 #define RK3588_HDMI0_LOW_MORETHAN100MS	BIT(20)
 #define RK3588_HDMI0_HPD_PORT_LEVEL	BIT(19)
@@ -3735,7 +3744,11 @@ static void dw_hdmi_rk3576_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 	      HIWORD_UPDATE(0, RK3576_HDMITX_HPD_INT_MSK);
 
 	regmap_write(hdmi->regmap, RK3576_IOC_MISC_CON0, val);
-	regmap_write(hdmi->regmap, 0xa404, 0xffff0102);
+
+	val = HIWORD_UPDATE(RK3576_SET_DLY_EN, RK3576_SET_DLY_EN_MASK) |
+	      HIWORD_UPDATE(2, RK3576_SET_LNUM_MS_MASK);
+
+	regmap_write(hdmi->regmap, RK3576_IOC_MISC_CON1, val);
 }
 
 static void rk3588_io_path_init(struct rockchip_hdmi *hdmi)
@@ -3812,10 +3825,20 @@ static void dw_hdmi_rk3588_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 	u32 val;
 
 	if (!hdmi->id) {
+		val = HIWORD_UPDATE(RK3588_SET_DLY_EN, RK3588_SET_DLY_EN_MASK) |
+		      HIWORD_UPDATE(2, RK3588_SET_LNUM_MS_MASK);
+
+		regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON12, val);
+
 		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
 				    RK3588_HDMI0_HPD_INT_CLR) |
 		      HIWORD_UPDATE(0, RK3588_HDMI0_HPD_INT_MSK);
 	} else {
+		val = HIWORD_UPDATE(RK3588_SET_DLY_EN, RK3588_SET_DLY_EN_MASK) |
+		      HIWORD_UPDATE(2, RK3588_SET_LNUM_MS_MASK);
+
+		regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON13, val);
+
 		val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_CLR,
 				    RK3588_HDMI1_HPD_INT_CLR) |
 		      HIWORD_UPDATE(0, RK3588_HDMI1_HPD_INT_MSK);
