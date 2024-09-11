@@ -1486,10 +1486,15 @@
 
 };
 
-&gpu {
-	mali-supply = <&vdd_gpu_s0>;
-	mem-supply = <&vdd_gpu_mem_s0>;
+// &gpu {
+// 	mali-supply = <&vdd_gpu_s0>;
+// 	mem-supply = <&vdd_gpu_mem_s0>;
+// 	status = "okay";
+// };
+
+&gpu_panthor {
 	status = "okay";
+	mali-supply = <&vdd_gpu_s0>;
 };
 
 &i2s0_8ch {
