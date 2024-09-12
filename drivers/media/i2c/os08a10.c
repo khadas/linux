@@ -1671,6 +1671,9 @@ static int os08a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	os08a10->power_gpio = devm_gpiod_get(dev, "ircut", GPIOD_OUT_LOW);
+	if (IS_ERR(os08a10->power_gpio))
+		dev_warn(dev, "Failed to get ircut-gpios, maybe no use\n");
 	os08a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(os08a10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios, maybe no use\n");
