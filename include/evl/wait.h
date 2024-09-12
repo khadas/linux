@@ -38,7 +38,6 @@ struct evl_wait_queue {
 		.clock = &evl_mono_clock,				\
 		.wchan = {						\
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
-			.pi_serial = 0,					\
 			.owner = NULL,					\
 			.requeue_wait = evl_requeue_wait,		\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
