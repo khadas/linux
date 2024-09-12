@@ -75,6 +75,7 @@ enum rockchip_drm_debug_category {
 	VOP_DEBUG_WB		= BIT(2),
 	VOP_DEBUG_CFG_DONE	= BIT(3),
 	VOP_DEBUG_CLK		= BIT(4),
+	VOP_DEBUG_IOMMU_MAP     = BIT(5),
 	VOP_DEBUG_VSYNC		= BIT(7),
 	VOP_DEBUG_PIXEL_SHIFT	= BIT(8),
 };

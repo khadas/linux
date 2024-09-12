@@ -47,6 +47,9 @@
 
 #include "../drm_crtc_internal.h"
 
+#define CREATE_TRACE_POINTS
+#include "rockchip_drm_trace.h"
+
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
@@ -85,17 +88,23 @@ void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category
 	struct va_format vaf;
 	va_list args;
 
-	if (!rockchip_drm_debug_enabled(category))
-		return;
-
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (dev)
-		dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
+	if (rockchip_drm_debug_enabled(category)) {
+		if (dev)
+			dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
+		else
+			printk(KERN_DEBUG "%pV", &vaf);
+	}
+
+	if (category == VOP_DEBUG_VSYNC)
+		trace_rockchip_drm_dbg_vsync(&vaf);
+	else if (category == VOP_DEBUG_IOMMU_MAP)
+		trace_rockchip_drm_dbg_iommu(&vaf);
 	else
-		printk(KERN_DEBUG "%pV", &vaf);
+		trace_rockchip_drm_dbg_common(&vaf);
 
 	va_end(args);
 }
