@@ -128,7 +128,7 @@
 	vehicle_adsp_sound: vehicle-adsp-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,car-rk3308-sound";
+		simple-audio-card,name = "rockchip,tdm";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,cpu {
@@ -385,6 +385,8 @@
 
 &sai1 {
 	status = "okay";
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck
 		     &sai1m0_sclk
