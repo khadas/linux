@@ -620,7 +620,14 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		bclk_rate = sai->fw_ratio * slot_width * ch_per_lane * params_rate(params);
 		if (sai->is_clk_auto)
 			clk_set_rate(sai->mclk, bclk_rate);
+
 		mclk_rate = clk_get_rate(sai->mclk);
+		if (mclk_rate < bclk_rate) {
+			dev_err(sai->dev, "Mismatch mclk: %u, at least %u\n",
+				mclk_rate, bclk_rate);
+			return -EINVAL;
+		}
+
 		div_bclk = DIV_ROUND_CLOSEST(mclk_rate, bclk_rate);
 		mclk_req_rate = bclk_rate * div_bclk;
 
