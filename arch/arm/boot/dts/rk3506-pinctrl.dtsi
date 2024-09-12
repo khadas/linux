@@ -1244,7 +1244,7 @@
 		vo_lcdc_pins: vo-lcdc-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d0 */
 				<1 RK_PD3 1 &pcfg_pull_none>,
 				/* vo_lcdc_d1 */
@@ -1336,7 +1336,7 @@
 		bt1120_pins: bt1120-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_4>,
 				/* vo_lcdc_d3 */
 				<1 RK_PD0 1 &pcfg_pull_none>,
 				/* vo_lcdc_d4 */
@@ -1375,7 +1375,7 @@
 		bt656_m0_pins: bt656-m0-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_4>,
 				/* vo_lcdc_d3 */
 				<1 RK_PD0 1 &pcfg_pull_none>,
 				/* vo_lcdc_d4 */
@@ -1398,7 +1398,7 @@
 		bt656_m1_pins: bt656-m1-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_4>,
 				/* vo_lcdc_d13 */
 				<1 RK_PB6 1 &pcfg_pull_none>,
 				/* vo_lcdc_d14 */
@@ -1418,10 +1418,223 @@
 		};
 
 		/omit-if-no-ref/
-		rgb3x8_rgb2x8_m0_pins: rgb3x8-rgb2x8-m0-pins {
+		mcu_rgb3x8_rgb2x8_m0_pins: mcu-rgb3x8-rgb2x8-m0-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
 				<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d3 */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d4 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d5 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d6 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d7 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d10 */
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d11 */
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d12 */
+				<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>,
+				/* vo_lcdc_vsync */
+				<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mcu_rgb3x8_rgb2x8_m1_pins: mcu-rgb3x8-rgb2x8-m1-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d13 */
+				<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d14 */
+				<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d15 */
+				<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d19 */
+				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d20 */
+				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d21 */
+				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d22 */
+				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d23 */
+				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>,
+				/* vo_lcdc_vsync */
+				<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mcu_rgb565_pins: mcu-rgb565-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d3 */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d4 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d5 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d6 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d7 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d10 */
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d11 */
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d12 */
+				<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d13 */
+				<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d14 */
+				<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d15 */
+				<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d19 */
+				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d20 */
+				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d21 */
+				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d22 */
+				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d23 */
+				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>,
+				/* vo_lcdc_vsync */
+				<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mcu_rgb666_pins: mcu-rgb666-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d2 */
+				<1 RK_PD1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d3 */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d4 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d5 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d6 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d7 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d10 */
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d11 */
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d12 */
+				<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d13 */
+				<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d14 */
+				<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d15 */
+				<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d18 */
+				<1 RK_PB1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d19 */
+				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d20 */
+				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d21 */
+				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d22 */
+				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d23 */
+				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>,
+				/* vo_lcdc_vsync */
+				<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		mcu_rgb888_pins: mcu-rgb888-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				<1 RK_PA3 1 &pcfg_pull_none>,
+				/* vo_lcdc_d0 */
+				<1 RK_PD3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d1 */
+				<1 RK_PD2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d2 */
+				<1 RK_PD1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d3 */
+				<1 RK_PD0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d4 */
+				<1 RK_PC7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d5 */
+				<1 RK_PC6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d6 */
+				<1 RK_PC5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d7 */
+				<1 RK_PC4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d8 */
+				<1 RK_PC3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d9 */
+				<1 RK_PC2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d10 */
+				<1 RK_PC1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d11 */
+				<1 RK_PC0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d12 */
+				<1 RK_PB7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d13 */
+				<1 RK_PB6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d14 */
+				<1 RK_PB5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d15 */
+				<1 RK_PB4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d16 */
+				<1 RK_PB3 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d17 */
+				<1 RK_PB2 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d18 */
+				<1 RK_PB1 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d19 */
+				<1 RK_PB0 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d20 */
+				<1 RK_PA7 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d21 */
+				<1 RK_PA6 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d22 */
+				<1 RK_PA5 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_d23 */
+				<1 RK_PA4 1 &pcfg_pull_none_drv_level_0>,
+				/* vo_lcdc_den */
+				<1 RK_PA0 1 &pcfg_pull_none>,
+				/* vo_lcdc_hsync */
+				<1 RK_PA2 1 &pcfg_pull_none>,
+				/* vo_lcdc_vsync */
+				<1 RK_PA1 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		rgb3x8_rgb2x8_m0_pins: rgb3x8-rgb2x8-m0-pins {
+			rockchip,pins =
+				/* vo_lcdc_clk */
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d3 */
 				<1 RK_PD0 1 &pcfg_pull_none>,
 				/* vo_lcdc_d4 */
@@ -1450,7 +1663,7 @@
 		rgb3x8_rgb2x8_m1_pins: rgb3x8-rgb2x8-m1-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d13 */
 				<1 RK_PB6 1 &pcfg_pull_none>,
 				/* vo_lcdc_d14 */
@@ -1479,7 +1692,7 @@
 		rgb565_pins: rgb565-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d3 */
 				<1 RK_PD0 1 &pcfg_pull_none>,
 				/* vo_lcdc_d4 */
@@ -1524,7 +1737,7 @@
 		rgb666_pins: rgb666-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d2 */
 				<1 RK_PD1 1 &pcfg_pull_none>,
 				/* vo_lcdc_d3 */
@@ -1573,7 +1786,7 @@
 		rgb888_pins: rgb888-pins {
 			rockchip,pins =
 				/* vo_lcdc_clk */
-				<1 RK_PA3 1 &pcfg_pull_none>,
+				<1 RK_PA3 1 &pcfg_pull_none_drv_level_3>,
 				/* vo_lcdc_d0 */
 				<1 RK_PD3 1 &pcfg_pull_none>,
 				/* vo_lcdc_d1 */
