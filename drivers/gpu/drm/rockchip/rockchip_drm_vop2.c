@@ -1385,7 +1385,7 @@ static int vop2_set_aclk_rate(struct drm_crtc *crtc,
 		if (csu_div != vop2->csu_div) {
 			rockchip_csu_set_div(vop2->csu_aclk, csu_div);
 			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CLK,
-					 "Set aclk auto cs div from %d to %d, aclk rate:%ld, aclk mode:%d\n",
+					 "Set aclk auto cs div from %d to %d, aclk rate:%ld, aclk mode:%d",
 					 vop2->csu_div, csu_div, clk_get_rate(vop2->aclk),
 					 vop2->aclk_mode);
 		}
@@ -1763,7 +1763,7 @@ static inline void rk3568_vop2_cfg_done(struct drm_crtc *crtc)
 	 */
 	val |= vop2_readl(vop2, RK3568_REG_CFG_DONE) & 0x7;
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
 
 	vop2_writel(vop2, 0, val);
 
@@ -1790,7 +1790,7 @@ static inline void rk3588_vop2_cfg_done(struct drm_crtc *crtc)
 	if (vcstate->splice_mode)
 		val |= BIT(vp_data->splice_vp_id) | (BIT(vp_data->splice_vp_id) << 16);
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n\n", val);
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CFG_DONE, "cfg_done: 0x%x\n", val);
 
 	vop2_writel(vop2, 0, val);
 }
@@ -3752,7 +3752,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		struct drm_framebuffer *fb = conn_state->writeback_job->fb;
 
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_WB,
-				 "Enable wb %ux%u fmt: %u pitches: %d addr: %pad\n",
+				 "Enable wb %ux%u fmt: %u pitches: %d addr: %pad",
 				 fb->width, fb->height, wb_state->format,
 				 fb->pitches[0], &wb_state->yrgb_addr);
 
@@ -5690,7 +5690,7 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_atomic
 	struct drm_crtc *crtc;
 	struct vop2_video_port *vp;
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE, "%s disable %s\n",
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE, "%s disable %s",
 			 win->name, current->comm);
 
 	if (state)
@@ -6113,7 +6113,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-			 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+			 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s",
 			 vp->id, win->name,
 			 actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
 			 dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
@@ -6363,7 +6363,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 
 	if (vcstate->splice_mode) {
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-				 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s\n",
+				 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s",
 				 vp->id, win->name,
 				 drm_rect_width(&vpstate->src) >> 16,
 				 drm_rect_height(&vpstate->src) >> 16,
@@ -7490,7 +7490,7 @@ static void rockchip_drm_vop2_pixel_shift_commit(struct drm_device *dev, struct 
 	int vp_id = vp->id;
 
 	if (vop2->active_vp_mask & BIT(vp_id)) {
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PIXEL_SHIFT, "vop2 pixel shift x:%d, y:%d\n",
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PIXEL_SHIFT, "vop2 pixel shift x:%d, y:%d",
 				 vcstate->shift_x, vcstate->shift_y);
 		rockchip_drm_vop2_pixel_shift_duplicate_commit(dev);
 	}
@@ -11225,7 +11225,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		vop2_zpos[nr_layers].zpos = vpstate->zpos;
 		vop2_zpos[nr_layers].plane = plane;
 
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "%s active zpos:%d for vp%d from vp%d\n",
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "%s active zpos:%d for vp%d from vp%d",
 				 win->name, vpstate->zpos, vp->id, old_vp->id);
 		/* left and right win may have different number */
 		if (vcstate->splice_mode && vop2_zpos_splice) {
@@ -11259,7 +11259,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 	}
 	vp->hdr10_at_splice_mode = hdr10_at_splice_mode;
 
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "vp%d: %d windows, active layers %d\n",
+	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "vp%d: %d windows, active layers %d",
 			 vp->id, hweight32(vp->win_mask), nr_layers);
 	if (nr_layers) {
 		vp->nr_layers = nr_layers;
@@ -12619,7 +12619,7 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		}
 
 		if (active_irqs & FS_FIELD_INTR) {
-			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d\n", vp->id);
+			rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
 			vop2_wb_handler(vp);
 			if (likely(!vp->skip_vsync) || (vp->layer_sel_update == false)) {
 				drm_crtc_handle_vblank(crtc);
@@ -12777,7 +12777,7 @@ static irqreturn_t vop3_vp_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_FIELD_INTR) {
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d\n", vp->id);
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_VSYNC, "vsync_vp%d", vp->id);
 		vop2_wb_handler(vp);
 		drm_crtc_handle_vblank(crtc);
 		vop2_handle_vblank(vop2, crtc);
@@ -14077,7 +14077,7 @@ static int vop2_devfreq_target(struct device *dev, unsigned long *freq,
 	ret = dev_pm_opp_set_rate(dev, *freq);
 	if (!ret) {
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_CLK,
-				 "Set VOP aclk from %ld to %ld\n", vop2->aclk_current_freq, *freq);
+				 "Set VOP aclk from %ld to %ld", vop2->aclk_current_freq, *freq);
 		vop2->aclk_current_freq = *freq;
 		vop2->devfreq->last_status.current_frequency = *freq;
 	}

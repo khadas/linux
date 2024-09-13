@@ -94,9 +94,9 @@ void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category
 
 	if (rockchip_drm_debug_enabled(category)) {
 		if (dev)
-			dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
+			dev_printk(KERN_DEBUG, dev, "%pV\n", &vaf);
 		else
-			printk(KERN_DEBUG "%pV", &vaf);
+			printk(KERN_DEBUG "%pV\n", &vaf);
 	}
 
 	if (category == VOP_DEBUG_VSYNC)
