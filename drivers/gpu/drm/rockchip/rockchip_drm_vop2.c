@@ -6112,13 +6112,13 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 
 	vop2_win_enable(win);
 	spin_lock(&vop2->reg_lock);
-	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-			 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s",
-			 vp->id, win->name,
-			 actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
-			 dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
-			 &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
-			 &vpstate->yrgb_mst, vpstate->fb_size, current->comm);
+	rockchip_drm_dbg_thread_info(vop2->dev, VOP_DEBUG_PLANE,
+				     "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx]",
+				     vp->id, win->name,
+				     actual_w, actual_h, src->x1 >> 16, src->y1 >> 16,
+				     dsp_w, dsp_h, dsp_stx, dsp_sty, vpstate->zpos,
+				     &fb->format->format, rockchip_drm_modifier_to_string(fb->modifier),
+				     &vpstate->yrgb_mst, vpstate->fb_size);
 
 	if (vop2->version != VOP_VERSION_RK3568)
 		rk3588_vop2_win_cfg_axi(win);
@@ -6362,17 +6362,17 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_atomic_
 	}
 
 	if (vcstate->splice_mode) {
-		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PLANE,
-				 "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx] by %s",
-				 vp->id, win->name,
-				 drm_rect_width(&vpstate->src) >> 16,
-				 drm_rect_height(&vpstate->src) >> 16,
-				 vpstate->src.x1 >> 16, vpstate->src.y1 >> 16,
-				 drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
-				 vpstate->dest.x1, vpstate->dest.y1, vpstate->zpos,
-				 &fb->format->format,
-				 rockchip_drm_modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
-				 vpstate->fb_size, current->comm);
+		rockchip_drm_dbg_thread_info(vop2->dev, VOP_DEBUG_PLANE,
+					     "vp%d update %s[%dx%d@(%d, %d)->%dx%d@(%d, %d)] zpos[%d] fmt[%p4cc%s] addr[%pad] fb_size[0x%zx]",
+					     vp->id, win->name,
+					     drm_rect_width(&vpstate->src) >> 16,
+					     drm_rect_height(&vpstate->src) >> 16,
+					     vpstate->src.x1 >> 16, vpstate->src.y1 >> 16,
+					     drm_rect_width(&vpstate->dest), drm_rect_height(&vpstate->dest),
+					     vpstate->dest.x1, vpstate->dest.y1, vpstate->zpos,
+					     &fb->format->format,
+					     rockchip_drm_modifier_to_string(fb->modifier), &vpstate->yrgb_mst,
+					     vpstate->fb_size);
 
 		vop2_calc_drm_rect_for_splice(vpstate, &wsrc, &wdst, &right_wsrc, &right_wdst);
 		splice_win = win->splice_win;

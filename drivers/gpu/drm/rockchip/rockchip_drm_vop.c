@@ -1993,8 +1993,8 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	if (!old_state->crtc)
 		return;
 
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d by %s",
-			 win->win_id, win->area_id, current->comm);
+	rockchip_drm_dbg_thread_info(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d",
+				     win->win_id, win->area_id);
 
 	spin_lock(&vop->reg_lock);
 
@@ -2249,12 +2249,12 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	if (rockchip_afbc(plane, fb->modifier))
 		afbc_en = true;
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE,
-			 "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad] by %s",
-			 win->win_id, win->area_id, actual_w, actual_h,
-			 dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
-			 afbc_en ? "[AFBC]" : "",
-			 &vop_plane_state->yrgb_mst, current->comm);
+	rockchip_drm_dbg_thread_info(vop->dev, VOP_DEBUG_PLANE,
+				     "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad]",
+				     win->win_id, win->area_id, actual_w, actual_h,
+				     dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
+				     afbc_en ? "[AFBC]" : "",
+				     &vop_plane_state->yrgb_mst);
 	/*
 	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
 	 * actual_w, actual_h)

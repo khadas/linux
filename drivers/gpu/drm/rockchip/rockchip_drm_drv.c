@@ -81,8 +81,34 @@ static inline bool rockchip_drm_debug_enabled(enum rockchip_drm_debug_category c
 	return unlikely(drm_debug & category);
 }
 
+static void rockchip_drm_dbg_print(const struct device *dev, enum rockchip_drm_debug_category category,
+				   bool show_thread, struct va_format *vaf)
+{
+	if (rockchip_drm_debug_enabled(category)) {
+		if (dev) {
+			if (show_thread)
+				dev_printk(KERN_DEBUG, dev, "%s %pV\n", current->comm, vaf);
+			else
+				dev_printk(KERN_DEBUG, dev, "%pV\n", vaf);
+		} else {
+			if (show_thread)
+				printk(KERN_DEBUG "%s %pV\n", current->comm, vaf);
+			else
+				printk(KERN_DEBUG "%pV\n", vaf);
+		}
+	}
+
+	if (category == VOP_DEBUG_VSYNC)
+		trace_rockchip_drm_dbg_vsync(vaf);
+	else if (category == VOP_DEBUG_IOMMU_MAP)
+		trace_rockchip_drm_dbg_iommu(vaf);
+	else
+		trace_rockchip_drm_dbg_common(vaf);
+}
+
 __printf(3, 4)
-void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
+void rockchip_drm_dbg(const struct device *dev,
+		      enum rockchip_drm_debug_category category,
 		      const char *format, ...)
 {
 	struct va_format vaf;
@@ -92,19 +118,24 @@ void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (rockchip_drm_debug_enabled(category)) {
-		if (dev)
-			dev_printk(KERN_DEBUG, dev, "%pV\n", &vaf);
-		else
-			printk(KERN_DEBUG "%pV\n", &vaf);
-	}
+	rockchip_drm_dbg_print(dev, category, false, &vaf);
 
-	if (category == VOP_DEBUG_VSYNC)
-		trace_rockchip_drm_dbg_vsync(&vaf);
-	else if (category == VOP_DEBUG_IOMMU_MAP)
-		trace_rockchip_drm_dbg_iommu(&vaf);
-	else
-		trace_rockchip_drm_dbg_common(&vaf);
+	va_end(args);
+}
+
+__printf(3, 4)
+void rockchip_drm_dbg_thread_info(const struct device *dev,
+				  enum rockchip_drm_debug_category category,
+				  const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	rockchip_drm_dbg_print(dev, category, true, &vaf);
 
 	va_end(args);
 }
