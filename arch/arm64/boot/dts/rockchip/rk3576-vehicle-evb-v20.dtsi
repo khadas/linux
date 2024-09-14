@@ -79,6 +79,7 @@
 	};
 
 	vcc3v3_lcd_n: vcc3v3-lcd0-n {
+		status = "disabled";
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_lcd0_n";
 		regulator-boot-on;
@@ -401,14 +402,13 @@
 	status = "okay";
 };
 
-&spi1 {
+&spi0 {
 	status = "okay";
-	max-freq = <50000000>; /* spi internal clk, don't modify */
-	pinctrl-names = "default", "high_speed";
-	pinctrl-0 = <&spi1m1_csn0 &spi1m1_pins>;
-	spi_dev@0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m0_csn0 &spi0m0_pins>;
+	spi-dev@0 {
 		compatible = "rockchip,spidev";
-		reg = <0>;
+		reg = <0x0>;
 		spi-max-frequency = <50000000>;
 		spi-lsb-first;
 	};
