@@ -290,6 +290,7 @@ struct rkisp_device {
 	spinlock_t aiisp_lock;
 	struct rkisp_cmsk_cfg cmsk_cfg;
 	struct rkisp_aiisp_cfg aiisp_cfg;
+	struct rkisp_fpn_cfg fpn_cfg;
 
 	bool is_cmsk_upd;
 	bool is_hw_link;

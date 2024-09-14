@@ -87,6 +87,7 @@
 
 static void rkisp_config_cmsk(struct rkisp_device *dev);
 static void rkisp_config_aiisp(struct rkisp_device *dev);
+static void rkisp_config_fpn(struct rkisp_device *dev);
 
 static inline struct rkisp_device *sd_to_isp_dev(struct v4l2_subdev *sd)
 {
@@ -1825,6 +1826,8 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	dev->is_aiisp_upd = dev->is_aiisp_en;
 	rkisp_config_cmsk(dev);
 	rkisp_config_aiisp(dev);
+	if (dev->hw_dev->is_single)
+		rkisp_config_fpn(dev);
 	return 0;
 }
 
@@ -3768,6 +3771,84 @@ static int rkisp_get_offline_raw_buf_cnt(struct rkisp_device *dev, int *cnt)
 	return 0;
 }
 
+static void rkisp_config_fpn(struct rkisp_device *dev)
+{
+	struct rkisp_fpn_cfg *cfg = &dev->fpn_cfg;
+	u32 i, val, *data;
+
+	if (!cfg->en) {
+		rkisp_unite_write(dev, CSI2RX_FPN_CTRL, 0, true);
+		return;
+	}
+	val = SW_FPN_EN | SW_FPN_BITS(cfg->data_shift);
+	if (cfg->row_en)
+		val |= SW_FPN_ROW_EN;
+	rkisp_unite_write(dev, CSI2RX_FPN_CTRL, val, true);
+	rkisp_unite_write(dev, CSI2RX_FPN_TABLE_CTRL, SW_FPN_CFG, true);
+	data = cfg->buf;
+	/* 32bit: 8 fpn, first data line for DATA0, second line for DATA1 */
+	for (i = 0; i < cfg->buf_size / 8; i++) {
+		val = *(data + i);
+		rkisp_unite_write(dev, CSI2RX_FPN_TABLE_DATA0, val, true);
+		val = *(data + cfg->buf_size / 8 + i);
+		rkisp_unite_write(dev, CSI2RX_FPN_TABLE_DATA1, val, true);
+	}
+	rkisp_unite_write(dev, CSI2RX_FPN_TABLE_CTRL, 0, true);
+}
+
+static int rkisp_set_fpn(struct rkisp_device *dev, struct rkisp_fpn_cfg *cfg)
+{
+	u32 w = dev->isp_sdev.out_crop.width;
+	u32 h = dev->isp_sdev.out_crop.height;
+	int ret = 0;
+
+	if (!cfg->en && dev->fpn_cfg.en) {
+		dev->fpn_cfg.en = 0;
+		if (dev->fpn_cfg.buf) {
+			vfree(dev->fpn_cfg.buf);
+			dev->fpn_cfg.buf = NULL;
+			dev->fpn_cfg.buf_size = 0;
+		}
+		return ret;
+	}
+
+	if ((cfg->row_en && cfg->buf_size < h) ||
+	    (!cfg->row_en && cfg->buf_size < w)) {
+		dev_err(dev->dev, "fpn buf size %d row_en:%d error for %dx%d\n",
+			cfg->buf_size, cfg->row_en, w, h);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (dev->fpn_cfg.buf && dev->fpn_cfg.buf_size < cfg->buf_size) {
+		vfree(dev->fpn_cfg.buf);
+		dev->fpn_cfg.buf = NULL;
+		dev->fpn_cfg.buf_size = 0;
+	}
+
+	if (!dev->fpn_cfg.buf) {
+		dev->fpn_cfg.buf = vmalloc(cfg->buf_size);
+		if (!dev->fpn_cfg.buf) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
+	if (copy_from_user(dev->fpn_cfg.buf, cfg->buf, cfg->buf_size)) {
+		dev_err(dev->dev, "copy fpn data err\n");
+		vfree(dev->fpn_cfg.buf);
+		dev->fpn_cfg.buf = NULL;
+		dev->fpn_cfg.buf_size = 0;
+		ret = -EFAULT;
+		goto err;
+	}
+	dev->fpn_cfg.en = cfg->en;
+	dev->fpn_cfg.row_en = cfg->row_en;
+	dev->fpn_cfg.data_shift = cfg->data_shift;
+	dev->fpn_cfg.buf_size = cfg->buf_size;
+err:
+	return ret;
+}
+
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -3927,6 +4008,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
 		ret = rkisp_get_offline_raw_buf_cnt(isp_dev, arg);
 		break;
+	case RKISP_CMD_SET_FPN:
+		ret = rkisp_set_fpn(isp_dev, arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -4023,6 +4107,10 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
 		size = sizeof(int);
 		cp_t_us = true;
+		break;
+	case RKISP_CMD_SET_FPN:
+		size = sizeof(struct rkisp_fpn_cfg);
+		cp_f_us = true;
 		break;
 	default:
 		return -ENOIOCTLCMD;

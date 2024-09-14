@@ -275,6 +275,12 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	params_vdev->rdbk_times = 0;
 	if (!(dev->isp_state & ISP_START))
 		rkisp_params_stream_stop(params_vdev);
+	dev->fpn_cfg.en = 0;
+	if (dev->fpn_cfg.buf) {
+		vfree(dev->fpn_cfg.buf);
+		dev->fpn_cfg.buf = NULL;
+		dev->fpn_cfg.buf_size = 0;
+	}
 }
 
 static int

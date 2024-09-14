@@ -241,6 +241,8 @@ static void isp30_show(struct rkisp_device *dev, struct seq_file *p)
 	};
 	u32 val, tmp;
 
+	val = rkisp_read(dev, CSI2RX_FPN_CTRL, false);
+	seq_printf(p, "%-10s %s(0x%x)\n", "FPN", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_CMSK_CTRL0, false);
 	seq_printf(p, "%-10s %s(0x%x)\n", "CMSK", (val & 1) ? "ON" : "OFF", val);
 	val = rkisp_read(dev, ISP3X_DPCC0_MODE, false);

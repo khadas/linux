@@ -80,6 +80,9 @@
 #define RKISP_CMD_GET_OFFLINE_RAW_BUFCNT \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 22, int)
 
+#define RKISP_CMD_SET_FPN \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 25, struct rkisp_fpn_cfg)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -129,6 +132,7 @@
 
 /* BASE_VIDIOC_PRIVATE + 115 for RKISP_CMD_GET_PARAMS_V39 */
 /* BASE_VIDIOC_PRIVATE + 116 for RKISP_CMD_GET_PARAMS_V33 */
+/* BASE_VIDIOC_PRIVATE + 117 for RKISP_CMD_SET_QUICK_STREAM */
 
 /**********************EVENT_PRIVATE***************************/
 #define RKISP_V4L2_EVENT_AIISP_LINECNT (V4L2_EVENT_PRIVATE_START + 1)
@@ -347,6 +351,29 @@ struct rkisp_meshbuf_size {
 struct isp2x_mesh_head {
 	enum isp2x_mesh_buf_stat stat;
 	__u32 data_oft;
+} __attribute__ ((packed));
+
+enum {
+	RKISP_FPN_DATA_SHIFT_0 = 0,
+	RKISP_FPN_DATA_SHIFT_1,
+	RKISP_FPN_DATA_SHIFT_2,
+	RKISP_FPN_DATA_SHIFT_3,
+};
+
+/* struct rkisp_aiisp_cfg
+ * en: enable fpn function
+ * row_en: row fpn mode other column fpn
+ * data_shift: fpn data shift, 4bits of 7bits calculate fpn data
+ * buf_size: buf size: row_en ? height : width
+ * buf: fpn data, two row or two column fpn data, 4bit one fpn data
+ */
+struct rkisp_fpn_cfg {
+	char en;
+	char row_en;
+	char data_shift;
+	char reserved;
+	int buf_size;
+	void *buf;
 } __attribute__ ((packed));
 
 #define RKISP_AIISP_WR_LINECNT_ID	0
