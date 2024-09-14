@@ -57,6 +57,35 @@ static const struct mtd_ooblayout_ops gss0xgsak1_ooblayout = {
 	.free = gss0xgsak1_ooblayout_free,
 };
 
+static int gss0xgsax1_ooblayout_ecc(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = 64;
+	region->length = 64;
+
+	return 0;
+}
+
+static int gss0xgsax1_ooblayout_free(struct mtd_info *mtd, int section,
+				  struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = 2;
+	region->length = 62;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops gss0xgsax1_ooblayout = {
+	.ecc = gss0xgsax1_ooblayout_ecc,
+	.free = gss0xgsax1_ooblayout_free,
+};
+
 static const struct spinand_info gsto_spinand_table[] = {
 	SPINAND_INFO("GSS01GSAK1",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xBA, 0x13),
@@ -76,6 +105,24 @@ static const struct spinand_info gsto_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&gss0xgsak1_ooblayout, NULL)),
+	SPINAND_INFO("GSS02GSAX1",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xCA),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&gss0xgsax1_ooblayout, NULL)),
+	SPINAND_INFO("GSS01GSAX1",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xCA),
+		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&gss0xgsax1_ooblayout, NULL)),
 };
 
 static const struct spinand_manufacturer_ops gsto_spinand_manuf_ops = {
