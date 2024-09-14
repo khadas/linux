@@ -2155,6 +2155,10 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job = scheduler->running_job;
 
+	/*clear INTR */
+	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
+		  RGA3_INT_CLR, scheduler);
+
 	if (job == NULL)
 		return IRQ_HANDLED;
 
@@ -2178,10 +2182,6 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 		       job->intr_status, job->hw_status, job->cmd_status);
 		scheduler->ops->soft_reset(scheduler);
 	}
-
-	/*clear INTR */
-	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
-		  RGA3_INT_CLR, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }

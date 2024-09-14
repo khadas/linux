@@ -1123,11 +1123,26 @@ static irqreturn_t rga_irq_handler(int irq, void *data)
 {
 	irqreturn_t irq_ret = IRQ_NONE;
 	struct rga_scheduler_t *scheduler = data;
+	ktime_t timestamp = ktime_get();
 
-	scheduler->running_job->timestamp.hw_done = ktime_get();
+	spin_lock(&scheduler->irq_lock);
 
-	if (scheduler->ops->irq)
+	if (scheduler->ops->irq) {
 		irq_ret = scheduler->ops->irq(scheduler);
+		if (irq_ret == IRQ_HANDLED) {
+			spin_unlock(&scheduler->irq_lock);
+			return irq_ret;
+		}
+	}
+
+	if (scheduler->running_job == NULL) {
+		spin_unlock(&scheduler->irq_lock);
+		return IRQ_HANDLED;
+	}
+
+	scheduler->running_job->timestamp.hw_done = timestamp;
+
+	spin_unlock(&scheduler->irq_lock);
 
 	return irq_ret;
 }

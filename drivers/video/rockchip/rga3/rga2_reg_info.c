@@ -3124,6 +3124,13 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job = scheduler->running_job;
 
+	/*clear INTR */
+	rga_write(rga_read(RGA2_INT, scheduler) |
+		  (m_RGA2_INT_ERROR_CLEAR_MASK |
+		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
+		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
+		  RGA2_INT, scheduler);
+
 	/* The hardware interrupt top-half don't need to lock the scheduler. */
 	if (job == NULL)
 		return IRQ_HANDLED;
@@ -3150,13 +3157,6 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 
 		scheduler->ops->soft_reset(scheduler);
 	}
-
-	/*clear INTR */
-	rga_write(rga_read(RGA2_INT, scheduler) |
-		  (m_RGA2_INT_ERROR_CLEAR_MASK |
-		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
-		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
-		  RGA2_INT, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }
