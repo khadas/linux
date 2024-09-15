@@ -2202,13 +2202,6 @@ static void hdmirx_plugin(struct snps_hdmirx_dev *hdmirx_dev)
 	hdmirx_hpd_ctrl(hdmirx_dev, true);
 	hdmirx_phy_config(hdmirx_dev);
 	ret = hdmirx_wait_lock_and_get_timing(hdmirx_dev);
-	if (ret) {
-		hdmirx_plugout(hdmirx_dev);
-		queue_delayed_work(system_unbound_wq,
-				   &hdmirx_dev->delayed_work_hotplug,
-				   msecs_to_jiffies(200));
-		return;
-	}
 	hdmirx_dma_config(hdmirx_dev);
 	hdmirx_interrupts_setup(hdmirx_dev, true);
 }
