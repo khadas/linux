@@ -745,10 +745,17 @@ static void hdmirx_interrupts_setup(struct snps_hdmirx_dev *hdmirx_dev, bool en)
 static void hdmirx_plugout(struct snps_hdmirx_dev *hdmirx_dev)
 {
 	struct arm_smccc_res res;
+    int irq;
 
 	hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, POWERPROVIDED, 0);
 	hdmirx_interrupts_setup(hdmirx_dev, false);
 	hdmirx_hpd_ctrl(hdmirx_dev, false);
+    irq = gpiod_to_irq(hdmirx_dev->detect_5v_gpio);
+
+    if (irq >= 0) {
+        disable_irq(irq);
+    }
+
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG6, HDMIRX_DMA_EN, 0);
 	hdmirx_update_bits(hdmirx_dev, DMA_CONFIG4,
 			   LINE_FLAG_INT_EN |
@@ -766,6 +773,11 @@ static void hdmirx_plugout(struct snps_hdmirx_dev *hdmirx_dev)
 	cancel_delayed_work_sync(&hdmirx_dev->delayed_work_heartbeat);
 	flush_work(&hdmirx_dev->work_wdt_config);
 	arm_smccc_smc(SIP_WDT_CFG, WDT_STOP, 0, 0, 0, 0, 0, 0, &res);
+
+    hdmirx_hpd_ctrl(hdmirx_dev, true);
+    if (irq >= 0) {
+        enable_irq(irq);
+    }
 }
 
 static int hdmirx_set_edid(struct file *file, void *fh, struct v4l2_edid *edid)
