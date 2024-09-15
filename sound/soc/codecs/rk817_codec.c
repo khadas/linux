@@ -542,6 +542,7 @@ static int rk817_codec_power_up(struct snd_soc_component *component, int type)
 
 static int rk817_codec_power_down(struct snd_soc_component *component, int type)
 {
+	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	DBG("%s : power down %s %s %s\n", __func__,
@@ -592,6 +593,7 @@ static int rk817_codec_power_down(struct snd_soc_component *component, int type)
 		snd_soc_component_write(component, RK817_CODEC_DTOP_DIGEN_CLKE, 0x00);
 		snd_soc_component_write(component, RK817_CODEC_APLL_CFG5, 0x01);
 		snd_soc_component_write(component, RK817_CODEC_AREF_RTCFG1, 0x06);
+		rk817->rate = 0;
 	}
 
 	return 0;
@@ -1041,19 +1043,12 @@ static int rk817_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
-	unsigned int ret = 0;
 
-	ret = clk_set_rate(rk817->mclk, freq);
-	if (ret) {
-		dev_warn(component->dev, "%s %d clk_set_rate %d failed\n",
-			 __func__, __LINE__, freq);
-		return ret;
-	}
 	rk817->stereo_sysclk = freq;
 
 	DBG("%s : MCLK = %dHz\n", __func__, rk817->stereo_sysclk);
 
-	return ret;
+	return 0;
 }
 
 static int rk817_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -1090,8 +1085,9 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	unsigned char apll_cfg3_val;
 	unsigned char dtop_digen_sr_lmt0;
+	unsigned int ret = 0;
 
-	DBG("%s : sample rate = %dHz\n", __func__, rate);
+	DBG("%s : pre sample rate = %d, cur sample rate = %dHz\n", __func__, rk817->rate, rate);
 
 	if (rk817->chip_ver <= 0x4) {
 		DBG("%s: 0x4 and previous versions\n", __func__);
@@ -1132,7 +1128,12 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	 * is before playback/capture_path_put, therefore, we need to configure
 	 * APLL_CFG3/DTOP_DIGEN_CLKE/DDAC_SR_LMT0 for different sample rates.
 	 */
-	if (!((substream->stream == SNDRV_PCM_STREAM_CAPTURE) && rk817->pdmdata_out_enable)) {
+	if ((rk817->rate != rate) &&
+	    !((substream->stream == SNDRV_PCM_STREAM_CAPTURE) && rk817->pdmdata_out_enable)) {
+		ret = clk_set_rate(rk817->mclk, rk817->stereo_sysclk);
+		if (ret)
+			dev_warn(component->dev, "%s %d clk_set_rate %d failed\n",
+				 __func__, __LINE__, rk817->stereo_sysclk);
 		snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, apll_cfg3_val);
 		snd_soc_component_update_bits(component, RK817_CODEC_DDAC_SR_LMT0,
 					      DACSRT_MASK, dtop_digen_sr_lmt0);
@@ -1141,6 +1142,8 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 		else
 			rk817_restart_adc_digital_clk_and_apll(component);
 	}
+
+	rk817->rate = rate;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -1378,6 +1381,7 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817->component = component;
 	rk817->playback_path = OFF;
 	rk817->capture_path = MIC_OFF;
+	rk817->rate = 0;
 
 	chip_name = snd_soc_component_read(component, RK817_PMIC_CHIP_NAME);
 	chip_ver = snd_soc_component_read(component, RK817_PMIC_CHIP_VER);
