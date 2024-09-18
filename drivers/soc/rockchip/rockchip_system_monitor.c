@@ -648,10 +648,10 @@ static int rockchip_init_temp_opp_table(struct monitor_dev_info *info)
 		return -ENOMEM;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table) {
+	if (IS_ERR(opp_table)) {
 		kfree(info->opp_table);
 		info->opp_table = NULL;
-		return -ENOMEM;
+		return PTR_ERR(opp_table);
 	}
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
@@ -989,8 +989,8 @@ static int rockchip_adjust_low_temp_opp_volt(struct monitor_dev_info *info,
 	int i = 0;
 
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return -ENOMEM;
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
 
 	mutex_lock(&opp_table->lock);
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
