@@ -295,8 +295,12 @@ static int dsmc_ctrller_cfg_for_lb(struct rockchip_dsmc *dsmc, uint32_t cs)
 		       dsmc->regs + DSMC_RGN0_ATTR(cs) + 4 * i);
 	}
 	/* clear and enable interrupt */
-	writel(INT_STATUS(cfg->int_en), dsmc->regs + DSMC_INT_STATUS);
-	writel(INT_EN(cfg->int_en), dsmc->regs + DSMC_INT_EN);
+	REG_CLRSETBITS(dsmc, DSMC_INT_STATUS,
+		       INT_STATUS_MASK(cfg->int_en),
+		       INT_STATUS(cfg->int_en));
+	REG_CLRSETBITS(dsmc, DSMC_INT_EN,
+		       INT_EN_MASK(cfg->int_en),
+		       INT_EN(cfg->int_en));
 
 	if (dsmc->cfg.dma_req_mux_offset && (cs < 2))
 		REG_CLRSETBITS(dsmc, dsmc->cfg.dma_req_mux_offset,

@@ -278,6 +278,7 @@ static int dsmc_reg_remap(struct device *dev, struct dsmc_ctrl_config *cfg,
 							      region_map->size,
 							      DSMC_MEM_ATTRIBUTE_NO_CACHE);
 		} else if (cfg->cs_cfg[cs].device_type == DSMC_LB_DEVICE) {
+			num = 0;
 			for (rgn = 0; rgn < DSMC_LB_MAX_RGN; rgn++) {
 				if (!cfg->cs_cfg[cs].slv_rgn[rgn].status)
 					continue;

@@ -58,12 +58,12 @@
 
 /* INT_EN */
 #define INT_EN_SHIFT					0
-#define INT_EN_MASK					0xf
+#define INT_EN_MASK(cs)					(0x1 << (cs))
 #define INT_EN(cs)					(0x1 << (cs))
 
 /* INT_STATUS */
 #define INT_STATUS_SHIFT				0
-#define INT_STATUS_MASK					0xf
+#define INT_STATUS_MASK(cs)				(0x1 << (cs))
 #define INT_STATUS(cs)					(0x1 << (cs))
 
 /* INT_MASK */
