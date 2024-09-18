@@ -32,7 +32,7 @@
 			/* UART4 */
 			GIC_AMP_IRQ_CFG_ROUTE(70, 0xd0, CPU_GET_AFFINITY(0, 2))
 			/* MAILBOX */
-			GIC_AMP_IRQ_CFG_ROUTE(174, 0xd0, CPU_GET_AFFINITY(0, 2))>;
+			GIC_AMP_IRQ_CFG_ROUTE(176, 0xd0, CPU_GET_AFFINITY(0, 2))>;
 
 		status = "okay";
 	};
@@ -40,10 +40,11 @@
 	rpmsg: rpmsg@3c00000 {
 		compatible = "rockchip,rpmsg";
 		mbox-names = "rpmsg-rx", "rpmsg-tx";
-		mboxes = <&mailbox0 0 &mailbox0 3>;
+		mboxes = <&mailbox0 0 &mailbox2 0>;
 		rockchip,vdev-nums = <1>;
-		rockchip,link-id = <0x03>;
-		reg = <0x3c00000 0x100000>;
+		/* CPU2: link-id 0x02; */
+		rockchip,link-id = <0x02>;
+		reg = <0x3c00000 0x20000>;
 		memory-region = <&rpmsg_dma_reserved>;
 
 		status = "okay";
@@ -55,6 +56,11 @@
 };
 
 &mailbox0 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
+};
+
+&mailbox2 {
 	rockchip,txpoll-period-ms = <1>;
 	status = "okay";
 };
