@@ -2771,9 +2771,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			}
 			secondary_data = secondary->plat_data->phy_data;
 
-			list_for_each_entry(mode, &connector->probed_modes, head)
-				hdmi->plat_data->convert_to_split_mode(mode);
-
 			secondary->sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 			secondary->sink_has_audio = drm_detect_monitor_audio(edid);
 			if (secondary->cec_notifier)
@@ -2809,18 +2806,19 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 				ret++;
 			}
 		}
-		if (ret > 0 && (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)) {
-			struct drm_display_mode *mode;
 
-			list_for_each_entry(mode, &connector->probed_modes, head)
-				hdmi->plat_data->convert_to_split_mode(mode);
-		}
 		info->edid_hdmi_rgb444_dc_modes = 0;
 		info->edid_hdmi_ycbcr444_dc_modes = 0;
 		info->hdmi.y420_dc_modes = 0;
 		info->color_formats = 0;
 
 		dev_info(hdmi->dev, "failed to get edid\n");
+	}
+	if (ret > 0 && (hdmi->plat_data->split_mode || hdmi->plat_data->dual_connector_split)) {
+		struct drm_display_mode *mode;
+
+		list_for_each_entry(mode, &connector->probed_modes, head)
+			hdmi->plat_data->convert_to_split_mode(mode);
 	}
 
 	return ret;
