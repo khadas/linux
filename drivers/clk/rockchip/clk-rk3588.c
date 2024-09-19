@@ -1148,8 +1148,6 @@ static struct rockchip_clk_branch rk3588_clk_branches[] __initdata = {
 			RK3588_CLKGATE_CON(18), 9, GFLAGS),
 	GATE(CLK_OTPC_NS, "clk_otpc_ns", "xin24m", 0,
 			RK3588_CLKGATE_CON(18), 10, GFLAGS),
-	GATE(CLK_OTPC_ARB, "clk_otpc_arb", "xin24m", 0,
-			RK3588_CLKGATE_CON(18), 11, GFLAGS),
 	GATE(CLK_OTP_PHY_G, "clk_otp_phy_g", "xin24m", 0,
 			RK3588_CLKGATE_CON(18), 13, GFLAGS),
 	GATE(CLK_OTPC_AUTO_RD_G, "clk_otpc_auto_rd_g", "xin24m", 0,
