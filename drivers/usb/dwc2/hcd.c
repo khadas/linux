@@ -4447,20 +4447,19 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	if (hsotg->lx_state != DWC2_L2)
 		goto unlock;
 
-	hprt0 = dwc2_read_hprt0(hsotg);
-
-	/*
-	 * Added port connection status checking which prevents exiting from
-	 * Partial Power Down mode from _dwc2_hcd_resume() if not in Partial
-	 * Power Down mode.
-	 */
-	if (hprt0 & HPRT0_CONNSTS) {
-		hsotg->lx_state = DWC2_L0;
-		goto unlock;
-	}
-
 	switch (hsotg->params.power_down) {
 	case DWC2_POWER_DOWN_PARAM_PARTIAL:
+		hprt0 = dwc2_read_hprt0(hsotg);
+		/*
+		 * Added port connection status checking which prevents exiting from
+		 * Partial Power Down mode from _dwc2_hcd_resume() if not in Partial
+		 * Power Down mode.
+		 */
+		if (hprt0 & HPRT0_CONNSTS) {
+			hsotg->lx_state = DWC2_L0;
+			goto unlock;
+		}
+
 		ret = dwc2_exit_partial_power_down(hsotg, 0, true);
 		if (ret)
 			dev_err(hsotg->dev,
