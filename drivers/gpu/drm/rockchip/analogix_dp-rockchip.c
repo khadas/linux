@@ -501,7 +501,8 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 	if (dp->plat_data.split_mode) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
-		s->output_flags |= dp->id ? ROCKCHIP_OUTPUT_DATA_SWAP : 0;
+		if (dp->id || dp->plat_data.dual_channel_swap)
+			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 		s->output_if |= VOP_OUTPUT_IF_eDP0 | VOP_OUTPUT_IF_eDP1;
 		s->output_if_left_panel |= dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0;
 	} else if (dp->plat_data.dual_connector_split) {
@@ -770,6 +771,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		dp->plat_data.dual_channel_mode =
 			device_property_read_bool(dev, "dual-channel") ||
 			device_property_read_bool(dev, "rockchip,dual-channel");
+		dp->plat_data.dual_channel_swap =
+			device_property_read_bool(dev, "rockchip,data-swap");
 		secondary->plat_data.panel = dp->plat_data.panel;
 		secondary->plat_data.left = dp->adp;
 		secondary->plat_data.split_mode = true;
