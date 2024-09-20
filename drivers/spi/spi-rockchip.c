@@ -295,12 +295,12 @@ static void rockchip_spi_set_cs(struct spi_device *spi, bool enable)
 		/* Keep things powered as long as CS is asserted */
 		pm_runtime_get_sync(rs->dev);
 
-		if (spi->cs_gpiod)
+		if (spi_get_csgpiod(spi, 0))
 			ROCKCHIP_SPI_SET_BITS(rs->regs + ROCKCHIP_SPI_SER, 1);
 		else
 			ROCKCHIP_SPI_SET_BITS(rs->regs + ROCKCHIP_SPI_SER, BIT(spi->chip_select));
 	} else {
-		if (spi->cs_gpiod)
+		if (spi_get_csgpiod(spi, 0))
 			ROCKCHIP_SPI_CLR_BITS(rs->regs + ROCKCHIP_SPI_SER, 1);
 		else
 			ROCKCHIP_SPI_CLR_BITS(rs->regs + ROCKCHIP_SPI_SER, BIT(spi->chip_select));
@@ -642,7 +642,7 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 	cr0 |= (spi->mode & 0x3U) << CR0_SCPH_OFFSET;
 	if (spi->mode & SPI_LSB_FIRST)
 		cr0 |= CR0_FBM_LSB << CR0_FBM_OFFSET;
-	if (spi->mode & SPI_CS_HIGH)
+	if (spi->mode & SPI_CS_HIGH && !spi_get_csgpiod(spi, 0))
 		cr0 |= BIT(spi->chip_select) << CR0_SOI_OFFSET;
 
 	if (xfer->rx_buf && xfer->tx_buf) {
@@ -903,20 +903,15 @@ static int rockchip_spi_setup(struct spi_device *spi)
 	struct rockchip_spi *rs = spi_controller_get_devdata(spi->controller);
 	u32 cr0;
 
-	if (!spi->cs_gpiod && (spi->mode & SPI_CS_HIGH) && !rs->cs_high_supported) {
-		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
-		return -EINVAL;
-	}
-
 	pm_runtime_get_sync(rs->dev);
 
 	cr0 = readl_relaxed(rs->regs + ROCKCHIP_SPI_CTRLR0);
 
 	cr0 &= ~(0x3 << CR0_SCPH_OFFSET);
 	cr0 |= ((spi->mode & 0x3) << CR0_SCPH_OFFSET);
-	if (spi->mode & SPI_CS_HIGH && spi->chip_select <= 1)
+	if (spi->mode & SPI_CS_HIGH && spi->chip_select <= 1 && !spi_get_csgpiod(spi, 0))
 		cr0 |= BIT(spi->chip_select) << CR0_SOI_OFFSET;
-	else if (spi->chip_select <= 1)
+	else if (spi->chip_select <= 1 && !spi_get_csgpiod(spi, 0))
 		cr0 &= ~(BIT(spi->chip_select) << CR0_SOI_OFFSET);
 	if (spi_controller_is_slave(spi->controller))
 		cr0 |= CR0_OPM_SLAVE << CR0_OPM_OFFSET;
