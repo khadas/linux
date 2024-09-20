@@ -3246,9 +3246,15 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 	int is_output_yuv = vcstate->yuv_overlay;
 	struct vop2_win *win = to_vop2_win(pstate->plane);
 	int csc_y2r_bit_depth = CSC_10BIT_DEPTH;
+	int input_color_range = pstate->color_range;
 
 	if (win->feature & WIN_FEATURE_Y2R_13BIT_DEPTH)
 		csc_y2r_bit_depth = CSC_13BIT_DEPTH;
+
+	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data) {
+		is_input_yuv = true;
+		input_color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	}
 
 	vpstate->y2r_en = 0;
 	vpstate->r2y_en = 0;
@@ -3259,7 +3265,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 			if (is_input_yuv) {
 				vpstate->y2r_en = 1;
 				vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
-									  pstate->color_range,
+									  input_color_range,
 									  CSC_13BIT_DEPTH);
 			}
 			return;
@@ -3267,7 +3273,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 			if (is_input_yuv) {
 				vpstate->y2r_en = 1;
 				vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
-									  pstate->color_range,
+									  input_color_range,
 									  csc_y2r_bit_depth);
 			}
 			return;
@@ -3303,15 +3309,16 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 		}
 	}
 
-	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data)
-		is_input_yuv = true;
-
 	if (is_input_yuv && !is_output_yuv) {
 		vpstate->y2r_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range, csc_y2r_bit_depth);
+		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
+							  input_color_range,
+							  csc_y2r_bit_depth);
 	} else if (!is_input_yuv && is_output_yuv) {
 		vpstate->r2y_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_10BIT_DEPTH);
+		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+							  vcstate->color_range,
+							  CSC_10BIT_DEPTH);
 
 		/**
 		 * VOP YUV overlay only can support YUV limit range, so force
@@ -11509,7 +11516,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	if (is_yuv_output(vcstate->bus_format))
 		convert_mode.is_output_yuv = true;
 
-	if (vp->has_dci_enabled_win)
+	if (!vcstate->yuv_overlay || vp->has_dci_enabled_win)
 		convert_mode.is_input_full_range = true;
 	else if (has_yuv_plane)
 		convert_mode.is_input_full_range =
