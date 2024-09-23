@@ -71,6 +71,8 @@
 #define HDMI_HDCP2_AUTH		BIT(1)
 #define HDMI_HDCP14_AUTH	BIT(0)
 
+#define HDMI_CTRL_CLK_EN	0x15
+
 static const unsigned int dw_hdmi_cable[] = {
 	EXTCON_DISP_HDMI,
 	EXTCON_NONE,
@@ -4317,7 +4319,8 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 	hdmi->logo_plug_out = false;
 	if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) == connector_status_connected &&
-	    hdmi_readl(hdmi, I2CM_INTERFACE_CONTROL0)) {
+	    hdmi_readl(hdmi, I2CM_INTERFACE_CONTROL0) &&
+	    (hdmi_readl(hdmi, CMU_STATUS) & HDMI_CTRL_CLK_EN) == HDMI_CTRL_CLK_EN) {
 		hdmi->initialized = true;
 		hdmi->disabled = false;
 	}
