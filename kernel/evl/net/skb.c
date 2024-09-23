@@ -216,7 +216,7 @@ static void __free_evl_skb(struct sk_buff *skb)
 	 * built around a page from a per-device pool (in
 	 * evl_netdev_state).
 	 */
-	napi_pp_put_page(virt_to_page(skb->head));
+	napi_pp_put_page(page_to_netmem(virt_to_page(skb->head)));
 
 	/*
 	 * Wake up any thread waiting for buffer space to send to the
