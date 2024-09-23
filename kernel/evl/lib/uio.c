@@ -8,6 +8,9 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
+#include <evl/uaccess.h>
+#include <evl/uio.h>
 #include <evl/memory.h>
 
 static int load_iov_native(struct iovec *iov,
