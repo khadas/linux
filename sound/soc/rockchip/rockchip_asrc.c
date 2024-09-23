@@ -1269,7 +1269,7 @@ static struct clk *rockchip_asrc_get_clk_parent(struct clk *clk, char *clk_names
 
 	name_len = strlen(name);
 	if ((name_len > 1) && (name[name_len - 1] == '0') &&
-	    (name[name_len - 2] < '0' && name[name_len - 2] > '9')) {
+	    (name[name_len - 2] < '0' || name[name_len - 2] > '9')) {
 		name_temp = kstrdup(name, GFP_KERNEL);
 		if (!name_temp)
 			return ERR_PTR(-ENOMEM);
