@@ -52,7 +52,7 @@ static const void *get_arp_key(const struct evl_cache_entry *entry)
 	return &e->key;
 }
 
-void free_arp_entry(struct evl_cache_entry *entry) /* in-band */
+static void free_arp_entry(struct evl_cache_entry *entry) /* in-band */
 {
 	struct evl_net_arp_entry *e =
 		container_of(entry, struct evl_net_arp_entry, entry);
