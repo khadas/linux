@@ -14,6 +14,7 @@
 #include <evl/memory.h>
 #include <evl/net/socket.h>
 #include <evl/net/skb.h>
+#include <evl/net/ipv4.h>
 #include <evl/net/ipv4/fragment.h>
 #include <evl/net/ipv4/route.h>
 #include <evl/net/ipv4/arp.h>

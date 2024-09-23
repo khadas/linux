@@ -15,6 +15,7 @@
 #include <evl/net/skb.h>
 #include <evl/net/ipv4.h>
 #include <evl/net/ipv4/route.h>
+#include <evl/net/ipv4/output.h>
 #include <evl/net/ipv4/arp.h>
 
 static inline int select_ttl(struct inet_sock *inet, struct dst_entry *dst)
