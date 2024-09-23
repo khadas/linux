@@ -26,6 +26,12 @@
 				remote-endpoint = <&os08a10b_out0>;
 				data-lanes = <1 2>;
 			};
+
+			mipi_in_dcphy4: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx678b_out0>;
+				data-lanes = <1 2>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -65,6 +71,12 @@
 				remote-endpoint = <&os08a10f_out1>;
 				data-lanes = <1 2>;
 			};
+
+			mipi_in_dcphy5: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx678f_out1>;
+				data-lanes = <1 2>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -102,6 +114,12 @@
 			mipidphy0_in_ucam1: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&os08a10c_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			mipidphy0_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx678c_out0>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -189,6 +207,29 @@
 			};
 		};
 	};
+
+	imx678b: imx678b@1a {
+		compatible = "sony,imx678";
+		status = "disabled";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default", "camb_gpios";
+		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
+		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "FH34SRJ-30S";
+		rockchip,camera-module-lens-name = "YG4118";
+		port {
+			imx678b_out0: endpoint {
+				remote-endpoint = <&mipi_in_dcphy4>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -258,6 +299,30 @@
 			};
 		};
 	};
+
+	imx678f: imx678f@1a {
+		compatible = "sony,imx678";
+		status = "disabled";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default", "camf_gpios";
+		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "FH34SRJ-30S";
+		rockchip,camera-module-lens-name = "YG4118";
+		port {
+			imx678f_out1: endpoint {
+				remote-endpoint = <&mipi_in_dcphy5>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 };
 
 &i2c8 {
@@ -321,6 +386,29 @@
 		port {
 			os08a10c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	imx678: imx678@1a {
+		compatible = "sony,imx678";
+		status = "disabled";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+		clock-names = "xvclk";
+		pinctrl-names = "default", "camc_gpios";
+		pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
+		power-domains = <&power RK3588_PD_VI>;
+		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <2>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "FH34SRJ-30S";
+		rockchip,camera-module-lens-name = "YG4118";
+		port {
+			imx678c_out0: endpoint {
+				remote-endpoint = <&mipidphy0_in_ucam2>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
