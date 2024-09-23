@@ -13,6 +13,7 @@
 #include <linux/log2.h>
 #include <linux/err.h>
 #include <linux/of_platform.h>
+#include <linux/skbuff_ref.h>
 #include <net/page_pool/helpers.h>
 #include <evl/uio.h>
 #include <evl/net.h>
@@ -215,7 +216,7 @@ static void __free_evl_skb(struct sk_buff *skb)
 	 * built around a page from a per-device pool (in
 	 * evl_netdev_state).
 	 */
-	napi_pp_put_page(virt_to_page(skb->head), false);
+	napi_pp_put_page(virt_to_page(skb->head));
 
 	/*
 	 * Wake up any thread waiting for buffer space to send to the
