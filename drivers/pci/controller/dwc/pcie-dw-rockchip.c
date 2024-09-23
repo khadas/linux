@@ -25,6 +25,7 @@
 #include <linux/aspm_ext.h>
 
 #include "pcie-designware.h"
+#include "../../pci.h"
 #include "../rockchip-pcie-dma.h"
 #include "pcie-dw-dmatest.h"
 #include "../../hotplug/gpiophp.h"
@@ -155,6 +156,9 @@ struct rk_pcie {
 	u32				comp_prst[2];
 	u32				intx;
 	int				irq;
+	u32				slot_power_limit;
+	u8				slot_power_limit_value;
+	u8				slot_power_limit_scale;
 };
 
 struct rk_pcie_of_data {
@@ -761,6 +765,9 @@ retry_regulator:
 		dev_info(&pdev->dev, "no vpcie3v3 regulator found\n");
 	}
 
+	rk_pcie->slot_power_limit = of_pci_get_slot_power_limit(pdev->dev.of_node,
+					&rk_pcie->slot_power_limit_value,
+					&rk_pcie->slot_power_limit_scale);
 	return 0;
 }
 
@@ -1428,6 +1435,54 @@ static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_devi
 	return 0;
 }
 
+static void rk_pcie_set_power_limit(struct rk_pcie *rk_pcie)
+{
+	int curr;
+	u32 reg, val;
+
+	/* Get power limit from firmware(if possible) or regulator API */
+	if (!rk_pcie->slot_power_limit) {
+		if (IS_ERR(rk_pcie->vpcie3v3))
+			return;
+		curr = regulator_get_current_limit(rk_pcie->vpcie3v3);
+		if (curr <= 0) {
+			dev_warn(rk_pcie->pci->dev, "can't get current limit.\n");
+			return;
+		}
+		rk_pcie->slot_power_limit_scale = 3; /* 0.001x */
+		curr = curr / 1000; /* convert to mA */
+		rk_pcie->slot_power_limit = curr * 3300;
+		rk_pcie->slot_power_limit_value = rk_pcie->slot_power_limit / 1000; /* milliwatt */
+
+		/* Double check limit value is in valid range (0 ~ 0xEF) */
+		while (rk_pcie->slot_power_limit_value > 0xef) {
+			if (!rk_pcie->slot_power_limit_scale) {
+				dev_warn(rk_pcie->pci->dev, "invalid power supply\n");
+				return;
+			}
+			rk_pcie->slot_power_limit_scale--;
+			rk_pcie->slot_power_limit_value = rk_pcie->slot_power_limit_value / 10;
+		}
+	}
+
+	dev_info(rk_pcie->pci->dev, "Slot power limit %u.%uW\n",
+		 rk_pcie->slot_power_limit / 1000,
+		 (rk_pcie->slot_power_limit / 100) % 10);
+
+	/* Config slot capabilities register */
+	reg = dw_pcie_find_capability(rk_pcie->pci, PCI_CAP_ID_EXP);
+	if (!reg) {
+		dev_warn(rk_pcie->pci->dev, "Not able to find PCIE CAP!\n");
+		return;
+	}
+
+	val = dw_pcie_readl_dbi(rk_pcie->pci, reg + PCI_EXP_SLTCAP);
+	val &= ~(PCI_EXP_SLTCAP_SPLV | PCI_EXP_SLTCAP_SPLS);
+	val |= FIELD_PREP(PCI_EXP_SLTCAP_SPLV, rk_pcie->slot_power_limit_value) |
+	       FIELD_PREP(PCI_EXP_SLTCAP_SPLS, rk_pcie->slot_power_limit_scale);
+	dw_pcie_writew_dbi(rk_pcie->pci, reg + PCI_EXP_SLTCAP, val);
+}
+
 static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 {
 	struct dw_pcie *pci = rk_pcie->pci;
@@ -1458,6 +1513,8 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	dw_pcie_dbi_ro_wr_en(pci);
 
 	rk_pcie_fast_link_setup(rk_pcie);
+
+	rk_pcie_set_power_limit(rk_pcie);
 
 	rk_pcie_set_rc_mode(rk_pcie);
 
@@ -1932,6 +1989,8 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	rk_pcie_set_rc_mode(rk_pcie);
 
 	dw_pcie_setup_rc(&rk_pcie->pci->pp);
+
+	rk_pcie_set_power_limit(rk_pcie);
 
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
 			   rk_pcie->intx | 0xffff0000);
