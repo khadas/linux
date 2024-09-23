@@ -587,9 +587,6 @@ EXPORT_SYMBOL(sysctl_max_oob_skb);
 __weak void free_skb_oob(struct sk_buff *skb)
 { }
 
-__weak void free_skb_head_oob(struct sk_buff *skb)
-{ }
-
 bool recycle_skb_oob(struct sk_buff *skb)
 {
 	/*
@@ -619,7 +616,7 @@ void finalize_skb_inband(struct sk_buff *skb)
  */
 static struct skbuff_oob_pool skbuff_oob_pool;
 
-void init_oob_cache(void)
+static void init_oob_cache(void)
 {
 	struct skbuff_oob_pool *c = &skbuff_oob_pool;
 	unsigned int n, max_skbs;
