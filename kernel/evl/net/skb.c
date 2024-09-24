@@ -76,10 +76,14 @@ static void skb_recycler(struct evl_work *work)
 	recycling_count = 0;
 	raw_spin_unlock_irqrestore(&recycling_lock, flags);
 
+	local_bh_disable();
+
 	list_for_each_entry_safe(skb, next, &list, list) {
 		skb_list_del_init(skb);
 		finalize_skb_inband(skb);
 	}
+
+	local_bh_enable();
 }
 
 static EVL_DEFINE_WORK(recycler_work, skb_recycler);
