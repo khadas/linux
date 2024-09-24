@@ -1640,7 +1640,7 @@
 /* dsi->serdes->lvds_panel */
 &pwm1_6ch_1 {
 	status = "okay";
-	pinctrl-0 = <&pwm1m0_ch1>;
+	pinctrl-0 = <&pwm1m2_ch1>;
 };
 
 /* dp->serdes->lvds_panel */
