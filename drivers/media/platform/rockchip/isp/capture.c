@@ -365,6 +365,108 @@ void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
 	}
 }
 
+void rkisp_stream_vir_cpy_image(struct work_struct *work)
+{
+	struct rkisp_vir_cpy *cpy = container_of(work, struct rkisp_vir_cpy, work);
+	struct rkisp_stream *vir = cpy->stream;
+	struct rkisp_buffer *src_buf = NULL;
+	struct vb2_buffer *src_vb = NULL;
+	struct rkisp_device *isp_dev = vir->ispdev;
+	const struct vb2_mem_ops *g_ops = isp_dev->hw_dev->mem_ops;
+	void *src = NULL, *dst = NULL, *mem = NULL;
+	u32 payload_size = 0;
+	unsigned long lock_flags = 0;
+	u32 i;
+
+	v4l2_dbg(1, rkisp_debug, &vir->ispdev->v4l2_dev,
+		 "%s enter\n", __func__);
+
+	vir->streaming = true;
+	spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+	if (!list_empty(&cpy->queue)) {
+		src_buf = list_first_entry(&cpy->queue,
+				struct rkisp_buffer, queue);
+		list_del(&src_buf->queue);
+	}
+	spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+
+	while (src_buf || vir->streaming) {
+		if (vir->stopping || !vir->streaming)
+			goto end;
+
+		if (!src_buf)
+			wait_for_completion(&cpy->cmpl);
+
+		vir->frame_end = false;
+
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+		if (!src_buf && !list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue, struct rkisp_buffer, queue);
+			list_del(&src_buf->queue);
+		}
+
+		if (src_buf && !vir->curr_buf && !list_empty(&vir->buf_queue)) {
+			vir->curr_buf = list_first_entry(&vir->buf_queue,
+					struct rkisp_buffer, queue);
+			list_del(&vir->curr_buf->queue);
+		}
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+
+		if (!vir->curr_buf || !src_buf)
+			goto end;
+
+		src_vb = &src_buf->vb.vb2_buf;
+		for (i = 0; i < vir->out_isp_fmt.mplanes; i++) {
+			payload_size = vir->out_fmt.plane_fmt[i].sizeimage;
+			dst = vb2_plane_vaddr(&vir->curr_buf->vb.vb2_buf, i);
+			mem = src_vb->planes[i].mem_priv;
+			src = vb2_plane_vaddr(&src_buf->vb.vb2_buf, i);
+
+			if (!src || !dst)
+				break;
+			/* sync cache */
+			if (mem)
+				g_ops->finish(mem);
+
+			vb2_set_plane_payload(&vir->curr_buf->vb.vb2_buf, i, payload_size);
+			memcpy(dst, src, payload_size);
+		}
+
+		vir->curr_buf->vb.sequence = src_buf->vb.sequence;
+		vir->curr_buf->vb.vb2_buf.timestamp = src_buf->vb.vb2_buf.timestamp;
+		vb2_buffer_done(&vir->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		vir->curr_buf = NULL;
+
+end:
+		if (src_buf)
+			vb2_buffer_done(&src_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		src_buf = NULL;
+
+		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+
+		if (!list_empty(&cpy->queue)) {
+			src_buf = list_first_entry(&cpy->queue,
+					struct rkisp_buffer, queue);
+			list_del(&src_buf->queue);
+		} else if (vir->stopping) {
+			vir->streaming = false;
+		}
+
+		spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+	}
+
+	vir->frame_end = true;
+
+	if (vir->stopping) {
+		vir->stopping = false;
+		vir->streaming = false;
+		wake_up(&vir->done);
+	}
+
+	v4l2_dbg(1, rkisp_debug, &vir->ispdev->v4l2_dev,
+		 "%s exit\n", __func__);
+}
+
 /* Get xsubs and ysubs for fourcc formats
  *
  * @xsubs: horizontal color samples in a 4*4 matrix, for yuv
@@ -745,6 +847,11 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			for (i = RKISP_STREAM_MP; i < RKISP_STREAM_VIR; i++) {
 				t = &dev->cap_dev.stream[i];
 				if (t->out_isp_fmt.fmt_type != FMT_YUV || !t->streaming)
+					continue;
+				/* isp v32 v33 mp wrap can't use for iqtool */
+				if (i == RKISP_STREAM_MP &&
+				    (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33) &&
+				    dev->cap_dev.wrap_line)
 					continue;
 				if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
 					imagsize = t->out_fmt.plane_fmt[0].sizeimage;
@@ -1249,6 +1356,13 @@ static int rkisp_set_iqtool_connect_id(struct rkisp_stream *stream, int stream_i
 	    stream_id != RKISP_STREAM_SP &&
 	    stream_id != RKISP_STREAM_BP) {
 		v4l2_err(&dev->v4l2_dev, "invalid connect stream id\n");
+		goto err;
+	}
+
+	if ((dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33) &&
+	    (stream_id == RKISP_STREAM_MP) &&
+	    dev->cap_dev.wrap_line) {
+		v4l2_err(&dev->v4l2_dev, "isp v32 v33 mp wrap can't use for iqtool");
 		goto err;
 	}
 
