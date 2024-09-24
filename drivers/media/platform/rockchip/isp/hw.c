@@ -1067,7 +1067,7 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 			val = 0;
 
 		if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) && on)
-			val |= CLK_CTRL_ISP_3A;
+			val |= CLK_CTRL_ISP_3A | CLK_CTRL_ISP_RAW;
 		if (dev->isp_ver == ISP_V32)
 			rv1106_sdmmc_get_lock();
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);
