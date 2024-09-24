@@ -907,6 +907,11 @@ static int rk806_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	}
 }
 
+static int rk806_get_current_limit(struct regulator_dev *rdev)
+{
+	return rdev->desc->n_current_limits;
+}
+
 static const struct regulator_ops rk806_ops_dcdc = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.map_voltage		= regulator_map_voltage_linear_range,
@@ -916,6 +921,8 @@ static const struct regulator_ops rk806_ops_dcdc = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_mode		= rk806_set_mode,
 	.get_mode		= rk806_get_mode,
+
+	.get_current_limit	= rk806_get_current_limit,
 
 	.enable			= rk806_regulator_enable_regmap,
 	.disable		= rk806_regulator_disable_regmap,
@@ -938,6 +945,8 @@ static const struct regulator_ops rk806_ops_ldo = {
 	.set_voltage		= rk806_set_voltage,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 
+	.get_current_limit = rk806_get_current_limit,
+
 	.enable			= rk806_regulator_enable_regmap,
 	.disable		= rk806_regulator_disable_regmap,
 	.is_enabled		= rk806_regulator_is_enabled_regmap,
@@ -959,6 +968,8 @@ static const struct regulator_ops rk806_ops_ldo6 = {
 	.set_voltage		= rk806_set_voltage,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 
+	.get_current_limit = rk806_get_current_limit,
+
 	.set_ramp_delay		= rk806_set_ramp_delay,
 
 	.set_suspend_voltage	= rk806_set_suspend_voltage_range,
@@ -966,7 +977,7 @@ static const struct regulator_ops rk806_ops_ldo6 = {
 };
 
 #define RK806_REGULATOR(_name, _supply_name, _id, _ops,\
-			_n_voltages, _vr, _er, _lr, ctrl_bit)\
+			_n_voltages, _vr, _er, _lr, ctrl_bit, _current_limits)\
 [_id] = {\
 		.name = _name,\
 		.supply_name = _supply_name,\
@@ -984,6 +995,7 @@ static const struct regulator_ops rk806_ops_ldo6 = {
 		.enable_mask = ENABLE_MASK(ctrl_bit),\
 		.enable_val = ENABLE_MASK(ctrl_bit),\
 		.disable_val = DISABLE_VAL(ctrl_bit),\
+		.n_current_limits = _current_limits,\
 		.of_map_mode = rk806_regulator_of_map_mode,\
 		.owner = THIS_MODULE,\
 	}
@@ -991,74 +1003,74 @@ static const struct regulator_ops rk806_ops_ldo6 = {
 static const struct regulator_desc rk806_regulators[] = {
 	RK806_REGULATOR("DCDC_REG1", "vcc1", RK806_ID_DCDC1, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK1_ON_VSEL,
-			RK806_POWER_EN0, rk806_buck_voltage_ranges, 0),
+			RK806_POWER_EN0, rk806_buck_voltage_ranges, 0, 6500 * 1000),
 	RK806_REGULATOR("DCDC_REG2", "vcc2", RK806_ID_DCDC2, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK2_ON_VSEL,
-			RK806_POWER_EN0, rk806_buck_voltage_ranges, 1),
+			RK806_POWER_EN0, rk806_buck_voltage_ranges, 1, 5000 * 1000),
 	RK806_REGULATOR("DCDC_REG3", "vcc3", RK806_ID_DCDC3, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK3_ON_VSEL,
-			RK806_POWER_EN0, rk806_buck_voltage_ranges, 2),
+			RK806_POWER_EN0, rk806_buck_voltage_ranges, 2, 5000 * 1000),
 	RK806_REGULATOR("DCDC_REG4", "vcc4", RK806_ID_DCDC4, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK4_ON_VSEL,
-			RK806_POWER_EN0, rk806_buck_voltage_ranges, 3),
+			RK806_POWER_EN0, rk806_buck_voltage_ranges, 3, 5000 * 1000),
 
 	RK806_REGULATOR("DCDC_REG5", "vcc5", RK806_ID_DCDC5, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK5_ON_VSEL,
-			RK806_POWER_EN1, rk806_buck_voltage_ranges, 0),
+			RK806_POWER_EN1, rk806_buck_voltage_ranges, 0, 3000 * 1000),
 	RK806_REGULATOR("DCDC_REG6", "vcc6", RK806_ID_DCDC6, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK6_ON_VSEL,
-			RK806_POWER_EN1, rk806_buck_voltage_ranges, 1),
+			RK806_POWER_EN1, rk806_buck_voltage_ranges, 1, 3000 * 1000),
 	RK806_REGULATOR("DCDC_REG7", "vcc7", RK806_ID_DCDC7, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK7_ON_VSEL,
-			RK806_POWER_EN1, rk806_buck_voltage_ranges, 2),
+			RK806_POWER_EN1, rk806_buck_voltage_ranges, 2, 3000 * 1000),
 	RK806_REGULATOR("DCDC_REG8", "vcc8", RK806_ID_DCDC8, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK8_ON_VSEL,
-			RK806_POWER_EN1, rk806_buck_voltage_ranges, 3),
+			RK806_POWER_EN1, rk806_buck_voltage_ranges, 3, 3000 * 1000),
 
 	RK806_REGULATOR("DCDC_REG9", "vcc9", RK806_ID_DCDC9, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK9_ON_VSEL,
-			RK806_POWER_EN2, rk806_buck_voltage_ranges, 0),
+			RK806_POWER_EN2, rk806_buck_voltage_ranges, 0, 3000 * 1000),
 	RK806_REGULATOR("DCDC_REG10", "vcc10", RK806_ID_DCDC10, rk806_ops_dcdc,
 			RK806_BUCK_SEL_CNT, RK806_BUCK10_ON_VSEL,
-			RK806_POWER_EN2, rk806_buck_voltage_ranges, 1),
+			RK806_POWER_EN2, rk806_buck_voltage_ranges, 1, 3000 * 1000),
 
 	RK806_REGULATOR("NLDO_REG1", "vcc13", RK806_ID_NLDO1, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_NLDO1_ON_VSEL,
-			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 0),
+			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 0, 300 * 1000),
 	RK806_REGULATOR("NLDO_REG2", "vcc13", RK806_ID_NLDO2, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_NLDO2_ON_VSEL,
-			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 1),
+			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 1, 300 * 1000),
 	RK806_REGULATOR("NLDO_REG3", "vcc13", RK806_ID_NLDO3, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_NLDO3_ON_VSEL,
-			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 2),
+			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 2, 500 * 1000),
 	RK806_REGULATOR("NLDO_REG4", "vcc14", RK806_ID_NLDO4, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_NLDO4_ON_VSEL,
-			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 3),
+			RK806_POWER_EN3, rk806_ldo_voltage_ranges, 3, 500 * 1000),
 
 	RK806_REGULATOR("NLDO_REG5", "vcc14", RK806_ID_NLDO5, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_NLDO5_ON_VSEL,
-			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 2),
+			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 2, 300 * 1000),
 
 	RK806_REGULATOR("PLDO_REG1", "vcc11", RK806_ID_PLDO1, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO1_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 1),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 1, 500 * 1000),
 	RK806_REGULATOR("PLDO_REG2", "vcc11", RK806_ID_PLDO2, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO2_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 2),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 2, 300 * 1000),
 	RK806_REGULATOR("PLDO_REG3", "vcc11", RK806_ID_PLDO3, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO3_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 3),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 3, 300 * 1000),
 
 	RK806_REGULATOR("PLDO_REG4", "vcc12", RK806_ID_PLDO4, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO4_ON_VSEL,
-			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 0),
+			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 0, 500 * 1000),
 	RK806_REGULATOR("PLDO_REG5", "vcc12", RK806_ID_PLDO5, rk806_ops_ldo,
 			RK806_LDO_SEL_CNT, RK806_PLDO5_ON_VSEL,
-			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 1),
+			RK806_POWER_EN5, rk806_ldo_voltage_ranges, 1, 300 * 1000),
 
 	RK806_REGULATOR("PLDO_REG6", "vcca", RK806_ID_PLDO6, rk806_ops_ldo6,
 			RK806_LDO_SEL_CNT, RK806_PLDO6_ON_VSEL,
-			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 0),
+			RK806_POWER_EN4, rk806_ldo_voltage_ranges, 0, 300 * 1000),
 };
 
 static void rk806_regulator_dt_parse_pdata(struct rk806 *rk806,
