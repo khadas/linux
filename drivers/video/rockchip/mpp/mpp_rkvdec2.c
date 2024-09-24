@@ -1346,7 +1346,7 @@ static int rkvdec2_vdpu382_reset(struct mpp_dev *mpp)
 	int ret = 0;
 
 	/*
-	 * only for rk3528 and rk3562
+	 * only for rk3528
 	 * use mmu reset as soft reset
 	 * rkvdec will reset together when rkvdec_mmu force reset
 	 */
@@ -1550,11 +1550,19 @@ static const struct mpp_dev_var rkvdec_rk3568_data = {
 	.dev_ops = &rkvdec_rk3568_dev_ops,
 };
 
-static const struct mpp_dev_var rkvdec_vdpu382_data = {
+static const struct mpp_dev_var rkvdec_rk3528_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_vdpu382_hw_info,
 	.trans_info = rkvdec_v2_trans,
 	.hw_ops = &rkvdec_vdpu382_hw_ops,
+	.dev_ops = &rkvdec_v2_dev_ops,
+};
+
+static const struct mpp_dev_var rkvdec_rk3562_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_vdpu382_hw_info,
+	.trans_info = rkvdec_v2_trans,
+	.hw_ops = &rkvdec_v2_hw_ops,
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 
@@ -1594,13 +1602,13 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 #ifdef CONFIG_CPU_RK3528
 	{
 		.compatible = "rockchip,rkv-decoder-rk3528",
-		.data = &rkvdec_vdpu382_data,
+		.data = &rkvdec_rk3528_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3562
 	{
 		.compatible = "rockchip,rkv-decoder-rk3562",
-		.data = &rkvdec_vdpu382_data,
+		.data = &rkvdec_rk3562_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3576
