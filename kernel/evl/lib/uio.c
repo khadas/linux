@@ -23,7 +23,7 @@ static int load_iov_native(struct iovec *iov,
 
 #ifdef CONFIG_COMPAT
 
-int do_load_iov(struct iovec *iov,
+static int do_load_iov(struct iovec *iov,
 		const struct iovec __user *u_iov,
 		size_t iovlen)
 {
