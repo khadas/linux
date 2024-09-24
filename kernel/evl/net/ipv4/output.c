@@ -105,7 +105,7 @@ struct sk_buff *evl_net_ipv4_build_datagram(struct evl_socket *esk,
 	}
 
 	netdev_dbg(dev, "build dgram: src=%pI4, dst=%pI4, mtu=%d, "
-		   " transhdrlen=%zd, maxfraglen=%zd\n",
+		   " transhdrlen=%d, maxfraglen=%zd\n",
 		   &ipc->saddr, &ipc->daddr, mtu, ipc->transhdrlen, maxfraglen);
 
 	for (;;) {
