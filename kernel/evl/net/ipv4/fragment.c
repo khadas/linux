@@ -279,7 +279,7 @@ static struct sk_buff *push_frag(struct sk_buff *skb, struct net_device *dev)
 	/* If complete, reassemble the datagram. */
 	if (ft->flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 		ft->len == ft->end) {
-		netdev_dbg(dev, "completed frag id=%d, len=%d\n", iph->id, ft->len);
+		netdev_dbg(dev, "completed frag id=%d, len=%zu\n", iph->id, ft->len);
 		evl_spin_unlock(&ft->lock);
 		/*
 		 * Stop the timer, then move the frag tree out of the
