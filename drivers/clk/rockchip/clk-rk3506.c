@@ -159,7 +159,7 @@ static struct rockchip_pll_clock rk3506_pll_clks[] __initdata = {
 		     CLK_IS_CRITICAL, RK3506_PLL_CON(8),
 		     RK3506_MODE_CON, 2, 0, 0, rk3506_pll_rates),
 	[v1pll] = PLL(pll_rk3328, PLL_V1PLL, "v1pll", mux_pll_p,
-		     CLK_IS_CRITICAL, RK3506_PLL_CON(16),
+		     0, RK3506_PLL_CON(16),
 		     RK3506_MODE_CON, 4, 1, 0, rk3506_pll_rates),
 };
 
@@ -178,7 +178,7 @@ static struct rockchip_clk_branch rk3506_clk_branches[] __initdata = {
 			RK3506_CLKGATE_CON(0), 2, GFLAGS),
 	GATE(CLK_V0PLL_GATE, "clk_v0pll_gate", "v0pll", CLK_IS_CRITICAL,
 			RK3506_CLKGATE_CON(0), 3, GFLAGS),
-	GATE(CLK_V1PLL_GATE, "clk_v1pll_gate", "v1pll", CLK_IS_CRITICAL,
+	GATE(CLK_V1PLL_GATE, "clk_v1pll_gate", "v1pll", 0,
 			RK3506_CLKGATE_CON(0), 4, GFLAGS),
 	COMPOSITE_NOMUX(CLK_GPLL_DIV, "clk_gpll_div", "clk_gpll_gate", CLK_IS_CRITICAL,
 			RK3506_CLKSEL_CON(0), 6, 4, DFLAGS,
@@ -189,7 +189,7 @@ static struct rockchip_clk_branch rk3506_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_V0PLL_DIV, "clk_v0pll_div", "clk_v0pll_gate", CLK_IS_CRITICAL,
 			RK3506_CLKSEL_CON(1), 0, 4, DFLAGS,
 			RK3506_CLKGATE_CON(0), 7, GFLAGS),
-	COMPOSITE_NOMUX(CLK_V1PLL_DIV, "clk_v1pll_div", "clk_v1pll_gate", CLK_IS_CRITICAL,
+	COMPOSITE_NOMUX(CLK_V1PLL_DIV, "clk_v1pll_div", "clk_v1pll_gate", 0,
 			RK3506_CLKSEL_CON(1), 4, 4, DFLAGS,
 			RK3506_CLKGATE_CON(0), 8, GFLAGS),
 	COMPOSITE_NOMUX(CLK_INT_VOICE_MATRIX0, "clk_int_voice_matrix0", "clk_v0pll_gate", 0,
