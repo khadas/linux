@@ -5,6 +5,7 @@
  */
 
 #include "rk3576-vehicle.dtsi"
+#include "rk3576-vehicle-evb-v20-audio.dtsi"
 #include "rk3576-rk806.dtsi"
 
 / {
@@ -118,28 +119,6 @@
 		startup-delay-us = <2000>;
 		off-on-delay-us = <16000>;
 		vin-supply = <&vcc5v0_buck>;
-	};
-
-	dummy_codec: dummy-codec {
-		status = "okay";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-	};
-
-	vehicle_adsp_sound: vehicle-adsp-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,tdm";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,cpu {
-			sound-dai = <&sai1>;
-			dai-tdm-slot-num = <8>;
-			dai-tdm-slot-width = <32>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
-		};
 	};
 };
 
@@ -384,34 +363,8 @@
 	connect = <&vp0_out_hdmi>;
 };
 
-&sai1 {
-	status = "okay";
-	rockchip,tdm-tx-lanes = <3>;
-	rockchip,tdm-rx-lanes = <2>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sai1m0_lrck
-		     &sai1m0_sclk
-		     &sai1m0_sdi0
-		     &sai1m0_sdi1
-		     &sai1m0_sdo0
-		     &sai1m0_sdo1
-		     &sai1m0_sdo2>;
-};
-
 &sdmmc {
 	status = "okay";
-};
-
-&spi0 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0m0_csn0 &spi0m0_pins>;
-	spi-dev@0 {
-		compatible = "rockchip,spidev";
-		reg = <0x0>;
-		spi-max-frequency = <50000000>;
-		spi-lsb-first;
-	};
 };
 
 &ufs {
