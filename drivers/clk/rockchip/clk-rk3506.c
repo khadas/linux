@@ -394,7 +394,7 @@ static struct rockchip_clk_branch rk3506_clk_branches[] __initdata = {
 			RK3506_CLKGATE_CON(10), 0, GFLAGS),
 	GATE(ACLK_DDRC_1, "aclk_ddrc_1", "clk_ddrc_src", CLK_IGNORE_UNUSED,
 			RK3506_CLKGATE_CON(10), 1, GFLAGS),
-	GATE(CLK_DDRC, "clk_ddrc", "clk_ddrc_src", CLK_IGNORE_UNUSED,
+	GATE(CLK_DDRC, "clk_ddrc", "clk_ddrc_src", CLK_IS_CRITICAL,
 			RK3506_CLKGATE_CON(10), 3, GFLAGS),
 	GATE(CLK_DDRMON, "clk_ddrmon", "clk_ddrc_src", CLK_IGNORE_UNUSED,
 			RK3506_CLKGATE_CON(10), 4, GFLAGS),
