@@ -82,3 +82,7 @@
 &route_rgb {
 	status = "okay";
 };
+
+&u2phy_otg0 {
+	rockchip,vbus-always-on;
+};

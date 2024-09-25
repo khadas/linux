@@ -218,6 +218,10 @@
 	status = "okay";
 };
 
+&u2phy_otg0 {
+	rockchip,vbus-always-on;
+};
+
 &vop {
 	mcu-timing {
 		mcu-pix-total = <6>;
