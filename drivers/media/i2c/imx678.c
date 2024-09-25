@@ -45,6 +45,7 @@
 #endif
 
 #define IMX678_XVCLK_FREQ		 		24000000
+#define IMX678_XVCLK_37M_FREQ			37125000
 #define MIPI_FREQ_720M					720000000 //1440000000
 #define IMX678_MAX_FREQ					MIPI_FREQ_720M
 
@@ -863,6 +864,7 @@ static const struct regval imx678_normal_3840_2160_60fps_4lane_global_setting_re
 	{REG_NULL, 0x00},
 };
 
+
 /*
 "All-pixel scan
 CSI-2_4lane
@@ -1449,7 +1451,6 @@ static const struct regval imx678_global_2lane_setting_regs[] = {
 	{0x3000, 0x01},    //standby
 	{0x3001, 0x00},    //hold on 
 	{0x3002, 0x00},		//master start
-
 	{0x3018, 0x04},     //WINMODE:crop mode
 	
 	{0x3460, 0x22},
@@ -1892,6 +1893,93 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+/*All-pixel scan
+CSI-2_2lane
+24MHz
+AD:10bit Output:10bit
+1440Mbps
+Master Mode
+LCG Mode
+30fps
+Integration Time
+16.644ms"
+*/
+
+static const struct regval imx678_normal_3840_2160_30fps_2lane_setting_regs[] = {
+	{0x3014, 0x04},  //INCK_SEL[3:0]
+	{0x3015, 0x03},  //DATARATE_SEL[3:0]
+	{0x3018, 0x00},  //WINMODE[4:0]
+	{0x3019, 0x00},  //CFMODE[1:0]
+	{0x301A, 0x00},  //WDMODE
+	{0x301B, 0x00},  //ADDMODE[1:0]
+	{0x301C, 0x00},  //THIN_V_EN
+	{0x301E, 0x01},  //VCMODE
+	{0x3020, 0x00},  //HREVERSE
+	{0x3021, 0x00},  //VREVERSE
+	{0x3022, 0x00},  //ADBIT[1:0]
+	{0x3023, 0x00},  //MDBIT
+	{0x3028, 0xCA},  //VMAX[19:0]
+	{0x3029, 0x08},  //VMAX[19:0]
+	{0x302A, 0x00},  //VMAX[19:0]
+	{0x302C, 0x4C},  //HMAX[15:0]
+	{0x302D, 0x04},  //HMAX[15:0]
+	{0x3030, 0x00},  //FDG_SEL0[1:0]
+	{0x3031, 0x00},  //FDG_SEL1[1:0]
+	{0x3032, 0x00},  //FDG_SEL2[1:0]
+	{0x303C, 0x00},  //PIX_HST[12:0]
+	{0x303D, 0x00},  //PIX_HST[12:0]
+	{0x303E, 0x10},  //PIX_HWIDTH[12:0]
+	{0x303F, 0x0F},  //PIX_HWIDTH[12:0]
+	{0x3040, 0x01},  //LANEMODE[2:0]
+	{0x3042, 0x00},  //XSIZE_OVERLAP[10:0]
+	{0x3043, 0x00},  //XSIZE_OVERLAP[10:0]
+	{0x3044, 0x00},  //PIX_VST[11:0]
+	{0x3045, 0x00},  //PIX_VST[11:0]
+	{0x3046, 0x84},  //PIX_VWIDTH[11:0]
+	{0x3047, 0x08},  //PIX_VWIDTH[11:0]
+	{0x3050, 0x03},  //SHR0[19:0]
+	{0x3051, 0x00},  //SHR0[19:0]
+	{0x3052, 0x00},  //SHR0[19:0]
+	{0x3054, 0x0E},  //SHR1[19:0]
+	{0x3055, 0x00},  //SHR1[19:0]
+	{0x3056, 0x00},  //SHR1[19:0]
+	{0x3058, 0x8A},  //SHR2[19:0]
+	{0x3059, 0x01},  //SHR2[19:0]
+	{0x305A, 0x00},  //SHR2[19:0]
+	{0x3060, 0x16},  //RHS1[19:0]
+	{0x3061, 0x01},  //RHS1[19:0]
+	{0x3062, 0x00},  //RHS1[19:0]
+	{0x3064, 0xC4},  //RHS2[19:0]
+	{0x3065, 0x0C},  //RHS2[19:0]
+	{0x3066, 0x00},  //RHS2[19:0]
+	{0x3069, 0x00},  //CHDR_GAIN_EN
+	{0x306B, 0x00},  //Sensor_register
+	{0x3070, 0x00},  //GAIN[10:0]
+	{0x3071, 0x00},  //GAIN[10:0]
+	{0x3072, 0x00},  //GAIN_1[10:0]
+	{0x3073, 0x00},  //GAIN_1[10:0]
+	{0x3074, 0x00},  //GAIN_2[10:0]
+	{0x3075, 0x00},  //GAIN_2[10:0]
+	{0x3081, 0x00},  //EXP_GAIN
+	{0x308C, 0x00},  //CHDR_DGAIN0_HG[15:0]
+	{0x308D, 0x01},  //CHDR_DGAIN0_HG[15:0]
+	{0x3094, 0x00},  //CHDR_AGAIN0_LG[10:0]
+	{0x3095, 0x00},  //CHDR_AGAIN0_LG[10:0]
+	{0x309C, 0x00},  //CHDR_AGAIN0_HG[10:0]
+	{0x309D, 0x00},  //CHDR_AGAIN0_HG[10:0]
+	{0x30A4, 0xAA},  //XVSOUTSEL[1:0]
+	{0x30A6, 0x00},  //XVS_DRV[1:0]
+	{0x30CC, 0x00},  //Sensor_register
+	{0x30CD, 0x00},  //Sensor_register
+	{0x30DC, 0x32},  //BLKLEVEL[11:0]
+	{0x30DD, 0x40},  //BLKLEVEL[11:0]
+	{0x3400, 0x01},  //GAIN_PGC_FIDMD
+					 //
+	{0x4E3C, 0x07},  //Output selection 07：2/4lane
+	{0x3001, 0x00},  //REGHOLD
+	{REG_NULL, 0x00},
+};
+
 
 /*
  * The width and height must be configured to be
@@ -2157,6 +2245,29 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 };
 
 static const struct imx678_mode imx678_supported_modes_2lane[] = {
+	/*3840*2160 30fps*/
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.width = 3856,
+		.height = 2180,
+		.real_width = 3840,
+		.real_height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x08CA - 0x10,
+		.hts_def = 0x044C * 4,
+		.vts_def = 0x08CA,
+		.link_freq_def = (1440*1000*1000/2),
+		.global_reg_list = imx678_global_2lane_setting_regs,
+		.reg_list = imx678_normal_3840_2160_30fps_2lane_setting_regs,
+		.hdr_mode = NO_HDR,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+		.clear_hdr_mode = NO_CLEAR_HDR,
+		.bpp = 10,
+	},
+
 	/*3840*2160*/
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
