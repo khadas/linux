@@ -215,6 +215,7 @@
 		interrupt-names = "job", "mmu", "gpu";
 		operating-points-v2 = <&gpu_opp_table_panthor>;
 		power-domains = <&power RK3588_PD_GPU>;
+		mali-supply = <&vdd_gpu_s0>;
 		status = "disabled";
 
 		gpu_opp_table_panthor: opp-table {
@@ -1542,15 +1543,10 @@
 
 };
 
-// &gpu {
-// 	mali-supply = <&vdd_gpu_s0>;
-// 	mem-supply = <&vdd_gpu_mem_s0>;
-// 	status = "okay";
-// };
-
-&gpu_panthor {
-	status = "okay";
+&gpu {
 	mali-supply = <&vdd_gpu_s0>;
+	mem-supply = <&vdd_gpu_mem_s0>;
+	status = "okay";
 };
 
 &i2s0_8ch {
