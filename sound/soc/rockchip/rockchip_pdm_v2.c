@@ -583,6 +583,7 @@ static bool rockchip_pdm_v2_wr_reg(struct device *dev, unsigned int reg)
 	case PDM_V2_FIFO_CTRL:
 	case PDM_V2_RXFIFO_DATA:
 	case PDM_V2_DATA_VALID:
+	case PDM_V2_GAIN_CTRL:
 		return true;
 	default:
 		return false;
@@ -599,6 +600,7 @@ static bool rockchip_pdm_v2_rd_reg(struct device *dev, unsigned int reg)
 	case PDM_V2_DATA_VALID:
 	case PDM_V2_RXFIFO_DATA:
 	case PDM_V2_VERSION:
+	case PDM_V2_GAIN_CTRL:
 		return true;
 	default:
 		return false;
@@ -818,22 +820,6 @@ static int rockchip_pdm_v2_probe(struct platform_device *pdev)
 	 * release time here.
 	 */
 	pdm->version = (pdm->version >> 16) & 0xffff;
-	/*
-	 * Set the default gain 24dB, this parameter can get better
-	 * performance if the voice energy is lower. In other words this
-	 * can improve PDM IP SNR.
-	 *
-	 * So the applicable range of this is for sound intensity below 100dB.
-	 * If you want to record stronger sound intensity, you must set
-	 * PDM gain register but not soft gain-controller.
-	 */
-	if (pdm->version == RK3506_PDM) {
-		regmap_update_bits(pdm->regmap, PDM_V2_GAIN_CTRL, PDM_V2_GAIN_CTRL_MSK,
-				   PDM_V2_GAIN_CTRL_24DB);
-	} else if (pdm->version == RK3576_PDM) {
-		regmap_update_bits(pdm->regmap, PDM_V2_FILTER_CTRL, PDM_V2_GAIN_MSK,
-				   PDM_V2_GAIN_24DB);
-	}
 
 	ret = rockchip_pdm_v2_path_parse(pdm, node);
 	if (ret != 0 && ret != -ENOENT)
