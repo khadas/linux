@@ -67,8 +67,6 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 
 	iommu_flush_iotlb_all(private->domain);
 
-	rk_obj->size = ret;
-
 	return 0;
 
 err_remove_node:
@@ -731,6 +729,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 		return ERR_CAST(rk_obj);
 
 	obj = &rk_obj->base;
+	rk_obj->size = size;
 
 	/*
 	 * allocate a id of idr table where the obj is registered
@@ -863,6 +862,7 @@ rockchip_gem_prime_import_sg_table(struct drm_device *drm,
 		goto err_free_rk_obj;
 	}
 
+	rk_obj->size = attach->dmabuf->size;
 	rk_obj->num_pages = rk_obj->base.size >> PAGE_SHIFT;
 	rk_obj->pages = drm_calloc_large(rk_obj->num_pages, sizeof(*rk_obj->pages));
 	if (!rk_obj->pages) {
