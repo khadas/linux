@@ -364,9 +364,6 @@ mv ${ldstemp} $destdir/scripts/module.lds
 if [ "$ARCH" != "um" ]; then
 	create_package "$kernel_headers_packagename" "$kernel_headers_dir" "headers"
 	create_package "$dtb_packagename" "$dtb_dir" "dtb"
-
-	deploy_libc_headers debian/linux-libc-dev
-	create_package linux-libc-dev debian/linux-libc-dev
 fi
 
 create_package "$packagename" "$tmpdir"
