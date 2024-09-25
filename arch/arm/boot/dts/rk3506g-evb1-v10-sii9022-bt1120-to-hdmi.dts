@@ -14,6 +14,10 @@
 	compatible = "rockchip,rk3506g-evb1-v10-sii9022-bt1120-to-hdmi", "rockchip,rk3506";
 };
 
+&cma {
+	size = <0x1600000>;
+};
+
 &i2c2 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
