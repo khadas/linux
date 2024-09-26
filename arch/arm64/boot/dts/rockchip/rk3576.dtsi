@@ -75,6 +75,8 @@
 		spi4 = &spi4;
 		spi5 = &sfc0;
 		spi6 = &sfc1;
+		spi7 = &flexbus_spi;
+		spi8 = &flexbus_fspi;
 	};
 
 	clocks {
@@ -4364,6 +4366,13 @@
 
 		flexbus_fspi: fspi {
 			compatible = "rockchip,flexbus-fspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		flexbus_spi: spi {
+			compatible = "rockchip,flexbus-spi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
