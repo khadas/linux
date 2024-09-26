@@ -520,3 +520,7 @@
 &sdmmc {
 	status = "disabled";
 };
+
+&ufs {
+	status = "disabled";
+};
