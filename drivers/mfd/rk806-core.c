@@ -19,6 +19,7 @@
 #define TSD_TEMP_160	0x01
 #define VB_LO_ACT_SD	0x00
 #define VB_LO_ACT_INT	0x01
+#define VB_LO_3400MV	3400
 
 static const struct reg_field rk806_reg_fields[] = {
 	[POWER_EN0] = REG_FIELD(0x00, 0, 7),
@@ -571,47 +572,13 @@ static int rk806_pinctrl_init(struct rk806 *rk806)
 	return 0;
 }
 
-static irqreturn_t rk806_vb_low_irq(int irq, void *rk806)
+static void rk806_vb_force_shutdown_init(struct rk806 *rk806)
 {
-	return IRQ_HANDLED;
-}
+	struct rk806_platform_data *pdata = rk806->pdata;
 
-static int rk806_low_power_irqs(struct rk806 *rk806)
-{
-	struct rk806_platform_data *pdata;
-	int ret, vb_lo_irq;
-
-	pdata = rk806->pdata;
-
-	if (!pdata->low_voltage_threshold)
-		return 0;
-
-	rk806_field_write(rk806, VB_LO_ACT, VB_LO_ACT_INT);
-
+	rk806_field_write(rk806, VB_LO_ACT, VB_LO_ACT_SD);
 	rk806_field_write(rk806, VB_LO_SEL,
 			  (pdata->low_voltage_threshold - 2800) / 100);
-
-	vb_lo_irq = regmap_irq_get_virq(rk806->irq_data, RK806_IRQ_VB_LO);
-	if (vb_lo_irq < 0) {
-		dev_err(rk806->dev, "vb_lo_irq request failed!\n");
-		return vb_lo_irq;
-	}
-
-	ret = devm_request_threaded_irq(rk806->dev, vb_lo_irq,
-					NULL,
-					rk806_vb_low_irq,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					"rk806_vb_low", rk806);
-	if (ret) {
-		dev_err(rk806->dev, "vb_lo_irq request failed!\n");
-		return ret;
-	}
-
-	rk806->vb_lo_irq = vb_lo_irq;
-	disable_irq(rk806->vb_lo_irq);
-	enable_irq_wake(vb_lo_irq);
-
-	return 0;
 }
 
 static irqreturn_t rk806_vdc_irq(int irq, void *data)
@@ -685,13 +652,13 @@ static int rk806_parse_dt(struct rk806 *rk806)
 				       "low_voltage_threshold",
 				       &pdata->low_voltage_threshold);
 	if (ret < 0) {
-		pdata->low_voltage_threshold = 0;
+		pdata->low_voltage_threshold = VB_LO_3400MV;
 		dev_info(dev, "low_voltage_threshold missing!\n");
 	} else {
 		if ((pdata->low_voltage_threshold > 3500) ||
 		    (pdata->low_voltage_threshold < 2800)) {
 			dev_err(dev, "low_voltage_threshold out [2800 3500]!\n");
-			pdata->low_voltage_threshold = 2800;
+			pdata->low_voltage_threshold = VB_LO_3400MV;
 		}
 	}
 	ret = device_property_read_u32(dev,
@@ -761,7 +728,7 @@ static int rk806_init(struct rk806 *rk806)
 	/* Digital output 2MHz clock force enable */
 	rk806_field_write(rk806, ENB2_2M, 0x01);
 
-	rk806_low_power_irqs(rk806);
+	rk806_vb_force_shutdown_init(rk806);
 	rk806_vdc_irqs_init(rk806);
 
 	return 0;
@@ -822,6 +789,7 @@ int rk806_device_init(struct rk806 *rk806)
 		dev_err(rk806->dev, "Failed to add IRQ chip: err = %d\n", ret);
 		return ret;
 	}
+	enable_irq_wake(rk806->irq);
 
 	ret = devm_mfd_add_devices(rk806->dev,
 				   PLATFORM_DEVID_AUTO,
