@@ -2270,10 +2270,6 @@ int rkisp_register_stream_v32(struct rkisp_device *dev)
 			goto err_free_bpds;
 		rkisp_dvbm_get(dev);
 		rkisp_rockit_dev_init(dev);
-	} else {
-		ret = rkisp_stream_init(dev, RKISP_STREAM_VIR);
-		if (ret < 0)
-			goto err_free_sp;
 	}
 	return 0;
 err_free_bpds:
