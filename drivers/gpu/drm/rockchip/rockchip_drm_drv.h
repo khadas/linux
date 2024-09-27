@@ -349,6 +349,15 @@ struct rockchip_drm_vcnt {
 	int pipe;
 };
 
+struct rockchip_drm_error_event {
+	wait_queue_head_t wait;
+	struct task_struct *thread;
+	struct list_head event_list;
+	struct drm_event_vblank event;
+	bool error_state;
+	spinlock_t lock;
+};
+
 struct rockchip_logo {
 	dma_addr_t dma_addr;
 	struct drm_mm_node logo_reserved_node;
@@ -511,6 +520,7 @@ struct rockchip_crtc_funcs {
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode, struct dmcfreq_vop_info *vop_bw_info);
 	int (*get_crc)(struct drm_crtc *crtc);
+	void (*iommu_fault_handler)(struct drm_crtc *crtc, struct iommu_domain *iommu);
 };
 
 struct rockchip_dclk_pll {
@@ -558,6 +568,8 @@ struct rockchip_drm_private {
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 
+	uint64_t iommu_fault_count;
+
 	struct rockchip_dclk_pll default_pll;
 	struct rockchip_dclk_pll hdmi_pll;
 
@@ -568,6 +580,8 @@ struct rockchip_drm_private {
 	struct mutex ovl_lock;
 
 	struct rockchip_drm_vcnt vcnt[ROCKCHIP_MAX_CRTC];
+	struct rockchip_drm_error_event error_event;
+
 	/**
 	 * @loader_protect
 	 * ignore restore_fbdev_mode_atomic when in logo on state
@@ -647,6 +661,9 @@ int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate
 bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
 const char *rockchip_drm_modifier_to_string(uint64_t modifier);
+void rockchip_drm_reset_iommu_fault_handler_rate_limit(void);
+void rockchip_drm_send_error_event(struct rockchip_drm_private *priv,
+				   enum rockchip_drm_error_event_type event);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev,
