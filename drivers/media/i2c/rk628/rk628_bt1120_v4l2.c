@@ -1033,37 +1033,9 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 		return -EINVAL;
 	}
 
-	if (!bt1120->vid_ints_en)
-		return 0;
-
-	rk628_i2c_read(bt1120->rk628, GRF_INTR0_STATUS, &int0_status);
-	if (!(int0_status & (BIT(8) | BIT(9))))
-		return 0;
-
-	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
-
-	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
-	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
-
-	/* clear interrupts */
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
-
-	if (!rk628_is_general_isr(bt1120, md_ints, pdec_ints))
-		return 0;
-
-	if (bt1120->rk628->version >= RK628F_VERSION &&
-	    rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints))
-		rk628_set_bg_enable(bt1120->rk628, true);
-
-	plugin = tx_5v_power_present(sd);
-	if (!plugin) {
-		rk628_bt1120_enable_interrupts(sd, false);
-		return 0;
-	}
-
 	if (bt1120->rk628->version < RK628F_VERSION) {
 		if (rk628_audio_ctsnints_enabled(audio_info)) {
+			rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
 				rk628_csi_isr_ctsn(audio_info, pdec_ints);
 				pdec_ints &= ~(ACR_CTS_CHG_ICLR | ACR_CTS_CHG_ICLR);
@@ -1078,6 +1050,36 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 			}
 		}
 	}
+
+	if (!bt1120->vid_ints_en)
+		return 0;
+
+	rk628_i2c_read(bt1120->rk628, GRF_INTR0_STATUS, &int0_status);
+	if (!(int0_status & (BIT(8) | BIT(9))))
+		return 0;
+
+	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
+
+	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
+	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
+
+	/* clear interrupts */
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xff3fffff);
+
+	if (!rk628_is_general_isr(bt1120, md_ints, pdec_ints))
+		return 0;
+
+	if (bt1120->rk628->version >= RK628F_VERSION &&
+	    rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints))
+		rk628_set_bg_enable(bt1120->rk628, true);
+
+	plugin = tx_5v_power_present(sd);
+	if (!plugin) {
+		rk628_bt1120_enable_interrupts(sd, false);
+		return 0;
+	}
+
 	v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
 		 __func__, md_ints, pdec_ints, plugin);
 

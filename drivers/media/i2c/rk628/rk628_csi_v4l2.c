@@ -1745,6 +1745,24 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 		return -EINVAL;
 	}
 
+	if (csi->rk628->version < RK628F_VERSION) {
+		if (rk628_audio_ctsnints_enabled(audio_info)) {
+			rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
+			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
+				rk628_csi_isr_ctsn(audio_info, pdec_ints);
+				pdec_ints &= ~(ACR_CTS_CHG_ICLR | ACR_CTS_CHG_ICLR);
+				*handled = true;
+			}
+		}
+		if (rk628_audio_fifoints_enabled(audio_info)) {
+			rk628_i2c_read(csi->rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
+			if (fifo_ints & 0x18) {
+				rk628_csi_isr_fifoints(audio_info, fifo_ints);
+				*handled = true;
+			}
+		}
+	}
+
 	if (!csi->vid_ints_en)
 		return 0;
 
@@ -1757,7 +1775,7 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 
 	/* clear interrupts */
 	rk628_i2c_write(csi->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
-	rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
+	rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_ICLR, 0xff3fffff);
 
 	if (!rk628_is_general_isr(csi, md_ints, pdec_ints))
 		return 0;
@@ -1772,23 +1790,6 @@ static int rk628_hdmirx_general_isr(struct v4l2_subdev *sd, u32 status, bool *ha
 	if (!plugin) {
 		rk628_csi_enable_interrupts(sd, false);
 		return 0;
-	}
-
-	if (csi->rk628->version < RK628F_VERSION) {
-		if (rk628_audio_ctsnints_enabled(audio_info)) {
-			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
-				rk628_csi_isr_ctsn(audio_info, pdec_ints);
-				pdec_ints &= ~(ACR_CTS_CHG_ICLR | ACR_CTS_CHG_ICLR);
-				*handled = true;
-			}
-		}
-		if (rk628_audio_fifoints_enabled(audio_info)) {
-			rk628_i2c_read(csi->rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
-			if (fifo_ints & 0x18) {
-				rk628_csi_isr_fifoints(audio_info, fifo_ints);
-				*handled = true;
-			}
-		}
 	}
 
 	v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
