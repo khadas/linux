@@ -62,14 +62,14 @@
 		};
 	};
 
-	usb_otg0_vcc5v_buck: usb_otg0_vcc5v-buck {
+	usb_otg_vcc5v_buck: usb_otg_vcc5v-buck {
 		compatible = "regulator-fixed";
-		regulator-name = "usb_otg0_vcc5v_buck";
+		regulator-name = "usb_otg_vcc5v_buck";
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		enable-active-high;
+		//enable-active-high;
 		gpio = <&i2c0_nca9539_gpio 0 GPIO_ACTIVE_HIGH>;
 		vin-supply = <&vcc5v0_buck>;
 		regulator-state-mem {
@@ -523,4 +523,31 @@
 
 &ufs {
 	status = "disabled";
+};
+
+&u2phy0 {
+	rockchip,sel-pipe-phystatus;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	/delete-property/rockchip,sel-pipe-phystatus;
+	//vbus-supply = <&usb_otg_vcc5v_buck>;
+	status = "okay";
+};
+
+&u2phy1_otg {
+	phy-supply = <&usb_host_vcc5v_buck>;
+	status = "okay";
+};
+
+&usbdp_phy {
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+&usb_drd1_dwc3 {
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	status = "okay";
 };
