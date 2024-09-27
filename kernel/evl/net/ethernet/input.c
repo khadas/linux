@@ -154,6 +154,12 @@ static struct evl_net_handler evl_net_ether = {
 	.ingress = net_ether_ingress,
 };
 
+static inline bool contains_reserved_vid(unsigned long *map)
+{
+	/* VID 0, 1 and 4095 are reserved. */
+	return test_bit(0, map) || test_bit(1, map) || test_bit(VLAN_VID_MASK, map);
+}
+
 ssize_t evl_net_store_vlans(const char *buf, size_t len)
 {
 	unsigned long *new_map;
@@ -164,8 +170,7 @@ ssize_t evl_net_store_vlans(const char *buf, size_t len)
 		return -ENOMEM;
 
 	ret = bitmap_parselist(buf, new_map, VLAN_N_VID);
-	/* VID 0 and 4095 are reserved. */
-	if (!ret && (test_bit(0, new_map) || test_bit(VLAN_VID_MASK, new_map)))
+	if (!ret && contains_reserved_vid(new_map))
 		ret = -EINVAL;
 	if (ret) {
 		bitmap_free(new_map);
