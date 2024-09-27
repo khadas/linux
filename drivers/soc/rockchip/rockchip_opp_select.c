@@ -1349,6 +1349,9 @@ static int rockchip_get_soc_info(struct device *dev, struct device_node *np,
 	/* J */
 	else if (value == 0xa)
 		*bin = 2;
+	/* S */
+	else if (value == 0x13)
+		*bin = 3;
 
 	if (*bin < 0)
 		*bin = 0;
