@@ -1180,6 +1180,7 @@ static int __maybe_unused rk806_suspend(struct device *dev)
 	struct rk806 *rk806 = dev_get_drvdata(dev->parent);
 	int i;
 
+	rk806_field_write(rk806, RST_FUN, 0x00);
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
 
 	for (i = RK806_ID_DCDC1; i < RK806_ID_END; i++)
@@ -1202,6 +1203,7 @@ static int __maybe_unused rk806_resume(struct device *dev)
 		rk806_field_write(rk806, BUCK1_VSEL_CTR_SEL + i, CTR_BY_NO_EFFECT);
 
 	rk806_field_write(rk806, PWRCTRL1_FUN, PWRCTRL_NULL_FUN);
+	rk806_field_write(rk806, RST_FUN, 0x01);
 
 	return 0;
 }
@@ -1211,14 +1213,14 @@ static void rk806_regulator_shutdown(struct platform_device *pdev)
 {
 	struct rk806 *rk806 = dev_get_drvdata(pdev->dev.parent);
 
-	if (system_state == SYSTEM_POWER_OFF)
+	if (system_state == SYSTEM_POWER_OFF) {
+		rk806_shutdown_requence_config(rk806);
 		if ((rk806->pins->p) && (rk806->pins->power_off))
 			pinctrl_select_state(rk806->pins->p, rk806->pins->power_off);
-
+	}
 	if (system_state == SYSTEM_RESTART)
 		if ((rk806->pins->p) && (rk806->pins->reset))
 			pinctrl_select_state(rk806->pins->p, rk806->pins->reset);
-
 }
 
 static const struct platform_device_id rk806_regulator_id_table[] = {
