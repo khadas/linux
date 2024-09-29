@@ -125,6 +125,7 @@ struct rk_pcie {
 	unsigned int			clk_cnt;
 	struct gpio_desc		*rst_gpio;
 	u32				perst_inactive_ms;
+	u32				s2r_perst_inactive_ms;
 	struct gpio_desc		*prsnt_gpio;
 	struct dma_trx_obj		*dma_obj;
 	bool				in_suspend;
@@ -369,16 +370,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		 * finishing training. So there must be timeout here. These kinds of devices
 		 * need rescan devices by its driver when used. So no need to waste time waiting
 		 * for training pass.
-		 */
-		if (rk_pcie->in_suspend && rk_pcie->skip_scan_in_resume) {
-			rfkill_get_wifi_power_state(&power);
-			if (!power) {
-				gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
-				return 0;
-			}
-		}
-
-		/*
+		 *
 		 * PCIe requires the refclk to be stable for 100µs prior to releasing
 		 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
 		 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
@@ -386,7 +378,20 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		 * requuirement here. We add a 200ms by default for sake of hoping everthings
 		 * work fine. If it doesn't, please add more in DT node by add rockchip,perst-inactive-ms.
 		 */
-		msleep(rk_pcie->perst_inactive_ms);
+		if (rk_pcie->in_suspend && rk_pcie->skip_scan_in_resume) {
+			rfkill_get_wifi_power_state(&power);
+			if (!power) {
+				gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
+				return 0;
+			}
+			if (rk_pcie->s2r_perst_inactive_ms)
+				usleep_range(rk_pcie->s2r_perst_inactive_ms * 1000,
+					(rk_pcie->s2r_perst_inactive_ms + 1) * 1000);
+		} else {
+			usleep_range(rk_pcie->perst_inactive_ms * 1000,
+				(rk_pcie->perst_inactive_ms + 1) * 1000);
+		}
+
 		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 		/*
@@ -662,6 +667,10 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	if (device_property_read_u32(&pdev->dev, "rockchip,perst-inactive-ms",
 				     &rk_pcie->perst_inactive_ms))
 		rk_pcie->perst_inactive_ms = 200;
+
+	if (device_property_read_u32(&pdev->dev, "rockchip,s2r-perst-inactive-ms",
+				     &rk_pcie->s2r_perst_inactive_ms))
+		rk_pcie->s2r_perst_inactive_ms = rk_pcie->perst_inactive_ms;
 
 	rk_pcie->prsnt_gpio = devm_gpiod_get_optional(&pdev->dev, "prsnt", GPIOD_IN);
 	if (IS_ERR_OR_NULL(rk_pcie->prsnt_gpio))
