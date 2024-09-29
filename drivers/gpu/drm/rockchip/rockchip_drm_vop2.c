@@ -4383,14 +4383,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 			/* Default use rkiommu 1.0 for axi0 */
 			VOP_CTRL_SET(vop2, rkmmu_v2_en, 0);
 
-			/* Init frc2.0 config */
-			vop2_writel(vop2, 0xca0, 0xc8);
-			vop2_writel(vop2, 0xca4, 0x01000100);
-			vop2_writel(vop2, 0xca8, 0x03ff0100);
-			vop2_writel(vop2, 0xda0, 0xc8);
-			vop2_writel(vop2, 0xda4, 0x01000100);
-			vop2_writel(vop2, 0xda8, 0x03ff0100);
-
 			if (vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
@@ -8103,9 +8095,9 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 		pre_dither_down_en = false;
 
 	if (vp_data->feature & VOP_FEATURE_POST_FRC_V2 && pre_dither_down_en) {
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_0, 0x00000000);
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_1, 0x01000100);
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_2, 0x04030100);
+		VOP_MODULE_SET(vop2, vp, dither_frc_0, 0x00000000);
+		VOP_MODULE_SET(vop2, vp, dither_frc_1, 0x01000100);
+		VOP_MODULE_SET(vop2, vp, dither_frc_2, 0x04030100);
 
 		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);/* enable frc2.0 do 10->8 */
