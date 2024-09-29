@@ -292,11 +292,15 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 				  unsigned long config)
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned int debounce = pinconf_to_config_argument(config);
 
 	switch (param) {
 	case PIN_CONFIG_INPUT_DEBOUNCE:
-		return rockchip_gpio_set_debounce(gc, offset, debounce);
+		rockchip_gpio_set_debounce(gc, offset, 0);
+		/*
+		 * Since Rockchip's GPIO hardware debounce function does not
+		 * support configuring individual pins, it will not be used.
+		 */
+		return -ENOTSUPP;
 	default:
 		return -ENOTSUPP;
 	}
