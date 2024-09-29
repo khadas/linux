@@ -50,7 +50,7 @@ if test x$help = xtrue; then
    echo >&2 "The output is of the form:"
    echo >&2 "    <start> <range> <revision>  [<shortlog>]"
    echo >&2
-   echo >&2 "where <start> is the predecessor of the earliest commit"
+   echo >&2 "where <start> is the predecessor to the earliest commit"
    echo >&2 "              implementing/requesting the ABI revision"
    echo >&2 "      <range> is the span of the ABI revision"
    echo >&2 "      <revision> is the ABI revision number"
@@ -100,7 +100,7 @@ scan_history() {
     while read hash shortlog
     do
 	rev=$($GIT show -1 -p --pretty=tformat: $hash -- $file|\
-		  grep "^\+#define $sym"|\
+		  grep "^+#define $sym"|\
 		  sed -e "s,^\+#define $sym[ 	]*\([0-9]\+\).*$,\1,")
 	test -z "$rev" && continue
 	start=$($GIT rev-parse --short $hash^)
@@ -108,14 +108,14 @@ scan_history() {
 	end=$($GIT rev-parse --short $start)
     done)
     if test -n "$abirev"; then
-    	 echo "$reflist" | grep -w "[a-f0-9]\+ [a-f0-9]\+\.\.[a-f0-9]\+[ ]\+$abirev[^ ]*"
+    	 echo "$reflist" | grep -w "[a-f0-9]+ [a-f0-9]+\.\.[a-f0-9]+[ ]+$abirev[^ ]*"
     else
 	 echo "$reflist"
     fi
 }
 
-if $GIT rev-parse -q --no-revs --verify $object:include/uapi/evl/control.h; then
-    result=$(scan_history EVL_ABI_LEVEL include/uapi/evl/control.h)
+if $GIT rev-parse -q --no-revs --verify $object:include/uapi/evl/control-abi.h; then
+    result=$(scan_history EVL_ABI_LEVEL include/uapi/evl/control-abi.h)
     test -n "$result" && echo "$result"
 elif $GIT rev-parse -q --no-revs --verify $object:include/evl/evl.h; then
     result=$(scan_history EVL_ABI_PREREQ include/evl/evl.h)
