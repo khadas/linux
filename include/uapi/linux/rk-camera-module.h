@@ -37,6 +37,7 @@
 #define RKMODULE_INTERNAL_MASTER_MODE	"internal_master"
 #define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
 #define RKMODULE_SLAVE_MODE		"slave"
+#define RKMODULE_SOFT_SYNC_MODE		"soft_sync"
 
 #define RKMODULE_CAMERA_STANDBY_HW	"rockchip,camera-module-stb"
 
@@ -719,6 +720,7 @@ enum rkmodule_sync_mode {
 	EXTERNAL_MASTER_MODE,
 	INTERNAL_MASTER_MODE,
 	SLAVE_MODE,
+	SOFT_SYNC_MODE,
 };
 
 struct rkmodule_mclk_data {
