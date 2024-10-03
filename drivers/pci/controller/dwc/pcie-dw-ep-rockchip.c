@@ -672,8 +672,16 @@ static int rockchip_pcie_init_host(struct rockchip_pcie *rockchip)
 	if (ret)
 		goto disable_phy;
 
+	ret = phy_calibrate(rockchip->phy);
+	if (ret) {
+		dev_err(dev, "phy lock failed\n");
+		goto disable_controller;
+	}
+
 	return 0;
 
+disable_controller:
+	reset_control_assert(rockchip->rst);
 disable_phy:
 	phy_exit(rockchip->phy);
 	phy_power_off(rockchip->phy);

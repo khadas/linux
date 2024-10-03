@@ -1506,7 +1506,6 @@ static int rk_pcie_really_probe(void *p)
 
 	reset_control_assert(rk_pcie->rsts);
 	udelay(10);
-	reset_control_deassert(rk_pcie->rsts);
 
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
@@ -1518,6 +1517,14 @@ static int rk_pcie_really_probe(void *p)
 	if (ret) {
 		dev_err_probe(dev, ret, "phy init failed\n");
 		goto disable_clk;
+	}
+
+	reset_control_deassert(rk_pcie->rsts);
+
+	ret = phy_calibrate(rk_pcie->phy);
+	if (ret) {
+		dev_err(dev, "phy lock failed\n");
+		goto disable_phy;
 	}
 
 	/* 5. host registers manipulation */
