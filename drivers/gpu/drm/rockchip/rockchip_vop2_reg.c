@@ -145,8 +145,8 @@ static const uint32_t formats_for_rk356x_esmart[] = {
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
-	DRM_FORMAT_UYVY, /* yuv422_8bit[UYVY] linear mode */
+	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
+	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 };
 
 /* used from rk3576, add argb1555 format */
