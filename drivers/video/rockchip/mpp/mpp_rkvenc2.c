@@ -2214,12 +2214,12 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 
 	set_bit(mpp->core_id, &queue->core_idle);
 
-	spin_lock_irqsave(&ccu->lock_dchs, flags);
 	if (ccu) {
+		spin_lock_irqsave(&ccu->lock_dchs, flags);
 		ccu->dchs[mpp->core_id].val[0] = 0;
 		ccu->dchs[mpp->core_id].val[1] = 0;
+		spin_unlock_irqrestore(&ccu->lock_dchs, flags);
 	}
-	spin_unlock_irqrestore(&ccu->lock_dchs, flags);
 
 	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, queue->core_idle);
 
