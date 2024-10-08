@@ -21,6 +21,7 @@
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
 #endif
+#include <dt-bindings/display/rockchip_vop.h>
 
 #include <linux/debugfs.h>
 #include <linux/fixp-arith.h>
@@ -242,20 +243,6 @@ enum vop2_hdr_lut_mode {
 
 enum vop2_pending {
 	VOP_PENDING_FB_UNREF,
-};
-
-enum vop2_layer_phy_id {
-	ROCKCHIP_VOP2_CLUSTER0 = 0,
-	ROCKCHIP_VOP2_CLUSTER1,
-	ROCKCHIP_VOP2_ESMART0,
-	ROCKCHIP_VOP2_ESMART1,
-	ROCKCHIP_VOP2_SMART0,
-	ROCKCHIP_VOP2_SMART1,
-	ROCKCHIP_VOP2_CLUSTER2,
-	ROCKCHIP_VOP2_CLUSTER3,
-	ROCKCHIP_VOP2_ESMART2,
-	ROCKCHIP_VOP2_ESMART3,
-	ROCKCHIP_VOP2_PHY_ID_INVALID = -1,
 };
 
 struct pixel_shift_data {
@@ -810,7 +797,7 @@ struct vop2_video_port {
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
 	 * will be used to show uboot logo and kernel logo
 	 */
-	enum vop2_layer_phy_id primary_plane_phy_id;
+	int primary_plane_phy_id;
 
 	struct post_acm acm_info;
 	struct post_csc csc_info;
