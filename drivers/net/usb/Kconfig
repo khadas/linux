@@ -644,4 +644,11 @@ config USB_RTL8153_ECM
 	  CONFIG_USB_RTL8152 is not set, or the RTL8153 device is not
 	  supported by r8152 driver.
 
+config USB_GOBI_NET
+	tristate "Gobi USB Net driver for Quectel module"
+	help
+		Support Quectelmodule
+
+		A modemmanager with support for GobiNet is recommended.
+
 endif # USB_NET_DRIVERS
