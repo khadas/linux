@@ -280,11 +280,11 @@
 		};
 	};
 
-	vehicle_dummy: vehicle_dummy {
+	vehicle_dummy: vehicle-dummy {
 		status = "okay";
-		compatible = "rockchip,vehicle-dummy-gpio";
-		reverse-gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
-		park-gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		compatible = "rockchip,vehicle-dummy-adc";
+		io-channels = <&saradc 2>, <&saradc 4>, <&saradc 3>;
+		io-channel-names = "gear", "turn_left", "turn_right";
 	};
 
 	vcc3v3_pcie_wifi: vcc3v3-pcie-wifi {
