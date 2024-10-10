@@ -4582,6 +4582,8 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	u32 *output_fmts;
 	unsigned int i, j = 0;
 
+	dp->eotf_type = dw_dp_get_eotf(conn_state);
+
 	if (dp->split_mode || dp->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&mode);
 
