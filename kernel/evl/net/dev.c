@@ -498,9 +498,9 @@ static void __set_rx_filter(struct evl_netdev_state *est,
 				lockdep_is_held(&est->filter_lock));
 	rcu_assign_pointer(est->rx_filter, filter);
 	if (filter)
-		__set_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
+		set_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
 	else
-		__clear_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
+		clear_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
 	spin_unlock_bh(&est->filter_lock);
 
 	if (old)
