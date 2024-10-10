@@ -81,8 +81,8 @@
 	usb_host_vcc5v_buck: usb_host_vcc5v-buck {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_host_vcc5v_buck";
-		regulator-boot-on;
-		regulator-always-on;
+		//regulator-boot-on;
+		//regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -547,7 +547,7 @@
 };
 
 &usb_drd1_dwc3 {
-	maximum-speed = "high-speed";
 	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 	status = "okay";
 };
