@@ -2450,7 +2450,8 @@ static bool vop3_output_rb_swap(struct rockchip_crtc_state *vcstate)
 	 * The default component order of serial rgb3x8 formats
 	 * is BGR. So it is needed to enable RB swap.
 	 */
-	if (bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
+	if (bus_format == MEDIA_BUS_FMT_BGR888_1X24 ||
+	    bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
 	    bus_format == MEDIA_BUS_FMT_RGB888_DUMMY_4X8)
 		return true;
 	else
