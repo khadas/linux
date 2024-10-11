@@ -548,8 +548,19 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static int es8316_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
+	struct snd_soc_component *component = dai->component;
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+
 	snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1, 0x20,
 			    mute ? 0x20 : 0);
+
+	// Mute speaker
+	if (es8316->hp_inserted) {
+		es8316_enable_spk(es8316, false);
+	} else {
+		es8316_enable_spk(es8316, mute ? false : true);
+	}
+
 	return 0;
 }
 
@@ -630,7 +641,7 @@ static irqreturn_t es8316_irq(int irq, void *data)
 		es8316_enable_headset_mic(es8316, true);
 	}
 	else {
-        es8316_enable_spk(es8316, true);
+		es8316_enable_spk(es8316, true);
 		es8316_enable_headset_mic(es8316, false);
 	}
         mutex_lock(&es8316->lock);
@@ -878,6 +889,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c_client->dev.of_node;
 	unsigned int val;
+	int enable;
 
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
@@ -901,47 +913,45 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 	//es8316->irq = i2c_client->irq;
      es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
 					"spk-con-gpio", 0, &flags);
-     if (es8316->spk_ctl_gpio < 0) {
-          dev_info(&i2c_client->dev, "Can not read property spk_ctl_gpio\n");
-          es8316->spk_ctl_gpio = INVALID_GPIO;
-     } else {
-          es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
-          ret = devm_gpio_request_one(&i2c_client->dev, es8316->spk_ctl_gpio,
+	if (es8316->spk_ctl_gpio < 0) {
+		dev_info(&i2c_client->dev, "Can not read property spk_ctl_gpio\n");
+		es8316->spk_ctl_gpio = INVALID_GPIO;
+	} else {
+		es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
+		ret = devm_gpio_request_one(&i2c_client->dev, es8316->spk_ctl_gpio,
                                            GPIOF_DIR_OUT, NULL);
-          if (ret) {
-             dev_err(&i2c_client->dev, "Failed to request spk_ctl_gpio\n");
-             return ret;
-          }
-       }
+		if (ret) {
+			dev_err(&i2c_client->dev, "Failed to request spk_ctl_gpio\n");
+			return ret;
+		}
+
+		  // Mute speaker
+		  es8316_enable_spk(es8316, false);
+	}
 
 	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
-                                                   "hp-det-gpio",
-                                                    0,
-                                                    &flags);
-    if (es8316->hp_det_gpio < 0) {
-         dev_info(&i2c_client->dev, "Can not read property hp_det_gpio\n");
-         es8316->hp_det_gpio = INVALID_GPIO;
-     } else {
-         es8316->hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
-         ret = devm_gpio_request_one(&i2c_client->dev, es8316->hp_det_gpio,
-                                           GPIOF_IN, "hp det");
-         if (ret < 0)
-            return ret;
-         es8316->irq = gpio_to_irq(es8316->hp_det_gpio);
-     }
+								"hp-det-gpio",
+								0,
+								&flags);
+	if (es8316->hp_det_gpio < 0) {
+		dev_info(&i2c_client->dev, "Can not read property hp_det_gpio\n");
+		es8316->hp_det_gpio = INVALID_GPIO;
+	} else {
+		es8316->hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
+		ret = devm_gpio_request_one(&i2c_client->dev, es8316->hp_det_gpio,
+									GPIOF_IN, "hp det");
+		if (ret < 0)
+			return ret;
+		es8316->irq = gpio_to_irq(es8316->hp_det_gpio);
+	}
 
 	mutex_init(&es8316->lock);
 
-	if (!!gpio_get_value(es8316->hp_det_gpio))
-		if (es8316->hp_det_invert)
-			es8316_enable_spk(es8316, true);
-		else
-			es8316_enable_spk(es8316, false);
-	else
-		if (es8316->hp_det_invert)
-			es8316_enable_spk(es8316, false);
-		else
-			es8316_enable_spk(es8316, true);
+	enable = gpio_get_value(es8316->hp_det_gpio);
+	if (es8316->hp_det_invert)
+		enable = !enable;
+
+	es8316->hp_inserted = enable ? true : false;
 
 	ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
 					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
