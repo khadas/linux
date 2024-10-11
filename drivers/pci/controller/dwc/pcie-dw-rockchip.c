@@ -140,6 +140,7 @@ struct rk_pcie {
 	bool				is_lpbk;
 	bool				is_comp;
 	bool				have_rasdes;
+	bool				finish_probe;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
@@ -152,6 +153,7 @@ struct rk_pcie {
 	struct work_struct		hot_rst_work;
 	u32				comp_prst[2];
 	u32				intx;
+	int				irq;
 };
 
 struct rk_pcie_of_data {
@@ -450,6 +452,11 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	} else {
 		return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
 	}
+}
+
+static void rk_pcie_stop_link(struct dw_pcie *pci)
+{
+	rk_pcie_disable_ltssm(to_rk_pcie(pci));
 }
 
 static bool rk_pcie_udma_enabled(struct rk_pcie *rk_pcie)
@@ -915,6 +922,7 @@ MODULE_DEVICE_TABLE(of, rk_pcie_of_match);
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = rk_pcie_establish_link,
+	.stop_link = rk_pcie_stop_link,
 	.link_up = rk_pcie_link_up,
 };
 
@@ -1372,7 +1380,7 @@ static const struct gpio_hotplug_slot_plat_ops rk_pcie_gpio_hp_plat_ops = {
 static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_device *pdev)
 {
 	struct device *dev = rk_pcie->pci->dev;
-	int ret, irq;
+	int ret;
 
 	/*
 	 * Misc interrupts was masked by default. However, they will be
@@ -1391,9 +1399,9 @@ static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_devi
 	/* Legacy interrupt is optional */
 	ret = rk_pcie_init_irq_domain(rk_pcie);
 	if (!ret) {
-		irq = platform_get_irq_byname(pdev, "legacy");
-		if (irq >= 0) {
-			irq_set_chained_handler_and_data(irq, rk_pcie_legacy_int_handler,
+		rk_pcie->irq = platform_get_irq_byname(pdev, "legacy");
+		if (rk_pcie->irq >= 0) {
+			irq_set_chained_handler_and_data(rk_pcie->irq, rk_pcie_legacy_int_handler,
 							 rk_pcie);
 			/* Unmask all legacy interrupt from INTA~INTD  */
 			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
@@ -1453,7 +1461,7 @@ static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
 	struct device *dev = &pdev->dev;
-	struct rk_pcie *rk_pcie;
+	struct rk_pcie *rk_pcie = NULL;
 	struct dw_pcie *pci;
 	int ret;
 	const struct of_device_id *match;
@@ -1583,6 +1591,7 @@ static int rk_pcie_really_probe(void *p)
 	if (rk_pcie->skip_scan_in_resume)
 		device_init_wakeup(dev, true);
 	device_enable_async_suspend(dev); /* Enable async system PM for multiports SoC */
+	rk_pcie->finish_probe = true;
 
 	return 0;
 
@@ -1600,6 +1609,8 @@ disable_vpcie3v3:
 	pm_runtime_disable(dev);
 	rk_pcie_disable_power(rk_pcie);
 release_driver:
+	if (rk_pcie)
+		rk_pcie->finish_probe = true;
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
 		device_release_driver(dev);
 
@@ -1619,6 +1630,67 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	}
 
 	return rk_pcie_really_probe(pdev);
+}
+
+static int rk_pcie_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+	unsigned long timeout = msecs_to_jiffies(10000), start = jiffies;
+
+	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT)) {
+		/* rk_pcie_really_probe hasn't been called yet, trying to get drvdata */
+		while (!rk_pcie && time_before(start, start + timeout)) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(msecs_to_jiffies(200));
+			rk_pcie = dev_get_drvdata(dev);
+		}
+
+		/* check again to see if probe path fails or hasn't been finished */
+		start = jiffies;
+		while ((rk_pcie && !rk_pcie->finish_probe) && time_before(start, start + timeout)) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(msecs_to_jiffies(200));
+		};
+
+		/*
+		 * Timeout should not happen as it's longer than regular probe actually.
+		 * But probe maybe fail, so need to double check bridge bus.
+		 */
+		if (!rk_pcie || !rk_pcie->finish_probe || !rk_pcie->pci->pp.bridge->bus) {
+			dev_dbg(dev, "%s return early due to failure in threaded init\n", __func__);
+			return 0;
+		}
+	}
+
+	dw_pcie_host_deinit(&rk_pcie->pci->pp);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
+	destroy_workqueue(rk_pcie->hot_rst_wq);
+	pcie_dw_dmatest_unregister(rk_pcie->dma_obj);
+	rockchip_pcie_debugfs_exit(rk_pcie);
+	if (rk_pcie->irq_domain) {
+		int virq, j;
+
+		for (j = 0; j < PCI_NUM_INTX; j++) {
+			virq = irq_find_mapping(rk_pcie->irq_domain, j);
+			if (virq > 0)
+				irq_dispose_mapping(virq);
+		}
+		irq_set_chained_handler_and_data(rk_pcie->irq, NULL, NULL);
+		irq_domain_remove(rk_pcie->irq_domain);
+	}
+
+	device_init_wakeup(dev, false);
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
+	phy_power_off(rk_pcie->phy);
+	phy_exit(rk_pcie->phy);
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
+	reset_control_assert(rk_pcie->rsts);
+	rk_pcie_disable_power(rk_pcie);
+	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
+
+	return 0;
 }
 
 #ifdef CONFIG_PCIEASPM
@@ -1945,10 +2017,10 @@ static struct platform_driver rk_plat_pcie_driver = {
 	.driver = {
 		.name	= "rk-pcie",
 		.of_match_table = rk_pcie_of_match,
-		.suppress_bind_attrs = true,
 		.pm = &rockchip_dw_pcie_pm_ops,
 	},
 	.probe = rk_pcie_probe,
+	.remove = rk_pcie_remove,
 };
 
 module_platform_driver(rk_plat_pcie_driver);
