@@ -845,6 +845,12 @@ static int rk730_reset(struct snd_soc_component *component)
 
 	clk_prepare_enable(rk730->mclk);
 	udelay(10);
+	snd_soc_component_update_bits(component, RK730_DTOP_SRT,
+				      RK730_DTOP_SRST_MASK,
+				      RK730_DTOP_SRST_EN);
+	snd_soc_component_update_bits(component, RK730_DTOP_SRT,
+				      RK730_DTOP_SRST_MASK,
+				      RK730_DTOP_SRST_DIS);
 	/* WA: Initial micbias default, ADC stopped with micbias(>2.5v) */
 	snd_soc_component_update_bits(component, RK730_MIC_BIAS,
 				      RK730_MIC_BIAS_VOLT_MASK,
