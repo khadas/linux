@@ -626,8 +626,8 @@ static void ufs_rockchip_shutdown(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops ufs_rockchip_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ufs_rockchip_suspend, ufs_rockchip_resume)
-	SET_RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(ufs_rockchip_suspend, ufs_rockchip_resume)
+	RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
 	.prepare	 = ufshcd_suspend_prepare,
 	.complete	 = ufshcd_resume_complete,
 };
@@ -638,7 +638,7 @@ static struct platform_driver ufs_rockchip_pltform = {
 	.shutdown = ufs_rockchip_shutdown,
 	.driver = {
 		.name = "ufshcd-rockchip",
-		.pm = &ufs_rockchip_pm_ops,
+		.pm = pm_ptr(&ufs_rockchip_pm_ops),
 		.of_match_table = of_match_ptr(ufs_rockchip_of_match),
 	},
 };
