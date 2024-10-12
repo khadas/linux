@@ -396,6 +396,50 @@
 			opp-microvolt-L0 = <925000 925000 1150000>;
 			clock-latency-ns = <40000>;
 		};
+		/*
+		 * The Max frequency is 1200MHz in default normal mode.
+		 * The Max frequency is 1800MHz in overdrive mode,
+		 * but under the overdrive mode for a long time,
+		 * the chipset may shorten the lifetime, especially in high
+		 * temperature condition. Disable overdrive opps by default
+		 * and you can enable them in dts file.
+		 */
+		cpu_opp_j_od_1416000000: opp-j-od-1416000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1000000 1000000 1150000>;
+			opp-microvolt-L0 = <1000000 1000000 1150000>;
+			opp-microvolt-L1 = <975000 975000 1150000>;
+			opp-microvolt-L2 = <950000 950000 1150000>;
+			opp-microvolt-L3 = <925000 925000 1150000>;
+			opp-microvolt-L4 = <900000 900000 1150000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		cpu_opp_j_od_1608000000: opp-j-od-1608000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <1037500 1037500 1150000>;
+			opp-microvolt-L0 = <1037500 1037500 1150000>;
+			opp-microvolt-L1 = <1012500 1012500 1150000>;
+			opp-microvolt-L2 = <987500 987500 1150000>;
+			opp-microvolt-L3 = <962500 962500 1150000>;
+			opp-microvolt-L4 = <937500 937500 1150000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
+		cpu_opp_j_od_1800000000: opp-j-od-1800000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1125000 1125000 1150000>;
+			opp-microvolt-L0 = <1125000 1125000 1150000>;
+			opp-microvolt-L1 = <1100000 1100000 1150000>;
+			opp-microvolt-L2 = <1075000 1075000 1150000>;
+			opp-microvolt-L3 = <1050000 1050000 1150000>;
+			opp-microvolt-L4 = <1025000 1025000 1150000>;
+			clock-latency-ns = <40000>;
+			status = "disabled";
+		};
 	};
 
 	arm_pmu: arm-pmu {
@@ -1654,8 +1698,47 @@
 		opp-j-700000000 {
 			opp-supported-hw = <0x04 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
-			opp-microvolt = <925000 925000 1000000>;
+			opp-microvolt = <900000 900000 1000000>;
 			opp-microvolt-L0 = <925000 925000 1000000>;
+		};
+		/* The Max frequency is 700MHz in default normal mode.
+		 * The Max frequency is 1000MHz in overdrive mode,
+		 * but under the overdrive mode for a long time,
+		 * the chipset may shorten the lifetime, especially in high
+		 * temperature condition. Disable overdrive opps by default
+		 * and you can enable them in dts file.
+		 */
+		npu_opp_j_od_800000000: opp-j-od-800000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <975000 975000 1000000>;
+			opp-microvolt-L0 = <975000 975000 1000000>;
+			opp-microvolt-L1 = <950000 950000 1000000>;
+			opp-microvolt-L2 = <925000 925000 1000000>;
+			opp-microvolt-L3 = <900000 900000 1000000>;
+			opp-microvolt-L4 = <900000 900000 1000000>;
+			status = "disabled";
+		};
+		npu_opp_j_od_900000000: opp-j-od-900000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			opp-microvolt-L0 = <1000000 1000000 1000000>;
+			opp-microvolt-L1 = <1000000 1000000 1000000>;
+			opp-microvolt-L2 = <975000 975000 1000000>;
+			opp-microvolt-L3 = <950000 950000 1000000>;
+			opp-microvolt-L4 = <925000 925000 1000000>;
+			status = "disabled";
+		};
+		npu_opp_j_od_1000000000: opp-j-od-1000000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			opp-microvolt-L0 = <1000000 1000000 1000000>;
+			opp-microvolt-L1 = <1000000 1000000 1000000>;
+			opp-microvolt-L2 = <1000000 1000000 1000000>;
+			opp-microvolt-L3 = <975000 975000 1000000>;
+			opp-microvolt-L4 = <950000 950000 1000000>;
 			status = "disabled";
 		};
 	};
@@ -1801,6 +1884,35 @@
 			opp-supported-hw = <0x04 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <900000 900000 1000000>;
+		};
+		/* The Max frequency is 700MHz in default normal mode.
+		 * The Max frequency is 900MHz in overdrive mode,
+		 * but under the overdrive mode for a long time,
+		 * the chipset may shorten the lifetime, especially in high
+		 * temperature condition. Disable overdrive opps by default
+		 * and you can enable them in dts file.
+		 */
+		gpu_opp_j_od_800000000: opp-j-od-800000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <950000 950000 1000000>;
+			opp-microvolt-L0 = <950000 950000 1000000>;
+			opp-microvolt-L1 = <925000 925000 1000000>;
+			opp-microvolt-L2 = <900000 900000 1000000>;
+			opp-microvolt-L3 = <875000 875000 1000000>;
+			opp-microvolt-L4 = <850000 850000 1000000>;
+			status = "disabled";
+		};
+		gpu_opp_j_od_900000000: opp-j-od-900000000 {
+			opp-supported-hw = <0x04 0xffff>;
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			opp-microvolt-L0 = <1000000 1000000 1000000>;
+			opp-microvolt-L1 = <975000 975000 1000000>;
+			opp-microvolt-L2 = <950000 950000 1000000>;
+			opp-microvolt-L3 = <925000 925000 1000000>;
+			opp-microvolt-L4 = <900000 900000 1000000>;
+			status = "disabled";
 		};
 	};
 
