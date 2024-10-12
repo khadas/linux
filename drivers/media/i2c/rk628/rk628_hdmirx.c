@@ -18,7 +18,7 @@
 #include "rk628_cru.h"
 #include "rk628_hdmirx.h"
 
-#define INIT_FIFO_STATE			64
+#define INIT_FIFO_STATE			128
 
 #define DEFAULT_AUDIO_CLK 5644800
 
@@ -395,8 +395,8 @@ static void rk628_hdmirx_audio_clk_ppm_inc(struct rk628_audioinfo *aif, int ppm)
 	delta = div_u64(((uint64_t)rate * ppm + 500000), 1000000);
 	delta *= inc;
 	rate += delta;
-	dev_dbg(aif->dev, "%s: %u to %u(delta:%d)\n",
-		__func__, aif->audio_state.hdmirx_aud_clkrate, rate, delta);
+	dev_dbg(aif->dev, "%s: %u to %u(delta:%d ppm:%d)\n",
+		__func__, aif->audio_state.hdmirx_aud_clkrate, rate, delta, ppm);
 	rk628_clk_set_rate(aif->rk628, CGU_CLK_HDMIRX_AUD, rate);
 	aif->audio_state.hdmirx_aud_clkrate = rate;
 }
@@ -449,19 +449,27 @@ static int rk628_hdmirx_audio_clk_adjust(struct rk628_audioinfo *aif,
 {
 	int shedule_time = 500;
 	int ppm = 10;
+	uint32_t offset_abs;
 
-	if (total_offset > 16 && single_offset > 0)
+	offset_abs = abs(total_offset);
+	if (offset_abs > 200) {
+		ppm += 200;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 100) {
+		ppm += 200;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 32) {
+		ppm += 20;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 16)
+		ppm += 20;
+	if (total_offset > 16 && single_offset > 0) {
 		rk628_hdmirx_audio_clk_ppm_inc(aif, ppm);
-	else if (total_offset < -16 && single_offset < 0)
+	} else if (total_offset < -16 && single_offset < 0) {
 		rk628_hdmirx_audio_clk_ppm_inc(aif, -ppm);
-	if (total_offset >= 20) {
-		shedule_time = 200;
-	} else if (total_offset >= 50) {
-		shedule_time = 100;
-		dev_dbg(aif->dev, "%s: decrease shedule time to %d\n", __func__, shedule_time);
-	} else if (ppm >= 80) {
-		shedule_time = 50;
-		dev_dbg(aif->dev, "%s: decrease shedule time to %d\n", __func__, shedule_time);
 	}
 	if (!aif->audio_present)
 		shedule_time = 50;
