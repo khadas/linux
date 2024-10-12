@@ -86,15 +86,6 @@ MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 #define LOGIC_CPU_ID_5			5
 #define PHY_CPU_ID_4			4
 
-#define is_validfs(x) (x == 32000 || \
-			x == 44100 || \
-			x == 48000 || \
-			x == 88200 || \
-			x == 96000 || \
-			x == 176400 || \
-			x == 192000 || \
-			x == 768000)
-
 struct hdmirx_audiostate {
 	struct platform_device *pdev;
 	u32 hdmirx_aud_clkrate;
@@ -3394,6 +3385,52 @@ static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev)
 	return ch;
 }
 
+static int supported_fs[] = {
+	32000,
+	44100,
+	48000,
+	88200,
+	96000,
+	176400,
+	192000,
+	768000,
+	-1
+};
+
+static bool is_validfs(int fs)
+{
+	int i = 0;
+	int fs_t;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		if (fs == fs_t)
+			return true;
+		fs_t = supported_fs[i++];
+	};
+	return false;
+}
+
+static int rk628_hdmirx_audio_find_closest_fs(struct rk_hdmirx_dev *hdmirx_dev, int fs)
+{
+	int i = 0;
+	int fs_t;
+	int difference;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		difference = abs(fs - fs_t);
+		if (difference <= 2000) {
+			if (fs != fs_t)
+				dev_dbg(hdmirx_dev->dev, "%s fix fs from %u to %u",
+					__func__, fs, fs_t);
+			return fs_t;
+		}
+		fs_t = supported_fs[i++];
+	};
+	return fs_t;
+}
+
 static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u64 tmds_clk, fs_audio = 0;
@@ -3410,8 +3447,7 @@ static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
 	if (acr_cts != 0) {
 		fs_audio = div_u64((tmds_clk * acr_n), acr_cts);
 		fs_audio /= 128;
-		fs_audio = div_u64(fs_audio + 50, 100);
-		fs_audio *= 100;
+		fs_audio = rk628_hdmirx_audio_find_closest_fs(hdmirx_dev, fs_audio);
 	}
 	dev_dbg(hdmirx_dev->dev, "%s: fs_audio=%llu; acr_cts=%u; acr_n=%u\n",
 		__func__, fs_audio, acr_cts, acr_n);
