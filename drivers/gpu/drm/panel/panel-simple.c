@@ -4752,7 +4752,7 @@ else{
 	of_property_read_u32(np, "unprepare-delay-ms", &desc->delay.unprepare);
 	//of_property_read_u32(np, "reset-delay-ms", &desc->delay.reset);
 	of_property_read_u32(np, "init-delay-ms", &desc->delay.init);
-	if(3 == khadas_mipi_id){//new TS050
+	if(3 == khadas_mipi_id || 0 == khadas_mipi_id){//new TS050
 		printk("new TS050 of_get_display_timings1\n");
 		data = of_get_property(np, "panel-init-sequence2", &len);
 	}
