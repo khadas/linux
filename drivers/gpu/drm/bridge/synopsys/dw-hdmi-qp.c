@@ -311,6 +311,7 @@ struct dw_hdmi_qp {
 	u8 phy_mask;			/* desired phy int mask settings */
 	u8 mc_clkdis;			/* clock disable register */
 	u8 hdcp_status;
+	u32 max_ffe_lv;
 
 	bool update;
 	bool hdr2sdr;
@@ -1964,7 +1965,7 @@ static int dw_hdmi_qp_flt_lts2(struct dw_hdmi_qp *hdmi, u8 rate)
 	}
 
 	/* max ffe level 3 */
-	val = 3 << 4 | flt_rate;
+	val = hdmi->max_ffe_lv << 4 | flt_rate;
 	drm_scdc_writeb(hdmi->ddc, SCDC_CONFIG_1, val);
 	drm_scdc_writeb(hdmi->ddc, SCDC_CONFIG_0, 0);
 
@@ -2125,7 +2126,7 @@ static int dw_hdmi_qp_flt_lts4(struct dw_hdmi_qp *hdmi, u8 *rate)
 
 	*rate = actual_rate;
 	/* set new rate */
-	drm_scdc_writeb(hdmi->ddc, SCDC_CONFIG_1, (3 << 4 | flt_rate));
+	drm_scdc_writeb(hdmi->ddc, SCDC_CONFIG_1, (hdmi->max_ffe_lv << 4 | flt_rate));
 	drm_scdc_writeb(hdmi->ddc, SCDC_UPDATE_0, BIT(5));
 
 	dev_info(hdmi->dev, "from lts4 go to lts3\n");
@@ -4329,6 +4330,15 @@ static struct dw_hdmi_qp *dw_hdmi_qp_probe(struct platform_device *pdev,
 	}
 
 	hdmi->sink_is_hdmi = true;
+
+	/* frl training max ffe level */
+	if (of_property_read_u32(np, "max-ffe-lv", &hdmi->max_ffe_lv)) {
+		hdmi->max_ffe_lv = 0;
+	} else if (hdmi->max_ffe_lv > 3) {
+		dev_err(hdmi->dev, "dts max ffe level is %d, out of allowed range of 0 to 3\n",
+			hdmi->max_ffe_lv);
+		return ERR_PTR(-EINVAL);
+	}
 
 	/* If DDC bus is not specified, try to register HDMI I2C bus */
 	if (!hdmi->ddc) {
