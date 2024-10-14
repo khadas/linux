@@ -1794,8 +1794,6 @@ long sock_inband_ioctl_redirect(struct sock *sk,
 long sock_oob_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg);
 
-void sock_oob_release(struct socket *sock);
-
 ssize_t sock_oob_write(struct file *filp,
 		const char __user *u_buf, size_t count);
 
