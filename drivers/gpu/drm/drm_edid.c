@@ -3307,10 +3307,11 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	if (hactive < 64 || vactive < 64)
 		return NULL;
 
-	if (pt->misc & DRM_EDID_PT_STEREO) {
-		DRM_DEBUG_KMS("stereo mode not supported\n");
-		return NULL;
-	}
+	/* Don't skip stereo mode, because some special screen with this flag set. */
+//	if (pt->misc & DRM_EDID_PT_STEREO) {
+//		DRM_DEBUG_KMS("stereo mode not supported\n");
+//		return NULL;
+//	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
 		DRM_DEBUG_KMS("composite sync not supported\n");
 	}
