@@ -18,6 +18,7 @@
 #include <linux/of_pci.h>
 #include <linux/phy/phy.h>
 #include <linux/phy/pcie.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/rfkill-wlan.h>
@@ -1506,6 +1507,9 @@ static int rk_pcie_really_probe(void *p)
 	if (ret)
 		goto release_driver;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(pci->dev);
+
 	reset_control_assert(rk_pcie->rsts);
 	udelay(10);
 
@@ -1591,6 +1595,8 @@ disable_phy:
 disable_clk:
 	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 disable_vpcie3v3:
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
 	rk_pcie_disable_power(rk_pcie);
 release_driver:
 	if (IS_ENABLED(CONFIG_PCIE_RK_THREADED_INIT))
