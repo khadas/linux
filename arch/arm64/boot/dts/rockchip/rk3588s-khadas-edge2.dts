@@ -514,7 +514,7 @@
         #clock-cells = <0>;
         clock-frequency = <32768>;
         clock-output-names = "pt7c4363";
-        wakeup-source;
+        // wakeup-source;
     };
 
     mcu: khadas-mcu@18 {
