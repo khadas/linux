@@ -348,7 +348,7 @@
 	rgmii_phy: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
-		rgmii_vddio = "1v8";
+		motorcomm,vddio = "1v8";
 	};
 };
 
