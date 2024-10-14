@@ -553,6 +553,8 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
+	} else if (!rk_pcie->dma_obj) { /* !CONFIG_ROCKCHIP_PCIE_DMA_OBJ */
+		return 0;
 	}
 
 	/* Enable client write and read interrupt */
