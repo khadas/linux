@@ -118,7 +118,7 @@ static long net_ioctl(struct file *filp, unsigned int cmd,
 		ufd = evl_net_dev_allocfd(current->nsproxy->net_ns, devname->name);
 		putname(devname);
 		if (ufd < 0)
-			return ret;
+			return ufd;
 		ret = put_user((__u32)ufd, &u_req->fd);
 		if (ret)
 			return -EFAULT;
