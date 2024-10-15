@@ -34,7 +34,10 @@
  * let's have separate, per-device threads for RX and TX. This gives
  * the best flexibility for leveraging multi-core capabilities on
  * high-bandwidth systems. Kthread priority defaults to 1, chrt is our
- * friend for fine-grained tuning.
+ * friend for fine-grained tuning. Unlike the RX kthread which is
+ * always created for a device underlying an oob port, the TX one is
+ * optional, present only if the NIC driver for that device is
+ * oob-capable.
  */
 #define KTHREAD_RX_PRIO  1
 #define KTHREAD_TX_PRIO  1
@@ -58,12 +61,12 @@
 #define EVL_MAX_NETDEV_BUFSZ   (PAGE_SIZE * 4)
 
 /*
- * The list of network devices which are usable for sending/receiving
- * oob traffic.
+ * The list of network interfaces (real and virtual devices) which are
+ * usable for sending/receiving oob traffic.
  */
-static LIST_HEAD(oob_netdev_list);
+static LIST_HEAD(oob_port_list);
 
-static DEFINE_HARD_SPINLOCK(oob_netdev_lock);
+static DEFINE_HARD_SPINLOCK(oob_port_lock);
 
 static void __set_rx_filter(struct evl_netdev_state *est,
 			struct evl_net_ebpf_filter *filter);
@@ -92,7 +95,8 @@ start_handler_thread(struct net_device *dev,
 
 /*
  * enable_oob_port - @dev is a device which we want to enable as a
- * port for channeling out-of-band traffic.
+ * port for channeling out-of-band traffic. This may be a real device,
+ * or a VLAN interface.
  */
 static int enable_oob_port(struct net_device *dev,
 			struct evl_netdev_activation *act) /* inband, rtnl_lock held */
@@ -118,7 +122,7 @@ static int enable_oob_port(struct net_device *dev,
 	 * NOTE: the diversion flag is set for a real device only,
 	 * _never_ for a VLAN device.
 	 */
-	real_dev = vlan_dev_real_dev(dev);
+	real_dev = evl_net_real_dev(dev);
 	rnds = &real_dev->oob_state;
 	est = pest = rnds->estate;
 	if (pest == NULL) {
@@ -131,7 +135,7 @@ static int enable_oob_port(struct net_device *dev,
 	nds = &dev->oob_state;
 	evl_init_crossing(&nds->crossing);
 
-	if (est->refs++ > 0)
+	if (est->refs++ > 0)	/* Guarded by rtnl_lock. */
 		goto queue;
 
 	if (!act->poolsz)
@@ -185,16 +189,17 @@ static int enable_oob_port(struct net_device *dev,
 		est->tx_handler = kt;
 	}
 
-	evl_init_crossing(&rnds->crossing);
+	if (nds != rnds) /* i.e. dev is a VLAN interface. */
+		evl_init_crossing(&rnds->crossing);
 
-	/* We divert traffic on the real interface only. */
+	/* Divert traffic from the real device. */
 	netif_enable_oob_diversion(real_dev);
 queue:
 	netif_enable_oob_port(dev);
 
-	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
-	list_add(&nds->next, &oob_netdev_list);
-	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
+	raw_spin_lock_irqsave(&oob_port_lock, flags);
+	list_add(&nds->next, &oob_port_list);
+	raw_spin_unlock_irqrestore(&oob_port_lock, flags);
 
 	return 0;
 
@@ -221,6 +226,11 @@ fail_alloc_qdisc:
 	return ret;
 }
 
+/*
+ * disable_oob_port - @dev is a device for which we want to disable
+ * the oob port capability (see enable_oob_port()). This may be a real
+ * device, or a VLAN interface.
+ */
 static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held */
 {
 	struct oob_netdev_state *nds, *rnds;
@@ -238,11 +248,11 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 	 * list, first unlink the latter _then_ pass the crossing
 	 * next.
 	 */
-	real_dev = vlan_dev_real_dev(dev);
+	real_dev = evl_net_real_dev(dev);
 	nds = &dev->oob_state;
-	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
+	raw_spin_lock_irqsave(&oob_port_lock, flags);
 	list_del(&nds->next);
-	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
+	raw_spin_unlock_irqrestore(&oob_port_lock, flags);
 
 	/*
 	 * Ok, now we may attempt to pass the crossing, waiting until
@@ -259,7 +269,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 	if (EVL_WARN_ON(NET, est->refs <= 0))
 		return;
 
-	if (--est->refs > 0)
+	if (--est->refs > 0)	/* Guarded by rtnl_lock. */
 		return;
 
 	/*
@@ -279,6 +289,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 
 	__set_rx_filter(est, NULL);
 	evl_net_dev_purge_pool(real_dev);
+	evl_destroy_flag(&est->rx_flag);
 	evl_net_free_qdisc(est->qdisc);
 	kfree(est);
 	rnds->estate = NULL;
@@ -341,9 +352,9 @@ struct net_device *evl_net_get_dev_by_index(struct net *net, int ifindex)
 	if (!ifindex)
 		return NULL;
 
-	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
+	raw_spin_lock_irqsave(&oob_port_lock, flags);
 
-	list_for_each_entry(nds, &oob_netdev_list, next) {
+	list_for_each_entry(nds, &oob_port_list, next) {
 		dev = container_of(nds, struct net_device,
 				oob_state);
 		if (dev_net(dev) == net && dev->ifindex == ifindex) {
@@ -353,7 +364,7 @@ struct net_device *evl_net_get_dev_by_index(struct net *net, int ifindex)
 		}
 	}
 
-	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
+	raw_spin_unlock_irqrestore(&oob_port_lock, flags);
 
 	return ret;
 }
@@ -364,9 +375,9 @@ struct net_device *evl_net_get_dev_by_name(struct net *net, const char *name)
 	struct oob_netdev_state *nds;
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
+	raw_spin_lock_irqsave(&oob_port_lock, flags);
 
-	list_for_each_entry(nds, &oob_netdev_list, next) {
+	list_for_each_entry(nds, &oob_port_list, next) {
 		dev = container_of(nds, struct net_device,
 				oob_state);
 		if (dev_net(dev) == net && !strcmp(netdev_name(dev), name)) {
@@ -376,7 +387,7 @@ struct net_device *evl_net_get_dev_by_name(struct net *net, const char *name)
 		}
 	}
 
-	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
+	raw_spin_unlock_irqrestore(&oob_port_lock, flags);
 
 	return ret;
 }
@@ -406,7 +417,8 @@ void evl_net_put_dev(struct net_device *dev)
  *	default pool and buffer size are used when enabling.
  *
  *	@dev The network device for which the oob port should be
- *	switched on/off.
+ *	switched on/off. This may be a real device or a VLAN
+ *	interface.
  *
  *	@enabled The new oob port state.
  *
@@ -425,8 +437,8 @@ int netif_oob_switch_port(struct net_device *dev, bool enabled)
 /**
  *	netif_oob_get_port - get the oob diversion state
  *
- *	Returns true if the device is currently diverting traffic to
- *	the oob stage.
+ *	Returns true if the device is an EVL port for conveying
+ *	networking traffic from the out-of-band execution stage.
  */
 bool netif_oob_get_port(struct net_device *dev)
 {
@@ -438,7 +450,7 @@ ssize_t netif_oob_query_pool(struct net_device *dev, char *buf)
 	struct evl_netdev_state *est;
 	struct net_device *real_dev;
 
-	real_dev = vlan_dev_real_dev(dev);
+	real_dev = evl_net_real_dev(dev);
 	est = real_dev->oob_state.estate;
 	if (est == NULL)
 		return -ENXIO;
@@ -470,7 +482,7 @@ __evl_net_filter_rx(struct evl_netdev_state *est, struct sk_buff *skb)
 	enum evl_net_rx_action ret = EVL_RX_VLAN;
 
 	if (filter) {
-		rcu_read_lock(); // Recheck under lock.
+		rcu_read_lock(); /* Recheck under lock. */
 
 		filter = rcu_dereference(est->rx_filter);
 		if (filter)
@@ -551,10 +563,6 @@ static long netdev_ioctl(struct file *filp, unsigned int cmd,
 
 	switch (cmd) {
 	case EVL_NDEVIOC_SETRXEBPF:
-		/*
-		 * The underlying physical device of a VLAN interface
-		 * supports the eBPF filter.
-		 */
 		ret = set_rx_filter(evl_net_real_dev(dev), arg);
 		break;
 	}
@@ -587,8 +595,8 @@ int evl_net_dev_allocfd(struct net *net, const char *devname)
 	int ret, fd;
 
 	dev = evl_net_get_dev_by_name(net, devname);
-	if (!dev)		/* Not an oob port. */
-		return -ENXIO;
+	if (!dev)
+		return -EINVAL;
 
 	filp = anon_inode_getfile("[evl-netdev]", &netdev_fops,
 				dev, O_RDWR|O_CLOEXEC);
