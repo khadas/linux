@@ -987,6 +987,7 @@
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
+		status = "okay";
 	};
 
 	aml_tdmc: tdmc {
