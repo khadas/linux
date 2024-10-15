@@ -4238,8 +4238,19 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank;
+	struct pin_desc *desc;
+	int mux, pin = offset % 32;
+	static unsigned long bitmap[BITS_TO_LONGS(2048)];
 
 	bank = pin_to_bank(info, offset);
+	mux = rockchip_get_mux(bank, pin);
+	desc = pin_desc_get(pctldev, offset);
+	if (offset < 2048 && !test_bit(offset, bitmap) && desc->mux_owner && mux) {
+		set_bit(offset, bitmap);
+		WARN(1, "pin %u already requested by %s; switch mux %d to GPIO\n",
+		     offset, desc->mux_owner, mux);
+	}
+
 	return rockchip_set_mux(bank, offset - bank->pin_base, RK_FUNC_GPIO);
 }
 
