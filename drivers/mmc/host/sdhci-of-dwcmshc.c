@@ -1084,6 +1084,9 @@ disable_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;
 }
+#endif
+
+#ifdef CONFIG_PM
 
 static int dwcmshc_runtime_suspend(struct device *dev)
 {
