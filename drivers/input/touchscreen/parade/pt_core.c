@@ -10312,7 +10312,6 @@ static void pt_enum_work_function(struct work_struct *work)
 
 #if defined(CONFIG_PM_RUNTIME) || defined(KERNEL_VER_GT_3_19)
 /* CONFIG_PM_RUNTIME option is removed in 3.19.0 */
-#if defined(CONFIG_PM_SLEEP)
 /*******************************************************************************
  * FUNCTION: pt_core_rt_suspend
  *
@@ -10369,10 +10368,8 @@ static int pt_core_rt_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM_RUNTIME || LINUX_VERSION_CODE */
 
-#if defined(CONFIG_PM_SLEEP)
 /*******************************************************************************
  * FUNCTION: pt_core_suspend_
  *
@@ -10544,7 +10541,6 @@ static int pt_core_ebc_resume(struct tp_device *tp_d)
 
 	return pt_core_resume_(dev);
 }
-#endif
 
 #ifdef NEED_SUSPEND_NOTIFIER
 /*******************************************************************************
@@ -10587,8 +10583,8 @@ static int pt_pm_notifier(struct notifier_block *nb,
 #endif
 
 const struct dev_pm_ops pt_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pt_core_suspend, pt_core_resume)
-	SET_RUNTIME_PM_OPS(pt_core_rt_suspend, pt_core_rt_resume,
+	SYSTEM_SLEEP_PM_OPS(pt_core_suspend, pt_core_resume)
+	RUNTIME_PM_OPS(pt_core_rt_suspend, pt_core_rt_resume,
 			NULL)
 };
 EXPORT_SYMBOL_GPL(pt_pm_ops);
