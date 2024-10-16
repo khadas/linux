@@ -217,7 +217,7 @@ static const struct resource rk817_pwrkey_resources[] = {
 };
 
 static const struct mfd_cell rk801s[] = {
-	{ .name = "rk808-regulator", },
+	{ .name = "rk801-regulator", },
 	{
 		.name = "rk805-pwrkey",
 		.num_resources = ARRAY_SIZE(rk801_key_resources),
