@@ -239,6 +239,7 @@ enum {
 	PVTPLL_GET_INFO = 0,
 	PVTPLL_ADJUST_TABLE = 1,
 	PVTPLL_LOW_TEMP = 2,
+	PVTPLL_VOLT_SEL = 3,
 };
 
 struct pt_regs;
