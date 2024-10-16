@@ -376,9 +376,7 @@ static int rk_flexbus_spi_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops rk_flexbus_spi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, rk_flexbus_spi_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(rk_flexbus_spi_pm_ops, NULL, rk_flexbus_spi_resume);
 
 static const struct of_device_id rk_flexbus_spi_dt_ids[] = {
 	{ .compatible = "rockchip,flexbus-spi"},
@@ -390,7 +388,7 @@ static struct platform_driver rk_flexbus_spi_driver = {
 	.driver = {
 		.name	= "rockchip-flexbus-spi",
 		.of_match_table = rk_flexbus_spi_dt_ids,
-		.pm = &rk_flexbus_spi_pm_ops,
+		.pm = pm_sleep_ptr(&rk_flexbus_spi_pm_ops),
 	},
 	.probe	= rk_flexbus_spi_probe,
 };
