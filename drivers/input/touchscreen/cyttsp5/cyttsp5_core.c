@@ -4856,6 +4856,7 @@ static int cyttsp5_core_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static int cyttsp5_core_early_suspend(struct tp_device *tp_d)
 {
@@ -4896,7 +4897,6 @@ static int cyttsp5_core_late_resume(struct tp_device *tp_d)
 
 	return 0;
 }
-#endif
 
 #if NEED_SUSPEND_NOTIFIER
 static int cyttsp5_pm_notifier(struct notifier_block *nb,
