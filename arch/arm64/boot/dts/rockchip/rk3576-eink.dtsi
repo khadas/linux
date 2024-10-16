@@ -43,6 +43,8 @@
 
 &dmc {
 	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
+	upthreshold = <50>;
+	downdifferential = <25>;
 };
 
 &ebc {
