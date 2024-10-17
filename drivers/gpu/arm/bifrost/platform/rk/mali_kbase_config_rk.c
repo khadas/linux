@@ -201,7 +201,7 @@ struct kbase_platform_funcs_conf platform_funcs = {
 
 /*---------------------------------------------------------------------------*/
 
-static int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
+static __maybe_unused int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
 {
 	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
 	int ret = 0;
@@ -226,7 +226,7 @@ static int rk_pm_callback_runtime_on(struct kbase_device *kbdev)
 	return 0;
 }
 
-static void rk_pm_callback_runtime_off(struct kbase_device *kbdev)
+static __maybe_unused void rk_pm_callback_runtime_off(struct kbase_device *kbdev)
 {
 	struct rockchip_opp_info *opp_info = &kbdev->opp_info;
 
@@ -310,29 +310,22 @@ static void rk_pm_callback_power_off(struct kbase_device *kbdev)
 			   msecs_to_jiffies(platform->delay_ms));
 }
 
-static int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
+static __maybe_unused int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
 {
 	return 0;
 }
 
-static void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
+static __maybe_unused void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
 }
 
 struct kbase_pm_callback_conf pm_callbacks = {
 	.power_on_callback = rk_pm_callback_power_on,
 	.power_off_callback = rk_pm_callback_power_off,
-#ifdef CONFIG_PM
-	.power_runtime_init_callback = rk_kbase_device_runtime_init,
-	.power_runtime_term_callback = rk_kbase_device_runtime_disable,
-	.power_runtime_on_callback = rk_pm_callback_runtime_on,
-	.power_runtime_off_callback = rk_pm_callback_runtime_off,
-#else				/* CONFIG_PM */
-	.power_runtime_init_callback = NULL,
-	.power_runtime_term_callback = NULL,
-	.power_runtime_on_callback = NULL,
-	.power_runtime_off_callback = NULL,
-#endif				/* CONFIG_PM */
+	.power_runtime_init_callback = pm_ptr(rk_kbase_device_runtime_init),
+	.power_runtime_term_callback = pm_ptr(rk_kbase_device_runtime_disable),
+	.power_runtime_on_callback = pm_ptr(rk_pm_callback_runtime_on),
+	.power_runtime_off_callback = pm_ptr(rk_pm_callback_runtime_off),
 };
 
 /*---------------------------------------------------------------------------*/

@@ -404,7 +404,6 @@ static int power_model_simple_init(struct platform_device *pdev)
 
 /*---------------------------------------------------------------------------*/
 
-#ifdef CONFIG_PM
 
 static int rk_platform_enable_clk_gpu(struct device *dev)
 {
@@ -516,6 +515,7 @@ void rk_platform_uninit_opp_table(struct mali_device *mdev)
 	rockchip_uninit_opp_table(mdev->dev, &mdev->opp_info);
 }
 
+#ifdef CONFIG_PM
 static int mali_runtime_suspend(struct device *device)
 {
 	int ret = 0;
