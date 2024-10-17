@@ -939,7 +939,8 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 			return;
 		}
 
-		if (rk628_hdmirx_scdc_ced_err(csi->rk628)) {
+		if (rk628_hdmirx_scdc_ced_err(csi->rk628) ||
+		    !rk628_hdmirx_is_locked(csi->rk628)) {
 			rk628_hdmirx_plugout(sd);
 			schedule_delayed_work(&csi->delayed_work_enable_hotplug,
 					      msecs_to_jiffies(800));

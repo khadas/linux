@@ -1885,6 +1885,24 @@ bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);
 
+bool rk628_hdmirx_is_locked(struct rk628 *rk628)
+{
+	u32 val;
+
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+	if (!(val & 0x100))
+		return false;
+	if (!(val & 0x200))
+		return false;
+	if (!(val & 0x400))
+		return false;
+	if (!(val & 0x800))
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(rk628_hdmirx_is_locked);
+
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628, u32 md_ints, u32 pdec_ints)
 {
 	u32 md_mask, pded_madk;
