@@ -89,7 +89,8 @@ void evl_net_cleanup_ipv4_routing(struct net *net)
 /*
  *  Update the out-of-band front-cache on the fly with the routing
  *  information we received for the outgoing IPv4 traffic on an
- *  oob-enabled device.
+ *  oob-enabled device. We may be running in softirq context, don't
+ *  wait.
  */
 void evl_net_learn_ipv4_route(struct net *net,
 			struct flowi4 *fl4, struct rtable *rt) /* in-band */
@@ -108,7 +109,7 @@ void evl_net_learn_ipv4_route(struct net *net,
 		return;
 	}
 
-	e = kzalloc(sizeof(*e) + sizeof(fl4->daddr), GFP_KERNEL);
+	e = kzalloc(sizeof(*e) + sizeof(fl4->daddr), GFP_ATOMIC);
 	if (!e)
 		goto warn;
 
