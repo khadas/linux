@@ -605,7 +605,7 @@
 
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&rm_io13_uart4_rtsn &rm_io14_uart4_tx &rm_io15_uart4_rx>;
+	pinctrl-0 = <&rm_io14_uart4_tx &rm_io15_uart4_rx>;
 	linux,rs485-enabled-at-boot-time;
 	status = "okay";
 };
