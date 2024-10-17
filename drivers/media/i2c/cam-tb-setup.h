@@ -26,5 +26,5 @@ EXTERN_CAM_TB_PARAM(rk_cam2_hdr);
 EXTERN_CAM_TB_PARAM(rk_cam2_fps);
 EXTERN_CAM_TB_PARAM(rk_cam2_max_fps);
 EXTERN_CAM_TB_PARAM(rk_cam_skip);
-
+EXTERN_CAM_TB_PARAM(rockit_en_mcu);
 #endif

@@ -38,4 +38,5 @@ DEFINE_CAM_TB_PARAM(rk_cam2_hdr);
 DEFINE_CAM_TB_PARAM(rk_cam2_fps);
 DEFINE_CAM_TB_PARAM(rk_cam2_max_fps);
 DEFINE_CAM_TB_PARAM(rk_cam_skip);
+DEFINE_CAM_TB_PARAM(rockit_en_mcu);
 
