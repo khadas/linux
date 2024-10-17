@@ -22,7 +22,7 @@ static int rockchip_fbdev_mmap(struct fb_info *info,
 	struct drm_fb_helper *helper = info->par;
 	struct rockchip_drm_private *private = helper->dev->dev_private;
 
-	return rockchip_gem_mmap_buf(private->fbdev_bo, vma);
+	return drm_gem_mmap_obj(private->fbdev_bo, private->fbdev_bo->size, vma);
 }
 
 static const struct fb_ops rockchip_drm_fbdev_ops = {
