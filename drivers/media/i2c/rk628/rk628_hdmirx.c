@@ -1079,6 +1079,10 @@ static __maybe_unused u32 hdmirxphy_read(struct rk628 *rk628, u32 offset)
 
 static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scramble_en)
 {
+	hdmirxphy_write(rk628, 0x3e, 0x0);
+	hdmirxphy_write(rk628, 0x5e, 0x0);
+	hdmirxphy_write(rk628, 0x7e, 0x0);
+
 	hdmirxphy_write(rk628, 0x02, 0x1860);
 	hdmirxphy_write(rk628, 0x03, 0x0060);
 	if (!is_hdmi2 && scramble_en)
@@ -1093,10 +1097,14 @@ static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scra
 	hdmirxphy_write(rk628, 0x2d, 0x008c);
 	hdmirxphy_write(rk628, 0x2e, 0x0001);
 
-	if (is_hdmi2)
+	if (is_hdmi2) {
 		hdmirxphy_write(rk628, 0x0e, 0x0108);
-	else
+		hdmirxphy_write(rk628, 0x3e, 0x610);
+		hdmirxphy_write(rk628, 0x5e, 0x610);
+		hdmirxphy_write(rk628, 0x7e, 0x610);
+	} else {
 		hdmirxphy_write(rk628, 0x0e, 0x0008);
+	}
 
 }
 
