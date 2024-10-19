@@ -1239,12 +1239,15 @@ static int rk817_digital_mute_adc(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 
-	if (mute)
+	if (mute) {
 		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
 					      I2STX_EN_MASK, I2STX_DIS);
-	else
+	} else {
 		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
 					      I2STX_EN_MASK, I2STX_EN);
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      I2STX_CKE_EN, I2STX_CKE_EN);
+	}
 
 	return 0;
 }
