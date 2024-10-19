@@ -300,6 +300,9 @@ struct rk628 {
 	u8 version;
 	void *txphy;
 	u8 dphy_lane_en;
+	u8 color_format;
+	u8 color_range;
+	u8 color_space;
 	bool dual_mipi;
 	struct mipi_timing mipi_timing[2];
 	struct mutex rst_lock;

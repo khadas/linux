@@ -86,6 +86,9 @@
 		buck5-feedback-disable;
 		vdc-wakeup-enable;
 
+		/* set power key on time */
+		pwron-on-time-500ms;
+
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;
 		vcc3-supply = <&vcc_sys>;

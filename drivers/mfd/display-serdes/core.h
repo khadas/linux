@@ -106,7 +106,7 @@
 #define SERDES_DBG_CHIP(x...) no_printk(x)
 #endif
 
-#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v10-230901"
+#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-240815"
 #define MAX_NUM_SERDES_SPLIT 8
 struct serdes;
 enum ser_link_mode {

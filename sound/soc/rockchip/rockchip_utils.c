@@ -5,6 +5,7 @@
  * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <soc/rockchip/rockchip_dmc.h>
@@ -146,5 +147,36 @@ void rockchip_utils_put_performance(struct snd_pcm_substream *substream,
 	rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 }
 EXPORT_SYMBOL_GPL(rockchip_utils_put_performance);
+
+/*
+ * It's workaround for GKI.
+ *
+ * Can be replaced by API clk_gate_endisable directly
+ * once the symbol exported been merged.
+ */
+int rockchip_utils_clk_gate_endisable(struct device *dev, struct clk *clk, int enable)
+{
+	struct clk_hw *hw;
+	struct clk_gate *gate;
+	unsigned int val;
+
+	hw = __clk_get_hw(clk);
+	if (!hw)
+		return -EINVAL;
+
+	gate = to_clk_gate(hw);
+
+	if (enable)
+		val = BIT(gate->bit_idx + 16);
+	else
+		val = BIT(gate->bit_idx + 16) | BIT(gate->bit_idx);
+
+	writel(val, gate->reg);
+
+	dev_dbg(dev, "%s: reg: %px, val: 0x%08x\n", __func__, gate->reg, val);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_utils_clk_gate_endisable);
 
 MODULE_LICENSE("GPL");

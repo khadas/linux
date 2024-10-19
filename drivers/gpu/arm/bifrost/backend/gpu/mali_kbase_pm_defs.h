@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,6 +28,8 @@
 
 #include "mali_kbase_pm_always_on.h"
 #include "mali_kbase_pm_coarse_demand.h"
+
+#include <hw_access/mali_kbase_hw_access_regmap.h>
 
 #if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM)
 #define KBASE_PM_RUNTIME 1
@@ -96,6 +98,42 @@ enum kbase_shader_core_state {
 #include "mali_kbase_pm_shader_states.h"
 #undef KBASEP_SHADER_STATE
 };
+
+/**
+ * enum kbase_pm_runtime_suspend_abort_reason - Reason why runtime suspend was aborted
+ *                                              after the wake up of MCU.
+ *
+ * @ABORT_REASON_NONE:          Not aborted
+ * @ABORT_REASON_DB_MIRROR_IRQ: Runtime suspend was aborted due to DB_MIRROR irq.
+ * @ABORT_REASON_NON_IDLE_CGS:  Runtime suspend was aborted as CSGs were detected as non-idle after
+ *                              their suspension.
+ */
+enum kbase_pm_runtime_suspend_abort_reason {
+	ABORT_REASON_NONE,
+	ABORT_REASON_DB_MIRROR_IRQ,
+	ABORT_REASON_NON_IDLE_CGS
+};
+
+/* The following indices point to the corresponding bits stored in
+ * &kbase_pm_backend_data.gpu_sleep_allowed. They denote the conditions that
+ * would be checked against to determine the level of support for GPU sleep
+ * and firmware sleep-on-idle.
+ */
+#define KBASE_GPU_SUPPORTS_GPU_SLEEP ((uint8_t)0)
+#define KBASE_GPU_SUPPORTS_FW_SLEEP_ON_IDLE ((uint8_t)1)
+#define KBASE_GPU_PERF_COUNTERS_COLLECTION_ENABLED ((uint8_t)2)
+#define KBASE_GPU_IGNORE_IDLE_EVENT ((uint8_t)3)
+#define KBASE_GPU_NON_IDLE_OFF_SLOT_GROUPS_AVAILABLE ((uint8_t)4)
+
+/* FW sleep-on-idle could be enabled if
+ * &kbase_pm_backend_data.gpu_sleep_allowed is equal to this value.
+ */
+#define KBASE_GPU_FW_SLEEP_ON_IDLE_ALLOWED                             \
+	((uint8_t)((1 << KBASE_GPU_SUPPORTS_GPU_SLEEP) |               \
+		   (1 << KBASE_GPU_SUPPORTS_FW_SLEEP_ON_IDLE) |        \
+		   (0 << KBASE_GPU_PERF_COUNTERS_COLLECTION_ENABLED) | \
+		   (0 << KBASE_GPU_IGNORE_IDLE_EVENT) |                \
+		   (0 << KBASE_GPU_NON_IDLE_OFF_SLOT_GROUPS_AVAILABLE)))
 
 /**
  * struct kbasep_pm_metrics - Metrics data collected for use by the power
@@ -248,9 +286,6 @@ union kbase_pm_policy_data {
  *                     states and transitions.
  * @cg1_disabled:      Set if the policy wants to keep the second core group
  *                     powered off
- * @driver_ready_for_irqs: Debug state indicating whether sufficient
- *                         initialization of the driver has occurred to handle
- *                         IRQs
  * @metrics:           Structure to hold metrics for the GPU
  * @shader_tick_timer: Structure to hold the shader poweroff tick timer state
  * @poweroff_wait_in_progress: true if a wait for GPU power off is in progress.
@@ -290,6 +325,8 @@ union kbase_pm_policy_data {
  *                                     called previously.
  *                                     See &struct kbase_pm_callback_conf.
  * @ca_cores_enabled: Cores that are currently available
+ * @apply_hw_issue_TITANHW_2938_wa: Indicates if the workaround for KBASE_HW_ISSUE_TITANHW_2938
+ *                                  needs to be applied when unmapping memory from GPU.
  * @mcu_state: The current state of the micro-control unit, only applicable
  *             to GPUs that have such a component
  * @l2_state:     The current state of the L2 cache state machine. See
@@ -316,7 +353,11 @@ union kbase_pm_policy_data {
  *                   cores may be different, but there should be transitions in
  *                   progress that will eventually achieve this state (assuming
  *                   that the policy doesn't change its mind in the mean time).
- * @mcu_desired: True if the micro-control unit should be powered on
+ * @mcu_desired: True if the micro-control unit should be powered on by the MCU state
+ *               machine. Updated as per the value of @mcu_poweron_required.
+ * @mcu_poweron_required: Boolean flag updated mainly by the CSF Scheduler code,
+ *                        before updating the PM active count, to indicate to the
+ *                        PM code that micro-control unit needs to be powered up/down.
  * @policy_change_clamp_state_to_off: Signaling the backend is in PM policy
  *                change transition, needs the mcu/L2 to be brought back to the
  *                off state and remain in that state until the flag is cleared.
@@ -330,10 +371,9 @@ union kbase_pm_policy_data {
  * @core_idle_work: Work item used to wait for undesired cores to become inactive.
  *                  The work item is enqueued when Host controls the power for
  *                  shader cores and down scaling of cores is performed.
- * @gpu_sleep_supported: Flag to indicate that if GPU sleep feature can be
- *                       supported by the kernel driver or not. If this
- *                       flag is not set, then HW state is directly saved
- *                       when GPU idle notification is received.
+ * @gpu_sleep_allowed: Bitmask to indicate the conditions that would be
+ *                     used to determine what support for GPU sleep is
+ *                     available.
  * @gpu_sleep_mode_active: Flag to indicate that the GPU needs to be in sleep
  *                         mode. It is set when the GPU idle notification is
  *                         received and is cleared when HW state has been
@@ -358,6 +398,12 @@ union kbase_pm_policy_data {
  *                       mode for the saving the HW state before power down.
  * @db_mirror_interrupt_enabled: Flag tracking if the Doorbell mirror interrupt
  *                               is enabled or not.
+ * @runtime_suspend_abort_reason: Tracks if the runtime suspend was aborted,
+ *                                after the wake up of MCU, due to the DB_MIRROR irq
+ *                                or non-idle CSGs. Tracking is done to avoid
+ *                                redundant transition of MCU to sleep state after the
+ *                                abort of runtime suspend and before the resumption
+ *                                of scheduling.
  * @l2_force_off_after_mcu_halt: Flag to indicate that L2 cache power down is
  *				 must after performing the MCU halt. Flag is set
  *				 immediately after the MCU halt and cleared
@@ -427,10 +473,6 @@ struct kbase_pm_backend_data {
 
 	bool cg1_disabled;
 
-#ifdef CONFIG_MALI_BIFROST_DEBUG
-	bool driver_ready_for_irqs;
-#endif /* CONFIG_MALI_BIFROST_DEBUG */
-
 	struct kbasep_pm_metrics_state metrics;
 
 	struct kbasep_pm_tick_timer_state shader_tick_timer;
@@ -458,6 +500,7 @@ struct kbase_pm_backend_data {
 	u64 ca_cores_enabled;
 
 #if MALI_USE_CSF
+	bool apply_hw_issue_TITANHW_2938_wa;
 	enum kbase_mcu_state mcu_state;
 #endif
 	enum kbase_l2_core_state l2_state;
@@ -466,6 +509,7 @@ struct kbase_pm_backend_data {
 	u64 shaders_desired_mask;
 #if MALI_USE_CSF
 	bool mcu_desired;
+	bool mcu_poweron_required;
 	bool policy_change_clamp_state_to_off;
 	unsigned int csf_pm_sched_flags;
 	struct mutex policy_change_lock;
@@ -473,12 +517,13 @@ struct kbase_pm_backend_data {
 	struct work_struct core_idle_work;
 
 #ifdef KBASE_PM_RUNTIME
-	bool gpu_sleep_supported;
+	unsigned long gpu_sleep_allowed;
 	bool gpu_sleep_mode_active;
 	bool exit_gpu_sleep_mode;
 	bool gpu_idled;
 	bool gpu_wakeup_override;
 	bool db_mirror_interrupt_enabled;
+	enum kbase_pm_runtime_suspend_abort_reason runtime_suspend_abort_reason;
 #endif
 
 	bool l2_force_off_after_mcu_halt;

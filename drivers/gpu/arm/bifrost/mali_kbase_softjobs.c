@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -83,7 +83,8 @@ static void kbasep_add_waiting_with_timeout(struct kbase_jd_atom *katom)
 
 	/* Schedule timeout of this atom after a period if it is not active */
 	if (!timer_pending(&kctx->soft_job_timeout)) {
-		int timeout_ms = atomic_read(&kctx->kbdev->js_data.soft_job_timeout_ms);
+		unsigned int timeout_ms =
+			(unsigned int)atomic_read(&kctx->kbdev->js_data.soft_job_timeout_ms);
 		mod_timer(&kctx->soft_job_timeout, jiffies + msecs_to_jiffies(timeout_ms));
 	}
 }
@@ -142,9 +143,8 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 	 * delay suspend until we process the atom (which may be at the end of a
 	 * long chain of dependencies
 	 */
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	atomic_inc(&kctx->kbdev->pm.gpu_users_waiting);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
+	if (kbase_has_arbiter(kctx->kbdev))
+		atomic_inc(&kctx->kbdev->pm.gpu_users_waiting);
 	pm_active_err = kbase_pm_context_active_handle_suspend(
 		kctx->kbdev, KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE);
 	if (pm_active_err) {
@@ -162,17 +162,14 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 		kbasep_add_waiting_soft_job(katom);
 
 		return pm_active_err;
-	}
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	else
+	} else if (kbase_has_arbiter(kctx->kbdev))
 		atomic_dec(&kctx->kbdev->pm.gpu_users_waiting);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
 	kbase_backend_get_gpu_time(kctx->kbdev, &cycle_counter, &system_time, &ts);
 
 	kbase_pm_context_idle(kctx->kbdev);
 
-	data.sec = ts.tv_sec;
+	data.sec = (__u64)ts.tv_sec;
 	data.usec = ts.tv_nsec / 1000;
 	data.system_time = system_time;
 	data.cycle_counter = cycle_counter;
@@ -552,7 +549,7 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 		goto out_cleanup;
 	}
 
-	ret = copy_from_user(user_buffers, user_structs, sizeof(*user_buffers) * nr);
+	ret = copy_from_user(user_buffers, user_structs, size_mul(sizeof(*user_buffers), nr));
 	if (ret) {
 		ret = -EFAULT;
 		goto out_cleanup;
@@ -612,7 +609,7 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 			/* Adjust number of pages, so that we only attempt to
 			 * release pages in the array that we know are valid.
 			 */
-			buffers[i].nr_pages = pinned_pages;
+			buffers[i].nr_pages = (unsigned int)pinned_pages;
 
 			ret = -EINVAL;
 			goto out_cleanup;
@@ -626,7 +623,8 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 
 		kbase_gpu_vm_lock(katom->kctx);
 		reg = kbase_region_tracker_find_region_enclosing_address(
-			katom->kctx, user_extres.ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE);
+			katom->kctx,
+			user_extres.ext_resource & ~(__u64)BASE_EXT_RES_ACCESS_EXCLUSIVE);
 
 		if (kbase_is_region_invalid_or_free(reg) || reg->gpu_alloc == NULL) {
 			ret = -EINVAL;
@@ -668,7 +666,7 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 				if (ret < 0)
 					buffers[i].nr_extres_pages = 0;
 				else
-					buffers[i].nr_extres_pages = ret;
+					buffers[i].nr_extres_pages = (unsigned int)ret;
 
 				goto out_unlock;
 			}
@@ -1233,7 +1231,7 @@ static int kbase_jit_free_prepare(struct kbase_jd_atom *katom)
 			goto free_info;
 		}
 
-		if (copy_from_user(ids, data, sizeof(*ids) * count) != 0) {
+		if (copy_from_user(ids, data, size_mul(sizeof(*ids), count)) != 0) {
 			ret = -EINVAL;
 			goto free_info;
 		}
@@ -1404,9 +1402,9 @@ static void kbase_ext_res_process(struct kbase_jd_atom *katom, bool map)
 	for (i = 0; i < ext_res->count; i++) {
 		u64 gpu_addr;
 
-		gpu_addr = ext_res->ext_res[i].ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE;
+		gpu_addr = ext_res->ext_res[i].ext_resource & ~(__u64)BASE_EXT_RES_ACCESS_EXCLUSIVE;
 		if (map) {
-			if (!kbase_sticky_resource_acquire(katom->kctx, gpu_addr))
+			if (!kbase_sticky_resource_acquire(katom->kctx, gpu_addr, NULL))
 				goto failed_loop;
 		} else {
 			if (!kbase_sticky_resource_release_force(katom->kctx, NULL, gpu_addr))
@@ -1431,7 +1429,7 @@ static void kbase_ext_res_process(struct kbase_jd_atom *katom, bool map)
 failed_loop:
 	while (i > 0) {
 		u64 const gpu_addr = ext_res->ext_res[i - 1].ext_resource &
-				     ~BASE_EXT_RES_ACCESS_EXCLUSIVE;
+				     ~(__u64)BASE_EXT_RES_ACCESS_EXCLUSIVE;
 
 		kbase_sticky_resource_release_force(katom->kctx, NULL, gpu_addr);
 
@@ -1686,9 +1684,8 @@ void kbase_resume_suspended_soft_jobs(struct kbase_device *kbdev)
 		if (kbase_process_soft_job(katom_iter) == 0) {
 			kbase_finish_soft_job(katom_iter);
 			resched |= kbase_jd_done_nolock(katom_iter, true);
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-			atomic_dec(&kbdev->pm.gpu_users_waiting);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
+			if (kbase_has_arbiter(kctx->kbdev))
+				atomic_dec(&kbdev->pm.gpu_users_waiting);
 		}
 		mutex_unlock(&kctx->jctx.lock);
 	}

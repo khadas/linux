@@ -14,6 +14,7 @@
 #include <media/v4l2-dv-timings.h>
 
 #include "rk628.h"
+#include "rk628_cru.h"
 
 /* --------- EDID and HDCP KEY ------- */
 #define EDID_BASE			0x000a0000
@@ -243,6 +244,8 @@
 #define PFIFO_STORE_GCP(x)		UPDATE(x, 17, 17)
 #define PFIFO_STORE_ACR_MASK		BIT(16)
 #define PFIFO_STORE_ACR(x)		UPDATE(x, 16, 16)
+#define GCPFORCE_CLRAVMUTE_MASK		BIT(14)
+#define GCPFORCE_CLRAVMUTE(x)		UPDATE(x, 14, 14)
 #define GCPFORCE_SETAVMUTE_MASK		BIT(13)
 #define GCPFORCE_SETAVMUTE(x)		UPDATE(x, 13, 13)
 #define PDEC_BCH_EN_MASK		BIT(0)
@@ -258,6 +261,8 @@
 #define DVI_DET				BIT(28)
 #define HDMI_RX_PDEC_GCP_AVMUTE		(HDMI_RX_BASE + 0x0380)
 #define PKTDEC_GCP_CD_MASK		GENMASK(7, 4)
+#define PKTDEC_GCP_SETAVMUTE_MASK	GENMASK(1, 1)
+#define PKTDEC_GCP_CLRAVMUTE_MASK	GENMASK(0, 0)
 #define HDMI_RX_PDEC_AVI_HB		(HDMI_RX_BASE + 0x03a0)
 #define HDMI_RX_PDEC_AVI_PB		(HDMI_RX_BASE + 0x03a4)
 #define VID_IDENT_CODE_VIC7		BIT(31)
@@ -267,6 +272,7 @@
 #define VIDEO_FORMAT_MASK		GENMASK(6, 5)
 #define VIDEO_FORMAT(x)			UPDATE(x, 6, 5)
 #define RGB_COLORRANGE_MASK		GENMASK(19, 18)
+#define YUV_COLORRANGE_MASK		GENMASK(31, 30)
 #define RGB_COLORRANGE(x)		UPDATE(x, 19, 18)
 #define ACT_INFO_PRESENT_MASK		BIT(4)
 #define HDMI_RX_PDEC_ACR_CTS		(HDMI_RX_BASE + 0x0390)
@@ -435,7 +441,7 @@
 
 #define HDMIRX_GET_TIMING_CNT		20
 #define HDMIRX_MODETCLK_CNT_NUM		1000
-#define HDMIRX_MODETCLK_HZ		49500000
+#define HDMIRX_MODETCLK_HZ		(CPLL_REF_CLK / 24)
 
 #define EDID_NUM_BLOCKS_MAX		2
 #define EDID_BLOCK_SIZE			128
@@ -463,6 +469,12 @@ enum bus_format {
 	BUS_FMT_YUV444 = 2,
 	BUS_FMT_YUV420 = 3,
 	BUS_FMT_UNKNOWN,
+};
+
+enum lock_status {
+	LOCK_OK = 0,
+	LOCK_FAIL = 1,
+	LOCK_RESET = 2,
 };
 
 struct hdcp_keys {

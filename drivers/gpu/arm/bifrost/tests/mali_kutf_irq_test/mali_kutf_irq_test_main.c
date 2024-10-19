@@ -51,56 +51,58 @@ struct kutf_irq_fixture_data {
 	struct kbase_device *kbdev;
 };
 
-/* ID for the GPU IRQ */
-#define GPU_IRQ_HANDLER 2
+/* Tag for GPU IRQ */
+#define GPU_IRQ_TAG 2
 
 #define NR_TEST_IRQS ((u32)1000000)
 
-/* IRQ for the test to trigger. Currently POWER_CHANGED_SINGLE as it is
- * otherwise unused in the DDK
- */
-#define TEST_IRQ POWER_CHANGED_SINGLE
-
 #define IRQ_TIMEOUT HZ
 
-/* Kernel API for setting irq throttle hook callback and irq time in us*/
-extern int kbase_set_custom_irq_handler(struct kbase_device *kbdev, irq_handler_t custom_handler,
-					int irq_type);
-extern irqreturn_t kbase_gpu_irq_test_handler(int irq, void *data, u32 val);
+static void *kbase_untag(void *ptr)
+{
+	return (void *)(((uintptr_t)ptr) & ~(uintptr_t)3);
+}
 
 static DECLARE_WAIT_QUEUE_HEAD(wait);
 static bool triggered;
 static u64 irq_time;
-
-static void *kbase_untag(void *ptr)
-{
-	return (void *)(((uintptr_t)ptr) & ~3);
-}
 
 /**
  * kbase_gpu_irq_custom_handler - Custom IRQ throttle handler
  * @irq:  IRQ number
  * @data: Data associated with this IRQ
  *
- * Return: state of the IRQ
+ * Return: IRQ_HANDLED if any interrupt has been handled. IRQ_NONE otherwise.
  */
 static irqreturn_t kbase_gpu_irq_custom_handler(int irq, void *data)
 {
 	struct kbase_device *kbdev = kbase_untag(data);
-	u32 val = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_STATUS));
+	u32 status_reg_enum = GPU_CONTROL_ENUM(GPU_IRQ_STATUS);
+	u32 clear_reg_enum = GPU_CONTROL_ENUM(GPU_IRQ_CLEAR);
+	u32 test_irq = POWER_CHANGED_SINGLE;
+	u32 val = kbase_reg_read32(kbdev, status_reg_enum);
 	irqreturn_t result;
 	u64 tval;
-	bool has_test_irq = val & TEST_IRQ;
+	bool has_test_irq = val & test_irq;
+
 
 	if (has_test_irq) {
 		tval = ktime_get_real_ns();
 		/* Clear the test source only here */
-		kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_CLEAR), TEST_IRQ);
+		kbase_reg_write32(kbdev, clear_reg_enum, test_irq);
 		/* Remove the test IRQ status bit */
-		val = val ^ TEST_IRQ;
+		val = val ^ test_irq;
 	}
 
-	result = kbase_gpu_irq_test_handler(irq, data, val);
+	if (!val)
+		result = IRQ_NONE;
+	else {
+#if IS_ENABLED(CONFIG_MALI_REAL_HW)
+		dev_dbg(kbdev->dev, "%s: irq %d irqstatus 0x%x\n", __func__, irq, val);
+		kbase_gpu_interrupt(kbdev, val);
+#endif
+		result = IRQ_HANDLED;
+	}
 
 	if (has_test_irq) {
 		irq_time = tval;
@@ -180,15 +182,17 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 	kbase_pm_context_active(kbdev);
 	kbase_pm_wait_for_desired_state(kbdev);
 
-	kbase_set_custom_irq_handler(kbdev, kbase_gpu_irq_custom_handler, GPU_IRQ_HANDLER);
+	kbase_set_custom_irq_handler(kbdev, kbase_gpu_irq_custom_handler, GPU_IRQ_TAG);
 
 	for (i = 1; i <= NR_TEST_IRQS; i++) {
 		u64 start_time = ktime_get_real_ns();
+		u32 reg_enum = GPU_CONTROL_ENUM(GPU_IRQ_RAWSTAT);
+		u32 test_irq = POWER_CHANGED_SINGLE;
 
 		triggered = false;
 
 		/* Trigger fake IRQ */
-		kbase_reg_write32(kbdev, GPU_CONTROL_ENUM(GPU_IRQ_RAWSTAT), TEST_IRQ);
+		kbase_reg_write32(kbdev, reg_enum, test_irq);
 
 		if (wait_event_timeout(wait, triggered, IRQ_TIMEOUT) == 0) {
 			/* Wait extra time to see if it would come */
@@ -211,7 +215,7 @@ static void mali_kutf_irq_latency(struct kutf_context *context)
 	}
 
 	/* Go back to default handler */
-	kbase_set_custom_irq_handler(kbdev, NULL, GPU_IRQ_HANDLER);
+	kbase_set_custom_irq_handler(kbdev, NULL, GPU_IRQ_TAG);
 
 	kbase_pm_context_idle(kbdev);
 

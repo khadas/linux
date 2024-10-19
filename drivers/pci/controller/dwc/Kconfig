@@ -92,6 +92,7 @@ config PCIE_DW_ROCKCHIP
 config PCIE_RK_THREADED_INIT
 	bool "Threaded initialize Rockchip DW based PCIe controller"
 	depends on PCIE_DW_ROCKCHIP
+	depends on !DWC_PCIE_PMU
 	default y
 	help
 	  Enables threaded initialize Rockchip DW based PCIe controller.

@@ -20,6 +20,8 @@
 		poll-interval = <100>;
 		spk-con-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
 		hp-con-gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
+		rockchip,pre-power-on-delay-ms = <30>;
+		rockchip,post-power-down-delay-ms = <40>;
 		rockchip,format = "i2s";
 		rockchip,mclk-fs = <256>;
 		rockchip,cpu = <&sai1>;
@@ -203,6 +205,7 @@
 
 &dp {
 	status = "okay";
+	svid = <0xff01>;
 };
 
 &dp0 {
@@ -328,6 +331,7 @@
 				<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
 			source-pdos =
 				<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			mode-switch = <&dp>;
 
 			altmodes {
 				#address-cells = <1>;
@@ -435,13 +439,15 @@
 
 &pdm1 {
 	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pdm1m1_clk0
-		     &pdm1m1_clk1
-		     &pdm1m1_sdi0
+	pinctrl-names = "default", "idle", "clk";
+	pinctrl-0 = <&pdm1m1_sdi0
 		     &pdm1m1_sdi1
 		     &pdm1m1_sdi2
 		     &pdm1m1_sdi3>;
+	pinctrl-1 = <&pdm1m1_clk0_idle
+		     &pdm1m1_clk1_idle>;
+	pinctrl-2 = <&pdm1m1_clk0
+		     &pdm1m1_clk1>;
 };
 
 &pinctrl {
@@ -542,6 +548,9 @@
 };
 
 &ufs {
+	vcc-supply = <&vcc_ufs_s0>;
+	vccq-supply = <&vcc1v2_ufs_vccq_s0>;
+	vccq2-supply = <&vcc1v8_ufs_vccq2_s0>;
 	status = "okay";
 };
 

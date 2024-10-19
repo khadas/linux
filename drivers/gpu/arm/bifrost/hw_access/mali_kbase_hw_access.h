@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,6 +21,8 @@
 
 #ifndef _MALI_KBASE_HW_ACCESS_H_
 #define _MALI_KBASE_HW_ACCESS_H_
+
+#include <linux/version_compat_defs.h>
 
 #define KBASE_REGMAP_PERM_READ (1U << 0)
 #define KBASE_REGMAP_PERM_WRITE (1U << 1)
@@ -127,6 +129,25 @@ bool kbase_reg_is_valid(struct kbase_device *kbdev, u32 reg_enum);
 bool kbase_reg_is_accessible(struct kbase_device *kbdev, u32 reg_enum, u32 flags);
 
 /**
+ * kbase_reg_is_powered_access_allowed - check if registered is accessible given
+ * current power state
+ *
+ * @kbdev:    Kbase device pointer
+ * @reg_enum: Register enum
+ *
+ * Return: boolean if register is accessible
+ */
+bool kbase_reg_is_powered_access_allowed(struct kbase_device *kbdev, u32 reg_enum);
+
+/**
+ * kbase_reg_is_init - check if regmap is initialized
+ *
+ * @kbdev:     Kbase device pointer
+ * Return:     boolean if regmap is initialized
+ */
+bool kbase_reg_is_init(struct kbase_device *kbdev);
+
+/**
  * kbase_reg_get_offset - get register offset from enum
  * @kbdev:    Kbase device pointer
  * @reg_enum: Register enum
@@ -186,4 +207,37 @@ u32 kbase_regmap_backend_init(struct kbase_device *kbdev);
  */
 void kbase_regmap_term(struct kbase_device *kbdev);
 
+/**
+ * kbase_reg_poll32_timeout - Poll a 32 bit register with timeout
+ * @kbdev:             Kbase device pointer
+ * @reg_enum:          Register enum
+ * @val:               Variable for result of read
+ * @cond:              Condition to be met
+ * @delay_us:          Delay between each poll (in uS)
+ * @timeout_us:        Timeout (in uS)
+ * @delay_before_read: If true delay for @delay_us before read
+ *
+ * Return: 0 if condition is met, -ETIMEDOUT if timed out.
+ */
+#define kbase_reg_poll32_timeout(kbdev, reg_enum, val, cond, delay_us, timeout_us,  \
+				 delay_before_read)                                 \
+	read_poll_timeout_atomic(kbase_reg_read32, val, cond, delay_us, timeout_us, \
+				 delay_before_read, kbdev, reg_enum)
+
+/**
+ * kbase_reg_poll64_timeout - Poll a 64 bit register with timeout
+ * @kbdev:             Kbase device pointer
+ * @reg_enum:          Register enum
+ * @val:               Variable for result of read
+ * @cond:              Condition to be met
+ * @delay_us:          Delay between each poll (in uS)
+ * @timeout_us:        Timeout (in uS)
+ * @delay_before_read: If true delay for @delay_us before read
+ *
+ * Return: 0 if condition is met, -ETIMEDOUT if timed out.
+ */
+#define kbase_reg_poll64_timeout(kbdev, reg_enum, val, cond, delay_us, timeout_us,  \
+				 delay_before_read)                                 \
+	read_poll_timeout_atomic(kbase_reg_read64, val, cond, delay_us, timeout_us, \
+				 delay_before_read, kbdev, reg_enum)
 #endif /* _MALI_KBASE_HW_ACCESS_H_ */

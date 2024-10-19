@@ -128,3 +128,91 @@ int rk_bn_highest_bit(const struct rk_bignum *bn)
 
 	return (int)(bn->n_words - 1) * RK_WORD_SIZE + b;
 }
+
+void rk_ecc_free_point(struct rk_ecp_point *point)
+{
+	if (!point)
+		return;
+
+	rk_bn_free(point->x);
+	rk_bn_free(point->y);
+
+	kfree(point);
+}
+
+struct rk_ecp_point *rk_ecc_alloc_point_zero(u32 max_size)
+{
+	struct rk_ecp_point *point = NULL;
+
+	point = kzalloc(sizeof(*point), GFP_KERNEL);
+	if (!point)
+		return NULL;
+
+	point->x = rk_bn_alloc(max_size);
+	if (!point->x)
+		goto error;
+
+	point->y = rk_bn_alloc(max_size);
+	if (!point->y)
+		goto error;
+
+	return point;
+
+error:
+	rk_ecc_free_point(point);
+
+	return NULL;
+}
+
+struct rk_ecp_point *rk_ecc_alloc_point(const uint8_t *x, uint32_t x_len,
+					const uint8_t *y, uint32_t y_len,
+					enum bignum_endian endian, u32 max_size)
+{
+	struct rk_ecp_point *point = NULL;
+
+	point = kzalloc(sizeof(*point), GFP_KERNEL);
+	if (!point)
+		return NULL;
+
+	point->x = rk_bn_alloc(max_size);
+	if (!point->x)
+		goto error;
+
+	if (rk_bn_set_data(point->x, x, x_len, endian) != 0)
+		goto error;
+
+	point->y = rk_bn_alloc(max_size);
+	if (!point->y)
+		goto error;
+
+	if (rk_bn_set_data(point->y, y, y_len, endian) != 0)
+		goto error;
+
+	return point;
+
+error:
+	rk_ecc_free_point(point);
+
+	return NULL;
+}
+
+bool rk_ecp_point_is_zero(struct rk_ecp_point *point)
+{
+	uint32_t i;
+	bool ret = true;
+
+	if (!point || !point->x || !point->y)
+		return false;
+
+	for (i = 0; i < point->x->n_words; i++) {
+		if (point->x->data[i] != 0)
+			ret = false;
+	}
+
+	for (i = 0; i < point->y->n_words; i++) {
+		if (point->y->data[i] != 0)
+			ret = false;
+	}
+
+	return ret;
+}

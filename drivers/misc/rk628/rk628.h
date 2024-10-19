@@ -147,6 +147,7 @@
 #define GRF_RGB_DEC_CON2		0x0048
 #define GRF_RGB_ENC_CON			0x004c
 #define BT1120_UV_SWAP(x)		HIWORD_UPDATE(x, 5, 5)
+#define BT1120_YC_SWAP(x)		HIWORD_UPDATE(x, 4, 4)
 #define ENC_DUALEDGE_EN(x)		HIWORD_UPDATE(x, 3, 3)
 #define GRF_MIPI_LANE_DELAY_CON0	0x0050
 #define GRF_MIPI_LANE_DELAY_CON1	0x0054
@@ -571,6 +572,7 @@ struct rk628 {
 	struct rk628_display_mode dst_mode;
 	enum bus_format input_fmt;
 	enum bus_format output_fmt;
+	u32 csc_mode;
 	struct rk628_dsi dsi0;
 	struct rk628_dsi dsi1;
 	struct rk628_lvds lvds;

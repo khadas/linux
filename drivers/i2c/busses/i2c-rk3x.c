@@ -1593,14 +1593,6 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
-	i2c->i2c_restart_nb.notifier_call = rk3x_i2c_restart_notify;
-	i2c->i2c_restart_nb.priority = 255;
-	ret = register_restart_handler(&i2c->i2c_restart_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to setup i2c restart handler.\n");
-		return ret;
-	}
-
 	i2c->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
@@ -1720,12 +1712,22 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 			i2c->autostop_supported = true;
 	}
 
+	i2c->i2c_restart_nb.notifier_call = rk3x_i2c_restart_notify;
+	i2c->i2c_restart_nb.priority = 255;
+	ret = register_restart_handler(&i2c->i2c_restart_nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to setup i2c restart handler.\n");
+		goto err_clk_notifier;
+	}
+
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0)
-		goto err_clk_notifier;
+		goto err_register_restart_handler;
 
 	return 0;
 
+err_register_restart_handler:
+	unregister_restart_handler(&i2c->i2c_restart_nb);
 err_clk_notifier:
 	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 err_pclk:
@@ -1741,8 +1743,8 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&i2c->adap);
 
-	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 	unregister_restart_handler(&i2c->i2c_restart_nb);
+	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 	clk_unprepare(i2c->pclk);
 	clk_unprepare(i2c->clk);
 

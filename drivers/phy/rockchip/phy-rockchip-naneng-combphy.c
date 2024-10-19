@@ -474,6 +474,7 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 	struct clk *refclk = NULL;
 	unsigned long rate;
 	int i;
+	u32 val;
 
 	/* Configure PHY reference clock frequency */
 	for (i = 0; i < priv->num_clks; i++) {
@@ -548,6 +549,29 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 	default:
 		dev_err(priv->dev, "Unsupported rate: %lu\n", rate);
 		return -EINVAL;
+	}
+
+	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk")) {
+		rockchip_combphy_param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
+		if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			/*
+			 * PLL charge pump current adjust = 111
+			 * PLL LPF R1 adjust = 1001
+			 * PLL KVCO adjust = 000 (min)
+			 * PLL KVCO fine tuning signals = 01
+			 */
+			rockchip_combphy_updatel(priv, GENMASK(2, 0),
+						 BIT(29) | (0x7 << 4 | 0x9 << 7), 0x108);
+			rockchip_combphy_updatel(priv, GENMASK(12, 10), 0x2 << 10, 0x18);
+		}
+	}
+
+	if (priv->mode == PHY_TYPE_PCIE) {
+		if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
+			val = readl(priv->mmio + 0x100);
+			val |= BIT(20);
+			writel(val, priv->mmio + 0x100);
+		}
 	}
 
 	return 0;
@@ -872,6 +896,15 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 	if (device_property_read_bool(priv->dev, "rockchip,ext-refclk")) {
 		rockchip_combphy_param_write(priv->phy_grf, &cfg->pipe_clk_ext, true);
 		if (priv->mode == PHY_TYPE_PCIE && rate == 100000000) {
+			/*
+			 * PLL charge pump current adjust = 111
+			 * PLL LPF R1 adjust = 1001
+			 * PLL KVCO adjust = 000 (min)
+			 * PLL KVCO fine tuning signals = 01
+			 */
+			rockchip_combphy_updatel(priv, GENMASK(2, 0), 0xf << 4, 0xa << 2);
+			rockchip_combphy_updatel(priv, GENMASK(2, 0), 0x4, 0xb << 2);
+			rockchip_combphy_updatel(priv, GENMASK(4, 2), 0x2 << 2, 0x20 << 2);
 			rockchip_combphy_updatel(priv, 0x3 << 4 | 0x1 << 7,
 						 0x3 << 4 | 0x1 << 7, 0xc << 2);
 

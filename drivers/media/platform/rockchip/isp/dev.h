@@ -282,6 +282,7 @@ struct rkisp_device {
 	u32 rd_mode;
 	int sw_rd_cnt;
 
+	u32 vicap_buf_cnt;
 	struct rkisp_rx_buf_pool pv_pool[RKISP_RX_BUF_POOL_MAX];
 
 	struct mutex buf_lock;
@@ -289,6 +290,7 @@ struct rkisp_device {
 	spinlock_t aiisp_lock;
 	struct rkisp_cmsk_cfg cmsk_cfg;
 	struct rkisp_aiisp_cfg aiisp_cfg;
+	struct rkisp_fpn_cfg fpn_cfg;
 
 	bool is_cmsk_upd;
 	bool is_hw_link;

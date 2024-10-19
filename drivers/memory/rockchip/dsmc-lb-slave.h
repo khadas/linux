@@ -67,4 +67,9 @@
 #define LBC_S2H_INT_STA_SIG_EN_SHIFT			(0)
 #define LBC_S2H_INT_STA_SIG_EN_MASK			(0xFFFF)
 
+#define DSMC_SLAVE_ENABLE(n)				((0x1 << (4 + 16)) | ((n) << 4))
+#define DSMC_SLAVE_RDYN_MODE(n)				((0x1 << (5 + 16)) | ((n) << 5))
+
+#define AXI_ADDR_4GB_RANGE				(1ULL << 32)
+
 #endif /* __BUS_ROCKCHIP_ROCKCHIP_DSMC_SLAVE_H */

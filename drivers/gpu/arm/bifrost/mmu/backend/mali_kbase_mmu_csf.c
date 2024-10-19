@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_as_fault_debugfs.h>
 #include <mmu/mali_kbase_mmu_internal.h>
+#include <mmu/mali_kbase_mmu_faults_decoder.h>
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut, struct kbase_mmu_setup *const setup)
 {
@@ -46,7 +47,7 @@ void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut, struct kbase_mmu_setup
 		(KBASE_MEMATTR_AARCH64_SHARED << (KBASE_MEMATTR_INDEX_SHARED * 8));
 
 	setup->transtab = (u64)mmut->pgd & AS_TRANSTAB_BASE_MASK;
-	setup->transcfg = AS_TRANSCFG_MODE_SET(0, AS_TRANSCFG_MODE_AARCH64_4K);
+	setup->transcfg = AS_TRANSCFG_MODE_SET(0ULL, AS_TRANSCFG_MODE_AARCH64_4K);
 }
 
 /**
@@ -96,23 +97,30 @@ void kbase_mmu_report_mcu_as_fault_and_reset(struct kbase_device *kbdev, struct 
 	u32 exception_type = fault->status & 0xFF;
 	u32 access_type = (fault->status >> 8) & 0x3;
 	u32 source_id = (fault->status >> 16);
-	int as_no;
+	u32 as_no;
 
 	/* terminal fault, print info about the fault */
-	dev_err(kbdev->dev,
-		"Unexpected Page fault in firmware address space at VA 0x%016llX\n"
-		"raw fault status: 0x%X\n"
-		"exception type 0x%X: %s\n"
-		"access type 0x%X: %s\n"
-		"source id 0x%X\n",
-		fault->addr, fault->status, exception_type,
-		kbase_gpu_exception_name(exception_type), access_type,
-		kbase_gpu_access_type_name(fault->status), source_id);
+	if (kbdev->gpu_props.gpu_id.product_model < GPU_ID_MODEL_MAKE(14, 0)) {
+		dev_err(kbdev->dev,
+			"Unexpected Page fault in firmware address space at VA 0x%016llX\n"
+			"raw fault status: 0x%X\n"
+			"exception type 0x%X: %s\n"
+			"access type 0x%X: %s\n"
+			"source id 0x%X (core_id:utlb:IR 0x%X:0x%X:0x%X): %s, %s\n",
+			fault->addr, fault->status, exception_type,
+			kbase_gpu_exception_name(exception_type), access_type,
+			kbase_gpu_access_type_name(fault->status), source_id,
+			FAULT_SOURCE_ID_CORE_ID_GET(source_id),
+			FAULT_SOURCE_ID_UTLB_ID_GET(source_id),
+			fault_source_id_internal_requester_get(kbdev, source_id),
+			fault_source_id_core_type_description_get(kbdev, source_id),
+			fault_source_id_internal_requester_get_str(kbdev, source_id, access_type));
+	}
 
 	kbase_debug_csf_fault_notify(kbdev, NULL, DF_GPU_PAGE_FAULT);
 
 	/* Report MMU fault for all address spaces (except MCU_AS_NR) */
-	for (as_no = 1; as_no < kbdev->nr_hw_address_spaces; as_no++)
+	for (as_no = 1u; as_no < (u32)kbdev->nr_hw_address_spaces; as_no++)
 		submit_work_pagefault(kbdev, as_no, fault);
 
 	/* GPU reset is required to recover */
@@ -127,37 +135,43 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx, struct kbas
 {
 	struct kbase_device *kbdev = kctx->kbdev;
 	u32 const status = fault->status;
-	int exception_type = (status & GPU_FAULTSTATUS_EXCEPTION_TYPE_MASK) >>
-			     GPU_FAULTSTATUS_EXCEPTION_TYPE_SHIFT;
-	int access_type = (status & GPU_FAULTSTATUS_ACCESS_TYPE_MASK) >>
-			  GPU_FAULTSTATUS_ACCESS_TYPE_SHIFT;
-	int source_id = (status & GPU_FAULTSTATUS_SOURCE_ID_MASK) >>
-			GPU_FAULTSTATUS_SOURCE_ID_SHIFT;
+	unsigned int exception_type = (status & GPU_FAULTSTATUS_EXCEPTION_TYPE_MASK) >>
+				      GPU_FAULTSTATUS_EXCEPTION_TYPE_SHIFT;
+	unsigned int access_type = (status & GPU_FAULTSTATUS_ACCESS_TYPE_MASK) >>
+				   GPU_FAULTSTATUS_ACCESS_TYPE_SHIFT;
+	unsigned int source_id = (status & GPU_FAULTSTATUS_SOURCE_ID_MASK) >>
+				 GPU_FAULTSTATUS_SOURCE_ID_SHIFT;
 	const char *addr_valid = (status & GPU_FAULTSTATUS_ADDRESS_VALID_MASK) ? "true" : "false";
-	int as_no = as->number;
+	unsigned int as_no = as->number;
 	unsigned long flags;
 	const uintptr_t fault_addr = fault->addr;
 
 	/* terminal fault, print info about the fault */
-	dev_err(kbdev->dev,
-		"GPU bus fault in AS%d at PA %pK\n"
-		"PA_VALID: %s\n"
-		"raw fault status: 0x%X\n"
-		"exception type 0x%X: %s\n"
-		"access type 0x%X: %s\n"
-		"source id 0x%X\n"
-		"pid: %d\n",
-		as_no, (void *)fault_addr, addr_valid, status, exception_type,
-		kbase_gpu_exception_name(exception_type), access_type,
-		kbase_gpu_access_type_name(access_type), source_id, kctx->pid);
+	if (kbdev->gpu_props.gpu_id.product_model < GPU_ID_MODEL_MAKE(14, 0)) {
+		dev_err(kbdev->dev,
+			"GPU bus fault in AS%u at PA %pK\n"
+			"PA_VALID: %s\n"
+			"raw fault status: 0x%X\n"
+			"exception type 0x%X: %s\n"
+			"access type 0x%X: %s\n"
+			"source id 0x%X (core_id:utlb:IR 0x%X:0x%X:0x%X): %s, %s\n"
+			"pid: %d\n",
+			as_no, (void *)fault_addr, addr_valid, status, exception_type,
+			kbase_gpu_exception_name(exception_type), access_type,
+			kbase_gpu_access_type_name(access_type), source_id,
+			FAULT_SOURCE_ID_CORE_ID_GET(source_id),
+			FAULT_SOURCE_ID_UTLB_ID_GET(source_id),
+			fault_source_id_internal_requester_get(kbdev, source_id),
+			fault_source_id_core_type_description_get(kbdev, source_id),
+			fault_source_id_internal_requester_get_str(kbdev, source_id, access_type),
+			kctx->pid);
+	}
 
 	/* AS transaction begin */
-	mutex_lock(&kbdev->mmu_hw_mutex);
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbase_mmu_disable(kctx);
 	kbase_ctx_flag_set(kctx, KCTX_AS_DISABLED_ON_FAULT);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	/* Switching to UNMAPPED mode above would have enabled the firmware to
 	 * recover from the fault (if the memory access was made by firmware)
@@ -182,52 +196,63 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx, struct kbase_as
 				     const char *reason_str, struct kbase_fault *fault)
 {
 	unsigned long flags;
-	unsigned int exception_type;
-	unsigned int access_type;
-	unsigned int source_id;
-	int as_no;
-	struct kbase_device *kbdev;
-	const u32 status = fault->status;
-
-	as_no = as->number;
-	kbdev = kctx->kbdev;
+	struct kbase_device *kbdev = kctx->kbdev;
 
 	/* Make sure the context was active */
 	if (WARN_ON(atomic_read(&kctx->refcount) <= 0))
 		return;
 
-	/* decode the fault status */
-	exception_type = AS_FAULTSTATUS_EXCEPTION_TYPE_GET(status);
-	access_type = AS_FAULTSTATUS_ACCESS_TYPE_GET(status);
-	source_id = AS_FAULTSTATUS_SOURCE_ID_GET(status);
+	if (!kbase_ctx_flag(kctx, KCTX_PAGE_FAULT_REPORT_SKIP)) {
+		const u32 status = fault->status;
+		/* decode the fault status */
+		unsigned int exception_type = AS_FAULTSTATUS_EXCEPTION_TYPE_GET(status);
+		unsigned int access_type = AS_FAULTSTATUS_ACCESS_TYPE_GET(status);
+		unsigned int source_id = AS_FAULTSTATUS_SOURCE_ID_GET(status);
+		unsigned int as_no = as->number;
 
-	/* terminal fault, print info about the fault */
-	dev_err(kbdev->dev,
-		"Unhandled Page fault in AS%d at VA 0x%016llX\n"
-		"Reason: %s\n"
-		"raw fault status: 0x%X\n"
-		"exception type 0x%X: %s\n"
-		"access type 0x%X: %s\n"
-		"source id 0x%X\n"
-		"pid: %d\n",
-		as_no, fault->addr, reason_str, status, exception_type,
-		kbase_gpu_exception_name(exception_type), access_type,
-		kbase_gpu_access_type_name(status), source_id, kctx->pid);
+		/* terminal fault, print info about the fault */
+		if (kbdev->gpu_props.gpu_id.product_model < GPU_ID_MODEL_MAKE(14, 0)) {
+			dev_err(kbdev->dev,
+				"Unhandled Page fault in AS%u at VA 0x%016llX\n"
+				"Reason: %s\n"
+				"raw fault status: 0x%X\n"
+				"exception type 0x%X: %s\n"
+				"access type 0x%X: %s\n"
+				"source id 0x%X (core_id:utlb:IR 0x%X:0x%X:0x%X): %s, %s\n"
+				"pid: %d\n",
+				as_no, fault->addr, reason_str, status, exception_type,
+				kbase_gpu_exception_name(exception_type), access_type,
+				kbase_gpu_access_type_name(status), source_id,
+				FAULT_SOURCE_ID_CORE_ID_GET(source_id),
+				FAULT_SOURCE_ID_UTLB_ID_GET(source_id),
+				fault_source_id_internal_requester_get(kbdev, source_id),
+				fault_source_id_core_type_description_get(kbdev, source_id),
+				fault_source_id_internal_requester_get_str(kbdev, source_id,
+									   access_type),
+				kctx->pid);
+		}
+	}
 
 	/* AS transaction begin */
-	mutex_lock(&kbdev->mmu_hw_mutex);
 
 	/* switch to UNMAPPED mode,
 	 * will abort all jobs and stop any hw counter dumping
 	 */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	/* Update the page fault counter value in firmware visible memory, just before disabling
+	 * the MMU which would in turn unblock the MCU firmware.
+	 */
+	if (kbdev->csf.page_fault_cnt_ptr) {
+		spin_lock(&kbdev->mmu_mask_change);
+		*kbdev->csf.page_fault_cnt_ptr = ++kbdev->csf.page_fault_cnt;
+		spin_unlock(&kbdev->mmu_mask_change);
+	}
 	kbase_mmu_disable(kctx);
 	kbase_ctx_flag_set(kctx, KCTX_AS_DISABLED_ON_FAULT);
 	kbase_debug_csf_fault_notify(kbdev, kctx, DF_GPU_PAGE_FAULT);
 	kbase_csf_ctx_report_page_fault_for_active_groups(kctx, fault);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	mutex_unlock(&kbdev->mmu_hw_mutex);
 	/* AS transaction end */
 
 	/* Switching to UNMAPPED mode above would have enabled the firmware to
@@ -252,7 +277,9 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx, struct kbase_as
  * @as:		The address space that has the fault
  * @fault:	Data relating to the fault
  *
- * This function will process a fault on a specific address space
+ * This function will process a fault on a specific address space.
+ * The function must be called with the ref_count of the kctx already increased/acquired.
+ * If it fails to queue the work, the ref_count will be decreased.
  */
 static void kbase_mmu_interrupt_process(struct kbase_device *kbdev, struct kbase_context *kctx,
 					struct kbase_as *as, struct kbase_fault *fault)
@@ -291,11 +318,18 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev, struct kbase
 		 * We need to switch to UNMAPPED mode - but we do this in a
 		 * worker so that we can sleep
 		 */
-		WARN_ON(!queue_work(as->pf_wq, &as->work_busfault));
-		atomic_inc(&kbdev->faults_pending);
+		if (!queue_work(as->pf_wq, &as->work_busfault)) {
+			dev_warn(kbdev->dev, "Bus fault is already pending for as %u", as->number);
+			kbase_ctx_sched_release_ctx(kctx);
+		} else {
+			atomic_inc(&kbdev->faults_pending);
+		}
 	} else {
-		WARN_ON(!queue_work(as->pf_wq, &as->work_pagefault));
-		atomic_inc(&kbdev->faults_pending);
+		if (!queue_work(as->pf_wq, &as->work_pagefault)) {
+			dev_warn(kbdev->dev, "Page fault is already pending for as %u", as->number);
+			kbase_ctx_sched_release_ctx(kctx);
+		} else
+			atomic_inc(&kbdev->faults_pending);
 	}
 }
 
@@ -350,7 +384,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 
 	while (pf_bits) {
 		struct kbase_context *kctx;
-		int as_no = ffs(pf_bits) - 1;
+		unsigned int as_no = (unsigned int)ffs((int)pf_bits) - 1;
 		struct kbase_as *as = &kbdev->as[as_no];
 		struct kbase_fault *fault = &as->pf_data;
 
@@ -404,15 +438,6 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 	new_mask |= tmp;
 	kbase_reg_write32(kbdev, MMU_CONTROL_ENUM(IRQ_MASK), new_mask);
 	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
-}
-
-int kbase_mmu_switch_to_ir(struct kbase_context *const kctx, struct kbase_va_region *const reg)
-{
-	CSTD_UNUSED(kctx);
-	CSTD_UNUSED(reg);
-
-	/* Can't soft-stop the provoking job */
-	return -EPERM;
 }
 
 /**
@@ -510,7 +535,7 @@ void kbase_mmu_gpu_fault_interrupt(struct kbase_device *kbdev, u32 status, u32 a
 		 * the address space is invalid or it's MCU address space.
 		 */
 		for (as = 1; as < kbdev->nr_hw_address_spaces; as++)
-			submit_work_gpufault(kbdev, status, as, address);
+			submit_work_gpufault(kbdev, status, (u32)as, address);
 	} else
 		submit_work_gpufault(kbdev, status, as_nr, address);
 }

@@ -51,6 +51,8 @@ struct analogix_dp_plat_data {
 	bool dual_connector_split;
 	bool left_display;
 
+	u8 max_bpc;
+
 	struct analogix_dp_device *left;
 	struct analogix_dp_device *right;
 
@@ -64,6 +66,12 @@ struct analogix_dp_plat_data {
 			 struct drm_connector *);
 	void (*convert_to_split_mode)(struct drm_display_mode *);
 	void (*convert_to_origin_mode)(struct drm_display_mode *);
+};
+
+struct analogix_dp_output_format {
+	u32 bus_format;
+	u32 color_format;
+	u8 bpc;
 };
 
 int analogix_dp_resume(struct analogix_dp_device *dp);
@@ -89,5 +97,6 @@ int analogix_dp_audio_get_eld(struct analogix_dp_device *dp,
 			      u8 *buf, size_t len);
 int analogix_dp_loader_protect(struct analogix_dp_device *dp);
 void analogix_dp_disable(struct analogix_dp_device *dp);
+const struct analogix_dp_output_format *analogix_dp_get_output_format(u32 bus_format);
 
 #endif /* _ANALOGIX_DP_H_ */

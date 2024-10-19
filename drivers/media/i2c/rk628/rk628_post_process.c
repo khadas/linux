@@ -1608,7 +1608,8 @@ static u8 rk628_get_output_color_space(struct rk628 *rk628, u8 input_color_space
 	}
 }
 
-static void rk628_post_process_csc(struct rk628 *rk628, bool is_output_full_range)
+static void rk628_post_process_csc(struct rk628 *rk628,
+				bool is_input_full_range, bool is_output_full_range)
 {
 	enum bus_format in_fmt, out_fmt;
 	struct post_csc_coef csc_coef = {};
@@ -1623,14 +1624,11 @@ static void rk628_post_process_csc(struct rk628 *rk628, bool is_output_full_rang
 		else if (out_fmt == BUS_FMT_RGB)
 			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 	} else {
-		u8 in_color_range, in_color_space, output_color_space;
+		u8 in_color_space, output_color_space;
 		enum color_space_type input_color_space;
-		bool is_input_full_range;
 
-		in_color_range = rk628_hdmirx_get_range(rk628);
 		in_color_space = rk628_hdmirx_get_color_space(rk628);
 		input_color_space = rk628_csc_color_space_convert(in_color_space, in_fmt);
-		is_input_full_range = (in_color_range == HDMIRX_LIMIT_RANGE) ? false : true;
 		output_color_space = rk628_get_output_color_space(rk628, input_color_space);
 
 		rockchip_calc_post_csc(rk628, &csc_coef, is_input_full_range,
@@ -1718,9 +1716,9 @@ void rk628_post_process_pattern_node(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_post_process_pattern_node);
 
-void rk628_post_process_csc_en(struct rk628 *rk628, bool output_full_range)
+void rk628_post_process_csc_en(struct rk628 *rk628, bool input_full_range, bool output_full_range)
 {
-	rk628_post_process_csc(rk628, output_full_range);
+	rk628_post_process_csc(rk628, input_full_range, output_full_range);
 	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_EN(1));
 }
 EXPORT_SYMBOL(rk628_post_process_csc_en);

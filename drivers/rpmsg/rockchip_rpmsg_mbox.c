@@ -41,9 +41,10 @@ struct rk_rpmsg_dev {
 	struct platform_device *pdev;
 	int vdev_nums;
 	unsigned int link_id;
-	int first_notify;
+	bool need_notify;
 	u32 flags;
-	struct mbox_client mbox_cl;
+	struct mbox_client mbox_rx_cl;
+	struct mbox_client mbox_tx_cl;
 	struct mbox_chan *mbox_rx_chan;
 	struct mbox_chan *mbox_tx_chan;
 	struct rk_virtio_dev *rpvdev[RPMSG_MAX_INSTANCE_NUM];
@@ -55,26 +56,58 @@ struct rk_rpmsg_vq_info {
 	struct rk_rpmsg_dev *rpdev;
 };
 
+static void rk_rpmsg_tx_callback(struct mbox_client *client, void *message)
+{
+	struct rk_virtio_dev *rpvdev;
+	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_tx_cl);
+	struct platform_device *pdev = rpdev->pdev;
+	struct device *dev = &pdev->dev;
+	struct rockchip_mbox_msg *rx_msg = message;
+
+	dev_dbg(dev, "rpmsg master tx cb: receive cmd=0x%x data=0x%x\n",
+		rx_msg->cmd, rx_msg->data);
+
+	if (rx_msg->data != RPMSG_MBOX_MAGIC)
+		dev_err(dev, "rpmsg master tx cb: mailbox data error 0x%8x!\n",
+			rx_msg->data);
+
+	/* TODO: only support one remote core now */
+	rpvdev = rpdev->rpvdev[0];
+
+	/*
+	 *  Recv TX CONSUME message
+	 *  Enabled RL_ALLOW_CONSUMED_BUFFERS_NOTIFICATION in rpmsg-lite
+	 */
+	vring_interrupt(0, rpvdev->vq[1]);
+}
+
 static void rk_rpmsg_rx_callback(struct mbox_client *client, void *message)
 {
 	u32 link_id;
 	struct rk_virtio_dev *rpvdev;
-	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_cl);
+	struct rk_rpmsg_dev *rpdev = container_of(client, struct rk_rpmsg_dev, mbox_rx_cl);
 	struct platform_device *pdev = rpdev->pdev;
 	struct device *dev = &pdev->dev;
 	struct rockchip_mbox_msg *rx_msg;
 
 	rx_msg = message;
-	dev_dbg(dev, "rpmsg master: receive cmd=0x%x data=0x%x\n",
+	dev_dbg(dev, "rpmsg master rx cb: receive cmd=0x%x data=0x%x\n",
 		rx_msg->cmd, rx_msg->data);
 	if (rx_msg->data != RPMSG_MBOX_MAGIC)
-		dev_err(dev, "rpmsg master: mailbox data error!\n");
+		dev_err(dev, "rpmsg master rx cb: mailbox data error 0x%8x!\n",
+			rx_msg->data);
 	link_id = rx_msg->cmd & 0xFFU;
 	/* TODO: only support one remote core now */
 	rpvdev = rpdev->rpvdev[0];
 	rpdev->flags |= RPMSG_REMOTE_IS_READY;
 	dev_dbg(dev, "rpmsg master: rx link_id=0x%x flag=0x%x\n", link_id, rpdev->flags);
 	vring_interrupt(0, rpvdev->vq[0]);
+}
+
+static void rk_rpmsg_xfer_done(struct mbox_client *cl, void *mssg, int r)
+{
+	if (!r)
+		kfree(mssg);
 }
 
 static bool rk_rpmsg_notify(struct virtqueue *vq)
@@ -85,25 +118,44 @@ static bool rk_rpmsg_notify(struct virtqueue *vq)
 	struct device *dev = &pdev->dev;
 	u32 link_id;
 	int ret;
-	struct rockchip_mbox_msg tx_msg;
+	struct rockchip_mbox_msg *tx_msg;
 
-	memset(&tx_msg, 0, sizeof(tx_msg));
 	dev_dbg(dev, "queue_id-0x%x virt_vring_addr 0x%p\n",
 		rpvq->queue_id, rpvq->vring_addr);
 
 	link_id = rpdev->link_id;
-	tx_msg.cmd = link_id & 0xFFU;
-	tx_msg.data = RPMSG_MBOX_MAGIC;
 
-	if ((rpdev->first_notify == 0) && (rpvq->queue_id % 2 == 0)) {
-		/* first_notify is used in the master init handshake phase. */
-		dev_dbg(dev, "rpmsg first_notify\n");
-		rpdev->first_notify++;
+	if ((!rpdev->need_notify) && (rpvq->queue_id % 2 == 0)) {
+		/* first notify is used in the master init handshake phase. */
+		dev_dbg(dev, "rpmsg handshake notify\n");
 	} else if (rpvq->queue_id % 2 == 0) {
 		/* tx done is not supported, so ignored */
 		return true;
 	}
-	ret = mbox_send_message(rpdev->mbox_tx_chan, &tx_msg);
+
+	if (!rpdev->mbox_tx_chan->mbox->ops->last_tx_done(rpdev->mbox_tx_chan)) {
+		/*
+		 * Mailbox BUSY means remote side has not processed previous
+		 * notification. The remote side will process all availd
+		 * messages after meeting the last notification.
+		 */
+		return true;
+	}
+
+	if (rpdev->need_notify)
+		mbox_client_txdone(rpdev->mbox_tx_chan, 0);
+	else
+		rpdev->need_notify = true;
+
+	tx_msg = kzalloc(sizeof(*tx_msg), GFP_KERNEL);
+	if (!tx_msg) {
+		dev_err(dev, "Can not get memory for tx_msg\n");
+		return false;
+	}
+	tx_msg->cmd = link_id & 0xFFU;
+	tx_msg->data = RPMSG_MBOX_MAGIC;
+
+	ret = mbox_send_message(rpdev->mbox_tx_chan, tx_msg);
 	if (ret < 0) {
 		dev_err(dev, "mbox send failed!\n");
 		return false;
@@ -300,12 +352,13 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dev_info(dev, "rockchip rpmsg platform probe.\n");
-	rpdev->pdev = pdev;
-	rpdev->first_notify = 0;
 
-	cl = &rpdev->mbox_cl;
+	rpdev->pdev = pdev;
+	rpdev->need_notify = false;
+	cl = &rpdev->mbox_rx_cl;
 	cl->dev = dev;
 	cl->rx_callback = rk_rpmsg_rx_callback;
+	cl->tx_done = rk_rpmsg_xfer_done;
 
 	rpdev->mbox_rx_chan = mbox_request_channel_byname(cl, "rpmsg-rx");
 	if (IS_ERR(rpdev->mbox_rx_chan)) {
@@ -313,6 +366,13 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request mbox rx chan, ret %d\n", ret);
 		return ret;
 	}
+
+	cl = &rpdev->mbox_tx_cl;
+	cl->dev = dev;
+	cl->rx_callback = rk_rpmsg_tx_callback;
+	cl->tx_done = rk_rpmsg_xfer_done;
+	cl->knows_txdone = true;
+
 	rpdev->mbox_tx_chan = mbox_request_channel_byname(cl, "rpmsg-tx");
 	if (IS_ERR(rpdev->mbox_tx_chan)) {
 		ret = PTR_ERR(rpdev->mbox_tx_chan);

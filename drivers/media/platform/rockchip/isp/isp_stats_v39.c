@@ -254,9 +254,11 @@ rkisp_stats_send_meas_v39(struct rkisp_isp_stats_vdev *stats_vdev,
 	u32 cur_frame_id = meas_work->frame_id;
 
 	if (!stats_vdev->rdbk_drop) {
-		if (cur_buf)
+		if (cur_buf) {
 			cur_stat_buf = cur_buf->vaddr[0];
-
+			cur_stat_buf->frame_id = cur_frame_id;
+			cur_stat_buf->params_id = params_vdev->cur_frame_id;
+		}
 		/* buffer done when frame of right handle */
 		if (dev->unite_div > ISP_UNITE_DIV1) {
 			if (dev->unite_index == ISP_UNITE_LEFT) {

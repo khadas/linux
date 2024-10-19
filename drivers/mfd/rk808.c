@@ -30,6 +30,23 @@ struct rk808_reg_data {
 	int value;
 };
 
+static bool rk801_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case RK801_SYS_STS_REG:
+	case RK801_INT_STS0_REG:
+	case RK801_SYS_CFG0_REG:
+	case RK801_SYS_CFG1_REG:
+	case RK801_SYS_CFG2_REG:
+	case RK801_SYS_CFG3_REG:
+	case RK801_SYS_CFG4_REG:
+	case RK801_SLEEP_CFG_REG:
+		return true;
+	}
+
+	return false;
+}
+
 static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
@@ -126,6 +143,14 @@ static const struct regmap_config rk818_regmap_config = {
 	.volatile_reg = rk818_is_volatile_reg,
 };
 
+static const struct regmap_config rk801_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RK801_SYS_CFG3_OTP_REG,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = rk801_is_volatile_reg,
+};
+
 static const struct regmap_config rk805_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -171,6 +196,11 @@ static const struct resource rk817_rtc_resources[] = {
 	DEFINE_RES_IRQ(RK817_IRQ_RTC_ALARM),
 };
 
+static const struct resource rk801_key_resources[] = {
+	DEFINE_RES_IRQ(RK801_IRQ_PWRON_FALL),
+	DEFINE_RES_IRQ(RK801_IRQ_PWRON_RISE),
+};
+
 static const struct resource rk805_key_resources[] = {
 	DEFINE_RES_IRQ(RK805_IRQ_PWRON_FALL),
 	DEFINE_RES_IRQ(RK805_IRQ_PWRON_RISE),
@@ -184,6 +214,15 @@ static const struct resource rk816_pwrkey_resources[] = {
 static const struct resource rk817_pwrkey_resources[] = {
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
+};
+
+static const struct mfd_cell rk801s[] = {
+	{ .name = "rk808-regulator", },
+	{
+		.name = "rk805-pwrkey",
+		.num_resources = ARRAY_SIZE(rk801_key_resources),
+		.resources = &rk801_key_resources[0],
+	},
 };
 
 static const struct mfd_cell rk805s[] = {
@@ -256,6 +295,15 @@ static const struct mfd_cell rk818s[] = {
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = rtc_resources,
 	},
+};
+
+static const struct rk808_reg_data rk801_pre_init_reg[] = {
+	{ RK801_SLEEP_CFG_REG, RK801_SLEEP_FUN_MSK, RK801_NONE_FUN },
+	{ RK801_SYS_CFG2_REG, RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H },
+	{ RK801_INT_CONFIG_REG, RK801_INT_POL_MSK, RK801_INT_ACT_L },
+	{ RK801_POWER_FPWM_EN_REG, RK801_PLDO_HRDEC_EN, RK801_PLDO_HRDEC_EN },
+	{ RK801_BUCK_DEBUG5_REG, 0xff, 0x54 },
+	{ RK801_CON_BACK1_REG, 0xff, 0x18 },
 };
 
 static const struct rk808_reg_data rk805_pre_init_reg[] = {
@@ -413,6 +461,37 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	{ RK808_VB_MON_REG,	  MASK_ALL,	    VB_LO_ACT |
 						    VB_LO_SEL_3500MV },
 	{RK808_CLK32OUT_REG, CLK32KOUT2_FUNC_MASK, CLK32KOUT2_FUNC},
+};
+
+static const struct regmap_irq rk801_irqs[] = {
+	[RK801_IRQ_PWRON_FALL] = {
+		.mask = RK801_IRQ_PWRON_FALL_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_PWRON_RISE] = {
+		.mask = RK801_IRQ_PWRON_RISE_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_PWRON] = {
+		.mask = RK801_IRQ_PWRON_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_PWRON_LP] = {
+		.mask = RK801_IRQ_PWRON_LP_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_HOTDIE] = {
+		.mask = RK801_IRQ_HOTDIE_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_VDC_RISE] = {
+		.mask = RK801_IRQ_VDC_RISE_MSK,
+		.reg_offset = 0,
+	},
+	[RK801_IRQ_VDC_FALL] = {
+		.mask = RK801_IRQ_VDC_FALL_MSK,
+		.reg_offset = 0,
+	},
 };
 
 static const struct regmap_irq rk805_irqs[] = {
@@ -653,6 +732,17 @@ static const struct regmap_irq rk817_irqs[RK817_IRQ_END] = {
 	REGMAP_IRQ_REG_LINE(23, 8)
 };
 
+static const struct regmap_irq_chip rk801_irq_chip = {
+	.name = "rk801",
+	.irqs = rk801_irqs,
+	.num_irqs = ARRAY_SIZE(rk801_irqs),
+	.num_regs = 1,
+	.status_base = RK801_INT_STS0_REG,
+	.mask_base = RK801_INT_MASK0_REG,
+	.ack_base = RK801_INT_STS0_REG,
+	.init_ack_masked = true,
+};
+
 static const struct regmap_irq_chip rk805_irq_chip = {
 	.name = "rk805",
 	.irqs = rk805_irqs,
@@ -759,6 +849,23 @@ static struct i2c_client *rk808_i2c_client;
 static struct rk808_reg_data *suspend_reg, *resume_reg;
 static int suspend_reg_num, resume_reg_num;
 
+static int rk801_device_shutdown_prepare(struct sys_off_data *data)
+{
+	int ret = 0;
+	struct rk808 *rk808 = data->cb_data;
+
+	if (!rk808)
+		return -1;
+
+	ret = regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
+				 RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H);
+	if (ret < 0)
+		return ret;
+
+	return regmap_update_bits(rk808->regmap, RK801_SLEEP_CFG_REG,
+				  RK801_SLEEP_FUN_MSK, RK801_SHUTDOWN_FUN);
+}
+
 static int rk805_device_shutdown_prepare(struct sys_off_data *data)
 {
 	int ret = 0;
@@ -828,6 +935,10 @@ static void rk8xx_device_shutdown(void)
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
 	switch (rk808->variant) {
+	case RK801_ID:
+		reg = RK801_SYS_CFG2_REG;
+		bit = DEV_OFF;
+		break;
 	case RK805_ID:
 		reg = RK805_DEV_CTRL_REG;
 		bit = DEV_OFF;
@@ -866,13 +977,16 @@ static void rk8xx_syscore_shutdown(void)
 		return;
 	}
 
-	/* close rtc int when power off */
-	regmap_update_bits(rk808->regmap,
-			   RK808_INT_STS_MSK_REG1,
-			   (0x3 << 5), (0x3 << 5));
-	regmap_update_bits(rk808->regmap,
-			   RK808_RTC_INT_REG,
-			   (0x3 << 2), (0x0 << 2));
+	if (rk808->variant != RK801_ID) {
+		/* close rtc int when power off */
+		regmap_update_bits(rk808->regmap,
+				   RK808_INT_STS_MSK_REG1,
+				   (0x3 << 5), (0x3 << 5));
+		regmap_update_bits(rk808->regmap,
+				   RK808_RTC_INT_REG,
+				   (0x3 << 2), (0x0 << 2));
+	}
+
 	/*
 	 * For PMIC that power off supplies by write register via i2c bus,
 	 * it's better to do power off at syscore shutdown here.
@@ -1181,6 +1295,7 @@ static struct device_attribute rk8xx_attrs =
 		__ATTR(rk8xx_dbg, 0200, NULL, rk8xx_dbg_store);
 
 static const struct of_device_id rk808_of_match[] = {
+	{ .compatible = "rockchip,rk801" },
 	{ .compatible = "rockchip,rk805" },
 	{ .compatible = "rockchip,rk808" },
 	{ .compatible = "rockchip,rk809" },
@@ -1220,6 +1335,9 @@ static int rk808_probe(struct i2c_client *client,
 	    of_device_is_compatible(np, "rockchip,rk809")) {
 		pmic_id_msb = RK817_ID_MSB;
 		pmic_id_lsb = RK817_ID_LSB;
+	} else if (of_device_is_compatible(np, "rockchip,rk801")) {
+		pmic_id_msb = RK801_ID_MSB;
+		pmic_id_lsb = RK801_ID_LSB;
 	} else {
 		pmic_id_msb = RK808_ID_MSB;
 		pmic_id_lsb = RK808_ID_LSB;
@@ -1244,6 +1362,17 @@ static int rk808_probe(struct i2c_client *client,
 	dev_info(&client->dev, "chip id: 0x%x\n", (unsigned int)rk808->variant);
 
 	switch (rk808->variant) {
+	case RK801_ID:
+		rk808->regmap_cfg = &rk801_regmap_config;
+		rk808->regmap_irq_chip = &rk801_irq_chip;
+		pre_init_reg = rk801_pre_init_reg;
+		nr_pre_init_regs = ARRAY_SIZE(rk801_pre_init_reg);
+		cells = rk801s;
+		nr_cells = ARRAY_SIZE(rk801s);
+		on_source = RK801_ON_SOURCE_REG;
+		off_source = RK801_OFF_SOURCE_REG;
+		device_shutdown_fn = rk8xx_device_shutdown;
+		break;
 	case RK805_ID:
 		rk808->regmap_cfg = &rk805_regmap_config;
 		rk808->regmap_irq_chip = &rk805_irq_chip;
@@ -1403,6 +1532,18 @@ static int rk808_probe(struct i2c_client *client,
 
 	if (of_property_read_bool(np, "rockchip,system-power-controller")) {
 		switch (rk808->variant) {
+		case RK801_ID:
+			ret = devm_register_sys_off_handler(&client->dev,
+							    SYS_OFF_MODE_POWER_OFF_PREPARE,
+							    SYS_OFF_PRIO_DEFAULT,
+							    rk801_device_shutdown_prepare,
+							    rk808);
+			if (ret) {
+				dev_err(&client->dev, "failed to register sys-off handler: %d\n",
+					ret);
+				return ret;
+			}
+			break;
 		case RK805_ID:
 			ret = devm_register_sys_off_handler(&client->dev,
 							    SYS_OFF_MODE_POWER_OFF_PREPARE,
@@ -1493,6 +1634,15 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 	}
 
 	switch (rk808->variant) {
+	case RK801_ID:
+		ret = regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
+					 RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H);
+		if (ret < 0)
+			return ret;
+
+		ret = regmap_update_bits(rk808->regmap, RK801_SLEEP_CFG_REG,
+					 RK801_SLEEP_FUN_MSK, RK801_SLEEP_FUN);
+		break;
 	case RK805_ID:
 		ret = regmap_update_bits(rk808->regmap,
 					 RK805_GPIO_IO_POL_REG,

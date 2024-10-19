@@ -2814,6 +2814,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 			cif_dev->csi_host_idx = 4;
 		else if (cif_dev->csi_host_idx == 3)
 			cif_dev->csi_host_idx = 5;
+		else if (cif_dev->csi_host_idx == 5)
+			cif_dev->csi_host_idx = 3;
 		v4l2_info(&cif_dev->v4l2_dev, "rk3588s2 attach to mipi%d\n",
 			  cif_dev->csi_host_idx);
 	}

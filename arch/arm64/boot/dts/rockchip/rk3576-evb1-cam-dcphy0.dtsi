@@ -71,7 +71,7 @@
 		pinctrl-0 = <&cam_clk0m0_clk0>;
 		power-domains = <&power RK3576_PD_VI>;
 		avdd-supply = <&vcc_mipidcphy0>;
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
@@ -91,7 +91,7 @@
 		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3576_PD_VI>;
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk0m0_clk0>;
@@ -116,7 +116,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3576_PD_VI>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
 		pinctrl-0 = <&cam_clk0m0_clk0>;
 		avdd-supply = <&vcc_mipidcphy0>;
@@ -140,7 +140,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3576_PD_VI>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
 		pinctrl-0 = <&cam_clk0m0_clk0>;
 		avdd-supply = <&vcc_mipidcphy0>;
@@ -164,7 +164,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3576_PD_VI>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+		// reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;//rk3576 evb1 NC as default
 		pinctrl-0 = <&cam_clk0m0_clk0>;
 		avdd-supply = <&vcc_mipidcphy0>;

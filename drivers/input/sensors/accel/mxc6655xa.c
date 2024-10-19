@@ -140,6 +140,7 @@ static int gsensor_report_value(struct i2c_client *client,
 		input_report_abs(sensor->input_dev, ABS_X, axis->x);
 		input_report_abs(sensor->input_dev, ABS_Y, axis->y);
 		input_report_abs(sensor->input_dev, ABS_Z, axis->z);
+		input_sync(sensor->input_dev);
 	}
 
 	return 0;

@@ -17,8 +17,9 @@ void rk628_mode_copy(struct rk628_display_mode *to, struct rk628_display_mode *f
 
 void rk628_set_input_bus_format(struct rk628 *rk628, enum bus_format format);
 enum bus_format rk628_get_input_bus_format(struct rk628 *rk628);
+const char *rk628_get_input_bus_format_name(struct rk628 *rk628);
 void rk628_set_output_bus_format(struct rk628 *rk628, enum bus_format format);
 enum bus_format rk628_get_output_bus_format(struct rk628 *rk628);
+const char *rk628_get_output_bus_format_name(struct rk628 *rk628);
 
 #endif
-

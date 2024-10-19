@@ -110,7 +110,7 @@ struct rockchip_dmcfreq {
 	struct rockchip_dmcfreq_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev **edev;
-	struct mutex lock; /* serializes access to video_info_list */
+	struct mutex lock;
 	struct dram_timing *timing;
 	struct notifier_block status_nb;
 	struct notifier_block panic_nb;
@@ -161,6 +161,7 @@ struct rockchip_dmcfreq {
 
 	bool is_fixed;
 	bool is_set_rate_direct;
+	bool is_in_suspend;
 
 	unsigned int touchboostpulse_duration_val;
 	u64 touchboostpulse_endtime;
@@ -357,6 +358,7 @@ static int rockchip_ddr_set_rate(unsigned long target_rate)
 
 static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
 				     struct dev_pm_opp_supply *supply,
+				     unsigned long *dmcfreq_volt,
 				     char *reg_name)
 {
 	int ret;
@@ -369,6 +371,8 @@ static int rockchip_dmcfreq_set_volt(struct device *dev, struct regulator *reg,
 		dev_err(dev, "%s: failed to set voltage (%lu %lu %lu mV): %d\n",
 			__func__, supply->u_volt_min, supply->u_volt,
 			supply->u_volt_max, ret);
+	else
+		*dmcfreq_volt = supply->u_volt;
 
 	return ret;
 }
@@ -453,12 +457,12 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 	/* Scaling up? Scale voltage before frequency */
 	if (new_freq >= old_freq) {
 		if (reg_count > 1) {
-			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
-							&supplies[1], "mem");
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg, &supplies[1],
+							&dmcfreq->mem_volt, "mem");
 			if (ret)
 				goto restore_voltage;
 		}
-		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], "vdd");
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], &dmcfreq->volt, "vdd");
 		if (ret)
 			goto restore_voltage;
 		if (new_freq == old_freq)
@@ -512,20 +516,16 @@ static int rockchip_dmcfreq_opp_set_rate(struct device *dev,
 
 	/* Scaling down? Scale voltage after frequency */
 	if (new_freq < old_freq) {
-		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0],
-						"vdd");
+		ret = rockchip_dmcfreq_set_volt(dev, vdd_reg, &supplies[0], &dmcfreq->volt, "vdd");
 		if (ret)
 			goto restore_freq;
 		if (reg_count > 1) {
-			ret = rockchip_dmcfreq_set_volt(dev, mem_reg,
-							&supplies[1], "mem");
+			ret = rockchip_dmcfreq_set_volt(dev, mem_reg, &supplies[1],
+							&dmcfreq->mem_volt, "mem");
 			if (ret)
 				goto restore_freq;
 		}
 	}
-	dmcfreq->volt = supplies[0].u_volt;
-	if (reg_count > 1)
-		dmcfreq->mem_volt = supplies[1].u_volt;
 
 	goto out;
 
@@ -1299,9 +1299,11 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 	}
 
 	freq_table = kzalloc(sizeof(*freq_table) * count, GFP_KERNEL);
+	if (!freq_table)
+		return -ENOMEM;
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table) {
-		ret = -ENOMEM;
+	if (IS_ERR(opp_table)) {
+		ret = PTR_ERR(opp_table);
 		goto out;
 	}
 
@@ -1344,7 +1346,7 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 				dmcfreq->freq_info_rate[i]);
 			if (i == 0) {
 				ret = -EPERM;
-				goto out;
+				break;
 			} else {
 				opp->available = false;
 				dmcfreq->freq_count = i;
@@ -2525,14 +2527,15 @@ static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 	mutex_unlock(&devfreq->lock);
 }
 
-static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
-						   unsigned long status,
-						   void *ptr)
+static int rockchip_dmcfreq_system_status_notifier_locked(struct rockchip_dmcfreq *dmcfreq,
+							  unsigned long status)
 {
-	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
 	bool is_fixed = false;
+
+	if (dmcfreq->is_in_suspend)
+		return NOTIFY_DONE;
 
 	if (dmcfreq->fixed_rate && (is_dualview(status) || is_isp(status))) {
 		if (dmcfreq->is_fixed)
@@ -2613,6 +2616,20 @@ next:
 	rockchip_dmcfreq_update_target(dmcfreq);
 
 	return NOTIFY_OK;
+}
+
+static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
+						   unsigned long status,
+						   void *ptr)
+{
+	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
+	int ret;
+
+	mutex_lock(&dmcfreq->lock);
+	ret = rockchip_dmcfreq_system_status_notifier_locked(dmcfreq, status);
+	mutex_unlock(&dmcfreq->lock);
+
+	return ret;
 }
 
 static int rockchip_dmcfreq_panic_notifier(struct notifier_block *nb,
@@ -3359,16 +3376,12 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
+static int rockchip_dmcfreq_suspend_locked(struct rockchip_dmcfreq *dmcfreq)
 {
-	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct rockchip_opp_info *opp_info;
 	struct regulator *vdd_reg = NULL;
 	struct regulator *mem_reg = NULL;
 	int ret = 0;
-
-	if (!dmcfreq)
-		return 0;
 
 	ret = rockchip_dmcfreq_disable_event(dmcfreq);
 	if (ret)
@@ -3377,7 +3390,7 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	if (dmcfreq->info.devfreq) {
 		ret = devfreq_suspend_device(dmcfreq->info.devfreq);
 		if (ret < 0) {
-			dev_err(dev, "failed to suspend the devfreq devices\n");
+			dev_err(dmcfreq->dev, "failed to suspend the devfreq devices\n");
 			return ret;
 		}
 	}
@@ -3390,20 +3403,20 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 		mem_reg = opp_info->regulators[1];
 
 	/* set voltage to sleep_volt if need */
-	if (vdd_reg && dmcfreq->sleep_volt &&
+	if (vdd_reg && dmcfreq->sleep_volt && dmcfreq->volt &&
 	    dmcfreq->sleep_volt != dmcfreq->volt) {
 		ret = regulator_set_voltage(vdd_reg, dmcfreq->sleep_volt, INT_MAX);
 		if (ret) {
-			dev_err(dev, "Cannot set vdd voltage %lu uV\n",
+			dev_err(dmcfreq->dev, "Cannot set vdd voltage %lu uV\n",
 				dmcfreq->sleep_volt);
 			return ret;
 		}
 	}
-	if (mem_reg && dmcfreq->sleep_mem_volt &&
+	if (mem_reg && dmcfreq->sleep_mem_volt && dmcfreq->mem_volt &&
 	    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
 		ret = regulator_set_voltage(mem_reg, dmcfreq->sleep_mem_volt, INT_MAX);
 		if (ret) {
-			dev_err(dev, "Cannot set mem voltage %lu uV\n",
+			dev_err(dmcfreq->dev, "Cannot set mem voltage %lu uV\n",
 				dmcfreq->sleep_mem_volt);
 			return ret;
 		}
@@ -3412,16 +3425,12 @@ static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
+static int rockchip_dmcfreq_resume_locked(struct rockchip_dmcfreq *dmcfreq)
 {
-	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct rockchip_opp_info *opp_info;
 	struct regulator *vdd_reg = NULL;
 	struct regulator *mem_reg = NULL;
 	int ret = 0;
-
-	if (!dmcfreq)
-		return 0;
 
 	opp_info = &dmcfreq->opp_info;
 	if (opp_info->regulators) {
@@ -3430,22 +3439,22 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 			mem_reg = opp_info->regulators[1];
 
 		/* restore voltage if it is sleep_volt */
-		if (mem_reg && dmcfreq->sleep_volt &&
+		if (mem_reg && dmcfreq->sleep_volt && dmcfreq->volt &&
 		    dmcfreq->sleep_volt != dmcfreq->volt) {
 			ret = regulator_set_voltage(vdd_reg, dmcfreq->volt,
 						    INT_MAX);
 			if (ret) {
-				dev_err(dev, "Cannot set vdd voltage %lu uV\n",
+				dev_err(dmcfreq->dev, "Cannot set vdd voltage %lu uV\n",
 					dmcfreq->volt);
 				return ret;
 			}
 		}
-		if (vdd_reg && dmcfreq->sleep_mem_volt &&
+		if (vdd_reg && dmcfreq->sleep_mem_volt && dmcfreq->mem_volt &&
 		    dmcfreq->sleep_mem_volt != dmcfreq->mem_volt) {
 			ret = regulator_set_voltage(mem_reg, dmcfreq->mem_volt,
 						    INT_MAX);
 			if (ret) {
-				dev_err(dev, "Cannot set mem voltage %lu uV\n",
+				dev_err(dmcfreq->dev, "Cannot set mem voltage %lu uV\n",
 					dmcfreq->mem_volt);
 				return ret;
 			}
@@ -3459,10 +3468,43 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 	if (dmcfreq->info.devfreq) {
 		ret = devfreq_resume_device(dmcfreq->info.devfreq);
 		if (ret < 0) {
-			dev_err(dev, "failed to resume the devfreq devices\n");
+			dev_err(dmcfreq->dev, "failed to resume the devfreq devices\n");
 			return ret;
 		}
 	}
+
+	return ret;
+}
+
+static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
+{
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (!dmcfreq)
+		return 0;
+
+	mutex_lock(&dmcfreq->lock);
+	ret = rockchip_dmcfreq_suspend_locked(dmcfreq);
+	if (!ret)
+		dmcfreq->is_in_suspend = true;
+	mutex_unlock(&dmcfreq->lock);
+
+	return ret;
+}
+
+static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
+{
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (!dmcfreq)
+		return 0;
+
+	mutex_lock(&dmcfreq->lock);
+	ret = rockchip_dmcfreq_resume_locked(dmcfreq);
+	dmcfreq->is_in_suspend = false;
+	mutex_unlock(&dmcfreq->lock);
 
 	return ret;
 }

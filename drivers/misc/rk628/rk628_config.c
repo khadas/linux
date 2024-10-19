@@ -7,6 +7,14 @@
 
 #include "rk628_config.h"
 
+static const char * const bus_format_str[] = {
+	"RGB",
+	"YUV422",
+	"YUV444",
+	"YUV420",
+	"UNKNOWN",
+};
+
 struct rk628_display_mode *rk628_display_get_src_mode(struct rk628 *rk628)
 {
 	return &rk628->src_mode;
@@ -41,6 +49,11 @@ enum bus_format rk628_get_input_bus_format(struct rk628 *rk628)
 	return rk628->input_fmt;
 }
 
+const char *rk628_get_input_bus_format_name(struct rk628 *rk628)
+{
+	return bus_format_str[rk628->input_fmt];
+}
+
 void rk628_set_output_bus_format(struct rk628 *rk628, enum bus_format format)
 {
 	rk628->output_fmt = format;
@@ -49,4 +62,9 @@ void rk628_set_output_bus_format(struct rk628 *rk628, enum bus_format format)
 enum bus_format rk628_get_output_bus_format(struct rk628 *rk628)
 {
 	return rk628->output_fmt;
+}
+
+const char *rk628_get_output_bus_format_name(struct rk628 *rk628)
+{
+	return bus_format_str[rk628->output_fmt];
 }

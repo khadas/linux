@@ -21,11 +21,6 @@
 #define RK_POLL_PERIOD_US	100
 #define RK_POLL_TIMEOUT_US	50000
 
-struct rk_ahash_expt_ctx {
-	struct rk_ahash_ctx	ctx;
-	u8			lastc[RK_DMA_ALIGNMENT];
-};
-
 struct rk_hash_mid_data {
 	u32 valid_flag;
 	u32 hash_ctl;
@@ -267,7 +262,7 @@ static void clean_hash_setting(struct rk_crypto_dev *rk_dev)
 
 static int rk_ahash_import(struct ahash_request *req, const void *in)
 {
-	struct rk_ahash_expt_ctx state;
+	struct rk_ahash_ctx state;
 
 	/* 'in' may not be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
@@ -279,7 +274,7 @@ static int rk_ahash_import(struct ahash_request *req, const void *in)
 
 static int rk_ahash_export(struct ahash_request *req, void *out)
 {
-	struct rk_ahash_expt_ctx state;
+	struct rk_ahash_ctx state;
 
 	/* Don't let anything leak to 'out' */
 	memset(&state, 0, sizeof(state));
@@ -305,9 +300,9 @@ static int rk_ahash_dma_start(struct rk_crypto_dev *rk_dev, uint32_t flag)
 	CRYPTO_TRACE("ctx->calc_cnt = %u, count %u Byte, is_final = %d",
 		     ctx->calc_cnt, alg_ctx->count, is_final);
 
-	if (alg_ctx->count % RK_DMA_ALIGNMENT && !is_final) {
+	if (alg_ctx->count % rk_hash_reserve_block && !is_final) {
 		dev_err(rk_dev->dev, "count = %u is not aligned with [%u]\n",
-			alg_ctx->count, RK_DMA_ALIGNMENT);
+			alg_ctx->count, rk_hash_reserve_block);
 		return -EINVAL;
 	}
 
@@ -405,12 +400,14 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 
 	CRYPTO_TRACE();
 
+	rk_hash_reserve_block = 64;
+
 	memset(ctx, 0x00, sizeof(*ctx));
 
 	if (!rk_dev->request_crypto)
 		return -EFAULT;
 
-	alg_ctx->align_size     = RK_DMA_ALIGNMENT;
+	alg_ctx->align_size     = 64;
 
 	alg_ctx->ops.start      = rk_ahash_start;
 	alg_ctx->ops.update     = rk_ahash_crypto_rx;
@@ -441,7 +438,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm), sizeof(struct rk_ahash_rctx));
 
-	algt->alg.hash.halg.statesize = sizeof(struct rk_ahash_expt_ctx);
+	algt->alg.hash.halg.statesize = sizeof(struct rk_ahash_ctx);
 
 	return 0;
 }

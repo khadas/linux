@@ -7,61 +7,21 @@
 #ifndef ROCKCHIP_DRM_DEBUGFS_H
 #define ROCKCHIP_DRM_DEBUGFS_H
 
-/**
- * struct vop_dump_info - vop dump plane info structure
- *
- * Store plane info used to write display data to /data/vop_buf/
- *
- */
-struct vop_dump_info {
-	/* @win_id: vop hard win index */
-	u8 win_id;
-	/* @area_id: vop hard area index inside win */
-	u8 area_id;
-	/* @AFBC_flag: indicate the buffer compress by gpu or not */
-	bool AFBC_flag;
-	/* @yuv_format: indicate yuv format or not */
-	bool yuv_format;
-	/* @pitches: the buffer pitch size */
-	u32 pitches;
-	/* @height: the buffer pitch height */
-	u32 height;
-	/* @info: DRM format info */
-	const struct drm_format_info *format;
-	/* @offset: the buffer offset */
-	unsigned long offset;
-	/* @num_pages: the pages number */
-	unsigned long num_pages;
-	/* @pages: store the buffer all pages */
-	struct page **pages;
-};
-
-/**
- * struct vop_dump_list - store all buffer info per frame
- *
- * one frame maybe multiple buffer, all will be stored here.
- *
- */
-struct vop_dump_list {
-	struct list_head entry;
-	struct vop_dump_info dump_info;
-};
+struct vop_dump_info;
 
 /**
  * @DUMP_DISABLE: Disable dump and do not record plane info into list.
- * @DUMP_ENABLE: Record plane info into list.
  * @DUMP_KEEP: Record plane info into list and keep to dump plane.
  */
 enum vop_dump_status {
 	DUMP_DISABLE = 0,
-	DUMP_ENABLE,
 	DUMP_KEEP
 };
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+#if defined(CONFIG_NO_GKI)
 int rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root);
-int rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count);
-int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root);
+int rockchip_drm_crtc_dump_plane_buffer(struct drm_crtc *crtc);
 #else
 static inline int
 rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
@@ -70,13 +30,34 @@ rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
 }
 
 static inline int
-rockchip_drm_dump_plane_buffer(struct vop_dump_info *dump_info, int frame_count)
+rockchip_drm_crtc_dump_plane_buffer(struct drm_crtc *crtc)
+{
+	return 0;
+}
+#endif
+int rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root);
+int rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root);
+#else
+static inline int
+rockchip_drm_add_dump_buffer(struct drm_crtc *crtc, struct dentry *root)
+{
+	return 0;
+}
+
+static inline int
+rockchip_drm_crtc_dump_plane_buffer(struct drm_crtc *crtc)
 {
 	return 0;
 }
 
 static inline int
 rockchip_drm_debugfs_add_color_bar(struct drm_crtc *crtc, struct dentry *root)
+{
+	return 0;
+}
+
+static inline int
+rockchip_drm_debugfs_add_regs_write(struct drm_crtc *crtc, struct dentry *root)
 {
 	return 0;
 }

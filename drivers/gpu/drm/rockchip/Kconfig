@@ -23,6 +23,7 @@ if DRM_ROCKCHIP
 
 config ROCKCHIP_DRM_DEBUG
 	bool "Rockchip DRM debug"
+	default y if !ROCKCHIP_MINI_KERNEL
 	depends on DEBUG_FS
 	help
 	  This option add a debug node to dump buf from userspace
@@ -48,7 +49,7 @@ config ROCKCHIP_VOP
 		   CPU_PX30   || CPU_RK3308 || CPU_RV1106 || \
 		   CPU_RV1126 || CPU_RK3288 || CPU_RK3368 || \
 		   CPU_RK3399 || CPU_RK322X || CPU_RK3328 || \
-		   CPU_RK3576
+		   CPU_RK3576 || CPU_RK3506
 	default y if !ROCKCHIP_MINI_KERNEL
 	help
 	  This selects support for the VOP driver. You should enable it

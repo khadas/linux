@@ -434,6 +434,7 @@ exit:
 static void pka_finish(void)
 {
 	RK_PKA_TERMINATE();
+	PKA_RAM_FOR_CPU();
 	PKA_CLK_DISABLE();
 }
 
