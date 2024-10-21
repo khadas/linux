@@ -1897,12 +1897,21 @@ struct isp2x_isp_meas_cfg {
 	struct isp2x_sihst_cfg sihst;
 } __attribute__ ((packed));
 
+/* struct sensor_exposure_s
+ * fine_integration_time: sensor fine integration time.
+ * coarse_integration_time: sensor coarse integration time, as exposure time, Units: us
+ * analog_gain_code_global: sensor analog gain, Units: gain * 1000
+ * digital_gain_global: sensor digital gain, Units: gain * 1000
+ * isp_digital_gain: isp digital gain, Units: gain * 1000
+ * rolling_shutter_skew: sensor rolling shutter skew, Units: us
+ */
 struct sensor_exposure_s {
 	__u32 fine_integration_time;
 	__u32 coarse_integration_time;
 	__u32 analog_gain_code_global;
 	__u32 digital_gain_global;
 	__u32 isp_digital_gain;
+	__u32 rolling_shutter_skew;
 } __attribute__ ((packed));
 
 struct sensor_exposure_cfg {
