@@ -110,10 +110,14 @@ int exfat_load_bitmap(struct super_block *sb)
 				return -EIO;
 
 			type = exfat_get_entry_type(ep);
-			if (type == TYPE_UNUSED)
+			if (type == TYPE_UNUSED) {
+				brelse(bh);
 				break;
-			if (type != TYPE_BITMAP)
+			}
+			if (type != TYPE_BITMAP) {
+				brelse(bh);
 				continue;
+			}
 			if (ep->dentry.bitmap.flags == 0x0) {
 				int err;
 

@@ -345,6 +345,7 @@ extern struct stream_config rkisp_mp_stream_config;
 extern struct stream_config rkisp_sp_stream_config;
 extern struct rockit_isp_ops rockit_isp_ops;
 
+void rkisp_stream_vir_cpy_image(struct work_struct *work);
 void rkisp_stream_buf_done_early(struct rkisp_device *dev);
 void rkisp_stream_buf_done(struct rkisp_stream *stream,
 			   struct rkisp_buffer *buf);

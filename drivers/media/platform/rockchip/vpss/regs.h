@@ -1179,8 +1179,10 @@
 #define IS_SYNC_REG(x) ({ \
 	typeof(x) __x = (x); \
 	(__x == RKVPSS_VPSS_CTRL || __x == RKVPSS_VPSS_ONLINE || \
-	 __x == RKVPSS_VPSS_UPDATE || __x == RKVPSS_MI_WR_INIT || \
-	 __x == RKVPSS_MI_WR_WRAP_CTRL || __x == RKVPSS_MI_WR_VFLIP_CTRL); \
+	 __x == RKVPSS_VPSS_UPDATE || __x == RKVPSS_VPSS_CLK_GATE || \
+	 __x == RKVPSS_VPSS_IMSC || __x == RKVPSS_MI_WR_CTRL || \
+	 __x == RKVPSS_MI_WR_INIT || __x == RKVPSS_MI_WR_WRAP_CTRL || \
+	 __x == RKVPSS_MI_WR_VFLIP_CTRL); \
 })
 
 #endif

@@ -106,6 +106,30 @@
 #define VOD_MID_RANGE				0x3
 #define VOD_BIG_RANGE				0x7
 #define VOD_MAX_RANGE				0xf
+#define RK3506_VOD_MIN_RANGE			0x8
+#define RK3506_VOD_MID_RANGE			0xc
+#define RK3506_VOD_BIG_RANGE			0xe
+#define RK3506_VOD_MAX_RANGE			0xf
+/* Analog Register Part: reg18 */
+#define LANE0_PRE_EMPHASIS_ENABLE_MASK          BIT(6)
+#define LANE0_PRE_EMPHASIS_ENABLE               BIT(6)
+#define LANE0_PRE_EMPHASIS_DISABLE              0
+#define LANE1_PRE_EMPHASIS_ENABLE_MASK          BIT(5)
+#define LANE1_PRE_EMPHASIS_ENABLE               BIT(5)
+#define LANE1_PRE_EMPHASIS_DISABLE              0
+/* Analog Register Part: reg19 */
+#define PRE_EMPHASIS_RANGE_SET_MASK             GENMASK(7, 6)
+#define PRE_EMPHASIS_RANGE_SET(x)               UPDATE(x, 7, 6)
+/* Analog Register Part: reg1A */
+#define LANE0_PRE_EMPHASIS_RANGE_SET_MASK       GENMASK(7, 6)
+#define LANE0_PRE_EMPHASIS_RANGE_SET(x)         UPDATE(x, 7, 6)
+/* Analog Register Part: reg1B */
+#define LANE1_PRE_EMPHASIS_RANGE_SET_MASK       GENMASK(7, 6)
+#define LANE1_PRE_EMPHASIS_RANGE_SET(x)         UPDATE(x, 7, 6)
+#define PRE_EMPHASIS_MIN_RANGE			0x0
+#define PRE_EMPHASIS_MID_RANGE			0x1
+#define PRE_EMPHASIS_MAX_RANGE			0x2
+#define PRE_EMPHASIS_RESERVED_RANGE		0x3
 /* Analog Register Part: reg1E */
 #define PLL_MODE_SEL_MASK			GENMASK(6, 5)
 #define PLL_MODE_SEL_LVDS_MODE			0
@@ -208,6 +232,7 @@ enum soc_type {
 	PX30S,
 	RK3128,
 	RK3368,
+	RK3506,
 	RK3562,
 	RK3568,
 	RV1126,
@@ -215,6 +240,7 @@ enum soc_type {
 
 enum phy_max_rate {
 	MAX_1GHZ,
+	MAX_1_5GHZ,
 	MAX_2_5GHZ,
 };
 
@@ -223,6 +249,7 @@ struct inno_dsidphy_plat_data {
 	const struct inno_mipi_dphy_timing *inno_mipi_dphy_timing_table;
 	const unsigned int num_timings;
 	enum phy_max_rate max_rate;
+	unsigned int max_lanes;
 };
 
 struct inno_dsidphy {
@@ -281,6 +308,23 @@ struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1ghz[] = {
 	{ 700, 0x0, 0x3e, 0x1e, 0x08, 0x6a},
 	{ 800, 0x0, 0x21, 0x1f, 0x09, 0x29},
 	{1000, 0x0, 0x09, 0x20, 0x09, 0x27},
+};
+
+struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1_5ghz[] = {
+	{ 110, 0x02, 0x7f, 0x16, 0x02, 0x02},
+	{ 150, 0x02, 0x7f, 0x16, 0x03, 0x02},
+	{ 200, 0x02, 0x7f, 0x17, 0x04, 0x02},
+	{ 250, 0x02, 0x7f, 0x17, 0x05, 0x04},
+	{ 300, 0x02, 0x7f, 0x18, 0x06, 0x04},
+	{ 400, 0x03, 0x7e, 0x19, 0x07, 0x04},
+	{ 500, 0x03, 0x7c, 0x1b, 0x07, 0x08},
+	{ 600, 0x03, 0x70, 0x1d, 0x08, 0x10},
+	{ 700, 0x05, 0x40, 0x1e, 0x08, 0x30},
+	{ 800, 0x05, 0x02, 0x1f, 0x09, 0x30},
+	{1000, 0x05, 0x08, 0x20, 0x09, 0x30},
+	{1200, 0x06, 0x03, 0x32, 0x14, 0x0f},
+	{1400, 0x09, 0x03, 0x32, 0x14, 0x0f},
+	{1500, 0x0d, 0x42, 0x36, 0x0e, 0x0f},
 };
 
 static const
@@ -448,6 +492,35 @@ static void inno_mipi_dphy_max_2_5GHz_pll_enable(struct inno_dsidphy *inno)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			 REG_LDOPD_MASK | REG_PLLPD_MASK,
 			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
+}
+
+static void inno_mipi_dphy_max_1_5GHz_pll_enable(struct inno_dsidphy *inno)
+{
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
+			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x18,
+			LANE0_PRE_EMPHASIS_ENABLE_MASK, LANE0_PRE_EMPHASIS_ENABLE);
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x18,
+			LANE1_PRE_EMPHASIS_ENABLE_MASK, LANE1_PRE_EMPHASIS_ENABLE);
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x19,
+			PRE_EMPHASIS_RANGE_SET_MASK,
+			PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1a,
+			LANE0_PRE_EMPHASIS_RANGE_SET_MASK,
+			LANE0_PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1b,
+			LANE1_PRE_EMPHASIS_RANGE_SET_MASK,
+			LANE1_PRE_EMPHASIS_RANGE_SET(PRE_EMPHASIS_MID_RANGE));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
+			CLOCK_LANE_VOD_RANGE_SET_MASK,
+			CLOCK_LANE_VOD_RANGE_SET(RK3506_VOD_MAX_RANGE));
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+			REG_LDOPD_MASK | REG_PLLPD_MASK,
+			REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
 }
 
 static void inno_mipi_dphy_max_1GHz_pll_enable(struct inno_dsidphy *inno)
@@ -637,6 +710,8 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 
 	if (inno->pdata->max_rate == MAX_2_5GHZ)
 		inno_mipi_dphy_max_2_5GHz_pll_enable(inno);
+	else if (inno->pdata->max_rate == MAX_1_5GHZ)
+		inno_mipi_dphy_max_1_5GHz_pll_enable(inno);
 	else
 		inno_mipi_dphy_max_1GHz_pll_enable(inno);
 
@@ -880,6 +955,7 @@ static const struct inno_dsidphy_plat_data px30_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1ghz),
 	.max_rate = MAX_1GHZ,
+	.max_lanes = 4,
 };
 
 static const struct inno_dsidphy_plat_data px30s_video_phy_plat_data = {
@@ -887,6 +963,7 @@ static const struct inno_dsidphy_plat_data px30s_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
+	.max_lanes = 4,
 };
 
 static const struct inno_dsidphy_plat_data rk3128_video_phy_plat_data = {
@@ -894,6 +971,7 @@ static const struct inno_dsidphy_plat_data rk3128_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1ghz),
 	.max_rate = MAX_1GHZ,
+	.max_lanes = 4,
 };
 
 static const struct inno_dsidphy_plat_data rk3368_video_phy_plat_data = {
@@ -901,6 +979,15 @@ static const struct inno_dsidphy_plat_data rk3368_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1ghz),
 	.max_rate = MAX_1GHZ,
+	.max_lanes = 4,
+};
+
+static const struct inno_dsidphy_plat_data rk3506_video_phy_plat_data = {
+	.soc_type = RK3506,
+	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1_5ghz,
+	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1_5ghz),
+	.max_rate = MAX_1_5GHZ,
+	.max_lanes = 2,
 };
 
 static const struct inno_dsidphy_plat_data rk3562_video_phy_plat_data = {
@@ -908,6 +995,7 @@ static const struct inno_dsidphy_plat_data rk3562_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
+	.max_lanes = 4,
 };
 
 static const struct inno_dsidphy_plat_data rk3568_video_phy_plat_data = {
@@ -915,6 +1003,7 @@ static const struct inno_dsidphy_plat_data rk3568_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
+	.max_lanes = 4,
 };
 
 static const struct inno_dsidphy_plat_data rv1126_video_phy_plat_data = {
@@ -922,6 +1011,7 @@ static const struct inno_dsidphy_plat_data rv1126_video_phy_plat_data = {
 	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
+	.max_lanes = 4,
 };
 
 static int inno_dsidphy_probe(struct platform_device *pdev)
@@ -993,7 +1083,9 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	}
 
 	if (device_property_read_u32(dev, "inno,lanes", &inno->lanes))
-		inno->lanes = 4;
+		inno->lanes = inno->pdata->max_lanes;
+	else if (inno->lanes > inno->pdata->max_lanes)
+		inno->lanes = inno->pdata->max_lanes;
 
 	if (device_property_read_u32(dev, "inno,lvds-vcom", &inno->lvds_vcom))
 		inno->lvds_vcom = 950;
@@ -1037,6 +1129,9 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 	}, {
 		.compatible = "rockchip,rk3368-dsi-dphy",
 		.data = &rk3368_video_phy_plat_data,
+	}, {
+		.compatible = "rockchip,rk3506-dsi-dphy",
+		.data = &rk3506_video_phy_plat_data,
 	}, {
 		.compatible = "rockchip,rk3562-dsi-dphy",
 		.data = &rk3562_video_phy_plat_data,

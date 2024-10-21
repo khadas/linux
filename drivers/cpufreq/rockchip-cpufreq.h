@@ -6,6 +6,8 @@
 #define __ROCKCHIP_CPUFREQ_H
 
 #if IS_ENABLED(CONFIG_ARM_ROCKCHIP_CPUFREQ)
+int rockchip_cpufreq_online(int cpu);
+int rockchip_cpufreq_offline(int cpu);
 int rockchip_cpufreq_adjust_table(struct device *dev);
 int rockchip_cpufreq_opp_set_rate(struct device *dev, unsigned long target_freq);
 #else

@@ -36,14 +36,33 @@
 
 #define MAILBOX_V2_TRIGGER_SHIFT	8
 #define MAILBOX_V2_TRIGGER_MASK		BIT(8)
-#define MAILBOX_V2_INT_MASK		BIT(0)
-#define MAILBOX_V2_INT_CLR		BIT(0)
+
+#define MAILBOX_V2_INTEN_TX_DONE	BIT(0)
+#define MAILBOX_V2_INTEN_RX_DONE	BIT(1)
+#define MAILBOX_V2_INTEN_RX_DONE_SHIFT	1
+
+#define MAILBOX_V2_STATUS_TX_DONE	BIT(0)
+#define MAILBOX_V2_STATUS_RX_DONE	BIT(1)
+#define MAILBOX_V2_STATUS_MASK		GENMASK(1, 0)
 
 #define MAILBOX_POLLING_MS		5 /* default polling interval 5ms */
 #define BIT_WRITEABLE_SHIFT		16
 
+struct rockchip_mbox_reg {
+	u32 tx_int;
+	u32 tx_sts;
+	u32 tx_cmd;
+	u32 tx_dat;
+	u32 rx_int;
+	u32 rx_sts;
+	u32 rx_cmd;
+	u32 rx_dat;
+};
+
 struct rockchip_mbox_data {
 	int num_chans;
+	struct rockchip_mbox_reg reg_a2b;
+	struct rockchip_mbox_reg reg_b2a;
 	const struct mbox_chan_ops *ops;
 	irqreturn_t (*irq_func)(int irq, void *dev_id);
 };
@@ -60,6 +79,7 @@ struct rockchip_mbox {
 	spinlock_t cfg_lock; /* Serialise access to the register */
 	unsigned char trigger_method; /* 0 = write cmd, 1 = write cmd first, then write data */
 	struct rockchip_mbox_msg *msg;
+	const struct rockchip_mbox_reg *reg;
 
 	struct rockchip_mbox_chan *chans;
 };
@@ -170,19 +190,19 @@ static int rockchip_mbox_v2_send_data(struct mbox_chan *chan, void *data)
 	if (!msg)
 		return -EINVAL;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_A2B_STATUS);
-	if (status & MAILBOX_V2_INT_MASK) {
+	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
+	if (status & MAILBOX_V2_STATUS_TX_DONE) {
 		dev_err(mb->mbox.dev, "The mailbox is busy\n");
 		return -EBUSY;
 	}
 
-	dev_dbg(mb->mbox.dev, "A2B message, cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
+	dev_dbg(mb->mbox.dev, "TX: cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
 
 	if (mb->trigger_method) {
-		writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_V2_A2B_CMD);
-		writel_relaxed(msg->data, mb->mbox_base + MAILBOX_V2_A2B_DAT);
+		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
+		writel_relaxed(msg->data, mb->mbox_base + mb->reg->tx_dat);
 	} else {
-		writel_relaxed(msg->cmd, mb->mbox_base + MAILBOX_V2_A2B_CMD);
+		writel_relaxed(msg->cmd, mb->mbox_base + mb->reg->tx_cmd);
 	}
 
 	return 0;
@@ -192,14 +212,20 @@ static int rockchip_mbox_v2_startup(struct mbox_chan *chan)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 
-	/* Set the A2B interrupt trigger method */
+	/* Set the TX interrupt trigger method */
 	writel_relaxed((1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_TRIGGER_SHIFT) |
 			mb->trigger_method << MAILBOX_V2_TRIGGER_SHIFT),
-			mb->mbox_base + MAILBOX_V2_A2B_INTEN);
+			mb->mbox_base + mb->reg->tx_int);
 
-	/* Enable the B2A interrupt */
-	writel_relaxed((1U << BIT_WRITEABLE_SHIFT | MAILBOX_V2_INT_MASK),
-			mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+	/* Enable the tx_done interrupt */
+	writel_relaxed((1U << BIT_WRITEABLE_SHIFT | MAILBOX_V2_INTEN_TX_DONE),
+			mb->mbox_base + mb->reg->rx_int);
+
+	/* Enable the rx_done interrupt */
+	if (mb->mbox.txdone_irq)
+		writel_relaxed((1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_INTEN_RX_DONE_SHIFT) |
+				MAILBOX_V2_INTEN_RX_DONE),
+				mb->mbox_base + mb->reg->rx_int);
 
 	return 0;
 }
@@ -209,16 +235,21 @@ static bool rockchip_mbox_v2_last_tx_done(struct mbox_chan *chan)
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 	u32 status;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_A2B_STATUS);
-	return !(status & MAILBOX_V2_INT_MASK);
+	status = readl_relaxed(mb->mbox_base + mb->reg->tx_sts);
+	return !(status & MAILBOX_V2_STATUS_TX_DONE);
 }
 
 static void rockchip_mbox_v2_shutdown(struct mbox_chan *chan)
 {
 	struct rockchip_mbox *mb = dev_get_drvdata(chan->mbox->dev);
 
-	/* Disable the B2A interrupt */
-	writel_relaxed(1U << BIT_WRITEABLE_SHIFT, mb->mbox_base + MAILBOX_V2_B2A_INTEN);
+	/* Disable the tx_done interrupt */
+	writel_relaxed(1U << BIT_WRITEABLE_SHIFT, mb->mbox_base + mb->reg->rx_int);
+
+	/* Disable the rx_done interrupt */
+	if (mb->mbox.txdone_irq)
+		writel_relaxed(1U << (BIT_WRITEABLE_SHIFT + MAILBOX_V2_INTEN_RX_DONE_SHIFT),
+				mb->mbox_base + mb->reg->rx_int);
 }
 
 static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
@@ -227,21 +258,34 @@ static irqreturn_t rockchip_mbox_v2_irq(int irq, void *dev_id)
 	struct rockchip_mbox_msg *msg = mb->msg;
 	u32 status;
 
-	status = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_STATUS);
-	if (!(status & MAILBOX_V2_INT_MASK))
+	status = readl_relaxed(mb->mbox_base + mb->reg->rx_sts);
+	if (!(status & MAILBOX_V2_STATUS_MASK))
 		return IRQ_NONE;
 
-	/* Get cmd/data from the channel of B2A */
-	msg->cmd = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_CMD);
-	msg->data = readl_relaxed(mb->mbox_base + MAILBOX_V2_B2A_DAT);
+	if (status & MAILBOX_V2_STATUS_TX_DONE) {
+		/* Get cmd/data from the channel */
+		msg->cmd = readl_relaxed(mb->mbox_base + mb->reg->rx_cmd);
+		msg->data = readl_relaxed(mb->mbox_base + mb->reg->rx_dat);
 
-	dev_dbg(mb->mbox.dev, "B2A message, cmd 0x%08x, data 0x%08x\n", msg->cmd, msg->data);
+		dev_dbg(mb->mbox.dev, "RX: cmd 0x%08x, data 0x%08x\n",
+			msg->cmd, msg->data);
 
-	if (mb->mbox.chans[0].cl)
-		mbox_chan_received_data(&mb->mbox.chans[0], msg);
+		/* Clear the tx_done interrupt */
+		writel_relaxed(MAILBOX_V2_STATUS_TX_DONE,
+			       mb->mbox_base + mb->reg->rx_sts);
 
-	/* Clear mbox's message interrupt */
-	writel_relaxed(MAILBOX_V2_INT_CLR, mb->mbox_base + MAILBOX_V2_B2A_STATUS);
+		if (mb->mbox.chans[0].cl)
+			mbox_chan_received_data(&mb->mbox.chans[0], msg);
+	}
+
+	if (status & MAILBOX_V2_STATUS_RX_DONE) {
+		if (mb->mbox.txdone_irq)
+			mbox_chan_txdone(&mb->mbox.chans[0], 0);
+
+		/* Clear the rx_done interrupt */
+		writel_relaxed(MAILBOX_V2_STATUS_RX_DONE,
+			       mb->mbox_base + mb->reg->rx_sts);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -287,6 +331,14 @@ static const struct rockchip_mbox_data rk3368_drv_data = {
 
 static const struct rockchip_mbox_data rk3576_drv_data = {
 	.num_chans = 1,
+	.reg_a2b = { MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT,
+		     MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT },
+	.reg_b2a = { MAILBOX_V2_B2A_INTEN, MAILBOX_V2_B2A_STATUS,
+		     MAILBOX_V2_B2A_CMD, MAILBOX_V2_B2A_DAT,
+		     MAILBOX_V2_A2B_INTEN, MAILBOX_V2_A2B_STATUS,
+		     MAILBOX_V2_A2B_CMD, MAILBOX_V2_A2B_DAT },
 	.ops = &rockchip_mbox_v2_chan_ops,
 	.irq_func = rockchip_mbox_v2_irq,
 };
@@ -339,22 +391,47 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	mb->mbox.ops = drv_data->ops;
 	spin_lock_init(&mb->cfg_lock);
 
-	mb->mbox.txdone_poll = true;
-	if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US)) {
-		ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-us",
-					       &txpoll_period);
-		if (!ret) {
-			mb->mbox.txpoll_period = txpoll_period;
+	if (device_property_present(&pdev->dev, "rockchip,tx-direction-b2a"))
+		mb->reg = &drv_data->reg_b2a;
+	else
+		mb->reg = &drv_data->reg_a2b;
+
+	/*
+	 * rockchip,txdone-ack: the mailbox client uses its own ACK to check
+	 *     TX_DONE, and call mbox_client_txdone() API to schedule tx_tick.
+	 * rockchip,txdone-irq: the feature only support from RK3506, the ISR
+	 *     function call mbox_chan_txdone() API to schedule tx_tick.
+	 * txdone_poll is default for all the platform, it cooperates with
+	 *     "rockchip,txpoll-period-ms" or "rockchip,txpoll-period-us"
+	 *     periodically call last_tx_done() to check TX_DONE by the hrtimer
+	 *     in mailbox framework.
+	 */
+	if (device_property_present(&pdev->dev, "rockchip,txdone-ack")) {
+		mb->mbox.txdone_irq = false;
+		mb->mbox.txdone_poll = false;
+	} else if (device_property_present(&pdev->dev, "rockchip,txdone-irq")) {
+		mb->mbox.txdone_irq = true;
+	} else {
+		mb->mbox.txdone_poll = true;
+		if (IS_REACHABLE(CONFIG_MAILBOX_POLL_PERIOD_US)) {
+			ret = device_property_read_u32(&pdev->dev,
+						       "rockchip,txpoll-period-us",
+						       &txpoll_period);
+			if (!ret) {
+				mb->mbox.txpoll_period = txpoll_period;
+			} else {
+				ret = device_property_read_u32(&pdev->dev,
+							       "rockchip,txpoll-period-ms",
+							       &txpoll_period);
+				mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
+				mb->mbox.txpoll_period *= 1000U; /* Convert to us */
+			}
 		} else {
-			ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms",
+			ret = device_property_read_u32(&pdev->dev,
+						       "rockchip,txpoll-period-ms",
 						       &txpoll_period);
 			mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
-			mb->mbox.txpoll_period *= 1000U; /* Convert to us */
 		}
-	} else {
-		ret = device_property_read_u32(&pdev->dev, "rockchip,txpoll-period-ms",
-					       &txpoll_period);
-		mb->mbox.txpoll_period = !ret ? txpoll_period : MAILBOX_POLLING_MS;
 	}
 
 	if (device_property_present(&pdev->dev, "rockchip,enable-cmd-trigger"))

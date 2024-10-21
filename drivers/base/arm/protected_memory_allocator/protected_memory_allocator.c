@@ -303,7 +303,7 @@ simple_pma_alloc_page(struct protected_memory_allocator_device *pma_dev, unsigne
 
 					large_granularity_alloc(epma_dev, start_idx, order, pma);
 
-					epma_dev->num_free_pages -= 1 << order;
+					epma_dev->num_free_pages -= 1ULL << order;
 					spin_unlock(&epma_dev->rmem_lock);
 					return pma;
 				}

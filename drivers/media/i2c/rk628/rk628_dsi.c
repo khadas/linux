@@ -302,6 +302,9 @@ u32 rk628_dsi_get_lane_rate_mbps(struct rk628_dsi *dsi)
 	else
 		lane_rate = 700;
 
+	if (dsi->timings.bt.width == 4096 && lane_rate > 1300)
+		lane_rate = 1850;
+
 	return lane_rate;
 }
 EXPORT_SYMBOL(rk628_dsi_get_lane_rate_mbps);

@@ -128,6 +128,7 @@
 
 &i2s3_2ch {
 	rockchip,capture-only;
+	rockchip,i2s-rx-wait-time-ms = <50>;
 	status = "okay";
 };
 

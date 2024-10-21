@@ -2,7 +2,7 @@
 
 config ROCKCHIP_MPP_OSAL
 	bool "mpp osal"
-	depends on CPU_RV1106
+	depends on CPU_RV1103B || CPU_RV1106
 	default y
 	help
 	  rockchip mpp osal adapt for kmpp

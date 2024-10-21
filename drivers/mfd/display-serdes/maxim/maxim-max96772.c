@@ -15,7 +15,9 @@ static const struct regmap_range max96772_readable_ranges[] = {
 	regmap_reg_range(0x1700, 0x1700),
 	regmap_reg_range(0x4100, 0x4100),
 	regmap_reg_range(0x6230, 0x6230),
+	regmap_reg_range(0x7014, 0x7016),
 	regmap_reg_range(0xe75e, 0xe75e),
+	regmap_reg_range(0xe7c4, 0xe7c6),
 	regmap_reg_range(0xe776, 0xe7bf),
 };
 
@@ -271,7 +273,7 @@ static struct serdes_chip_pinctrl_info max96772_pinctrl_info = {
 	.num_functions = ARRAY_SIZE(max96772_functions_desc),
 };
 
-static const struct reg_sequence max96772_clk_ref[3][14] = {
+static const struct reg_sequence max96772_clk_ref[4][14] = {
 	{
 		{ 0xe7b2, 0x50 },
 		{ 0xe7b3, 0x00 },
@@ -313,8 +315,23 @@ static const struct reg_sequence max96772_clk_ref[3][14] = {
 		{ 0xe7b9, 0x00 },
 		{ 0xe7ba, 0x2e },
 		{ 0xe7bb, 0x00 },
-		{ 0xe7bc, 0x00 },
+		{ 0xe7bc, 0x02 },
 		{ 0xe7bd, 0x01 },
+		{ 0xe7be, 0x32 },
+		{ 0xe7bf, 0x00 },
+	}, {
+		{ 0xe7b2, 0x30 },
+		{ 0xe7b3, 0x00 },
+		{ 0xe7b4, 0x00 },
+		{ 0xe7b5, 0x40 },
+		{ 0xe7b6, 0x6c },
+		{ 0xe7b7, 0x20 },
+		{ 0xe7b8, 0x14 },
+		{ 0xe7b9, 0x00 },
+		{ 0xe7ba, 0x2e },
+		{ 0xe7bb, 0x00 },
+		{ 0xe7bc, 0x00 },
+		{ 0xe7bd, 0x00 },
 		{ 0xe7be, 0x32 },
 		{ 0xe7bf, 0x00 },
 	}
@@ -331,11 +348,6 @@ static int max96772_aux_dpcd_read(struct serdes *serdes, unsigned int reg, unsig
 	msleep(50);
 	serdes_reg_read(serdes, 0xe77a, value);
 
-	return 0;
-}
-
-static int max96772_panel_init(struct serdes *serdes)
-{
 	return 0;
 }
 
@@ -356,6 +368,10 @@ static int max96772_panel_prepare(struct serdes *serdes)
 	} else {
 		serdes_reg_write(serdes, 0xe7b1, 0x00);
 	}
+
+	dev_info(serdes->dev, "link_rate=0x%02x, lane_count=0x%02x, ssc=%d\n",
+		 serdes->serdes_panel->link_rate, serdes->serdes_panel->lane_count,
+		 serdes->serdes_panel->ssc);
 
 	switch (serdes->serdes_panel->link_rate) {
 	case DP_LINK_BW_5_4:
@@ -445,6 +461,8 @@ static int max96772_panel_enable(struct serdes *serdes)
 	if (!ret)
 		return 0;
 
+	msleep(50);
+
 	ret = max96772_aux_dpcd_read(serdes, DP_LANE0_1_STATUS, &status[0]);
 	if (ret)
 		return ret;
@@ -465,11 +483,29 @@ static int max96772_panel_disable(struct serdes *serdes)
 }
 
 static struct serdes_chip_panel_ops max96772_panel_ops = {
-	.init = max96772_panel_init,
 	.prepare = max96772_panel_prepare,
 	.unprepare = max96772_panel_unprepare,
 	.enable = max96772_panel_enable,
 	.disable = max96772_panel_disable,
+};
+
+static int max96772_bridge_pre_enable(struct serdes *serdes)
+{
+	int ret = 0;
+
+	SERDES_DBG_CHIP("%s: serdes %s ret=%d\n", __func__,
+			serdes->chip_data->name, ret);
+	return ret;
+}
+
+static int max96772_bridge_post_disable(struct serdes *serdes)
+{
+	return 0;
+}
+
+static struct serdes_chip_bridge_ops max96772_bridge_ops = {
+	.enable = max96772_bridge_pre_enable,
+	.disable = max96772_bridge_post_disable,
 };
 
 static int max96772_pinctrl_set_mux(struct serdes *serdes,
@@ -505,6 +541,10 @@ static int max96772_pinctrl_set_mux(struct serdes *serdes,
 						FIELD_PREP(GPIO_RX_EN, fdata->gpio_rx_en) |
 						FIELD_PREP(GPIO_TX_EN, fdata->gpio_tx_en) |
 						FIELD_PREP(GPIO_OUT, fdata->gpio_out_level));
+				serdes_set_bits(serdes,
+						GPIO_B_REG(grp->pins[i] - pinctrl->pin_base),
+						OUT_TYPE,
+						FIELD_PREP(OUT_TYPE, 1));
 				if (fdata->gpio_tx_en)
 					serdes_set_bits(serdes,
 							GPIO_B_REG(grp->pins[i] - pinctrl->pin_base),
@@ -765,6 +805,7 @@ struct serdes_chip_data serdes_max96772_data = {
 	.regmap_config	= &max96772_regmap_config,
 	.pinctrl_info	= &max96772_pinctrl_info,
 	.panel_ops	= &max96772_panel_ops,
+	.bridge_ops	= &max96772_bridge_ops,
 	.pinctrl_ops	= &max96772_pinctrl_ops,
 	.gpio_ops	= &max96772_gpio_ops,
 	.pm_ops		= &max96772_pm_ops,

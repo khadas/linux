@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -48,12 +48,8 @@
 /*
  * Include Model definitions
  */
-
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 #include <backend/gpu/mali_kbase_model_dummy.h>
-#endif /* IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI) */
 
-#if !IS_ENABLED(CONFIG_MALI_REAL_HW)
 /**
  * kbase_gpu_device_create() - Generic create function.
  *
@@ -146,6 +142,5 @@ void gpu_device_set_data(void *model, void *data);
  * Return: Pointer to the data carried by model.
  */
 void *gpu_device_get_data(void *model);
-#endif /* !IS_ENABLED(CONFIG_MALI_REAL_HW) */
 
 #endif /* _KBASE_MODEL_LINUX_H_ */

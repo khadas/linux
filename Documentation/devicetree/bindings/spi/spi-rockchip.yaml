@@ -100,6 +100,12 @@ properties:
     description: Add this property to set the transmission method as CPU polling.
     type: boolean
 
+  rockchip,failed-retry-poll:
+    description:
+      Add this property to support temporary conversion to CPU polling mode after
+      SPI transmission failure, and exit this mode after the next runtime PM resume.
+    type: boolean
+
   rockchip,cs-inactive-disable:
     description: Add this property to disable the cs inactive interrupt for spi
       slave.

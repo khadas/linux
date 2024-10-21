@@ -23,6 +23,7 @@
 #define PDM_V2_DATA3R			0x0030
 #define PDM_V2_DATA3L			0x0034
 #define PDM_V2_VERSION			0x0038
+#define PDM_V2_GAIN_CTRL		0x003c
 #define PDM_V2_INCR_RXDR		0x0400
 
 /* PDM_V2_SYSCONFIG */
@@ -75,8 +76,29 @@
 
 /* PDM_V2_FILTER_CTRL */
 /* 0.375dB every step. 0: mute, 1: -65.25dB, 255: 30dB */
-#define PDM_V2_GAIN_CTRL_MSK		(0xff << 23)
-#define PDM_V2_GAIN_CTRL_SHIFT		24
+#define PDM_V2_HPF_V2_R_MSK		(0x1 << 19)
+#define PDM_V2_HPF_V2_R_EN		(0x1 << 19)
+#define PDM_V2_HPF_V2_R_DIS		(0x0 << 19)
+#define PDM_V2_HPF_V2_L_MSK		(0x1 << 20)
+#define PDM_V2_HPF_V2_L_EN		(0x1 << 20)
+#define PDM_V2_HPF_V2_L_DIS		(0x0 << 20)
+#define PDM_V2_HPF_V2_FREQ_MSK		(0xf << 21)
+#define PDM_V2_HPF_V2_FREQ_0_234	(0x0 << 21)
+#define PDM_V2_HPF_V2_FREQ_0_468	(0x1 << 21)
+#define PDM_V2_HPF_V2_FREQ_0_937	(0x2 << 21)
+#define PDM_V2_HPF_V2_FREQ_1_875	(0x3 << 21)
+#define PDM_V2_HPF_V2_FREQ_3_75		(0x4 << 21)
+#define PDM_V2_HPF_V2_FREQ_7_5		(0x5 << 21)
+#define PDM_V2_HPF_V2_FREQ_15		(0x6 << 21)
+#define PDM_V2_HPF_V2_FREQ_30		(0x7 << 21)
+#define PDM_V2_HPF_V2_FREQ_60		(0x8 << 21)
+#define PDM_V2_HPF_V2_FREQ_122		(0x9 << 21)
+#define PDM_V2_HPF_V2_FREQ_251		(0xa << 21)
+#define PDM_V2_HPF_V2_FREQ_528		(0xb << 21)
+#define PDM_V2_HPF_V2_FREQ_1183		(0xc << 21)
+#define PDM_V2_HPF_V2_FREQ_3152		(0xd << 21)
+#define PDM_V2_GAIN_MSK			(0xff << 23)
+#define PDM_V2_GAIN_SHIFT		24
 #define PDM_V2_GAIN_MIN			0
 #define PDM_V2_GAIN_MAX			0x7f
 #define PDM_V2_GAIN_0DB			(175 << 23)
@@ -122,5 +144,13 @@
 
 /* PDM FIFO CTRL */
 #define PDM_V2_FIFO_CNT(x)		(((x) >> 20) & 0xff)
+
+/* PDM_V2_GAIN_CTRL */
+/* 0.375dB every step. 0: mute, 1: -65.25dB, 255: 30dB */
+#define PDM_V2_GAIN_CTRL_MSK		(0xff << 0)
+#define PDM_V2_GAIN_CTRL_SHIFT		1
+#define PDM_V2_GAIN_CTRL_MIN		0
+#define PDM_V2_GAIN_CTRL_MAX		0x7f
+#define PDM_V2_GAIN_CTRL_24DB		(239 << 0)
 
 #endif

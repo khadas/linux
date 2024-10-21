@@ -343,11 +343,6 @@ static const uint64_t format_modifiers_afbc_tiled_for_vop3[] = {
 				AFBC_FORMAT_MOD_SPLIT),
 
 	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |
-				AFBC_FORMAT_MOD_YTR |
-				AFBC_FORMAT_MOD_SPARSE |
-				AFBC_FORMAT_MOD_SPLIT),
-
-	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |
 				AFBC_FORMAT_MOD_CBR |
 				AFBC_FORMAT_MOD_SPARSE |
 				AFBC_FORMAT_MOD_SPLIT),
@@ -1235,7 +1230,7 @@ static const struct vop2_video_port_data rk3562_vop_video_ports[] = {
 	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .dclk_max = 200000000,
 	 .max_output = { 2048, 4096 },
-	 .win_dly = 8,
+	 .win_dly = 6,
 	 .layer_mix_dly = 8,
 	 .intr = &rk3568_vp0_intr,
 	 .regs = &rk3562_vop_vp0_regs,
@@ -2459,7 +2454,6 @@ static const struct vop2_cluster_regs rk3576_vop_cluster0 = {
 	.afbc_enable = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0xf, 4),
-	.scl_lb_mode = VOP_REG(RK3568_CLUSTER0_CTRL, 0x3, 9),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 29),
 	.frm_reset_en = VOP_REG(RK3568_CLUSTER0_CTRL, 1, 31),
 	.blk_size_h = VOP_REG(RK3576_CLUSTER0_DCI_BLK_SIZE, 0x1ff, 0),
@@ -2493,7 +2487,6 @@ static const struct vop2_cluster_regs rk3576_vop_cluster1 = {
 	.afbc_enable = VOP_REG(RK3568_CLUSTER1_CTRL, 0x1, 1),
 	.enable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 0),
 	.lb_mode = VOP_REG(RK3568_CLUSTER1_CTRL, 0xf, 4),
-	.scl_lb_mode = VOP_REG(RK3568_CLUSTER1_CTRL, 0x3, 9),
 	.dma_stride_4k_disable = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 29),
 	.frm_reset_en = VOP_REG(RK3568_CLUSTER1_CTRL, 1, 31),
 	.src_color_ctrl = VOP_REG(RK3576_CLUSTER1_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
@@ -4922,7 +4915,9 @@ static const struct vop_dump_regs rk3576_dump_regs[] = {
 	{ RK3568_ESMART1_CTRL0, "Esmart1", VOP_REG(RK3568_ESMART1_REGION0_CTRL, 0x1, 0), 1, 0x100 },
 	{ RK3568_SMART0_CTRL0, "Esmart2", VOP_REG(RK3568_SMART0_REGION0_CTRL, 0x1, 0), 1, 0x100 },
 	{ RK3568_SMART1_CTRL0, "Esmart3", VOP_REG(RK3568_SMART1_REGION0_CTRL, 0x1, 0), 1, 0x100 },
-	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0x100 },
+	{ RK3528_HDR_LUT_CTRL, "HDR", {0}, 0, 0x240 },
+	{ RK3528_ACM_CTRL, "ACM", VOP_REG(RK3528_ACM_CTRL, 0x1, 0), 1, 0x7d8 },
+	{ RK3576_SHARP_CTRL, "SHARP", VOP_REG(RK3576_SHARP_CTRL, 0x1, 0), 1, 0x2b4 },
 };
 
 static const struct vop_dump_regs rk3588_dump_regs[] = {

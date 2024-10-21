@@ -21,7 +21,24 @@
 #define VOP_MAJOR(version)		((version) >> 8)
 #define VOP_MINOR(version)		((version) & 0xff)
 
-#define VOP_VERSION_RK3576_LITE		VOP_VERSION(0x2, 0xd)
+#define VOP_VERSION_RK3066		VOP_VERSION(2, 1)
+#define VOP_VERSION_RK3036		VOP_VERSION(2, 2)
+#define VOP_VERSION_RK3126		VOP_VERSION(2, 4)
+#define VOP_VERSION_PX30_LITE		VOP_VERSION(2, 5)
+#define VOP_VERSION_PX30_BIG		VOP_VERSION(2, 6)
+#define VOP_VERSION_RK3308		VOP_VERSION(2, 7)
+#define VOP_VERSION_RV1126		VOP_VERSION(2, 0xb)
+#define VOP_VERSION_RV1106		VOP_VERSION(2, 0xc)
+#define VOP_VERSION_RK3576_LITE		VOP_VERSION(2, 0xd)
+#define VOP_VERSION_RK3506		VOP_VERSION(2, 0xe)
+#define VOP_VERSION_RK3288		VOP_VERSION(3, 0)
+#define VOP_VERSION_RK3288W		VOP_VERSION(3, 1)
+#define VOP_VERSION_RK3368		VOP_VERSION(3, 2)
+#define VOP_VERSION_RK3366		VOP_VERSION(3, 4)
+#define VOP_VERSION_RK3399_BIG		VOP_VERSION(3, 5)
+#define VOP_VERSION_RK3399_LITE		VOP_VERSION(3, 6)
+#define VOP_VERSION_RK3228		VOP_VERSION(3, 7)
+#define VOP_VERSION_RK3328		VOP_VERSION(3, 8)
 
 #define VOP2_VERSION(major, minor, build)	((major) << 24 | (minor) << 16 | (build))
 #define VOP2_MAJOR(version)		(((version) >> 24) & 0xff)
@@ -694,6 +711,7 @@ enum _vop_rgb2rgb_conv_mode {
 enum _MCU_IOCTL {
 	MCU_WRCMD = 0,
 	MCU_WRDATA,
+	MCU_RDDATA,
 	MCU_SETBYPASS,
 };
 
@@ -1295,6 +1313,7 @@ struct vop_data {
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *grf;
 	const struct vop_grf_ctrl *vo0_grf;
+	const struct vop_mcu_bypass_cfg *mcu_bypass_cfg;
 	unsigned int win_size;
 	uint32_t version;
 	struct vop_rect max_input;

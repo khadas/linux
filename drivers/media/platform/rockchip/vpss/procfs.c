@@ -18,6 +18,11 @@ static void show_hw(struct seq_file *p, struct rkvpss_hw_dev *hw)
 	int i;
 	u32 val, mask;
 
+	if (hw->dev->power.usage_count.counter <= 0) {
+		seq_printf(p, "\n%s\n", "HW close");
+		return;
+	}
+
 	seq_printf(p, "\n%s\n", "HW INFO");
 	val = rkvpss_hw_read(hw, RKVPSS_VPSS_CTRL);
 	seq_printf(p, "\tmirror:%s(0x%x)\n", (val & 0x10) ? "ON" : "OFF", val);
@@ -104,7 +109,6 @@ static int vpss_show(struct seq_file *p, void *v)
 				   stream->crop.height,
 				   stream->out_fmt.width,
 				   stream->out_fmt.height);
-;
 			seq_printf(p, "\tframe_cnt:%d rate:%dms delay:%dms frameloss:%d buf_cnt:%d\n",
 				   stream->dbg.id,
 				   stream->dbg.interval / 1000 / 1000,

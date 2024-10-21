@@ -3050,9 +3050,10 @@ static void hdmirx_add_fence_to_vb_done(struct hdmirx_stream *stream,
 
 	if (vb_fence) {
 		/*  pass the fence_fd to userspace through timecode.userbits */
-		if (put_user(vb_fence->fence_fd, vb_done->timecode.userbits))
-			v4l2_err(v4l2_dev, "%s: failed to trans fence fd!\n", __func__);
-
+		vb_done->timecode.userbits[0] = vb_fence->fence_fd & 0xff;
+		vb_done->timecode.userbits[1] = (vb_fence->fence_fd & 0xff00) >> 8;
+		vb_done->timecode.userbits[2] = (vb_fence->fence_fd & 0xff0000) >> 16;
+		vb_done->timecode.userbits[3] = (vb_fence->fence_fd & 0xff000000) >> 24;
 		v4l2_dbg(3, debug, v4l2_dev, "%s: fence:%p, fence_fd:%d\n",
 			 __func__, vb_fence->fence, vb_fence->fence_fd);
 	} else {

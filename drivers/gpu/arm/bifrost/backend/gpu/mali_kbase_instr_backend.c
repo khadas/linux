@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,19 +29,21 @@
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_instr_internal.h>
 
+#define WAIT_FOR_DUMP_TIMEOUT_MS 5000
+
 static int wait_prfcnt_ready(struct kbase_device *kbdev)
 {
-	u32 loops;
-
-	for (loops = 0; loops < KBASE_PRFCNT_ACTIVE_MAX_LOOPS; loops++) {
-		const u32 prfcnt_active = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(GPU_STATUS)) &
-					  GPU_STATUS_PRFCNT_ACTIVE;
-		if (!prfcnt_active)
-			return 0;
+	u32 val;
+	const u32 timeout_us =
+		kbase_get_timeout_ms(kbdev, KBASE_PRFCNT_ACTIVE_TIMEOUT) * USEC_PER_MSEC;
+	const int err = kbase_reg_poll32_timeout(kbdev, GPU_CONTROL_ENUM(GPU_STATUS), val,
+						 !(val & GPU_STATUS_PRFCNT_ACTIVE), 0, timeout_us,
+						 false);
+	if (err) {
+		dev_err(kbdev->dev, "PRFCNT_ACTIVE bit stuck\n");
+		return -EBUSY;
 	}
-
-	dev_err(kbdev->dev, "PRFCNT_ACTIVE bit stuck\n");
-	return -EBUSY;
+	return 0;
 }
 
 int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev, struct kbase_context *kctx,
@@ -86,11 +88,12 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev, struct kbase_c
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 	/* Configure */
-	prfcnt_config = kctx->as_nr << PRFCNT_CONFIG_AS_SHIFT;
+	prfcnt_config = (u32)kctx->as_nr << PRFCNT_CONFIG_AS_SHIFT;
 #ifdef CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS
-	prfcnt_config |= kbdev->hwcnt.backend.override_counter_set << PRFCNT_CONFIG_SETSELECT_SHIFT;
+	prfcnt_config |= (u32)kbdev->hwcnt.backend.override_counter_set
+			 << PRFCNT_CONFIG_SETSELECT_SHIFT;
 #else
-	prfcnt_config |= enable->counter_set << PRFCNT_CONFIG_SETSELECT_SHIFT;
+	prfcnt_config |= (u32)enable->counter_set << PRFCNT_CONFIG_SETSELECT_SHIFT;
 #endif
 
 	/* Wait until prfcnt config register can be written */
@@ -162,6 +165,7 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 {
 	unsigned long flags, pm_flags;
 	struct kbase_device *kbdev = kctx->kbdev;
+	const unsigned long timeout = msecs_to_jiffies(WAIT_FOR_DUMP_TIMEOUT_MS);
 
 	while (1) {
 		spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
@@ -198,7 +202,8 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
 
 		/* Ongoing dump/setup - wait for its completion */
-		wait_event(kbdev->hwcnt.backend.wait, kbdev->hwcnt.backend.triggered != 0);
+		wait_event_timeout(kbdev->hwcnt.backend.wait, kbdev->hwcnt.backend.triggered != 0,
+				   timeout);
 	}
 
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DISABLED;
@@ -318,8 +323,19 @@ int kbase_instr_hwcnt_wait_for_dump(struct kbase_context *kctx)
 	unsigned long flags;
 	int err;
 
+	unsigned long remaining;
+	const unsigned long timeout = msecs_to_jiffies(WAIT_FOR_DUMP_TIMEOUT_MS);
+
 	/* Wait for dump & cache clean to complete */
-	wait_event(kbdev->hwcnt.backend.wait, kbdev->hwcnt.backend.triggered != 0);
+	remaining = wait_event_timeout(kbdev->hwcnt.backend.wait,
+				       kbdev->hwcnt.backend.triggered != 0, timeout);
+	if (remaining == 0) {
+		err = -ETIME;
+		/* Set the backend state so it's clear things have gone bad (could be a HW issue)
+		 */
+		kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_UNRECOVERABLE_ERROR;
+		goto timed_out;
+	}
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 
@@ -335,7 +351,7 @@ int kbase_instr_hwcnt_wait_for_dump(struct kbase_context *kctx)
 	}
 
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
-
+timed_out:
 	return err;
 }
 

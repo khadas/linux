@@ -427,7 +427,8 @@ static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				sditf_channel_disable(priv, 1);
 			} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 				sditf_channel_disable(priv, 0);
-				sditf_channel_disable(priv, 1);
+				if (cif_dev->chip_id == CHIP_RK3588_CIF)
+					sditf_channel_disable(priv, 1);
 			}
 			rkcif_stream_suspend(cif_dev, RKCIF_RESUME_ISP);
 		}
@@ -780,7 +781,8 @@ void sditf_change_to_online(struct sditf_priv *priv)
 		sditf_channel_enable(priv, 1);
 	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 		sditf_channel_enable(priv, 0);
-		sditf_channel_enable(priv, 1);
+		if (cif_dev->chip_id == CHIP_RK3588_CIF)
+			sditf_channel_enable(priv, 1);
 	}
 
 	if (cif_dev->is_thunderboot) {
@@ -815,7 +817,8 @@ void sditf_disable_immediately(struct sditf_priv *priv)
 		rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
 	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 		rkcif_write_register_and(cif_dev, CIF_REG_TOISP0_CTRL, ~ctrl_val);
-		rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
+		if (cif_dev->chip_id == CHIP_RK3588_CIF)
+			rkcif_write_register_and(cif_dev, CIF_REG_TOISP1_CTRL, ~ctrl_val);
 	}
 }
 
@@ -851,7 +854,8 @@ static int sditf_start_stream(struct sditf_priv *priv)
 			sditf_channel_enable(priv, 1);
 		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 			sditf_channel_enable(priv, 0);
-			sditf_channel_enable(priv, 1);
+			if (cif_dev->chip_id == CHIP_RK3588_CIF)
+				sditf_channel_enable(priv, 1);
 		}
 		mode = RKCIF_STREAM_MODE_TOISP;
 	} else if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
@@ -884,7 +888,8 @@ static int sditf_stop_stream(struct sditf_priv *priv)
 		sditf_channel_disable(priv, 1);
 	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
 		sditf_channel_disable(priv, 0);
-		sditf_channel_disable(priv, 1);
+		if (cif_dev->chip_id == CHIP_RK3588_CIF)
+			sditf_channel_disable(priv, 1);
 	}
 
 	if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)

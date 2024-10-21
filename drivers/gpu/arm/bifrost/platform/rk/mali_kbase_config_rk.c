@@ -647,6 +647,7 @@ static int gpu_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 
 static const struct rockchip_opp_data rk3576_gpu_opp_data = {
 	.set_read_margin = rk3576_gpu_set_read_margin,
+	.set_soc_info = rockchip_opp_set_low_length,
 	.config_regulators = gpu_opp_config_regulators,
 	.config_clks = gpu_opp_config_clks,
 };

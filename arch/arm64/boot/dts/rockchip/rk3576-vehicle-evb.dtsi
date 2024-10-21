@@ -128,17 +128,15 @@
 	vehicle_adsp_sound: vehicle-adsp-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,car-rk3308-sound";
+		simple-audio-card,name = "rockchip,tdm";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,bitclock-master = <&codec_master>;
-		simple-audio-card,frame-master = <&codec_master>;
 		simple-audio-card,cpu {
 			sound-dai = <&sai1>;
 			dai-tdm-slot-num = <8>;
 			dai-tdm-slot-width = <32>;
 		};
-		codec_master: simple-audio-card,codec {
+		simple-audio-card,codec {
 			sound-dai = <&dummy_codec>;
 		};
 	};
@@ -324,13 +322,15 @@
 
 &pdm1 {
 	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pdm1m1_clk0
-		     &pdm1m1_clk1
-		     &pdm1m1_sdi0
+	pinctrl-names = "default", "idle", "clk";
+	pinctrl-0 = <&pdm1m1_sdi0
 		     &pdm1m1_sdi1
 		     &pdm1m1_sdi2
 		     &pdm1m1_sdi3>;
+	pinctrl-1 = <&pdm1m1_clk0_idle
+		     &pdm1m1_clk1_idle>;
+	pinctrl-2 = <&pdm1m1_clk0
+		     &pdm1m1_clk1>;
 };
 
 &pinctrl {
@@ -385,17 +385,16 @@
 
 &sai1 {
 	status = "okay";
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck
 		     &sai1m0_sclk
 		     &sai1m0_sdi0
 		     &sai1m0_sdi1
-		     &sai1m0_sdi2
-		     &sai1m0_sdi3
 		     &sai1m0_sdo0
 		     &sai1m0_sdo1
-		     &sai1m0_sdo2
-		     &sai1m0_sdo3>;
+		     &sai1m0_sdo2>;
 };
 
 &sdmmc {
@@ -413,6 +412,13 @@
 		spi-max-frequency = <50000000>;
 		spi-lsb-first;
 	};
+};
+
+&ufs {
+	vcc-supply = <&vcc_ufs_s0>;
+	vccq-supply = <&vcc1v2_ufs_vccq_s0>;
+	vccq2-supply = <&vcc1v8_ufs_vccq2_s0>;
+	status = "okay";
 };
 
 &u2phy0 {

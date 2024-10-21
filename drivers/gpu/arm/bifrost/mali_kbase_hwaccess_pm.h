@@ -26,13 +26,13 @@
 #ifndef _KBASE_HWACCESS_PM_H_
 #define _KBASE_HWACCESS_PM_H_
 
-#include <hw_access/mali_kbase_hw_access_regmap.h>
+#include <linux/types.h>
 #include <linux/atomic.h>
-
-#include <backend/gpu/mali_kbase_pm_defs.h>
 
 /* Forward definition - see mali_kbase.h */
 struct kbase_device;
+struct kbase_pm_policy;
+struct kbase_pm_ca_policy;
 
 /* Functions common to all HW access backends */
 
@@ -129,14 +129,14 @@ void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask)
  * kbase_pm_set_debug_core_mask - Set the debug core mask.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
- * @new_core_mask_js0: The core mask to use for job slot 0
- * @new_core_mask_js1: The core mask to use for job slot 1
- * @new_core_mask_js2: The core mask to use for job slot 2
+ * @new_core_mask: The core mask to use, as an array where each element refers
+ *                 to a job slot.
+ * @new_core_mask_size: Number of elements in the core mask array.
  *
  * This determines which cores the power manager is allowed to use.
  */
-void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 new_core_mask_js0,
-				  u64 new_core_mask_js1, u64 new_core_mask_js2);
+void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev, u64 *new_core_mask,
+				  size_t new_core_mask_size);
 #endif /* MALI_USE_CSF */
 
 /**
@@ -199,7 +199,8 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_polic
  *
  * Return: The number of policies
  */
-int kbase_pm_list_policies(struct kbase_device *kbdev, const struct kbase_pm_policy *const **list);
+size_t kbase_pm_list_policies(struct kbase_device *kbdev,
+			      const struct kbase_pm_policy *const **list);
 
 /**
  * kbase_pm_protected_mode_enable() - Enable protected mode

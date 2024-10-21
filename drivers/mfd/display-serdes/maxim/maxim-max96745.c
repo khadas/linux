@@ -560,6 +560,10 @@ static int max96745_pinctrl_set_mux(struct serdes *serdes,
 					GPIO_A_REG(grp->pins[i] - pinctrl->pin_base),
 					GPIO_OUT_DIS,
 					FIELD_PREP(GPIO_OUT_DIS, data->gpio_out_dis));
+			serdes_set_bits(serdes,
+					GPIO_B_REG(grp->pins[i] - pinctrl->pin_base),
+					OUT_TYPE,
+					FIELD_PREP(OUT_TYPE, 1));
 			if (data->gpio_tx_en_a || data->gpio_tx_en_b)
 				serdes_set_bits(serdes,
 						GPIO_B_REG(grp->pins[i] - pinctrl->pin_base),

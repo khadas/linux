@@ -118,6 +118,7 @@
 #define I2S_CKR_RSD_MASK	(0xff << I2S_CKR_RSD_SHIFT)
 #define I2S_CKR_TSD_SHIFT	0
 #define I2S_CKR_TSD(x)		(((x) - 1) << I2S_CKR_TSD_SHIFT)
+#define I2S_CKR_TSD_V(x)	((((x) & I2S_CKR_TSD_MASK) >> I2S_CKR_TSD_SHIFT) + 1)
 #define I2S_CKR_TSD_MASK	(0xff << I2S_CKR_TSD_SHIFT)
 
 /*
@@ -269,6 +270,7 @@
 #define TDM_SLOT_BIT_WIDTH(x)		(((x) - 1) << 9)
 #define TDM_FRAME_WIDTH_MSK		GENMASK(8, 0)
 #define TDM_FRAME_WIDTH(x)		(((x) - 1) << 0)
+#define TDM_FRAME_WIDTH_V(v)		((((v) & TDM_FRAME_WIDTH_MSK) >> 0) + 1)
 
 /*
  * CLKDIV

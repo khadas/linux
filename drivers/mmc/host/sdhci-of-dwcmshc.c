@@ -529,6 +529,9 @@ static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	struct rk35xx_priv *priv = dwc_priv->priv;
 	u32 extra = sdhci_readl(host, DECMSHC_EMMC_MISC_CON);
 
+	if ((host->mmc->caps2 & MMC_CAP2_CQE) && (mask & SDHCI_RESET_ALL))
+		cqhci_deactivate(host->mmc);
+
 	if (mask & SDHCI_RESET_ALL && priv->reset) {
 		reset_control_assert(priv->reset);
 		udelay(1);
