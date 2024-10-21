@@ -646,7 +646,7 @@ config USB_RTL8153_ECM
 
 config USB_GOBI_NET
 	tristate "Gobi USB Net driver for Quectel module"
-	default y
+	default m
 	help
 		Support Quectelmodule
 

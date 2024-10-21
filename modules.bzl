@@ -18,7 +18,6 @@ _COMMON_GKI_MODULES_LIST = [
     "drivers/net/can/dev/can-dev.ko",
     "drivers/net/can/slcan.ko",
     "drivers/net/can/vcan.ko",
-    "drivers/usb/class/cdc-acm.ko",
     "kernel/kheaders.ko",
     "mm/zsmalloc.ko",
     "net/6lowpan/6lowpan.ko",
