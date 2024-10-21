@@ -4996,24 +4996,30 @@ static void dw_dp_hpd_work(struct work_struct *work)
 	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
 
 	if (!long_hpd) {
+		phy_power_on(dp->phy);
 		if (dp->is_mst) {
 			dw_dp_check_mst_status(dp);
+			phy_power_off(dp->phy);
 			return;
 		}
 
-		if (dw_dp_hpd_short_pulse(dp))
+		if (dw_dp_hpd_short_pulse(dp)) {
+			phy_power_off(dp->phy);
 			return;
+		}
 
 		if (dp->compliance.test_active &&
 		    dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
 			dw_dp_phy_test(dp);
 			/* just do the PHY test and nothing else */
+			phy_power_off(dp->phy);
 			return;
 		}
 
 		ret = dw_dp_link_retrain(dp);
 		if (ret)
 			dev_warn(dp->dev, "Retrain link failed\n");
+		phy_power_off(dp->phy);
 	} else {
 		drm_helper_hpd_irq_event(dp->bridge.dev);
 	}
