@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
