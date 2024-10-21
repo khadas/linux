@@ -819,6 +819,11 @@ struct vop2_video_port {
 	bool has_extra_layer;
 
 	/**
+	 * @has_scale_down_layer: use layer for scale down
+	 */
+	bool has_scale_down_layer;
+
+	/**
 	 * @crc_frame_num: calc crc frame num
 	 */
 	u32 crc_frame_num;
@@ -2922,6 +2927,8 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
+	struct drm_crtc *crtc = pstate->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	uint32_t pixel_format = fb->format->format;
 	const struct drm_format_info *info = drm_format_info(pixel_format);
 	uint8_t hsub = info->hsub;
@@ -2993,6 +3000,9 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
 	yrgb_ver_scl_mode = scl_get_scl_mode(src_h, dst_h);
+
+	if (yrgb_hor_scl_mode == SCALE_DOWN || yrgb_ver_scl_mode == SCALE_DOWN)
+		vp->has_scale_down_layer = true;
 
 	if (yrgb_hor_scl_mode == SCALE_UP)
 		hscl_filter_mode = win_data->hsu_filter_mode;
@@ -4286,6 +4296,23 @@ static int vop3_get_esmart_lb_mode(struct vop2 *vop2)
 	return vop2->data->esmart_lb_mode_map[0].lb_map_value;
 }
 
+static bool vop2_non_overlay_mode(struct vop2 *vop2)
+{
+	struct vop2_video_port *vp;
+	int i;
+	bool non_ovl_mode = true;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		if (vp->nr_layers > 1 || vp->has_scale_down_layer) {
+			non_ovl_mode = false;
+			break;
+		}
+	}
+
+	return non_ovl_mode;
+}
+
 /*
  * POST_BUF_EMPTY will cause hundreds thousands of interrupts strom per
  * second.
@@ -4316,8 +4343,6 @@ static void vop2_handle_post_buf_empty(struct drm_crtc *crtc)
 	if (!vop2->report_post_buf_empty)
 		return;
 
-	type = ROCKCHIP_DRM_ERROR_EVENT_POST_BUF_EMPTY;
-
 	/*
 	 * No need to handle POST_BUF_EMPTY if we are in iommu fault,
 	 * because we will try to recovery from the iommu fault handle
@@ -4332,8 +4357,18 @@ static void vop2_handle_post_buf_empty(struct drm_crtc *crtc)
 		event->count++;
 
 	if (time_is_before_jiffies(event->begin + 60 * HZ)) {
-		if (event->count >= POST_BUF_EMPTY_COUNT_PER_MINUTE)
+		if (event->count >= POST_BUF_EMPTY_COUNT_PER_MINUTE) {
+			/*
+			 * Request userspace disable then enable all display
+			 * pipeline if still POST_BUF_EMPTY in non-overlay
+			 * and non-scale mode
+			 */
+			if (vop2_non_overlay_mode(vop2))
+				type = ROCKCHIP_DRM_ERROR_EVENT_REQUEST_RESET;
+			else
+				type = ROCKCHIP_DRM_ERROR_EVENT_POST_BUF_EMPTY;
 			rockchip_drm_send_error_event(private, type);
+		}
 
 		DRM_DEV_ERROR(vop2->dev, "post_buf_err event count: %lld\n", event->count);
 
@@ -11369,6 +11404,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		splice_vp->hdr10_at_splice_mode = hdr10_at_splice_mode;
 	}
 	vp->hdr10_at_splice_mode = hdr10_at_splice_mode;
+
+	vp->has_scale_down_layer = false;
 
 	rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "vp%d: %d windows, active layers %d",
 			 vp->id, hweight32(vp->win_mask), nr_layers);
