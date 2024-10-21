@@ -127,6 +127,7 @@ struct rk_pcie {
 	struct gpio_desc		*rst_gpio;
 	u32				perst_inactive_ms;
 	u32				s2r_perst_inactive_ms;
+	u32				wait_for_link_ms;
 	struct gpio_desc		*prsnt_gpio;
 	struct dma_trx_obj		*dma_obj;
 	bool				in_suspend;
@@ -398,12 +399,14 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 		/*
-		 * Add this 1ms delay because we observe link is always up stably after it and
-		 * could help us save 20ms for scanning devices.
+		 * Add this delay because we observe devices need a period of time to be able to
+		 * work, so the link is always up stably after it. And the default 1ms could help us
+		 * save 20ms for scanning devices. If the devices need longer than 2s to be able to
+		 * work, please change wait_for_link_ms via dts.
 		 */
 		usleep_range(1000, 1100);
 
-		for (retries = 0; retries < 100; retries++) {
+		for (retries = 0; retries < rk_pcie->wait_for_link_ms / 20; retries++) {
 			if (dw_pcie_link_up(pci)) {
 				/*
 				 * We may be here in case of L0 in Gen1. But if EP is capable
@@ -427,7 +430,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 			dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
 					rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 			rk_pcie_debug_dump(rk_pcie);
-			msleep(20);
+			usleep_range(20000, 21000);
 		}
 
 		/*
@@ -681,6 +684,10 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 	if (device_property_read_u32(&pdev->dev, "rockchip,s2r-perst-inactive-ms",
 				     &rk_pcie->s2r_perst_inactive_ms))
 		rk_pcie->s2r_perst_inactive_ms = rk_pcie->perst_inactive_ms;
+
+	device_property_read_u32(&pdev->dev, "rockchip,wait-for-link-ms",
+				     &rk_pcie->wait_for_link_ms);
+	rk_pcie->wait_for_link_ms = max_t(u32, rk_pcie->wait_for_link_ms, 2000);
 
 	rk_pcie->prsnt_gpio = devm_gpiod_get_optional(&pdev->dev, "prsnt", GPIOD_IN);
 	if (IS_ERR_OR_NULL(rk_pcie->prsnt_gpio))
