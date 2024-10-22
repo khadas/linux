@@ -4154,6 +4154,10 @@ static void vop3_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 {
 	uint16_t vp_id;
 	struct drm_plane *plane = NULL;
+	int i = 0;
+
+	for (i = 0; i < vop2->data->nr_vps; i++)
+		vop2->vps[i].win_mask = 0;
 
 	drm_for_each_plane(plane, vop2->drm_dev) {
 		struct vop2_win *win = to_vop2_win(plane);
