@@ -4290,6 +4290,8 @@ static void vop2_initial(struct drm_crtc *crtc)
 			return;
 		}
 
+		vop2->aclk_current_freq = clk_get_rate(vop2->aclk);
+
 		if (vop2_soc_is_rk3566())
 			VOP_CTRL_SET(vop2, otp_en, 1);
 
@@ -7219,11 +7221,21 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	struct rockchip_crtc_state *state = to_rockchip_crtc_state(crtc->state);
 	bool interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	struct drm_plane *plane;
+	unsigned long aclk_rate;
 
 	DEBUG_PRINT("Video Port%d: %s\n", vp->id, crtc_state->active ? "ACTIVE" : "DISABLED");
 
 	if (!crtc_state->active)
 		return 0;
+
+	/*
+	 * clk_get_rate can't run in interrupt context,
+	 * for example, called from iommu fault handler
+	 */
+	if (!s)
+		aclk_rate = vop2->aclk_current_freq;
+	else
+		aclk_rate = clk_get_rate(vop2->aclk);
 
 	vop2_dump_connector_on_crtc(crtc, s);
 	DEBUG_PRINT("\tbus_format[%x]: %s\n", state->bus_format,
@@ -7238,7 +7250,7 @@ static int vop2_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
 	DEBUG_PRINT("\tdclk[%d kHz] real_dclk[%d kHz] aclk[%ld kHz] type[%x] flag[%x]\n",
-		    mode->clock, mode->crtc_clock, clk_get_rate(vop2->aclk) / 1000,
+		    mode->clock, mode->crtc_clock, aclk_rate / 1000,
 		    mode->type, mode->flags);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
 		    mode->hsync_end, mode->htotal);
