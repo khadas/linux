@@ -547,6 +547,9 @@ static int rk_dsm_runtime_resume(struct device *dev)
 
 	regcache_cache_only(rd->regmap, false);
 	regcache_mark_dirty(rd->regmap);
+	ret = regcache_sync(rd->regmap);
+	if (ret)
+		goto err;
 
 	ret = clk_prepare_enable(rd->clk_dac);
 	if (ret)
