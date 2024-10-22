@@ -434,7 +434,7 @@ static int get_wifi_addr_vendor(unsigned char *addr)
 		LOG("%s: rk_vendor_read wifi mac address failed (%d)\n",
 		    __func__, ret);
 #ifdef CONFIG_WIFI_GENERATE_RANDOM_MAC_ADDR
-		random_ether_addr(addr);
+		eth_random_addr(addr);
 		LOG("%s: generate random wifi mac address: "
 		    "%02x:%02x:%02x:%02x:%02x:%02x\n",
 		    __func__, addr[0], addr[1], addr[2], addr[3], addr[4],
