@@ -1324,6 +1324,13 @@
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+
+		assigned-clocks =
+			<&cru CLK_FRAC_UART_MATRIX0>,
+			<&cru CLK_FRAC_UART_MATRIX1>;
+		assigned-clock-rates =
+			<96000000>,
+			<128000000>;
 	};
 
 	pinctrl: pinctrl {
