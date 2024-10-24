@@ -4098,6 +4098,7 @@
 		#size-cells = <2>;
 		rockchip,grf = <&ioc_grf>;
 		interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&power RK3576_PD_SDGMAC>;
 		resets = <&cru SRST_A_DSMC>, <&cru SRST_P_DSMC>;
 		reset-names = "dsmc", "apb";
 		clocks = <&cru CLK_DSMC_SYS>,
@@ -4338,6 +4339,7 @@
 			 <&cru ACLK_HSGPIO>, <&cru HCLK_HSGPIO>;
 		clock-names = "tx_clk_flexbus", "rx_clk_flexbus",
 			      "aclk_flexbus", "hclk_flexbus";
+		power-domains = <&power RK3576_PD_SDGMAC>;
 		rockchip,grf = <&ioc_grf>;
 		status = "disabled";
 
@@ -4385,6 +4387,7 @@
 		interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_FSPI1_X2>, <&cru HCLK_FSPI1>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		power-domains = <&power RK3576_PD_SDGMAC>;
 		rockchip,max-dll = <0xFF>;
 		#address-cells = <1>;
 		#size-cells = <0>;
