@@ -1090,7 +1090,7 @@
 		reg = <0x42>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_serdes_pins>;
-		lock-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-bridge-split = <0x02>;
