@@ -526,12 +526,10 @@
 };
 
 &u2phy0 {
-	rockchip,sel-pipe-phystatus;
 	status = "okay";
 };
 
 &u2phy0_otg {
-	/delete-property/rockchip,sel-pipe-phystatus;
 	//vbus-supply = <&usb_otg_vcc5v_buck>;
 	status = "okay";
 };
