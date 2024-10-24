@@ -140,6 +140,12 @@
 /* BASE_VIDIOC_PRIVATE + 116 for RKISP_CMD_GET_PARAMS_V33 */
 /* BASE_VIDIOC_PRIVATE + 117 for RKISP_CMD_SET_QUICK_STREAM */
 
+/* frame information attach to image tail, see struct rkisp_frame_info
+ * set this before VIDIOC_REQBUFS then VIDIOC_QUERYBUF to get buf size
+ */
+#define RKISP_CMD_STREAM_ATTACH_INFO \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 118, int)
+
 /**********************EVENT_PRIVATE***************************/
 #define RKISP_V4L2_EVENT_AIISP_LINECNT (V4L2_EVENT_PRIVATE_START + 1)
 
@@ -2143,6 +2149,48 @@ struct rkisp_thunderboot_shmem {
 	__u32 shm_start;
 	__u32 shm_size;
 	__s32 shm_fd;
+} __attribute__ ((packed));
+
+/* struct rkisp_frame_info
+ * timestamp: frame timestamp
+ * seq: frame id
+ * hdr: sensor linear or hdr mode. 0: linear, 1: hdr2(short and long), 2: hdr3
+ * rolling_shutter_skew: sensor rolling shutter skew, Units: us
+ * sensor_exposure_time: sensor exposure time(linear or hdr short frame). Units: us
+ * sensor_analog_gain: sensor analog gain(linear or hdr short frame). Units: gain * 1000
+ * sensor_digital_gain: sensor digital gain(linear or hdr short frame). Units: gain * 1000
+ * isp_digital_gain: isp digital gain(linear or hdr short frame). Units: gain * 1000
+ * sensor_exposure_time_m: sensor exposure time(hdr mid-frame). Units: us
+ * sensor_analog_gain_m: sensor analog gain(hdr mid-frame). Units: gain * 1000
+ * sensor_digital_gain_m: sensor digital gain(hdr mid-frame). Units: gain * 1000
+ * isp_digital_gain_m: isp digital gain(hdr mid-frame). Units: gain * 1000
+ * sensor_exposure_time_l: sensor exposure time(hdr long frame). Units: us
+ * sensor_analog_gain_l: sensor analog gain(hdr long frame). Units: gain * 1000
+ * sensor_digital_gain_l: sensor digital gain(hdr long frame). Units: gain * 1000
+ * isp_digital_gain_l: isp digital gain(hdr long frame). Units: gain * 1000
+ */
+struct rkisp_frame_info {
+	__u64 timestamp;
+	__u32 seq;
+	__u32 hdr;
+	__u32 rolling_shutter_skew;
+	/* linear or hdr short frame */
+	__u32 sensor_exposure_time;
+	__u32 sensor_analog_gain;
+	__u32 sensor_digital_gain;
+	__u32 isp_digital_gain;
+	/* hdr mid-frame */
+	__u32 sensor_exposure_time_m;
+	__u32 sensor_analog_gain_m;
+	__u32 sensor_digital_gain_m;
+	__u32 isp_digital_gain_m;
+	/* hdr long frame */
+	__u32 sensor_exposure_time_l;
+	__u32 sensor_analog_gain_l;
+	__u32 sensor_digital_gain_l;
+	__u32 isp_digital_gain_l;
+	/* isp reg size: 0x6000 / 4 */
+	__u32 isp_reg[6144];
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RK_ISP2_CONFIG_H */

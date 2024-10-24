@@ -1468,6 +1468,9 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 	case RKISP_CMD_SET_IQTOOL_CONN_ID:
 		ret = rkisp_set_iqtool_connect_id(stream, *(int *)arg);
 		break;
+	case RKISP_CMD_STREAM_ATTACH_INFO:
+		stream->is_attach_info = *(int *)arg;
+		break;
 	default:
 		ret = -EINVAL;
 	}

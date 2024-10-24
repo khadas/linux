@@ -311,6 +311,7 @@ struct rkisp_device {
 	bool is_wait_aiq;
 
 	struct rkisp_vicap_input vicap_in;
+	struct rkisp_vicap_sof vicap_sof;
 	u32 hdr_wrap_line;
 
 	u8 multi_mode;
