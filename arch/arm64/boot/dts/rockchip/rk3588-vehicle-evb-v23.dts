@@ -60,7 +60,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd1_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -76,7 +76,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd2_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -92,7 +92,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd3_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -108,7 +108,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd4_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -124,7 +124,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd5_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
@@ -140,7 +140,7 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lcd6_vcc12v_buck";
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		enable-active-high;
