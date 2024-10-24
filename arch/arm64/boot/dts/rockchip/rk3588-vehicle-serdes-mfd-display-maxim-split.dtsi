@@ -451,6 +451,9 @@
 
 		serdes-init-sequence = [
 			//Independent 11_07_17-56 Using MAX96789/91/F (GMSL-1/2)
+			//RESET ALL and delay
+			0010 00f1
+			ffff 1000
 			//Disable Video pipe
 			0002 0003
 			//Address Value of I2C SRC_A
@@ -650,6 +653,9 @@
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
+			//RESET ALL and delay
+			0010 00f1
+			ffff 1000
 			0002 0043
 			0073 0031
 			007b 0031
@@ -779,6 +785,9 @@
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
+			//RESET ALL and delay
+			0010 00f1
+			ffff 1000
 			0002 0043
 			0073 0032
 			007b 0032
@@ -945,6 +954,9 @@
 		status = "okay";
 
 		serdes-init-sequence = [
+			//reset all and delay
+			0010 00f1
+			ffff 1000
 			//Address Value of I2C SRC_A
 			0042 008a
 			//Address Value of I2C DST_A
@@ -1331,6 +1343,9 @@
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
+			//RESET ALL and delay
+			0010 00f1
+			ffff 1000
 			0002 0043
 			0073 0031
 			007b 0031
@@ -1618,6 +1633,9 @@
 		status = "disabled";
 
 		serdes-init-sequence = [
+			//reset all and delay
+			0010 00f1
+			ffff 1000
 			//Address Value of I2C SRC_A
 			0042 008a
 			//Address Value of I2C DST_A
@@ -2008,6 +2026,9 @@
 
 		serdes-init-sequence = [
 			/*max96752 dual oLDI output*/
+			//RESET ALL and delay
+			0010 00f1
+			ffff 1000
 			0002 0043
 			0073 0031
 			007b 0031
