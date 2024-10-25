@@ -19,6 +19,9 @@
 #include <linux/reset.h>
 #include <dt-bindings/phy/phy-snps-pcie3.h>
 
+/* Common definition */
+#define RK_PCIE_SRAM_INIT_TIMEOUT		20000
+
 /* Register for RK3568 */
 #define GRF_PCIE30PHY_CON1			0x4
 #define GRF_PCIE30PHY_CON4			0x10
@@ -34,8 +37,11 @@
 #define RK3588_PCIE3PHY_GRF_PHY1_STATUS1	0xa04
 #define RK3588_SRAM_INIT_DONE(reg)		((reg & 0xf) == 0xf)
 
-/* Common definition */
-#define RK_PCIE_SRAM_INIT_TIMEOUT		20000
+#define RK3588_BIFURCATION_LANE_0_1		BIT(0)
+#define RK3588_BIFURCATION_LANE_2_3		BIT(1)
+#define RK3588_LANE_AGGREGATION		BIT(2)
+#define RK3588_PCIE1LN_SEL_EN			(GENMASK(1, 0) << 16)
+#define RK3588_PCIE30_PHY_MODE_EN		(GENMASK(2, 0) << 16)
 
 struct rockchip_p3phy_ops;
 
