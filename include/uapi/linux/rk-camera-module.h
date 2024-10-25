@@ -198,6 +198,12 @@
 #define RKCIS_CMD_SELECT_SETTING  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 44, struct rk_sensor_setting)
 
+#define RKMODULE_GET_EXP_DELAY       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 45, struct rkmodule_exp_delay)
+
+#define RKMODULE_GET_EXP_INFO       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 46, struct rkmodule_exp_info)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -854,6 +860,39 @@ struct rk_sensor_setting {
 	__u32 fps;
 	__u32 fmt;
 	__u32 mode;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_delay {
+	__u32 exp_delay;
+	__u32 gain_delay;
+	__u32 vts_delay;
+	__u32 dcg_delay;
+	__u32 reserved[2];
+} __attribute__ ((packed));
+
+enum rkmodule_gain_mode_e {
+	RKMODULE_GAIN_MODE_LINEAR,
+	RKMODULE_GAIN_MODE_DB,
+};
+
+struct rkmodule_gain_mode {
+	__u32 gain_mode;
+	__u32 factor;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_info {
+	__u32 exp[3];
+	__u32 gain[3];
+	__u32 exp_reg[3];
+	__u32 gain_reg[3];
+	__u32 hts;
+	__u32 vts;
+	__u32 pclk;
+	__u32 dcg_used;
+	__u32 dcg_val[3];
+	struct rkmodule_dcg_ratio dcg_ratio;
+	struct rkmodule_gain_mode gain_mode;
+	__u32 reserved[6];
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
