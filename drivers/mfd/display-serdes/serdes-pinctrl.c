@@ -229,7 +229,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	int pin_base = 0;
 	int i, j, ret;
 
-	if (!serdes->dev)
+	if (!serdes->dev || !serdes->chip_data)
 		return -1;
 
 	pinctrl_info = chip_data->pinctrl_info;

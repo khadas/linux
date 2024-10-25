@@ -171,6 +171,9 @@ static int serdes_i2c_check_register(struct serdes *serdes, int *flag)
 		return ret;
 	}
 
+	if (serdes->chip_data->check_ops->check_reg)
+		ret = serdes->chip_data->check_ops->check_reg(serdes);
+
 	return ret;
 }
 
@@ -207,6 +210,7 @@ static int serdes_reg_check_work_setup(struct serdes *serdes)
 		return PTR_ERR(serdes->kworker);
 	mutex_init(&serdes->reg_check_lock);
 	atomic_set(&serdes->flag_ser_init, 1);
+	atomic_set(&serdes->flag_early_suspend, 0);
 	kthread_queue_delayed_work(serdes->kworker, &serdes->reg_check_work,
 				   msecs_to_jiffies(20000));
 
@@ -463,6 +467,11 @@ static void serdes_i2c_remove(struct i2c_client *client)
 
 static int serdes_i2c_prepare(struct device *dev)
 {
+	struct serdes *serdes = dev_get_drvdata(dev);
+
+	atomic_set(&serdes->flag_early_suspend, 1);
+
+	SERDES_DBG_MFD("%s: name=%s\n", __func__, dev_name(serdes->dev));
 	return 0;
 }
 
@@ -473,6 +482,7 @@ static void serdes_i2c_complete(struct device *dev)
 	if (serdes->chip_data->serdes_type == TYPE_SER)
 		serdes_i2c_set_sequence(serdes);
 
+	atomic_set(&serdes->flag_early_suspend, 0);
 	SERDES_DBG_MFD("%s: name=%s\n", __func__, dev_name(serdes->dev));
 }
 

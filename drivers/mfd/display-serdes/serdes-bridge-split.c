@@ -238,7 +238,7 @@ static int serdes_bridge_split_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct serdes_bridge_split *serdes_bridge_split;
 
-	if (!serdes->dev)
+	if (!serdes->dev || !serdes->chip_data)
 		return -1;
 
 	serdes_bridge_split = devm_kzalloc(dev, sizeof(*serdes_bridge_split), GFP_KERNEL);
