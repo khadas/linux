@@ -90,6 +90,8 @@
 #define RDBK_M			1
 #define RDBK_S			2
 
+#define RKCIF_EXP_NUM_MAX	(8)
+
 /*
  * for distinguishing cropping from senosr or usr
  */
@@ -524,6 +526,26 @@ struct rkcif_fence {
 	int fence_fd;
 };
 
+struct rkcif_sensor_exp {
+	int sequence;
+	u32 exp[3];
+};
+
+struct rkcif_sensor_gain {
+	int sequence;
+	u32 gain[3];
+};
+
+struct rkcif_sensor_vts {
+	int sequence;
+	u32 vts;
+};
+
+struct rkcif_sensor_dcg {
+	int sequence;
+	u32 dcg[3];
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -615,6 +637,12 @@ struct rkcif_stream {
 	struct list_head		done_fence_list_head;
 	spinlock_t			fence_lock;
 	u32				rounding_bit;
+	struct kfifo			exp_kfifo;
+	struct kfifo			gain_kfifo;
+	struct kfifo			vts_kfifo;
+	struct kfifo			dcg_kfifo;
+	struct rkmodule_exp_delay	exp_delay;
+	struct rkmodule_exp_info	sensor_exp_info;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -996,6 +1024,7 @@ struct rkcif_device {
 	bool				is_camera_over_bridge;
 	bool				is_thunderboot_start;
 	bool				is_in_flip;
+	bool				is_support_get_exp;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;

@@ -25,6 +25,7 @@
 #include <linux/fdtable.h>
 #include <linux/mm.h>
 #include <clocksource/arm_arch_timer.h>
+#include <linux/kfifo.h>
 
 #include "dev.h"
 #include "mipi-csi2.h"
@@ -6479,6 +6480,15 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		if (can_reset && hw_dev->dummy_buf.vaddr)
 			rkcif_destroy_dummy_buf(stream);
 		stream->rounding_bit = 0;
+		if (stream->id == RKCIF_STREAM_MIPI_ID0 && dev->is_support_get_exp) {
+			kfifo_free(&stream->exp_kfifo);
+
+			kfifo_free(&stream->gain_kfifo);
+
+			kfifo_free(&stream->vts_kfifo);
+
+			kfifo_free(&stream->dcg_kfifo);
+		}
 	}
 	if (mode == RKCIF_STREAM_MODE_CAPTURE) {
 		tasklet_disable(&stream->vb_done_tasklet);
@@ -7870,6 +7880,34 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		else
 			stream->skip_frame = 0;
 		stream->cur_skip_frame = stream->skip_frame;
+		if (stream->id == RKCIF_STREAM_MIPI_ID0 && dev->is_support_get_exp) {
+			ret = kfifo_alloc(&stream->exp_kfifo,
+					  sizeof(struct rkcif_sensor_exp) * RKCIF_EXP_NUM_MAX, GFP_KERNEL);
+			if (ret < 0)
+				goto disable_tasklet;
+			ret = kfifo_alloc(&stream->gain_kfifo,
+					  sizeof(struct rkcif_sensor_gain) * RKCIF_EXP_NUM_MAX, GFP_KERNEL);
+			if (ret < 0)
+				goto disable_tasklet;
+			ret = kfifo_alloc(&stream->vts_kfifo,
+					  sizeof(struct rkcif_sensor_vts) * RKCIF_EXP_NUM_MAX, GFP_KERNEL);
+			if (ret < 0)
+				goto disable_tasklet;
+			ret = kfifo_alloc(&stream->dcg_kfifo,
+					  sizeof(struct rkcif_sensor_dcg) * RKCIF_EXP_NUM_MAX, GFP_KERNEL);
+			if (ret < 0)
+				goto disable_tasklet;
+			ret = v4l2_subdev_call(terminal_sensor->sd,
+				       core, ioctl,
+				       RKMODULE_GET_EXP_DELAY,
+				       &stream->exp_delay);
+			if (ret) {
+				stream->exp_delay.exp_delay = 2;
+				stream->exp_delay.gain_delay = 2;
+				stream->exp_delay.vts_delay = 2;
+				stream->exp_delay.dcg_delay = 1;
+			}
+		}
 	}
 	if (dev->chip_id >= CHIP_RK1808_CIF) {
 		if (dev->active_sensor  &&
@@ -8300,6 +8338,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->is_m_online_fb_res = false;
 	stream->is_fb_first_frame = true;
 	stream->frame_idx = 0;
+	memset(&stream->sensor_exp_info, 0, sizeof(stream->sensor_exp_info));
 }
 
 static int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
@@ -9439,6 +9478,12 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 		schedule_delayed_work(&dev->work_flip, msecs_to_jiffies(delay_ms));
 		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev, "flip delay_ms %d\n", delay_ms);
 		mutex_unlock(&dev->stream_lock);
+		break;
+	case RKCIF_CMD_SUPPORT_GET_EXP:
+		if (*(int *)arg)
+			dev->is_support_get_exp = true;
+		else
+			dev->is_support_get_exp = false;
 		break;
 	default:
 		return -EINVAL;
@@ -12532,6 +12577,313 @@ static void rkcif_check_vblank_value(struct rkcif_device *dev)
 		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev, "vblank time %u us\n", vblank_us);
 }
 
+static void rkcif_add_sensor_exp_to_kfifo(struct rkcif_stream *stream)
+{
+	struct rkcif_sensor_exp sensor_exp;
+	struct rkcif_sensor_gain sensor_gain;
+	struct rkcif_sensor_vts sensor_vts;
+	struct rkcif_sensor_dcg sensor_dcg;
+	struct rkmodule_exp_info sensor_exp_info = {0};
+	int i = 0;
+	int ret = 0;
+	int j = 0;
+	int idx_max = 0;
+
+	if (!stream->cifdev->is_support_get_exp)
+		return;
+
+	if (stream->cifdev->hdr.hdr_mode == HDR_X2)
+		idx_max = 2;
+	else if (stream->cifdev->hdr.hdr_mode == HDR_X3)
+		idx_max = 3;
+	else
+		idx_max = 1;
+	ret = v4l2_subdev_call(stream->cifdev->terminal_sensor.sd,
+			       core, ioctl,
+			       RKMODULE_GET_EXP_INFO,
+			       &sensor_exp_info);
+	if (!ret)
+		stream->sensor_exp_info = sensor_exp_info;
+
+	if (stream->frame_idx == 0) {
+		for (i = 0; i < stream->exp_delay.exp_delay; i++) {
+			sensor_exp.sequence = i;
+			for (j = 0; j < idx_max; j++)
+				sensor_exp.exp[j] = stream->sensor_exp_info.exp[j];
+			kfifo_in(&stream->exp_kfifo, &sensor_exp, sizeof(sensor_exp));
+		}
+		for (i = 0; i < stream->exp_delay.gain_delay; i++) {
+			sensor_gain.sequence = i;
+			for (j = 0; j < idx_max; j++)
+				sensor_gain.gain[j] = stream->sensor_exp_info.gain[j];
+			kfifo_in(&stream->gain_kfifo, &sensor_gain, sizeof(sensor_gain));
+		}
+		for (i = 0; i < stream->exp_delay.vts_delay; i++) {
+			sensor_vts.sequence = i;
+			sensor_vts.vts = stream->sensor_exp_info.vts;
+			kfifo_in(&stream->vts_kfifo, &sensor_vts, sizeof(sensor_vts));
+		}
+		if (sensor_exp_info.dcg_used) {
+			for (i = 0; i < stream->exp_delay.dcg_delay; i++) {
+				sensor_dcg.sequence = i;
+				for (j = 0; j < idx_max; j++)
+					sensor_dcg.dcg[j] = stream->sensor_exp_info.dcg_val[j];
+				kfifo_in(&stream->dcg_kfifo, &sensor_dcg, sizeof(sensor_dcg));
+			}
+		}
+	} else {
+		if (kfifo_is_full(&stream->exp_kfifo)) {
+			ret = kfifo_out(&stream->exp_kfifo, &sensor_exp, sizeof(sensor_exp));
+			if (!ret)
+				v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+					 "stream[%d] seq %d, exp %u %u %u\n",
+					 stream->id, sensor_exp.sequence,
+					 sensor_exp.exp[0],
+					 sensor_exp.exp[1],
+					 sensor_exp.exp[2]);
+		}
+		sensor_exp.sequence = stream->frame_idx + stream->exp_delay.exp_delay - 1;
+		for (j = 0; j < idx_max; j++)
+			sensor_exp.exp[j] = stream->sensor_exp_info.exp[j];
+		kfifo_in(&stream->exp_kfifo, &sensor_exp, sizeof(sensor_exp));
+
+		if (kfifo_is_full(&stream->gain_kfifo)) {
+			ret = kfifo_out(&stream->gain_kfifo, &sensor_gain, sizeof(sensor_gain));
+			if (!ret)
+				v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+					 "stream[%d] seq %d, gain %u %u %u\n",
+					 stream->id, sensor_gain.sequence,
+					 sensor_gain.gain[0],
+					 sensor_gain.gain[1],
+					 sensor_gain.gain[2]);
+		}
+		sensor_gain.sequence = stream->frame_idx + stream->exp_delay.gain_delay - 1;
+		for (j = 0; j < idx_max; j++)
+			sensor_gain.gain[j] = stream->sensor_exp_info.gain[j];
+		kfifo_in(&stream->gain_kfifo, &sensor_gain, sizeof(sensor_gain));
+
+		if (kfifo_is_full(&stream->vts_kfifo)) {
+			ret = kfifo_out(&stream->vts_kfifo, &sensor_vts, sizeof(sensor_vts));
+			if (!ret)
+				v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+					 "stream[%d] seq %d, vts %u\n",
+					 stream->id, sensor_vts.sequence, sensor_vts.vts);
+		}
+		sensor_vts.sequence = stream->frame_idx + stream->exp_delay.vts_delay - 1;
+		sensor_vts.vts = stream->sensor_exp_info.vts;
+		kfifo_in(&stream->vts_kfifo, &sensor_vts, sizeof(sensor_vts));
+
+		if (sensor_exp_info.dcg_used) {
+			if (kfifo_is_full(&stream->dcg_kfifo)) {
+				ret = kfifo_out(&stream->dcg_kfifo, &sensor_dcg, sizeof(sensor_dcg));
+				if (!ret)
+					v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "stream[%d] seq %d, dcg %u %u %u\n",
+						 stream->id, sensor_dcg.sequence,
+						 sensor_dcg.dcg[0],
+						 sensor_dcg.dcg[1],
+						 sensor_dcg.dcg[2]);
+			}
+			sensor_dcg.sequence = stream->frame_idx + stream->exp_delay.dcg_delay - 1;
+			for (j = 0; j < idx_max; j++)
+				sensor_dcg.dcg[j] = stream->sensor_exp_info.dcg_val[j];
+			kfifo_in(&stream->dcg_kfifo, &sensor_dcg, sizeof(sensor_dcg));
+		}
+	}
+}
+
+static int rkcif_get_sof_and_exp_info(struct rkcif_device *cif_dev,
+				      struct rkisp_vicap_sof *sof_info)
+{
+	struct rkcif_stream *stream = &cif_dev->stream[0];
+	struct rkcif_sensor_exp sensor_exp = {0};
+	struct rkcif_sensor_gain sensor_gain = {0};
+	struct rkcif_sensor_vts sensor_vts = {0};
+	struct rkcif_sensor_dcg sensor_dcg = {0};
+	int ret = 0;
+	int i = 0;
+	int j = 0;
+	int idx_max = 0;
+
+	sof_info->timestamp = stream->readout.fs_timestamp;
+	sof_info->sequence = stream->frame_idx;
+
+	if (!cif_dev->is_support_get_exp)
+		return 0;
+
+	if (cif_dev->hdr.hdr_mode == HDR_X2)
+		idx_max = 2;
+	else if (cif_dev->hdr.hdr_mode == HDR_X3)
+		idx_max = 3;
+	else
+		idx_max = 1;
+
+	if (!kfifo_is_empty(&stream->exp_kfifo)) {
+		ret = kfifo_out(&stream->exp_kfifo, &sensor_exp, sizeof(sensor_exp));
+		if (ret == sizeof(sensor_exp)) {
+			v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+				 "stream[%d] seq %d, exp %u %u %u\n",
+				 stream->id, sensor_exp.sequence,
+				 sensor_exp.exp[0],
+				 sensor_exp.exp[1],
+				 sensor_exp.exp[2]);
+		}
+	}
+	if (!kfifo_is_empty(&stream->gain_kfifo)) {
+		ret = kfifo_out(&stream->gain_kfifo, &sensor_gain, sizeof(sensor_gain));
+		if (ret == sizeof(sensor_gain))
+			v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+				 "stream[%d] seq %d, gain %u %u %u\n",
+				 stream->id, sensor_gain.sequence,
+				 sensor_gain.gain[0],
+				 sensor_gain.gain[1],
+				 sensor_gain.gain[2]);
+		else
+			return ret;
+	}
+	if (sensor_exp.sequence > sensor_gain.sequence) {
+		for (i = 0; i < RKCIF_EXP_NUM_MAX; i++) {
+			if (!kfifo_is_empty(&stream->gain_kfifo)) {
+				ret = kfifo_out(&stream->gain_kfifo, &sensor_gain, sizeof(sensor_gain));
+				if (ret == sizeof(sensor_gain))
+					v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "stream[%d] seq %d, gain %u %u %u\n",
+						 stream->id, sensor_gain.sequence,
+						 sensor_gain.gain[0],
+						 sensor_gain.gain[1],
+						 sensor_gain.gain[2]);
+				else
+					return ret;
+				if (sensor_gain.sequence == sensor_exp.sequence)
+					break;
+				else if (sensor_gain.sequence > sensor_exp.sequence)
+					return -EINVAL;
+			}
+		}
+		if (i == RKCIF_EXP_NUM_MAX)
+			return -EINVAL;
+	} else if (sensor_exp.sequence < sensor_gain.sequence) {
+		for (i = 0; i < RKCIF_EXP_NUM_MAX; i++) {
+			if (!kfifo_is_empty(&stream->exp_kfifo)) {
+				ret = kfifo_out(&stream->exp_kfifo, &sensor_exp, sizeof(sensor_exp));
+				if (ret == sizeof(sensor_exp))
+					v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "stream[%d] seq %d, exp %u %u %u\n",
+						 stream->id, sensor_exp.sequence,
+						 sensor_exp.exp[0],
+						 sensor_exp.exp[1],
+						 sensor_exp.exp[2]);
+				else
+					return ret;
+				if (sensor_exp.sequence == sensor_gain.sequence)
+					break;
+				else if (sensor_exp.sequence > sensor_gain.sequence)
+					return -EINVAL;
+			}
+		}
+		if (i == RKCIF_EXP_NUM_MAX)
+			return -EINVAL;
+	}
+	if (!kfifo_is_empty(&stream->vts_kfifo)) {
+		ret = kfifo_out(&stream->vts_kfifo, &sensor_vts, sizeof(sensor_vts));
+		if (ret == sizeof(sensor_vts))
+			v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+				 "stream[%d] seq %d, vts %u\n",
+				 stream->id, sensor_vts.sequence, sensor_vts.vts);
+		else
+			return ret;
+	}
+	if (sensor_exp.sequence > sensor_vts.sequence) {
+		for (i = 0; i < RKCIF_EXP_NUM_MAX; i++) {
+			if (!kfifo_is_empty(&stream->vts_kfifo)) {
+				ret = kfifo_out(&stream->vts_kfifo, &sensor_vts, sizeof(sensor_vts));
+				if (ret == sizeof(sensor_vts))
+					v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+						 "stream[%d] seq %d, vts %u\n",
+						 stream->id, sensor_vts.sequence, sensor_vts.vts);
+				else
+					return ret;
+				if (sensor_vts.sequence == sensor_exp.sequence)
+					break;
+				else if (sensor_vts.sequence > sensor_exp.sequence)
+					return -EINVAL;
+			}
+		}
+		if (i == RKCIF_EXP_NUM_MAX)
+			return -EINVAL;
+	} else if (sensor_exp.sequence < sensor_vts.sequence) {
+		return -EINVAL;
+	}
+	if (stream->sensor_exp_info.dcg_used) {
+		if (!kfifo_is_empty(&stream->dcg_kfifo)) {
+			ret = kfifo_out(&stream->dcg_kfifo, &sensor_dcg, sizeof(sensor_dcg));
+			if (ret == sizeof(sensor_dcg))
+				v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+					 "stream[%d] seq %d, dcg %u %u %u\n",
+					 stream->id, sensor_dcg.sequence,
+					 sensor_dcg.dcg[0],
+					 sensor_dcg.dcg[1],
+					 sensor_dcg.dcg[2]);
+			else
+				return ret;
+		}
+		if (sensor_exp.sequence > sensor_dcg.sequence) {
+			for (i = 0; i < RKCIF_EXP_NUM_MAX; i++) {
+				if (!kfifo_is_empty(&stream->dcg_kfifo)) {
+					ret = kfifo_out(&stream->dcg_kfifo, &sensor_dcg, sizeof(sensor_dcg));
+					if (ret == sizeof(sensor_dcg))
+						v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+							 "stream[%d] seq %d, dcg %u %u %u\n",
+							 stream->id, sensor_dcg.sequence,
+							 sensor_dcg.dcg[0],
+							 sensor_dcg.dcg[1],
+							 sensor_dcg.dcg[2]);
+					else
+						return ret;
+					if (sensor_dcg.sequence == sensor_exp.sequence)
+						break;
+					else if (sensor_dcg.sequence > sensor_exp.sequence)
+						return -EINVAL;
+				}
+			}
+			if (i == RKCIF_EXP_NUM_MAX)
+				return -EINVAL;
+		} else if (sensor_exp.sequence < sensor_dcg.sequence) {
+			return -EINVAL;
+		}
+		sof_info->dcg_used = 1;
+		sof_info->dcg_ratio = stream->sensor_exp_info.dcg_ratio;
+		for (j = 0; j < idx_max; j++)
+			sof_info->dcg_val[j] = sensor_dcg.dcg[j];
+	} else {
+		sof_info->dcg_used = 0;
+	}
+	sof_info->sequence = sensor_exp.sequence;
+	for (j = 0; j < idx_max; j++) {
+		sof_info->exp[j] = sensor_exp.exp[j];
+		sof_info->gain[j] = sensor_gain.gain[j];
+	}
+	sof_info->vts = sensor_vts.vts;
+	sof_info->hts = stream->sensor_exp_info.hts;
+	sof_info->pclk = stream->sensor_exp_info.pclk;
+	sof_info->gain_mode = stream->sensor_exp_info.gain_mode;
+	sof_info->is_exp_active = true;
+	v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+		 "seq %d, exp %u %u %u, gain %u %u %u, dcg %u %u %u, vts %u\n",
+		 sof_info->sequence,
+		 sof_info->exp[0],
+		 sof_info->exp[1],
+		 sof_info->exp[2],
+		 sof_info->gain[0],
+		 sof_info->gain[1],
+		 sof_info->gain[2],
+		 sof_info->dcg_val[0],
+		 sof_info->dcg_val[1],
+		 sof_info->dcg_val[2],
+		 sof_info->vts);
+	return 0;
+}
+
 static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 					  unsigned int intstat_glb,
 					  int index)
@@ -12826,15 +13178,28 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	unsigned long flags;
 	int i = 0;
 	int ret = 0;
+	struct v4l2_subdev *sd = NULL;
+	struct rkisp_vicap_sof sof = {0};
+
+	spin_lock_irqsave(&detect_stream->fps_lock, flags);
+	detect_stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
+	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
+
+	if (cif_dev->chip_id >= CHIP_RK3576_CIF) {
+		rkcif_add_sensor_exp_to_kfifo(&cif_dev->stream[0]);
+		sd = get_rkisp_sd(cif_dev->sditf[0]);
+		if (sd) {
+			rkcif_get_sof_and_exp_info(cif_dev, &sof);
+			v4l2_subdev_call(sd, core, ioctl,
+					 RKISP_VICAP_CMD_SOF, &sof);
+		}
+	}
 
 	if (cif_dev->chip_id >= CHIP_RK3576_CIF && (!detect_stream->dma_en))
 		return;
 
 	if (cif_dev->chip_id < CHIP_RK3588_CIF)
 		detect_stream->fs_cnt_in_single_frame++;
-	spin_lock_irqsave(&detect_stream->fps_lock, flags);
-	detect_stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
-	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
 
 	if (cif_dev->sync_cfg.type != NO_SYNC_MODE &&
 	    cif_dev->sync_cfg.type != SOFT_SYNC_MODE) {

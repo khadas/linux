@@ -1004,6 +1004,41 @@ static ssize_t rkcif_store_reg_dbg(struct device *dev,
 static DEVICE_ATTR(reg_dbg, 0600,
 		   rkcif_show_reg_dbg, rkcif_store_reg_dbg);
 
+static ssize_t rkcif_show_get_exp_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->is_support_get_exp);
+	return ret;
+}
+
+static ssize_t rkcif_store_get_exp_mode(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret) {
+		if (val)
+			cif_dev->is_support_get_exp = true;
+		else
+			cif_dev->is_support_get_exp = false;
+	} else {
+		dev_info(cif_dev->dev, "set get_exp mode failed\n");
+	}
+	return len;
+}
+
+static DEVICE_ATTR(is_support_get_exp, 0600,
+		   rkcif_show_get_exp_mode, rkcif_store_get_exp_mode);
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
@@ -1023,6 +1058,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_use_hw_interlace.attr,
 	&dev_attr_low_latency.attr,
 	&dev_attr_reg_dbg.attr,
+	&dev_attr_is_support_get_exp.attr,
 	NULL,
 };
 
@@ -2825,6 +2861,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->is_in_flip = false;
 	cif_dev->sw_reg = devm_kzalloc(cif_dev->dev, RKCIF_REG_MAX, GFP_KERNEL);
 	cif_dev->reg_dbg = 0;
+	cif_dev->is_support_get_exp = false;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
