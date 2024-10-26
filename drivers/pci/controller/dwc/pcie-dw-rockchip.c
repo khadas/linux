@@ -768,37 +768,13 @@ retry_regulator:
 	rk_pcie->slot_power_limit = of_pci_get_slot_power_limit(pdev->dev.of_node,
 					&rk_pcie->slot_power_limit_value,
 					&rk_pcie->slot_power_limit_scale);
-	return 0;
-}
 
-static int rk_pcie_phy_init(struct rk_pcie *rk_pcie)
-{
-	int ret;
-	struct device *dev = rk_pcie->pci->dev;
-
-	rk_pcie->phy = devm_phy_optional_get(dev, "pcie-phy");
+	rk_pcie->phy = devm_phy_optional_get(&pdev->dev, "pcie-phy");
 	if (IS_ERR(rk_pcie->phy)) {
 		if (PTR_ERR(rk_pcie->phy) != -EPROBE_DEFER)
-			dev_info(dev, "missing phy\n");
+			dev_info(&pdev->dev, "missing phy\n");
 		return PTR_ERR(rk_pcie->phy);
 	}
-
-	ret = phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
-	if (ret) {
-		dev_err(dev, "fail to set phy to rc mode, err %d\n", ret);
-		return ret;
-	}
-
-	if (rk_pcie->bifurcation)
-		phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_BIFURCATION);
-
-	ret = phy_init(rk_pcie->phy);
-	if (ret < 0) {
-		dev_err(dev, "fail to init phy, err %d\n", ret);
-		return ret;
-	}
-
-	phy_power_on(rk_pcie->phy);
 
 	return 0;
 }
@@ -1591,11 +1567,22 @@ static int rk_pcie_really_probe(void *p)
 		goto disable_vpcie3v3;
 	}
 
-	ret = rk_pcie_phy_init(rk_pcie);
+	ret = phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
 	if (ret) {
-		dev_err_probe(dev, ret, "phy init failed\n");
+		dev_err_probe(dev, ret, "fail to set phy to rc mode\n");
 		goto disable_clk;
 	}
+
+	if (rk_pcie->bifurcation)
+		phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_BIFURCATION);
+
+	ret = phy_init(rk_pcie->phy);
+	if (ret < 0) {
+		dev_err_probe(dev, ret, "fail to init phy\n");
+		goto disable_clk;
+	}
+
+	phy_power_on(rk_pcie->phy);
 
 	reset_control_deassert(rk_pcie->rsts);
 
