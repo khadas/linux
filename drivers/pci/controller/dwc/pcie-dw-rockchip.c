@@ -1372,14 +1372,6 @@ static int rk_pcie_init_irq_and_wq(struct rk_pcie *rk_pcie, struct platform_devi
 	struct device *dev = rk_pcie->pci->dev;
 	int ret;
 
-	/*
-	 * Misc interrupts was masked by default. However, they will be
-	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
-	 * as we don't need to ack them before registering irq. And they will be
-	 * unmasked later.
-	 */
-	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
-
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
 		dev_err(dev, "pcie irq init failed\n");
@@ -1493,6 +1485,14 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	rk_pcie_set_power_limit(rk_pcie);
 
 	rk_pcie_set_rc_mode(rk_pcie);
+
+	/*
+	 * Misc interrupts was masked by default. However, they will be
+	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
+	 * as we don't need to ack them before registering irq. And they will be
+	 * unmasked later.
+	 */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
 
 	return 0;
 }
