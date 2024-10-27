@@ -1451,52 +1451,6 @@ static void rk_pcie_set_power_limit(struct rk_pcie *rk_pcie)
 	dw_pcie_writew_dbi(rk_pcie->pci, reg + PCI_EXP_SLTCAP, val);
 }
 
-static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
-{
-	struct dw_pcie *pci = rk_pcie->pci;
-	u32 val;
-
-	if (rk_pcie->is_lpbk) {
-		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
-		val |= PORT_LINK_LPBK_ENABLE;
-		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
-	}
-
-	if (rk_pcie->is_comp && rk_pcie->comp_prst[0]) {
-		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
-		val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
-		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
-	}
-
-	/* Enable RASDES Error event by default */
-	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
-	if (!val) {
-		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
-	} else {
-		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
-		dw_pcie_writel_dbi(pci, val + 8, 0x3);
-		rk_pcie->have_rasdes = true;
-	}
-
-	dw_pcie_dbi_ro_wr_en(pci);
-
-	rk_pcie_fast_link_setup(rk_pcie);
-
-	rk_pcie_set_power_limit(rk_pcie);
-
-	rk_pcie_set_rc_mode(rk_pcie);
-
-	/*
-	 * Misc interrupts was masked by default. However, they will be
-	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
-	 * as we don't need to ack them before registering irq. And they will be
-	 * unmasked later.
-	 */
-	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
-
-	return 0;
-}
-
 static int rk_pcie_really_probe(void *p)
 {
 	struct platform_device *pdev = p;
@@ -1506,6 +1460,7 @@ static int rk_pcie_really_probe(void *p)
 	int ret;
 	const struct of_device_id *match;
 	const struct rk_pcie_of_data *data;
+	u32 val;
 
 	/* 1. resource initialization */
 	match = of_match_device(rk_pcie_of_match, dev);
@@ -1531,6 +1486,7 @@ static int rk_pcie_really_probe(void *p)
 	/* 2. variables assignment */
 	rk_pcie->pci = pci;
 	rk_pcie->msi_vector_num = data ? data->msi_vector_num : 0;
+	rk_pcie->intx = 0xffffffff;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 	platform_set_drvdata(pdev, rk_pcie);
@@ -1593,11 +1549,38 @@ static int rk_pcie_really_probe(void *p)
 	}
 
 	/* 5. host registers manipulation */
-	ret = rk_pcie_host_config(rk_pcie);
-	if (ret) {
-		dev_err_probe(dev, ret, "rk_pcie_host_config failed\n");
-		goto disable_clk;
+	if (rk_pcie->is_lpbk) {
+		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
+		val |= PORT_LINK_LPBK_ENABLE;
+		dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
 	}
+
+	if (rk_pcie->is_comp && rk_pcie->comp_prst[0]) {
+		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+		val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
+		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+	}
+
+	/* Enable RASDES Error event by default */
+	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+	if (!val) {
+		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
+	} else {
+		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
+		dw_pcie_writel_dbi(pci, val + 8, 0x3);
+		rk_pcie->have_rasdes = true;
+	}
+
+	dw_pcie_dbi_ro_wr_en(pci);
+
+	rk_pcie_fast_link_setup(rk_pcie);
+
+	rk_pcie_set_power_limit(rk_pcie);
+
+	rk_pcie_set_rc_mode(rk_pcie);
+
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+			   rk_pcie->intx | 0xffff0000);
 
 	/* 6. software process */
 	ret = rk_pcie_init_irq_and_wq(rk_pcie, pdev);
@@ -1939,62 +1922,98 @@ no_l2:
 static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
+	struct dw_pcie *pci = rk_pcie->pci;
+	u32 val;
 	int ret;
-
-	reset_control_assert(rk_pcie->rsts);
-	udelay(10);
-	reset_control_deassert(rk_pcie->rsts);
 
 	ret = rk_pcie_enable_power(rk_pcie);
 	if (ret)
 		return ret;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(pci->dev);
+
+	reset_control_assert(rk_pcie->rsts);
+	udelay(10);
+
 	ret = clk_bulk_prepare_enable(rk_pcie->clk_cnt, rk_pcie->clks);
 	if (ret) {
 		dev_err(dev, "failed to prepare enable pcie bulk clks: %d\n", ret);
-		return ret;
+		goto disable_vpcie3v3;
 	}
 
 	ret = phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
 	if (ret) {
 		dev_err(dev, "fail to set phy to rc mode, err %d\n", ret);
-		return ret;
+		goto disable_clk;
 	}
+
+	if (rk_pcie->bifurcation)
+		phy_set_mode_ext(rk_pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_BIFURCATION);
 
 	ret = phy_init(rk_pcie->phy);
 	if (ret < 0) {
 		dev_err(dev, "fail to init phy, err %d\n", ret);
-		return ret;
+		goto disable_clk;
 	}
 
 	phy_power_on(rk_pcie->phy);
 
-	dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
+	reset_control_deassert(rk_pcie->rsts);
+
+	ret = phy_calibrate(rk_pcie->phy);
+	if (ret) {
+		dev_err(dev, "phy lock failed\n");
+		goto disable_phy;
+	}
+
+	/* Enable RASDES Error event by default */
+	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+	if (!val) {
+		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
+	} else {
+		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
+		dw_pcie_writel_dbi(pci, val + 8, 0x3);
+		rk_pcie->have_rasdes = true;
+	}
+
+	dw_pcie_dbi_ro_wr_en(pci);
 
 	rk_pcie_fast_link_setup(rk_pcie);
 
-	rk_pcie_set_rc_mode(rk_pcie);
-
-	dw_pcie_setup_rc(&rk_pcie->pci->pp);
-
 	rk_pcie_set_power_limit(rk_pcie);
+
+	rk_pcie_set_rc_mode(rk_pcie);
 
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
 			   rk_pcie->intx | 0xffff0000);
 
-	ret = rk_pcie_establish_link(rk_pcie->pci);
+	dw_pcie_setup_rc(&pci->pp);
+
+	ret = rk_pcie_establish_link(pci);
 	if (ret) {
 		dev_err(dev, "failed to establish pcie link\n");
-		goto err;
+		goto disable_phy;
 	}
 
-	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
+	/* Disable BAR0 BAR1 */
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
+
+	dw_pcie_dbi_ro_wr_dis(pci);
 	rk_pcie->in_suspend = false;
 	if (rk_pcie->skip_scan_in_resume)
 		device_init_wakeup(dev, true);
 
 	return 0;
-err:
+disable_phy:
+	phy_power_off(rk_pcie->phy);
+	phy_exit(rk_pcie->phy);
+disable_clk:
+	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
+disable_vpcie3v3:
+	pm_runtime_put(dev);
+	pm_runtime_disable(dev);
 	rk_pcie_disable_power(rk_pcie);
 
 	return ret;
