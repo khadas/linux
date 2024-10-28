@@ -454,11 +454,19 @@ static const struct snd_soc_component_driver soc_codec_dev_rd = {
 	.num_controls = ARRAY_SIZE(rk_dsm_snd_controls),
 };
 
+static const struct reg_default rd_reg_defaults[] = {
+	{ DACVUCTL, 0x1 },
+	{ DACINT_DIV, 0x7 },
+	{ DACDSM_DIV, 0x3 },
+};
+
 static const struct regmap_config rd_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = VERSION,
+	.reg_defaults = rd_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rd_reg_defaults),
 	.cache_type = REGCACHE_FLAT,
 };
 
