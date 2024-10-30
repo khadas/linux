@@ -1078,13 +1078,13 @@
 		sdmmc_bus4_pins: sdmmc-bus4-pins {
 			rockchip,pins =
 				/* sdmmc_d0 */
-				<3 RK_PA2 1 &pcfg_pull_none>,
+				<3 RK_PA2 1 &pcfg_pull_up>,
 				/* sdmmc_d1 */
-				<3 RK_PA3 1 &pcfg_pull_none>,
+				<3 RK_PA3 1 &pcfg_pull_up>,
 				/* sdmmc_d2 */
-				<3 RK_PA4 1 &pcfg_pull_none>,
+				<3 RK_PA4 1 &pcfg_pull_up>,
 				/* sdmmc_d3 */
-				<3 RK_PA5 1 &pcfg_pull_none>;
+				<3 RK_PA5 1 &pcfg_pull_up>;
 		};
 
 		/omit-if-no-ref/
@@ -1097,7 +1097,7 @@
 		sdmmc_cmd_pins: sdmmc-cmd-pins {
 			rockchip,pins =
 				/* sdmmc_cmd */
-				<3 RK_PA1 1 &pcfg_pull_none>;
+				<3 RK_PA1 1 &pcfg_pull_up>;
 		};
 	};
 
