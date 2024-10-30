@@ -182,14 +182,25 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 	return ret;
 }
 
+static void ufs_rockchip_controller_reset(struct ufs_rockchip_host *host)
+{
+	reset_control_assert(host->rst);
+	udelay(1);
+	reset_control_deassert(host->rst);
+}
+
 static int ufs_rockchip_hce_enable_notify(struct ufs_hba *hba,
 					 enum ufs_notify_change_status status)
 {
+	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
 	int err = 0;
 
 	if (status == PRE_CHANGE) {
 		int retry_outer = 3;
 		int retry_inner;
+
+		ufs_rockchip_controller_reset(host);
+
 start:
 		if (ufshcd_is_hba_active(hba))
 			/* change controller state to "reset state" */
@@ -374,9 +385,7 @@ static int ufs_rockchip_common_init(struct ufs_hba *hba)
 		return PTR_ERR(host->rst);
 	}
 
-	reset_control_assert(host->rst);
-	udelay(1);
-	reset_control_deassert(host->rst);
+	ufs_rockchip_controller_reset(host);
 
 	host->ref_out_clk = devm_clk_get(dev, "ref_out");
 	if (IS_ERR(host->ref_out_clk)) {
