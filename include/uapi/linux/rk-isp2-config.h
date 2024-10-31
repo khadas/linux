@@ -80,6 +80,12 @@
 #define RKISP_CMD_GET_OFFLINE_RAW_BUFCNT \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 22, int)
 
+#define RKISP_CMD_SET_ONLINE_HDR_WRAP_LINE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 23, int)
+
+#define RKISP_CMD_GET_ONLINE_HDR_WRAP_LINE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 24, int)
+
 #define RKISP_CMD_SET_FPN \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 25, struct rkisp_fpn_cfg)
 
@@ -412,6 +418,12 @@ struct rkisp_bay3dbuf_info {
 			int ds_size;
 		} v32;
 		struct {
+			int ds_fd;
+			int ds_size;
+			int gain_fd;
+			int gain_size;
+		} v33;
+		struct {
 			int gain_fd;
 			int gain_size;
 			int aiisp_fd;
@@ -430,7 +442,7 @@ struct rkisp_bay3dbuf_info {
  * RKISP_CMSK_WIN_MAX_V30 for rk3588 support 8 windows, and
  * support for mainpath and selfpath output stream channel.
  *
- * RKISP_CMSK_WIN_MAX for rv1106 support 12 windows, and
+ * RKISP_CMSK_WIN_MAX for rv1106/rv1103b support 12 windows, and
  * support for mainpath selfpath and bypasspath output stream channel.
  *
  * mode: 0:mosaic mode, 1:cover mode
@@ -2077,6 +2089,8 @@ enum {
 	RKISP_RTT_MODE_ONE_FRAME,
 };
 
+#define MAX_PRE_BUF_NUM (4)
+
 /**
  * struct rkisp_thunderboot_resmem_head
  */
@@ -2097,8 +2111,12 @@ struct rkisp_thunderboot_resmem_head {
 	__u32 exp_time_reg[3];
 	__u32 exp_gain_reg[3];
 	__u32 exp_isp_dgain[3];
+	__u32 dcg_mode[3];
 	__u32 nr_buf_size;
 	__u32 share_mem_size;
+	__u32 pre_buf_num;
+	__u32 pre_buf_addr[MAX_PRE_BUF_NUM];
+	__u32 pre_buf_timestamp[MAX_PRE_BUF_NUM];
 } __attribute__ ((packed));
 
 /**

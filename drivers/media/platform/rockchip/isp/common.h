@@ -146,6 +146,7 @@ extern bool rkisp_irq_dbg;
 extern bool rkisp_buf_dbg;
 extern u64 rkisp_debug_reg;
 extern unsigned int rkisp_vicap_buf[DEV_MAX];
+extern unsigned int rkisp_hdr_wrap_line[DEV_MAX];
 extern struct platform_driver rkisp_plat_drv;
 
 static inline

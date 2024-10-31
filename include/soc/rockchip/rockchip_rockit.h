@@ -55,6 +55,7 @@ struct ISP_VIDEO_FRAMES {
 
 	u64	u64PrivateData;
 	u32	u32FrameFlag;     /* FRAME_FLAG_E, can be OR operation. */
+	u8	ispEncCnt;
 };
 
 struct rkisp_dev_cfg {
@@ -75,6 +76,10 @@ struct rockit_cfg {
 	int isp_num;
 	u32 nick_id;
 	u32 event;
+	u32 y_offset;
+	u32 u_offset;
+	u32 v_offset;
+	u32 vir_width;
 	void *node;
 	void *mpibuf;
 	void *vvi_dev[ROCKIT_ISP_NUM_MAX];
@@ -120,7 +125,7 @@ struct rockit_rkcif_cfg {
 	int (*rkcif_rockit_mpibuf_done)(struct rockit_rkcif_cfg *rockit_cif_cfg);
 };
 
-#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32)
+#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32) || IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V33)
 
 void *rkisp_rockit_function_register(void *function, int cmd);
 int rkisp_rockit_get_ispdev(char **name);

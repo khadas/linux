@@ -227,8 +227,6 @@ int rkisp_buf_get_fd(struct rkisp_device *dev,
 
 	if (!buf || !buf->mem_priv)
 		return -EINVAL;
-	if (try_fd && buf->is_need_dmafd)
-		return 0;
 	if (try_fd) {
 		buf->is_need_dbuf = true;
 		buf->is_need_dmafd = true;
@@ -532,7 +530,7 @@ u64 rkisp_time_get_ns(struct rkisp_device *dev)
 {
 	u64 ns;
 
-	if (dev->isp_ver == ISP_V32)
+	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33)
 		ns = ktime_get_boottime_ns();
 	else
 		ns = ktime_get_ns();

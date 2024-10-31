@@ -4985,7 +4985,18 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 
 static void rkisp_save_first_param_v32(struct rkisp_isp_params_vdev *params_vdev, void *param)
 {
-	memcpy(params_vdev->isp32_params, param, params_vdev->vdev_fmt.fmt.meta.buffersize);
+	u32 size;
+
+	if (!params_vdev->dev->is_rtt_first) {
+		size = params_vdev->vdev_fmt.fmt.meta.buffersize;
+		memcpy(params_vdev->isp32_params, param, size);
+	} else {
+		/* left and right params for unit fast case */
+		size = sizeof(struct isp32_isp_params_cfg);
+		memcpy(params_vdev->isp32_params, param, size);
+		if (params_vdev->dev->unite_div == ISP_UNITE_DIV2)
+			memcpy(params_vdev->isp32_params + 1, param, size);
+	}
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
 }
 
