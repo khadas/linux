@@ -628,10 +628,6 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pde
 		return ret;
 	}
 
-	/* Disable BAR0 BAR1 */
-	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
-	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
-
 	return 0;
 }
 
@@ -1566,6 +1562,10 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
 			   rk_pcie->intx | 0xffff0000);
 
+	/* Disable BAR0 BAR1 */
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
+
 	return 0;
 }
 
@@ -1992,10 +1992,6 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 		dev_err(dev, "failed to establish pcie link, ret=%d\n", ret);
 		goto unconfig_host;
 	}
-
-	/* Disable BAR0 BAR1 */
-	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
-	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 	rk_pcie->in_suspend = false;
