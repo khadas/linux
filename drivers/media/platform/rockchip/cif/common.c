@@ -342,8 +342,11 @@ static struct dma_buf *rkcif_shm_alloc(struct rkisp_thunderboot_shmem *shmem)
 int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
 {
 	struct rkcif_dummy_buffer *dummy = &buf->dummy;
+	u32 reserved_mem = 0;
 
-	dummy->dma_addr = dev->resmem_pa + dummy->size * buf->buf_idx;
+	if (dev->pre_buf_num)
+		reserved_mem = SHARED_MEM_RESERVED_HEAD_SIZE;
+	dummy->dma_addr = reserved_mem + dev->resmem_pa + dummy->size * buf->buf_idx;
 	if (dummy->dma_addr + dummy->size > dev->resmem_pa + dev->resmem_size)
 		return -EINVAL;
 	buf->dbufs.dma = dummy->dma_addr;

@@ -50,6 +50,7 @@ enum rkcif_sync_mode {
 	RKCIF_MASTER_SLAVE,
 	RKCIF_EXT_MASTER,
 	RKCIF_EXT_SLAVE,
+	RKCIF_SOFT_SYNC,
 };
 
 struct rkcif_sync_dev {
@@ -62,6 +63,7 @@ struct rkcif_multi_sync_config {
 	struct rkcif_sync_dev int_master;
 	struct rkcif_sync_dev ext_master;
 	struct rkcif_sync_dev slave;
+	struct rkcif_sync_dev soft_sync;
 	enum rkcif_sync_mode mode;
 	int dev_cnt;
 	int streaming_cnt;
@@ -108,6 +110,7 @@ enum rkcif_chip_id {
 	CHIP_RV1106_CIF,
 	CHIP_RK3562_CIF,
 	CHIP_RK3576_CIF,
+	CHIP_RV1103B_CIF,
 };
 
 struct rkcif_hw_match_data {
@@ -129,7 +132,7 @@ struct rkcif_hw {
 	struct device			*dev;
 	int				irq;
 	void __iomem			*base_addr;
-	void __iomem			*csi_base;
+	struct resource			*res;
 	struct regmap			*grf;
 	struct clk			*clks[RKCIF_MAX_BUS_CLK];
 	int				clk_size;
@@ -145,6 +148,7 @@ struct rkcif_hw {
 	struct mutex			dev_lock;
 	struct rkcif_multi_sync_config	sync_config[RKCIF_MAX_GROUP];
 	spinlock_t			group_lock;
+	spinlock_t			reset_lock;
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_dummy_buffer	dummy_buf;
 	bool				iommu_en;
@@ -154,6 +158,7 @@ struct rkcif_hw {
 	bool				adapt_to_usbcamerahal;
 	u64				irq_time;
 	bool				is_rk3588s2;
+	bool				is_in_reset;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
