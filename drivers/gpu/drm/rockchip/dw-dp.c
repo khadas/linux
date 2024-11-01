@@ -4652,6 +4652,14 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 
 	*num_output_fmts = j;
 
+	if (*num_output_fmts == 0) {
+		dev_warn(dp->dev, "here is not satisfied the require bus format\n");
+		dev_info(dp->dev,
+			 "max bpc:%d, max fmt:%x, lanes:%d, rate:%d, bpc:%d, fmt:%d, eotf:%d\n",
+			 conn_state->max_bpc, di->color_formats, link->lanes, link->max_rate,
+			 dp_state->bpc, dp_state->color_format, dp->eotf_type);
+	}
+
 	return output_fmts;
 }
 
