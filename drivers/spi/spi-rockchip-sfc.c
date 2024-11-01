@@ -15,12 +15,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/of_gpio.h>
@@ -197,6 +199,16 @@
 
 #define ROCKCHIP_AUTOSUSPEND_DELAY	2000
 
+struct rockchip_sfc_powergood {
+	bool	valid;
+	u32	grf_offset;
+	u8	bits_mask;
+};
+
+struct rockchip_sfc_data {
+	struct rockchip_sfc_powergood powergood;
+};
+
 struct rockchip_sfc {
 	struct device *dev;
 	void __iomem *regbase;
@@ -218,6 +230,8 @@ struct rockchip_sfc {
 	struct gpio_desc *rst_gpio;
 	struct gpio_desc **cs_gpiods;
 	struct spi_master *master;
+	struct regmap *grf;
+	struct rockchip_sfc_data *data;
 };
 
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
@@ -392,6 +406,7 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 {
 	u32 ctrl = 0, cmd = 0, cmd_ext = 0, dummy_ext = 0;
 	u8 cs = mem->spi->chip_select;
+	u32 voltage;
 
 	/* set CMD */
 	if (op->cmd.nbytes == 2) {
@@ -460,6 +475,15 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 		op->dummy.nbytes, op->dummy.buswidth);
 	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x cmd_ext=%x addr=%llx dummy_ext=%x len=%x cs=%d\n",
 		ctrl, cmd, cmd_ext, op->addr.val, cmd_ext, len, cs);
+
+	if (sfc->data && sfc->data->powergood.valid) {
+		if (regmap_read_poll_timeout(sfc->grf, sfc->data->powergood.grf_offset,
+					     voltage, voltage & sfc->data->powergood.bits_mask,
+					     1000, jiffies_to_usecs(HZ))) {
+			dev_err(sfc->dev, "wait for powergood failed\n");
+			return -EIO;
+		}
+	}
 
 	if (cmd_ext)
 		writel(cmd_ext, sfc->regbase + SFC_CMD_EXT);
@@ -900,6 +924,22 @@ static int rockchip_sfc_get_gpio_descs(struct spi_controller *ctlr, struct rockc
 	return 0;
 }
 
+static const struct rockchip_sfc_data rk3506_fspi_data = {
+	.powergood = {
+		.valid = true,
+		.grf_offset = 0x100,
+		.bits_mask = BIT(0),
+	},
+};
+
+static const struct of_device_id rockchip_sfc_dt_ids[] = {
+	{ .compatible = "rockchip,fspi",},
+	{ .compatible = "rockchip,rk3506-fspi", .data = &rk3506_fspi_data},
+	{ .compatible = "rockchip,sfc"},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, rockchip_sfc_dt_ids);
+
 static int rockchip_sfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -990,6 +1030,17 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to request irq\n");
 
 		goto err_irq;
+	}
+
+	sfc->data = (struct rockchip_sfc_data *)device_get_match_data(&pdev->dev);
+	if (sfc->data) {
+		sfc->grf = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "rockchip,grf");
+		if (IS_ERR_OR_NULL(sfc->grf)) {
+			ret = -EINVAL;
+			dev_err(dev, "Failed to find grf\n");
+
+			goto err_irq;
+		}
 	}
 
 	platform_set_drvdata(pdev, sfc);
@@ -1148,13 +1199,6 @@ static const struct dev_pm_ops rockchip_sfc_pm_ops = {
 			   rockchip_sfc_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_sfc_suspend, rockchip_sfc_resume)
 };
-
-static const struct of_device_id rockchip_sfc_dt_ids[] = {
-	{ .compatible = "rockchip,fspi"},
-	{ .compatible = "rockchip,sfc"},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, rockchip_sfc_dt_ids);
 
 static struct platform_driver rockchip_sfc_driver = {
 	.driver = {
