@@ -721,6 +721,48 @@
 		};
 	};
 
+	bus_a72: bus-a72 {
+		compatible = "rockchip,rk3576-bus";
+		rockchip,busfreq-policy = "clkfreq";
+		clocks = <&scmi_clk ARMCLK_B>;
+		clock-names = "bus";
+		operating-points-v2 = <&bus_a72_opp_table>;
+		status = "disabled";
+	};
+
+	bus_a72_opp_table: bus-a72-opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		nvmem-cells = <&log_leakage>;
+		nvmem-cell-names = "leakage";
+
+		rockchip,leakage-voltage-sel = <
+			1	10	0
+			11	20	1
+			21	254	2
+		>;
+
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <750000 750000 800000>;
+			opp-microvolt-L1 = <725000 725000 800000>;
+			opp-microvolt-L2 = <712500 712500 800000>;
+		};
+		opp-2016000000 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <775000 775000 800000>;
+			opp-microvolt-L1 = <750000 750000 800000>;
+			opp-microvolt-L2 = <712500 712500 800000>;
+		};
+		opp-2208000000 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <800000 800000 800000>;
+			opp-microvolt-L1 = <775000 775000 800000>;
+			opp-microvolt-L2 = <737500 737500 800000>;
+		};
+	};
+
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
