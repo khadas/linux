@@ -26,9 +26,15 @@ int icm42670_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (ret)
 			goto error_accl_off;
 
-		ret = icm42670_reset_fifo(indio_dev);
-		if (ret)
-			goto error_gyro_off;
+		if (true == data->enable_fifo) {
+			ret = icm42670_reset_fifo(indio_dev);
+			if (ret)
+				goto error_gyro_off;
+		} else {
+			ret = icm42670_reset_data(indio_dev);
+			if (ret)
+				goto error_gyro_off;
+		}
 
 		/* Theoretical interrupt period */
 		data->standard_period = data->period_divider > 0 ?
@@ -43,20 +49,25 @@ int icm42670_set_enable(struct iio_dev *indio_dev, bool enable)
 		data->period_max = div_s64((data->standard_period * (100 +
 					ICM42670_TS_PERIOD_JITTER)), 100);
 	} else {
+		ret = regmap_write(data->regmap, REG_INT_SOURCE0, BIT_INT_MODE_OFF);
+		if (ret) {
+			dev_err(dev, "int_enable failed %d\n", ret);
+			goto error_gyro_off;
+		}
 		ret = regmap_write(data->regmap, REG_FIFO_CONFIG1, BIT_FIFO_MODE_BYPASS);
 		if (ret) {
 			dev_err(dev, "set REG_FIFO_CONFIG1 fail: %d\n", ret);
 			goto error_gyro_off;
 		}
-		ret = icm42670_set_mode(data, ICM42670_GYRO, false);
-		if (ret)
-			goto error_gyro_off;
 
 		ret = icm42670_set_mode(data, ICM42670_ACCEL, false);
 		if (ret)
 			goto error_accl_off;
+
+		ret = icm42670_set_mode(data, ICM42670_GYRO, false);
+		if (ret)
+			goto error_gyro_off;
 	}
-	dev_info(dev, "set fifo mode end\n");
 	return ret;
 
 error_gyro_off:

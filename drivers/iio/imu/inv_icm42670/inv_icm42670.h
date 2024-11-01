@@ -502,6 +502,7 @@ struct icm42670_data {
 	s64 period_max;		 // Maximum interrupt period deviation in nanoseconds
 	int period_divider;
 	int interrupt_regval;
+	bool enable_fifo;
 	u8  data_buff[ICM42670_DATA_BUFF_SIZE];
 };
 
@@ -532,6 +533,7 @@ enum icm42670_sensor_type {
 // fifo
 #define ICM42670_OUTPUT_DATA_SIZE 24 // align 8, last 8 for timestamp
 #define ICM42670_OUTPUT_DATA_SIZE_PULS_ONE 25
+#define ICM42670_ACCEL_GYRO_SIZE	12
 #define ICM42670_FIFO_DATUM			   16
 #define ICM42670_BYTES_PER_3AXIS_SENSOR   6
 #define ICM42670_FIFO_COUNT_BYTE		  2
@@ -545,6 +547,8 @@ extern const struct dev_pm_ops icm42670_pm_ops;
 
 irqreturn_t icm42670_read_fifo(int irq, void *p);
 int icm42670_reset_fifo(struct iio_dev *indio_dev);
+irqreturn_t icm42670_read_data(int irq, void *p);
+int icm42670_reset_data(struct iio_dev *indio_dev);
 int icm42670_core_probe(struct regmap *regmap, int irq, const char *name,
 						int chip_type, icm42670_bus_setup bus_setup);
 void icm42670_core_remove(struct device *dev);

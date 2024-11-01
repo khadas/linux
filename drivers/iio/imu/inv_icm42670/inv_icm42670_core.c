@@ -846,26 +846,30 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 		return ret;
 	}
 
-	/* FIFO count is reported in records (1 record = 16 bytes for gyro+accel+tempsensor data) */
-	ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
-				BIT_FIFO_COUNT_REC_FIFO_COUNT_REC,
-					BIT_FIFO_COUNT_REC_FIFO_COUNT_REC);
-	if (ret)
-		return ret;
+	if (true == data->enable_fifo) {
+		/* FIFO count is reported in records
+		 * (1 record = 16 bytes for gyro+accel+tempsensor data)
+		 */
+		ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
+					BIT_FIFO_COUNT_REC_FIFO_COUNT_REC,
+						BIT_FIFO_COUNT_REC_FIFO_COUNT_REC);
+		if (ret)
+			return ret;
 
-	/* FIFO data in big-endian (default) */
-	ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
-				BIT_FIFO_COUNT_REC_FIFO_COUNT_ENDIAN,
-				BIT_FIFO_COUNT_REC_FIFO_COUNT_ENDIAN);
-	if (ret)
-		return ret;
+		/* FIFO data in big-endian (default) */
+		ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
+					BIT_FIFO_COUNT_REC_FIFO_COUNT_ENDIAN,
+					BIT_FIFO_COUNT_REC_FIFO_COUNT_ENDIAN);
+		if (ret)
+			return ret;
 
-	/* sensor data in big-endian (default) */
-	ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
-				BIT_FIFO_COUNT_REC_SENSOR_DATA_ENDIAN,
-				BIT_FIFO_COUNT_REC_SENSOR_DATA_ENDIAN);
-	if (ret)
-		return ret;
+		/* sensor data in big-endian (default) */
+		ret = regmap_update_bits(data->regmap, REG_INTF_CONFIG0,
+					BIT_FIFO_COUNT_REC_SENSOR_DATA_ENDIAN,
+					BIT_FIFO_COUNT_REC_SENSOR_DATA_ENDIAN);
+		if (ret)
+			return ret;
+	}
 
 	ret = icm42670_set_mode(data, ICM42670_ACCEL, true);
 	if (ret < 0) {
@@ -951,6 +955,10 @@ int icm42670_core_probe(struct regmap *regmap,
 		return -EINVAL;
 	}
 
+	data->enable_fifo = of_property_read_bool(data->node, "enable-fifo");
+	if (true != data->enable_fifo)
+		dev_info(dev, "Not using FIFO!\n");
+
 	desc = irq_get_irq_data(irq);
 	if (!desc) {
 		dev_err(dev, "Could not find IRQ %d\n", irq);
@@ -1007,8 +1015,12 @@ int icm42670_core_probe(struct regmap *regmap,
 	indio_dev->info = &icm42670_info;
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, iio_pollfunc_store_time,
-						icm42670_read_fifo, NULL);
+	if (true == data->enable_fifo)
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+			iio_pollfunc_store_time, icm42670_read_fifo, NULL);
+	else
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+			iio_pollfunc_store_time, icm42670_read_data, NULL);
 	if (ret < 0)
 		goto uninit;
 

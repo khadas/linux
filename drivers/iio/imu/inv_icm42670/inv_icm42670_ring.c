@@ -242,3 +242,110 @@ flush_fifo:
 
 	return IRQ_HANDLED;
 }
+
+int icm42670_reset_data(struct iio_dev *indio_dev)
+{
+	int ret;
+	struct icm42670_data  *st = iio_priv(indio_dev);
+	const struct device *dev = regmap_get_device(st->regmap);
+
+	/* reset it timestamp validation */
+	st->it_timestamp = 0;
+
+	ret = regmap_write(st->regmap, REG_INT_SOURCE0, BIT_INT_MODE_OFF);
+	if (ret) {
+		dev_err(dev, "int_enable failed %d\n",
+			ret);
+		goto reset_fail;
+	}
+
+	/* disable the sensor output to FIFO */
+	ret = regmap_write(st->regmap, REG_FIFO_CONFIG1, BIT_FIFO_MODE_BYPASS);
+	if (ret) {
+		dev_err(dev, "Failed to write to REG_FIFO_CONFIG1 register!\n");
+		goto reset_fail;
+	}
+
+	ret = regmap_write(st->regmap, REG_INT_SOURCE0,
+			BIT_INT_DRDY_INT_EN);
+	if (ret) {
+		dev_err(dev, "Failed to write to REG_INT_SOURCE0 register!\n");
+		goto reset_fail;
+	}
+
+	msleep(50);
+
+	st->interrupt_period = st->standard_period;
+
+	return 0;
+
+reset_fail:
+	dev_err(regmap_get_device(st->regmap), "%s :reset fifo failed %d\n", __func__, ret);
+
+	return ret;
+}
+
+irqreturn_t icm42670_read_data(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct icm42670_data *st = iio_priv(indio_dev);
+	const struct device *dev = regmap_get_device(st->regmap);
+	int ret, int_drdy;
+	//int pts;
+	u8 data[ICM42670_OUTPUT_DATA_SIZE_PULS_ONE];
+	s64 timestamp = 0;
+	u8 temp_data[2];
+	u16 temp = 0;
+
+	mutex_lock(&st->lock);
+
+	ret = regmap_read(st->regmap, REG_INT_STATUS_DRDY, &int_drdy);
+	if (ret) {
+		dev_err(dev, "failed to ack interrupt\n");
+		goto read_fail;
+	}
+
+	if (!(int_drdy & (BIT_INT_STATUS_DRDY)))
+		goto read_fail;
+
+	icm42670_update_period(st, st->data_timestamp, 1);
+
+	ret = regmap_bulk_read(st->regmap, REG_ACCEL_DATA_X0_UI,
+		(u8 *)data, ICM42670_ACCEL_GYRO_SIZE);
+	if (ret) {
+		dev_err(dev, "regmap_bulk_read accel+gyro failed\n");
+		goto read_fail;
+	}
+
+	/*
+	 * 8-bit quantity: Temperature in Degrees Centigrade = (TEMP_DATA / 2) + 25
+	 * where TEMP_DATA refers to the 8 MSBs of the 16-bit word coming from
+	 * the temperature sensor. In this mode the 8 LSBs are set to ‘0’.
+	 * 16-bit quantity: Temperature in Degrees Centigrade = (TEMP_DATA / 128) + 25
+	 */
+	ret = regmap_bulk_read(st->regmap, REG_TEMP_DATA0_UI, (u8 *)&temp_data, 2);
+	if (ret) {
+		dev_err(dev, "regmap_bulk_read temperature failed\n");
+		goto read_fail;
+	}
+	temp = (get_unaligned_be16(temp_data) >> 7) + 25;
+	data[ICM42670_ACCEL_GYRO_SIZE] = (temp - 25) << 1;
+
+	timestamp = icm42670_get_timestamp(st);
+	iio_push_to_buffers_with_timestamp(indio_dev, &(data[0]), timestamp);
+
+	mutex_unlock(&st->lock);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+
+read_fail:
+	/* Flush HW and SW FIFOs. */
+	dev_info(dev, "flush info\n");
+	icm42670_reset_fifo(indio_dev);
+	mutex_unlock(&st->lock);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
