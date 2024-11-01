@@ -929,11 +929,12 @@
 	};
 
 	fspi: spi@ff488000 {
-		compatible = "rockchip,fspi";
+		compatible = "rockchip,rk3506-fspi", "rockchip,fspi";
 		reg = <0xff488000 0x4000>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_FSPI>, <&cru HCLK_FSPI>;
 		clock-names = "clk_sfc", "hclk_sfc";
+		rockchip,grf = <&grf_pmu>;
 		rockchip,max-dll = <0x17F>;
 		#address-cells = <1>;
 		#size-cells = <0>;
