@@ -381,9 +381,13 @@
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
-		compatible = "rockchip,system-monitor";
+		compatible = "rk3506,system-monitor";
 
 		rockchip,thermal-zone = "soc-thermal";
+		rockchip,temp-ddr-ref-mode = <
+			(-40000)	1
+			75000		4
+		>;
 	};
 
 	thermal_zones: thermal-zones {
