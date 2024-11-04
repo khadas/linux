@@ -43,6 +43,10 @@ static int icm42670_set_odr(struct icm42670_data *data,
 					enum icm42670_sensor_type t,
 					int odr);
 
+static int icm42670_temp_read_raw(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       int *val, int *val2, long mask);
+
 #define ICM42670_CHANNEL(_type, _axis, _index) {		\
 	.type = _type,						\
 	.modified = 1,						\
@@ -59,10 +63,14 @@ static int icm42670_set_odr(struct icm42670_data *data,
 	},							\
 }
 
-#define ICM42670_TEMP_CHANNEL(_type, _index) {			\
+#define ICM42670_TEMP_CHANNEL_8BIT(_type, _index) {			\
 	.type = _type,						\
-	.channel = -1,						\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+	.modified = 1,						\
+	.channel2 = 1,					\
+	.info_mask_separate =					\
+		BIT(IIO_CHAN_INFO_RAW) |			\
+		BIT(IIO_CHAN_INFO_OFFSET) |			\
+		BIT(IIO_CHAN_INFO_SCALE),			\
 	.scan_index = _index,					\
 	.scan_type = {						\
 		.sign = 's',					\
@@ -72,6 +80,34 @@ static int icm42670_set_odr(struct icm42670_data *data,
 	},							\
 }
 
+#define ICM42670_TEMP_CHANNEL_16BIT(_type, _index) {			\
+	.type = _type,						\
+	.modified = 1,						\
+	.channel2 = 1,					\
+	.info_mask_separate =					\
+		BIT(IIO_CHAN_INFO_RAW) |			\
+		BIT(IIO_CHAN_INFO_OFFSET) |			\
+		BIT(IIO_CHAN_INFO_SCALE),			\
+	.scan_index = _index,					\
+	.scan_type = {						\
+		.sign = 's',					\
+		.realbits = 16,					\
+		.storagebits = 16,				\
+		.endianness = IIO_BE,				\
+	},							\
+}
+
+static const struct iio_chan_spec icm42670_fifo_channels[] = {
+	ICM42670_CHANNEL(IIO_ACCEL, IIO_MOD_X, ICM42670_SCAN_ACCEL_X),
+	ICM42670_CHANNEL(IIO_ACCEL, IIO_MOD_Y, ICM42670_SCAN_ACCEL_Y),
+	ICM42670_CHANNEL(IIO_ACCEL, IIO_MOD_Z, ICM42670_SCAN_ACCEL_Z),
+	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_X, ICM42670_SCAN_GYRO_X),
+	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_Y, ICM42670_SCAN_GYRO_Y),
+	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_Z, ICM42670_SCAN_GYRO_Z),
+	ICM42670_TEMP_CHANNEL_8BIT(IIO_TEMP, ICM42670_SCAN_TEMP),
+	IIO_CHAN_SOFT_TIMESTAMP(ICM42670_SCAN_TIMESTAMP),
+};
+
 static const struct iio_chan_spec icm42670_channels[] = {
 	ICM42670_CHANNEL(IIO_ACCEL, IIO_MOD_X, ICM42670_SCAN_ACCEL_X),
 	ICM42670_CHANNEL(IIO_ACCEL, IIO_MOD_Y, ICM42670_SCAN_ACCEL_Y),
@@ -79,7 +115,7 @@ static const struct iio_chan_spec icm42670_channels[] = {
 	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_X, ICM42670_SCAN_GYRO_X),
 	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_Y, ICM42670_SCAN_GYRO_Y),
 	ICM42670_CHANNEL(IIO_ANGL_VEL, IIO_MOD_Z, ICM42670_SCAN_GYRO_Z),
-	ICM42670_TEMP_CHANNEL(IIO_TEMP, ICM42670_SCAN_TEMP),
+	ICM42670_TEMP_CHANNEL_16BIT(IIO_TEMP, ICM42670_SCAN_TEMP),
 	IIO_CHAN_SOFT_TIMESTAMP(ICM42670_SCAN_TIMESTAMP),
 };
 
@@ -134,9 +170,9 @@ static struct icm42670_regs icm42670_regs[] = {
 };
 
 static IIO_CONST_ATTR(in_accel_sampling_frequency_available,
-			"1 3 6 12 25 50 100 200 400 800");
+			"1 3 6 12 25 50 100 200 400 800 1600");
 static IIO_CONST_ATTR(in_anglvel_sampling_frequency_available,
-			"12 25 50 100 200 400 800");
+			"12 25 50 100 200 400 800 1600");
 static IIO_CONST_ATTR(in_accel_scale_available,
 			"0.000598 0.001196 0.002393 0.004785");
 static IIO_CONST_ATTR(in_anglvel_scale_available,
@@ -558,6 +594,16 @@ static int icm42670_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	struct icm42670_data *data = iio_priv(indio_dev);
 
+	switch (chan->type) {
+	case IIO_ANGL_VEL:
+	case IIO_ACCEL:
+		break;
+	case IIO_TEMP:
+		return icm42670_temp_read_raw(indio_dev, chan, val, val2, mask);
+	default:
+		return -EINVAL;
+	}
+
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = iio_device_claim_direct_mode(indio_dev);
@@ -664,6 +710,36 @@ static void icm42670_disable_vdd_reg(void *_data)
 	ret = regulator_disable(st->vdd_supply);
 	if (ret)
 		dev_err(dev, "failed to disable vdd error %d\n", ret);
+}
+
+static int icm42670_temp_read_raw(struct iio_dev *indio_dev,
+				struct iio_chan_spec const *chan,
+				int *val, int *val2, long mask)
+{
+	struct icm42670_data *data = iio_priv(indio_dev);
+	int ret = 0;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+		ret = icm42670_get_data(data, icm42670_to_sensor(chan->type), chan->channel2, val);
+		iio_device_release_direct_mode(indio_dev);
+		return ret ? ret : IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		*val = 0;
+		*val2 = data->enable_fifo ? 500000 : 7812500;
+		return data->enable_fifo ? IIO_VAL_INT_PLUS_MICRO : IIO_VAL_INT_PLUS_NANO;
+
+	case IIO_CHAN_INFO_OFFSET:
+		*val = data->enable_fifo ? 50 : 3200;
+		return IIO_VAL_INT;
+
+	default:
+		return -EINVAL;
+	}
 }
 
 static int __icm42670_set_fsr(struct icm42670_data *data,
@@ -1008,19 +1084,19 @@ int icm42670_core_probe(struct regmap *regmap,
 		name = icm42670_match_acpi_device(dev);
 
 	indio_dev->dev.parent = dev;
-	indio_dev->channels = icm42670_channels;
-	indio_dev->num_channels = ARRAY_SIZE(icm42670_channels);
+	indio_dev->channels =
+		data->enable_fifo ? icm42670_fifo_channels : icm42670_channels;
+	indio_dev->num_channels =
+		data->enable_fifo ?
+		ARRAY_SIZE(icm42670_fifo_channels) : ARRAY_SIZE(icm42670_channels);
 	indio_dev->available_scan_masks = icm42670_scan_masks;
 	indio_dev->name = name;
 	indio_dev->info = &icm42670_info;
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	if (true == data->enable_fifo)
-		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-			iio_pollfunc_store_time, icm42670_read_fifo, NULL);
-	else
-		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-			iio_pollfunc_store_time, icm42670_read_data, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+		iio_pollfunc_store_time,
+		data->enable_fifo ? icm42670_read_fifo : icm42670_read_data, NULL);
 	if (ret < 0)
 		goto uninit;
 
