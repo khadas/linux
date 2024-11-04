@@ -33,6 +33,11 @@ struct page_info {
 
 #define PG_ROUND       8
 
+#define FAIL_LIMIT 3
+static u64 fail_count;
+static u64 fail_iova = U64_MAX;
+static u64 fail_time;
+
 static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 {
 	struct drm_device *drm = rk_obj->base.dev;
@@ -40,6 +45,7 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	int prot = IOMMU_READ | IOMMU_WRITE;
 	ssize_t ret;
 
+retry:
 	mutex_lock(&private->mm_lock);
 	ret = drm_mm_insert_node_generic(&private->mm, &rk_obj->mm,
 					 rk_obj->base.size, PAGE_SIZE,
@@ -56,14 +62,30 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	rockchip_drm_dbg(drm->dev, VOP_DEBUG_IOMMU_MAP, "iommu map: iova: %pad size: 0x%zx",
 			 &rk_obj->dma_addr, rk_obj->base.size);
 
+	if (fail_iova == U64_MAX)
+		fail_iova = rk_obj->dma_addr;
+
 	ret = iommu_map_sgtable(private->domain, rk_obj->dma_addr, rk_obj->sgt,
 				prot);
 	if (ret < (ssize_t)rk_obj->base.size) {
 		DRM_ERROR("failed to map buffer: size=%zd request_size=%zd\n",
 			  ret, rk_obj->base.size);
 		ret = -ENOMEM;
+		if (rk_obj->dma_addr == fail_iova) {
+			if (++fail_count >= FAIL_LIMIT) {
+				DRM_ERROR("IOVA:%pad map failed, retry other, retried:%lld\n",
+					   &rk_obj->dma_addr, ++fail_time);
+				fail_count = 0;
+				fail_iova = U64_MAX;
+				goto retry;
+			}
+		}
 		goto err_remove_node;
 	}
+
+	fail_count = 0;
+	fail_iova = U64_MAX;
+	fail_time = 0;
 
 	iommu_flush_iotlb_all(private->domain);
 
