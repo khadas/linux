@@ -187,6 +187,7 @@ struct rockchip_spi {
 	u32 dma_timeout;
 
 	u8 n_bytes;
+	u32 speed_hz;
 
 	bool slave_aborted;
 	bool cs_inactive; /* spi slave tansmition stop when cs inactive */
@@ -209,22 +210,26 @@ static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
 static inline void wait_for_tx_idle(struct rockchip_spi *rs)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
-	u32 bit_filed = SR_TF_EMPTY;
-	u32 idle_val = 1;
+	u32 bit_field = SR_TF_EMPTY;
+	u32 idle_val = SR_TF_EMPTY;
+	uint32_t speed, us;
 
-	/* When using external clock, tx clk can function normally without waiting for idle  */
+	/* When using external clock, tx clk can function normally without waiting for idle */
 	if (rs->ext_spi_clk)
 		return;
 
 	if (rs->tx_idle_type == 1) {
-		bit_filed = SR_SLAVE_TX_BUSY;
+		bit_field = SR_SLAVE_TX_BUSY;
 		idle_val = 0;
 	}
 
 	do {
-		if ((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & bit_filed) == idle_val) {
-			if (bit_filed == SR_TF_EMPTY)
-				udelay(1);
+		if ((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & bit_field) == idle_val) {
+			if (bit_field == SR_TF_EMPTY) {
+				speed = rs->speed_hz;
+				us = (8 * 1000000 / speed) * 2 + 1;
+				udelay(us);
+			}
 
 			return;
 		}
@@ -478,6 +483,10 @@ static int rockchip_spi_slave_config(struct rockchip_spi *rs,
 	u32 val = 0;
 
 	rs->slave_aborted = false;
+	if (xfer->speed_hz)
+		rs->speed_hz = xfer->speed_hz;
+	else
+		rs->speed_hz = 100000;
 
 	cr0 |= (spi->mode & 0x3U) << CR0_SCPH_OFFSET;
 	if (spi->mode & SPI_LSB_FIRST)
