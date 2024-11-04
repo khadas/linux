@@ -2598,7 +2598,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	enable_irq_wake(client->irq);
 #endif
     }
-
+	device_init_wakeup(&client->dev, 1);
 	/* register suspend and resume fucntion*/
 	gtp_register_powermanger(ts);
 
@@ -2712,6 +2712,11 @@ static void goodix_ts_suspend(struct goodix_ts_data *ts)
 #if GTP_GESTURE_WAKEUP
     ret = gtp_enter_doze(ts);
 #else
+	if (device_may_wakeup(&ts->client->dev)){
+		enable_irq_wake(ts->client->irq);
+		GTP_INFO("enable_irq_wake.");
+		return;
+	}
     if (ts->use_irq)
     {
         gtp_irq_disable(ts);
@@ -2747,7 +2752,11 @@ static void goodix_ts_resume(struct goodix_ts_data *ts)
     	return;
     }
     GTP_INFO("System resume.");
-
+	if (device_may_wakeup(&ts->client->dev)){
+		disable_irq_wake(ts->client->irq);
+		GTP_INFO("disable_irq_wake.");
+		return;
+	}
     ret = gtp_wakeup_sleep(ts);
 #if GTP_GESTURE_WAKEUP
     doze_status = DOZE_DISABLED;

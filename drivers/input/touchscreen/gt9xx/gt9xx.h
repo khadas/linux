@@ -71,7 +71,7 @@
 
 #define GTP_WITH_HOVER        1    //pen surrport hover or not 1:enable 0 disable
 
-#define GTP_GESTURE_WAKEUP    1    // gesture wakeup
+#define GTP_GESTURE_WAKEUP    0    // gesture wakeup
 
 #define GTP_DEBUG_ON          0
 #define GTP_DEBUG_ARRAY_ON    0
