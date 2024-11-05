@@ -1009,11 +1009,23 @@
 		resets = <&cru SRST_M_DSM>;
 		reset-names = "reset" ;
 		rockchip,grf = <&grf>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&dsm_audm0_ln_pins
-			     &dsm_audm0_lp_pins
-			     &dsm_audm0_rn_pins
-			     &dsm_audm0_rp_pins>;
+		/**
+		 * this is bitmap
+		 * 0x1: (1 << 0) - audm0 enabled
+		 * 0x2: (1 << 1) - audm1 enabled
+		 * 0x3:          - audm0 + audm1 enabled
+		 * others        - invalid
+		 */
+		rockchip,dsm-audm-en = <0x1>;
+		pinctrl-names = "audm0-iodown", "audm0-pins",
+				"audm1-iodown", "audm1-pins",
+				"audm0m1-iodown", "audm0m1-pins";
+		pinctrl-0 = <&dsm_audm0_iodown_pins>;
+		pinctrl-1 = <&dsm_audm0_pins>;
+		pinctrl-2 = <&dsm_audm1_iodown_pins>;
+		pinctrl-3 = <&dsm_audm1_pins>;
+		pinctrl-4 = <&dsm_audm0_iodown_pins>, <&dsm_audm1_iodown_pins>;
+		pinctrl-5 = <&dsm_audm0_pins>, <&dsm_audm1_pins>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};

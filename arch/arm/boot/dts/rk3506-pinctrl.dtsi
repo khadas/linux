@@ -1307,6 +1307,60 @@
  * This part is edited handly.
  */
 &pinctrl {
+	dsm_aud {
+		/omit-if-no-ref/
+		dsm_audm0_pins: dsm-audm0-pins {
+			rockchip,pins =
+				/* dsm_aud_ln_m0 */
+				<1 RK_PD0 4 &pcfg_pull_none>,
+				/* dsm_aud_lp_m0 */
+				<1 RK_PD1 4 &pcfg_pull_none>,
+				/* dsm_aud_rn_m0 */
+				<1 RK_PC1 4 &pcfg_pull_none>,
+				/* dsm_aud_rp_m0 */
+				<1 RK_PC2 4 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		dsm_audm1_pins: dsm-audm1-pins {
+			rockchip,pins =
+				/* dsm_aud_ln_m1 */
+				<2 RK_PB6 2 &pcfg_pull_none>,
+				/* dsm_aud_lp_m1 */
+				<2 RK_PB7 2 &pcfg_pull_none>,
+				/* dsm_aud_rn_m1 */
+				<2 RK_PB4 2 &pcfg_pull_none>,
+				/* dsm_aud_rp_m1 */
+				<2 RK_PB5 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		dsm_audm0_iodown_pins: dsm-audm0-iodown-pins {
+			rockchip,pins =
+				/* dsm_aud_ln_m0 */
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_lp_m0 */
+				<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_rn_m0 */
+				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_rp_m0 */
+				<1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		/omit-if-no-ref/
+		dsm_audm1_iodown_pins: dsm-audm1-iodown-pins {
+			rockchip,pins =
+				/* dsm_aud_ln_m1 */
+				<2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_lp_m1 */
+				<2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_rn_m1 */
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>,
+				/* dsm_aud_rp_m1 */
+				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
 	dsmc {
 		/omit-if-no-ref/
 		dsmc_csn_pull_pins: dsmc-csn-pull-pins {
