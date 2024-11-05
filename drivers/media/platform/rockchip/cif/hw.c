@@ -1568,8 +1568,8 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (cif_hw->chip_id == CHIP_RV1106_CIF ||
-	    cif_hw->chip_id == CHIP_RV1103B_CIF) {
+	if (data->chip_id == CHIP_RV1106_CIF ||
+	    data->chip_id == CHIP_RV1103B_CIF) {
 		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(dev, irq, rkcif_irq_handler,
 				       0,
