@@ -104,6 +104,10 @@
 	};
 };
 
+&dmc {
+	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
+};
+
 &ebc {
 	status = "okay";
 };
