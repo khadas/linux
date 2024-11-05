@@ -90,7 +90,7 @@ int vdin_v4l_debug;
 
 static struct v4l2_frmsize_discrete vdin_v4l2_frmsize_dis[] = {
 	{320, 240},		{640, 480},		{960, 540},
-	{1280, 720},	{1920, 1080},	{3840, 2160}
+	{1280, 720},	{1920, 540},    {1920, 1080},	{3840, 2160}
 };
 
 static struct v4l2_fract fract_discrete[] = {

@@ -326,13 +326,13 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 5; //for repeater
-		clk_unstable_max = 50;
-		esd_phy_rst_max = 16;
+		clk_unstable_max = 80;
+		esd_phy_rst_max = 10;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7d3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 40;
+		hpd_wait_max = 110;
 		sig_unstable_max = 20;
 		sig_unready_max = 5;
 		/* decreased to 2 */
