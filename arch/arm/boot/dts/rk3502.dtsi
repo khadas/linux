@@ -216,6 +216,10 @@
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "leakage";
 
+		rockchip,temp-freq-table = <
+			85000	1008000
+		>;
+
 		rockchip,pvtm-voltage-sel = <
 			0	1584	0
 			1585	1619	1
