@@ -717,9 +717,9 @@ static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 		msleep(50);
 	} else {
 		if (es8316->hp_inserted)
-			snd_soc_component_update_bits(component, ES8316_ADC_PDN_LINSEL_REG22, 0xF0, 0x10);
-		else
 			snd_soc_component_update_bits(component, ES8316_ADC_PDN_LINSEL_REG22, 0xF0, 0x00);
+		else
+			snd_soc_component_update_bits(component, ES8316_ADC_PDN_LINSEL_REG22, 0xF0, 0x20);
 		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW_REG01,
 				    ES8316_CLKMGR_ADC_MCLK_MASK |
 				    ES8316_CLKMGR_ADC_ANALOG_MASK,
@@ -813,14 +813,14 @@ static int es8316_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
-
+//printk("hlm mute=%d\n", mute);
 	es8316->muted = mute;
 	if (mute) {
 		es8316_enable_spk(es8316, false);
 		msleep(100);
-		snd_soc_component_write(component, ES8316_DAC_SET1_REG30, 0x20);
-	} else if (dai->playback_active) {
-		snd_soc_component_write(component, ES8316_DAC_SET1_REG30, 0x00);
+		snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1_REG30, 0x20, 0x20);
+	} else /*if (dai->playback_active)*/ {
+		snd_soc_component_update_bits(dai->component, ES8316_DAC_SET1_REG30, 0x20, 0);
 		msleep(130);
 		if (!es8316->hp_inserted)
 			es8316_enable_spk(es8316, true);
@@ -1085,21 +1085,21 @@ static void hp_det_work(struct work_struct *work)
 	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
 		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
 			if(1 == num){
-				hdmitx_ext_set_audio_output(1);
+				//hdmitx_ext_set_audio_output(1);
 				num = 0;
 			}
 			es8316_use->hp_inserted = false;
 			//printk("%s %d\n",__func__,__LINE__);
         }else if((value >= 360 - hp->tolerance) && (value <= 360 + hp->tolerance)) {//kuoban
 			if(1 == num){
-				hdmitx_ext_set_audio_output(1);
+				//hdmitx_ext_set_audio_output(1);
 				num = 0;
 			}
 			es8316_use->hp_inserted = false;
 			//printk("%s %d\n",__func__,__LINE__);
         }else{
 			if(0 == num){
-				hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+				//hdmitx_ext_set_audio_output(0);//disable hdmi audio output
 				num = 1;
 			}
 			es8316_use->hp_inserted = true;
@@ -1284,7 +1284,7 @@ static ssize_t show_hp_inserted(struct class *cls,
 }
 
 static struct class_attribute es8316_class_attrs[] = {
-    __ATTR(hp_inserted, 0664, show_hp_inserted, NULL),
+    __ATTR(hp_inserted, 0644, show_hp_inserted, NULL),
 };
 
 static void create_es8316_attrs(void) {
@@ -1309,16 +1309,20 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	struct es8316_priv *es8316;
 	struct es8316_adc_hp_det *hp;
 	int ret = -1;
-	//int error = -1;
+	int error = -1;
 	int hpret = -1;
 	//int hp_irq;
 	//enum of_gpio_flags flags;
 	//struct device_node *np = i2c->dev.of_node;
 	//return ret;
 	//printk("es8316_i2c_probe %d\n",__LINE__);
-	es8316 = devm_kzalloc(&i2c->dev, sizeof(*es8316), GFP_KERNEL);
-	if (!es8316)
+	es8316 = devm_kzalloc(&i2c->dev, sizeof(struct es8316_priv),
+			      GFP_KERNEL);
+	if (es8316 == NULL)
 		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, es8316);
+
 	hp = kzalloc(sizeof(struct es8316_adc_hp_det), GFP_KERNEL);
 	if (!hp)
 		return -ENOMEM;
@@ -1334,10 +1338,11 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	//error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
-    //if (error)
-    //	return error;
-	i2c_set_clientdata(i2c, es8316);
+	error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
+	printk("es8316_i2c_probe error=%d\n",error);
+	if (error)
+		return error;
+
 	
 	/*es8316->spk_mute_gpio = of_get_named_gpio_flags(np,
 						       "spk-mute-gpio",
@@ -1415,7 +1420,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	}
 	create_es8316_attrs();
 	es8316_use = es8316;
-	printk("es8316_i2c_probe\n");
+	printk("es8316_i2c_probe ok\n");
 	return ret;
 }
 
