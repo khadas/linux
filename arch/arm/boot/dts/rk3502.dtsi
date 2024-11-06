@@ -218,6 +218,7 @@
 
 		rockchip,temp-freq-table = <
 			85000	1008000
+			100000	600000
 		>;
 
 		rockchip,pvtm-voltage-sel = <
