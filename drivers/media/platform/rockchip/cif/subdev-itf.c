@@ -1253,7 +1253,6 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 {
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
-	struct rkcif_sensor_info *sensor = &cif_dev->terminal_sensor;
 	struct rkcif_stream *stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
@@ -1393,13 +1392,13 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			diff_time = 200000;
 		else
 			diff_time = 1000000;
-		if (dbufs->runtime_us * 1000 < cif_dev->sensor_linetime * sensor->raw_rect.height &&
+		if (dbufs->runtime_us * 1000 < cif_dev->sensor_linetime * stream->pixm.height &&
 		    dbufs->runtime_us * 1000 + cif_dev->sensor_linetime > diff_time)
 			early_time = dbufs->runtime_us * 1000 - diff_time;
 		else
 			early_time = diff_time;
 		cif_dev->early_line = div_u64(early_time, cif_dev->sensor_linetime);
-		cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
+		cif_dev->wait_line_cache = stream->pixm.height - cif_dev->early_line;
 		if (cif_dev->rdbk_debug &&
 		    dbufs->sequence < 15)
 			v4l2_info(&cif_dev->v4l2_dev,
@@ -1414,13 +1413,13 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 				diff_time = 200000;
 			else
 				diff_time = 1000000;
-			if (dbufs->runtime_us * 1000 < cif_dev->sensor_linetime * sensor->raw_rect.height &&
+			if (dbufs->runtime_us * 1000 < cif_dev->sensor_linetime * stream->pixm.height &&
 			    dbufs->runtime_us * 1000 + cif_dev->sensor_linetime > diff_time)
 				early_time = dbufs->runtime_us * 1000 - diff_time;
 			else
 				early_time = diff_time;
 			cif_dev->early_line = div_u64(early_time, cif_dev->sensor_linetime);
-			cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
+			cif_dev->wait_line_cache = stream->pixm.height - cif_dev->early_line;
 		}
 		if (cif_dev->rdbk_debug &&
 		    dbufs->sequence < 15)
