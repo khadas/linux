@@ -494,13 +494,13 @@
 		hotdie_temperture_threshold = <115>;
 		/* shutdown sequence */
 		shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
-					1 0 0 0 0 2
-					2 2 2 2 2>;
+					2 2 2 2 2
+					1 0 0 0 0 2>;
 
 		/* low power forced shutdown sequence */
 		vb-shutdown-sequence = <2 2 2 0 2 0 2 0 0 2
-					0 0 0 0 0 2
-					2 2 2 2 2>;
+					2 2 2 2 2
+					0 0 0 0 0 2>;
 
 		/* PWRON_ON_TIME: 0:500mS; 1:20mS */
 		pwron-on-time-500ms;
