@@ -63,6 +63,15 @@ static const struct spinand_info zbit_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&zb35q01b_ooblayout, NULL)),
+	SPINAND_INFO("ZB35Q04BYIG",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0xA3),
+		     NAND_MEMORG(1, 2048, 128, 128, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&zb35q01b_ooblayout, NULL)),
 };
 
 static const struct spinand_manufacturer_ops zbit_spinand_manuf_ops = {
