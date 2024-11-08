@@ -1118,8 +1118,10 @@ static int rk628_hdmirx_cec_log_addr(struct cec_adapter *adap, u8 logical_addr)
 	else
 		cec->addresses |= BIT(logical_addr) | BIT(15);
 
+	mutex_lock(&rk628->rst_lock);
 	rk628_i2c_write(rk628, HDMI_RX_CEC_ADDR_L, cec->addresses & 0xff);
 	rk628_i2c_write(rk628, HDMI_RX_CEC_ADDR_H, (cec->addresses >> 8) & 0xff);
+	mutex_unlock(&rk628->rst_lock);
 
 	return 0;
 }
@@ -1129,13 +1131,13 @@ static int rk628_hdmirx_cec_enable(struct cec_adapter *adap, bool enable)
 	struct rk628_hdmirx_cec *cec = cec_get_drvdata(adap);
 	struct rk628 *rk628 = cec->rk628;
 
+	mutex_lock(&rk628->rst_lock);
 	if (!enable) {
 		rk628_i2c_write(rk628, HDMI_RX_AUD_CEC_IEN_CLR, ~0);
 		rk628_i2c_update_bits(rk628, HDMI_RX_DMI_DISABLE_IF, CEC_ENABLE_MASK, 0);
 	} else {
 		unsigned int irqs;
 
-		rk628_hdmirx_cec_log_addr(cec->adap, CEC_LOG_ADDR_INVALID);
 		rk628_i2c_update_bits(rk628, HDMI_RX_DMI_DISABLE_IF, CEC_ENABLE_MASK,
 				      CEC_ENABLE_MASK);
 
@@ -1146,6 +1148,7 @@ static int rk628_hdmirx_cec_enable(struct cec_adapter *adap, bool enable)
 		irqs = ERROR_INIT_ENSET | NACK_ENSET | EOM_ENSET | DONE_ENSET;
 		rk628_i2c_write(rk628, HDMI_RX_AUD_CEC_IEN_SET, irqs);
 	}
+	mutex_unlock(&rk628->rst_lock);
 
 	return 0;
 }
@@ -1177,11 +1180,13 @@ static int rk628_hdmirx_cec_transmit(struct cec_adapter *adap, u8 attempts,
 	if (msg_len <= 0)
 		return 0;
 
+	mutex_lock(&rk628->rst_lock);
 	for (i = 0; i < msg_len; i++)
 		rk628_i2c_write(rk628, HDMI_RX_CEC_TX_DATA_0 + i * 4, msg->msg[i]);
 
 	rk628_i2c_write(rk628, HDMI_RX_CEC_TX_CNT, msg_len);
 	rk628_i2c_write(rk628, HDMI_RX_CEC_CTRL, ctrl | CEC_SEND);
+	mutex_unlock(&rk628->rst_lock);
 
 	return 0;
 }
