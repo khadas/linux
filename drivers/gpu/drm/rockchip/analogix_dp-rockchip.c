@@ -430,10 +430,23 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 {
 	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
 	struct drm_crtc *crtc;
-	struct drm_crtc *old_crtc = encoder->crtc;
+	struct drm_crtc *old_crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(old_crtc->state);
+	struct drm_connector *conn;
+	struct drm_connector_state *old_conn_state;
+	struct rockchip_crtc_state *s;
 	int ret;
+
+	conn = drm_atomic_get_old_connector_for_encoder(state, encoder);
+	if (!conn)
+		return;
+	old_conn_state = drm_atomic_get_old_connector_state(state, conn);
+	if (!old_conn_state)
+		return;
+	if (!old_conn_state->crtc)
+		return;
+	old_crtc = old_conn_state->crtc;
+	s = to_rockchip_crtc_state(old_crtc->state);
 
 	if (old_crtc->state->active_changed) {
 		if (dp->plat_data.split_mode)
