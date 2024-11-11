@@ -335,7 +335,8 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = pinctrl_enable(serdes_pinctrl->pctl);
+	if (!serdes->route_enable)
+		ret = pinctrl_enable(serdes_pinctrl->pctl);
 
 	ret = serdes_pinctrl_gpio_init(serdes);
 
