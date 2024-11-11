@@ -1854,6 +1854,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	vop_plane_state->zpos = new_plane_state->zpos;
+	vop_plane_state->global_alpha = new_plane_state->alpha >> 8;
 	vop_plane_state->blend_mode = new_plane_state->pixel_blend_mode;
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
