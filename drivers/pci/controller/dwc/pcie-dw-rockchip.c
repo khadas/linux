@@ -1677,8 +1677,7 @@ static int rk_pcie_really_probe(void *p)
 	dw_pcie_dbi_ro_wr_dis(pci);
 
 	/* 7. framework misc settings */
-	if (rk_pcie->skip_scan_in_resume)
-		device_init_wakeup(dev, true);
+	device_init_wakeup(dev, true);
 	device_enable_async_suspend(dev); /* Enable async system PM for multiports SoC */
 	rk_pcie->finish_probe = true;
 
@@ -1914,10 +1913,8 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 	 */
 	if (rk_pcie->skip_scan_in_resume) {
 		rfkill_get_wifi_power_state(&power);
-		if (!power) {
-			device_init_wakeup(dev, false);
+		if (!power)
 			goto no_l2;
-		}
 	}
 
 	/* 2. Broadcast PME_Turn_Off Message */
@@ -2005,8 +2002,6 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	dw_pcie_dbi_ro_wr_dis(pci);
 	rk_pcie->in_suspend = false;
-	if (rk_pcie->skip_scan_in_resume)
-		device_init_wakeup(dev, true);
 
 	return 0;
 
