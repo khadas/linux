@@ -214,7 +214,7 @@ static const struct reg_field rk806_reg_fields[] = {
 	[NLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6a, 0, 1),
 	/* SLEEP_VSEL_CTR_SEL4 */
 	[PLDO4_VSEL_CTR_SEL] = REG_FIELD(0x6d, 4, 5),
-	[PLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6d, 0, 0),
+	[PLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6d, 0, 1),
 	[PLDO2_VSEL_CTR_SEL] = REG_FIELD(0x6c, 4, 5),
 	[PLDO1_VSEL_CTR_SEL] = REG_FIELD(0x6c, 0, 1),
 	/* SLEEP_VSEL_CTR_SEL5 */
@@ -818,6 +818,22 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	if (ret) {
 		pdata->support_vb_sequence = 0;
 		dev_info(dev, "vb-shutdown-sequence missing!\n");
+	}
+
+	pdata->dvs_control_suspend = devm_kzalloc(dev,
+						  RK806_ID_END * sizeof(int),
+						  GFP_KERNEL);
+	if (!pdata->dvs_control_suspend)
+		return -EINVAL;
+
+	pdata->support_dvs_control_suspend = 1;
+	ret = device_property_read_u32_array(dev,
+					     "dvs-suspend-control-by",
+					     pdata->dvs_control_suspend,
+					     RK806_ID_END);
+	if (ret) {
+		pdata->support_dvs_control_suspend = 0;
+		dev_info(dev, "dvs-suspend-control-by missing!\n");
 	}
 
 	return 0;

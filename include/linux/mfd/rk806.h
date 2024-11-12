@@ -505,9 +505,11 @@ struct rk806_platform_data {
 
 	int *shutdown_sequence;
 	int *vb_shutdown_sequence;
+	int *dvs_control_suspend;
 
 	int support_shutdown_sequence;
 	int support_vb_sequence;
+	int support_dvs_control_suspend;
 };
 
 struct rk806_pin_info {
