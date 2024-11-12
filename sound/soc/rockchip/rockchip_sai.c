@@ -106,29 +106,42 @@ static bool rockchip_sai_stream_valid(struct snd_pcm_substream *substream,
 	return false;
 }
 
-static int rockchip_sai_fsync_lost_detect(struct rk_sai_dev *sai, bool en)
+static int rockchip_sai_fsync_lost_threshold_cfg(struct rk_sai_dev *sai,
+						 unsigned int sample_rate)
 {
-	unsigned int fw, cnt;
+	unsigned int div, cnt, mclk_rate;
 
 	if (sai->is_master_mode || sai->version < SAI_VER_2311)
 		return 0;
 
-	regmap_read(sai->regmap, SAI_FSCR, &fw);
-	cnt = SAI_FSCR_FW_V(fw) << 1; /* two fsync lost */
+	regmap_read(sai->regmap, SAI_CKR, &div);
+	div = SAI_CKR_MDIV_V(div);
+	mclk_rate = clk_get_rate(sai->mclk) / div;
+
+	cnt = (mclk_rate + sample_rate - 1) / sample_rate;
+	cnt = cnt << 1; /* two fsync lost */
+
+	/* the cnt is cycles of SCLK from cru, not external SCLK */
+	regmap_update_bits(sai->regmap, SAI_FS_TIMEOUT,
+			   SAI_FS_TIMEOUT_VAL_MASK,
+			   SAI_FS_TIMEOUT_VAL(cnt));
+
+	return 0;
+}
+
+static int rockchip_sai_fsync_lost_detect(struct rk_sai_dev *sai, bool en)
+{
+	if (sai->is_master_mode || sai->version < SAI_VER_2311)
+		return 0;
 
 	regmap_update_bits(sai->regmap, SAI_INTCR,
 			   SAI_INTCR_FSLOSTC, SAI_INTCR_FSLOSTC);
 	regmap_update_bits(sai->regmap, SAI_INTCR,
 			   SAI_INTCR_FSLOST_MASK,
 			   SAI_INTCR_FSLOST(en));
-	/*
-	 * the cnt is cycles of SCLK from cru, not external SCLK.
-	 * so, suggest to set SCLK freq equal to external SCLK
-	 * in SLAVE mode.
-	 */
 	regmap_update_bits(sai->regmap, SAI_FS_TIMEOUT,
-			   SAI_FS_TIMEOUT_VAL_MASK | SAI_FS_TIMEOUT_EN_MASK,
-			   SAI_FS_TIMEOUT_VAL(cnt) | SAI_FS_TIMEOUT_EN(en));
+			   SAI_FS_TIMEOUT_EN_MASK,
+			   SAI_FS_TIMEOUT_EN(en));
 
 	return 0;
 }
@@ -640,6 +653,8 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
 				   SAI_CKR_MDIV(div_bclk));
 	}
+
+	rockchip_sai_fsync_lost_threshold_cfg(sai, params_rate(params));
 
 	rockchip_utils_get_performance(substream, params, dai, fifo);
 
