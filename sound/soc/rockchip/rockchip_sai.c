@@ -201,12 +201,11 @@ static int rockchip_sai_runtime_suspend(struct device *dev)
 	rockchip_sai_fsync_lost_detect(sai, 0);
 	rockchip_sai_fsync_err_detect(sai, 0);
 
-	if (sai->is_master_mode)
-		regmap_update_bits(sai->regmap, SAI_XFER,
-				   SAI_XFER_CLK_MASK |
-				   SAI_XFER_FSS_MASK,
-				   SAI_XFER_CLK_DIS |
-				   SAI_XFER_FSS_DIS);
+	regmap_update_bits(sai->regmap, SAI_XFER,
+			   SAI_XFER_CLK_MASK |
+			   SAI_XFER_FSS_MASK,
+			   SAI_XFER_CLK_DIS |
+			   SAI_XFER_FSS_DIS);
 
 	rockchip_sai_poll_clk_idle(sai);
 
@@ -666,24 +665,22 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 	if (!rockchip_sai_stream_valid(substream, dai))
 		return 0;
 
-	if (sai->is_master_mode) {
-		/*
-		 * Should wait for one BCLK ready after DIV and then ungate
-		 * output clk to achieve the clean clk.
-		 *
-		 * The best way is to use delay per samplerate, but, the max time
-		 * is quite a tiny value, so, let's make it simple to use the max
-		 * time.
-		 *
-		 * The max BCLK cycle time is: 15.6us @ 8K-8Bit (64K BCLK)
-		 */
-		udelay(20);
-		regmap_update_bits(sai->regmap, SAI_XFER,
-				   SAI_XFER_CLK_MASK |
-				   SAI_XFER_FSS_MASK,
-				   SAI_XFER_CLK_EN |
-				   SAI_XFER_FSS_EN);
-	}
+	/*
+	 * Should wait for one BCLK ready after DIV and then ungate
+	 * output clk to achieve the clean clk.
+	 *
+	 * The best way is to use delay per samplerate, but, the max time
+	 * is quite a tiny value, so, let's make it simple to use the max
+	 * time.
+	 *
+	 * The max BCLK cycle time is: 15.6us @ 8K-8Bit (64K BCLK)
+	 */
+	udelay(20);
+	regmap_update_bits(sai->regmap, SAI_XFER,
+			   SAI_XFER_CLK_MASK |
+			   SAI_XFER_FSS_MASK,
+			   SAI_XFER_CLK_EN |
+			   SAI_XFER_FSS_EN);
 
 	rockchip_sai_fsync_lost_detect(sai, 1);
 	rockchip_sai_fsync_err_detect(sai, 1);
