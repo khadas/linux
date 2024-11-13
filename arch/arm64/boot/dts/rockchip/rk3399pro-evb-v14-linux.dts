@@ -60,7 +60,7 @@
 	i2c-scl-rising-time-ns = <345>;
 	i2c-scl-falling-time-ns = <11>;
 
-	vm149c: vm149c@0c {
+	vm149c: vm149c@c {
 		compatible = "silicon touch,vm149c";
 		status = "okay";
 		reg = <0x0c>;
