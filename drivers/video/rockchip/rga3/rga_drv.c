@@ -936,6 +936,13 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		return -EBUSY;
 	}
 
+	if (cmd == RGA_BLIT_ASYNC && !IS_ENABLED(CONFIG_ROCKCHIP_RGA_ASYNC)) {
+		rga_log("The current driver does not support asynchronous mode, please enable CONFIG_ROCKCHIP_RGA_ASYNC.\n");
+		up_read(&rga_drvdata->rwsem);
+
+		return -EINVAL;
+	}
+
 	switch (cmd) {
 	case RGA_BLIT_SYNC:
 	case RGA_BLIT_ASYNC:

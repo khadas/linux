@@ -1254,9 +1254,9 @@ int rga_request_submit(struct rga_request *request)
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		release_fence = rga_dma_fence_alloc();
-		if (IS_ERR(release_fence)) {
+		if (IS_ERR_OR_NULL(release_fence)) {
 			rga_req_err(request, "Can not alloc release fence!\n");
-			ret = IS_ERR(release_fence);
+			ret = IS_ERR(release_fence) ? PTR_ERR(release_fence) : -EINVAL;
 			goto err_reset_request;
 		}
 		request->release_fence = release_fence;

@@ -58,12 +58,12 @@ static inline int rga_dma_fence_get_status(struct dma_fence *fence)
 #else
 static inline struct dma_fence *rga_dma_fence_alloc(void)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline int rga_dma_fence_get_fd(struct dma_fence *fence)
 {
-	return 0;
+	return -1;
 }
 
 static inline struct dma_fence *rga_get_dma_fence_from_fd(int fence_fd)
@@ -80,7 +80,7 @@ static inline int rga_dma_fence_add_callback(struct dma_fence *fence,
 					     dma_fence_func_t func,
 					     void *private)
 {
-	return 0;
+	return -EINVAL;
 }
 
 static inline void rga_dma_fence_put(struct dma_fence *fence)
@@ -93,7 +93,7 @@ static inline void rga_dma_fence_signal(struct dma_fence *fence, int error)
 
 static inline int rga_dma_fence_get_status(struct dma_fence *fence)
 {
-	return 0;
+	return -EINVAL;
 }
 
 #endif /* #ifdef CONFIG_SYNC_FILE */
