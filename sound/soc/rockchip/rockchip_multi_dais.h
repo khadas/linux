@@ -25,6 +25,7 @@ struct rk_mdais_dev {
 	struct rk_dai *dais;
 	unsigned int *playback_channel_maps;
 	unsigned int *capture_channel_maps;
+	unsigned int *mclk_fs_maps;
 	int num_dais;
 };
 
