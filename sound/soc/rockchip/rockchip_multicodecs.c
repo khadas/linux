@@ -67,6 +67,7 @@ struct multicodecs_data {
 	struct extcon_dev *extcon;
 	struct delayed_work handler;
 	unsigned int mclk_fs;
+	unsigned int *mclk_fs_map;
 	bool codec_hp_det;
 	u32 num_keys;
 	u32 last_key;
@@ -372,15 +373,20 @@ static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	struct multicodecs_data *mc_data = snd_soc_card_get_drvdata(rtd->card);
 	unsigned int mclk;
+	unsigned int codec_mclk;
 	int ret, i;
 
 	mclk = params_rate(params) * mc_data->mclk_fs;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, mclk,
+		if (mc_data->mclk_fs_map[i] > 0)
+			codec_mclk = params_rate(params) * mc_data->mclk_fs_map[i];
+		else
+			codec_mclk = mclk;
+		ret = snd_soc_dai_set_sysclk(codec_dai, substream->stream, codec_mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP) {
-			pr_err("Set codec_dai sysclk failed: %d\n", ret);
+			pr_err("Set codec_dai sysclk(%uHZ) failed: %d\n", codec_mclk, ret);
 			goto out;
 		}
 	}
@@ -388,7 +394,7 @@ static int rk_multicodecs_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, substream->stream, mclk,
 				     SND_SOC_CLOCK_OUT);
 	if (ret && ret != -ENOTSUPP) {
-		pr_err("Set cpu_dai sysclk failed: %d\n", ret);
+		pr_err("Set cpu_dai sysclk(%uHZ) failed: %d\n", mclk, ret);
 		goto out;
 	}
 
@@ -741,6 +747,7 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link_component *codecs;
 	struct multicodecs_data *mc_data;
 	struct of_phandle_args args;
+	unsigned int *map;
 	u32 val;
 	int count, irq;
 	int ret = 0, i = 0, idx = 0;
@@ -857,6 +864,14 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 
 		card->num_links = 3;
 	}
+
+	map = devm_kcalloc(&pdev->dev, count, sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+	ret = of_property_read_u32_array(np, "rockchip,mclk-fs-mapping", map, count);
+	if (ret)
+		memset(map, 0x0, sizeof(*map) * count);
+	mc_data->mclk_fs_map = map;
 
 	mc_data->mclk_fs = DEFAULT_MCLK_FS;
 	if (!of_property_read_u32(np, "rockchip,mclk-fs", &val))
