@@ -260,8 +260,8 @@
 			0057 0021
 			//Clock Select, X for portA, Y/Z for PortB
 			0308 0076
-			//Start DSI Port
-			0311 0061
+			//Start DSI-A Port
+			0311 0001
 			//Set Port A Lane Mapping
 			0332 004E
 			//Set Port B Lane Mapping
@@ -341,7 +341,7 @@
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot
-			0010 0023
+			0010 0021
 			ffff f000	//0xf000 ms delay
 		];
 
@@ -431,7 +431,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c8_max96752_pinctrl: i2c8-max96752-pinctrl {
@@ -964,7 +964,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c5_max96752_pinctrl: i2c5-max96752-pinctrl {
@@ -1490,7 +1490,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c3_max96752_pinctrl: i2c3-max96752-pinctrl {
