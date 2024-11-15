@@ -1696,9 +1696,14 @@
 	assigned-clock-rates = <1150000000>;
 };
 
+//edp
+&vp0 {
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
 //dsi
 &vp1 {
 	assigned-clocks = <&cru DCLK_VP1_SRC>;
 	assigned-clock-parents = <&cru PLL_VPLL>;
 };
-
