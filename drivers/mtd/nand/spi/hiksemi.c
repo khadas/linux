@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mtd/spinand.h>
 
-#define SPINAND_MFR_HIKSEMI		0x52
+#define SPINAND_MFR_HIKSEMI		0x3C
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
