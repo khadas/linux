@@ -2843,7 +2843,6 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
-			schedule_work(&dp->hpd_work);
 		}
 	} else if (dp->hotplug.state == GPIO_STATE_PLUG) {
 		if (!hpd) {
@@ -2858,9 +2857,12 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 			dp->hotplug.long_hpd = false;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
-			schedule_work(&dp->hpd_work);
 		}
 	}
+
+	if (hpd)
+		schedule_work(&dp->hpd_work);
+
 	mutex_unlock(&dp->irq_lock);
 
 
@@ -2870,6 +2872,10 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 static void dw_dp_hpd_init(struct dw_dp *dp)
 {
 	dp->hotplug.status = dw_dp_detect_no_power(dp);
+	if (dp->hpd_gpio && dp->hotplug.status) {
+		dp->hotplug.state = GPIO_STATE_PLUG;
+		dp->hotplug.long_hpd = true;
+	}
 
 	if (dp->hpd_gpio || dp->force_hpd || dp->usbdp_hpd) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
