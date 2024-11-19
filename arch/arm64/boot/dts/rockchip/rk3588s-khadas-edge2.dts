@@ -339,6 +339,10 @@
 
 };
 
+&reboot_mode {
+	mode-reboot_test = <BOOT_REBOOT_TEST>;
+};
+
 &i2c3 {
 	status = "okay";
 
