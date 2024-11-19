@@ -117,11 +117,11 @@ void gtp_esd_switch(struct i2c_client *, s32);
 
 //*********** For GT9XXF Start **********//
 #if GTP_COMPATIBLE_MODE
-//extern s32 gtp_i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
-//extern s32 gtp_i2c_write_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
-//extern s32 gtp_gup_clk_calibration(void);
-//extern s32 gtp_gup_fw_download_proc(void *dir, u8 dwn_mode);
-//extern u8 gtp_gup_check_fs_mounted(char *path_name);
+extern s32 i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+extern s32 i2c_write_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+//extern s32 gup_clk_calibration(void);
+extern s32 gup_fw_download_proc(void *dir, u8 dwn_mode);
+extern u8 gup_check_fs_mounted(char *path_name);
 
 static void gtp_recovery_reset(struct i2c_client *client);
 static s32 gtp_esd_recovery(struct i2c_client *client);
@@ -2496,7 +2496,7 @@ static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
 #if GTP_ESD_PROTECT
     gtp_esd_switch(ts->client, SWITCH_OFF);
 #endif
-    ret = gtp_gup_clk_calibration();
+//  ret = gup_clk_calibration();
     gtp_esd_recovery(ts->client);
     
 #if GTP_ESD_PROTECT
@@ -2613,7 +2613,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     s32 ret = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
-    
+    int reg = 0;
+
     struct device_node *np = client->dev.of_node;
     enum of_gpio_flags rst_flags, pwr_flags;
     u32 val;
@@ -2653,8 +2654,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	if (val == 89) {
 		m89or101 = TRUE;
-		gtp_change_x2y = TRUE;
-		gtp_x_reverse = FALSE;
+		gtp_change_x2y = FALSE;
+		gtp_x_reverse = TRUE;
 		gtp_y_reverse = TRUE;
 	} else if (val == 101) {
 		m89or101 = FALSE;
@@ -2860,12 +2861,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     return 0;
 
 probe_init_error:
-    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
-    GTP_GPIO_FREE(ts->rst_pin);
-    GTP_GPIO_FREE(ts->irq_pin);
+    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);
+    if(!gpio_is_valid(ts->rst_pin))
+		gpio_free(ts->rst_pin);
+    if(!gpio_is_valid(ts->irq_pin))
+		gpio_free(ts->irq_pin);
 probe_init_error_requireio:
     tp_unregister_fb(&ts->tp); 
     kfree(ts);
+    reg = regulator_disable(ts->tp_regulator);
+    if (reg < 0)
+		GTP_ERROR("failed to disable tp regulator\n");
+	msleep(20);
     return ret;
 }
 
