@@ -263,26 +263,28 @@ static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
 {
 	struct rga_scheduler_t *scheduler = job->scheduler;
 
-	if (scheduler->ops->read_status) {
-		scheduler->ops->read_status(job, scheduler);
-		rga_job_err(job, "core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
-			scheduler->core,
-			job->intr_status, job->hw_status, job->cmd_status,
-			job->work_cycle, job->work_cycle);
-	}
-
 	if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 	    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		return orig_ret;
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has finished, but the software has timeout!\n");
+
 		return -EBUSY;
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has timeout.\n");
+
+		if (scheduler->ops->read_status)
+			scheduler->ops->read_status(job, scheduler);
+
 		return -EBUSY;
 	}
+
+	rga_job_err(job, "timeout core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+		    scheduler->core,
+		    job->intr_status, job->hw_status, job->cmd_status,
+		    job->work_cycle, job->work_cycle);
 
 	return orig_ret;
 }

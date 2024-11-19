@@ -3120,23 +3120,35 @@ static int rga2_read_status(struct rga_job *job, struct rga_scheduler_t *schedul
 	return 0;
 }
 
-static int rga2_irq(struct rga_scheduler_t *scheduler)
+static void rga2_clear_intr(struct rga_scheduler_t *scheduler)
 {
-	struct rga_job *job = scheduler->running_job;
-
-	/*clear INTR */
 	rga_write(rga_read(RGA2_INT, scheduler) |
 		  (m_RGA2_INT_ERROR_CLEAR_MASK |
 		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
 		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
 		  RGA2_INT, scheduler);
+}
+
+static int rga2_irq(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job = scheduler->running_job;
 
 	/* The hardware interrupt top-half don't need to lock the scheduler. */
-	if (job == NULL)
-		return IRQ_HANDLED;
+	if (job == NULL) {
+		rga2_clear_intr(scheduler);
+		rga_err("core[%d], invalid job, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+			scheduler->core, rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler), rga_read(RGA2_STATUS1, scheduler),
+			rga_read(RGA2_WORK_CNT, scheduler), rga_read(RGA2_WORK_CNT, scheduler));
 
-	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
+		return IRQ_HANDLED;
+	}
+
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		rga2_clear_intr(scheduler);
+
 		return IRQ_WAKE_THREAD;
+	}
 
 	scheduler->ops->read_status(job, scheduler);
 
@@ -3157,6 +3169,8 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 
 		scheduler->ops->soft_reset(scheduler);
 	}
+
+	rga2_clear_intr(scheduler);
 
 	return IRQ_WAKE_THREAD;
 }
