@@ -427,11 +427,15 @@
 };
 
 &sai1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&rm_io9_sai1_sclk
 		     &rm_io10_sai1_lrck
 		     &rm_io11_sai1_sdi
 		     &rm_io12_sai1_sdo0>;
+	pinctrl-1 = <&rm_io9_idle_pins
+		     &rm_io10_idle_pins
+		     &rm_io11_idle_pins
+		     &rm_io12_idle_pins>;
 };
 
 &sai4 {
