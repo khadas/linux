@@ -21,6 +21,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include <linux/rfkill-wlan.h>
 #include <linux/aspm_ext.h>
 
@@ -29,6 +31,7 @@
 #include "../rockchip-pcie-dma.h"
 #include "pcie-dw-dmatest.h"
 #include "../../hotplug/gpiophp.h"
+#include "../../../regulator/internal.h"
 
 #define RK_PCIE_DBG			0
 
@@ -142,6 +145,7 @@ struct rk_pcie {
 	bool				is_lpbk;
 	bool				is_comp;
 	bool				finish_probe;
+	bool				keep_power_in_suspend;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
 	raw_spinlock_t			intx_lock;
@@ -339,6 +343,12 @@ static void rk_pcie_retrain(struct dw_pcie *pci)
 		if (ret)
 			dev_err(pci->dev, "Retrain link timeout\n");
 	}
+}
+
+static bool rk_pcie_check_keep_power_in_suspend(struct rk_pcie *rk_pcie)
+{
+	return (!rk_pcie->in_suspend ||
+		(rk_pcie->in_suspend && !rk_pcie->keep_power_in_suspend));
 }
 
 static int rk_pcie_establish_link(struct dw_pcie *pci)
@@ -770,6 +780,15 @@ retry_regulator:
 		if (PTR_ERR(rk_pcie->phy) != -EPROBE_DEFER)
 			dev_info(&pdev->dev, "missing phy\n");
 		return PTR_ERR(rk_pcie->phy);
+	}
+
+	rk_pcie->keep_power_in_suspend = device_property_present(&pdev->dev,
+						"rockchip,keep-power-in-suspend");
+	if (rk_pcie->keep_power_in_suspend) {
+		if (IS_ERR(rk_pcie->vpcie3v3))
+			dev_warn(&pdev->dev, "keep power in suspend need vpcie3v3\n");
+		else
+			regulator_suspend_enable(rk_pcie->vpcie3v3->rdev, PM_SUSPEND_MEM);
 	}
 
 	return 0;
@@ -1444,9 +1463,11 @@ static int rk_pcie_hardware_io_config(struct rk_pcie *rk_pcie)
 		}
 	}
 
-	ret = rk_pcie_enable_power(rk_pcie);
-	if (ret)
-		return ret;
+	if (rk_pcie_check_keep_power_in_suspend(rk_pcie)) {
+		ret = rk_pcie_enable_power(rk_pcie);
+		if (ret)
+			return ret;
+	}
 
 	reset_control_assert(rk_pcie->rsts);
 	udelay(10);
@@ -1502,8 +1523,10 @@ static int rk_pcie_hardware_io_unconfig(struct rk_pcie *rk_pcie)
 	phy_exit(rk_pcie->phy);
 	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 	reset_control_assert(rk_pcie->rsts);
-	rk_pcie_disable_power(rk_pcie);
-	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
+	if (rk_pcie_check_keep_power_in_suspend(rk_pcie)) {
+		rk_pcie_disable_power(rk_pcie);
+		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
+	}
 
 	return 0;
 }
