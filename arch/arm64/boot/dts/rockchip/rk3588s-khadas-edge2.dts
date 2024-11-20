@@ -552,7 +552,8 @@
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8316";
 		reg = <0x10>;
-		clocks = <&cru I2S0_8CH_MCLKOUT>;
+		clocks = <&mclkout_i2s0>;
+		//clocks = <&cru I2S0_8CH_MCLKOUT>;
 		clock-names = "mclk";
 		assigned-clocks = <&mclkout_i2s0>;
 		assigned-clock-rates = <12288000>;
