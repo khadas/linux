@@ -24,6 +24,8 @@
 		eink_tcon = <&eink>;
 		memory-region = <&display_reserved>;
 		waveform-region = <&waveform_reserved>;
+		nvmem-cells = <&cpu_code>;
+		nvmem-cell-names = "cpu-code";
 		status = "okay";
 	};
 };
