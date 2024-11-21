@@ -1020,7 +1020,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 			isp = dev;
 			is_try = true;
 			times = 0;
-			if (hw->unite == ISP_UNITE_ONE) {
+			if (hw->unite == ISP_UNITE_ONE && isp->unite_div > ISP_UNITE_DIV1) {
 				if (hw->is_multi_overflow && dev->sw_rd_cnt < 2)
 					isp->unite_index = ISP_UNITE_RIGHT;
 				else if (!hw->is_multi_overflow)
@@ -1103,8 +1103,8 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 			/* frame double for multi camera resolution out of hardware limit
 			 * first for HW save this camera information, and second to output image
 			 */
-			if ((hw->unite == ISP_UNITE_ONE ||
-			    (hw->pre_dev_id != -1 && hw->pre_dev_id != id))) {
+			if ((hw->unite == ISP_UNITE_ONE && isp->unite_div > ISP_UNITE_DIV1) ||
+			    (hw->pre_dev_id != -1 && hw->pre_dev_id != id)) {
 				isp->is_frame_double = true;
 				isp->sw_rd_cnt = 1;
 				times = 0;
@@ -1112,7 +1112,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 			/* resolution out of hardware limit
 			 * frame is vertically divided into left and right
 			 */
-			if (hw->unite == ISP_UNITE_ONE) {
+			if (hw->unite == ISP_UNITE_ONE && isp->unite_div > ISP_UNITE_DIV1) {
 				isp->sw_rd_cnt *= 2;
 				isp->sw_rd_cnt += 1;
 			}
