@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -17,6 +18,8 @@
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
 #include "clk.h"
+
+#define MHz	1000000
 
 #define RV1103B_PVTPLL_GCK_CFG			0x20
 #define RV1103B_PVTPLL_GCK_LEN			0x24
@@ -36,6 +39,7 @@
 #define RK3506_START				BIT(0)
 #define RK3506_RING_LENGTH_SEL_OFFSET		0
 #define RK3506_RING_LENGTH_SEL_MASK		0x7f
+#define RK3506_PVTPLL_MAX_LENGTH		0x7f
 
 struct rockchip_clock_pvtpll;
 
@@ -44,17 +48,25 @@ struct pvtpll_table {
 	u32 length;
 	u32 length_frac;
 	u32 ring_sel;
+	u32 volt_sel_thr;
 };
 
 struct rockchip_clock_pvtpll_info {
 	unsigned int table_size;
 	struct pvtpll_table *table;
+	unsigned int jm_table_size;
+	struct pvtpll_table *jm_table;
 	int (*config)(struct rockchip_clock_pvtpll *pvtpll,
 		      struct pvtpll_table *table);
+	int (*pvtpll_volt_sel_adjust)(struct rockchip_clock_pvtpll *pvtpll,
+				      u32 clock_id,
+				      u32 volt_sel);
 };
 
 struct rockchip_clock_pvtpll {
-	const struct rockchip_clock_pvtpll_info *info;
+	struct device *dev;
+	struct list_head list_head;
+	struct rockchip_clock_pvtpll_info *info;
 	struct regmap *regmap;
 	struct clk_hw hw;
 	struct clk *main_clk;
@@ -63,13 +75,32 @@ struct rockchip_clock_pvtpll {
 	struct clk *pvtpll_out;
 	struct notifier_block pvtpll_nb;
 	unsigned long cur_rate;
+	u32 pvtpll_clk_id;
 };
+
+static LIST_HEAD(rockchip_clock_pvtpll_list);
+static DEFINE_MUTEX(pvtpll_list_mutex);
+
+struct otp_opp_info {
+	u16 min_freq;
+	u16 max_freq;
+	u8 volt;
+	u8 length;
+} __packed;
 
 #define ROCKCHIP_PVTPLL(_rate, _sel, _len)			\
 {								\
 	.rate = _rate##U,					\
 	.ring_sel = _sel,					\
 	.length = _len,						\
+}
+
+#define ROCKCHIP_PVTPLL_VOLT_SEL(_rate, _sel, _len, _volt_sel_thr)	\
+{								\
+	.rate = _rate##U,					\
+	.ring_sel = _sel,					\
+	.length = _len,						\
+	.volt_sel_thr = _volt_sel_thr,				\
 }
 
 static struct pvtpll_table rv1103b_core_pvtpll_table[] = {
@@ -92,13 +123,25 @@ static struct pvtpll_table rv1103b_npu_pvtpll_table[] = {
 };
 
 static struct pvtpll_table rk3506_core_pvtpll_table[] = {
-	/* rate_hz, ring_sel, length */
-	ROCKCHIP_PVTPLL(1608000000, 0, 6),
-	ROCKCHIP_PVTPLL(1512000000, 0, 6),
-	ROCKCHIP_PVTPLL(1416000000, 0, 6),
-	ROCKCHIP_PVTPLL(1296000000, 0, 6),
-	ROCKCHIP_PVTPLL(1200000000, 0, 8),
-	ROCKCHIP_PVTPLL(1008000000, 0, 15),
+	/* rate_hz, ring_sel, length, volt_sel_thr */
+	ROCKCHIP_PVTPLL_VOLT_SEL(1608000000, 0, 6, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1512000000, 0, 6, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1416000000, 0, 6, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1296000000, 0, 6, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1200000000, 0, 6, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1008000000, 0, 10, 4),
+	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 18, 4),
+};
+
+static struct pvtpll_table rk3506j_core_pvtpll_table[] = {
+	/* rate_hz, ring_sel, length, volt_sel_thr */
+	ROCKCHIP_PVTPLL_VOLT_SEL(1608000000, 0, 6, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1512000000, 0, 7, 7),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1416000000, 0, 7, 5),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1296000000, 0, 7, 3),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1200000000, 0, 7, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(1008000000, 0, 11, 2),
+	ROCKCHIP_PVTPLL_VOLT_SEL(800000000, 0, 19, 2),
 };
 
 static struct pvtpll_table
@@ -259,6 +302,126 @@ static int clock_pvtpll_regitstor(struct device *dev,
 				   pvtpll->pvtpll_out);
 }
 
+static int rk3506_pvtpll_volt_sel_adjust(struct rockchip_clock_pvtpll *pvtpll,
+					 u32 clock_id,
+					 u32 volt_sel)
+{
+	struct pvtpll_table *table = pvtpll->info->table;
+	unsigned int size = pvtpll->info->table_size;
+	uint32_t delta_len = 0;
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (!table[i].volt_sel_thr)
+			continue;
+		if (volt_sel >= table[i].volt_sel_thr) {
+			delta_len = volt_sel - table[i].volt_sel_thr + 1;
+			table[i].length += delta_len;
+			if (table[i].length > RK3506_PVTPLL_MAX_LENGTH)
+				table[i].length = RK3506_PVTPLL_MAX_LENGTH;
+		}
+	}
+
+	return 0;
+}
+
+int rockchip_pvtpll_volt_sel_adjust(u32 clock_id, u32 volt_sel)
+{
+	struct rockchip_clock_pvtpll *pvtpll;
+	int ret = -ENODEV;
+
+	mutex_lock(&pvtpll_list_mutex);
+	list_for_each_entry(pvtpll, &rockchip_clock_pvtpll_list, list_head) {
+		if ((pvtpll->pvtpll_clk_id == clock_id) && pvtpll->info->pvtpll_volt_sel_adjust) {
+			ret = pvtpll->info->pvtpll_volt_sel_adjust(pvtpll, clock_id, volt_sel);
+			break;
+		}
+	}
+	mutex_unlock(&pvtpll_list_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_pvtpll_volt_sel_adjust);
+
+static int rockchip_pvtpll_get_otp_info(struct device *dev,
+					struct otp_opp_info *opp_info)
+{
+	struct nvmem_cell *cell;
+	void *buf;
+	size_t len = 0;
+
+	cell = nvmem_cell_get(dev, "opp-info");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = nvmem_cell_read(cell, &len);
+	if (IS_ERR(buf)) {
+		nvmem_cell_put(cell);
+		return PTR_ERR(buf);
+	}
+	if (len != sizeof(*opp_info)) {
+		kfree(buf);
+		nvmem_cell_put(cell);
+		return -EINVAL;
+	}
+
+	memcpy(opp_info, buf, sizeof(*opp_info));
+	kfree(buf);
+	nvmem_cell_put(cell);
+
+	return 0;
+}
+
+static void rockchip_switch_pvtpll_table(struct device *dev,
+					 struct rockchip_clock_pvtpll *pvtpll)
+{
+	u8 spec = 0;
+
+	if (!pvtpll->info->jm_table)
+		return;
+
+	if (!nvmem_cell_read_u8(dev, "specification_serial_number", &spec)) {
+		/* M = 0xd, J = 0xa */
+		if ((spec == 0xd) || (spec == 0xa)) {
+			pvtpll->info->table = pvtpll->info->jm_table;
+			pvtpll->info->table_size = pvtpll->info->jm_table_size;
+		}
+	}
+}
+
+static void rockchip_adjust_pvtpll_by_otp(struct device *dev,
+					  struct rockchip_clock_pvtpll *pvtpll)
+{
+	struct otp_opp_info opp_info = { 0 };
+	struct pvtpll_table *table = pvtpll->info->table;
+	unsigned int size = pvtpll->info->table_size;
+	u32 min_freq, max_freq;
+	int i;
+
+	if (rockchip_pvtpll_get_otp_info(dev, &opp_info))
+		return;
+
+	if (!opp_info.length)
+		return;
+
+	dev_info(dev, "adjust opp-table by otp: min=%uM, max=%uM, length=%u\n",
+		 opp_info.min_freq, opp_info.max_freq, opp_info.length);
+
+	min_freq = opp_info.min_freq * MHz;
+	max_freq = opp_info.max_freq * MHz;
+
+	for (i = 0; i < size; i++) {
+		if (table[i].rate < min_freq)
+			continue;
+		if (table[i].rate > max_freq)
+			continue;
+
+		table[i].length += opp_info.length;
+		if (table[i].length > RK3506_PVTPLL_MAX_LENGTH)
+			table[i].length = RK3506_PVTPLL_MAX_LENGTH;
+	}
+}
+
 static const struct rockchip_clock_pvtpll_info rv1103b_core_pvtpll_data = {
 	.config = rv1103b_pvtpll_configs,
 	.table_size = ARRAY_SIZE(rv1103b_core_pvtpll_table),
@@ -275,6 +438,9 @@ static const struct rockchip_clock_pvtpll_info rk3506_core_pvtpll_data = {
 	.config = rk3506_pvtpll_configs,
 	.table_size = ARRAY_SIZE(rk3506_core_pvtpll_table),
 	.table = rk3506_core_pvtpll_table,
+	.jm_table_size = ARRAY_SIZE(rk3506j_core_pvtpll_table),
+	.jm_table = rk3506j_core_pvtpll_table,
+	.pvtpll_volt_sel_adjust = rk3506_pvtpll_volt_sel_adjust,
 };
 
 static const struct of_device_id rockchip_clock_pvtpll_match[] = {
@@ -299,13 +465,14 @@ static int rockchip_clock_pvtpll_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct rockchip_clock_pvtpll *pvtpll;
+	struct of_phandle_args clkspec = { 0 };
 	int error = 0;
 
 	pvtpll = devm_kzalloc(dev, sizeof(*pvtpll), GFP_KERNEL);
 	if (!pvtpll)
 		return -ENOMEM;
 
-	pvtpll->info = (const struct rockchip_clock_pvtpll_info *)device_get_match_data(&pdev->dev);
+	pvtpll->info = (struct rockchip_clock_pvtpll_info *)device_get_match_data(&pdev->dev);
 	if (!pvtpll->info)
 		return -EINVAL;
 
@@ -313,15 +480,32 @@ static int rockchip_clock_pvtpll_probe(struct platform_device *pdev)
 	if (IS_ERR(pvtpll->regmap))
 		return PTR_ERR(pvtpll->regmap);
 
+	pvtpll->pvtpll_clk_id = UINT_MAX;
+
+	error = of_parse_phandle_with_args(np, "clocks", "#clock-cells",
+					   0, &clkspec);
+	if (!error) {
+		pvtpll->pvtpll_clk_id = clkspec.args[0];
+		of_node_put(clkspec.np);
+	}
+
+	rockchip_switch_pvtpll_table(dev, pvtpll);
+
+	rockchip_adjust_pvtpll_by_otp(dev, pvtpll);
+
 	platform_set_drvdata(pdev, pvtpll);
 
 	error = clock_pvtpll_regitstor(&pdev->dev, pvtpll);
 	if (error) {
-		dev_err(&pdev->dev, "failed to register clock: %d\n",
-			error);
+		dev_err(&pdev->dev, "failed to register clock: %d\n", error);
+		return error;
 	}
 
-	return error;
+	mutex_lock(&pvtpll_list_mutex);
+	list_add(&pvtpll->list_head, &rockchip_clock_pvtpll_list);
+	mutex_unlock(&pvtpll_list_mutex);
+
+	return 0;
 }
 
 static int rockchip_clock_pvtpll_remove(struct platform_device *pdev)

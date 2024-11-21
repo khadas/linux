@@ -774,6 +774,15 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 }
 #endif
 
+#if IS_REACHABLE(CONFIG_ROCKCHIP_CLK_PVTPLL)
+int rockchip_pvtpll_volt_sel_adjust(u32 clock_id, u32 volt_sel);
+#else
+static inline int rockchip_pvtpll_volt_sel_adjust(u32 clock_id, u32 volt_sel)
+{
+	return -ENODEV;
+}
+#endif
+
 #define ROCKCHIP_INVERTER_HIWORD_MASK	BIT(0)
 
 struct clk *rockchip_clk_register_inverter(const char *name,
