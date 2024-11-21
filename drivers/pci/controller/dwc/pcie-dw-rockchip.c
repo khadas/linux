@@ -141,7 +141,6 @@ struct rk_pcie {
 	bool				hp_no_link;
 	bool				is_lpbk;
 	bool				is_comp;
-	bool				have_rasdes;
 	bool				finish_probe;
 	struct regulator		*vpcie3v3;
 	struct irq_domain		*irq_domain;
@@ -159,6 +158,7 @@ struct rk_pcie {
 	u32				slot_power_limit;
 	u8				slot_power_limit_value;
 	u8				slot_power_limit_scale;
+	u32				rasdes_off;
 };
 
 struct rk_pcie_of_data {
@@ -1044,11 +1044,7 @@ static int rockchip_pcie_rasdes_show(struct seq_file *s, void *unused)
 
 	seq_printf(s, "Common event signal status: 0x%s\n", pm);
 
-	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
-	if (!cap_base) {
-		dev_err(pcie->pci->dev, "Not able to find RASDES CAP!\n");
-		return 0;
-	}
+	cap_base = pcie->rasdes_off;
 
 	RAS_DES_EVENT("EBUF Overflow: ", 0);
 	RAS_DES_EVENT("EBUF Under-run: ", 0x0010000);
@@ -1099,11 +1095,7 @@ static ssize_t rockchip_pcie_rasdes_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
-	if (!cap_base) {
-		dev_err(pcie->pci->dev, "Not able to find RASDES CAP!\n");
-		return 0;
-	}
+	cap_base = pcie->rasdes_off;
 
 	if (!strncmp(buf, "enable", 6))	{
 		dev_info(pcie->pci->dev, "RAS DES Event: Enable ALL!\n");
@@ -1137,11 +1129,7 @@ static int rockchip_pcie_fault_inject_show(struct seq_file *s, void *unused)
 	struct rk_pcie *pcie = s->private;
 	u32 cap_base;
 
-	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
-	if (!cap_base) {
-		dev_err(pcie->pci->dev, "Not able to find RASDES CAP!\n");
-		return -EINVAL;
-	}
+	cap_base = pcie->rasdes_off;
 
 	INJECTION_EVENT("ERROR_INJECTION0_ENABLE: ", 0x30, 1, 0);
 	INJECTION_EVENT("ERROR_INJECTION1_ENABLE: ", 0x30, 1, 1);
@@ -1222,11 +1210,7 @@ static ssize_t rockchip_pcie_fault_inject_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, cnt)))
 		return -EFAULT;
 
-	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
-	if (!cap_base) {
-		dev_err(dev, "Not able to find RASDES CAP!\n");
-		return -EINVAL;
-	}
+	cap_base = pcie->rasdes_off;
 
 	if (sscanf(buf, "%d %d %d %d", &einj, &enable, &type, &count) < 4) {
 		dev_err(dev,
@@ -1301,7 +1285,7 @@ static int rockchip_pcie_debugfs_init(struct rk_pcie *pcie)
 {
 	struct dentry *file;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !pcie->have_rasdes)
+	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !pcie->rasdes_off)
 		return 0;
 
 	pcie->debugfs = debugfs_create_dir(dev_name(pcie->pci->dev), NULL);
@@ -1542,13 +1526,13 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	}
 
 	/* Enable RASDES Error event by default */
-	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
-	if (!val) {
+	if (!rk_pcie->in_suspend)
+		rk_pcie->rasdes_off = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+	if (!rk_pcie->rasdes_off) {
 		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
 	} else {
-		dw_pcie_writel_dbi(pci, val + 8, 0x1c);
-		dw_pcie_writel_dbi(pci, val + 8, 0x3);
-		rk_pcie->have_rasdes = true;
+		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x1c);
+		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x3);
 	}
 
 	dw_pcie_dbi_ro_wr_en(pci);
