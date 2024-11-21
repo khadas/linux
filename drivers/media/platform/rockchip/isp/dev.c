@@ -604,31 +604,29 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 
 	dev = container_of(notifier, struct rkisp_device, notifier);
 
-	mutex_lock(&dev->media_dev.graph_mutex);
 	ret = rkisp_create_links(dev);
 	if (ret < 0)
-		goto unlock;
+		goto err;
 	ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
 	if (ret < 0)
-		goto unlock;
+		goto err;
 
 	if (dev->isp_inp) {
 		ret = rkisp_update_sensor_info(dev);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev, "update sensor failed\n");
-			goto unlock;
+			goto err;
 		}
 		dev->is_hw_link = true;
 	}
 
 	ret = _set_pipeline_default_fmt(dev, true);
 	if (ret < 0)
-		goto unlock;
+		goto err;
 
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
-unlock:
-	mutex_unlock(&dev->media_dev.graph_mutex);
+err:
 	if (!ret && dev->is_thunderboot)
 		schedule_work(&dev->cap_dev.fast_work);
 	return ret;
