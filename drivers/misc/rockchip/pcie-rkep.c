@@ -131,6 +131,53 @@ struct pcie_file {
 	DECLARE_BITMAP(child_vid_bitmap, RKEP_EP_VIRTUAL_ID_MAX); /* The virtual IDs applied for each task */
 };
 
+static bool pcie_rkep_wait_for_link_up(struct pci_dev *pdev)
+{
+	int timeout = 1000;
+	bool ret;
+	u16 lnk_status;
+	bool active = true;
+	struct pci_dev *bridge;
+
+	bridge = pci_upstream_bridge(pdev);
+
+	/*
+	 * PCIe r4.0 sec 6.6.1, a component must enter LTSSM Detect within 20ms,
+	 * after which we should expect an link active if the reset was
+	 * successful. If so, software must wait a minimum 100ms before sending
+	 * configuration requests to devices downstream this port.
+	 *
+	 * If the link fails to activate, either the device was physically
+	 * removed or the link is permanently failed.
+	 */
+	if (active)
+		msleep(20);
+	for (;;) {
+		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &lnk_status);
+		ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
+		if (ret == active)
+			break;
+		if (timeout <= 0)
+			break;
+		msleep(20);
+		timeout -= 20;
+	}
+
+	return ret;
+}
+
+static bool pcie_rkep_is_link_lost(struct pci_dev *pdev)
+{
+	u32 bar0, bar4;
+
+	pcie_capability_read_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
+	pcie_capability_read_dword(pdev, PCI_BASE_ADDRESS_4, &bar4);
+	if ((bar0 == 0xffffffff || bar0 == 0) && (bar4 == 0xffffffff || bar4 == 0))
+		return true;
+	else
+		return false;
+}
+
 static int rkep_ep_dma_xfer(struct pcie_rkep *pcie_rkep, struct pcie_ep_dma_block_req *dma)
 {
 	int ret;
@@ -1282,6 +1329,8 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "obj_info magic=%x, ver=%x\n", pcie_rkep->obj_info->magic,
 		 pcie_rkep->obj_info->version);
 
+	pci_save_state(pdev);
+
 	device_create_file(&pdev->dev, &dev_attr_rkep);
 
 	return 0;
@@ -1328,6 +1377,46 @@ static void pcie_rkep_remove(struct pci_dev *pdev)
 	misc_deregister(&pcie_rkep->dev);
 }
 
+static pci_ers_result_t pcie_rkep_error_detected(struct pci_dev *pdev,
+						 pci_channel_state_t state)
+{
+	dev_warn(&pdev->dev, "error detected, state=%d link=%d\n", state, pcie_rkep_is_link_lost(pdev));
+
+	switch (state) {
+	case pci_channel_io_normal:
+		if (pcie_rkep_is_link_lost(pdev))
+			return PCI_ERS_RESULT_NEED_RESET;
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		dev_warn(&pdev->dev,
+			"frozen state error detected, reset controller\n");
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		dev_warn(&pdev->dev,
+			"failure state error detected, request disconnect\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t pcie_rkep_slot_reset(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "restart after slot reset\n");
+
+	if (pcie_rkep_wait_for_link_up(pdev)) {
+		pci_restore_state(pdev);
+		return PCI_ERS_RESULT_RECOVERED;
+	} else {
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+}
+
+static const struct pci_error_handlers pcie_rkep_err_handler = {
+	.error_detected	= pcie_rkep_error_detected,
+	.slot_reset	= pcie_rkep_slot_reset,
+};
+
 static const struct pci_device_id pcie_rkep_pcidev_id[] = {
 	{ PCI_VDEVICE(ROCKCHIP, 0x356a), 1,  },
 	{ }
@@ -1339,6 +1428,7 @@ static struct pci_driver pcie_rkep_driver = {
 	.id_table = pcie_rkep_pcidev_id,
 	.probe = pcie_rkep_probe,
 	.remove = pcie_rkep_remove,
+	.err_handler	= &pcie_rkep_err_handler,
 };
 module_pci_driver(pcie_rkep_driver);
 
