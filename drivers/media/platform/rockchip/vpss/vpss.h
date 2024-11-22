@@ -18,6 +18,11 @@ enum rkvpss_state {
 	VPSS_STOP = 0,
 	VPSS_FS = BIT(0),
 	VPSS_FE = BIT(1),
+	VPSS_FRAME_END = BIT(2),
+	VPSS_FRAME_SCL0 = BIT(3),
+	VPSS_FRAME_SCL1 = BIT(4),
+	VPSS_FRAME_SCL2 = BIT(5),
+	VPSS_FRAME_SCL3 = BIT(6),
 
 	VPSS_START = BIT(8),
 	VPSS_RX_START = BIT(9),
@@ -46,4 +51,5 @@ struct rkvpss_subdev {
 int rkvpss_register_subdev(struct rkvpss_device *dev,
 			   struct v4l2_device *v4l2_dev);
 void rkvpss_unregister_subdev(struct rkvpss_device *dev);
+void rkvpss_check_idle(struct rkvpss_device *dev, u32 irq);
 #endif

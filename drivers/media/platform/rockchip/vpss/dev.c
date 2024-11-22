@@ -24,7 +24,7 @@
 
 int rkvpss_debug;
 module_param_named(debug, rkvpss_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-3)");
+MODULE_PARM_DESC(debug, "Debug level (0-6)");
 
 static bool rkvpss_clk_dbg;
 module_param_named(clk_dbg, rkvpss_clk_dbg, bool, 0644);
@@ -33,6 +33,30 @@ MODULE_PARM_DESC(clk_dbg, "rkvpss clk set by user");
 static char rkvpss_version[RKVPSS_VERNO_LEN];
 module_param_string(version, rkvpss_version, RKVPSS_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
+
+int rkvpss_cfginfo_num = 5;
+
+static int rkvpss_get_cfginfo_num(const char *val, const struct kernel_param *kp)
+{
+	int num, ret;
+
+	ret = kstrtoint(val, 10, &num);
+	if (ret)
+		return ret;
+	if (num < 0 || num > 50) {
+		pr_info("rkvpss_cfginfo_num must be range of 0 to 50");
+		return -EINVAL;
+	}
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops cfginfo_num_ops = {
+	.set = rkvpss_get_cfginfo_num,
+	.get = param_get_int,
+};
+module_param_cb(cfginfo_num, &cfginfo_num_ops, &rkvpss_cfginfo_num, 0644);
+MODULE_PARM_DESC(cfginfo_num, "rkvpss offline cfginfo number");
 
 void rkvpss_set_clk_rate(struct clk *clk, unsigned long rate)
 {
@@ -75,6 +99,9 @@ int rkvpss_pipeline_stream(struct rkvpss_device *dev, bool on)
 	    (!on && atomic_dec_return(&dev->pipe_stream_cnt) > 0))
 		return 0;
 
+	v4l2_dbg(1, rkvpss_debug, &dev->v4l2_dev,
+		 "%s on:%d\n", __func__, on);
+
 	if (on) {
 		ret = v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, true);
 		if (ret < 0)
@@ -84,7 +111,12 @@ int rkvpss_pipeline_stream(struct rkvpss_device *dev, bool on)
 			v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, false);
 			goto err;
 		}
+		dev->stopping = false;
 	} else {
+		dev->stopping = true;
+		ret = wait_event_timeout(dev->stop_done, !dev->stopping, msecs_to_jiffies(300));
+		if (!ret)
+			v4l2_warn(&dev->v4l2_dev, "%s timeout\n", __func__);
 		v4l2_subdev_call(dev->remote_sd, video, s_stream, false);
 		v4l2_subdev_call(&dev->vpss_sdev.sd, video, s_stream, false);
 	}
@@ -256,7 +288,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev;
 	struct rkvpss_device *vpss_dev;
-	int ret;
+	int ret, mult = 2;
 
 	sprintf(rkvpss_version, "v%02x.%02x.%02x",
 		RKVPSS_DRIVER_VERSION >> 16,
@@ -268,7 +300,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	vpss_dev = devm_kzalloc(dev, sizeof(*vpss_dev), GFP_KERNEL);
 	if (!vpss_dev)
 		return -ENOMEM;
-	vpss_dev->sw_base_addr = devm_kzalloc(dev, RKVPSS_SW_REG_SIZE_MAX, GFP_KERNEL);
+	vpss_dev->sw_base_addr = devm_kzalloc(dev, RKVPSS_SW_REG_SIZE_MAX * mult, GFP_KERNEL);
 	if (!vpss_dev->sw_base_addr)
 		return -ENOMEM;
 
@@ -314,6 +346,9 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	rkvpss_proc_init(vpss_dev);
 	pm_runtime_enable(&pdev->dev);
 	vpss_dev->is_probe_end = true;
+	init_waitqueue_head(&vpss_dev->stop_done);
+	vpss_dev->is_suspend = false;
+	vpss_dev->is_idle = true;
 	return 0;
 
 err_unreg_media_dev:
@@ -342,7 +377,7 @@ static int rkvpss_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
+static int __maybe_unused rkvpss_dev_runtime_suspend(struct device *dev)
 {
 	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
 	int ret;
@@ -353,7 +388,7 @@ static int __maybe_unused rkvpss_runtime_suspend(struct device *dev)
 	return (ret > 0) ? 0 : ret;
 }
 
-static int __maybe_unused rkvpss_runtime_resume(struct device *dev)
+static int __maybe_unused rkvpss_dev_runtime_resume(struct device *dev)
 {
 	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
 	int ret;
@@ -364,9 +399,46 @@ static int __maybe_unused rkvpss_runtime_resume(struct device *dev)
 	return (ret > 0) ? 0 : ret;
 }
 
+static int rkvpss_pm_suspend(struct device *dev)
+{
+	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
+	u32 ret;
+
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s enter\n", __func__);
+	if (vpss_dev->vpss_sdev.state == VPSS_STOP)
+		return 0;
+
+	vpss_dev->is_suspend = true;
+	/* wait fe*/
+	if (!vpss_dev->is_idle) {
+		ret = wait_for_completion_timeout(&vpss_dev->pm_suspend_wait_fe,
+						  msecs_to_jiffies(200));
+		if (!ret)
+			v4l2_info(&vpss_dev->v4l2_dev, "%s wait fe timeout\n", __func__);
+	}
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s exit\n", __func__);
+	return 0;
+}
+
+static int rkvpss_pm_resume(struct device *dev)
+{
+	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
+
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s enter\n", __func__);
+	if (vpss_dev->vpss_sdev.state == VPSS_STOP)
+		return 0;
+
+	vpss_dev->is_suspend = false;
+	v4l2_dbg(4, rkvpss_debug, &vpss_dev->v4l2_dev, "%s exit\n", __func__);
+
+	return 0;
+}
+
 static const struct dev_pm_ops rkvpss_plat_pm_ops = {
-	SET_RUNTIME_PM_OPS(rkvpss_runtime_suspend,
-			   rkvpss_runtime_resume, NULL)
+	.suspend = rkvpss_pm_suspend,
+	.resume = rkvpss_pm_resume,
+	SET_RUNTIME_PM_OPS(rkvpss_dev_runtime_suspend,
+			   rkvpss_dev_runtime_resume, NULL)
 };
 
 struct platform_driver rkvpss_plat_drv = {

@@ -160,12 +160,18 @@ out_clk_put:
 
 static int cpufreq_online(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	return rockchip_cpufreq_online(policy->cpu);
+#endif
 	/* We did light-weight tear down earlier, nothing to do here */
 	return 0;
 }
 
 static int cpufreq_offline(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_ARCH_ROCKCHIP
+	return rockchip_cpufreq_offline(policy->cpu);
+#endif
 	/*
 	 * Preserve policy->driver_data and don't free resources on light-weight
 	 * tear down.
@@ -215,7 +221,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	if (!priv)
 		return -ENOMEM;
 
-	if (!alloc_cpumask_var(&priv->cpus, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&priv->cpus, GFP_KERNEL))
 		return -ENOMEM;
 
 	cpumask_set_cpu(cpu, priv->cpus);

@@ -107,6 +107,13 @@ config CLK_RK3399
 	help
 	  Build the driver for RK3399 Clock Driver.
 
+config CLK_RK3506
+	tristate "Rockchip RK3506 clock controller support"
+	depends on CPU_RK3506 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3506 Clock Driver.
+
 config CLK_RK3528
 	tristate "Rockchip RK3528 clock controller support"
 	depends on CPU_RK3528 || COMPILE_TEST
@@ -162,7 +169,7 @@ config ROCKCHIP_CLK_BOOST
 
 config ROCKCHIP_CLK_INV
 	bool "Rockchip Clk Inverter"
-	depends on !CPU_RV1126 && !CPU_RV1106
+	depends on !CPU_RV1126 && !CPU_RV1106 && !CPU_RV1103B
 	default y
 	help
 	  Say y here to enable clk Inverter.
@@ -175,10 +182,16 @@ config ROCKCHIP_CLK_OUT
 
 config ROCKCHIP_CLK_PVTM
 	bool "Rockchip Clk Pvtm"
-	depends on !CPU_RV1126 && !CPU_RV1106
+	depends on !CPU_RV1126 && !CPU_RV1106 && !CPU_RV1103B
 	default y
 	help
 	  Say y here to enable clk pvtm.
+
+config ROCKCHIP_CLK_PVTPLL
+	tristate "Rockchip Clk Pvtpll"
+	default y if CPU_RV1103B || CPU_RK3506
+	help
+	  Say y here to enable clk pvtpll.
 
 config ROCKCHIP_DDRCLK
 	bool

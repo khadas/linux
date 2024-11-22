@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -553,8 +553,8 @@ int kbase_add_va_region(struct kbase_context *kctx, struct kbase_va_region *reg,
 {
 	int err = 0;
 	struct kbase_device *kbdev = kctx->kbdev;
-	const int cpu_va_bits = kbase_get_num_cpu_va_bits(kctx);
-	const int gpu_pc_bits = kbdev->gpu_props.log2_program_counter_size;
+	const size_t cpu_va_bits = kbase_get_num_cpu_va_bits(kctx);
+	const size_t gpu_pc_bits = kbdev->gpu_props.log2_program_counter_size;
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
 	KBASE_DEBUG_ASSERT(reg != NULL);
@@ -648,7 +648,7 @@ int kbase_add_va_region_rbtree(struct kbase_device *kbdev, struct kbase_va_regio
 		} else if (!kbase_is_region_free(tmp)) {
 			dev_warn(
 				dev,
-				"!(tmp->flags & KBASE_REG_FREE): tmp->start_pfn=0x%llx tmp->flags=0x%lx tmp->nr_pages=0x%zx gpu_pfn=0x%llx nr_pages=0x%zx\n",
+				"!(tmp->flags & KBASE_REG_FREE): tmp->start_pfn=0x%llx tmp->flags=0x%llx tmp->nr_pages=0x%zx gpu_pfn=0x%llx nr_pages=0x%zx\n",
 				tmp->start_pfn, tmp->flags, tmp->nr_pages, gpu_pfn, nr_pages);
 			err = -ENOMEM;
 			goto exit;
@@ -1367,7 +1367,7 @@ struct kbase_va_region *kbase_alloc_free_region(struct kbase_reg_zone *zone, u64
 		return NULL;
 
 	kbase_refcount_set(&new_reg->va_refcnt, 1);
-	atomic_set(&new_reg->no_user_free_count, 0);
+	atomic64_set(&new_reg->no_user_free_count, 0);
 	new_reg->cpu_alloc = NULL; /* no alloc bound yet */
 	new_reg->gpu_alloc = NULL; /* no alloc bound yet */
 	new_reg->rbtree = &zone->reg_rbtree;

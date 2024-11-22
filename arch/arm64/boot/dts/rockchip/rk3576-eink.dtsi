@@ -43,6 +43,8 @@
 
 &dmc {
 	wait-mode = <DMC_WAIT_MODE_EBC_VBANK>;
+	upthreshold = <50>;
+	downdifferential = <25>;
 };
 
 &ebc {
@@ -85,6 +87,9 @@
 		/* buck5 external feedback resister disable */
 		buck5-feedback-disable;
 		vdc-wakeup-enable;
+
+		/* set power key on time */
+		pwron-on-time-500ms;
 
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;

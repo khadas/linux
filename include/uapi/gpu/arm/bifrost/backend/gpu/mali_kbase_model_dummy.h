@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,7 @@
 #endif /* MALI_USE_CSF */
 #define KBASE_DUMMY_MODEL_COUNTERS_PER_BIT (4)
 #define KBASE_DUMMY_MODEL_COUNTER_ENABLED(enable_mask, ctr_idx) \
-	(enable_mask & (1 << (ctr_idx / KBASE_DUMMY_MODEL_COUNTERS_PER_BIT)))
+	(enable_mask & (1U << (ctr_idx / KBASE_DUMMY_MODEL_COUNTERS_PER_BIT)))
 
 #define KBASE_DUMMY_MODEL_HEADERS_PER_BLOCK 4
 #define KBASE_DUMMY_MODEL_COUNTERS_PER_BLOCK KBASE_DUMMY_MODEL_COUNTER_PER_CORE

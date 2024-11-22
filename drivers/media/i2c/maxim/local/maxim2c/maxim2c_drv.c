@@ -52,6 +52,18 @@
  *     2. mode vc initialization when vc-array isn't configured
  *     3. fix the issue of mutex deadlock during hot plug
  *
+ * V3.07.00
+ *     1. v4l2 ioctl add command to support quick stream setting
+ *     2. dev_pm_ops add suspend and resume for system sleep
+ *
+ * V3.08.00
+ *     1. wait link lock stable when hot plug is detected
+ *     2. link get lock state retry if i2c error
+ *
+ * V3.09.00
+ *     1. if remote camera not connected, hot plug state check timer working,
+ *        fix the issue of mutex deadlock when stream off.
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -79,7 +91,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x06, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x09, 0x00)
 
 #define MAXIM2C_NAME			"maxim2c"
 
@@ -206,7 +218,7 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 	maxim2c_t *maxim2c =
 		container_of(hot_plug_work, struct maxim2c, hot_plug_work);
 	struct device *dev = &maxim2c->client->dev;
-	u8 curr_lock_state = 0, last_lock_state = 0, link_lock_change = 0;
+	u8 curr_lock_state = 0, retry_lock_state = 0, last_lock_state = 0, link_lock_change = 0;
 	u8 link_enable_mask = 0, link_id = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -222,13 +234,25 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 	if ((maxim2c->hot_plug_state == MAXIM2C_HOT_PLUG_OUT)
 			&& (last_lock_state == link_enable_mask)) {
 		// i2c mux enable: disable all remote channel
+		dev_info(dev, "disable all remote channel\n");
 		maxim2c_i2c_mux_enable(maxim2c, 0x00);
 	}
 
 	curr_lock_state = maxim2c_link_get_lock_state(maxim2c, link_enable_mask);
+	// Link lock state maybe detect error when hot plug, first check i2c io status
+	if (curr_lock_state != last_lock_state) {
+		// delay 100ms for link lock stable
+		usleep_range(100000, 110000);
+		retry_lock_state = maxim2c_link_get_lock_state(maxim2c, link_enable_mask);
+		if (retry_lock_state != curr_lock_state) {
+			dev_info(dev, "link lock retry: 0x%02x -> 0x%02x\n",
+					curr_lock_state, retry_lock_state);
+			curr_lock_state = retry_lock_state;
+		}
+	}
 	link_lock_change = (last_lock_state ^ curr_lock_state);
 	if (link_lock_change) {
-		dev_dbg(dev, "lock state: current = 0x%02x, last = 0x%02x\n",
+		dev_info(dev, "lock state: current = 0x%02x, last = 0x%02x\n",
 			curr_lock_state, last_lock_state);
 
 		maxim2c_hot_plug_event_report(maxim2c, curr_lock_state);
@@ -420,9 +444,43 @@ static int maxim2c_runtime_suspend(struct device *dev)
 #endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 }
 
+static int __maybe_unused maxim2c_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
+	int ret = 0;
+
+	dev_info(dev, "maxim2c resume\n");
+
+#if (MAXIM2C_LOCAL_DES_ON_OFF_EN == 0)
+#if MAXIM2C_TEST_PATTERN
+	ret = maxim2c_pattern_hw_init(maxim2c);
+	if (ret) {
+		dev_err(dev, "test pattern hw init error\n");
+		return ret;
+	}
+#else
+	ret = maxim2c_module_hw_init(maxim2c);
+	if (ret) {
+		dev_err(dev, "maxim2c module hw init error\n");
+		return ret;
+	}
+#endif /* MAXIM2C_TEST_PATTERN */
+#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
+
+	return 0;
+}
+
+static int __maybe_unused maxim2c_suspend(struct device *dev)
+{
+	return 0;
+}
+
 static const struct dev_pm_ops maxim2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(
 		maxim2c_runtime_suspend, maxim2c_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(maxim2c_suspend, maxim2c_resume)
 };
 
 static void maxim2c_module_data_init(maxim2c_t *maxim2c)

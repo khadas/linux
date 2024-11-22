@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -65,26 +65,11 @@ bob_defaults {
     large_page_support: {
         kbuild_options: ["CONFIG_LARGE_PAGE_SUPPORT=y"],
     },
-    mali_memory_fully_backed: {
-        kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
-    },
     mali_corestack: {
         kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
     },
     mali_real_hw: {
         kbuild_options: ["CONFIG_MALI_REAL_HW=y"],
-    },
-    mali_error_inject_none: {
-        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_NONE=y"],
-    },
-    mali_error_inject_track_list: {
-        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_TRACK_LIST=y"],
-    },
-    mali_error_inject_random: {
-        kbuild_options: ["CONFIG_MALI_ERROR_INJECT_RANDOM=y"],
-    },
-    mali_error_inject: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
     },
     mali_debug: {
         kbuild_options: [
@@ -128,7 +113,7 @@ bob_defaults {
     mali_hw_errata_1485982_use_clock_alternative: {
         kbuild_options: ["CONFIG_MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE=y"],
     },
-    platform_is_fpga: {
+    mali_is_fpga: {
         kbuild_options: ["CONFIG_MALI_IS_FPGA=y"],
     },
     mali_coresight: {
@@ -163,7 +148,6 @@ bob_defaults {
         // is an umbrella feature that would be open for inappropriate use
         // (catch-all for experimental CS code without separating it into
         // different features).
-        "MALI_INCREMENTAL_RENDERING_JM={{.incremental_rendering_jm}}",
         "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
     ],
 }
@@ -177,6 +161,9 @@ bob_kernel_module {
         "*.c",
         "*.h",
         "Kbuild",
+        "arbiter/*.c",
+        "arbiter/*.h",
+        "arbiter/Kbuild",
         "backend/gpu/*.c",
         "backend/gpu/*.h",
         "backend/gpu/Kbuild",
@@ -242,6 +229,7 @@ bob_kernel_module {
             "jm/*.h",
             "tl/backend/*_jm.c",
             "mmu/backend/*_jm.c",
+            "mmu/backend/*_jm.h",
             "ipa/backend/*_jm.c",
             "ipa/backend/*_jm.h",
         ],
@@ -266,15 +254,9 @@ bob_kernel_module {
             "hwcnt/backend/*_csf_*.h",
             "tl/backend/*_csf.c",
             "mmu/backend/*_csf.c",
+            "mmu/backend/*_csf.h",
             "ipa/backend/*_csf.c",
             "ipa/backend/*_csf.h",
-        ],
-    },
-    mali_arbiter_support: {
-        srcs: [
-            "arbiter/*.c",
-            "arbiter/*.h",
-            "arbiter/Kbuild",
         ],
     },
     kbuild_options: [

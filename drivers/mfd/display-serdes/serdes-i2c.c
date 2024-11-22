@@ -408,8 +408,8 @@ static int serdes_i2c_probe(struct i2c_client *client,
 			       __func__, dev->of_node->name, serdes->reg_hw, serdes->reg_use);
 		ret = serdes_set_i2c_address(serdes, serdes->reg_hw,
 					     serdes->reg_use, serdes->link_use);
-		if (ret != 0)
-			return ret;
+		if (ret)
+			dev_err(dev, "%s failed to set i2c address\n", serdes->chip_data->name);
 	}
 
 	serdes->use_delay_work = of_property_read_bool(dev->of_node, "use-delay-work");

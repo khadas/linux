@@ -148,8 +148,8 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 		 "s_stream on:%d %dx%d\n", on, w, h);
 
 	if (!on) {
-		rkvpss_clear_bits(dev, RKVPSS_VPSS_ONLINE, RKVPSS_ONLINE_MODE_MASK);
-		rkvpss_clear_bits(dev, RKVPSS_VPSS_IMSC, RKVPSS_ISP_ALL_FRM_END);
+		rkvpss_unite_clear_bits(dev, RKVPSS_VPSS_ONLINE, RKVPSS_ONLINE_MODE_MASK);
+		rkvpss_unite_clear_bits(dev, RKVPSS_VPSS_IMSC, RKVPSS_ISP_ALL_FRM_END);
 		sdev->state = VPSS_STOP;
 		atomic_dec(&dev->hw_dev->refcnt);
 		return 0;
@@ -158,18 +158,23 @@ static int rkvpss_sd_s_stream(struct v4l2_subdev *sd, int on)
 	sdev->frame_seq = -1;
 	sdev->frame_timestamp = 0;
 	dev->isr_cnt = 0;
+	dev->irq_ends = 0;
 	atomic_inc(&dev->hw_dev->refcnt);
 	dev->cmsc_upd = true;
 	rkvpss_cmsc_config(dev, true);
-	rkvpss_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
+
+	if (dev->unite_mode)
+		w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+
+	rkvpss_unite_write(dev, RKVPSS_VPSS_ONLINE2_SIZE, h << 16 | w);
 
 	val = RKVPSS_CFG_FORCE_UPD | RKVPSS_CFG_GEN_UPD | RKVPSS_MIR_GEN_UPD;
 	if (!dev->hw_dev->is_ofl_cmsc)
 		val |= RKVPSS_MIR_FORCE_UPD;
 
-	rkvpss_write(dev, RKVPSS_VPSS_UPDATE, val);
+	rkvpss_unite_write(dev, RKVPSS_VPSS_UPDATE, val);
 
-	rkvpss_set_bits(dev, RKVPSS_VPSS_IMSC, 0, RKVPSS_ISP_ALL_FRM_END);
+	rkvpss_unite_set_bits(dev, RKVPSS_VPSS_IMSC, 0, RKVPSS_ISP_ALL_FRM_END);
 	sdev->state |= VPSS_START;
 	return 0;
 }
@@ -209,6 +214,8 @@ static int rkvpss_sd_s_power(struct v4l2_subdev *sd, int on)
 				return ret;
 			}
 		}
+		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_GET_UNITE_MODE,
+				 &dev->unite_mode);
 		ret = pm_runtime_get_sync(dev->dev);
 		if (ret < 0) {
 			v4l2_err(&dev->v4l2_dev,
@@ -232,11 +239,18 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 	struct rkvpss_hw_dev *hw = dev->hw_dev;
 	struct rkvpss_stream *stream;
 	int i;
+	u32 vpss_online, val = 0;
 
 	if (!info)
 		return -EINVAL;
 	sdev->frame_seq = info->seq;
 	sdev->frame_timestamp = info->timestamp;
+	dev->unite_index = info->unite_index;
+	dev->is_idle = false;
+
+	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
+		 "%s unite_mode:%u, unite_indev:%u seq:%d\n", __func__,
+		 dev->unite_mode, dev->unite_index, info->seq);
 
 	rkvpss_cmsc_config(dev, !info->irq);
 	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
@@ -247,7 +261,7 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 			stream->ops->frame_start(stream, info->irq);
 	}
 
-	if (!info->irq && !hw->is_single) {
+	if (!info->irq && (!hw->is_single || dev->unite_mode)) {
 		hw->cur_dev_id = dev->dev_id;
 		rkvpss_update_regs(dev, RKVPSS_VPSS_CTRL, RKVPSS_VPSS_ONLINE2_SIZE);
 		rkvpss_update_regs(dev, RKVPSS_VPSS_IRQ_CFG, RKVPSS_VPSS_IMSC);
@@ -262,7 +276,7 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 		rkvpss_update_regs(dev, RKVPSS_MI_WR_WRAP_CTRL, RKVPSS_MI_IMSC);
 		rkvpss_update_regs(dev, RKVPSS_MI_CHN0_WR_CTRL, RKVPSS_MI_CHN3_WR_LINE_CNT);
 
-		rkvpss_update_regs(dev, RKVPSS_MI_WR_CTRL, RKVPSS_MI_WR_INIT);
+		rkvpss_update_regs(dev, RKVPSS_MI_WR_CTRL, RKVPSS_MI_WR_CTRL);
 		rkvpss_update_regs(dev, RKVPSS_SCALE3_CTRL, RKVPSS_SCALE3_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_SCALE2_CTRL, RKVPSS_SCALE2_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_SCALE1_CTRL, RKVPSS_SCALE1_UPDATE);
@@ -270,18 +284,50 @@ static int rkvpss_sof(struct rkvpss_subdev *sdev, struct rkisp_vpss_sof *info)
 		rkvpss_update_regs(dev, RKVPSS_CROP1_CTRL, RKVPSS_CROP1_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_CMSC_CTRL, RKVPSS_CMSC_UPDATE);
 		rkvpss_update_regs(dev, RKVPSS_VPSS_UPDATE, RKVPSS_VPSS_UPDATE);
+
+		/* force update mi write */
+		vpss_online = rkvpss_hw_read(hw, RKVPSS_VPSS_ONLINE);
+		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+			if (((vpss_online >> (2 * i)) & 0x3) == 0x2)
+				val |= BIT(i);
+		}
+		rkvpss_unite_write(dev, RKVPSS_MI_WR_INIT, val << 4);
+		rkvpss_update_regs(dev, RKVPSS_MI_WR_INIT, RKVPSS_MI_WR_INIT);
+	}
+
+	dev->irq_ends_mask = VPSS_FRAME_END;
+	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		if (hw->is_ofl_ch[i])
+			continue;
+		if (rkvpss_hw_read(dev->hw_dev, RKVPSS_MI_CHN0_WR_CTRL_SHD + i * 0x100) & 0x1)
+			dev->irq_ends_mask |= BIT(i+3);
 	}
 	return 0;
+}
+
+static void rkvpss_reset_handle(struct rkvpss_device *vpss_dev)
+{
+	dev_info(vpss_dev->dev, "%s enter\n", __func__);
+	rkvpss_hw_reg_save(vpss_dev->hw_dev);
+
+	rkvpss_soft_reset(vpss_dev->hw_dev);
+
+	rkvpss_hw_reg_restore(vpss_dev->hw_dev);
+	dev_info(vpss_dev->dev, "%s exit\n", __func__);
 }
 
 static long rkvpss_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkvpss_subdev *sdev = v4l2_get_subdevdata(sd);
+	struct rkvpss_device *vpss_dev = sdev->dev;
 	long ret = 0;
 
 	switch (cmd) {
 	case RKISP_VPSS_CMD_SOF:
 		ret = rkvpss_sof(sdev, arg);
+		break;
+	case RKISP_VPSS_RESET_NOTIFY_VPSS:
+		rkvpss_reset_handle(vpss_dev);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -342,6 +388,58 @@ static void rkvpss_subdev_default_fmt(struct rkvpss_subdev *sdev)
 	out_fmt->height = RKVPSS_DEFAULT_HEIGHT;
 }
 
+static void rkvpss_end_notify_isp(struct rkvpss_device *dev)
+{
+	int stopping;
+
+	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
+		 "%s stopping:%d unite_index:%d\n", __func__, dev->stopping, dev->unite_index);
+
+	if (dev->stopping) {
+		if (dev->unite_mode) {
+			if (dev->unite_index == VPSS_UNITE_LEFT) {
+				stopping = 0;
+				v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF,
+						 &stopping);
+			} else {
+				dev->stopping = false;
+				wake_up(&dev->stop_done);
+				stopping = 1;
+				v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF,
+						 &stopping);
+			}
+		} else {
+			dev->stopping = false;
+			wake_up(&dev->stop_done);
+			stopping = 1;
+			v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF,
+					 &stopping);
+		}
+	} else {
+		stopping = 0;
+		v4l2_subdev_call(dev->remote_sd, core, ioctl, RKISP_VPSS_CMD_EOF, &stopping);
+	}
+}
+
+void rkvpss_check_idle(struct rkvpss_device *dev, u32 irq)
+{
+	dev->irq_ends |= (irq & dev->irq_ends_mask);
+
+	v4l2_dbg(3, rkvpss_debug, &dev->v4l2_dev,
+		 "%s irq:0x%x ends:0x%x mask:0x%x\n",
+		 __func__, irq, dev->irq_ends, dev->irq_ends_mask);
+
+	if ((dev->irq_ends & dev->irq_ends_mask) != dev->irq_ends_mask)
+		return;
+
+	dev->irq_ends = 0;
+	rkvpss_end_notify_isp(dev);
+	dev->is_idle = true;
+
+	if (dev->is_suspend)
+		complete(&dev->pm_suspend_wait_fe);
+}
+
 int rkvpss_register_subdev(struct rkvpss_device *dev,
 			   struct v4l2_device *v4l2_dev)
 {
@@ -373,6 +471,7 @@ int rkvpss_register_subdev(struct rkvpss_device *dev,
 	if (ret < 0)
 		goto free_media;
 	rkvpss_subdev_default_fmt(vpss_sdev);
+	init_completion(&dev->pm_suspend_wait_fe);
 	return ret;
 free_media:
 	media_entity_cleanup(&sd->entity);

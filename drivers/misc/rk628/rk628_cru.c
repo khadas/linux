@@ -722,57 +722,65 @@ void rk628_cru_init(struct rk628 *rk628)
 		 * rk628f pclk use gpll by default, and frequency is 98.304MHz
 		 */
 		if (rk628_input_is_bt1120(rk628)) {
-			/* set pclk use gpll, and set pclk 98.304Hz */
+			/* set pclk use gpll, and set pclk 98.304MHz */
 			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0089);
 		}
-		return;
+	} else {
+		/* clock switch and first set gpll almost 99MHz */
+		rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);
+		mdelay(1);
+		/* set clk_gpll_mux from gpll */
+		rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0004);
+		mdelay(1);
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0080);
+		/* set pclk use gpll, now div is 4 */
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0083);
+		/* set cpll almost 400MHz */
+		rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff3063);
+		mdelay(1);
+		/* set clk_cpll_mux from clk_cpll */
+		rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0005);
+		mdelay(1);
+		if (rk628_input_is_bt1120(rk628)) {
+			/* set pclk use cpll, now div is 4 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
+			/* set pclk use cpll, now div is 10 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0009);
+			/* set gpll 983.04MHz */
+			rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
+			mdelay(1);
+			/* set pclk use gpll, now div is 10 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0089);
+			/* set cpll 1188MHz */
+			rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
+			/* final: cpll 1188MHz, gpll 983.04MHz, pclk (use gpll) 98.304MHz */
+		} else {
+			/* set pclk use cpll, now div is 4 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
+			/* set pclk use cpll, now div is 12 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
+			/* set gpll 983.04MHz */
+			rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
+			mdelay(1);
+			/* set pclk use gpll, now div is 12 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff008b);
+			/* set cpll 1188MHz */
+			rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
+			mdelay(1);
+			/* set pclk use cpll, now div is 12 */
+			rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
+			/* final: cpll 1188MHz, gpll 983.04MHz, pclk (use cpll) 99MHz */
+		}
 	}
 
-	/* clock switch and first set gpll almost 99MHz */
-	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);
-	mdelay(1);
-	/* set clk_gpll_mux from gpll */
-	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0004);
-	mdelay(1);
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0080);
-	/* set pclk use gpll, now div is 4 */
-	rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0083);
-	/* set cpll almost 400MHz */
-	rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff3063);
-	mdelay(1);
-	/* set clk_cpll_mux from clk_cpll */
-	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0005);
-	mdelay(1);
-	if (rk628_input_is_bt1120(rk628)) {
-		/* set pclk use cpll, now div is 4 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
-		/* set pclk use cpll, now div is 10 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0009);
-		/* set gpll 983.04Hz */
-		rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
-		mdelay(1);
-		/* set pclk use gpll, now div is 10 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0089);
-		/* set cpll 1188MHz */
-		rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
-		/* final: cpll 1188MHz, gpll 983.04Hz, pclk (use gpll) 98.304Hz */
-	} else {
-		/* set pclk use cpll, now div is 4 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff0003);
-		/* set pclk use cpll, now div is 12 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
-		/* set gpll 983.04Hz */
-		rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff1028);
-		mdelay(1);
-		/* set pclk use gpll, now div is 12 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff008b);
-		/* set cpll 1188MHz */
-		rk628_i2c_write(rk628, CRU_CPLL_CON0, 0xffff1063);
-		mdelay(1);
-		/* set pclk use cpll, now div is 12 */
-		rk628_i2c_write(rk628, CRU_CLKSEL_CON00, 0x00ff000b);
-		/* final: cpll 1188MHz, gpll 983.04Hz, pclk (use cpll) 99Hz */
-	}
+	/*
+	 * The sclk_vop frequency default is 594M, which exceeds the reference
+	 * clock frequency acceptable by hdmitx phy. Therefore, in the hdmitx
+	 * scenario, we need to set the initial frequency of the sclk_vop to a
+	 * lower frequency, which is set to 148.5M.
+	 */
+	if (rk628_output_is_hdmi(rk628))
+		rk628_cru_clk_set_rate(rk628, CGU_SCLK_VOP, 148500000);
 }
 
 void rk628_cru_clk_adjust(struct rk628 *rk628)

@@ -264,6 +264,22 @@ struct arm_smccc_res sip_smc_lastlog_request(void)
 }
 EXPORT_SYMBOL_GPL(sip_smc_lastlog_request);
 
+int sip_smc_access_mem_os_reg(u32 func, u32 id, u32 *val)
+{
+	struct arm_smccc_res res;
+
+	if (val == NULL)
+		return SIP_RET_INVALID_PARAMS;
+
+	res = __invoke_sip_fn_smc(SIP_ACCESS_MEM_OS_REG, func, id, *val);
+
+	if (func == RK_MEM_OS_REG_READ)
+		*val = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_access_mem_os_reg);
+
 int sip_smc_amp_config(u32 sub_func_id, u32 arg1, u32 arg2, u32 arg3)
 {
 	struct arm_smccc_res res;

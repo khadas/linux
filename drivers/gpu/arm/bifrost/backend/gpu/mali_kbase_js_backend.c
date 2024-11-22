@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -46,7 +46,7 @@ static inline bool timer_callback_should_run(struct kbase_device *kbdev, int nr_
 	}
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_9435)) {
+	if (kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_9435)) {
 		/* Timeouts would have to be 4x longer (due to micro-
 		 * architectural design) to support OpenCL conformance tests, so
 		 * only run the timer when there's:
@@ -100,7 +100,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 			/* The current version of the model doesn't support
 			 * Soft-Stop
 			 */
-			if (!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_5736)) {
+			if (!kbase_hw_has_issue(kbdev, KBASE_HW_ISSUE_5736)) {
 				u32 ticks = atom->ticks++;
 
 #if !defined(CONFIG_MALI_JOB_DUMP) && !defined(CONFIG_MALI_VECTOR_DUMP)
@@ -174,12 +174,12 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					 * now. Hard stop the slot.
 					 */
 #if !KBASE_DISABLE_SCHEDULING_HARD_STOPS
-					int ms = js_devdata->scheduling_period_ns / 1000000u;
+					u32 ms = js_devdata->scheduling_period_ns / 1000000u;
 					if (!kbase_is_quick_reset_enabled(kbdev))
 						dev_warn(
 							kbdev->dev,
-							"JS: Job Hard-Stopped (took more than %lu ticks at %lu ms/tick)",
-							(unsigned long)ticks, (unsigned long)ms);
+							"JS: Job Hard-Stopped (took more than %u ticks at %u ms/tick)",
+							ticks, ms);
 					kbase_job_slot_hardstop(atom->kctx, s, atom);
 #endif
 				} else if (ticks == gpu_reset_ticks) {
@@ -210,11 +210,11 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					 * ticks. Hard stop the slot.
 					 */
 #if !KBASE_DISABLE_SCHEDULING_HARD_STOPS
-					int ms = js_devdata->scheduling_period_ns / 1000000u;
+					u32 ms = js_devdata->scheduling_period_ns / 1000000u;
 					dev_warn(
 						kbdev->dev,
-						"JS: Job Hard-Stopped (took more than %lu ticks at %lu ms/tick)",
-						(unsigned long)ticks, (unsigned long)ms);
+						"JS: Job Hard-Stopped (took more than %u ticks at %u ms/tick)",
+						ticks, ms);
 					kbase_job_slot_hardstop(atom->kctx, s, atom);
 #endif
 				} else if (ticks == js_devdata->gpu_reset_ticks_dumping) {

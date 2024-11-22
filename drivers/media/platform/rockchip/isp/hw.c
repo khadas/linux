@@ -417,21 +417,6 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		}, {
 			.base = MI_WR_CTRL,
 			.shd = MI_WR_CTRL_SHD,
-		}, {
-			.base = ISP39_W3A_AEBIG_ADDR,
-			.shd = ISP39_W3A_AEBIG_ADDR_SHD,
-		}, {
-			.base = ISP39_W3A_AE0_ADDR,
-			.shd = ISP39_W3A_AE0_ADDR_SHD,
-		}, {
-			.base = ISP39_W3A_AF_ADDR,
-			.shd = ISP39_W3A_AF_ADDR_SHD,
-		}, {
-			.base = ISP39_W3A_AWB_ADDR,
-			.shd = ISP39_W3A_AWB_ADDR_SHD,
-		}, {
-			.base = ISP39_W3A_PDAF_ADDR,
-			.shd = ISP39_W3A_PDAF_ADDR_SHD,
 		}
 	};
 
@@ -481,7 +466,13 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 				continue;
 			/* reg value of read diff to write */
 			if (j == ISP_MPFBC_CTRL ||
-			    j == ISP32_ISP_AWB1_GAIN_G || j == ISP32_ISP_AWB1_GAIN_RB)
+			    j == ISP32_ISP_AWB1_GAIN_G || j == ISP32_ISP_AWB1_GAIN_RB ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_Y_0 || j == ISP3X_RAWAWB_YUV_X_COOR_U_0 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_V_0 || j == ISP3X_RAWAWB_YUV_X_COOR_Y_1 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_U_1 || j == ISP3X_RAWAWB_YUV_X_COOR_V_1 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_Y_2 || j == ISP3X_RAWAWB_YUV_X_COOR_U_2 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_V_2 || j == ISP3X_RAWAWB_YUV_X_COOR_Y_3 ||
+			    j == ISP3X_RAWAWB_YUV_X_COOR_U_3 || j == ISP3X_RAWAWB_YUV_X_COOR_V_3)
 				reg = isp->sw_base_addr + j;
 			else
 				reg = reg_buf + j;
@@ -546,14 +537,6 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		reg = reg_buf + ISP32_BP_RESIZE_CTRL;
 		if (*reg & 0xf)
 			writel(*reg | CIF_RSZ_CTRL_CFG_UPD, base + ISP32_BP_RESIZE_CTRL);
-		if (dev->isp_ver == ISP_V39) {
-			reg = reg_buf + ISP39_W3A_CTRL0;
-			if (*reg)
-				writel(*reg | ISP39_W3A_FORCE_UPD, base + ISP39_W3A_CTRL0);
-			reg = reg_buf + ISP39_VI3A_CTRL0;
-			if (*reg)
-				writel(*reg | ISP39_W3A_FORCE_UPD, base + ISP39_VI3A_CTRL0);
-		}
 		/* update mi and isp, base_reg will update to shd_reg */
 		writel(CIF_MI_INIT_SOFT_UPD, base + MI_WR_INIT);
 
@@ -583,6 +566,26 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 	if (dev->is_single) {
 		rkisp_params_cfgsram(&isp->params_vdev, false, true);
 
+		if (dev->isp_ver == ISP_V39) {
+			reg = reg_buf + ISP3X_ISP_CTRL1;
+			*reg |= ISP3X_DHAZ_FST_FRAME;
+			writel(*reg, dev->base_addr + ISP3X_ISP_CTRL1);
+			reg = reg_buf + ISP3X_BAY3D_CTRL;
+			if (*reg & 1)
+				writel(*reg | BIT(31), dev->base_addr + ISP3X_BAY3D_CTRL);
+			/* w3a addr will update by ISP_CFG_UPD */
+			reg = reg_buf + ISP39_W3A_AEBIG_ADDR_SHD;
+			writel(*reg, dev->base_addr + ISP39_W3A_AEBIG_ADDR);
+			reg = reg_buf + ISP39_W3A_AE0_ADDR_SHD;
+			writel(*reg, dev->base_addr + ISP39_W3A_AE0_ADDR);
+			reg = reg_buf + ISP39_W3A_AF_ADDR_SHD;
+			writel(*reg, dev->base_addr + ISP39_W3A_AF_ADDR);
+			reg = reg_buf + ISP39_W3A_AWB_ADDR_SHD;
+			writel(*reg, dev->base_addr + ISP39_W3A_AWB_ADDR);
+			reg = reg_buf + ISP39_W3A_PDAF_ADDR_SHD;
+			writel(*reg, dev->base_addr + ISP39_W3A_PDAF_ADDR);
+		}
+
 		reg = reg_buf + ISP_CTRL;
 		*reg |= CIF_ISP_CTRL_ISP_ENABLE |
 			CIF_ISP_CTRL_ISP_CFG_UPD |
@@ -590,6 +593,19 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		writel(*reg, dev->base_addr + ISP_CTRL);
 		if (dev->unite == ISP_UNITE_TWO)
 			writel(*reg, dev->base_next_addr + ISP_CTRL);
+
+		if (dev->isp_ver == ISP_V39) {
+			reg = reg_buf + ISP39_W3A_AEBIG_ADDR;
+			writel(*reg, dev->base_addr + ISP39_W3A_AEBIG_ADDR);
+			reg = reg_buf + ISP39_W3A_AE0_ADDR;
+			writel(*reg, dev->base_addr + ISP39_W3A_AE0_ADDR);
+			reg = reg_buf + ISP39_W3A_AF_ADDR;
+			writel(*reg, dev->base_addr + ISP39_W3A_AF_ADDR);
+			reg = reg_buf + ISP39_W3A_AWB_ADDR;
+			writel(*reg, dev->base_addr + ISP39_W3A_AWB_ADDR);
+			reg = reg_buf + ISP39_W3A_PDAF_ADDR;
+			writel(*reg, dev->base_addr + ISP39_W3A_PDAF_ADDR);
+		}
 	}
 }
 
@@ -1051,7 +1067,10 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 			val = 0;
 
 		if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) && on)
-			val |= CLK_CTRL_ISP_3A;
+			val |= CLK_CTRL_ISP_3A | CLK_CTRL_ISP_RAW;
+		/* fix mi and scale on-off no output for isp39 */
+		if (dev->isp_ver == ISP_V39 && on)
+			val |= ISP3X_CLK_RSZM | ISP3X_CLK_RSZS;
 		if (dev->isp_ver == ISP_V32)
 			rv1106_sdmmc_get_lock();
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);

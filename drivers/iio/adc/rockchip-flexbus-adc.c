@@ -47,6 +47,7 @@ struct rockchip_flexbus_adc_ops {
 struct rockchip_flexbus_adc {
 	struct device		*dev;
 	struct rockchip_flexbus	*rkfb;
+	struct clk		*ref_clk;	/* ref_clk is only used for slave-mode */
 	u32			dfs;
 	bool			slave_mode;
 	bool			free_sclk;
@@ -178,12 +179,15 @@ static int rockchip_flexbus_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (rkfb_adc->slave_mode) {
+		if (rkfb_adc->slave_mode && !rkfb_adc->ref_clk) {
 			dev_err(rkfb_adc->dev,
-				"sample freq depends on the external clock in slave_mode\n");
+				"sample freq depends on clock source of the ADC device\n");
 			return -EINVAL;
 		}
-		*val = clk_get_rate(rkfb_adc->rkfb->clks[1].clk) / 2;
+		if (rkfb_adc->slave_mode)
+			*val = clk_get_rate(rkfb_adc->ref_clk);
+		else
+			*val = clk_get_rate(rkfb_adc->rkfb->clks[1].clk) / 2;
 		return IIO_VAL_INT;
 
 	default:
@@ -196,21 +200,22 @@ static int rockchip_flexbus_adc_write_raw(struct iio_dev *indio_dev,
 					  long mask)
 {
 	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
-	u32 clk_rate;
 	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (rkfb_adc->slave_mode) {
+		if (rkfb_adc->slave_mode && !rkfb_adc->ref_clk) {
 			dev_err(rkfb_adc->dev,
-				"sample freq depends on the external clock in slave_mode\n");
+				"sample freq depends on clock source of the ADC device\n");
 			return -EINVAL;
 		}
 		mutex_lock(&rkfb_adc->lock);
-		clk_rate = val * 2;
-		if (clk_rate > FLEXBUS_MAX_RX_RATE)
-			clk_rate = FLEXBUS_MAX_RX_RATE;
-		ret = clk_set_rate(rkfb_adc->rkfb->clks[1].clk, clk_rate);
+		if (val > FLEXBUS_MAX_RX_RATE / 2)
+			val = FLEXBUS_MAX_RX_RATE / 2;
+		if (rkfb_adc->slave_mode)
+			ret = clk_set_rate(rkfb_adc->ref_clk, val);
+		else
+			ret = clk_set_rate(rkfb_adc->rkfb->clks[1].clk, val * 2);
 		mutex_unlock(&rkfb_adc->lock);
 		break;
 
@@ -259,13 +264,13 @@ static int rockchip_flexbus_adc_init(struct rockchip_flexbus_adc *rkfb_adc)
 
 	switch (rkfb_adc->dfs) {
 	case 4:
-		val = FLEXBUS_DFS_4BIT;
+		val = rkfb->dfs_reg->dfs_4bit;
 		break;
 	case 8:
-		val = FLEXBUS_DFS_8BIT;
+		val = rkfb->dfs_reg->dfs_8bit;
 		break;
 	case 16:
-		val = FLEXBUS_DFS_16BIT;
+		val = rkfb->dfs_reg->dfs_16bit;
 		break;
 	default:
 		return -EINVAL;
@@ -332,15 +337,29 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	rkfb_adc = iio_priv(indio_dev);
 
-	platform_set_drvdata(pdev, rkfb_adc);
+	platform_set_drvdata(pdev, indio_dev);
 	rkfb_adc->dev = &pdev->dev;
 	rkfb_adc->rkfb = rkfb;
-	rkfb->fb1_data = rkfb_adc;
-	rkfb->fb1_isr = rockchip_flexbus_adc_isr;
+	rockchip_flexbus_set_fb1(rkfb, rkfb_adc, rockchip_flexbus_adc_isr);
 
 	ret = rockchip_flexbus_adc_parse_dt(rkfb_adc);
-	if (ret != 0)
-		return -EINVAL;
+	if (ret)
+		goto err_fb1;
+
+	if (rkfb_adc->slave_mode) {
+		rkfb_adc->ref_clk = devm_clk_get(&pdev->dev, "ref_clk");
+		if (IS_ERR(rkfb_adc->ref_clk)) {
+			dev_warn(rkfb_adc->dev,
+				 "failed to get ref_clk in slave-mode. Please make sure the ADC device has clock source.\n");
+			rkfb_adc->ref_clk = NULL;
+		} else {
+			ret = clk_prepare_enable(rkfb_adc->ref_clk);
+			if (ret) {
+				dev_err(rkfb_adc->dev, "failed to enable ref_clk.\n");
+				goto err_fb1;
+			}
+		}
+	}
 
 	mutex_init(&rkfb_adc->lock);
 	init_completion(&rkfb_adc->completion);
@@ -352,7 +371,9 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = rockchip_flexbus_adc_channel;
 	indio_dev->num_channels = 1;
 
-	rockchip_flexbus_adc_init(rkfb_adc);
+	ret = rockchip_flexbus_adc_init(rkfb_adc);
+	if (ret)
+		goto err_mutex_destroy;
 	rkfb_adc->ops = &rockchip_flexbus_adc_ops;
 
 	rkfb_adc->dst_buf_len = DIV_ROUND_UP(indio_dev->channels->scan_type.repeat * rkfb_adc->dfs,
@@ -360,23 +381,54 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	rkfb_adc->dst_buf_len = round_up(rkfb_adc->dst_buf_len, 0x40);
 	if (rkfb_adc->dst_buf_len < 0x40 || rkfb_adc->dst_buf_len > 0x0fffffc0) {
 		dev_err(rkfb_adc->dev, "buf_len should >= 0x40 and <= 0x0fffffc0\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_mutex_destroy;
 	}
-	rkfb_adc->dst_buf = dma_alloc_coherent(rkfb_adc->dev, rkfb_adc->dst_buf_len,
-					       &rkfb_adc->dst_buf_phys, GFP_KERNEL | __GFP_ZERO);
-	if (!rkfb_adc->dst_buf)
-		return -ENOMEM;
+	rkfb_adc->dst_buf = dmam_alloc_coherent(rkfb_adc->dev, rkfb_adc->dst_buf_len,
+						&rkfb_adc->dst_buf_phys, GFP_KERNEL | __GFP_ZERO);
+	if (!rkfb_adc->dst_buf) {
+		ret = -ENOMEM;
+		goto err_mutex_destroy;
+	}
 
 	ret = devm_iio_triggered_buffer_setup(&pdev->dev, indio_dev, &iio_pollfunc_store_time,
 					      &rockchip_flexbus_adc_trigger_handler, NULL);
 	if (ret)
-		return ret;
+		goto err_mutex_destroy;
 
-	return devm_iio_device_register(&pdev->dev, indio_dev);
+	ret = devm_iio_device_register(&pdev->dev, indio_dev);
+	if (ret)
+		goto err_mutex_destroy;
+
+	return ret;
+
+err_mutex_destroy:
+	mutex_destroy(&rkfb_adc->lock);
+	if (rkfb_adc->ref_clk)
+		clk_disable_unprepare(rkfb_adc->ref_clk);
+err_fb1:
+	rockchip_flexbus_set_fb1(rkfb, NULL, NULL);
+
+	return ret;
+}
+
+static int rockchip_flexbus_adc_remove(struct platform_device *pdev)
+{
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
+	struct rockchip_flexbus *rkfb = rkfb_adc->rkfb;
+
+	mutex_destroy(&rkfb_adc->lock);
+	if (rkfb_adc->ref_clk)
+		clk_disable_unprepare(rkfb_adc->ref_clk);
+	rockchip_flexbus_set_fb1(rkfb, NULL, NULL);
+
+	return 0;
 }
 
 static struct platform_driver rockchip_flexbus_adc_driver = {
 	.probe	= rockchip_flexbus_adc_probe,
+	.remove	= rockchip_flexbus_adc_remove,
 	.driver	= {
 		.name		= "rockchip_flexbus_adc",
 		.of_match_table = rockchip_flexbus_adc_of_match,

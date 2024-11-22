@@ -33,6 +33,7 @@
 #define PSCI_SIP_VPU_RESET		0x8200000c
 #define SIP_BUS_CFG			0x8200000d
 #define SIP_LAST_LOG			0x8200000e
+#define SIP_ACCESS_MEM_OS_REG		0x8200000f
 #define SIP_SCMI_AGENT0			0x82000010
 #define SIP_SCMI_AGENT1			0x82000011
 #define SIP_SCMI_AGENT2			0x82000012
@@ -119,6 +120,12 @@
 #define REMOTECTL_ENABLE		0xf4
 /* wakeup state */
 #define REMOTECTL_PWRKEY_WAKEUP		0xdeadbeaf
+
+/* SIP_ACCESS_MEM_OS_REG child configs */
+enum {
+	RK_MEM_OS_REG_READ = 0,
+	RK_MEM_OS_REG_WRITE,
+};
 
 /* SIP_MCU_CFG child configs, MCU ID */
 enum {
@@ -262,6 +269,7 @@ int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
 u32 sip_smc_secure_reg_read(u32 addr_phy);
 struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 arg2);
 struct dram_addrmap_info *sip_smc_get_dram_map(void);
+int sip_smc_access_mem_os_reg(u32 func, u32 id, u32 *val);
 int sip_smc_amp_config(u32 sub_func_id, u32 arg1, u32 arg2, u32 arg3);
 struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id, u32 arg1);
 struct arm_smccc_res sip_smc_get_pvtpll_info(u32 sub_func_id, u32 arg1);
@@ -358,6 +366,13 @@ static inline struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 ar
 static inline struct dram_addrmap_info *sip_smc_get_dram_map(void)
 {
 	return NULL;
+}
+
+static inline int sip_smc_access_mem_os_reg(u32 func,
+					    u32 id,
+					    u32 *val)
+{
+	return 0;
 }
 
 static inline int sip_smc_amp_config(u32 sub_func_id,

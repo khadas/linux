@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -123,7 +123,7 @@ static const struct firmware_trace_buffer_data trace_buffer_data[] = {
 	{ KBASE_CSFFW_BENCHMARK_BUF_NAME, { 0 }, 2 },
 	{ KBASE_CSFFW_TIMELINE_BUF_NAME, { 0 }, KBASE_CSF_TL_BUFFER_NR_PAGES },
 #if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-	{ KBASE_CSFFW_GPU_METRICS_BUF_NAME, { 0 }, 8 },
+	{ KBASE_CSFFW_GPU_METRICS_BUF_NAME, { 0 }, 32 },
 #endif /* CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD */
 };
 
@@ -469,14 +469,15 @@ unsigned int kbase_csf_firmware_trace_buffer_read_data(struct firmware_trace_buf
 	} else {
 		unsigned int bytes_copied_head, bytes_copied_tail;
 
-		bytes_copied_tail = min_t(unsigned int, num_bytes, (buffer_size - extract_offset));
+		bytes_copied_tail =
+			min_t(unsigned int, num_bytes, size_sub(buffer_size, extract_offset));
 		memcpy(data, &data_cpu_va[extract_offset], bytes_copied_tail);
 
 		bytes_copied_head =
 			min_t(unsigned int, (num_bytes - bytes_copied_tail), insert_offset);
 		memcpy(&data[bytes_copied_tail], data_cpu_va, bytes_copied_head);
 
-		bytes_copied = bytes_copied_head + bytes_copied_tail;
+		bytes_copied = size_add(bytes_copied_head, bytes_copied_tail);
 		extract_offset += bytes_copied;
 		if (extract_offset >= buffer_size)
 			extract_offset = bytes_copied_head;
@@ -518,6 +519,14 @@ void kbase_csf_firmware_trace_buffer_discard(struct firmware_trace_buffer *trace
 	}
 }
 EXPORT_SYMBOL(kbase_csf_firmware_trace_buffer_discard);
+
+void kbase_csf_firmware_trace_buffer_discard_all(struct firmware_trace_buffer *trace_buffer)
+{
+	if (WARN_ON(!trace_buffer))
+		return;
+
+	*(trace_buffer->cpu_va.extract_cpu_va) = *(trace_buffer->cpu_va.insert_cpu_va);
+}
 
 static void update_trace_buffer_active_mask64(struct firmware_trace_buffer *tb, u64 mask)
 {

@@ -57,8 +57,8 @@
 
 #define OV16880_AGAIN_REG_H		0x350A
 #define OV16880_AGAIN_REG_L		0x350B
-#define OV16880_SF_AGAIN_REG_H		0x350C
-#define OV16880_SF_AGAIN_REG_L		0x350D
+#define OV16880_SF_AGAIN_REG_H		0x350E
+#define OV16880_SF_AGAIN_REG_L		0x350F
 #define OV16880_GAIN_H_MASK		0x1f
 #define OV16880_GAIN_H_SHIFT		8
 
@@ -2428,6 +2428,34 @@ static const struct v4l2_subdev_ops ov16880_subdev_ops = {
 	.pad	= &ov16880_pad_ops,
 };
 
+static int ov16880_set_gain_reg(struct ov16880 *ov16880, u32 a_gain)
+{
+	int ret = 0;
+
+	ret = ov16880_write_reg(ov16880->client,
+				OV16880_GROUP_UPDATE_ADDRESS,
+				OV16880_REG_VALUE_08BIT,
+				OV16880_GROUP_UPDATE_START_DATA);
+
+	ret |= ov16880_write_reg(ov16880->client,
+				OV16880_SF_AGAIN_REG_H,
+				OV16880_REG_VALUE_16BIT,
+				a_gain & 0x7ff);
+	ret |= ov16880_write_reg(ov16880->client,
+				OV16880_AGAIN_REG_H,
+				OV16880_REG_VALUE_16BIT,
+				a_gain & 0x7ff);
+	ret |= ov16880_write_reg(ov16880->client,
+				OV16880_GROUP_UPDATE_ADDRESS,
+				OV16880_REG_VALUE_08BIT,
+				OV16880_GROUP_UPDATE_END_DATA);
+	ret |= ov16880_write_reg(ov16880->client,
+				OV16880_GROUP_UPDATE_ADDRESS,
+				OV16880_REG_VALUE_08BIT,
+				OV16880_GROUP_UPDATE_LAUNCH);
+	return ret;
+};
+
 static int ov16880_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov16880 *ov16880 = container_of(ctrl->handler,
@@ -2463,10 +2491,7 @@ static int ov16880_set_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = ov16880_write_reg(ov16880->client,
-					OV16880_AGAIN_REG_H,
-					OV16880_REG_VALUE_16BIT,
-					ctrl->val & 0x7ff);
+		ret = ov16880_set_gain_reg(ov16880, ctrl->val);
 		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:

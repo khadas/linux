@@ -2835,8 +2835,7 @@
 					<3 RK_PD4 1 &pcfg_pull_none>,
 					<3 RK_PD5 1 &pcfg_pull_none>,
 					<3 RK_PD6 1 &pcfg_pull_none>,
-					<3 RK_PD7 1 &pcfg_pull_none>,
-					<4 RK_PA0 1 &pcfg_pull_none>;
+					<3 RK_PD7 1 &pcfg_pull_none>;
 			};
 		};
 

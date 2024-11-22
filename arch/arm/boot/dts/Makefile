@@ -1220,7 +1220,23 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3308bs-evb-amic-v11-aarch32.dtb \
 	rk3308bs-evb-dmic-pdm-v11-aarch32.dtb \
 	rk3308bs-evb-mipi-display-v11-aarch32.dtb \
-	rk3308hs-voice-module-board-v10-aarch32.dtb
+	rk3308hs-voice-module-board-v10-aarch32.dtb \
+	rk3502g-evb1-v10.dtb \
+	rk3503g-evb1-v10.dtb \
+	rk3506b-evb1-v10.dtb \
+	rk3506g-demo-display-control.dtb \
+	rk3506g-evb1-v10.dtb \
+	rk3506g-evb1-v10-amp.dtb \
+	rk3506g-evb1-v10-dsmc-lb-slave.dtb \
+	rk3506g-evb1-v10-dsmc-master.dtb \
+	rk3506g-evb1-v10-flexbus-adc-dac.dtb \
+	rk3506g-evb1-v10-mcu-k350c4516t.dtb \
+	rk3506g-evb1-v10-rgb-Q7050ITH2641AA1T.dtb \
+	rk3506g-evb1-v10-sii9022-bt1120-to-hdmi.dtb \
+	rk3506g-evb1-v10-sii9022-rgb2hdmi.dtb \
+	rk3506g-iotest-v10.dtb \
+	rk3506g-iotest-v10-pdm.dtb \
+	rk3506g-test1-v10-audio.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \

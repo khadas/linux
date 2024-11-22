@@ -40,6 +40,7 @@
 #define SII902X_TPI_AVI_PIXEL_REP_4X		3
 #define SII902X_TPI_AVI_PIXEL_REP_2X		1
 #define SII902X_TPI_AVI_PIXEL_REP_NONE		0
+#define SII902X_TPI_CLK_RATIO_MASK		GENMASK(7, 6)
 #define SII902X_TPI_CLK_RATIO_HALF		(0 << 6)
 #define SII902X_TPI_CLK_RATIO_1X		(1 << 6)
 #define SII902X_TPI_CLK_RATIO_2X		(2 << 6)
@@ -180,7 +181,6 @@ struct sii902x {
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *enable_gpio;
 	struct i2c_mux_core *i2cmux;
-	struct regulator_bulk_data supplies[2];
 	bool sink_is_hdmi;
 	/*
 	 * Mutex protects audio and video functions from interfering
@@ -550,6 +550,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	u8 buf[HDMI_INFOFRAME_SIZE(AVI)];
 	struct hdmi_avi_infoframe frame;
 	u16 pixel_clock_10kHz = adj->clock / 10;
+	u8 ratio;
 	int ret, vrefresh;
 
 	if (sii902x->loader_protect) {
@@ -570,8 +571,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	buf[5] = adj->crtc_htotal >> 8;
 	buf[6] = adj->crtc_vtotal;
 	buf[7] = adj->crtc_vtotal >> 8;
-	buf[8] = SII902X_TPI_CLK_RATIO_1X | SII902X_TPI_AVI_PIXEL_REP_NONE |
-		 SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
+	buf[8] = SII902X_TPI_AVI_PIXEL_REP_NONE | SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
 	switch (sii902x->bus_format) {
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_YVYU8_1X16:
@@ -619,6 +619,13 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	ret = regmap_bulk_write(regmap, SII902X_TPI_VIDEO_DATA, buf, 10);
 	if (ret)
 		goto out;
+
+	if (sii902x->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		ratio = SII902X_TPI_CLK_RATIO_2X;
+	else
+		ratio = SII902X_TPI_CLK_RATIO_1X;
+	regmap_update_bits(sii902x->regmap, SII902X_TPI_PIXEL_REPETITION,
+			   SII902X_TPI_CLK_RATIO_MASK, ratio);
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
 						       &sii902x->connector, adj);
@@ -1300,6 +1307,26 @@ static int sii902x_init(struct sii902x *sii902x)
 			return ret;
 	}
 
+	ret = sii902x_audio_codec_init(sii902x, dev);
+	if (ret)
+		return ret;
+
+	i2c_set_clientdata(sii902x->i2c, sii902x);
+
+	sii902x->i2cmux = i2c_mux_alloc(sii902x->i2c->adapter, dev,
+					1, 0, I2C_MUX_GATE,
+					sii902x_i2c_bypass_select,
+					sii902x_i2c_bypass_deselect);
+	if (!sii902x->i2cmux) {
+		ret = -ENOMEM;
+		goto err_unreg_audio;
+	}
+
+	sii902x->i2cmux->priv = sii902x;
+	ret = i2c_mux_add_adapter(sii902x->i2cmux, 0, 0, 0);
+	if (ret)
+		goto err_unreg_audio;
+
 	sii902x->bridge.funcs = &sii902x_bridge_funcs;
 	sii902x->bridge.of_node = dev->of_node;
 	sii902x->bridge.timings = &default_sii902x_timings;
@@ -1310,19 +1337,13 @@ static int sii902x_init(struct sii902x *sii902x)
 
 	drm_bridge_add(&sii902x->bridge);
 
-	sii902x_audio_codec_init(sii902x, dev);
+	return 0;
 
-	i2c_set_clientdata(sii902x->i2c, sii902x);
+err_unreg_audio:
+	if (!PTR_ERR_OR_ZERO(sii902x->audio.pdev))
+		platform_device_unregister(sii902x->audio.pdev);
 
-	sii902x->i2cmux = i2c_mux_alloc(sii902x->i2c->adapter, dev,
-					1, 0, I2C_MUX_GATE,
-					sii902x_i2c_bypass_select,
-					sii902x_i2c_bypass_deselect);
-	if (!sii902x->i2cmux)
-		return -ENOMEM;
-
-	sii902x->i2cmux->priv = sii902x;
-	return i2c_mux_add_adapter(sii902x->i2cmux, 0, 0, 0);
+	return ret;
 }
 
 static int sii902x_probe(struct i2c_client *client,
@@ -1331,6 +1352,7 @@ static int sii902x_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct device_node *endpoint;
 	struct sii902x *sii902x;
+	static const char * const supplies[] = {"iovcc", "cvcc12"};
 	int ret;
 	u32 val;
 
@@ -1411,39 +1433,22 @@ static int sii902x_probe(struct i2c_client *client,
 
 	mutex_init(&sii902x->mutex);
 
-	sii902x->supplies[0].supply = "iovcc";
-	sii902x->supplies[1].supply = "cvcc12";
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(sii902x->supplies),
-				      sii902x->supplies);
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(supplies), supplies);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable supplies");
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(sii902x->supplies),
-				    sii902x->supplies);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "Failed to enable supplies");
-		return ret;
-	}
-
-	ret = sii902x_init(sii902x);
-	if (ret < 0) {
-		dev_err(dev, "Failed to init sii902x %d\n", ret);
-		regulator_bulk_disable(ARRAY_SIZE(sii902x->supplies),
-				       sii902x->supplies);
-	}
-
-	return ret;
+	return sii902x_init(sii902x);
 }
 
 static void sii902x_remove(struct i2c_client *client)
-
 {
 	struct sii902x *sii902x = i2c_get_clientdata(client);
 
-	i2c_mux_del_adapters(sii902x->i2cmux);
 	drm_bridge_remove(&sii902x->bridge);
-	regulator_bulk_disable(ARRAY_SIZE(sii902x->supplies),
-			       sii902x->supplies);
+	i2c_mux_del_adapters(sii902x->i2cmux);
+
+	if (!PTR_ERR_OR_ZERO(sii902x->audio.pdev))
+		platform_device_unregister(sii902x->audio.pdev);
 }
 
 static const struct of_device_id sii902x_dt_ids[] = {

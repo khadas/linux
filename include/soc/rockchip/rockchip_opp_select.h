@@ -166,6 +166,8 @@ int rockchip_set_intermediate_rate(struct device *dev,
 				   struct clk *clk, unsigned long old_freq,
 				   unsigned long new_freq, bool is_scaling_up,
 				   bool is_set_clk);
+int rockchip_opp_set_low_length(struct device *dev, struct device_node *np,
+				struct rockchip_opp_info *opp_info);
 int rockchip_opp_config_regulators(struct device *dev,
 				     struct dev_pm_opp *old_opp,
 				     struct dev_pm_opp *new_opp,
@@ -249,6 +251,13 @@ rockchip_set_intermediate_rate(struct device *dev,
 			       struct clk *clk, unsigned long old_freq,
 			       unsigned long new_freq, bool is_scaling_up,
 			       bool is_set_clk)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+rockchip_opp_set_low_length(struct device *dev, struct device_node *np,
+			    struct rockchip_opp_info *opp_info)
 {
 	return -EOPNOTSUPP;
 }

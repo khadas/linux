@@ -87,6 +87,7 @@
 
 static void rkisp_config_cmsk(struct rkisp_device *dev);
 static void rkisp_config_aiisp(struct rkisp_device *dev);
+static void rkisp_config_fpn(struct rkisp_device *dev);
 
 static inline struct rkisp_device *sd_to_isp_dev(struct v4l2_subdev *sd)
 {
@@ -660,6 +661,9 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		rkisp_stream_frame_start(dev, 0);
 	}
 
+	if (dev->isp_ver == ISP_V39)
+		rkisp_sditf_sof(dev, 0);
+
 	if (!hw->is_single) {
 		/* multi sensor need to reset isp resize mode if scale up */
 		val = 0;
@@ -679,7 +683,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		if (dev->isp_ver >= ISP_V21) {
 			val = rkisp_read_reg_cache(dev, ISP_ACQ_H_OFFS);
 			val |= ISP21_SENSOR_INDEX(dev->multi_index);
-			if (dev->isp_ver == ISP_V32_L)
+			if (dev->isp_ver >= ISP_V32_L)
 				val |= ISP32L_SENSOR_MODE(dev->multi_mode);
 			else
 				val |= ISP21_SENSOR_MODE(dev->multi_mode);
@@ -822,7 +826,9 @@ run_next:
 	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
-		rkisp_unite_write(dev, ISP_CTRL, val, true);
+		writel(val, hw->base_addr + ISP_CTRL);
+		if (hw->unite == ISP_UNITE_TWO)
+			writel(val, hw->base_next_addr + ISP_CTRL);
 		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
 		rkisp_update_regs(dev, ISP3X_ISP_CTRL1, ISP3X_ISP_CTRL1);
 		/* fix ldch multi sensor case:
@@ -1148,6 +1154,9 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 		u32 state = dev->isp_state;
 		struct rkisp_stream *s;
 
+		if (dev->sditf_dev && !dev->sditf_dev->is_on)
+			dev->isp_state = ISP_STOP;
+
 		for (val = 0; val < RKISP_STREAM_VIR; val++) {
 			s = &dev->cap_dev.stream[val];
 			dev->isp_state = ISP_STOP;
@@ -1235,6 +1244,8 @@ static int rkisp_reset_handle(struct rkisp_device *dev)
 	u32 val;
 
 	dev_info(dev->dev, "%s enter\n", __func__);
+	if (dev->isp_ver == ISP_V39 && dev->sditf_dev && dev->sditf_dev->is_on)
+		rkisp_sditf_reset_notify_vpss(dev);
 	rkisp_hw_reg_save(dev->hw_dev);
 
 	rkisp_soft_reset(dev->hw_dev, true);
@@ -1812,8 +1823,11 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		rkisp_update_regs(dev, CIF_ISP_OUT_H_SIZE, CIF_ISP_OUT_V_SIZE);
 	}
 
+	dev->is_aiisp_upd = dev->is_aiisp_en;
 	rkisp_config_cmsk(dev);
 	rkisp_config_aiisp(dev);
+	if (dev->hw_dev->is_single)
+		rkisp_config_fpn(dev);
 	return 0;
 }
 
@@ -2610,6 +2624,7 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (fmt->pad == RKISP_ISP_PAD_SINK) {
+		struct v4l2_pix_format_mplane pixm = { 0 };
 		const struct ispsd_in_fmt *in_fmt;
 
 		in_fmt = find_in_fmt(mf->code);
@@ -2620,6 +2635,14 @@ static int rkisp_isp_sd_set_fmt(struct v4l2_subdev *sd,
 
 		isp_sd->in_fmt = *in_fmt;
 		isp_sd->in_frm = *mf;
+		/* rawrd video format with isp input format change */
+		pixm.width = mf->width;
+		pixm.height = mf->height;
+		pixm.pixelformat = rkisp_mbus_pixelcode_to_v4l2(mf->code);
+		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
+		rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
+		if (isp_dev->isp_ver == ISP_V20 || isp_dev->isp_ver == ISP_V30)
+			rkisp_dmarx_set_fmt(&isp_dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1], pixm);
 	} else if (fmt->pad == RKISP_ISP_PAD_SOURCE_PATH) {
 		const struct ispsd_out_fmt *out_fmt;
 
@@ -3722,6 +3745,110 @@ static void rkisp_aiisp_rd_start(struct rkisp_device *dev)
 		 "%s 0x%x:0x%x\n", __func__, ISP39_AIISP_LINE_CNT, val);
 }
 
+static int rkisp_set_offline_raw_buf_cnt(struct rkisp_device *dev, int *cnt)
+{
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD2)) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "offline raw to user, buf count no set by this\n");
+		return -EINVAL;
+	}
+	dev->vicap_buf_cnt = *cnt;
+	rkisp_vicap_buf[dev->dev_id] = *cnt;
+	return 0;
+}
+
+static int rkisp_get_offline_raw_buf_cnt(struct rkisp_device *dev, int *cnt)
+{
+	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD2)) {
+		v4l2_warn(&dev->v4l2_dev,
+			  "offline raw to user, buf count no get by this\n");
+		return -EINVAL;
+	}
+	if (!dev->vicap_buf_cnt)
+		*cnt = RKISP_VICAP_BUF_CNT;
+	else
+		*cnt = dev->vicap_buf_cnt;
+	return 0;
+}
+
+static void rkisp_config_fpn(struct rkisp_device *dev)
+{
+	struct rkisp_fpn_cfg *cfg = &dev->fpn_cfg;
+	u32 i, val, *data;
+
+	if (!cfg->en) {
+		rkisp_unite_write(dev, CSI2RX_FPN_CTRL, 0, true);
+		return;
+	}
+	val = SW_FPN_EN | SW_FPN_BITS(cfg->data_shift);
+	if (cfg->row_en)
+		val |= SW_FPN_ROW_EN;
+	rkisp_unite_write(dev, CSI2RX_FPN_CTRL, val, true);
+	rkisp_unite_write(dev, CSI2RX_FPN_TABLE_CTRL, SW_FPN_CFG, true);
+	data = cfg->buf;
+	/* 32bit: 8 fpn, first data line for DATA0, second line for DATA1 */
+	for (i = 0; i < cfg->buf_size / 8; i++) {
+		val = *(data + i);
+		rkisp_unite_write(dev, CSI2RX_FPN_TABLE_DATA0, val, true);
+		val = *(data + cfg->buf_size / 8 + i);
+		rkisp_unite_write(dev, CSI2RX_FPN_TABLE_DATA1, val, true);
+	}
+	rkisp_unite_write(dev, CSI2RX_FPN_TABLE_CTRL, 0, true);
+}
+
+static int rkisp_set_fpn(struct rkisp_device *dev, struct rkisp_fpn_cfg *cfg)
+{
+	u32 w = dev->isp_sdev.out_crop.width;
+	u32 h = dev->isp_sdev.out_crop.height;
+	int ret = 0;
+
+	if (!cfg->en && dev->fpn_cfg.en) {
+		dev->fpn_cfg.en = 0;
+		if (dev->fpn_cfg.buf) {
+			vfree(dev->fpn_cfg.buf);
+			dev->fpn_cfg.buf = NULL;
+			dev->fpn_cfg.buf_size = 0;
+		}
+		return ret;
+	}
+
+	if ((cfg->row_en && cfg->buf_size < h) ||
+	    (!cfg->row_en && cfg->buf_size < w)) {
+		dev_err(dev->dev, "fpn buf size %d row_en:%d error for %dx%d\n",
+			cfg->buf_size, cfg->row_en, w, h);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (dev->fpn_cfg.buf && dev->fpn_cfg.buf_size < cfg->buf_size) {
+		vfree(dev->fpn_cfg.buf);
+		dev->fpn_cfg.buf = NULL;
+		dev->fpn_cfg.buf_size = 0;
+	}
+
+	if (!dev->fpn_cfg.buf) {
+		dev->fpn_cfg.buf = vmalloc(cfg->buf_size);
+		if (!dev->fpn_cfg.buf) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
+	if (copy_from_user(dev->fpn_cfg.buf, cfg->buf, cfg->buf_size)) {
+		dev_err(dev->dev, "copy fpn data err\n");
+		vfree(dev->fpn_cfg.buf);
+		dev->fpn_cfg.buf = NULL;
+		dev->fpn_cfg.buf_size = 0;
+		ret = -EFAULT;
+		goto err;
+	}
+	dev->fpn_cfg.en = cfg->en;
+	dev->fpn_cfg.row_en = cfg->row_en;
+	dev->fpn_cfg.data_shift = cfg->data_shift;
+	dev->fpn_cfg.buf_size = cfg->buf_size;
+err:
+	return ret;
+}
+
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -3875,6 +4002,15 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_CMD_AIISP_RD_START:
 		rkisp_aiisp_rd_start(isp_dev);
 		break;
+	case RKISP_CMD_SET_OFFLINE_RAW_BUFCNT:
+		ret = rkisp_set_offline_raw_buf_cnt(isp_dev, arg);
+		break;
+	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
+		ret = rkisp_get_offline_raw_buf_cnt(isp_dev, arg);
+		break;
+	case RKISP_CMD_SET_FPN:
+		ret = rkisp_set_fpn(isp_dev, arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3963,6 +4099,18 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKISP_CMD_GET_AIISP_LINECNT:
 		size = sizeof(struct rkisp_aiisp_cfg);
 		cp_t_us = true;
+		break;
+	case RKISP_CMD_SET_OFFLINE_RAW_BUFCNT:
+		size = sizeof(int);
+		cp_f_us = true;
+		break;
+	case RKISP_CMD_GET_OFFLINE_RAW_BUFCNT:
+		size = sizeof(int);
+		cp_t_us = true;
+		break;
+	case RKISP_CMD_SET_FPN:
+		size = sizeof(struct rkisp_fpn_cfg);
+		cp_f_us = true;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -4453,6 +4601,8 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
 			rkisp_stream_frame_start(dev, isp_mis);
+			if (dev->isp_ver == ISP_V39)
+				rkisp_sditf_sof(dev, isp_mis);
 			rkisp_rockit_frame_start(dev);
 		}
 vs_skip:
@@ -4617,6 +4767,8 @@ vs_skip:
 		rkisp_isp_queue_event_sof(&dev->isp_sdev);
 		rkisp_stream_frame_start(dev, isp_mis);
 		rkisp_rockit_frame_start(dev);
+		if (dev->isp_ver == ISP_V39)
+			rkisp_sditf_sof(dev, isp_mis);
 	}
 
 	if (isp_mis & ISP3X_OUT_FRM_QUARTER) {

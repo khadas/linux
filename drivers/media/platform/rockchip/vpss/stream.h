@@ -120,6 +120,20 @@ struct frame_debug_info {
 	u32 frameloss;
 };
 
+struct rkvpss_online_unite_params {
+	u32 y_w_fac;
+	u32 c_w_fac;
+	u32 y_h_fac;
+	u32 c_h_fac;
+	u32 y_w_phase;
+	u32 c_w_phase;
+	u32 quad_crop_w;
+	u32 scl_in_crop_w_y;
+	u32 scl_in_crop_w_c;
+	u32 right_scl_need_size_y;
+	u32 right_scl_need_size_c;
+};
+
 /* struct rkvpss_stream - VPSS stream video device
  * id: stream video identify
  * buf_queue: queued buffer list
@@ -154,6 +168,7 @@ struct rkvpss_stream {
 	struct v4l2_rect crop;
 	struct v4l2_pix_format_mplane out_fmt;
 	struct frame_debug_info dbg;
+	struct rkvpss_online_unite_params unite_params;
 
 	int id;
 	bool streaming;

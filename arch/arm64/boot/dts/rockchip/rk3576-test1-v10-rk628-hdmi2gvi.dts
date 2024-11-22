@@ -126,11 +126,25 @@
 	};
 };
 
-/*
- * uboot does not support 4k resolution
- */
 &route_hdmi {
-	status = "disabled";
+	status = "okay";
+	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	force-output;
+	force_timing {
+		clock-frequency = <594000000>;
+		hactive = <3840>;
+		vactive = <2160>;
+		hback-porch = <296>;
+		hfront-porch = <176>;
+		vback-porch = <72>;
+		vfront-porch = <8>;
+		hsync-len = <88>;
+		vsync-len = <10>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
 };
 
 &hdmi_sound {

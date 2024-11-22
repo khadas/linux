@@ -554,6 +554,16 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				list->gate_flags, flags, list->child,
 				&ctx->lock);
 			break;
+		case branch_fraction_divider_v2:
+			clk = clk_register_fractional_divider_v2(NULL, list->name,
+				list->parent_names[0], flags,
+				ctx->reg_base + list->muxdiv_offset,
+				list->mux_shift, list->mux_width,
+				ctx->reg_base + list->div_offset,
+				list->div_shift, list->div_width,
+				list->div_flags,
+				&ctx->lock);
+			break;
 		case branch_half_divider:
 			clk = rockchip_clk_register_halfdiv(list->name,
 				list->parent_names, list->num_parents,

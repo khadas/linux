@@ -967,6 +967,7 @@ struct platform_driver rockchip_vdpu1_driver = {
 	.driver = {
 		.name = VDPU1_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_vdpu1_dt_match),
+		.pm = &mpp_common_pm_ops,
 	},
 };
 EXPORT_SYMBOL(rockchip_vdpu1_driver);

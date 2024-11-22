@@ -79,8 +79,8 @@ ifeq ($(MALI_KCONFIG_EXT_PREFIX),)
 endif
 
 EXTRA_SYMBOLS += \
-    $(M)/../../../base/arm/Module.symvers \
     $(GPU_SYMBOLS)
+
 
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree
@@ -99,6 +99,8 @@ CFLAGS_MODULE += $(call cc-option, -Wstringop-truncation)
 CFLAGS_MODULE += -Wno-missing-field-initializers
 CFLAGS_MODULE += -Wno-sign-compare
 CFLAGS_MODULE += -Wno-type-limits
+# The following ensures the stack frame does not get larger than a page
+CFLAGS_MODULE += -Wframe-larger-than=4096
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
 

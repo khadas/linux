@@ -306,6 +306,7 @@ config DRM_SII902X
 	select I2C_MUX
 	select SND_SOC_HDMI_CODEC if (SND_SOC && !ROCKCHIP_MINI_KERNEL)
 	select VIDEOMODE_HELPERS
+	select HDMI if ROCKCHIP_MINI_KERNEL
 	help
 	  Silicon Image sii902x bridge chip driver.
 

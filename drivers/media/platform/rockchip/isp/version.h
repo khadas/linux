@@ -520,6 +520,29 @@
  * 12.skip s_stream of sensor while connect to vicap sditf
  * 13.fix isp39 unite mode
  * 14.update gic and check params for isp39
+ *
+ * v2.6.1
+ * 1.fix dmarx deadlock
+ * 2.fix dmatx config
+ * 3.fix multi sensor for isp39
+ * 4.fix cac repeat enable
+ * 5.skip mbus if link to vicap
+ * 6.fix ldcv irq handle
+ * 7.fix cac for multi sensor
+ * 8.add stats log for isp21 and isp30
+ * 9.fix isp39 resume
+ * 10.fix aiisp config
+ * 11.enable bay3d FST_FRAME if change bypass
+ * 12.fix awb resume error
+ * 13.fix memory leak
+ * 14.config bls1 and bls2 black level
+ * 15.frame buf default to ddr for isp39 multi sensor
+ * 16.fix isp39 params
+ * 17.isp39 add api to get params
+ * 18.fix isp39 sensor mode config
+ * 19.clear isp force update bit
+ * 20.isp39 aiisp offline mode default
+ * 21.vpss: online support reset
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/version_compat_defs.h>
 #include <linux/anon_inodes.h>
+#include <linux/overflow.h>
 
 /* Explicitly include epoll header for old kernels. Not required from 4.16. */
 #if KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE
@@ -120,7 +121,7 @@ static int kbasep_timeline_io_packet_pending(struct kbase_timeline *timeline,
 
 	for (i = (enum tl_stream_type)0; i < TL_STREAM_TYPE_COUNT; ++i) {
 		struct kbase_tlstream *stream = &timeline->streams[i];
-		*rb_idx_raw = atomic_read(&stream->rbi);
+		*rb_idx_raw = (unsigned int)atomic_read(&stream->rbi);
 		/* Read buffer index may be updated by writer in case of
 		 * overflow. Read and write buffer indexes must be
 		 * loaded in correct order.
@@ -169,7 +170,7 @@ static inline int copy_stream_header(char __user *buffer, size_t size, ssize_t *
 				     const char *hdr, size_t hdr_size, size_t *hdr_btc)
 {
 	const size_t offset = hdr_size - *hdr_btc;
-	const size_t copy_size = MIN(size - *copy_len, *hdr_btc);
+	const size_t copy_size = MIN(size_sub((ssize_t)size, *copy_len), *hdr_btc);
 
 	if (!*hdr_btc)
 		return 0;
@@ -181,7 +182,7 @@ static inline int copy_stream_header(char __user *buffer, size_t size, ssize_t *
 		return -1;
 
 	*hdr_btc -= copy_size;
-	*copy_len += copy_size;
+	*copy_len += (ssize_t)copy_size;
 
 	return 0;
 }
@@ -290,8 +291,8 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer, s
 		 * If so copy its content.
 		 */
 		rb_idx = rb_idx_raw % PACKET_COUNT;
-		rb_size = atomic_read(&stream->buffer[rb_idx].size);
-		if (rb_size > size - copy_len)
+		rb_size = (size_t)atomic_read(&stream->buffer[rb_idx].size);
+		if (rb_size > (size_t)((ssize_t)size - copy_len))
 			break;
 		if (copy_to_user(&buffer[copy_len], stream->buffer[rb_idx].data, rb_size)) {
 			copy_len = -EFAULT;
@@ -304,10 +305,10 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer, s
 		 * that we have just sent to user.
 		 */
 		smp_rmb();
-		wb_idx_raw = atomic_read(&stream->wbi);
+		wb_idx_raw = (unsigned int)atomic_read(&stream->wbi);
 
 		if (wb_idx_raw - rb_idx_raw < PACKET_COUNT) {
-			copy_len += rb_size;
+			copy_len += (ssize_t)rb_size;
 			atomic_inc(&stream->rbi);
 #if MALI_UNIT_TEST
 			atomic_add(rb_size, &timeline->bytes_collected);
@@ -316,7 +317,7 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer, s
 		} else {
 			const unsigned int new_rb_idx_raw = wb_idx_raw - PACKET_COUNT + 1;
 			/* Adjust read buffer index to the next valid buffer */
-			atomic_set(&stream->rbi, new_rb_idx_raw);
+			atomic_set(&stream->rbi, (int)new_rb_idx_raw);
 		}
 	}
 

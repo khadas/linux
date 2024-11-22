@@ -924,7 +924,9 @@ config RN5T618_ADC
 
 config ROCKCHIP_FLEXBUS_ADC
 	tristate "Rockchip Flexbus ADC opmode driver"
-	depends on MFD_ROCKCHIP_FLEXBUS
+	select MFD_ROCKCHIP_FLEXBUS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Select this to get support for Rockchip Flexbus ADC opmode.
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,14 +26,16 @@
 #ifndef _KBASE_CSF_DEFS_H_
 #define _KBASE_CSF_DEFS_H_
 
-#include <linux/types.h>
-#include <linux/wait.h>
-
 #include <hw_access/mali_kbase_hw_access.h>
 #include "mali_kbase_csf_firmware.h"
-#include "mali_kbase_refcount_defs.h"
 #include "mali_kbase_csf_event.h"
 #include <uapi/gpu/arm/bifrost/csf/mali_kbase_csf_errors_dumpfault.h>
+#include "mali_kbase_csf_fw_io.h"
+
+#include <linux/version_compat_defs.h>
+
+#include <linux/types.h>
+#include <linux/wait.h>
 
 #if IS_ENABLED(CONFIG_MALI_CORESIGHT)
 #include <debug/backend/mali_kbase_debug_coresight_internal_csf.h>
@@ -245,11 +247,11 @@ enum kbase_csf_scheduler_state {
 /**
  * enum kbase_queue_group_priority - Kbase internal relative priority list.
  *
- * @KBASE_QUEUE_GROUP_PRIORITY_REALTIME:  The realtime queue group priority.
- * @KBASE_QUEUE_GROUP_PRIORITY_HIGH:      The high queue group priority.
- * @KBASE_QUEUE_GROUP_PRIORITY_MEDIUM:    The medium queue group priority.
- * @KBASE_QUEUE_GROUP_PRIORITY_LOW:       The low queue group priority.
- * @KBASE_QUEUE_GROUP_PRIORITY_COUNT:     The number of priority levels.
+ * @KBASE_QUEUE_GROUP_PRIORITY_REALTIME:              The realtime queue group priority.
+ * @KBASE_QUEUE_GROUP_PRIORITY_HIGH:                  The high queue group priority.
+ * @KBASE_QUEUE_GROUP_PRIORITY_MEDIUM:                The medium queue group priority.
+ * @KBASE_QUEUE_GROUP_PRIORITY_LOW:                   The low queue group priority.
+ * @KBASE_QUEUE_GROUP_PRIORITY_COUNT:                 The number of priority levels.
  */
 enum kbase_queue_group_priority {
 	KBASE_QUEUE_GROUP_PRIORITY_REALTIME = 0,
@@ -266,14 +268,19 @@ enum kbase_queue_group_priority {
  * @CSF_PM_TIMEOUT: Timeout for GPU Power Management to reach the desired
  *                  Shader, L2 and MCU state.
  * @CSF_GPU_RESET_TIMEOUT: Waiting timeout for GPU reset to complete.
- * @CSF_CSG_SUSPEND_TIMEOUT: Timeout given for a CSG to be suspended.
+ * @CSF_CSG_TERM_TIMEOUT: Timeout given for a CSG to be terminated.
  * @CSF_FIRMWARE_BOOT_TIMEOUT: Maximum time to wait for firmware to boot.
  * @CSF_FIRMWARE_PING_TIMEOUT: Maximum time to wait for firmware to respond
  *                             to a ping from KBase.
  * @CSF_SCHED_PROTM_PROGRESS_TIMEOUT: Timeout used to prevent protected mode execution hang.
  * @MMU_AS_INACTIVE_WAIT_TIMEOUT: Maximum waiting time in ms for the completion
  *                                of a MMU operation.
- * @KCPU_FENCE_SIGNAL_TIMEOUT: Waiting time in ms for triggering a KCPU queue sync state dump
+ * @KCPU_FENCE_SIGNAL_TIMEOUT: Waiting time in ms for triggering a KCPU queue sync state dump.
+ * @KBASE_PRFCNT_ACTIVE_TIMEOUT: Waiting time for prfcnt to be ready.
+ * @KBASE_CLEAN_CACHE_TIMEOUT: Waiting time for cache flush to complete.
+ * @KBASE_AS_INACTIVE_TIMEOUT: Waiting time for MCU address space to become inactive.
+ * @IPA_INACTIVE_TIMEOUT: Waiting time for IPA_CONTROL_STATUS flags to be cleared.
+ * @CSF_FIRMWARE_STOP_TIMEOUT: Waiting time for the firmware to stop.
  * @KBASE_TIMEOUT_SELECTOR_COUNT: Number of timeout selectors. Must be last in
  *                                the enum.
  * @KBASE_DEFAULT_TIMEOUT: Default timeout used when an invalid selector is passed
@@ -283,12 +290,17 @@ enum kbase_timeout_selector {
 	CSF_FIRMWARE_TIMEOUT,
 	CSF_PM_TIMEOUT,
 	CSF_GPU_RESET_TIMEOUT,
-	CSF_CSG_SUSPEND_TIMEOUT,
+	CSF_CSG_TERM_TIMEOUT,
 	CSF_FIRMWARE_BOOT_TIMEOUT,
 	CSF_FIRMWARE_PING_TIMEOUT,
 	CSF_SCHED_PROTM_PROGRESS_TIMEOUT,
 	MMU_AS_INACTIVE_WAIT_TIMEOUT,
 	KCPU_FENCE_SIGNAL_TIMEOUT,
+	KBASE_PRFCNT_ACTIVE_TIMEOUT,
+	KBASE_CLEAN_CACHE_TIMEOUT,
+	KBASE_AS_INACTIVE_TIMEOUT,
+	IPA_INACTIVE_TIMEOUT,
+	CSF_FIRMWARE_STOP_TIMEOUT,
 
 	/* Must be the last in the enum */
 	KBASE_TIMEOUT_SELECTOR_COUNT,
@@ -387,6 +399,10 @@ struct kbase_csf_notification {
  * @cs_error:         Records information about the CS fatal event or
  *                    about CS fault event if dump on fault is enabled.
  * @cs_error_fatal:   Flag to track if the CS fault or CS fatal event occurred.
+ * @cs_error_acked:   Flag to indicate that acknowledging the fault has been done
+ *                    at top-half of fault handler.
+ * @clear_faults:     Flag to track if the CS fault reporting is enabled for this queue.
+ *                    It's protected by &kbase_context.csf.lock.
  * @extract_ofs: The current EXTRACT offset, this is only updated when handling
  *               the GLB IDLE IRQ if the idle timeout value is non-0 in order
  *               to help detect a queue's true idle status.
@@ -430,6 +446,8 @@ struct kbase_queue {
 	u64 cs_error_info;
 	u32 cs_error;
 	bool cs_error_fatal;
+	bool cs_error_acked;
+	bool clear_faults;
 	u64 extract_ofs;
 	u64 saved_cmd_ptr;
 };
@@ -490,6 +508,8 @@ struct kbase_protected_suspend_buffer {
  * @compute_max:    Maximum number of compute endpoints the group is
  *                  allowed to use.
  * @csi_handlers:   Requested CSI exception handler flags for the group.
+ * @cs_fault_report_enable:	Indicated if reporting of CS_FAULTs to
+ *				userspace is enabled.
  * @tiler_mask:     Mask of tiler endpoints the group is allowed to use.
  * @fragment_mask:  Mask of fragment endpoints the group is allowed to use.
  * @compute_mask:   Mask of compute endpoints the group is allowed to use.
@@ -505,9 +525,9 @@ struct kbase_protected_suspend_buffer {
  * @prepared_seq_num: Indicates the position of queue group in the list of
  *                    prepared groups to be scheduled.
  * @scan_seq_num:     Scan out sequence number before adjusting for dynamic
- *                    idle conditions. It is used for setting a group's
- *                    onslot priority. It could differ from prepared_seq_number
- *                    when there are idle groups.
+ *                    idle conditions. It represents a group's global priority
+ *                    for a running tick/tock. It could differ from
+ *                    prepared_seq_number when there are idle groups.
  * @faulted:          Indicates that a GPU fault occurred for the queue group.
  *                    This flag persists until the fault has been queued to be
  *                    reported to userspace.
@@ -520,14 +540,21 @@ struct kbase_protected_suspend_buffer {
  * @bound_queues:   Array of registered queues bound to this queue group.
  * @doorbell_nr:    Index of the hardware doorbell page assigned to the
  *                  group.
- * @protm_event_work:   Work item corresponding to the protected mode entry
- *                      event for this queue.
+ * @protm_event_work: List item corresponding to the protected mode entry
+ *                    event for this queue. This would be handled by
+ *                    kbase_csf_scheduler_kthread().
+ * @pending_protm_event_work: Indicates that kbase_csf_scheduler_kthread() should
+ *                            handle PROTM request for this group. This would
+ *                            be set to false when the work is done. This is used
+ *                            mainly for synchronisation with group termination.
  * @protm_pending_bitmap:  Bit array to keep a track of CSs that
  *                         have pending protected mode entry requests.
  * @error_fatal: An error of type BASE_GPU_QUEUE_GROUP_ERROR_FATAL to be
  *               returned to userspace if such an error has occurred.
  * @timer_event_work: Work item to handle the progress timeout fatal event
  *                    for the group.
+ * @progress_timer_state: Value of CSG_PROGRESS_TIMER_STATE register when progress
+ *                        timer timeout is reported for the group.
  * @deschedule_deferred_cnt: Counter keeping a track of the number of threads
  *                           that tried to deschedule the group and had to defer
  *                           the descheduling due to the dump on fault.
@@ -538,6 +565,12 @@ struct kbase_protected_suspend_buffer {
  *                  It is accumulated on consecutive mapping attempt failures. On
  *                  reaching a preset limit, the group is regarded as suffered
  *                  a fatal error and triggers a fatal error notification.
+ * @sched_act_seq_num: Scheduling action sequence number to determine the CSG slot
+ *                    priority in tick/tock scheduling action. It could differ from
+ *                    scan_seq_num. The field is only meaningful if the CSG is on the
+ *                    Scheduler's schedulable list for a tick/tock, and used for
+ *                    determining the CSG slot priority when the group is to be placed
+ *                    on the CSG slot.
  */
 struct kbase_queue_group {
 	struct kbase_context *kctx;
@@ -552,7 +585,7 @@ struct kbase_queue_group {
 	u8 compute_max;
 	u8 csi_handlers;
 
-
+	__u8 cs_fault_report_enable;
 	u64 tiler_mask;
 	u64 fragment_mask;
 	u64 compute_mask;
@@ -571,12 +604,14 @@ struct kbase_queue_group {
 	struct kbase_queue *bound_queues[MAX_SUPPORTED_STREAMS_PER_GROUP];
 
 	int doorbell_nr;
-	struct work_struct protm_event_work;
+	struct list_head protm_event_work;
+	atomic_t pending_protm_event_work;
 	DECLARE_BITMAP(protm_pending_bitmap, MAX_SUPPORTED_STREAMS_PER_GROUP);
 
 	struct kbase_csf_notification error_fatal;
 
 	struct work_struct timer_event_work;
+	u32 progress_timer_state;
 
 	/**
 	 * @dvs_buf: Address and size of scratch memory.
@@ -589,6 +624,7 @@ struct kbase_queue_group {
 #endif
 	void *csg_reg;
 	u8 csg_reg_bind_retries;
+	u32 sched_act_seq_num;
 #if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
 	/**
 	 * @prev_act: Previous CSG activity transition in a GPU metrics.
@@ -607,6 +643,9 @@ struct kbase_queue_group {
  * @cmd_seq_num:        The sequence number assigned to an enqueued command,
  *                      in incrementing order (older commands shall have a
  *                      smaller number).
+ * @kcpu_wq: Work queue to process KCPU commands for all queues in this
+ *           context. This would be used if the context is not prioritised,
+ *           otherwise it would be handled by kbase_csf_scheduler_kthread().
  * @jit_lock:           Lock to serialise JIT operations.
  * @jit_cmds_head:      A list of the just-in-time memory commands, both
  *                      allocate & free, in submission order, protected
@@ -621,6 +660,8 @@ struct kbase_csf_kcpu_queue_context {
 	struct kbase_kcpu_command_queue *array[KBASEP_MAX_KCPU_QUEUES];
 	DECLARE_BITMAP(in_use, KBASEP_MAX_KCPU_QUEUES);
 	atomic64_t cmd_seq_num;
+
+	struct workqueue_struct *kcpu_wq;
 
 	struct mutex jit_lock;
 	struct list_head jit_cmds_head;
@@ -729,13 +770,7 @@ struct kbase_csf_ctx_heap_reclaim_info {
  *                      GPU command queues are idle and at least one of them
  *                      is blocked on a sync wait operation.
  * @num_idle_wait_grps: Length of the @idle_wait_groups list.
- * @sync_update_wq:     Dedicated workqueue to process work items corresponding
- *                      to the sync_update events by sync_set/sync_add
- *                      instruction execution on CSs bound to groups
- *                      of @idle_wait_groups list.
- * @sync_update_work:   work item to process the sync_update events by
- *                      sync_set / sync_add instruction execution on command
- *                      streams bound to groups of @idle_wait_groups list.
+ * @sync_update_work:   List item to process the SYNC_UPDATE event.
  * @ngrp_to_schedule:	Number of groups added for the context to the
  *                      'groups_to_schedule' list of scheduler instance.
  * @heap_info:          Heap reclaim information data of the kctx. As the
@@ -748,8 +783,7 @@ struct kbase_csf_scheduler_context {
 	u32 num_runnable_grps;
 	struct list_head idle_wait_groups;
 	u32 num_idle_wait_grps;
-	struct workqueue_struct *sync_update_wq;
-	struct work_struct sync_update_work;
+	struct list_head sync_update_work;
 	u32 ngrp_to_schedule;
 	struct kbase_csf_ctx_heap_reclaim_info heap_info;
 };
@@ -850,6 +884,10 @@ struct kbase_csf_user_reg_context {
  * @cpu_queue:        CPU queue information. Only be available when DEBUG_FS
  *                    is enabled.
  * @user_reg:         Collective information to support mapping to USER Register page.
+ * @pending_sync_update: Indicates that kbase_csf_scheduler_kthread() should
+ *                       handle SYNC_UPDATE event for this context. This would
+ *                       be set to false when the work is done. This is used
+ *                       mainly for synchronisation with context termination.
  */
 struct kbase_csf_context {
 	struct list_head event_pages_head;
@@ -866,6 +904,7 @@ struct kbase_csf_context {
 	struct kbase_csf_scheduler_context sched;
 	struct kbase_csf_cpu_queue_context cpu_queue;
 	struct kbase_csf_user_reg_context user_reg;
+	atomic_t pending_sync_update;
 };
 
 /**
@@ -894,13 +933,11 @@ struct kbase_csf_reset_gpu {
  *                             of CSG slots.
  * @resident_group:   pointer to the queue group that is resident on the CSG slot.
  * @state:            state of the slot as per enum @kbase_csf_csg_slot_state.
- * @trigger_jiffies:  value of jiffies when change in slot state is recorded.
  * @priority:         dynamic priority assigned to CSG slot.
  */
 struct kbase_csf_csg_slot {
 	struct kbase_queue_group *resident_group;
 	atomic_t state;
-	unsigned long trigger_jiffies;
 	u8 priority;
 };
 
@@ -908,14 +945,15 @@ struct kbase_csf_csg_slot {
  * struct kbase_csf_sched_heap_reclaim_mgr - Object for managing tiler heap reclaim
  *                                           kctx lists inside the CSF device's scheduler.
  *
- * @heap_reclaim:   Tiler heap reclaim shrinker object.
+ * @heap_reclaim:   Defines Tiler heap reclaim shrinker object.
  * @ctx_lists:      Array of kctx lists, size matching CSG defined priorities. The
  *                  lists track the kctxs attached to the reclaim manager.
  * @unused_pages:   Estimated number of unused pages from the @ctxlist array. The
  *                  number is indicative for use with reclaim shrinker's count method.
  */
 struct kbase_csf_sched_heap_reclaim_mgr {
-	struct shrinker heap_reclaim;
+	DEFINE_KBASE_SHRINKER heap_reclaim;
+
 	struct list_head ctx_lists[KBASE_QUEUE_GROUP_PRIORITY_COUNT];
 	atomic_t unused_pages;
 };
@@ -1014,10 +1052,29 @@ struct kbase_csf_mcu_shared_regions {
  *                          workqueue items (kernel-provided delayed_work
  *                          items do not use hrtimer and for some reason do
  *                          not provide sufficiently reliable periodicity).
- * @pending_tick_work:      Indicates that kbase_csf_scheduler_kthread() should perform
- *                          a scheduling tick.
- * @pending_tock_work:      Indicates that kbase_csf_scheduler_kthread() should perform
- *                          a scheduling tock.
+ * @pending_sync_update_works:  Indicates that kbase_csf_scheduler_kthread()
+ *                              should handle SYNC_UPDATE events.
+ * @sync_update_work_ctxs_lock: Lock protecting the list of contexts that
+ *                              require handling SYNC_UPDATE events.
+ * @sync_update_work_ctxs:      The list of contexts that require handling
+ *                              SYNC_UPDATE events.
+ * @pending_protm_event_works:  Indicates that kbase_csf_scheduler_kthread()
+ *                              should handle PROTM requests.
+ * @protm_event_work_grps_lock: Lock protecting the list of groups that
+ *                              have requested protected mode.
+ * @protm_event_work_grps:      The list of groups that have requested
+ *                              protected mode.
+ * @pending_kcpuq_works:    Indicates that kbase_csf_scheduler_kthread()
+ *                          should process pending KCPU queue works.
+ * @kcpuq_work_queues_lock: Lock protecting the list of KCPU queues that
+ *                          need to be processed.
+ * @kcpuq_work_queues:      The list of KCPU queue that need to be processed
+ * @pending_tick_work:      Indicates that kbase_csf_scheduler_kthread() should
+ *                          perform a scheduling tick.
+ * @pending_tock_work:      Indicates that kbase_csf_scheduler_kthread() should
+ *                          perform a scheduling tock.
+ * @pending_gpu_idle_work:  Indicates that kbase_csf_scheduler_kthread() should
+ *                          handle the GPU IDLE event.
  * @ping_work:              Work item that would ping the firmware at regular
  *                          intervals, only if there is a single active CSG
  *                          slot, to check if firmware is alive and would
@@ -1035,10 +1092,6 @@ struct kbase_csf_mcu_shared_regions {
  *                          This pointer being set doesn't necessarily indicates
  *                          that GPU is in protected mode, kbdev->protected_mode
  *                          needs to be checked for that.
- * @idle_wq:                Workqueue for executing GPU idle notification
- *                          handler.
- * @gpu_idle_work:          Work item for facilitating the scheduler to bring
- *                          the GPU to a low-power mode on becoming idle.
  * @fast_gpu_idle_handling: Indicates whether to relax many of the checks
  *                          normally done in the GPU idle worker. This is
  *                          set to true when handling the GLB IDLE IRQ if the
@@ -1069,6 +1122,9 @@ struct kbase_csf_mcu_shared_regions {
  *                          protected mode execution compared to other such
  *                          groups. It is updated on every tick/tock.
  *                          @interrupt_lock is used to serialize the access.
+ * @csg_scan_sched_count:   Scheduling action counter used to assign the sched_act_seq_num
+ *                          for each group added to Scheduler's schedulable list in a
+ *                          tick/tock.
  * @protm_enter_time:       GPU protected mode enter time.
  * @reclaim_mgr:            CSGs tiler heap manager object.
  * @mcu_regs_data:          Scheduler MCU shared regions data for managing the
@@ -1078,8 +1134,11 @@ struct kbase_csf_mcu_shared_regions {
  *                          thread when a queue needs attention.
  * @kthread_running:        Whether the GPU queue submission thread should keep
  *                          executing.
- * @gpuq_kthread:           High-priority thread used to handle GPU queue
+ * @gpuq_kthread:           Dedicated thread primarily used to handle
+ *                          latency-sensitive tasks such as GPU queue
  *                          submissions.
+ * @gpu_idle_timer_enabled: Tracks whether the GPU idle timer is enabled or disabled.
+ * @fw_soi_enabled:         True if FW Sleep-on-Idle is currently enabled.
  */
 struct kbase_csf_scheduler {
 	struct mutex lock;
@@ -1103,14 +1162,22 @@ struct kbase_csf_scheduler {
 	unsigned long last_schedule;
 	atomic_t timer_enabled;
 	struct hrtimer tick_timer;
+	atomic_t pending_sync_update_works;
+	spinlock_t sync_update_work_ctxs_lock;
+	struct list_head sync_update_work_ctxs;
+	atomic_t pending_protm_event_works;
+	spinlock_t protm_event_work_grps_lock;
+	struct list_head protm_event_work_grps;
+	atomic_t pending_kcpuq_works;
+	spinlock_t kcpuq_work_queues_lock;
+	struct list_head kcpuq_work_queues;
 	atomic_t pending_tick_work;
 	atomic_t pending_tock_work;
+	atomic_t pending_gpu_idle_work;
 	struct delayed_work ping_work;
 	struct kbase_context *top_kctx;
 	struct kbase_queue_group *top_grp;
 	struct kbase_queue_group *active_protm_grp;
-	struct workqueue_struct *idle_wq;
-	struct work_struct gpu_idle_work;
 	bool fast_gpu_idle_handling;
 	atomic_t gpu_no_longer_idle;
 	atomic_t non_idle_offslot_grps;
@@ -1118,6 +1185,7 @@ struct kbase_csf_scheduler {
 	u32 pm_active_count;
 	unsigned int csg_scheduling_period_ms;
 	u32 tick_protm_pending_seq;
+	u32 csg_scan_sched_count;
 	ktime_t protm_enter_time;
 	struct kbase_csf_sched_heap_reclaim_mgr reclaim_mgr;
 	struct kbase_csf_mcu_shared_regions mcu_regs_data;
@@ -1148,6 +1216,8 @@ struct kbase_csf_scheduler {
 	 */
 	spinlock_t gpu_metrics_lock;
 #endif /* CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD */
+	atomic_t gpu_idle_timer_enabled;
+	atomic_t fw_soi_enabled;
 };
 
 /*
@@ -1201,6 +1271,8 @@ enum kbase_ipa_core_type {
 	KBASE_IPA_CORE_TYPE_MEMSYS,
 	KBASE_IPA_CORE_TYPE_TILER,
 	KBASE_IPA_CORE_TYPE_SHADER,
+
+	/* Must be the last in the enum */
 	KBASE_IPA_CORE_TYPE_NUM
 };
 
@@ -1328,7 +1400,7 @@ struct kbase_ipa_control {
  * @num_pages: Number of entries in @phys and @pma (and length of the interface)
  * @num_pages_aligned: Same as @num_pages except for the case when @is_small_page
  *                     is false and @reuse_pages is false and therefore will be
- *                     aligned to NUM_4K_PAGES_IN_2MB_PAGE.
+ *                     aligned to NUM_PAGES_IN_2MB_LARGE_PAGE.
  * @virtual: Starting GPU virtual address this interface is mapped at
  * @flags: bitmask of CSF_FIRMWARE_ENTRY_* conveying the interface attributes
  * @data_start: Offset into firmware image at which the interface data starts
@@ -1593,9 +1665,9 @@ struct kbase_csf_user_reg {
  * @mcu_core_pwroff_dur_count: The counterpart of the glb_pwroff timeout input
  *                             in interface required format, ready to be used
  *                             directly in the firmware.
- * @mcu_core_pwroff_dur_count_modifier: Update csffw_glb_req_cfg_pwroff_timer
- *                                      to make the shr(10) modifier conditional
- *                                      on new flag in GLB_PWROFF_TIMER_CONFIG
+ * @mcu_core_pwroff_dur_count_no_modifier: Update csffw_glb_req_cfg_pwroff_timer
+ *                                         to make the shr(10) modifier conditional
+ *                                         on new flag in GLB_PWROFF_TIMER_CONFIG
  * @mcu_core_pwroff_reg_shadow: The actual value that has been programed into
  *                              the glb_pwoff register. This is separated from
  *                              the @p mcu_core_pwroff_dur_count as an update
@@ -1606,10 +1678,10 @@ struct kbase_csf_user_reg {
  * @gpu_idle_dur_count:     The counterpart of the hysteresis time window in
  *                          interface required format, ready to be used
  *                          directly in the firmware.
- * @gpu_idle_dur_count_modifier: Update csffw_glb_req_idle_enable to make the shr(10)
- *                               modifier conditional on the new flag
- *                               in GLB_IDLE_TIMER_CONFIG.
- * @fw_timeout_ms:          Timeout value (in milliseconds) used when waiting
+ * @gpu_idle_dur_count_no_modifier: Update csffw_glb_req_idle_enable to make the shr(10)
+ *                                  modifier conditional on the new flag
+ *                                  in GLB_IDLE_TIMER_CONFIG.
+ * @csg_suspend_timeout_ms: Timeout given for a CSG to be suspended.
  *                          for any request sent to the firmware.
  * @hwcnt:                  Contain members required for handling the dump of
  *                          HW counters.
@@ -1620,12 +1692,29 @@ struct kbase_csf_user_reg {
  * @dof:                    Structure for dump on fault.
  * @user_reg:               Collective information to support the mapping to
  *                          USER Register page for user processes.
- * @pending_gpuq_kicks:     Lists of GPU queue that have been kicked but not
- *                          yet processed, categorised by queue group's priority.
- * @pending_gpuq_kicks_lock: Protect @pending_gpu_kicks and
- *                           kbase_queue.pending_kick_link.
+ * @pending_gpuq_kicks:            Indicates that kbase_csf_scheduler_kthread()
+ *                                 should handle GPU queue kicks.
+ * @pending_gpuq_kick_queues:      Lists of GPU queued that have been kicked but not
+ *                                 yet processed, categorised by queue group's priority.
+ * @pending_gpuq_kick_queues_lock: Protect @pending_gpuq_kick_queues and
+ *                                 kbase_queue.pending_kick_link.
  * @quirks_ext:             Pointer to an allocated buffer containing the firmware
  *                          workarounds configuration.
+ * @mmu_sync_sem:           RW Semaphore to defer MMU operations till the P.Mode entrance
+ *                          or DCS request has been completed.
+ * @pmode_sync_sem:         RW Semaphore to prevent MMU operations during P.Mode entrance.
+ * @page_fault_cnt_ptr_address: GPU VA of the location in FW data memory, extracted from the
+ *                              FW image header, that will store the GPU VA of FW visible
+ *                              memory location where the @page_fault_cnt value will be written to.
+ * @page_fault_cnt_ptr:         CPU VA of the FW visible memory location where the @page_fault_cnt
+ *                              value will be written to.
+ * @page_fault_cnt:             Counter that is incremented on every GPU page fault, just before the
+ *                              MMU is unblocked to retry the memory transaction that caused the GPU
+ *                              page fault. The access to counter is serialized appropriately.
+ * @mcu_halted:             Flag to inform MCU FSM that the MCU has already halted.
+ * @fw_io:                  Firmware I/O interface.
+ * @compute_progress_timeout_cc: Value of GPU cycle count register when progress
+ *                               timer timeout is reported for the compute iterator.
  */
 struct kbase_csf_device {
 	struct kbase_mmu_table mcu_mmu;
@@ -1656,14 +1745,14 @@ struct kbase_csf_device {
 	bool glb_init_request_pending;
 	struct work_struct fw_error_work;
 	struct kbase_ipa_control ipa_control;
-	u32 mcu_core_pwroff_dur_ns;
+	u64 mcu_core_pwroff_dur_ns;
 	u32 mcu_core_pwroff_dur_count;
-	u32 mcu_core_pwroff_dur_count_modifier;
+	u32 mcu_core_pwroff_dur_count_no_modifier;
 	u32 mcu_core_pwroff_reg_shadow;
-	u32 gpu_idle_hysteresis_ns;
+	u64 gpu_idle_hysteresis_ns;
 	u32 gpu_idle_dur_count;
-	u32 gpu_idle_dur_count_modifier;
-	unsigned int fw_timeout_ms;
+	u32 gpu_idle_dur_count_no_modifier;
+	u32 csg_suspend_timeout_ms;
 	struct kbase_csf_hwcnt hwcnt;
 	struct kbase_csf_mcu_fw fw;
 	struct kbase_csf_firmware_log fw_log;
@@ -1678,9 +1767,18 @@ struct kbase_csf_device {
 	struct kbase_debug_coresight_device coresight;
 #endif /* IS_ENABLED(CONFIG_MALI_CORESIGHT) */
 	struct kbase_csf_user_reg user_reg;
-	struct list_head pending_gpuq_kicks[KBASE_QUEUE_GROUP_PRIORITY_COUNT];
-	spinlock_t pending_gpuq_kicks_lock;
+	atomic_t pending_gpuq_kicks;
+	struct list_head pending_gpuq_kick_queues[KBASE_QUEUE_GROUP_PRIORITY_COUNT];
+	spinlock_t pending_gpuq_kick_queues_lock;
 	u32 *quirks_ext;
+	struct rw_semaphore mmu_sync_sem;
+	struct rw_semaphore pmode_sync_sem;
+	u32 page_fault_cnt_ptr_address;
+	u32 *page_fault_cnt_ptr;
+	u32 page_fault_cnt;
+	bool mcu_halted;
+	struct kbase_csf_fw_io fw_io;
+	u64 compute_progress_timeout_cc;
 };
 
 /**
@@ -1699,7 +1797,7 @@ struct kbase_csf_device {
  * @current_setup:     Stores the MMU configuration for this address space.
  */
 struct kbase_as {
-	int number;
+	unsigned int number;
 	struct workqueue_struct *pf_wq;
 	struct work_struct work_pagefault;
 	struct work_struct work_busfault;

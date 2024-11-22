@@ -6609,8 +6609,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		clocks = <&cru CLK_OTPC_NS>, <&cru PCLK_OTPC_NS>,
-			 <&cru CLK_OTPC_ARB>, <&cru CLK_OTP_PHY_G>;
-		clock-names = "otpc", "apb", "arb", "phy";
+			 <&cru CLK_OTP_PHY_G>;
+		clock-names = "otpc", "apb", "phy";
 		resets = <&cru SRST_OTPC_NS>, <&cru SRST_P_OTPC_NS>,
 			 <&cru SRST_OTPC_ARB>;
 		reset-names = "otpc", "apb", "arb";

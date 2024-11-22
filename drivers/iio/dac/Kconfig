@@ -387,7 +387,9 @@ config MCP4922
 
 config ROCKCHIP_FLEXBUS_DAC
 	tristate "Rockchip Flexbus DAC opmode driver"
-	depends on MFD_ROCKCHIP_FLEXBUS
+	select MFD_ROCKCHIP_FLEXBUS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Select this to get support for Rockchip Flexbus DAC opmode.
 

@@ -15,11 +15,15 @@ allOf:
 
 properties:
   compatible:
-    const: rockchip,sfc
+    enum:
+      - rockchip,fspi
+      - rockchip,sfc
+
     description:
       The rockchip sfc controller is a standalone IP with version register,
       and the driver can handle all the feature difference inside the IP
       depending on the version register.
+      The rockchip flexible spi controller is the next generation IP of sfc.
 
   reg:
     maxItems: 1
@@ -43,6 +47,16 @@ properties:
   rockchip,sfc-no-dma:
     description: Disable DMA and utilize FIFO mode only
     type: boolean
+
+  rockchip,sclk-x2-bypass:
+    description:
+      Turn off the internal 2 frequency division logic of the controller clock,
+      and the interface clock is 1:1 with the controller working clock.
+    type: boolean
+
+  rockchip,max-dll:
+    description:
+      Setting maximum dll cell.
 
 patternProperties:
   "^flash@[0-3]$":

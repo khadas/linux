@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -85,14 +85,14 @@ static struct kbase_debug_coresight_csf_op dwt_itm_enable_ops[] = {
 };
 
 static struct kbase_debug_coresight_csf_op dwt_itm_disable_ops[] = {
-	// Disable ITM/DWT functionality via DEMCR register
-	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x00000000),
 	// Unlock ITM configuration
 	WRITE_IMM_OP(CS_ITM_BASE_ADDR + CORESIGHT_LAR, CS_MALI_UNLOCK_COMPONENT),
 	// Check ITM is disabled
 	POLL_OP(CS_ITM_BASE_ADDR + ITM_TCR, ITM_TCR_BUSY_BIT, 0x0),
 	// Lock
 	WRITE_IMM_OP(CS_ITM_BASE_ADDR + CORESIGHT_LAR, 0x00000000),
+	// Disable ITM/DWT functionality via DEMCR register
+	WRITE_IMM_OP(CS_SCS_BASE_ADDR + SCS_DEMCR, 0x00000000),
 	// Set enabled bit off at the end of sequence
 	BIT_AND_OP(&itm_state.enabled, 0x0),
 };

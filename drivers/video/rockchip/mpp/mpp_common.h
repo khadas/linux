@@ -264,6 +264,15 @@ struct mpp_mem_region {
 	bool is_dup;
 };
 
+struct mpp_load_info {
+	s64 busy_time;
+	s64 hw_busy_time;
+	ktime_t load_time;
+	u32 load;
+	u32 load_frac;
+	u32 utilization;
+	u32 utilization_frac;
+};
 
 struct mpp_dev {
 	struct device *dev;
@@ -322,6 +331,8 @@ struct mpp_dev {
 	/* common per-device procfs */
 	u32 disable;
 	u32 timing_check;
+	u32 load_en;
+	struct mpp_load_info load_info;
 };
 
 struct mpp_session {
@@ -450,6 +461,7 @@ struct mpp_task {
 	s32 core_id;
 	/* hw cycles */
 	u32 hw_cycles;
+	u32 hw_time;
 };
 
 struct mpp_taskqueue {
@@ -534,6 +546,7 @@ struct mpp_service {
 
 	/* global timing record flag */
 	u32 timing_en;
+	u32 load_interval;
 };
 
 /*
@@ -688,6 +701,8 @@ unsigned long mpp_get_clk_info_rate_hz(struct mpp_clk_info *clk_info,
 				       enum MPP_CLOCK_MODE mode);
 int mpp_clk_set_rate(struct mpp_clk_info *clk_info,
 		     enum MPP_CLOCK_MODE mode);
+void mpp_dev_load(struct mpp_dev *mpp, struct mpp_task *mpp_task);
+void mpp_dev_load_clear(struct mpp_dev *mpp);
 
 static inline int mpp_write(struct mpp_dev *mpp, u32 reg, u32 val)
 {
@@ -852,5 +867,7 @@ extern struct platform_driver rockchip_rkvenc2_driver;
 extern struct platform_driver rockchip_av1dec_driver;
 extern struct platform_driver rockchip_jpgenc_driver;
 extern struct platform_driver rockchip_vdpp_driver;
+
+extern const struct dev_pm_ops mpp_common_pm_ops;
 
 #endif

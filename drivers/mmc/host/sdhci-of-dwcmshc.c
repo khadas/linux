@@ -529,6 +529,9 @@ static void rk35xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	struct rk35xx_priv *priv = dwc_priv->priv;
 	u32 extra = sdhci_readl(host, DECMSHC_EMMC_MISC_CON);
 
+	if ((host->mmc->caps2 & MMC_CAP2_CQE) && (mask & SDHCI_RESET_ALL))
+		cqhci_deactivate(host->mmc);
+
 	if (mask & SDHCI_RESET_ALL && priv->reset) {
 		reset_control_assert(priv->reset);
 		udelay(1);
@@ -980,6 +983,13 @@ static int dwcmshc_remove(struct platform_device *pdev)
 	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	struct rk35xx_priv *rk_priv = priv->priv;
 
+	if (rk_priv && !rk_priv->acpi_en) {
+		pm_runtime_get_sync(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+	}
+
 	sdhci_remove_host(host, 0);
 
 	clk_disable_unprepare(pltfm_host->clk);
@@ -1074,6 +1084,9 @@ disable_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 	return ret;
 }
+#endif
+
+#ifdef CONFIG_PM
 
 static int dwcmshc_runtime_suspend(struct device *dev)
 {

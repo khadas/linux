@@ -744,8 +744,6 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_USER_OTPC_S, "clk_user_otpc_s", "xin24m", CLK_IGNORE_UNUSED,
 			RK3562_PERI_CLKSEL_CON(44), 8, 8, DFLAGS,
 			RK3562_PERI_CLKGATE_CON(14), 5, GFLAGS),
-	GATE(CLK_OTPC_ARB, "clk_otpc_arb", "xin24m", 0,
-			RK3562_PERI_CLKGATE_CON(14), 6, GFLAGS),
 	GATE(PCLK_OTPPHY, "pclk_otpphy", "pclk_peri", 0,
 			RK3562_PERI_CLKGATE_CON(14), 7, GFLAGS),
 	GATE(PCLK_USB2PHY, "pclk_usb2phy", "pclk_peri", 0,

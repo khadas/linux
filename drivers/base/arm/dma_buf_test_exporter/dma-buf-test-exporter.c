@@ -182,7 +182,7 @@ static struct sg_table *dma_buf_te_map(struct dma_buf_attachment *attachment,
 			sg_set_page(iter, alloc->pages[i], PAGE_SIZE, 0);
 	}
 
-	if (!dma_map_sg(attachment->dev, sg->sgl, sg->nents, direction)) {
+	if (!dma_map_sg(attachment->dev, sg->sgl, (int)sg->nents, direction)) {
 		mutex_unlock(&alloc->lock);
 		sg_free_table(sg);
 		kfree(sg);
@@ -213,7 +213,7 @@ static void dma_buf_te_unmap(struct dma_buf_attachment *attachment, struct sg_ta
 	pa->sg = NULL;
 	mutex_unlock(&alloc->lock);
 
-	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, direction);
+	dma_unmap_sg(attachment->dev, sg->sgl, (int)sg->nents, direction);
 	sg_free_table(sg);
 	kfree(sg);
 }
@@ -273,12 +273,12 @@ static int dma_buf_te_sync(struct dma_buf *dmabuf, enum dma_data_direction direc
 			dev_dbg(te_device.this_device, "sync cpu with device %s\n",
 				dev_name(attachment->dev));
 
-			dma_sync_sg_for_cpu(attachment->dev, sg->sgl, sg->nents, direction);
+			dma_sync_sg_for_cpu(attachment->dev, sg->sgl, (int)sg->nents, direction);
 		} else {
 			dev_dbg(te_device.this_device, "sync device %s with cpu\n",
 				dev_name(attachment->dev));
 
-			dma_sync_sg_for_device(attachment->dev, sg->sgl, sg->nents, direction);
+			dma_sync_sg_for_device(attachment->dev, sg->sgl, (int)sg->nents, direction);
 		}
 	}
 
@@ -682,7 +682,7 @@ err_have_dmabuf:
 	return res;
 }
 
-static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
+static int dma_te_buf_fill(struct dma_buf *dma_buf, int value)
 {
 	struct dma_buf_attachment *attachment;
 	struct sg_table *sgt;
@@ -695,7 +695,11 @@ static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
 	if (IS_ERR_OR_NULL(attachment))
 		return -EBUSY;
 
+#if (KERNEL_VERSION(6, 1, 55) <= LINUX_VERSION_CODE)
+	sgt = dma_buf_map_attachment_unlocked(attachment, DMA_BIDIRECTIONAL);
+#else
 	sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+#endif
 	if (IS_ERR_OR_NULL(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto no_import;
@@ -729,7 +733,11 @@ static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
 no_kmap:
 	dma_buf_end_cpu_access(dma_buf, DMA_BIDIRECTIONAL);
 no_cpu_access:
+#if (KERNEL_VERSION(6, 1, 55) <= LINUX_VERSION_CODE)
+	dma_buf_unmap_attachment_unlocked(attachment, sgt, DMA_BIDIRECTIONAL);
+#else
 	dma_buf_unmap_attachment(attachment, sgt, DMA_BIDIRECTIONAL);
+#endif
 no_import:
 	dma_buf_detach(dma_buf, attachment);
 	return ret;

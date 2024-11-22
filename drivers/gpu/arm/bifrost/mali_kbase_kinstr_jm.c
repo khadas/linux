@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -247,7 +247,7 @@ static int reader_changes_init(struct reader_changes *const changes, const size_
 	changes->threshold =
 		min(((size_t)(changes->size)) / 4, ((size_t)(PAGE_SIZE)) / sizeof(*changes->data));
 
-	return changes->size;
+	return (int)changes->size;
 }
 
 /**
@@ -516,7 +516,8 @@ static ssize_t reader_changes_copy_to_user(struct reader_changes *const changes,
 	do {
 		changes_tail = changes->tail;
 		changes_count = reader_changes_count_locked(changes);
-		read_size = min(changes_count * entry_size, buffer_size & ~(entry_size - 1));
+		read_size =
+			min(size_mul(changes_count, entry_size), buffer_size & ~(entry_size - 1));
 
 		if (!read_size)
 			break;
@@ -526,7 +527,7 @@ static ssize_t reader_changes_copy_to_user(struct reader_changes *const changes,
 
 		buffer += read_size;
 		buffer_size -= read_size;
-		ret += read_size;
+		ret += (ssize_t)read_size;
 		changes_tail = (changes_tail + read_size / entry_size) & (changes->size - 1);
 		smp_store_release(&changes->tail, changes_tail);
 	} while (read_size);
@@ -743,7 +744,6 @@ int kbase_kinstr_jm_get_fd(struct kbase_kinstr_jm *const ctx, union kbase_kinstr
 	size_t const change_size = sizeof(struct kbase_kinstr_jm_atom_state_change);
 	int status;
 	int fd;
-	size_t i;
 
 	if (!ctx || !jm_fd_arg)
 		return -EINVAL;
@@ -752,10 +752,6 @@ int kbase_kinstr_jm_get_fd(struct kbase_kinstr_jm *const ctx, union kbase_kinstr
 
 	if (!is_power_of_2(in->count))
 		return -EINVAL;
-
-	for (i = 0; i < sizeof(in->padding); ++i)
-		if (in->padding[i])
-			return -EINVAL;
 
 	status = reader_init(&reader, ctx, in->count);
 	if (status < 0)
@@ -831,14 +827,14 @@ void kbasep_kinstr_jm_atom_hw_submit(struct kbase_jd_atom *const katom)
 {
 	struct kbase_context *const kctx = katom->kctx;
 	struct kbase_device *const kbdev = kctx->kbdev;
-	const int slot = katom->slot_nr;
+	const unsigned int slot = katom->slot_nr;
 	struct kbase_jd_atom *const submitted = kbase_gpu_inspect(kbdev, slot, 0);
 
 	BUILD_BUG_ON(SLOT_RB_SIZE != 2);
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	if (WARN_ON(slot < 0 || slot >= GPU_MAX_JOB_SLOTS))
+	if (WARN_ON(slot >= GPU_MAX_JOB_SLOTS))
 		return;
 	if (WARN_ON(!submitted))
 		return;
@@ -851,7 +847,7 @@ void kbasep_kinstr_jm_atom_hw_release(struct kbase_jd_atom *const katom)
 {
 	struct kbase_context *const kctx = katom->kctx;
 	struct kbase_device *const kbdev = kctx->kbdev;
-	const int slot = katom->slot_nr;
+	const unsigned int slot = katom->slot_nr;
 	struct kbase_jd_atom *const submitted = kbase_gpu_inspect(kbdev, slot, 0);
 	struct kbase_jd_atom *const queued = kbase_gpu_inspect(kbdev, slot, 1);
 
@@ -859,7 +855,7 @@ void kbasep_kinstr_jm_atom_hw_release(struct kbase_jd_atom *const katom)
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	if (WARN_ON(slot < 0 || slot >= GPU_MAX_JOB_SLOTS))
+	if (WARN_ON(slot >= GPU_MAX_JOB_SLOTS))
 		return;
 	if (WARN_ON(!submitted))
 		return;

@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -31,9 +32,11 @@
 static __maybe_unused int rk3576_dsmc_platform_init(struct platform_device *pdev)
 {
 	uint32_t i, val;
-	const struct rockchip_dsmc_device *priv;
+	struct rockchip_dsmc_device *priv;
 
 	priv = platform_get_drvdata(pdev);
+
+	priv->dsmc.cfg.dma_req_mux_offset = 0x0;
 
 	if (IS_ERR_OR_NULL(priv->dsmc.grf)) {
 		dev_err(priv->dsmc.dev, "Missing rockchip,grf property\n");
@@ -55,10 +58,64 @@ static __maybe_unused int rk3576_dsmc_platform_init(struct platform_device *pdev
 	return 0;
 }
 
+static __maybe_unused int rk3506_dsmc_platform_init(struct platform_device *pdev)
+{
+	int ret = 0;
+	uint32_t i;
+	struct device *dev = &pdev->dev;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pinctrl_active;
+	struct pinctrl_state *pinctrl_lb_slave;
+	const struct rockchip_dsmc_device *priv;
+
+	priv = platform_get_drvdata(pdev);
+
+	pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pinctrl)) {
+		dev_err(dev, "Failed to get pinctrl\n");
+		return PTR_ERR(pinctrl);
+	}
+
+	pinctrl_active = pinctrl_lookup_state(pinctrl, "active");
+	if (IS_ERR(pinctrl_active)) {
+		dev_err(dev, "Failed to lookup active pinctrl state\n");
+		return PTR_ERR(pinctrl_active);
+	}
+
+	ret = pinctrl_select_state(pinctrl, pinctrl_active);
+	if (ret) {
+		dev_err(dev, "Failed to select active pinctrl state\n");
+		return ret;
+	}
+
+	pinctrl_lb_slave = pinctrl_lookup_state(pinctrl, "lb-slave");
+	if (IS_ERR(pinctrl_lb_slave)) {
+		dev_err(dev, "Failed to lookup lb-slave pinctrl state\n");
+		return PTR_ERR(pinctrl_lb_slave);
+	}
+
+	for (i = 0; i < DSMC_MAX_SLAVE_NUM; i++) {
+		if (priv->dsmc.cfg.cs_cfg[i].device_type == DSMC_LB_DEVICE) {
+			ret = pinctrl_select_state(pinctrl, pinctrl_lb_slave);
+			if (ret) {
+				dev_err(dev, "Failed to select lb-slave pinctrl state\n");
+				return ret;
+			}
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static const struct of_device_id dsmc_of_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3576)
 	{
 		.compatible = "rockchip,rk3576-dsmc", .data = rk3576_dsmc_platform_init
+	},
+#elif IS_ENABLED(CONFIG_CPU_RK3506)
+	{
+		.compatible = "rockchip,rk3506-dsmc", .data = rk3506_dsmc_platform_init
 	},
 #endif
 	{},
@@ -84,7 +141,6 @@ static int rockchip_dsmc_platform_init(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_ARM64
 static void *rk_dsmc_map_kernel(phys_addr_t start, size_t len, uint32_t mem_attr)
 {
 	void *vaddr;
@@ -104,44 +160,6 @@ static void rk_dsmc_unmap_kernel(void *vaddr)
 	if (vaddr != NULL)
 		iounmap(vaddr);
 }
-#else
-static void *rk_dsmc_map_kernel(phys_addr_t start, size_t len, uint32_t mem_attr)
-{
-	int i;
-	void *vaddr;
-	pgprot_t pgprot;
-	phys_addr_t phys;
-	int npages = PAGE_ALIGN(len) / PAGE_SIZE;
-	struct page **p = vmalloc(sizeof(struct page *) * npages);
-
-	if (!p)
-		return NULL;
-
-	if (mem_attr == DSMC_MEM_ATTRIBUTE_CACHE)
-		pgprot = PAGE_KERNEL;
-	else if (mem_attr == DSMC_MEM_ATTRIBUTE_WR_COM)
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-	else
-		pgprot = pgprot_noncached(PAGE_KERNEL);
-
-	phys = start;
-	for (i = 0; i < npages; i++) {
-		p[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-
-	vaddr = vmap(p, npages, VM_MAP, pgprot);
-	vfree(p);
-
-	return vaddr;
-}
-
-static void rk_dsmc_unmap_kernel(void *vaddr)
-{
-	if (vaddr != NULL)
-		vunmap(vaddr);
-}
-#endif
 
 static int dsmc_parse_dt_regions(struct platform_device *pdev, struct device_node *lb_np,
 				 struct dsmc_config_cs *cfg)
@@ -223,8 +241,6 @@ static int dsmc_parse_dt_regions(struct platform_device *pdev, struct device_nod
 			if (rgn->status)
 				cfg->rgn_num++;
 			of_node_put(child_node);
-		} else {
-			dev_warn(dev, "Failed to find node: %s\n", region_name);
 		}
 	}
 
@@ -239,46 +255,54 @@ static int dsmc_reg_remap(struct device *dev, struct dsmc_ctrl_config *cfg,
 			  uint32_t *dqs_dll)
 {
 	int ret = 0;
-	uint32_t cs, rgn_num_max;
+	uint32_t cs, rgn, rgn_num_max;
+	uint32_t num = 0;
 	struct dsmc_map *region_map;
 
 	rgn_num_max = 1;
 	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
 		if (cfg->cs_cfg[cs].device_type == DSMC_UNKNOWN_DEVICE)
 			continue;
-		region_map = &dsmc->cs_map[cs].region_map[0];
-		cfg->cap = max_t(uint32_t, cfg->cap, region_map->size);
+		if (cfg->cs_cfg[cs].rgn_num == 3)
+			cfg->cs_cfg[cs].rgn_num++;
 		rgn_num_max = max_t(uint32_t, rgn_num_max, cfg->cs_cfg[cs].rgn_num);
+	}
 
-		region_map->virt = rk_dsmc_map_kernel(region_map->phys,
-							region_map->size,
-							DSMC_MEM_ATTRIBUTE_NO_CACHE);
-		if (!region_map->virt) {
-			dev_err(dev, "Failed to remap slave cs%d memory\n", cs);
-			ret = -EINVAL;
-			continue;
+	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+		if (cfg->cs_cfg[cs].device_type == OPI_XCCELA_PSRAM) {
+			region_map = &dsmc->cs_map[cs].region_map[0];
+			region_map->phys = (phys_addr_t)(mem_ranges[0] + cs * mem_ranges[1]);
+			region_map->size = (size_t)mem_ranges[1];
+			cfg->cap = max_t(uint32_t, cfg->cap, region_map->size);
+			region_map->virt = rk_dsmc_map_kernel(region_map->phys,
+							      region_map->size,
+							      DSMC_MEM_ATTRIBUTE_NO_CACHE);
+		} else if (cfg->cs_cfg[cs].device_type == DSMC_LB_DEVICE) {
+			num = 0;
+			for (rgn = 0; rgn < DSMC_LB_MAX_RGN; rgn++) {
+				if (!cfg->cs_cfg[cs].slv_rgn[rgn].status)
+					continue;
+				region_map = &dsmc->cs_map[cs].region_map[rgn];
+				region_map->phys = (phys_addr_t)(mem_ranges[0] +
+						   rgn_num_max * mem_ranges[1] * cs +
+						   num * mem_ranges[1]);
+				region_map->size = (size_t)mem_ranges[1];
+				cfg->cap = max_t(uint32_t, cfg->cap, region_map->size);
+				num++;
+				region_map->virt = rk_dsmc_map_kernel(region_map->phys,
+						   region_map->size,
+						   DSMC_MEM_ATTRIBUTE_NO_CACHE);
+				if (!region_map->virt) {
+					dev_err(dev, "Failed to remap slave cs%d memory\n",
+						cs);
+					ret = -EINVAL;
+				}
+			}
 		}
 	}
 	cfg->cap *= rgn_num_max;
 
 	return ret;
-}
-
-static void dsmc_lb_memory_get(struct dsmc_config_cs *cfg, struct dsmc_cs_map *cs_map)
-{
-	int rgn;
-	phys_addr_t cphys = cs_map->region_map[0].phys;
-
-	if (cfg->rgn_num == 3)
-		cfg->rgn_num++;
-
-	for (rgn = 1; rgn < DSMC_LB_MAX_RGN; rgn++) {
-		if (cfg->slv_rgn[rgn].status) {
-			cphys += cs_map->region_map[0].size;
-			cs_map->region_map[rgn].phys = cphys;
-			cs_map->region_map[rgn].size = cs_map->region_map[0].size;
-		}
-	}
 }
 
 static int dsmc_mem_remap(struct device *dev, struct rockchip_dsmc *dsmc)
@@ -334,7 +358,6 @@ static int dsmc_mem_remap(struct device *dev, struct rockchip_dsmc *dsmc)
 			if (!region_map->virt) {
 				dev_err(dev, "Failed to remap psram cs%d memory\n", cs);
 				ret = -EINVAL;
-				continue;
 			}
 		}
 	}
@@ -349,12 +372,13 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 	uint32_t psram = 0, lb_slave = 0;
 	uint64_t mem_ranges[2];
 	uint32_t dqs_dll[2 * DSMC_MAX_SLAVE_NUM];
+	uint32_t mtr_timing[8];
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *child_node;
-	struct device_node *slave_np, *dsmc_slave_np, *psram_np, *lb_slave_np;
+	struct device_node *slave_np, *dsmc_slave_np;
+	struct device_node *psram_np = NULL, *lb_slave_np = NULL;
 	struct dsmc_ctrl_config *cfg = &dsmc->cfg;
-	struct dsmc_map *region_map;
 	char slave_name[16];
 
 	slave_np = of_get_child_by_name(np, "slave");
@@ -369,6 +393,11 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 		dev_err(dev, "Failed to read rockchip,dqs-dll!\n");
 		ret = -ENODEV;
 		goto release_slave_node;
+	}
+
+	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+		cfg->cs_cfg[cs].dll_num[0] = dqs_dll[2 * cs];
+		cfg->cs_cfg[cs].dll_num[1] = dqs_dll[2 * cs + 1];
 	}
 
 	ret = of_property_read_u64_array(slave_np, "rockchip,ranges",
@@ -391,54 +420,64 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 	}
 
 	psram_np = of_get_child_by_name(dsmc_slave_np, "psram");
-	if (!psram_np) {
-		dev_err(dev, "Failed to get psram node\n");
-		ret = -ENODEV;
-		goto release_dsmc_slave_node;
-	}
-	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
-		region_map = &dsmc->cs_map[cs].region_map[0];
-		region_map->phys = mem_ranges[0] + cs * mem_ranges[1];
-		region_map->size = mem_ranges[1];
-		cfg->cs_cfg[cs].dll_num[0] = dqs_dll[2 * cs];
-		cfg->cs_cfg[cs].dll_num[1] = dqs_dll[2 * cs + 1];
-
-		snprintf(slave_name, sizeof(slave_name), "psram%d", cs);
-		child_node = of_get_child_by_name(psram_np, slave_name);
-		if (child_node) {
-			if (of_device_is_available(child_node)) {
-				cfg->cs_cfg[cs].device_type = OPI_XCCELA_PSRAM;
-				psram = 1;
+	if (psram_np) {
+		for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+			snprintf(slave_name, sizeof(slave_name), "psram%d", cs);
+			child_node = of_get_child_by_name(psram_np, slave_name);
+			if (!child_node)
+				continue;
+			if (!of_device_is_available(child_node)) {
 				of_node_put(child_node);
 				continue;
 			}
+			cfg->cs_cfg[cs].device_type = OPI_XCCELA_PSRAM;
+			psram = 1;
 			of_node_put(child_node);
 		}
 	}
 
-	if (psram)
-		goto release_psram_node;
-
 	lb_slave_np = of_get_child_by_name(dsmc_slave_np, "lb-slave");
-	if (!lb_slave_np) {
-		dev_err(dev, "Failed to get lb_slave node\n");
-		ret = -ENODEV;
-		goto release_psram_node;
-	}
-	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
-		snprintf(slave_name, sizeof(slave_name), "lb-slave%d", cs);
-		child_node = of_get_child_by_name(lb_slave_np, slave_name);
-		if (child_node) {
-			if (of_device_is_available(child_node)) {
-				cfg->cs_cfg[cs].device_type = DSMC_LB_DEVICE;
-				lb_slave = 1;
-				if (dsmc_parse_dt_regions(pdev, child_node,
-							  &cfg->cs_cfg[cs])) {
-					ret = -ENODEV;
-					of_node_put(child_node);
-					goto release_lb_node;
-				}
-				dsmc_lb_memory_get(&cfg->cs_cfg[cs], &dsmc->cs_map[cs]);
+	if (lb_slave_np) {
+		for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+			snprintf(slave_name, sizeof(slave_name), "lb-slave%d", cs);
+			child_node = of_get_child_by_name(lb_slave_np, slave_name);
+			if (!child_node)
+				continue;
+			if (!of_device_is_available(child_node)) {
+				of_node_put(child_node);
+				continue;
+			}
+			cfg->cs_cfg[cs].device_type = DSMC_LB_DEVICE;
+			lb_slave = 1;
+			ret = of_property_read_u32_array(child_node,
+							 "rockchip,mtr-timing",
+							 mtr_timing, 8);
+			if (ret) {
+				dev_err(dev, "Fail to get rockchip,mtr-timing\n");
+				of_node_put(child_node);
+				goto release_dsmc_slave_node;
+			}
+			cfg->cs_cfg[cs].rcshi = mtr_timing[0];
+			cfg->cs_cfg[cs].wcshi = mtr_timing[1];
+			cfg->cs_cfg[cs].rcss = mtr_timing[2];
+			cfg->cs_cfg[cs].wcss = mtr_timing[3];
+			cfg->cs_cfg[cs].rcsh = mtr_timing[4];
+			cfg->cs_cfg[cs].wcsh = mtr_timing[5];
+			cfg->cs_cfg[cs].rd_latency = mtr_timing[6];
+			cfg->cs_cfg[cs].wr_latency = mtr_timing[7];
+
+			ret = of_property_read_u32(child_node,
+						   "rockchip,int-en",
+						   &cfg->cs_cfg[cs].int_en);
+			if (ret) {
+				dev_warn(dev, "used default rockchip,int-en\n");
+				cfg->cs_cfg[cs].int_en = cs;
+			}
+			if (dsmc_parse_dt_regions(pdev, child_node,
+						  &cfg->cs_cfg[cs])) {
+				ret = -ENODEV;
+				of_node_put(child_node);
+				goto release_dsmc_slave_node;
 			}
 			of_node_put(child_node);
 		}
@@ -447,20 +486,17 @@ static int dsmc_parse_dt(struct platform_device *pdev, struct rockchip_dsmc *dsm
 	if (psram && lb_slave) {
 		dev_err(dev, "Can't have both psram and lb_slave\n");
 		ret = -ENODEV;
-		goto release_lb_node;
+		goto release_dsmc_slave_node;
 	} else if (!(psram || lb_slave)) {
 		dev_err(dev, "psram or lb_slave need open in dts\n");
 		ret = -ENODEV;
-		goto release_lb_node;
+		goto release_dsmc_slave_node;
 	}
-
 	ret = dsmc_reg_remap(dev, cfg, dsmc, mem_ranges, dqs_dll);
 
-release_lb_node:
-	of_node_put(lb_slave_np);
-release_psram_node:
-	of_node_put(psram_np);
 release_dsmc_slave_node:
+	of_node_put(psram_np);
+	of_node_put(lb_slave_np);
 	of_node_put(dsmc_slave_np);
 release_slave_node:
 	of_node_put(slave_np);
@@ -522,6 +558,30 @@ static void rockchip_dsmc_interrupt_unmask(struct rockchip_dsmc *dsmc)
 	writel(INT_UNMASK(cs), dsmc->regs + DSMC_INT_MASK);
 }
 
+static int dmaengine_config_interleaved(struct dsmc_transfer *xfer,
+					struct dma_interleaved_template *xt,
+					enum dma_transfer_direction dir,
+					int numf)
+{
+	xt->frame_size = 1;
+	xt->sgl[0].size = xfer->brst_size * xfer->brst_len;
+	xt->numf = xfer->transfer_size / xt->sgl[0].size;
+
+	xt->dir = dir;
+
+	if (xt->dir == DMA_MEM_TO_DEV) {
+		xt->src_start = xfer->src_addr;
+		xt->src_inc = true;
+		xt->dst_inc = true;
+	} else {
+		xt->dst_start = xfer->dst_addr;
+		xt->src_inc = true;
+		xt->dst_inc = true;
+	}
+
+	return 0;
+}
+
 static void rockchip_dsmc_lb_dma_txcb(void *data)
 {
 	struct rockchip_dsmc *dsmc = data;
@@ -545,7 +605,8 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 {
 	struct dma_async_tx_descriptor *txdesc = NULL;
 	struct dsmc_transfer *xfer = &dsmc->xfer;
-
+	struct dma_interleaved_template xt;
+	unsigned long flags = DMA_CTRL_ACK;
 	struct dma_slave_config txconf = {
 		.direction = DMA_MEM_TO_DEV,
 		.dst_addr = xfer->dst_addr,
@@ -553,13 +614,13 @@ static int rockchip_dsmc_lb_prepare_tx_dma(struct device *dev,
 		.dst_maxburst = xfer->brst_len,
 	};
 
+	memset(&xt, 0, sizeof(xt));
+
 	dmaengine_slave_config(dsmc->dma_req[cs], &txconf);
 
-	txdesc = dmaengine_prep_slave_single(
-			dsmc->dma_req[cs],
-			xfer->src_addr,
-			xfer->transfer_size,
-			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
+	dmaengine_config_interleaved(xfer, &xt, DMA_MEM_TO_DEV, 1);
+	txdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
+						flags | DMA_PREP_INTERRUPT);
 	if (!txdesc) {
 		dev_err(dev, "Not able to get tx desc for DMA xfer\n");
 		return -EIO;
@@ -581,6 +642,8 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 {
 	struct dma_async_tx_descriptor *rxdesc = NULL;
 	struct dsmc_transfer *xfer = &dsmc->xfer;
+	struct dma_interleaved_template xt;
+	unsigned long flags = DMA_CTRL_ACK;
 	struct dma_slave_config rxconf = {
 		.direction = DMA_DEV_TO_MEM,
 		.src_addr = xfer->src_addr,
@@ -588,12 +651,13 @@ static int rockchip_dsmc_lb_prepare_rx_dma(struct device *dev,
 		.src_maxburst = xfer->brst_len,
 	};
 
+	memset(&xt, 0, sizeof(xt));
+
 	dmaengine_slave_config(dsmc->dma_req[cs], &rxconf);
-	rxdesc = dmaengine_prep_slave_single(
-			dsmc->dma_req[cs],
-			xfer->dst_addr,
-			xfer->transfer_size,
-			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+
+	dmaengine_config_interleaved(xfer, &xt, DMA_DEV_TO_MEM, 1);
+	rxdesc = dmaengine_prep_interleaved_dma(dsmc->dma_req[cs], &xt,
+						flags | DMA_PREP_INTERRUPT);
 	if (!rxdesc) {
 		dev_err(dev, "Not able to get rx desc for DMA xfer\n");
 		return -EIO;
@@ -708,13 +772,13 @@ static void dsmc_data_init(struct rockchip_dsmc *dsmc)
 			cs_cfg->acs = 1;
 			cs_cfg->max_length_en = 1;
 			cs_cfg->max_length = 0xff;
+			cs_cfg->rd_bdr_xfer_en = 1;
+			cs_cfg->wr_bdr_xfer_en = 1;
 		} else {
 			cs_cfg->io_width = MCR_IOWIDTH_X16;
 			cs_cfg->wrap_size = DSMC_BURST_WRAPSIZE_16CLK;
-			cs_cfg->rd_latency = 2;
-			cs_cfg->wr_latency = 2;
 			cs_cfg->wrap2incr_en = 1;
-			cs_cfg->acs = 0;
+			cs_cfg->acs = 1;
 			cs_cfg->max_length_en = 0;
 			cs_cfg->max_length = 0x0;
 		}
@@ -865,10 +929,6 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = rockchip_dsmc_platform_init(pdev);
-	if (ret)
-		return ret;
-
 	ret = device_property_read_u32(dev, "clock-frequency", &dsmc->cfg.freq_hz);
 	if (ret) {
 		dev_err(dev, "Failed to read clock-frequency property!\n");
@@ -876,12 +936,16 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 	}
 
 	dsmc->cfg.ctrl_freq_hz = dsmc->cfg.freq_hz * 2;
+	dsmc->cfg.dma_req_mux_offset = DSMC_DMA_MUX;
 
 	if (dsmc_parse_dt(pdev, dsmc)) {
 		ret = -ENODEV;
 		dev_err(dev, "The dts parameters get fail! ret = %d\n", ret);
 		return ret;
 	}
+	ret = rockchip_dsmc_platform_init(pdev);
+	if (ret)
+		return ret;
 
 	dsmc->areset = devm_reset_control_get(dev, "dsmc");
 	if (IS_ERR(dsmc->areset)) {
@@ -969,6 +1033,12 @@ static int rk_dsmc_probe(struct platform_device *pdev)
 	if (dsmc_mem_remap(dev, dsmc)) {
 		ret = -ENODEV;
 		dev_err(dev, "DSMC memory remap fail!\n");
+		goto err_release_dma;
+	}
+
+	if (rockchip_dsmc_dll_training(priv)) {
+		ret = -ENODEV;
+		dev_err(dev, "DSMC dll training fail!\n");
 		goto err_release_dma;
 	}
 

@@ -928,6 +928,11 @@ rkvt_queue_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 
 	base = &data->base;
 	buffer = rkvt_get_free_buf(inst);
+	if (!buffer) {
+		dev_err(vt_dev->dev, "VTQB [%d] no unused buffer.\n", inst->id);
+		ret = -EINVAL;
+		goto queue_fail;
+	}
 	for (i = 0; i < base->num_fds; i++) {
 		buffer->fds_con[i] = -1;
 		buffer->fds_pro[i] = base->fds[i];
@@ -1292,6 +1297,11 @@ rkvt_cancel_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 
 	buf_base = &data->base;
 	buffer = rkvt_get_free_buf(inst);
+	if (!buffer) {
+		dev_err(vt_dev->dev, "VTCB [%d] no unused buffer.\n", inst->id);
+		rkvt_inst_put(inst);
+		return -EINVAL;
+	}
 	for (i = 0; i < buf_base->num_fds; i++) {
 		buffer->fds_con[i] = -1;
 		buffer->fds_pro[i] = buf_base->fds[i];

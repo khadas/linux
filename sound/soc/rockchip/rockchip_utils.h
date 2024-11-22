@@ -15,4 +15,5 @@ void rockchip_utils_get_performance(struct snd_pcm_substream *substream,
 void rockchip_utils_put_performance(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai);
 
+int rockchip_utils_clk_gate_endisable(struct device *dev, struct clk *clk, int enable);
 #endif /* _ROCKCHIP_UTILS_H */

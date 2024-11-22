@@ -306,6 +306,12 @@ static int ufs_rockchip_rk3576_phy_init(struct ufs_hba *hba)
 	ufs_sys_writel(host->mphy_base, 0x18, 0x1B0);
 	ufs_sys_writel(host->mphy_base, 0x18, 0x2F0);
 
+	ufs_sys_writel(host->mphy_base, 0x03, 0x128);
+	ufs_sys_writel(host->mphy_base, 0x03, 0x268);
+
+	ufs_sys_writel(host->mphy_base, 0x20, 0x12C);
+	ufs_sys_writel(host->mphy_base, 0x20, 0x26C);
+
 	ufs_sys_writel(host->mphy_base, 0xC0, 0x120);
 	ufs_sys_writel(host->mphy_base, 0xC0, 0x260);
 
@@ -609,9 +615,19 @@ static int ufs_rockchip_resume(struct device *dev)
 	return 0;
 }
 
+static void ufs_rockchip_shutdown(struct platform_device *pdev)
+{
+	struct ufs_hba *hba = platform_get_drvdata(pdev);
+
+	dev_info(&pdev->dev, "shutting down...\n");
+
+	ufshcd_pltfrm_shutdown(pdev);
+	ufs_rockchip_device_reset(hba);
+}
+
 static const struct dev_pm_ops ufs_rockchip_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ufs_rockchip_suspend, ufs_rockchip_resume)
-	SET_RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(ufs_rockchip_suspend, ufs_rockchip_resume)
+	RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
 	.prepare	 = ufshcd_suspend_prepare,
 	.complete	 = ufshcd_resume_complete,
 };
@@ -619,10 +635,10 @@ static const struct dev_pm_ops ufs_rockchip_pm_ops = {
 static struct platform_driver ufs_rockchip_pltform = {
 	.probe = ufs_rockchip_probe,
 	.remove = ufs_rockchip_remove,
-	.shutdown = ufshcd_pltfrm_shutdown,
+	.shutdown = ufs_rockchip_shutdown,
 	.driver = {
 		.name = "ufshcd-rockchip",
-		.pm = &ufs_rockchip_pm_ops,
+		.pm = pm_ptr(&ufs_rockchip_pm_ops),
 		.of_match_table = of_match_ptr(ufs_rockchip_of_match),
 	},
 };

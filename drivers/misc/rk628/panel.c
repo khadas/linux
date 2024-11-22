@@ -148,14 +148,14 @@ int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 		return ret;
 	}
 
-	panel->enable_gpio = devm_gpiod_get_optional(dev, "panel-enable", GPIOD_OUT_LOW);
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "panel-enable", GPIOD_ASIS);
 	if (IS_ERR(panel->enable_gpio)) {
 		ret = PTR_ERR(panel->enable_gpio);
 		dev_err(dev, "failed to request panel enable GPIO: %d\n", ret);
 		return ret;
 	}
 
-	panel->reset_gpio = devm_gpiod_get_optional(dev, "panel-reset", GPIOD_OUT_LOW);
+	panel->reset_gpio = devm_gpiod_get_optional(dev, "panel-reset", GPIOD_ASIS);
 	if (IS_ERR(panel->reset_gpio)) {
 		ret = PTR_ERR(panel->reset_gpio);
 		dev_err(dev, "failed to request panel reset GPIO: %d\n", ret);

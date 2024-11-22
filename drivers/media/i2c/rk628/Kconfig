@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_RK628
 	tristate
+	select CEC_CORE
 	help
 	  Support for the Rockchip RK628 HDMI to MIPI CSI-2/BT1120 bridge.
 

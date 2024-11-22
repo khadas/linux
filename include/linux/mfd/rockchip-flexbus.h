@@ -17,10 +17,13 @@
 #define FLEXBUS_DVP_CROP_SIZE		0x020
 #define FLEXBUS_DVP_CROP_START		0x024
 #define FLEXBUS_DVP_ORDER		0x028
+#define FLEXBUS_DVP_YUV2RGB		0x02C
 #define FLEXBUS_TX_CTL			0x040
 #define FLEXBUS_TX_NUM			0x044
 #define FLEXBUS_TXWAT_START		0x048
 #define FLEXBUS_TXFIFO_DNUM		0x04C
+#define FLEXBUS_TX_WIDTH		0x050
+#define FLEXBUS_TX_CSN_DUMMY		0x054
 #define FLEXBUS_TX_CMD_LEN		0x058
 #define FLEXBUS_TX_CMD0			0x05C
 #define FLEXBUS_TX_CMD1			0x060
@@ -49,8 +52,6 @@
 #define FLEXBUS_RISR			0x168
 #define FLEXBUS_ISR			0x16C
 #define FLEXBUS_ICR			0x170
-#define FLEXBUS_TESTCLK			0x190
-#define FLEXBUS_TESTDAT			0x194
 #define FLEXBUS_REVISION		0x1F0
 
 /* Bit fields in ENR */
@@ -79,15 +80,19 @@
 #define FLEXBUS_CONTINUE_MODE		BIT(4)
 #define FLEXBUS_CPOL			BIT(3)
 #define FLEXBUS_CPHA			BIT(2)
-#define FLEXBUS_DFS_SHIFT		0
 
 /* Bit fields in TX_CTL */
+#define FLEXBUS_TX_CTL_UNIT_BYTE	BIT(14)
 #define FLEXBUS_TX_CTL_MSB		BIT(13)
+#define FLEXBUS_TX_CTL_CPHA_SHIFT	2
 
 /* Bit fields in RX_CTL */
+#define FLEXBUS_RX_CTL_FILL_DUMMY	BIT(17)
+#define FLEXBUS_RX_CTL_UNIT_BYTE	BIT(16)
 #define FLEXBUS_RX_CTL_MSB		BIT(15)
 #define FLEXBUS_AUTOPAD			BIT(14)
 #define FLEXBUS_RXD_DY			BIT(5)
+#define FLEXBUS_RX_CTL_CPHA_SHIFT	2
 
 /* Bit fields in DMA_WAT_INT */
 #define FLEXBUS_SRC_WAT_LVL_MASK	0x3
@@ -113,7 +118,17 @@
 
 struct rockchip_flexbus;
 
+struct rockchip_flexbus_dfs_reg {
+	u32 dfs_1bit;
+	u32 dfs_2bit;
+	u32 dfs_4bit;
+	u32 dfs_8bit;
+	u32 dfs_16bit;
+	u32 dfs_mask;
+};
+
 struct rockchip_flexbus_config {
+	void (*init_config)(struct rockchip_flexbus *rkfb);
 	void (*grf_config)(struct rockchip_flexbus *rkfb, bool slave_mode, bool cpol, bool cpha);
 	u32 txwat_start_max;
 };
@@ -130,15 +145,23 @@ struct rockchip_flexbus {
 	void			*fb1_data;
 	void (*fb0_isr)(struct rockchip_flexbus *rkfb, u32 isr);
 	void (*fb1_isr)(struct rockchip_flexbus *rkfb, u32 isr);
+	struct rockchip_flexbus_dfs_reg		*dfs_reg;
 	const struct rockchip_flexbus_config	*config;
 };
 
-enum rockchip_flexbus_dfs {
-	FLEXBUS_DFS_2BIT = 0x0,
-	FLEXBUS_DFS_4BIT,
-	FLEXBUS_DFS_8BIT,
-	FLEXBUS_DFS_16BIT,
-};
+static inline void rockchip_flexbus_set_fb0(struct rockchip_flexbus *rkfb, void *fb0_data,
+					    void (*fb0_isr)(struct rockchip_flexbus *rkfb, u32 isr))
+{
+	rkfb->fb0_data = fb0_data;
+	rkfb->fb0_isr = fb0_isr;
+}
+
+static inline void rockchip_flexbus_set_fb1(struct rockchip_flexbus *rkfb, void *fb1_data,
+					    void (*fb1_isr)(struct rockchip_flexbus *rkfb, u32 isr))
+{
+	rkfb->fb1_data = fb1_data;
+	rkfb->fb1_isr = fb1_isr;
+}
 
 unsigned int rockchip_flexbus_readl(struct rockchip_flexbus *rkfb, unsigned int reg);
 void rockchip_flexbus_writel(struct rockchip_flexbus *rkfb, unsigned int reg, unsigned int val);

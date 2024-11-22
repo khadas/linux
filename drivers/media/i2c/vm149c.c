@@ -36,8 +36,8 @@ struct vm149c_device {
 	unsigned int step_mode;
 	unsigned int vcm_movefull_t;
 
-	struct timeval start_move_tv;
-	struct timeval end_move_tv;
+	struct __kernel_old_timeval start_move_tv;
+	struct __kernel_old_timeval end_move_tv;
 	unsigned long move_ms;
 
 	u32 module_index;
@@ -251,7 +251,7 @@ static int vm149c_set_ctrl(struct v4l2_ctrl *ctrl)
 		dev_dbg(&client->dev, "dest_pos %d, move_ms %ld\n",
 				dest_pos, dev_vcm->move_ms);
 
-		dev_vcm->start_move_tv = ns_to_timeval(ktime_get_ns());
+		dev_vcm->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 		mv_us = dev_vcm->start_move_tv.tv_usec +
 				dev_vcm->move_ms * 1000;
 		if (mv_us >= 1000000) {
@@ -389,12 +389,17 @@ static long vm149c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd, unsi
 		put_user(compat_vcm_tim.vcm_end_t.tv_usec, &p32->vcm_end_t.tv_usec);
 	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
 		ret = vm149c_ioctl(sd, RK_VIDIOC_GET_VCM_CFG, &vcm_cfg);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, &vcm_cfg, sizeof(vcm_cfg));
+			if (ret)
+				ret = -EFAULT;
+		}
 	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = vm149c_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -543,8 +548,8 @@ static int vm149c_probe(struct i2c_client *client,
 	vm149c_update_vcm_cfg(vm149c_dev);
 	vm149c_dev->move_ms       = 0;
 	vm149c_dev->current_related_pos = VCMDRV_MAX_LOG;
-	vm149c_dev->start_move_tv = ns_to_timeval(ktime_get_ns());
-	vm149c_dev->end_move_tv = ns_to_timeval(ktime_get_ns());
+	vm149c_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
+	vm149c_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	if ((vm149c_dev->step_mode & 0x0c) != 0) {
 		vm149c_dev->vcm_movefull_t =
 			64 * (1 << (vm149c_dev->step_mode & 0x03)) * 1024 /

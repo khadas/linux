@@ -58,6 +58,12 @@ enum hdmirx_edid_mode {
 	HDMIRX_EDID_4K60HZ_YUV420,
 };
 
+enum user_color_range {
+	COLOR_RANGE_AUTO = 0,
+	COLOR_RANGE_LIMIT = 1,
+	COLOR_RANGE_FULL = 2,
+};
+
 /* Private v4l2 ioctl */
 #define RK_HDMIRX_CMD_GET_FPS \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, int)
@@ -104,8 +110,14 @@ enum hdmirx_edid_mode {
 #define RK_HDMIRX_CMD_GET_HDCP_ENC_STATUS  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 14, __u8)
 
-#define RK_HDMIRX_CMD_SET_OUTPUT_RANGE  \
+#define RK_HDMIRX_CMD_SET_COLOR_RANGE  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 15, int)
+
+#define RK_HDMIRX_CMD_GET_EDID_VERSION  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 16, int)
+
+#define RK_HDMIRX_CMD_SET_EDID_VERSION  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 17, int)
 
 /* Private v4l2 event */
 #define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \

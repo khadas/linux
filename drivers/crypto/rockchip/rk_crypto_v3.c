@@ -94,6 +94,10 @@ static struct rk_crypto_algt *crypto_v3_algs[] = {
 
 	/* Shared v2 version implementation */
 	&rk_v2_asym_rsa,		/* rsa */
+	&rk_asym_ecc_p192,		/* ecc nist p192 */
+	&rk_asym_ecc_p224,		/* ecc nist p224 */
+	&rk_asym_ecc_p256,		/* ecc nist p256 */
+	&rk_asym_sm2,			/* sm2 */
 };
 
 static bool rk_is_cipher_support(struct rk_crypto_dev *rk_dev, u32 algo, u32 mode, u32 key_len)
@@ -161,6 +165,21 @@ static bool rk_is_hash_support(struct rk_crypto_dev *rk_dev, u32 algo, u32 type)
 	return version & mask;
 }
 
+static bool rk_is_asym_support(struct rk_crypto_dev *rk_dev, u32 algo)
+{
+	switch (algo) {
+	case ASYM_ALGO_RSA:
+		return !!CRYPTO_READ(rk_dev, CRYPTO_PKA_VERSION);
+	case ASYM_ALGO_ECC_P192:
+	case ASYM_ALGO_ECC_P224:
+	case ASYM_ALGO_ECC_P256:
+	case ASYM_ALGO_SM2:
+		return !!CRYPTO_READ(rk_dev, CRYPTO_ECC_MAX_CURVE_WIDE);
+	default:
+		return false;
+	}
+}
+
 int rk_hw_crypto_v3_init(struct device *dev, void *hw_info)
 {
 	struct rk_hw_crypto_v3_info *info =
@@ -208,8 +227,8 @@ bool rk_hw_crypto_v3_algo_valid(struct rk_crypto_dev *rk_dev, struct rk_crypto_a
 		CRYPTO_TRACE("HASH/HMAC");
 		return rk_is_hash_support(rk_dev, aglt->algo, aglt->type);
 	} else if (aglt->type == ALG_TYPE_ASYM) {
-		CRYPTO_TRACE("RSA");
-		return true;
+		CRYPTO_TRACE("ASYM");
+		return rk_is_asym_support(rk_dev, aglt->algo);
 	} else {
 		return false;
 	}

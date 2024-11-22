@@ -122,6 +122,11 @@
 #define  SFC_VER_5			0x5
 #define  SFC_VER_6			0x6
 #define  SFC_VER_8			0x8
+#define  SFC_VER_9			0x9
+
+/* Ext ctrl */
+#define SFC_EXT_CTRL			0x34
+#define  SFC_SCLK_X2_BYPASS		BIT(24)
 
 /* Delay line controller resiter */
 #define SFC_DLL_CTRL0			0x3C
@@ -205,7 +210,9 @@ struct rockchip_sfc {
 	dma_addr_t dma_buffer;
 	struct completion cp;
 	bool use_dma;
+	bool sclk_x2_bypass;
 	u32 max_iosize;
+	u32 max_dll_cells;
 	u32 dll_cells[SFC_MAX_CHIPSELECT_NUM];
 	u16 version;
 	struct gpio_desc *rst_gpio;
@@ -249,6 +256,9 @@ static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 
 static u32 rockchip_sfc_get_max_dll_cells(struct rockchip_sfc *sfc)
 {
+	if (sfc->max_dll_cells)
+		return sfc->max_dll_cells;
+
 	if (sfc->version > SFC_VER_4)
 		return SFC_DLL_CTRL0_DLL_MAX_VER5;
 	else if (sfc->version == SFC_VER_4)
@@ -273,18 +283,18 @@ static void rockchip_sfc_set_delay_lines(struct rockchip_sfc *sfc, u16 cells, u8
 
 static int rockchip_sfc_clk_set_rate(struct rockchip_sfc *sfc, unsigned long  speed)
 {
-	if (sfc->version >= SFC_VER_8)
-		return clk_set_rate(sfc->clk, speed * 2);
-	else
+	if (sfc->version < SFC_VER_8 || sfc->sclk_x2_bypass)
 		return clk_set_rate(sfc->clk, speed);
+	else
+		return clk_set_rate(sfc->clk, speed * 2);
 }
 
 static unsigned long rockchip_sfc_clk_get_rate(struct rockchip_sfc *sfc)
 {
-	if (sfc->version >= SFC_VER_8)
-		return clk_get_rate(sfc->clk) / 2;
-	else
+	if (sfc->version < SFC_VER_8 || sfc->sclk_x2_bypass)
 		return clk_get_rate(sfc->clk);
+	else
+		return clk_get_rate(sfc->clk) / 2;
 }
 
 static void rockchip_sfc_irq_unmask(struct rockchip_sfc *sfc, u32 mask)
@@ -309,11 +319,18 @@ static void rockchip_sfc_irq_mask(struct rockchip_sfc *sfc, u32 mask)
 
 static int rockchip_sfc_init(struct rockchip_sfc *sfc)
 {
+	u32 reg;
+
 	writel(0, sfc->regbase + SFC_CTRL);
 	writel(0xFFFFFFFF, sfc->regbase + SFC_ICLR);
 	rockchip_sfc_irq_mask(sfc, 0xFFFFFFFF);
 	if (rockchip_sfc_get_version(sfc) >= SFC_VER_4)
 		writel(SFC_LEN_CTRL_TRB_SEL, sfc->regbase + SFC_LEN_CTRL);
+	if (rockchip_sfc_get_version(sfc) >= SFC_VER_8 && sfc->sclk_x2_bypass) {
+		reg = readl(sfc->regbase + SFC_EXT_CTRL);
+		reg |= SFC_SCLK_X2_BYPASS;
+		writel(reg, sfc->regbase + SFC_EXT_CTRL);
+	}
 
 	return 0;
 }
@@ -937,6 +954,12 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
 					      "rockchip,sfc-no-dma");
+	sfc->sclk_x2_bypass = of_property_read_bool(sfc->dev->of_node,
+						    "rockchip,sclk-x2-bypass");
+
+	device_property_read_u32(&pdev->dev, "rockchip,max-dll", &sfc->max_dll_cells);
+	if (sfc->max_dll_cells > SFC_DLL_CTRL0_DLL_MAX_VER5)
+		sfc->max_dll_cells = SFC_DLL_CTRL0_DLL_MAX_VER5;
 
 	ret = rockchip_sfc_get_gpio_descs(master, sfc);
 	if (ret) {
@@ -985,6 +1008,8 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	sfc->version = rockchip_sfc_get_version(sfc);
+	if (sfc->version == SFC_VER_9)
+		sfc->version = SFC_VER_6;
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 
 	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
@@ -1125,6 +1150,7 @@ static const struct dev_pm_ops rockchip_sfc_pm_ops = {
 };
 
 static const struct of_device_id rockchip_sfc_dt_ids[] = {
+	{ .compatible = "rockchip,fspi"},
 	{ .compatible = "rockchip,sfc"},
 	{ /* sentinel */ }
 };

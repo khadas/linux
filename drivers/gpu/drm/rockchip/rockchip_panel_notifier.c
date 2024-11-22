@@ -133,18 +133,28 @@ EXPORT_SYMBOL(devm_rockchip_panel_notifier_unregister_client);
 static int rockchip_panel_notifier_register(struct drm_panel *panel,
 					    struct rockchip_panel_notifier *pn)
 {
+	struct rockchip_panel_notifier *panel_notifier, *next;
+	int ret = 0;
+
 	if (!panel || !pn)
 		return -EINVAL;
 
-	pn->panel = panel;
-
-	BLOCKING_INIT_NOTIFIER_HEAD(&pn->nh);
-
 	mutex_lock(&notifier_list_lock);
-	list_add_tail(&pn->list, &notifier_list);
+	list_for_each_entry_safe(panel_notifier, next, &notifier_list, list) {
+		if (panel_notifier->panel != panel)
+			continue;
+
+		ret = -EEXIST;
+	}
+	if (!ret) {
+		pn->panel = panel;
+		BLOCKING_INIT_NOTIFIER_HEAD(&pn->nh);
+
+		list_add_tail(&pn->list, &notifier_list);
+	}
 	mutex_unlock(&notifier_list_lock);
 
-	return 0;
+	return ret;
 }
 
 static void rockchip_panel_notifier_unregister(struct rockchip_panel_notifier *pn)

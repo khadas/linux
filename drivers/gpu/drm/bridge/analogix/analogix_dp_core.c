@@ -54,22 +54,51 @@ struct bridge_init {
 	struct device_node *node;
 };
 
+static const struct analogix_dp_output_format possible_output_fmts[] = {
+	{ MEDIA_BUS_FMT_RGB101010_1X30, DRM_COLOR_FORMAT_RGB444, 10 },
+	{ MEDIA_BUS_FMT_RGB888_1X24, DRM_COLOR_FORMAT_RGB444, 8 },
+	{ MEDIA_BUS_FMT_RGB666_1X24_CPADHI, DRM_COLOR_FORMAT_RGB444, 6 },
+	{ MEDIA_BUS_FMT_YUV10_1X30, DRM_COLOR_FORMAT_YCBCR444, 10 },
+	{ MEDIA_BUS_FMT_YUV8_1X24, DRM_COLOR_FORMAT_YCBCR444, 8},
+	{ MEDIA_BUS_FMT_YUYV10_1X20, DRM_COLOR_FORMAT_YCBCR422, 10 },
+	{ MEDIA_BUS_FMT_YUYV8_1X16, DRM_COLOR_FORMAT_YCBCR422, 8 },
+};
+
+static u8 analogix_dp_get_output_bpp(const struct analogix_dp_output_format *fmt)
+{
+	switch (fmt->color_format) {
+	case DRM_COLOR_FORMAT_YCBCR422:
+		return fmt->bpc * 2;
+	case DRM_COLOR_FORMAT_RGB444:
+	case DRM_COLOR_FORMAT_YCBCR444:
+	default:
+		return fmt->bpc * 3;
+	}
+}
+
+const struct analogix_dp_output_format *analogix_dp_get_output_format(u32 bus_format)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(possible_output_fmts); i++)
+		if (possible_output_fmts[i].bus_format == bus_format)
+			return &possible_output_fmts[i];
+
+	return &possible_output_fmts[1];
+}
+EXPORT_SYMBOL_GPL(analogix_dp_get_output_format);
+
 static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 				const struct drm_display_mode *adj_mode);
 
 static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
-				     const struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode, u32 bpp,
 				     unsigned int rate, unsigned int lanes)
 {
-	const struct drm_display_info *info;
-	u32 max_bw, req_bw, bpp = 24;
+	u32 max_bw, req_bw;
 
 	if (dp->plat_data->skip_connector)
 		return true;
-
-	info = &dp->connector.display_info;
-	if (info->bpc)
-		bpp = 3 * info->bpc;
 
 	req_bw = mode->crtc_clock * bpp / 8;
 	max_bw = lanes * rate;
@@ -691,8 +720,9 @@ static u8 analogix_dp_select_link_rate_from_table(struct analogix_dp_device *dp)
 	for (i = 0; i < dp->nr_link_rate_table; i++) {
 		bw_code =  drm_dp_link_rate_to_bw_code(dp->link_rate_table[i]);
 
-		if (!analogix_dp_bandwidth_ok(dp, &dp->video_info.mode, dp->link_rate_table[i],
-					      dp->link_train.lane_count))
+		if (!analogix_dp_bandwidth_ok(dp, &dp->video_info.mode,
+					      analogix_dp_get_output_bpp(dp->output_fmt),
+					      dp->link_rate_table[i], dp->link_train.lane_count))
 			continue;
 
 		if (dp->link_rate_table[i] <= max_link_rate &&
@@ -832,7 +862,7 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 		return -EINVAL;
 	}
 
-	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
+	if (!analogix_dp_bandwidth_ok(dp, &video->mode, analogix_dp_get_output_bpp(dp->output_fmt),
 				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
 				      dp->link_train.lane_count)) {
 		dev_err(dp->dev, "bandwidth overflow\n");
@@ -1746,6 +1776,12 @@ analogix_dp_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_bridge_state *new_bridge_state;
+
+	new_bridge_state = drm_atomic_get_new_bridge_state(old_state, bridge);
+	if (WARN_ON(!new_bridge_state))
+		return;
+	dp->output_fmt = analogix_dp_get_output_format(new_bridge_state->output_bus_cfg.format);
 
 	crtc = analogix_dp_get_new_crtc(dp, old_state);
 	if (!crtc)
@@ -1967,7 +2003,6 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 				const struct drm_display_mode *adj_mode)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
-	struct drm_display_info *display_info = &dp->connector.display_info;
 	struct video_info *video = &dp->video_info;
 	struct drm_display_mode *mode = &video->mode;
 	struct device_node *dp_node = dp->dev->of_node;
@@ -1998,7 +2033,7 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->dynamic_range = VESA;
 
 	/* Input vide bpc and color_formats */
-	switch (display_info->bpc) {
+	switch (dp->output_fmt->bpc) {
 	case 12:
 		video->color_depth = COLOR_12;
 		break;
@@ -2015,10 +2050,10 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->color_depth = COLOR_8;
 		break;
 	}
-	if (display_info->color_formats & DRM_COLOR_FORMAT_YCBCR444) {
+	if (dp->output_fmt->color_format == DRM_COLOR_FORMAT_YCBCR444) {
 		video->color_space = COLOR_YCBCR444;
 		video->ycbcr_coeff = COLOR_YCBCR709;
-	} else if (display_info->color_formats & DRM_COLOR_FORMAT_YCBCR422) {
+	} else if (dp->output_fmt->color_format == DRM_COLOR_FORMAT_YCBCR422) {
 		video->color_space = COLOR_YCBCR422;
 		video->ycbcr_coeff = COLOR_YCBCR709;
 	} else {
@@ -2057,18 +2092,26 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_display_mode m;
 	u32 max_link_rate, max_lane_count;
+	u32 min_bpp;
 
 	drm_mode_copy(&m, mode);
 
 	if (dp->plat_data->split_mode || dp->plat_data->dual_connector_split)
 		dp->plat_data->convert_to_origin_mode(&m);
 
+	if (info->color_formats & DRM_COLOR_FORMAT_YCBCR422)
+		min_bpp = 16;
+	else if (info->color_formats & DRM_COLOR_FORMAT_RGB444)
+		min_bpp = 18;
+	else
+		min_bpp = 24;
+
 	max_link_rate = min_t(u32, dp->video_info.max_link_rate,
 			      dp->link_train.link_rate);
 	max_lane_count = min_t(u32, dp->video_info.max_lane_count,
 			       dp->link_train.lane_count);
 	if (analogix_dp_link_config_validate(max_link_rate, max_lane_count) &&
-	    !analogix_dp_bandwidth_ok(dp, &m,
+	    !analogix_dp_bandwidth_ok(dp, &m, min_bpp,
 				      drm_dp_bw_code_to_link_rate(max_link_rate),
 				      max_lane_count))
 		return MODE_BAD;
@@ -2076,10 +2119,67 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
+static u32 *analogix_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
+							  struct drm_bridge_state *bridge_state,
+							  struct drm_crtc_state *crtc_state,
+							  struct drm_connector_state *conn_state,
+							  unsigned int *num_output_fmts)
+{
+	struct analogix_dp_device *dp = bridge->driver_private;
+	struct drm_display_info *di = &dp->connector.display_info;
+	u32 *output_fmts;
+	unsigned int i, j = 0;
+
+	if (dp->plat_data->panel) {
+		*num_output_fmts = 1;
+
+		output_fmts = kzalloc(sizeof(*output_fmts), GFP_KERNEL);
+		if (!output_fmts)
+			return NULL;
+
+		if (di->num_bus_formats && di->bus_formats)
+			output_fmts[0] = di->bus_formats[0];
+		else
+			output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+
+		return output_fmts;
+	}
+
+	*num_output_fmts = 0;
+
+	output_fmts = kcalloc(ARRAY_SIZE(possible_output_fmts), sizeof(*output_fmts), GFP_KERNEL);
+	if (!output_fmts)
+		return NULL;
+
+	for (i = 0; i < ARRAY_SIZE(possible_output_fmts); i++) {
+		const struct analogix_dp_output_format *fmt = &possible_output_fmts[i];
+
+		if (fmt->bpc > conn_state->max_bpc || fmt->bpc > dp->plat_data->max_bpc)
+			continue;
+
+		if (!(di->color_formats & fmt->color_format))
+			continue;
+
+		if (!analogix_dp_bandwidth_ok(dp, &crtc_state->mode,
+					      analogix_dp_get_output_bpp(fmt),
+					      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
+					      dp->link_train.lane_count))
+			continue;
+
+		output_fmts[j++] = fmt->bus_format;
+	}
+
+	*num_output_fmts = j;
+
+	return output_fmts;
+}
+
 static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+	.atomic_get_output_bus_fmts = analogix_dp_bridge_atomic_get_output_bus_fmts,
 	.atomic_pre_enable = analogix_dp_bridge_atomic_pre_enable,
 	.atomic_enable = analogix_dp_bridge_atomic_enable,
 	.atomic_disable = analogix_dp_bridge_atomic_disable,

@@ -1247,8 +1247,14 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"dclk_vop",
 	"dclk_vop0",
 	"dclk_vop1",
+	"dclk_vop2",
+	"dclk_vop3",
 	"dclk_vopb",
 	"dclk_vopl",
+	"dclk_vp0",
+	"dclk_vp1",
+	"dclk_vp2",
+	"dclk_vp3",
 };
 
 static struct clk **loader_clocks __initdata;

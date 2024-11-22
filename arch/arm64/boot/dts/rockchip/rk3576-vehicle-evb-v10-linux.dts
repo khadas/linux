@@ -303,16 +303,19 @@
 
 /*edp*/
 &i2c2_max96752 {
+	use-reg-check-work;
 	vpower-supply = <&lcd1_vcc12v_buck>;
 };
 
 /*dp*/
 &i2c5_max96752 {
+	use-reg-check-work;
 	vpower-supply = <&lcd2_vcc12v_buck>;
 };
 
 /*dsi*/
 &i2c8_max96752 {
+	use-reg-check-work;
 	vpower-supply = <&lcd3_vcc12v_buck>;
 };
 

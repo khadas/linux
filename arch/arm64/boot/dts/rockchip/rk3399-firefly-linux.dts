@@ -127,17 +127,12 @@
 
 	hdmi_sound: hdmi-sound {
 		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,hdmi";
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s2>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dw_hdmi_audio>;
-		};
+		compatible = "rockchip,hdmi";
+		rockchip,mclk-fs = <256>;
+		rockchip,card-name = "rockchip-hdmi";
+		rockchip,cpu = <&i2s2>;
+		rockchip,codec = <&dw_hdmi_audio>;
+		rockchip,jack-det;
 	};
 
 	hdmi_codec: hdmi-codec {

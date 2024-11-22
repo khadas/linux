@@ -843,10 +843,23 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		if (stream->ispdev->vicap_in.merge_num > 1)
 			bytesperline *= stream->ispdev->vicap_in.merge_num;
-
-		if (i != 0 ||
-		    plane_fmt->bytesperline < bytesperline)
-			plane_fmt->bytesperline = bytesperline;
+		/* bytesperline from user */
+		if (plane_fmt->bytesperline) {
+			bytesperline = width * fmt->bpp[i] / 8;
+			if (plane_fmt->bytesperline < bytesperline) {
+				bytesperline = ALIGN(bytesperline, 4);
+				v4l2_err(&stream->ispdev->v4l2_dev,
+					 "rawrd bytesperline:%d error, force to %d\n",
+					 plane_fmt->bytesperline, bytesperline);
+			} else {
+				bytesperline = ALIGN(plane_fmt->bytesperline, 4);
+				if (bytesperline != plane_fmt->bytesperline)
+					v4l2_err(&stream->ispdev->v4l2_dev,
+						 "rawrd bytesperline need 4 align, force to %d\n",
+						 bytesperline);
+			}
+		}
+		plane_fmt->bytesperline = bytesperline;
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
 

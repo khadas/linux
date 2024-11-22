@@ -11,6 +11,8 @@
 #include "rk_crypto_core.h"
 #include "rk_crypto_ahash_utils.h"
 
+uint32_t rk_hash_reserve_block = RK_HASH_RESERVE_BLOCK;
+
 static const char * const hash_algo2name[] = {
 	[HASH_ALGO_MD5]    = "md5",
 	[HASH_ALGO_SHA1]   = "sha1",
@@ -35,7 +37,7 @@ static void rk_ahash_ctx_clear(struct rk_ahash_ctx *ctx)
 {
 	rk_alg_ctx_clear(&ctx->algs_ctx);
 
-	memset(ctx->hash_tmp, 0x00, RK_DMA_ALIGNMENT);
+	memset(ctx->hash_tmp, 0x00, RK_HASH_RESERVE_BLOCK);
 	memset(ctx->lastc, 0x00, sizeof(ctx->lastc));
 
 	ctx->hash_tmp_len = 0;
@@ -81,13 +83,13 @@ static u32 rk_calc_lastc_new_len(u32 nbytes, u32 old_len)
 {
 	u32 total_len = nbytes + old_len;
 
-	if (total_len <= RK_DMA_ALIGNMENT)
+	if (total_len <= rk_hash_reserve_block)
 		return nbytes;
 
-	if (total_len % RK_DMA_ALIGNMENT)
-		return total_len % RK_DMA_ALIGNMENT;
+	if (total_len % rk_hash_reserve_block)
+		return total_len % rk_hash_reserve_block;
 
-	return RK_DMA_ALIGNMENT;
+	return rk_hash_reserve_block;
 }
 
 static int rk_ahash_fallback_digest(const char *alg_name, bool is_hmac,
@@ -326,7 +328,7 @@ int rk_ahash_start(struct rk_crypto_dev *rk_dev)
 		nbytes = ctx->hash_tmp_len + req->nbytes - ctx->lastc_len;
 
 		/* not enough data */
-		if (nbytes < RK_DMA_ALIGNMENT) {
+		if (nbytes < rk_hash_reserve_block) {
 			CRYPTO_TRACE("nbytes = %u, not enough data", nbytes);
 			memcpy(ctx->hash_tmp + ctx->hash_tmp_len,
 			       ctx->lastc, ctx->lastc_len);

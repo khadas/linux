@@ -49,6 +49,8 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "isp_ispp.h"
+
 #define RKISP_DEFAULT_WIDTH		800
 #define RKISP_DEFAULT_HEIGHT		600
 
@@ -143,6 +145,7 @@ extern bool rkisp_monitor;
 extern bool rkisp_irq_dbg;
 extern bool rkisp_buf_dbg;
 extern u64 rkisp_debug_reg;
+extern unsigned int rkisp_vicap_buf[DEV_MAX];
 extern struct platform_driver rkisp_plat_drv;
 
 static inline

@@ -65,7 +65,7 @@ struct samsung_mipi_dcphy {
 		unsigned long long rate;
 		u8 prediv;
 		u16 fbdiv;
-		long dsm;
+		u16 dsm;
 		u8 scaler;
 
 		bool ssc_en;

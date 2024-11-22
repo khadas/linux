@@ -108,6 +108,10 @@
 #endif /* DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON */
 #include <dhd_linux_pktdump.h>
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <linux/aspm_ext.h>
+#endif
+
 #define EXTENDED_PCIE_DEBUG_DUMP 1	/* Enable Extended pcie registers dump */
 
 #define MEMBLOCK	2048		/* Block size used for downloading of dongle image */
@@ -7920,6 +7924,17 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			DHD_ERROR(("%s: == Power ON ==\n", __FUNCTION__));
 			/* PCIe RC Turn on */
 			do {
+#ifdef CONFIG_ARCH_ROCKCHIP
+				if (bus->rc_dev) {
+					bcmerror = rockchip_dw_pcie_pm_ctrl_for_user(bus->rc_dev, ROCKCHIP_PCIE_PM_CTRL_RESET);
+					if (bcmerror) {
+						DHD_ERROR(("%s Failed to bring up PCIe link\n", __FUNCTION__));
+						OSL_SLEEP(10);
+						continue;
+					}
+
+				}
+#endif /* CONFIG_ARCH_ROCKCHIP */
 				bcmerror = dhdpcie_bus_start_host_dev(bus);
 				if (!bcmerror) {
 					DHD_ERROR_MEM(("%s: dhdpcie_bus_start_host_dev OK\n",

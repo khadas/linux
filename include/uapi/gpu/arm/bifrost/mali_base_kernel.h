@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,20 +32,26 @@
 #include "gpu/mali_kbase_gpu_id.h"
 #include "gpu/mali_kbase_gpu_coherency.h"
 
+#ifdef __KERNEL__
+#include <linux/mm.h>
+
 #if defined(PAGE_MASK) && defined(PAGE_SHIFT)
 #define LOCAL_PAGE_SHIFT PAGE_SHIFT
 #define LOCAL_PAGE_LSB ~PAGE_MASK
 #else
-#ifndef OSU_CONFIG_CPU_PAGE_SIZE_LOG2
-#define OSU_CONFIG_CPU_PAGE_SIZE_LOG2 12
+#error "Missing kernel definitions: PAGE_MASK, PAGE_SHIFT"
 #endif
 
-#if defined(OSU_CONFIG_CPU_PAGE_SIZE_LOG2)
-#define LOCAL_PAGE_SHIFT OSU_CONFIG_CPU_PAGE_SIZE_LOG2
-#define LOCAL_PAGE_LSB ((1ul << OSU_CONFIG_CPU_PAGE_SIZE_LOG2) - 1)
 #else
-#error Failed to find page size
+
+#if defined(MALI_PAGE_SIZE_AGNOSTIC)
+#define LOCAL_PAGE_SHIFT (__builtin_ctz((unsigned int)sysconf(_SC_PAGESIZE)))
+#else
+#define LOCAL_PAGE_SHIFT 12
 #endif
+
+#define LOCAL_PAGE_LSB ((1ul << LOCAL_PAGE_SHIFT) - 1)
+
 #endif
 
 /* Physical memory group ID for normal usage.
@@ -68,7 +74,7 @@
  * More flags can be added to this list, as long as they don't clash
  * (see BASE_MEM_FLAGS_NR_BITS for the number of the first free bit).
  */
-typedef __u32 base_mem_alloc_flags;
+typedef __u64 base_mem_alloc_flags;
 
 #define BASE_MEM_FLAGS_MODIFIABLE_NATIVE (BASE_MEM_DONT_NEED)
 
@@ -83,10 +89,10 @@ typedef __u32 base_mem_alloc_flags;
 /* A mask of all the flags that can be returned via the base_mem_get_flags()
  * interface.
  */
-#define BASE_MEM_FLAGS_QUERYABLE                                                           \
-	(BASE_MEM_FLAGS_INPUT_MASK &                                                       \
-	 ~(BASE_MEM_SAME_VA | BASE_MEM_COHERENT_SYSTEM_REQUIRED | BASE_MEM_IMPORT_SHARED | \
-	   BASE_MEM_FLAGS_RESERVED | BASEP_MEM_FLAGS_KERNEL_ONLY))
+#define BASE_MEM_FLAGS_QUERYABLE                                                               \
+	(BASE_MEM_FLAGS_INPUT_MASK &                                                           \
+	 ~(BASE_MEM_FLAGS_RESERVED | BASE_MEM_FLAGS_UNUSED | BASE_MEM_FLAGS_ACTION_MODIFIERS | \
+	   BASEP_MEM_FLAGS_KERNEL_ONLY))
 
 /**
  * enum base_mem_import_type - Memory types supported by @a base_mem_import
@@ -613,15 +619,15 @@ struct base_gpu_props {
 #define BASE_TIMEINFO_TIMESTAMP_FLAG (1U << 1)
 /* For GPU cycle counter */
 #define BASE_TIMEINFO_CYCLE_COUNTER_FLAG (1U << 2)
-/* Specify kernel GPU register timestamp */
-#define BASE_TIMEINFO_KERNEL_SOURCE_FLAG (1U << 30)
-/* Specify userspace cntvct_el0 timestamp source */
-#define BASE_TIMEINFO_USER_SOURCE_FLAG (1U << 31)
 
-#define BASE_TIMEREQUEST_ALLOWED_FLAGS                                         \
-	(BASE_TIMEINFO_MONOTONIC_FLAG | BASE_TIMEINFO_TIMESTAMP_FLAG |         \
-	 BASE_TIMEINFO_CYCLE_COUNTER_FLAG | BASE_TIMEINFO_KERNEL_SOURCE_FLAG | \
-	 BASE_TIMEINFO_USER_SOURCE_FLAG)
+/* Specify TimeReques flags allowed if time source is cpu/gpu register */
+#define BASE_TIMEREQUEST_CPU_GPU_SRC_ALLOWED_FLAGS                     \
+	(BASE_TIMEINFO_MONOTONIC_FLAG | BASE_TIMEINFO_TIMESTAMP_FLAG | \
+	 BASE_TIMEINFO_CYCLE_COUNTER_FLAG)
+
+/* Specify TimeReques flags allowed if time source is system(user) space */
+#define BASE_TIMEREQUEST_SYSTEM_SRC_ALLOWED_FLAGS \
+	(BASE_TIMEINFO_MONOTONIC_FLAG | BASE_TIMEINFO_TIMESTAMP_FLAG)
 
 /* Maximum number of source allocations allowed to create an alias allocation.
  * This needs to be 4096 * 6 to allow cube map arrays with up to 4096 array

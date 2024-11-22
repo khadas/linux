@@ -515,7 +515,9 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 
 	algs_name = soc_data->valid_algs_name;
 
-	rk_dev->request_crypto(rk_dev, __func__);
+	err = rk_dev->request_crypto(rk_dev, __func__);
+	if (err)
+		return err;
 
 	for (i = 0; i < soc_data->valid_algs_num; i++, algs_name++) {
 		tmp_algs = rk_crypto_find_algs(rk_dev, *algs_name);
@@ -622,11 +624,11 @@ static void rk_crypto_unregister(struct rk_crypto_dev *rk_dev)
 	rk_dev->release_crypto(rk_dev, __func__);
 }
 
-static void rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
+static int rk_crypto_request(struct rk_crypto_dev *rk_dev, const char *name)
 {
 	CRYPTO_TRACE("Crypto is requested by %s\n", name);
 
-	rk_crypto_enable_clk(rk_dev);
+	return rk_crypto_enable_clk(rk_dev);
 }
 
 static void rk_crypto_release(struct rk_crypto_dev *rk_dev, const char *name)
@@ -670,7 +672,7 @@ static char *crypto_full_algs_name[] = {
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha224", "sha256", "sha384", "sha512", "md5", "sm3",
 	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
-	"rsa"
+	"rsa", "ecc-192", "ecc-224", "ecc-256", "sm2",
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =

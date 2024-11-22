@@ -141,6 +141,7 @@ static u16 y_new = 0;
 static struct gsl_touch_chip_info gsl_chip_info[] = {
    {GSL680,GSLX680_FW,ARRAY_SIZE(GSLX680_FW),gsl_config_data_id,ARRAY_SIZE(gsl_config_data_id)},
    {GSL3676,GSL3675B_FW_HK,ARRAY_SIZE(GSL3675B_FW_HK),gsl3678_config_data_id,ARRAY_SIZE(gsl3678_config_data_id)},
+   {GSL1686,GSL1686_FW,ARRAY_SIZE(GSL1686_FW),gsl1686_config_data_id,ARRAY_SIZE(gsl1686_config_data_id)},
 };
 
 
@@ -459,7 +460,7 @@ static int gsl_config_read_proc(struct seq_file *m,void *v)
     return 0;
 }
 
-ssize_t gsl_config_write_proc(struct file *file, const char *buffer, size_t count, loff_t *data)
+static ssize_t gsl_config_write_proc(struct file *file, const char *buffer, size_t count, loff_t *data)
 {
     u8 buf[8] = {0};
     char temp_buf[CONFIG_LEN];
@@ -471,7 +472,7 @@ ssize_t gsl_config_write_proc(struct file *file, const char *buffer, size_t coun
     print_info("[tp-gsl][%s] \n",__func__);
     if(count > 512)
     {
-        pr_err("size not match [%d:%ld]\n", CONFIG_LEN, count);
+        pr_err("size not match [%d:%zu]\n", CONFIG_LEN, count);
         return -EFAULT;
     }
     path_buf=kzalloc(count,GFP_KERNEL);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -50,7 +50,11 @@ static void coresight_mali_disable_source(struct coresight_device *csdev, struct
 }
 
 static const struct coresight_ops_source coresight_mali_source_ops = {
+#if KERNEL_VERSION(6, 3, 0) <= LINUX_VERSION_CODE
+	.cpu_id = coresight_mali_source_trace_id,
+#else
 	.trace_id = coresight_mali_source_trace_id,
+#endif
 	.enable = coresight_mali_enable_source,
 	.disable = coresight_mali_disable_source
 };

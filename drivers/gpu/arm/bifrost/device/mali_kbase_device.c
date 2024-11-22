@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,10 +51,7 @@
 #include "backend/gpu/mali_kbase_irq_internal.h"
 #include "mali_kbase_regs_history_debugfs.h"
 #include "mali_kbase_pbha.h"
-
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
 #include "arbiter/mali_kbase_arbiter_pm.h"
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
 #if defined(CONFIG_DEBUG_FS) && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 
@@ -67,7 +64,23 @@
 
 static DEFINE_MUTEX(kbase_dev_list_lock);
 static LIST_HEAD(kbase_dev_list);
-static int kbase_dev_nr;
+static unsigned int kbase_dev_nr;
+
+static unsigned int mma_wa_id;
+
+static int set_mma_wa_id(const char *val, const struct kernel_param *kp)
+{
+	return kbase_param_set_uint_minmax(val, kp, 1, 15);
+}
+
+static const struct kernel_param_ops mma_wa_id_ops = {
+	.set = set_mma_wa_id,
+	.get = param_get_uint,
+};
+
+module_param_cb(mma_wa_id, &mma_wa_id_ops, &mma_wa_id, 0444);
+__MODULE_PARM_TYPE(mma_wa_id, "uint");
+MODULE_PARM_DESC(mma_wa_id, "PBHA ID for MMA workaround. Valid range is from 1 to 15.");
 
 struct kbase_device *kbase_device_alloc(void)
 {
@@ -83,9 +96,10 @@ struct kbase_device *kbase_device_alloc(void)
  */
 static int kbase_device_all_as_init(struct kbase_device *kbdev)
 {
-	int i, err = 0;
+	unsigned int i;
+	int err = 0;
 
-	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
+	for (i = 0; i < (unsigned int)kbdev->nr_hw_address_spaces; i++) {
 		err = kbase_mmu_as_init(kbdev, i);
 		if (err)
 			break;
@@ -101,10 +115,37 @@ static int kbase_device_all_as_init(struct kbase_device *kbdev)
 
 static void kbase_device_all_as_term(struct kbase_device *kbdev)
 {
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < kbdev->nr_hw_address_spaces; i++)
+	for (i = 0; i < (unsigned int)kbdev->nr_hw_address_spaces; i++)
 		kbase_mmu_as_term(kbdev, i);
+}
+
+static int pcm_prioritized_process_cb(struct notifier_block *nb, unsigned long action, void *data)
+{
+#if MALI_USE_CSF
+
+	struct kbase_device *const kbdev =
+		container_of(nb, struct kbase_device, pcm_prioritized_process_nb);
+	struct pcm_prioritized_process_notifier_data *const notifier_data = data;
+	int ret = -EINVAL;
+
+	switch (action) {
+	case ADD_PRIORITIZED_PROCESS:
+		if (kbasep_adjust_prioritized_process(kbdev, true, notifier_data->pid))
+			ret = 0;
+		break;
+	case REMOVE_PRIORITIZED_PROCESS:
+		if (kbasep_adjust_prioritized_process(kbdev, false, notifier_data->pid))
+			ret = 0;
+		break;
+	}
+
+	return ret;
+
+#endif /* MALI_USE_CSF */
+
+	return 0;
 }
 
 int kbase_device_pcm_dev_init(struct kbase_device *const kbdev)
@@ -140,6 +181,18 @@ int kbase_device_pcm_dev_init(struct kbase_device *const kbdev)
 				dev_info(kbdev->dev,
 					 "Priority control manager successfully loaded");
 				kbdev->pcm_dev = pcm_dev;
+
+				kbdev->pcm_prioritized_process_nb = (struct notifier_block){
+					.notifier_call = &pcm_prioritized_process_cb,
+				};
+				if (pcm_dev->ops.pcm_prioritized_process_notifier_register !=
+				    NULL) {
+					if (pcm_dev->ops.pcm_prioritized_process_notifier_register(
+						    pcm_dev, &kbdev->pcm_prioritized_process_nb))
+						dev_warn(
+							kbdev->dev,
+							"Failed to register for changes in prioritized processes");
+				}
 			}
 		}
 		of_node_put(prio_ctrl_node);
@@ -151,8 +204,14 @@ int kbase_device_pcm_dev_init(struct kbase_device *const kbdev)
 
 void kbase_device_pcm_dev_term(struct kbase_device *const kbdev)
 {
-	if (kbdev->pcm_dev)
-		module_put(kbdev->pcm_dev->owner);
+	struct priority_control_manager_device *const pcm_dev = kbdev->pcm_dev;
+
+	if (pcm_dev) {
+		if (pcm_dev->ops.pcm_prioritized_process_notifier_unregister != NULL)
+			pcm_dev->ops.pcm_prioritized_process_notifier_unregister(
+				pcm_dev, &kbdev->pcm_prioritized_process_nb);
+		module_put(pcm_dev->owner);
+	}
 }
 
 #define KBASE_PAGES_TO_KIB(pages) (((unsigned int)pages) << (PAGE_SHIFT - 10))
@@ -268,11 +327,15 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 	if (err)
 		goto dma_set_mask_failed;
 
-	kbdev->nr_hw_address_spaces = kbdev->gpu_props.num_address_spaces;
+	kbdev->nr_hw_address_spaces = (s8)kbdev->gpu_props.num_address_spaces;
 
 	err = kbase_device_all_as_init(kbdev);
 	if (err)
 		goto dma_set_mask_failed;
+
+	/* Set mma_wa_id if it has been passed in as a module parameter */
+	if ((kbdev->gpu_props.gpu_id.arch_id >= GPU_ID_ARCH_MAKE(14, 8, 0)) && mma_wa_id != 0)
+		kbdev->mma_wa_id = mma_wa_id;
 
 	err = kbase_pbha_read_dtb(kbdev);
 	if (err)
@@ -291,8 +354,6 @@ int kbase_device_misc_init(struct kbase_device *const kbdev)
 #endif /* !MALI_USE_CSF */
 
 	kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
-	kbdev->mmu_or_gpu_cache_op_wait_time_ms =
-		kbase_get_timeout_ms(kbdev, MMU_AS_INACTIVE_WAIT_TIMEOUT);
 	mutex_init(&kbdev->kctx_list_lock);
 	INIT_LIST_HEAD(&kbdev->kctx_list);
 
@@ -512,13 +573,26 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	/* Ensure we can access the GPU registers */
 	kbase_pm_register_access_enable(kbdev);
 
-	/* Initialize GPU_ID props */
-	kbase_gpuprops_parse_gpu_id(&kbdev->gpu_props.gpu_id, kbase_reg_get_gpu_id(kbdev));
-
-	/* Initialize register mapping LUTs */
-	err = kbase_regmap_init(kbdev);
-	if (err)
+	/*
+	 * If -EPERM is returned, it means the device backend is not supported, but
+	 * device initialization can continue.
+	 */
+	err = kbase_device_backend_init(kbdev);
+	if (err != 0 && err != -EPERM)
 		goto pm_runtime_term;
+
+	/*
+	 * Initialize register mapping LUTs. This would have been initialized on HW
+	 * Arbitration but not on PV or non-arbitration devices.
+	 */
+	if (!kbase_reg_is_init(kbdev)) {
+		/* Initialize GPU_ID props */
+		kbase_gpuprops_parse_gpu_id(&kbdev->gpu_props.gpu_id, kbase_reg_get_gpu_id(kbdev));
+
+		err = kbase_regmap_init(kbdev);
+		if (err)
+			goto backend_term;
+	}
 
 	/* Set the list of features available on the current HW
 	 * (identified by the GPU_ID register)
@@ -528,7 +602,7 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	/* Find out GPU properties based on the GPU feature registers. */
 	err = kbase_gpuprops_init(kbdev);
 	if (err)
-		goto regmap_term;
+		goto backend_term;
 
 	/* Get the list of workarounds for issues on the current HW
 	 * (identified by the GPU_ID register and impl_tech in THREAD_FEATURES)
@@ -540,14 +614,12 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 	/* We're done accessing the GPU registers for now. */
 	kbase_pm_register_access_disable(kbdev);
 
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	if (kbdev->arb.arb_if)
-		err = kbase_arbiter_pm_install_interrupts(kbdev);
-	else
+	if (kbase_has_arbiter(kbdev)) {
+		if (kbdev->pm.arb_vm_state)
+			err = kbase_arbiter_pm_install_interrupts(kbdev);
+	} else {
 		err = kbase_install_interrupts(kbdev);
-#else
-	err = kbase_install_interrupts(kbdev);
-#endif
+	}
 	if (err)
 		goto gpuprops_term;
 
@@ -555,9 +627,13 @@ int kbase_device_early_init(struct kbase_device *kbdev)
 
 gpuprops_term:
 	kbase_gpuprops_term(kbdev);
-regmap_term:
+backend_term:
+	kbase_device_backend_term(kbdev);
 	kbase_regmap_term(kbdev);
 pm_runtime_term:
+	if (kbdev->pm.backend.gpu_powered)
+		kbase_pm_register_access_disable(kbdev);
+
 	kbase_pm_runtime_term(kbdev);
 platform_device_term:
 	kbasep_platform_device_term(kbdev);
@@ -569,15 +645,13 @@ ktrace_term:
 
 void kbase_device_early_term(struct kbase_device *kbdev)
 {
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
-	if (kbdev->arb.arb_if)
+	if (kbase_has_arbiter(kbdev))
 		kbase_arbiter_pm_release_interrupts(kbdev);
 	else
 		kbase_release_interrupts(kbdev);
-#else
-	kbase_release_interrupts(kbdev);
-#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 	kbase_gpuprops_term(kbdev);
+	kbase_device_backend_term(kbdev);
+	kbase_regmap_term(kbdev);
 	kbase_pm_runtime_term(kbdev);
 	kbasep_platform_device_term(kbdev);
 	kbase_ktrace_term(kbdev);

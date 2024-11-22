@@ -368,6 +368,13 @@ static int cvbs_set_disable(struct rockchip_tve *tve)
 		return ret;
 	}
 	dac_enable(tve, false);
+
+	clk_disable_unprepare(tve->dclk_4x);
+	clk_disable_unprepare(tve->dclk);
+	clk_disable_unprepare(tve->pclk_vdac);
+	clk_disable_unprepare(tve->hclk);
+	clk_disable_unprepare(tve->aclk);
+
 	tve->enable = 0;
 
 	return 0;
@@ -398,12 +405,56 @@ static int cvbs_set_enable(struct rockchip_tve *tve)
 		dev_err(tve->dev, "failed to get pm runtime: %d\n", ret);
 		return ret;
 	}
+
+	ret = clk_prepare_enable(tve->aclk);
+	if (ret) {
+		dev_err(tve->dev, "Cannot enable tve aclk: %d\n", ret);
+		goto err_pm_put;
+	}
+
+	ret = clk_prepare_enable(tve->hclk);
+	if (ret) {
+		dev_err(tve->dev, "Cannot enable tve hclk: %d\n", ret);
+		goto err_disable_aclk;
+	}
+
+	ret = clk_prepare_enable(tve->pclk_vdac);
+	if (ret) {
+		dev_err(tve->dev, "Cannot enable vdac pclk: %d\n", ret);
+		goto err_disable_hclk;
+	}
+
+	ret = clk_prepare_enable(tve->dclk);
+	if (ret) {
+		dev_err(tve->dev, "Cannot enable tve dclk: %d\n", ret);
+		goto err_disable_pclk;
+	}
+
+	ret = clk_prepare_enable(tve->dclk_4x);
+	if (ret) {
+		dev_err(tve->dev, "Cannot enable tve dclk_4x: %d\n", ret);
+		goto err_disable_dclk;
+	}
+
 	tve_set_mode(tve);
 	msleep(1000);
 	dac_enable(tve, true);
 	tve->enable = 1;
 
 	return 0;
+
+err_disable_dclk:
+	clk_disable_unprepare(tve->dclk);
+err_disable_pclk:
+	clk_disable_unprepare(tve->pclk_vdac);
+err_disable_hclk:
+	clk_disable_unprepare(tve->hclk);
+err_disable_aclk:
+	clk_disable_unprepare(tve->aclk);
+err_pm_put:
+	pm_runtime_put_sync(tve->dev);
+
+	return ret;
 }
 
 static void rockchip_tve_encoder_enable(struct drm_encoder *encoder)
@@ -435,15 +486,17 @@ static void rockchip_tve_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct rockchip_tve *tve = encoder_to_tve(encoder);
+	u32 tv_format;
 
 	dev_dbg(tve->dev, "encoder mode set:%s\n", adjusted_mode->name);
 
 	if (adjusted_mode->vdisplay == 576)
-		tve->tv_format = TVOUT_CVBS_PAL;
+		tv_format = TVOUT_CVBS_PAL;
 	else
-		tve->tv_format = TVOUT_CVBS_NTSC;
+		tv_format = TVOUT_CVBS_NTSC;
 
-	if (tve->enable) {
+	if (tve->enable && tve->tv_format != tv_format) {
+		tve->tv_format = tv_format;
 		dac_enable(tve, false);
 		msleep(200);
 
@@ -488,6 +541,81 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 
 	return 0;
+}
+
+static int rockchip_tve_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct rockchip_tve *tve = encoder_to_tve(encoder);
+	int ret;
+
+	if (on) {
+		ret = pm_runtime_get_sync(tve->dev);
+		if (ret < 0) {
+			dev_err(tve->dev, "failed to get pm runtime: %d\n", ret);
+			return ret;
+		}
+
+		ret = clk_prepare_enable(tve->aclk);
+		if (ret) {
+			dev_err(tve->dev, "Cannot enable tve aclk: %d\n", ret);
+			goto err_pm_put;
+		}
+
+		ret = clk_prepare_enable(tve->hclk);
+		if (ret) {
+			dev_err(tve->dev, "Cannot enable tve hclk: %d\n", ret);
+			goto err_disable_aclk;
+		}
+
+		ret = clk_prepare_enable(tve->pclk_vdac);
+		if (ret) {
+			dev_err(tve->dev, "Cannot enable vdac pclk: %d\n", ret);
+			goto err_disable_hclk;
+		}
+
+		ret = clk_prepare_enable(tve->dclk);
+		if (ret) {
+			dev_err(tve->dev, "Cannot enable tve dclk: %d\n", ret);
+			goto err_disable_pclk;
+		}
+
+		ret = clk_prepare_enable(tve->dclk_4x);
+		if (ret) {
+			dev_err(tve->dev, "Cannot enable tve dclk_4x: %d\n", ret);
+			goto err_disable_dclk;
+		}
+
+		tve->enable = 1;
+	} else {
+		ret = pm_runtime_put(tve->dev);
+		if (ret < 0) {
+			dev_err(tve->dev, "failed to put pm runtime: %d\n", ret);
+			return ret;
+		}
+
+		clk_disable_unprepare(tve->dclk_4x);
+		clk_disable_unprepare(tve->dclk);
+		clk_disable_unprepare(tve->pclk_vdac);
+		clk_disable_unprepare(tve->hclk);
+		clk_disable_unprepare(tve->aclk);
+
+		tve->enable = 0;
+	}
+
+	return 0;
+
+err_disable_dclk:
+	clk_disable_unprepare(tve->dclk);
+err_disable_pclk:
+	clk_disable_unprepare(tve->pclk_vdac);
+err_disable_hclk:
+	clk_disable_unprepare(tve->hclk);
+err_disable_aclk:
+	clk_disable_unprepare(tve->aclk);
+err_pm_put:
+	pm_runtime_put_sync(tve->dev);
+
+	return ret;
 }
 
 static const struct drm_connector_helper_funcs
@@ -888,23 +1016,11 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 			dev_err(tve->dev, "Unable to get tve aclk\n");
 			return PTR_ERR(tve->aclk);
 		}
-
-		ret = clk_prepare_enable(tve->aclk);
-		if (ret) {
-			dev_err(tve->dev, "Cannot enable tve aclk: %d\n", ret);
-			return ret;
-		}
 	} else if (tve->soc_type == SOC_RK3528) {
 		tve->hclk = devm_clk_get(tve->dev, "hclk");
 		if (IS_ERR(tve->hclk)) {
 			dev_err(tve->dev, "Unable to get tve hclk\n");
 			return PTR_ERR(tve->hclk);
-		}
-
-		ret = clk_prepare_enable(tve->hclk);
-		if (ret) {
-			dev_err(tve->dev, "Cannot enable tve hclk: %d\n", ret);
-			return ret;
 		}
 
 		tve->pclk_vdac = devm_clk_get(tve->dev, "pclk_vdac");
@@ -913,22 +1029,10 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 			return PTR_ERR(tve->pclk_vdac);
 		}
 
-		ret = clk_prepare_enable(tve->pclk_vdac);
-		if (ret) {
-			dev_err(tve->dev, "Cannot enable vdac pclk: %d\n", ret);
-			return ret;
-		}
-
 		tve->dclk = devm_clk_get(tve->dev, "dclk");
 		if (IS_ERR(tve->dclk)) {
 			dev_err(tve->dev, "Unable to get tve dclk\n");
 			return PTR_ERR(tve->dclk);
-		}
-
-		ret = clk_prepare_enable(tve->dclk);
-		if (ret) {
-			dev_err(tve->dev, "Cannot enable tve dclk: %d\n", ret);
-			return ret;
 		}
 
 		if (tve->upsample_mode == DCLK_UPSAMPLEx4) {
@@ -936,12 +1040,6 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 			if (IS_ERR(tve->dclk_4x)) {
 				dev_err(tve->dev, "Unable to get tve dclk_4x\n");
 				return PTR_ERR(tve->dclk_4x);
-			}
-
-			ret = clk_prepare_enable(tve->dclk_4x);
-			if (ret) {
-				dev_err(tve->dev, "Cannot enable tve dclk_4x: %d\n", ret);
-				return ret;
 			}
 		}
 	}
@@ -960,7 +1058,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 			       DRM_MODE_ENCODER_TVDAC, NULL);
 	if (ret < 0) {
 		dev_err(tve->dev, "failed to initialize encoder with drm\n");
-		goto err_disable_aclk;
+		return ret;
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_tve_encoder_helper_funcs);
@@ -985,6 +1083,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 	}
 	tve->sub_dev.connector = &tve->connector;
 	tve->sub_dev.of_node = tve->dev->of_node;
+	tve->sub_dev.loader_protect = rockchip_tve_encoder_loader_protect;
 	rockchip_drm_register_sub_dev(&tve->sub_dev);
 
 	pm_runtime_enable(dev);
@@ -997,9 +1096,6 @@ err_free_connector:
 	drm_connector_cleanup(connector);
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
-err_disable_aclk:
-	if (tve->soc_type == SOC_RK3036)
-		clk_disable_unprepare(tve->aclk);
 
 	return ret;
 }

@@ -1120,11 +1120,7 @@ static int rk628_hdmirx_init(struct rk628 *rk628)
 
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_INPUT_MODE_MASK, SW_INPUT_MODE(INPUT_MODE_HDMI));
-	rk628_hdmirx_set_edid(rk628);
-	/* clear avi rcv interrupt */
-	rk628_i2c_write(rk628, HDMI_RX_PDEC_ICLR, AVI_RCV_ISTS);
 
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
 	dev_info(rk628->dev, "hdmirx driver version: %s\n", DRIVER_VERSION);
 	INIT_DELAYED_WORK(&hdmirx->delayed_work_audio, rk628_hdmirx_delayed_work_audio);
 	return 0;
@@ -1150,6 +1146,27 @@ void rk628_hdmirx_enable_interrupts(struct rk628 *rk628, bool en)
 	usleep_range(5000, 5000);
 	rk628_i2c_read(rk628, HDMI_RX_MD_IEN, &md_ien);
 	dev_dbg(rk628->dev, "%s MD_IEN:%#x\n", __func__, md_ien);
+}
+
+int rk628_hdmirx_boot_state_init(struct rk628 *rk628)
+{
+	struct rk628_hdmirx *hdmirx;
+
+	if (!rk628->hdmirx) {
+		int ret;
+
+		ret = rk628_hdmirx_init(rk628);
+		if (ret < 0 || !rk628->hdmirx)
+			return ret;
+	}
+
+	hdmirx = rk628->hdmirx;
+	hdmirx->plugin = true;
+	hdmirx->phy_lock = true;
+	rk628_hdmirx_get_timing(rk628);
+	rk628_hdmirx_get_input_format(rk628);
+
+	return 0;
 }
 
 int rk628_hdmirx_enable(struct rk628 *rk628)
@@ -1190,6 +1207,14 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 		usleep_range(20, 40);
 		rk628_hdmirx_reset_control_deassert(rk628);
 		usleep_range(20, 40);
+
+		rk628_hdmirx_set_edid(rk628);
+
+		/* clear avi rcv interrupt */
+		rk628_i2c_write(rk628, HDMI_RX_PDEC_ICLR, AVI_RCV_ISTS);
+
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+				      SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
 
 		rk628_hdmirx_ctrl_enable(rk628);
 		ret = rk628_hdmirx_phy_setup(rk628);
@@ -1280,6 +1305,7 @@ int rk628_hdmirx_detect(struct rk628 *rk628)
 		ret |= HDMIRX_PLUGIN;
 		if (!hdmirx->plugin)
 			ret |= HDMIRX_CHANGED;
+
 		if (rk628_hdmirx_status_change(rk628))
 			ret |= HDMIRX_CHANGED;
 
@@ -1291,6 +1317,7 @@ int rk628_hdmirx_detect(struct rk628 *rk628)
 
 		if (!hdmirx->phy_lock)
 			ret |= HDMIRX_NOLOCK;
+
 		hdmirx->plugin = true;
 	} else {
 		ret |= HDMIRX_PLUGOUT;

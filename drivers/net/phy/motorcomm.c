@@ -15,22 +15,20 @@
 #define PHY_ID_YT8511		0x0000010a
 #define PHY_ID_YT8512		0x00000118
 #define PHY_ID_YT8512B		0x00000128
+#define PHY_ID_YT8522		0x4f51e928
 #define PHY_ID_YT8531S		0x4f51e91a
 #define PHY_ID_YT8531		0x4f51e91b
 
-/**
- * YT8011 IO VOLTAGE LEVELS
- * YT8011_RGMII_DVDDIO_3V3 -> VDDIO 3V3
- * YT8011_RGMII_DVDDIO_2V5 -> VDDIO 2V5
- * YT8011_RGMII_DVDDIO_1V8 -> VDDIO 1V8
- */
-#define YT8011_RGMII_DVDDIO_3V3
-/* #define YT8011_RGMII_DVDDIO_2V5 */
-/* #define YT8011_RGMII_DVDDIO_1V8 */
+enum {
+	YT8011_RGMII_DVDDIO_1V8 = 1,
+	YT8011_RGMII_DVDDIO_2V5,
+	YT8011_RGMII_DVDDIO_3V3
+};
 
 struct yt8011_priv {
 	u8 polling_mode;
 	u8 chip_mode;
+	u8 vddio;
 };
 
 #define YT8011_SPEED_MODE		0xc000
@@ -43,7 +41,7 @@ struct yt8011_priv {
 #define REG_DEBUG_ADDR_OFFSET		0x1e
 #define REG_DEBUG_DATA			0x1f
 #define REG_MII_MMD_CTRL		0x0D  /* MMD access control register */
-#define REG_MII_MMD_DATA		0x0E  /* MMD access data register    */
+#define REG_MII_MMD_DATA		0x0E  /* MMD access data register */
 
 #define YT8511_PAGE_SELECT	0x1e
 #define YT8511_PAGE		0x1f
@@ -99,6 +97,22 @@ struct yt8011_priv {
 #define YT8512_DUPLEX_BIT		13
 #define YT8512_EN_SLEEP_SW_BIT		15
 
+#define YT8522_TX_CLK_DELAY             0x4210
+#define YT8522_ANAGLOG_IF_CTRL          0x4008
+#define YT8522_DAC_CTRL                 0x2057
+#define YT8522_INTERPOLATOR_FILTER_1    0x14
+#define YT8522_INTERPOLATOR_FILTER_2    0x15
+#define YT8522_EXTENDED_COMBO_CTRL_1    0x4000
+
+#define YTXXXX_SPEED_MODE               0xc000
+#define YTXXXX_DUPLEX                   0x2000
+#define YTXXXX_SPEED_MODE_BIT           14
+#define YTXXXX_DUPLEX_BIT               13
+#define YTXXXX_AUTO_NEGOTIATION_BIT     12
+#define YTXXXX_ASYMMETRIC_PAUSE_BIT     11
+#define YTXXXX_PAUSE_BIT                10
+#define YTXXXX_LINK_STATUS_BIT          10
+
 /* if system depends on ethernet packet to restore from sleep,
  * please define this macro to 1 otherwise, define it to 0.
  */
@@ -113,6 +127,11 @@ struct yt8011_priv {
 #undef SYS_WAKEUP_BASED_ON_ETH_PKT
 #define SYS_WAKEUP_BASED_ON_ETH_PKT	1
 #endif
+
+struct yt8xxx_priv {
+	u8 polling_mode;
+	u8 chip_mode;
+};
 
 /* for YT8531 package A xtal init config */
 #define YTPHY8531A_XTAL_INIT		0
@@ -291,6 +310,55 @@ static int yt8011_config_aneg(struct phy_device *phydev)
 	return 0;
 }
 
+static int yt8011_config_vddio(struct phy_device *phydev)
+{
+	struct yt8011_priv *priv = phydev->priv;
+
+	if (!(priv->chip_mode)) { /* rgmii config */
+		switch (priv->vddio) {
+		case YT8011_RGMII_DVDDIO_2V5:
+			dev_info(&phydev->mdio.dev, "config PHY vddio 2v5\n");
+			ytphy_write_ext(phydev, 0x9000, 0x8000);
+			ytphy_write_ext(phydev, 0x0062, 0x0000);
+			ytphy_write_ext(phydev, 0x9000, 0x0000);
+			ytphy_write_ext(phydev, 0x9031, 0xb200);
+			ytphy_write_ext(phydev, 0x9111, 0x5);
+			ytphy_write_ext(phydev, 0x9114, 0x3939);
+			ytphy_write_ext(phydev, 0x9112, 0xf);
+			ytphy_write_ext(phydev, 0x9110, 0x0);
+			ytphy_write_ext(phydev, 0x9113, 0x10);
+			ytphy_write_ext(phydev, 0x903d, 0x2);
+			break;
+		case YT8011_RGMII_DVDDIO_1V8:
+			dev_info(&phydev->mdio.dev, "config PHY for 1v8\n");
+			ytphy_write_ext(phydev, 0x9000, 0x8000);
+			ytphy_write_ext(phydev, 0x0062, 0x0000);
+			ytphy_write_ext(phydev, 0x9000, 0x0000);
+			ytphy_write_ext(phydev, 0x9031, 0xb200);
+			ytphy_write_ext(phydev, 0x9116, 0x6);
+			ytphy_write_ext(phydev, 0x9119, 0x3939);
+			ytphy_write_ext(phydev, 0x9117, 0xf);
+			ytphy_write_ext(phydev, 0x9115, 0x0);
+			ytphy_write_ext(phydev, 0x9118, 0x20);
+			ytphy_write_ext(phydev, 0x903d, 0x3);
+			break;
+		case YT8011_RGMII_DVDDIO_3V3:
+		default:
+			dev_info(&phydev->mdio.dev, "config PHY for 3v3\n");
+			ytphy_write_ext(phydev, 0x9000, 0x8000);
+			ytphy_write_ext(phydev, 0x0062, 0x0000);
+			ytphy_write_ext(phydev, 0x9000, 0x0000);
+			ytphy_write_ext(phydev, 0x9031, 0xb200);
+			ytphy_write_ext(phydev, 0x903b, 0x0040);
+			ytphy_write_ext(phydev, 0x903e, 0x3b3b);
+			ytphy_write_ext(phydev, 0x903c, 0xf);
+			ytphy_write_ext(phydev, 0x903d, 0x1000);
+			ytphy_write_ext(phydev, 0x9038, 0x0000);
+			break;
+		}
+	}
+	return 0;
+}
 static int yt8011_aneg_done(struct phy_device *phydev)
 {
 	int link_utp = 0;
@@ -482,9 +550,31 @@ static int yt8512_led_init(struct phy_device *phydev)
 static int yt8011_config_init(struct phy_device *phydev)
 {
 	struct yt8011_priv *priv = phydev->priv;
+	struct device_node *np = phydev->mdio.dev.of_node;
+	const char *vddio_conf;
 
 	phydev->autoneg = AUTONEG_DISABLE;
 
+	if (!np) {
+		dev_err(&phydev->mdio.dev, "Device Tree node is missing\n");
+		priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+	} else {
+		if (of_property_read_string(np, "motorcomm,vddio", &vddio_conf)) {
+			dev_err(&phydev->mdio.dev, "Missing 'motorcomm,vddio' property in DTS, using 3v3 default\n");
+			priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+		} else {
+			if (!strcasecmp(vddio_conf, "1v8")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_1V8;
+			} else if (!strcasecmp(vddio_conf, "2v5")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_2V5;
+			} else if (!strcasecmp(vddio_conf, "3v3")) {
+				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+			} else {
+				dev_err(&phydev->mdio.dev, "Invalid 'motorcomm,vddio' value, using 3v3 default\n");
+				priv->vddio = YT8011_RGMII_DVDDIO_3V3;
+			}
+		}
+	}
 	/* UTP */
 	ytphy_write_ext(phydev, 0x9000, 0x0);
 
@@ -498,53 +588,18 @@ static int yt8011_config_init(struct phy_device *phydev)
 	ytphy_write_ext(phydev, 0x2015, 0x1012);
 	ytphy_write_ext(phydev, 0x2005, 0x810);
 	ytphy_write_ext(phydev, 0x2013, 0xff06);
-	ytphy_write_ext(phydev, 0x1000, 0x0028);
-	ytphy_write_ext(phydev, 0x1002, 0x3800);
-	ytphy_write_ext(phydev, 0x1090, 0x1012);
-	ytphy_write_ext(phydev, 0x1091, 0x1013);
-	ytphy_write_ext(phydev, 0x1100, 0x2020);
-	ytphy_write_mmd(phydev, 0x7, 0x1f42, 0x0016);
+	ytphy_write_ext(phydev, 0x1053, 0xf);
+	ytphy_write_ext(phydev, 0x105e, 0xa46c);
 	ytphy_write_ext(phydev, 0x1088, 0x002b);
-	ytphy_write_ext(phydev, 0x1088, 0x022b);
-	ytphy_write_ext(phydev, 0x1088, 0x020b);
+	ytphy_write_ext(phydev, 0x1088, 0x002b);
+	ytphy_write_ext(phydev, 0x1088, 0xb);
 	ytphy_write_ext(phydev, 0x3008, 0x143);
 	ytphy_write_ext(phydev, 0x3009, 0x1918);
-
-	if (!(priv->chip_mode)) { /* rgmii config */
-#if defined(YT8011_RGMII_DVDDIO_3V3)
-		ytphy_write_ext(phydev, 0x9000, 0x8000);
-		ytphy_write_ext(phydev, 0x0062, 0x0000);
-		ytphy_write_ext(phydev, 0x9000, 0x0000);
-		ytphy_write_ext(phydev, 0x9031, 0xb200);
-		ytphy_write_ext(phydev, 0x903b, 0x0040);
-		ytphy_write_ext(phydev, 0x903e, 0x3b3b);
-		ytphy_write_ext(phydev, 0x903c, 0xf);
-		ytphy_write_ext(phydev, 0x903d, 0x1000);
-		ytphy_write_ext(phydev, 0x9038, 0x0000);
-#elif defined(YT8011_RGMII_DVDDIO_2V5)
-		ytphy_write_ext(phydev, 0x9000, 0x8000);
-		ytphy_write_ext(phydev, 0x0062, 0x0000);
-		ytphy_write_ext(phydev, 0x9000, 0x0000);
-		ytphy_write_ext(phydev, 0x9031, 0xb200);
-		ytphy_write_ext(phydev, 0x9111, 0x5);
-		ytphy_write_ext(phydev, 0x9114, 0x3939);
-		ytphy_write_ext(phydev, 0x9112, 0xf);
-		ytphy_write_ext(phydev, 0x9110, 0x0);
-		ytphy_write_ext(phydev, 0x9113, 0x10);
-		ytphy_write_ext(phydev, 0x903d, 0x2);
-#elif defined(YT8011_RGMII_DVDDIO_1V8)
-		ytphy_write_ext(phydev, 0x9000, 0x8000);
-		ytphy_write_ext(phydev, 0x0062, 0x0000);
-		ytphy_write_ext(phydev, 0x9000, 0x0000);
-		ytphy_write_ext(phydev, 0x9031, 0xb200);
-		ytphy_write_ext(phydev, 0x9116, 0x6);
-		ytphy_write_ext(phydev, 0x9119, 0x3939);
-		ytphy_write_ext(phydev, 0x9117, 0xf);
-		ytphy_write_ext(phydev, 0x9115, 0x0);
-		ytphy_write_ext(phydev, 0x9118, 0x20);
-		ytphy_write_ext(phydev, 0x903d, 0x3);
-#endif
-	}
+	ytphy_write_ext(phydev, 0x9095, 0x1a1a);
+	ytphy_write_ext(phydev, 0x9096, 0x1a10);
+	ytphy_write_ext(phydev, 0x9097, 0x101a);
+	ytphy_write_ext(phydev, 0x9098, 0x01ff);
+	yt8011_config_vddio(phydev);
 
 	ytphy_soft_reset(phydev);
 
@@ -913,6 +968,109 @@ static int yt8521_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int yt8522_read_status(struct phy_device *phydev)
+{
+	int speed, speed_mode, duplex, val;
+
+	genphy_read_status(phydev);
+	val = phy_read(phydev, REG_PHY_SPEC_STATUS);
+	if (val < 0)
+		return val;
+
+	/* link up */
+	if ((val & BIT(10)) >> YTXXXX_LINK_STATUS_BIT) {
+		duplex = (val & BIT(13)) >> YTXXXX_DUPLEX_BIT;
+		speed_mode = (val & (BIT(15) | BIT(14))) >> YTXXXX_SPEED_MODE_BIT;
+		switch (speed_mode) {
+		case 0:
+			speed = SPEED_10;
+			break;
+		case 1:
+			speed = SPEED_100;
+			break;
+		case 2:
+		case 3:
+		default:
+			speed = SPEED_UNKNOWN;
+			break;
+		}
+
+		phydev->link = 1;
+		phydev->speed = speed;
+		phydev->duplex = duplex;
+
+		return 0;
+	}
+
+	phydev->link = 0;
+
+	return 0;
+}
+
+static int yt8522_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct yt8xxx_priv *priv;
+	int chip_config;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	chip_config = ytphy_read_ext(phydev, YT8522_EXTENDED_COMBO_CTRL_1);
+
+	priv->chip_mode = ((chip_config & BIT(3)) >> 3);
+
+	return 0;
+}
+
+static int yt8522_config_init(struct phy_device *phydev)
+{
+	struct yt8xxx_priv *priv = phydev->priv;
+	int ret;
+	int val;
+
+	/* UTP */
+	if (!priv->chip_mode) {
+		val = ytphy_write_ext(phydev, YT8522_TX_CLK_DELAY, 0);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_ANAGLOG_IF_CTRL, 0xbf2a);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_DAC_CTRL, 0x297f);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_INTERPOLATOR_FILTER_1, 0x1FE);
+		if (val < 0)
+			return val;
+
+		val = ytphy_write_ext(phydev, YT8522_INTERPOLATOR_FILTER_2, 0x1FE);
+		if (val < 0)
+			return val;
+
+		/* disable auto sleep */
+		val = ytphy_read_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1);
+		if (val < 0)
+			return val;
+
+		val &= (~BIT(YT8512_EN_SLEEP_SW_BIT));
+
+		ret = ytphy_write_ext(phydev, YT8512_EXTREG_SLEEP_CONTROL1, val);
+		if (ret < 0)
+			return ret;
+
+		ytphy_soft_reset(phydev);
+	}
+
+	return 0;
+}
+
 static int yt8531_rxclk_duty_init(struct phy_device *phydev)
 {
 	unsigned int value = 0x9696;
@@ -1045,6 +1203,17 @@ static struct phy_driver motorcomm_phy_drvs[] = {
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	}, {
+		PHY_ID_MATCH_EXACT(PHY_ID_YT8522),
+		.name           = "YT8522 100M Ethernet",
+		.features       = PHY_BASIC_FEATURES,
+		.probe          = yt8522_probe,
+		.soft_reset     = ytphy_soft_reset,
+		.config_aneg    = genphy_config_aneg,
+		.config_init    = yt8522_config_init,
+		.read_status    = yt8522_read_status,
+		.suspend        = genphy_suspend,
+		.resume         = genphy_resume,
+	},  {
 		/* same as 8521 */
 		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),
 		.name          = "YT8531S Gigabit Ethernet",
@@ -1084,6 +1253,7 @@ static const struct mdio_device_id __maybe_unused motorcomm_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8511) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8512) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8512B) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8522) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531S) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_YT8531) },
 	{ /* sentinal */ }

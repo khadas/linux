@@ -1098,6 +1098,8 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 
 		task->irq_status = irq_status;
 		mpp_task->hw_cycles = tb_reg[info->tb_reg_cycle];
+		mpp_task->hw_time = mpp_task->hw_cycles /
+				    (dec->cycle_clk->real_rate_hz / 1000000);
 		mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 		rkvdec2_link_finish(mpp, mpp_task);
 
@@ -1128,6 +1130,7 @@ static void rkvdec2_link_try_dequeue(struct mpp_dev *mpp)
 		}
 
 		wake_up(&mpp_task->wait);
+		mpp_dev_load(mpp, mpp_task);
 		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 	}
 
@@ -1190,6 +1193,10 @@ static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	if (!rkvdec2_link_prepare(mpp, mpp_task))
 		return -EBUSY;
 
+	if (mpp->srv->timing_en) {
+		mpp_task->on_run = ktime_get();
+		set_bit(TASK_TIMING_RUN, &mpp_task->state);
+	}
 	rkvdec2_link_enqueue(link_dec, mpp_task);
 
 	set_bit(TASK_STATE_RUNNING, &mpp_task->state);
@@ -1620,6 +1627,7 @@ static int rkvdec2_ccu_power_off(struct mpp_taskqueue *queue,
 static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 {
 	struct mpp_task *mpp_task = NULL, *n;
+	unsigned long flags;
 
 	mpp_debug_enter();
 
@@ -1648,6 +1656,8 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 			cancel_delayed_work(&mpp_task->timeout_work);
 			mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
+			mpp_task->hw_time = mpp_task->hw_cycles /
+					    (dec->cycle_clk->real_rate_hz / 1000000);
 			mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 			task->irq_status = irq_status;
 			mpp_debug(DEBUG_IRQ_CHECK, "irq_status=%08x, timeout=%u, abort=%u\n",
@@ -1665,7 +1675,10 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
 			/* free task */
+			spin_lock_irqsave(&queue->running_lock, flags);
 			list_del_init(&mpp_task->queue_link);
+			spin_unlock_irqrestore(&queue->running_lock, flags);
+			mpp_dev_load(mpp, mpp_task);
 			kref_put(&mpp_task->ref, mpp_free_task);
 		} else {
 			/* NOTE: break when meet not finish */
@@ -1829,6 +1842,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 	struct mpp_task *mpp_task = NULL, *n;
 	struct rkvdec2_dev *dec;
 	u32 err_task_iova;
+	unsigned long flags;
 
 	mpp_debug_enter();
 
@@ -1843,6 +1857,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 	dev_err(mpp->dev, "core %d err task iova %#08x\n", mpp->core_id, err_task_iova);
 	rockchip_iommu_mask_irq(mpp->dev);
 
+	spin_lock_irqsave(&queue->running_lock, flags);
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
 		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
 
@@ -1852,6 +1867,7 @@ int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 			break;
 		}
 	}
+	spin_unlock_irqrestore(&queue->running_lock, flags);
 	atomic_inc(&mpp->queue->reset_request);
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 
@@ -2018,7 +2034,6 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 	struct mpp_dev *mpp = container_of(work_s, struct mpp_dev, work);
 	struct mpp_taskqueue *queue = mpp->queue;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
-	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -2062,7 +2077,7 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 		if (!mpp)
 			break;
 
-		if (timing_en) {
+		if (mpp->srv->timing_en) {
 			mpp_task->on_run = ktime_get();
 			set_bit(TASK_TIMING_RUN, &mpp_task->state);
 		}
@@ -2213,6 +2228,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 	struct mpp_task *mpp_task = NULL, *n;
 	u32 dump_reg = 0;
 	u32 dequeue_none = 0;
+	unsigned long flags;
 
 	mpp_debug_enter();
 	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
@@ -2239,6 +2255,8 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 			cancel_delayed_work(&mpp_task->timeout_work);
 			mpp_task->hw_cycles = tb_reg[hw->tb_reg_cycle];
+			mpp_task->hw_time = mpp_task->hw_cycles /
+					    (dec->cycle_clk->real_rate_hz / 1000000);
 			mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
 			task->irq_status = irq_status ? irq_status : RKVDEC_ERROR_STA;
 
@@ -2260,9 +2278,11 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 				}
 				dump_reg = 1;
 			}
+			spin_lock_irqsave(&queue->running_lock, flags);
 			list_move_tail(&task->table->link, &ccu->unused_list);
 			/* free task */
 			list_del_init(&mpp_task->queue_link);
+			spin_unlock_irqrestore(&queue->running_lock, flags);
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
 			if ((irq_status & hw->err_mask) || timeout_flag) {
@@ -2271,7 +2291,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 					irq_status, timeout_flag, abort_flag);
 				atomic_inc(&queue->reset_request);
 			}
-
+			mpp_dev_load(mpp_task->session->mpp, mpp_task);
 			kref_put(&mpp_task->ref, mpp_free_task);
 		} else {
 			dequeue_none++;
@@ -2635,12 +2655,14 @@ void rkvdec2_hard_ccu_worker(struct kthread_work *work_s)
 		mpp_task = rkvdec2_hard_ccu_prepare(mpp_task, dec->ccu, dec->link_dec->info);
 		if (!mpp_task)
 			break;
-
+		if (mpp->srv->timing_en) {
+			mpp_task->on_run = ktime_get();
+			set_bit(TASK_TIMING_RUN, &mpp_task->state);
+		}
 		rkvdec2_ccu_power_on(queue, dec->ccu);
 		rkvdec2_hard_ccu_enqueue(dec->ccu, mpp_task, queue, mpp);
 		mpp_taskqueue_pending_to_run(queue, mpp_task);
 	}
-
 	/* 4. poweroff when running and pending list are empty */
 	mutex_lock(&queue->pending_lock);
 	if (list_empty(&queue->running_list) &&

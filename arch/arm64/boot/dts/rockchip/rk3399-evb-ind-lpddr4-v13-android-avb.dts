@@ -127,31 +127,6 @@
 &i2c1 {
 	status = "okay";
 
-	sgm3784: sgm3784@30 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "sgmicro,gsm3784";
-		reg = <0x30>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		//enable-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
-		//strobe-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-		sgm3784_led0: led@0 {
-			reg = <0x0>;
-			led-max-microamp = <299200>;
-			flash-max-microamp = <1122000>;
-			flash-max-timeout-us = <1600000>;
-		};
-
-		sgm3784_led1: led@1 {
-			reg = <0x1>;
-			led-max-microamp = <299200>;
-			flash-max-microamp = <1122000>;
-			flash-max-timeout-us = <1600000>;
-		};
-	};
-
 	vm149c: vm149c@0c {
 		compatible = "silicon touch,vm149c";
 		status = "okay";
@@ -205,7 +180,6 @@
 		rockchip,camera-module-name = "CMK-CT0116";
 		rockchip,camera-module-lens-name = "Largan-50013A1";
 		lens-focus = <&vm149c>;
-		flash-leds = <&sgm3784_led0 &sgm3784_led1>;
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;

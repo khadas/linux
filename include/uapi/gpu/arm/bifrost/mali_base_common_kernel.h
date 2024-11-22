@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2022-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2022-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -146,7 +146,6 @@ struct base_mem_handle {
  */
 #define BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP ((base_mem_alloc_flags)1 << 26)
 
-/* OUT */
 /* Kernel side cache sync ops required */
 #define BASE_MEM_KERNEL_SYNC ((base_mem_alloc_flags)1 << 28)
 
@@ -156,12 +155,10 @@ struct base_mem_handle {
  */
 #define BASE_MEM_FLAGS_NR_BITS 30
 
-/* A mask for all output bits, excluding IN/OUT bits.
- */
+/* A mask for all bits that are output from kbase, but never input. */
 #define BASE_MEM_FLAGS_OUTPUT_MASK BASE_MEM_NEED_MMAP
 
-/* A mask for all input bits, including IN/OUT bits.
- */
+/* A mask for all bits that can be input to kbase. */
 #define BASE_MEM_FLAGS_INPUT_MASK \
 	(((1 << BASE_MEM_FLAGS_NR_BITS) - 1) & ~BASE_MEM_FLAGS_OUTPUT_MASK)
 
@@ -221,11 +218,11 @@ typedef __u32 base_context_create_flags;
 /* Enable additional tracepoints for latency measurements (TL_ATOM_READY,
  * TL_ATOM_DONE, TL_ATOM_PRIO_CHANGE, TL_ATOM_EVENT_POST)
  */
-#define BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS (1 << 0)
+#define BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS (1U << 0)
 
 /* Indicate that job dumping is enabled. This could affect certain timers
  * to account for the performance impact.
  */
-#define BASE_TLSTREAM_JOB_DUMPING_ENABLED (1 << 1)
+#define BASE_TLSTREAM_JOB_DUMPING_ENABLED (1U << 1)
 
 #endif /* _UAPI_BASE_COMMON_KERNEL_H_ */

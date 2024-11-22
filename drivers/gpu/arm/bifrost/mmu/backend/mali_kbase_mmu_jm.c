@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #include <device/mali_kbase_device.h>
 #include <mali_kbase_as_fault_debugfs.h>
 #include <mmu/mali_kbase_mmu_internal.h>
+#include <mmu/mali_kbase_mmu_faults_decoder.h>
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut, struct kbase_mmu_setup *const setup)
 {
@@ -45,29 +46,37 @@ void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut, struct kbase_mmu_setup
 		(KBASE_MEMATTR_AARCH64_NON_CACHEABLE << (KBASE_MEMATTR_INDEX_NON_CACHEABLE * 8));
 
 	setup->transtab = (u64)mmut->pgd & AS_TRANSTAB_BASE_MASK;
-	setup->transcfg = AS_TRANSCFG_MODE_SET(0, AS_TRANSCFG_MODE_AARCH64_4K);
+	setup->transcfg = AS_TRANSCFG_MODE_SET(0ULL, AS_TRANSCFG_MODE_AARCH64_4K);
 }
 
 void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx, struct kbase_as *as,
 					 struct kbase_fault *fault)
 {
 	struct kbase_device *const kbdev = kctx->kbdev;
-	u32 const status = fault->status;
-	u32 const exception_type = (status & 0xFF);
-	u32 const exception_data = (status >> 8) & 0xFFFFFF;
-	int const as_no = as->number;
+	const u32 status = fault->status;
+	const u32 exception_type = AS_FAULTSTATUS_EXCEPTION_TYPE_GET(status);
+	const u32 access_type = AS_FAULTSTATUS_ACCESS_TYPE_GET(status);
+	const u32 source_id = AS_FAULTSTATUS_SOURCE_ID_GET(status);
+	unsigned int const as_no = as->number;
 	unsigned long flags;
 	const uintptr_t fault_addr = fault->addr;
 
 	/* terminal fault, print info about the fault */
 	dev_err(kbdev->dev,
-		"GPU bus fault in AS%d at PA %pK\n"
+		"GPU bus fault in AS%u at PA %pK\n"
 		"raw fault status: 0x%X\n"
 		"exception type 0x%X: %s\n"
-		"exception data 0x%X\n"
+		"access type 0x%X: %s\n"
+		"source id 0x%X (core_id:utlb:IR 0x%X:0x%X:0x%X): %s, %s\n"
 		"pid: %d\n",
 		as_no, (void *)fault_addr, status, exception_type,
-		kbase_gpu_exception_name(exception_type), exception_data, kctx->pid);
+		kbase_gpu_exception_name(exception_type), access_type,
+		kbase_gpu_access_type_name(access_type), source_id,
+		FAULT_SOURCE_ID_CORE_ID_GET(source_id), FAULT_SOURCE_ID_UTLB_ID_GET(source_id),
+		fault_source_id_internal_requester_get(kbdev, source_id),
+		fault_source_id_core_type_description_get(kbdev, source_id),
+		fault_source_id_internal_requester_get_str(kbdev, source_id, access_type),
+		kctx->pid);
 
 	/* switch to UNMAPPED mode, will abort all jobs and stop any hw counter
 	 * dumping AS transaction begin
@@ -95,38 +104,53 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx, struct kbase_as
 				     const char *reason_str, struct kbase_fault *fault)
 {
 	unsigned long flags;
-	u32 exception_type;
-	u32 access_type;
-	u32 source_id;
-	int as_no;
-	struct kbase_device *kbdev;
-	struct kbasep_js_device_data *js_devdata;
-
-	as_no = as->number;
-	kbdev = kctx->kbdev;
-	js_devdata = &kbdev->js_data;
+	struct kbase_device *kbdev = kctx->kbdev;
+	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
+	unsigned int as_no = as->number;
 
 	/* Make sure the context was active */
 	if (WARN_ON(atomic_read(&kctx->refcount) <= 0))
 		return;
 
-	/* decode the fault status */
-	exception_type = fault->status & 0xFF;
-	access_type = (fault->status >> 8) & 0x3;
-	source_id = (fault->status >> 16);
-
-	/* terminal fault, print info about the fault */
-	dev_err(kbdev->dev,
-		"Unhandled Page fault in AS%d at VA 0x%016llX\n"
-		"Reason: %s\n"
-		"raw fault status: 0x%X\n"
-		"exception type 0x%X: %s\n"
-		"access type 0x%X: %s\n"
-		"source id 0x%X\n"
-		"pid: %d\n",
-		as_no, fault->addr, reason_str, fault->status, exception_type,
-		kbase_gpu_exception_name(exception_type), access_type,
-		kbase_gpu_access_type_name(fault->status), source_id, kctx->pid);
+	if (!kbase_ctx_flag(kctx, KCTX_PAGE_FAULT_REPORT_SKIP)) {
+		/* decode the fault status */
+		const u32 status = fault->status;
+		const u32 exception_type = AS_FAULTSTATUS_EXCEPTION_TYPE_GET(status);
+		const u32 access_type = AS_FAULTSTATUS_ACCESS_TYPE_GET(status);
+		const u32 source_id = AS_FAULTSTATUS_SOURCE_ID_GET(status);
+		/* terminal fault, print info about the fault */
+		if (kbdev->gpu_props.gpu_id.product_model < GPU_ID_MODEL_MAKE(9, 0)) {
+			dev_err(kbdev->dev,
+				"Unhandled Page fault in AS%u at VA 0x%016llX\n"
+				"Reason: %s\n"
+				"raw fault status: 0x%X\n"
+				"exception type 0x%X: %s\n"
+				"access type 0x%X: %s\n"
+				"pid: %d\n",
+				as_no, fault->addr, reason_str, status, exception_type,
+				kbase_gpu_exception_name(exception_type), access_type,
+				kbase_gpu_access_type_name(status), kctx->pid);
+		} else {
+			dev_err(kbdev->dev,
+				"Unhandled Page fault in AS%u at VA 0x%016llX\n"
+				"Reason: %s\n"
+				"raw fault status: 0x%X\n"
+				"exception type 0x%X: %s\n"
+				"access type 0x%X: %s\n"
+				"source id 0x%X (core_id:utlb:IR 0x%X:0x%X:0x%X): %s, %s\n"
+				"pid: %d\n",
+				as_no, fault->addr, reason_str, status, exception_type,
+				kbase_gpu_exception_name(exception_type), access_type,
+				kbase_gpu_access_type_name(status), source_id,
+				FAULT_SOURCE_ID_CORE_ID_GET(source_id),
+				FAULT_SOURCE_ID_UTLB_ID_GET(source_id),
+				fault_source_id_internal_requester_get(kbdev, source_id),
+				fault_source_id_core_type_description_get(kbdev, source_id),
+				fault_source_id_internal_requester_get_str(kbdev, source_id,
+									   access_type),
+				kctx->pid);
+		}
+	}
 
 	/* hardware counters dump fault handling */
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
@@ -193,12 +217,12 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev, struct kbase
 		if (kbase_as_has_bus_fault(as, fault)) {
 			dev_warn(
 				kbdev->dev,
-				"Bus error in AS%d at PA 0x%pK with no context present! Spurious IRQ or SW Design Error?\n",
+				"Bus error in AS%u at PA 0x%pK with no context present! Spurious IRQ or SW Design Error?\n",
 				as->number, (void *)(uintptr_t)fault->addr);
 		} else {
 			dev_warn(
 				kbdev->dev,
-				"Page fault in AS%d at VA 0x%016llx with no context present! Spurious IRQ or SW Design Error?\n",
+				"Page fault in AS%u at VA 0x%016llx with no context present! Spurious IRQ or SW Design Error?\n",
 				as->number, fault->addr);
 		}
 		/* Since no ctx was found, the MMU must be disabled. */
@@ -236,7 +260,7 @@ static void kbase_mmu_interrupt_process(struct kbase_device *kbdev, struct kbase
 		 */
 		kbasep_js_clear_submit_allowed(js_devdata, kctx);
 
-		dev_warn(kbdev->dev, "Bus error in AS%d at PA=0x%pK, IPA=0x%pK\n", as->number,
+		dev_warn(kbdev->dev, "Bus error in AS%u at PA=0x%pK, IPA=0x%pK\n", as->number,
 			 (void *)(uintptr_t)fault->addr, (void *)(uintptr_t)fault->extra_addr);
 
 		/*
@@ -261,7 +285,7 @@ static void validate_protected_page_fault(struct kbase_device *kbdev)
 	 */
 	u32 protected_debug_mode = 0;
 
-	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
+	if (kbase_hw_has_feature(kbdev, KBASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
 		protected_debug_mode = kbase_reg_read32(kbdev, GPU_CONTROL_ENUM(GPU_STATUS)) &
 				       GPU_STATUS_GPU_DBG_ENABLED;
 	}
@@ -310,11 +334,11 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		 * the while logic ensures we have a bit set, no need to check
 		 * for not-found here
 		 */
-		as_no = ffs(bf_bits | pf_bits) - 1;
+		as_no = (unsigned int)ffs((int)(bf_bits | pf_bits)) - 1;
 		as = &kbdev->as[as_no];
 
 		/* find the fault type */
-		if (bf_bits & (1 << as_no))
+		if (bf_bits & (1UL << as_no))
 			fault = &as->bf_data;
 		else
 			fault = &as->pf_data;
@@ -375,13 +399,6 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 	spin_unlock_irqrestore(&kbdev->mmu_mask_change, flags);
 
 	dev_dbg(kbdev->dev, "Leaving %s irq_stat %u\n", __func__, irq_stat);
-}
-
-int kbase_mmu_switch_to_ir(struct kbase_context *const kctx, struct kbase_va_region *const reg)
-{
-	dev_dbg(kctx->kbdev->dev, "Switching to incremental rendering for region %pK\n",
-		(void *)reg);
-	return kbase_job_slot_softstop_start_rp(kctx, reg);
 }
 
 int kbase_mmu_as_init(struct kbase_device *kbdev, unsigned int i)

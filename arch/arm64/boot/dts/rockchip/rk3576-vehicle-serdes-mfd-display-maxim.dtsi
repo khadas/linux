@@ -540,7 +540,7 @@
 	};
 
 
-	himax@45 {
+	i2c8_himax: i2c8-himax@45 {
 		compatible = "himax,hxcommon";
 		reg = <0x45>;
 		pinctrl-names = "default", "sleep";
@@ -1067,7 +1067,7 @@
 		};
 	};
 
-	ilitek@41 {
+	i2c5_ilitek: i2c5-ilitek@41 {
 		compatible = "ilitek,ili251x";
 		reg = <0x41>;
 		interrupt-parent = <&gpio2>;
@@ -1595,7 +1595,7 @@
 		};
 	};
 
-	himax@45 {
+	i2c2_himax: i2c2-himax@45 {
 		compatible = "himax,hxcommon";
 		reg = <0x45>;
 		pinctrl-names = "default", "sleep";

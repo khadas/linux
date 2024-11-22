@@ -915,10 +915,12 @@ static int dmaengine_mpcm_get_fifo_count(struct device *dev,
 	} else if (strstr(dev_driver_string(component->dev), "sai")) {
 		reg = substream->stream ? SAI_RXFIFOLR : SAI_TXFIFOLR;
 
-		val = SAI_FIFOLR_XFL3(reg) +
-		      SAI_FIFOLR_XFL2(reg) +
-		      SAI_FIFOLR_XFL1(reg) +
-		      SAI_FIFOLR_XFL0(reg);
+		val = snd_soc_component_read(component, reg);
+
+		val = SAI_FIFOLR_XFL3(val) +
+		      SAI_FIFOLR_XFL2(val) +
+		      SAI_FIFOLR_XFL1(val) +
+		      SAI_FIFOLR_XFL0(val);
 	}
 
 	return val;

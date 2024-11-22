@@ -753,9 +753,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		clocks = <&cru CLK_USER_OTPC_NS>, <&cru CLK_SBPI_OTPC_NS>,
-			 <&cru PCLK_OTPC_NS>, <&cru PCLK_OTP_MASK>,
-			 <&cru CLK_OTPC_ARB>, <&cru CLK_PMC_OTP>;
-		clock-names = "usr", "sbpi", "apb", "phy", "arb", "pmc";
+			 <&cru PCLK_OTPC_NS>, <&cru PCLK_OTP_MASK>;
+		clock-names = "usr", "sbpi", "apb", "phy";
 		resets = <&cru SRST_USER_OTPC_NS>, <&cru SRST_SBPI_OTPC_NS>,
 			 <&cru SRST_P_OTPC_NS>, <&cru SRST_P_OTP_MASK>,
 			 <&cru SRST_OTPC_ARB>, <&cru SRST_PMC_OTP>;

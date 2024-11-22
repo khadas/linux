@@ -42,7 +42,7 @@
 #define PROC_INFO							\
 		. = ALIGN(4);						\
 		__proc_info_begin = .;					\
-		*(.proc.info.init)					\
+		KEEP(*(.proc.info.init))				\
 		__proc_info_end = .;
 
 #define IDMAP_TEXT							\
@@ -134,6 +134,11 @@
 		.vectors.bhb.bpiall {					\
 			*(.vectors.bhb.bpiall)				\
 		}							\
+	}								\
+	.vectors.text : {						\
+		KEEP(*(.vectors))					\
+		KEEP(*(.vectors.bhb.loop8))				\
+		KEEP(*(.vectors.bhb.bpiall))				\
 	}								\
 	ARM_LMA(__vectors, .vectors);					\
 	ARM_LMA(__vectors_bhb_loop8, .vectors.bhb.loop8);		\

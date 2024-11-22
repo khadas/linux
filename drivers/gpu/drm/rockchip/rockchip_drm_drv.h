@@ -168,16 +168,12 @@ struct rockchip_crtc {
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	/**
 	 * @vop_dump_status the status of vop dump control
-	 * @vop_dump_list_head the list head of vop dump list
-	 * @vop_dump_list_init_flag init once
 	 * @vop_dump_times control the dump times
-	 * @frme_count the frame of dump buf
+	 * @vop_dump_frame_count the frame of dump buf
 	 */
 	enum vop_dump_status vop_dump_status;
-	struct list_head vop_dump_list_head;
-	bool vop_dump_list_init_flag;
 	int vop_dump_times;
-	int frame_count;
+	int vop_dump_frame_count;
 #endif
 };
 
@@ -370,6 +366,11 @@ struct rockchip_mcu_timing {
 	int mcu_hold_mode;
 };
 
+struct vop_mcu_bypass_cfg {
+	const struct rockchip_mcu_timing timing;
+	unsigned long dclk_rate;
+};
+
 struct loader_cubic_lut {
 	bool enable;
 	u32 offset;
@@ -495,6 +496,7 @@ struct rockchip_crtc_funcs {
 	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 	void (*regs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 	void (*active_regs_dump)(struct drm_crtc *crtc, struct seq_file *s);
+	int (*regs_write)(struct drm_crtc *crtc, phys_addr_t address, u32 val);
 	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
 					   const struct drm_display_mode *mode,
 					   int output_type);
@@ -506,7 +508,7 @@ struct rockchip_crtc_funcs {
 	void (*crtc_output_post_enable)(struct drm_crtc *crtc, int intf);
 	void (*crtc_output_pre_disable)(struct drm_crtc *crtc, int intf);
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
-	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode);
+	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode, struct dmcfreq_vop_info *vop_bw_info);
 	int (*get_crc)(struct drm_crtc *crtc);
 };
 
@@ -643,6 +645,7 @@ long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long r
 int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
 bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
+const char *rockchip_drm_modifier_to_string(uint64_t modifier);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,

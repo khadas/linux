@@ -206,6 +206,8 @@ struct analogix_dp_device {
 	struct analogix_dp_compliance compliance;
 
 	u32 split_area;
+
+	const struct analogix_dp_output_format *output_fmt;
 };
 
 /* analogix_dp_reg.c */

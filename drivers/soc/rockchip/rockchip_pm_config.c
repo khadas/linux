@@ -351,8 +351,12 @@ static int parse_mcu_sleep_config(struct device_node *node)
 		goto free_mcu_mode;
 	}
 
-	/* Initialize core tag */
-	memset((void *)res.a1, 0, sizeof(struct rk_mcu_sleep_tags));
+	/* Initialize core tag.
+	 * Compiler may optimize the following code into: "str xzr, ..." or "stp xzr, xzr, ..."
+	 * if using memset, that can't guarantee the target address to be 8-byte alignment.
+	 * So we use memset_io instead.
+	 */
+	memset_io((void *)res.a1, 0, sizeof(struct rk_mcu_sleep_tags));
 	config = (struct rk_mcu_sleep_tags *)res.a1;
 	config->core.hdr.tag = RK_ATAG_MCU_SLP_CORE;
 	config->core.hdr.size = sizeof(struct rk_mcu_sleep_core_tag) / sizeof(u32);

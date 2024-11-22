@@ -90,6 +90,8 @@ struct rkisp_isp_params_vdev {
 
 	struct sensor_exposure_cfg exposure;
 
+	atomic_t open_cnt;
+
 	bool is_subs_evt;
 	bool is_first_cfg;
 };

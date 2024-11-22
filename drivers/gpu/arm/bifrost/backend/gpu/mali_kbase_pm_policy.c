@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -77,7 +77,16 @@ void kbase_pm_policy_init(struct kbase_device *kbdev)
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbdev->pm.backend.pm_current_policy = default_policy;
 	kbdev->pm.backend.csf_pm_sched_flags = default_policy->pm_sched_flags;
+
+#ifdef KBASE_PM_RUNTIME
+	if (kbase_pm_idle_groups_sched_suspendable(kbdev))
+		clear_bit(KBASE_GPU_IGNORE_IDLE_EVENT, &kbdev->pm.backend.gpu_sleep_allowed);
+	else
+		set_bit(KBASE_GPU_IGNORE_IDLE_EVENT, &kbdev->pm.backend.gpu_sleep_allowed);
+#endif /* KBASE_PM_RUNTIME */
+
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
 #else
 	CSTD_UNUSED(flags);
 	kbdev->pm.backend.pm_current_policy = default_policy;
@@ -127,7 +136,7 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 			pm->backend.poweroff_wait_in_progress = false;
 			pm->backend.l2_desired = true;
 #if MALI_USE_CSF
-			pm->backend.mcu_desired = true;
+			pm->backend.mcu_desired = pm->backend.mcu_poweron_required;
 #endif
 
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
@@ -228,7 +237,8 @@ void kbase_pm_update_cores_state(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
-int kbase_pm_list_policies(struct kbase_device *kbdev, const struct kbase_pm_policy *const **list)
+size_t kbase_pm_list_policies(struct kbase_device *kbdev,
+			      const struct kbase_pm_policy *const **list)
 {
 	CSTD_UNUSED(kbdev);
 	if (list)
@@ -294,7 +304,7 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_polic
 	bool reset_gpu = false;
 	bool reset_op_prevented = true;
 	struct kbase_csf_scheduler *scheduler = NULL;
-	u32 pwroff;
+	u64 pwroff_ns;
 	bool switching_to_always_on;
 #endif
 
@@ -304,9 +314,9 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_polic
 	KBASE_KTRACE_ADD(kbdev, PM_SET_POLICY, NULL, new_policy->id);
 
 #if MALI_USE_CSF
-	pwroff = kbase_csf_firmware_get_mcu_core_pwroff_time(kbdev);
+	pwroff_ns = kbase_csf_firmware_get_mcu_core_pwroff_time(kbdev);
 	switching_to_always_on = new_policy == &kbase_pm_always_on_policy_ops;
-	if (pwroff == 0 && !switching_to_always_on) {
+	if (pwroff_ns == 0 && !switching_to_always_on) {
 		dev_warn(
 			kbdev->dev,
 			"power_policy: cannot switch away from always_on with mcu_shader_pwroff_timeout set to 0\n");
@@ -399,6 +409,13 @@ void kbase_pm_set_policy(struct kbase_device *kbdev, const struct kbase_pm_polic
 	/* New policy in place, release the clamping on mcu/L2 off state */
 	kbdev->pm.backend.policy_change_clamp_state_to_off = false;
 	kbase_pm_update_state(kbdev);
+
+#ifdef KBASE_PM_RUNTIME
+	if (kbase_pm_idle_groups_sched_suspendable(kbdev))
+		clear_bit(KBASE_GPU_IGNORE_IDLE_EVENT, &kbdev->pm.backend.gpu_sleep_allowed);
+	else
+		set_bit(KBASE_GPU_IGNORE_IDLE_EVENT, &kbdev->pm.backend.gpu_sleep_allowed);
+#endif /* KBASE_PM_RUNTIME */
 #endif
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 

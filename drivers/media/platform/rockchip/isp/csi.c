@@ -541,7 +541,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		ret = rkisp_csi_get_hdr_cfg(dev, &hdr_cfg);
 		if (dev->isp_inp & INP_CIF) {
 			struct rkisp_vicap_mode mode;
-			int buf_cnt;
+			int buf_cnt = 0;
 
 			memset(&mode, 0, sizeof(mode));
 			mode.name = dev->name;
@@ -585,14 +585,16 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				}
 				if (dev->hdr.op_mode != HDR_NORMAL) {
 					buf_cnt = 1;
-					v4l2_subdev_call(mipi_sensor, core, ioctl,
-							 RKISP_VICAP_CMD_INIT_BUF, &buf_cnt);
 				}
 			} else if (mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
-				buf_cnt = RKISP_VICAP_BUF_CNT;
+				if (dev->vicap_buf_cnt)
+					buf_cnt = dev->vicap_buf_cnt;
+				else
+					buf_cnt = RKISP_VICAP_BUF_CNT;
+			}
+			if (buf_cnt)
 				v4l2_subdev_call(mipi_sensor, core, ioctl,
 						 RKISP_VICAP_CMD_INIT_BUF, &buf_cnt);
-			}
 		} else {
 			dev->hdr.op_mode = hdr_cfg.hdr_mode;
 		}

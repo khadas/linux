@@ -326,36 +326,34 @@ isp_bls_config(struct rkisp_isp_params_vdev *params_vdev,
 	new_control &= (ISP_BLS_ENA | ISP32_BLS_BLS2_EN);
 
 	pval = &arg->bls1_val;
-	if (arg->bls1_en) {
+	if (arg->bls1_en)
 		new_control |= ISP_BLS_BLS1_EN;
-
-		switch (params_vdev->raw_type) {
-		case RAW_BGGR:
-			isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_A_FIXED, id);
-			break;
-		case RAW_GBRG:
-			isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_B_FIXED, id);
-			break;
-		case RAW_GRBG:
-			isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_C_FIXED, id);
-			break;
-		case RAW_RGGB:
-		default:
-			isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_D_FIXED, id);
-			break;
-		}
+	switch (params_vdev->raw_type) {
+	case RAW_BGGR:
+		isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_A_FIXED, id);
+		break;
+	case RAW_GBRG:
+		isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_B_FIXED, id);
+		break;
+	case RAW_GRBG:
+		isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_C_FIXED, id);
+		break;
+	case RAW_RGGB:
+	default:
+		isp3_param_write(params_vdev, pval->r, ISP3X_BLS1_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP3X_BLS1_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP3X_BLS1_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP3X_BLS1_D_FIXED, id);
+		break;
 	}
 
 	/* fixed subtraction values */
@@ -1599,34 +1597,33 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	value = isp3_param_read(params_vdev, ISP3X_BLS_CTRL, id);
 	value &= ~ISP32_BLS_BLS2_EN;
-	if (arg->bls2_en) {
-		switch (params_vdev->raw_type) {
-		case RAW_BGGR:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_A_FIXED, id);
-			break;
-		case RAW_GBRG:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_B_FIXED, id);
-			break;
-		case RAW_GRBG:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_D_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_C_FIXED, id);
-			break;
-		case RAW_RGGB:
-		default:
-			isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED, id);
-			isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED, id);
-			isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED, id);
-			isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED, id);
-		}
+	if (arg->bls2_en)
 		value |= ISP32_BLS_BLS2_EN;
+	switch (params_vdev->raw_type) {
+	case RAW_BGGR:
+		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_A_FIXED, id);
+		break;
+	case RAW_GBRG:
+		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_B_FIXED, id);
+		break;
+	case RAW_GRBG:
+		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_D_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_C_FIXED, id);
+		break;
+	case RAW_RGGB:
+	default:
+		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED, id);
+		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED, id);
+		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED, id);
+		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED, id);
 	}
 	isp3_param_write(params_vdev, value, ISP3X_BLS_CTRL, id);
 
@@ -3545,6 +3542,8 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	value = isp3_param_read(params_vdev, ISP3X_BAY3D_CTRL, id);
+	if (value & BIT(1) && !arg->bypass_en)
+		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_RAW3D_FST_FRAME, id);
 	value &= (ISP32_MODULE_EN | ISP32_BAY3D_BWSAVING(1));
 
 	value |= !!arg->loswitch_protect << 12 |
@@ -4978,8 +4977,10 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 			isp3_param_write(params_vdev, addr + size * i, ISP32L_FRM_BUF_RD_BASE, i);
 		}
 	}
-	if (dev->hw_dev->is_single && (dev->isp_state & ISP_START))
+	if (dev->hw_dev->is_single && (dev->isp_state & ISP_START)) {
 		rkisp_set_bits(dev, ISP3X_ISP_CTRL0, 0, CIF_ISP_CTRL_ISP_CFG_UPD, true);
+		rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, CIF_ISP_CTRL_ISP_CFG_UPD);
+	}
 }
 
 static void rkisp_save_first_param_v32(struct rkisp_isp_params_vdev *params_vdev, void *param)

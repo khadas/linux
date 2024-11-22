@@ -186,6 +186,7 @@ config ROCKCHIP_LITE_ULTRA_SUSPEND
 
 config ROCKCHIP_SUSPEND_MODE
 	tristate "Rockchip suspend mode config"
+	depends on SUSPEND
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.
 
@@ -255,10 +256,23 @@ config ROCKCHIP_DEBUG
 config ROCKCHIP_MINI_KERNEL
 	bool "Rockchip Mini Kernel support"
 	select NO_GKI
-	default y if CPU_RV1106 || CPU_RV1126
+	default y if CPU_RV1103B || CPU_RV1106 || CPU_RV1126
 	help
 	  Say y here to enable Rockchip mini kernel support.
 	  This option make the kernel size smaller.
+
+if ROCKCHIP_MINI_KERNEL
+
+config ROCKCHIP_KMALLOC_NO_USE_ARCH_DMA_MINALIGN
+	bool "Rockchip kmalloc no use ARCH_DMA_MINALIGN"
+	default y if CPU_RV1103B || CPU_RV1106 || CPU_RV1126
+	help
+	  Say y here to make ARCH_KMALLOC_MINALIGN != ARCH_DMA_MINALIGN
+	  This option can save kmalloc memory but break drivers which
+	  assume kmalloc returned memory is aligned for DMA.
+	  If unsure, say N.
+
+endif
 
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"

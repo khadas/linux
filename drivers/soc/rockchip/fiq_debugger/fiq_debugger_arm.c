@@ -238,12 +238,16 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		const struct pt_regs *regs, unsigned int depth, void *ssp)
 {
 	struct frame_tail *tail;
+#ifdef THREAD_INFO
 	struct thread_info *real_thread_info = THREAD_INFO(ssp);
+#endif
 	struct stacktrace_state sts;
 
 	sts.depth = depth;
 	sts.output = output;
+#ifdef THREAD_INFO
 	*current_thread_info() = *real_thread_info;
+#endif
 
 	if (!current)
 		output->printf(output, "current NULL\n");

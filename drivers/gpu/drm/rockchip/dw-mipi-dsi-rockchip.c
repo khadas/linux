@@ -185,6 +185,13 @@
 #define RK3399_TXRX_SRC_SEL_ISP0	BIT(4)
 #define RK3399_TXRX_TURNREQUEST		GENMASK(3, 0)
 
+#define RK3506_SYS_GRF_SOC_CON6		0x0018
+#define RK3506_DSI_FORCETXSTOPMODE	(0xf << 4)
+#define RK3506_DSI_PHY_ENABLE_LANE1     BIT(9)
+#define RK3506_DSI_PHY_ENABLE_LANE0     BIT(8)
+#define RK3506_DSI_TURNDISABLE		BIT(2)
+#define RK3506_DSI_FORCERXMODE		BIT(0)
+
 #define RK3562_SYS_GRF_VO_CON1		0x05d4
 #define RK3562_DSI_FORCETXSTOPMODE	(0xf << 4)
 #define RK3562_DSI_TURNDISABLE		(0x1 << 2)
@@ -247,6 +254,7 @@ enum soc_type {
 	RK3128,
 	RK3288,
 	RK3399,
+	RK3506,
 	RK3562,
 	RK3568,
 	RV1126,
@@ -1770,6 +1778,25 @@ static const struct rockchip_dw_dsi_chip_data rk3399_chip_data[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dw_dsi_chip_data rk3506_chip_data[] = {
+	{
+		.reg = 0xff640000,
+		.lanecfg1_grf_reg = RK3506_SYS_GRF_SOC_CON6,
+		.lanecfg1 = HIWORD_UPDATE(RK3506_DSI_PHY_ENABLE_LANE0 |
+					  RK3506_DSI_PHY_ENABLE_LANE1,
+					  RK3506_DSI_TURNDISABLE |
+					  RK3506_DSI_FORCERXMODE |
+					  RK3506_DSI_FORCETXSTOPMODE |
+					  RK3506_DSI_PHY_ENABLE_LANE0 |
+					  RK3506_DSI_PHY_ENABLE_LANE1),
+
+		.max_data_lanes = 2,
+		.max_bit_rate_per_lane = 1500000000UL,
+		.soc_type = RK3506,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_dw_dsi_chip_data rk3562_chip_data[] = {
 	{
 		.reg = 0xffb10000,
@@ -1843,6 +1870,9 @@ static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 	}, {
 	 .compatible = "rockchip,rk3399-mipi-dsi",
 	 .data = &rk3399_chip_data,
+	}, {
+	 .compatible = "rockchip,rk3506-mipi-dsi",
+	 .data = &rk3506_chip_data,
 	}, {
 	 .compatible = "rockchip,rk3562-mipi-dsi",
 	 .data = &rk3562_chip_data,

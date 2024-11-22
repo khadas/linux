@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2024 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -63,6 +63,8 @@ config MALI_BIFROST_NO_MALI
 	  All calls to the simulated hardware will complete immediately as if the hardware
 	  completed the task.
 
+endchoice
+
 config MALI_NO_MALI_DEFAULT_GPU
 	string "Default GPU for No Mali"
 	depends on MALI_BIFROST_NO_MALI
@@ -70,8 +72,12 @@ config MALI_NO_MALI_DEFAULT_GPU
 	help
 	  This option sets the default GPU to identify as for No Mali builds.
 
-
-endchoice
+config MALI_IS_FPGA
+	bool "Enable build of Mali kernel driver for FPGA"
+	depends on MALI_BIFROST
+	default n
+	help
+	  This is the default HW backend.
 
 menu "Platform specific options"
 source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/bifrost/platform/Kconfig"
@@ -121,7 +127,7 @@ config MALI_BIFROST_ENABLE_TRACE
 
 config MALI_ARBITER_SUPPORT
 	bool "Enable arbiter support for Mali"
-	depends on MALI_BIFROST && !MALI_CSF_SUPPORT
+	depends on MALI_BIFROST
 	default n
 	help
 	  Enable support for the arbiter interface in the driver.
@@ -201,16 +207,6 @@ config PAGE_MIGRATION_SUPPORT
 	  If in doubt, say Y. To strip out page migration symbols and support,
 	  say N.
 
-config MALI_MEMORY_FULLY_BACKED
-	bool "Enable memory fully physically-backed"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-	default n
-	help
-	  This option enables full physical backing of all virtual
-	  memory allocations in the kernel. Notice that this build
-	  option only affects allocations of grow-on-GPU-page-fault
-	  memory.
-
 config MALI_CORESTACK
 	bool "Enable support of GPU core stack power control"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
@@ -223,16 +219,6 @@ config MALI_CORESTACK
 	  This feature is currently only supported on t-Six and t-HEx GPUs.
 
 	  If unsure, say N.
-
-comment "Platform options"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
-
-config MALI_BIFROST_ERROR_INJECT
-	bool "Enable No Mali error injection"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && MALI_BIFROST_NO_MALI
-	default n
-	help
-	  Enables insertion of errors to test module failure and recovery mechanisms.
 
 comment "Debug options"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
@@ -314,7 +300,7 @@ endchoice
 
 config MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS
 	bool "Enable runtime selection of performance counters set via debugfs"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && DEBUG_FS
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && DEBUG_FS && !MALI_CSF_SUPPORT
 	default n
 	help
 	  Select this option to make the secondary set of performance counters
@@ -361,7 +347,7 @@ config MALI_PWRSOFT_765
 	  changes have been backported say Y to avoid compilation errors.
 
 config MALI_HW_ERRATA_1485982_NOT_AFFECTED
-	bool "Disable workaround for BASE_HW_ISSUE_GPU2017_1336"
+	bool "Disable workaround for KBASE_HW_ISSUE_GPU2017_1336"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
@@ -373,7 +359,7 @@ config MALI_HW_ERRATA_1485982_NOT_AFFECTED
 	  coherency mode requires the L2 to be turned off.
 
 config MALI_HW_ERRATA_1485982_USE_CLOCK_ALTERNATIVE
-	bool "Use alternative workaround for BASE_HW_ISSUE_GPU2017_1336"
+	bool "Use alternative workaround for KBASE_HW_ISSUE_GPU2017_1336"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && !MALI_HW_ERRATA_1485982_NOT_AFFECTED
 	default n
 	help
@@ -403,6 +389,10 @@ config MALI_TRACE_POWER_GPU_WORK_PERIOD
 
 	  If unsure, say N.
 
+config MALI_CSF_INCLUDE_FW
+	depends on MALI_BIFROST && MALI_CSF_SUPPORT
+	bool "Whether to include CSF firmware into driver"
+	default y
 
 # source "$(MALI_KCONFIG_EXT_PREFIX)drivers/gpu/arm/bifrost/tests/Kconfig"
 
