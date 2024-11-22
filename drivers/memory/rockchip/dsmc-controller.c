@@ -507,6 +507,9 @@ static int dsmc_psram_cfg(struct rockchip_dsmc *dsmc, uint32_t cs)
 
 		mr_tmp = (mr_tmp & (~(XCCELA_MR4_WL_MASK << XCCELA_MR4_WL_SHIFT))) |
 			 (tmp << XCCELA_MR4_WL_SHIFT);
+		/* set 0.5x refresh rate allow */
+		mr_tmp = (mr_tmp & (~(XCCELA_MR4_REFRESH_MASK << XCCELA_MR4_REFRESH_SHIFT))) |
+			 (XCCELA_MR4_0_5_REFRESH_RATE << XCCELA_MR4_REFRESH_SHIFT);
 
 		xccela_write_mr(region_map, 4, mr_tmp);
 
