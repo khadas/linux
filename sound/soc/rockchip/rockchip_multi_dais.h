@@ -17,6 +17,7 @@ struct rk_dai {
 	struct snd_soc_dai *dai;
 	unsigned int fmt;
 	unsigned int fmt_msk;
+	bool trcm;
 };
 
 struct rk_mdais_dev {

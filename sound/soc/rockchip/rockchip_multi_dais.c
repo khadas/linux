@@ -25,6 +25,9 @@
 
 #define SOUND_NAME_PREFIX	"sound-name-prefix"
 
+#define I2S_CKR			0x8
+#define IS_I2S_TRCM(v)		((v) & GENMASK(29, 28))
+
 static inline struct rk_mdais_dev *to_info(struct snd_soc_dai *dai)
 {
 	return snd_soc_dai_get_drvdata(dai);
@@ -515,7 +518,7 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct snd_soc_dai_driver *soc_dai;
 	struct rk_dai *dais;
-	unsigned int *map;
+	unsigned int *map, val;
 	int count, mp_count;
 	int ret = 0, i = 0;
 
@@ -575,6 +578,11 @@ static int rockchip_mdais_probe(struct platform_device *pdev)
 		dais[i].dai = rockchip_mdais_find_dai(node);
 		if (!dais[i].dai)
 			return -EPROBE_DEFER;
+
+		if (strstr(dev_driver_string(dais[i].dai->dev), "i2s")) {
+			val = snd_soc_component_read(dais[i].dai->component, I2S_CKR);
+			dais[i].trcm = IS_I2S_TRCM(val);
+		}
 	}
 
 	mdais_parse_daifmt(np, dais, count);
