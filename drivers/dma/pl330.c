@@ -2695,6 +2695,13 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 			default:
 				WARN_ON(1);
 			}
+			/*
+			 * The infinitely cyclic without CPU intervention
+			 * use the single desc, so, should always return
+			 * DMA_IN_PROGRESS to match its status.
+			 */
+			if (desc->cyclic)
+				ret = DMA_IN_PROGRESS;
 			break;
 		}
 		if (desc->last)
