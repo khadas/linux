@@ -138,6 +138,7 @@ struct rk_i2s_tdm_dev {
 	bool tdm_mode;
 	bool tdm_fsync_half_frame;
 	bool is_dma_active[SNDRV_PCM_STREAM_LAST + 1];
+	bool no_pcm;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int mclk_root0_freq;
@@ -182,6 +183,20 @@ static struct i2s_of_quirks {
 		.id = QUIRK_HDMI_PATH,
 	},
 };
+
+static int rockchip_trcm_dma_guard_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
+					int stream, bool en)
+{
+	if (i2s_tdm->no_pcm)
+		return 0;
+
+	if (!i2s_tdm->pcm_comp) {
+		dev_err(i2s_tdm->dev, "Uninitialized component for TRCM\n");
+		return -EINVAL;
+	}
+
+	return dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, stream, en);
+}
 
 static bool rockchip_i2s_tdm_stream_valid(struct snd_pcm_substream *substream,
 					  struct snd_soc_dai *dai)
@@ -1100,7 +1115,7 @@ static void rockchip_i2s_tdm_xfer_trcm_start(struct rk_i2s_tdm_dev *i2s_tdm,
 		regmap_read(i2s_tdm->regmap, I2S_DMACR, &val);
 		en = I2S_DMACR_RDE(1) | I2S_DMACR_TDE(1);
 		if ((val & en) != en) {
-			dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, bstream, 1);
+			rockchip_trcm_dma_guard_ctrl(i2s_tdm, bstream, 1);
 			rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
 		}
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, 0);
@@ -1127,7 +1142,7 @@ static void rockchip_i2s_tdm_trcm_pause(struct snd_pcm_substream *substream,
 	int bstream = SNDRV_PCM_STREAM_LAST - stream;
 
 	if (i2s_tdm->pcm_comp)
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, stream, 0);
+		rockchip_trcm_dma_guard_ctrl(i2s_tdm, stream, 0);
 
 	/* store the current state, prepare for resume if necessary */
 	i2s_tdm->is_dma_active[bstream] = is_dma_active(i2s_tdm, bstream);
@@ -1145,7 +1160,7 @@ static void rockchip_i2s_tdm_trcm_resume(struct snd_pcm_substream *substream,
 	int bstream = SNDRV_PCM_STREAM_LAST - substream->stream;
 
 	if (i2s_tdm->pcm_comp) {
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, stream, 1);
+		rockchip_trcm_dma_guard_ctrl(i2s_tdm, stream, 1);
 		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
 	}
 
@@ -3005,6 +3020,7 @@ static int rockchip_i2s_tdm_register_platform(struct device *dev)
 	int ret = 0;
 
 	if (device_property_read_bool(dev, "rockchip,no-dmaengine")) {
+		i2s_tdm->no_pcm = true;
 		dev_info(dev, "Used for Multi-DAI\n");
 		return 0;
 	}
@@ -3049,8 +3065,8 @@ static int __maybe_unused i2s_tdm_runtime_suspend(struct device *dev)
 	if (i2s_tdm->pcm_comp && i2s_tdm->clk_trcm) {
 		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, 0, 0);
 		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, 1, 0);
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, 0, 0);
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, 1, 0);
+		rockchip_trcm_dma_guard_ctrl(i2s_tdm, 0, 0);
+		rockchip_trcm_dma_guard_ctrl(i2s_tdm, 1, 0);
 	}
 
 	regcache_cache_only(i2s_tdm->regmap, true);
