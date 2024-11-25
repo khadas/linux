@@ -105,6 +105,7 @@ struct meson_ir_chip {
 
 	dev_t chr_devno;
 	spinlock_t slock; /*spinlock for ir data*/
+	int receive_scancode;
 
 	unsigned int rx_count;
 	unsigned int rx_buffer[RX_BUFFER_MAX_SIZE];

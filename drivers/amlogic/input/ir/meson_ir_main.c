@@ -120,16 +120,18 @@ static int meson_ir_lookup_by_scancode(struct ir_map_tab *ir_map,
 {
 	int start = 0;
 	int end = ir_map->map_size - 1;
-	int mid;
+//	int mid;
 
 	while (start <= end) {
-		mid = (start + end) >> 1;
-		if (ir_map->codemap[mid].map.scancode < scancode)
-			start = mid + 1;
-		else if (ir_map->codemap[mid].map.scancode > scancode)
-			end = mid - 1;
-		else
-			return mid;
+//		mid = (start + end) >> 1;
+		if (ir_map->codemap[start].map.scancode == scancode) {
+			return start;
+		}
+		start = start + 1;
+//		else if (ir_map->codemap[mid].map.scancode > scancode)
+//			end = mid - 1;
+//		else
+//			return mid;
 	}
 
 	return -ENODATA;
@@ -251,7 +253,14 @@ static bool meson_ir_is_valid_custom(struct meson_ir_dev *dev)
 	if (chip->cur_tab) {
 		dev->keyup_delay = chip->cur_tab->tab.release_delay;
 		return true;
-	}
+	} else {
+        dev_err(chip->dev, "use sys_custom_code 0x%x\n", chip->sys_custom_code);
+        chip->cur_tab = meson_ir_seek_map_tab(chip, chip->sys_custom_code);
+        if (chip->cur_tab) {
+            dev->keyup_delay = chip->cur_tab->tab.release_delay;
+            return true;
+        }
+    }
 	return false;
 }
 
@@ -300,6 +309,7 @@ static void meson_ir_tasklet(unsigned long data)
 
 	switch (status) {
 	case IR_STATUS_NORMAL:
+		chip->receive_scancode = scancode;  //Assign scancode to the new node variable
 		meson_ir_dbg(chip->r_dev, "receive scancode=0x%x\n", scancode);
 		meson_ir_keydown(chip->r_dev, scancode, status);
 		break;
@@ -760,6 +770,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	chip->dev = &pdev->dev;
 	chip->rx_count = 0;
 
+	chip->sys_custom_code = 0xFF00;
 	chip->r_dev->dev = &pdev->dev;
 	chip->r_dev->platform_data = (void *)chip;
 	chip->r_dev->getkeycode = meson_ir_getkeycode;

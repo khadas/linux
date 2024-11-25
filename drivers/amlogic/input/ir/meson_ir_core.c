@@ -76,7 +76,7 @@ void meson_ir_timer_keyup(struct timer_list *t)
 static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 				u32 keycode)
 {
-	int cnt;
+	int cnt = 0;
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
 
@@ -86,6 +86,27 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 
 	if (dev->keypressed)
 		meson_ir_do_keyup(dev);
+
+	if (dev->setkey_mode) {
+		dev_err(dev->dev, "setkey mode force set keycode");
+		dev->keypressed = 1;
+		dev->last_scancode = scancode;
+		dev->last_keycode = 63;
+		//input_report_key(dev->input_device, 63, 1);
+		//input_sync(dev->input_device);
+		if (DECIDE_VENDOR_TA_ID) {
+			for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
+				if (chip->search_id[cnt] == ct->tab.vendor)
+					break;
+			}
+			input_report_key(dev->input_device_ots[cnt], 63, 1);
+			input_sync(dev->input_device_ots[cnt]);
+		} else {
+			input_report_key(dev->input_device, 63, 1);
+			input_sync(dev->input_device);
+		}
+		return;
+	}
 
 	if (keycode != KEY_RESERVED) {
 		dev->keypressed = 1;
@@ -171,6 +192,8 @@ void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0)
 	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_X);
 	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_Y);
 	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_WHEEL);
+
+	dev->setkey_mode = 0;
 }
 EXPORT_SYMBOL(meson_ir_input_ots_configure);
 

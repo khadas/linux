@@ -73,6 +73,7 @@ struct meson_ir_dev {
 	unsigned long keyup_delay;
 
 	u32 keypressed;
+	char setkey_mode;
 	u32 last_scancode;
 	u32 last_keycode;
 	u32 cur_hardcode;
