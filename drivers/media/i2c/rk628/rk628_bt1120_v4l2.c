@@ -2183,7 +2183,7 @@ static void rk628_bt1120_remove(struct i2c_client *client)
 {
 	struct rk628_bt1120 *bt1120 = i2c_get_clientdata(client);
 
-	debugfs_remove_recursive(bt1120->rk628->debug_dir);
+	rk628_debugfs_remove(bt1120->rk628);
 	if (!bt1120->hdmirx_irq) {
 		del_timer_sync(&bt1120->timer);
 		flush_work(&bt1120->work_i2c_poll);

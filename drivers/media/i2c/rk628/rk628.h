@@ -347,5 +347,6 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   u64 *dst_pclk);
 void rk628_version_parse(struct rk628 *rk628);
 void rk628_debugfs_create(struct rk628 *rk628);
+void rk628_debugfs_remove(struct rk628 *rk628);
 
 #endif

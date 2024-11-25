@@ -3774,7 +3774,7 @@ static int rk628_csi_remove(struct i2c_client *client)
 {
 	struct rk628_csi *csi = i2c_get_clientdata(client);
 
-	debugfs_remove_recursive(csi->rk628->debug_dir);
+	rk628_debugfs_remove(csi->rk628);
 	if (!csi->hdmirx_irq) {
 		del_timer_sync(&csi->timer);
 		flush_work(&csi->work_i2c_poll);

@@ -488,7 +488,13 @@ static void rk628_dbg_en_node(struct rk628 *rk628)
 
 void rk628_debugfs_create(struct rk628 *rk628)
 {
-	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
+	struct dentry *debugfs, *debugfs_tmp = debugfs_lookup("rk628", NULL);
+
+	debugfs = debugfs_tmp;
+	if (!debugfs)
+		debugfs = debugfs_create_dir("rk628", NULL);
+	dput(debugfs_tmp);
+	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs);
 	if (IS_ERR(rk628->debug_dir))
 		return;
 
@@ -497,6 +503,12 @@ void rk628_debugfs_create(struct rk628 *rk628)
 	rk628_post_process_pattern_node(rk628);
 }
 EXPORT_SYMBOL(rk628_debugfs_create);
+
+void rk628_debugfs_remove(struct rk628 *rk628)
+{
+	debugfs_remove_recursive(rk628->debug_dir);
+}
+EXPORT_SYMBOL(rk628_debugfs_remove);
 
 struct rk628 *rk628_i2c_register(struct i2c_client *client)
 {
