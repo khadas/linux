@@ -67,6 +67,8 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 
 	iommu_flush_iotlb_all(private->domain);
 
+	rk_obj->size = ret;
+
 	return 0;
 
 err_remove_node:
@@ -649,6 +651,15 @@ rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 	if (ret)
 		goto err_free_rk_obj;
 
+	/**
+	 * For iommu device, this size will be set in rockchip_gem_iommu_map().
+	 * The actual mapped size may be larger than the request size.
+	 *
+	 * For non-iommu device, set to the requested fb size.
+	 */
+	if (rk_obj->size == 0)
+		rk_obj->size = size;
+
 	return rk_obj;
 
 err_free_rk_obj:
@@ -729,7 +740,6 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 		return ERR_CAST(rk_obj);
 
 	obj = &rk_obj->base;
-	rk_obj->size = size;
 
 	/*
 	 * allocate a id of idr table where the obj is registered
