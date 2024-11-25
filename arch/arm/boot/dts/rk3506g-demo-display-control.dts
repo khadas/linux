@@ -225,7 +225,7 @@
 
 &can0 {
 	assigned-clocks = <&cru CLK_CAN0>;
-	assigned-clock-rates = <200000000>;
+	assigned-clock-rates = <300000000>;
 	pinctrl-0 = <&rm_io27_can0_tx &rm_io28_can0_rx>;
 	pinctrl-names = "default";
 	status = "okay";
