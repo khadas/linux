@@ -1626,6 +1626,14 @@ static void rk3568_dump_cru(void)
 }
 
 static int protect_clocks[] = {
+	CLK_PWM0,
+	PCLK_PWM0,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
+	CLK_PWM3,
+	PCLK_PWM3,
 	ACLK_VO,
 	HCLK_VO,
 	ACLK_VOP,
