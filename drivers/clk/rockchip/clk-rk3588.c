@@ -2437,6 +2437,23 @@ static void rk3588_dump_cru(void)
 	}
 }
 
+static int protect_clocks[] = {
+	CLK_PMU1PWM,
+	PCLK_PMU1PWM,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
+	CLK_PWM3,
+	PCLK_PWM3,
+	ACLK_VOP,
+	HCLK_VOP,
+	DCLK_VOP0,
+	DCLK_VOP1,
+	DCLK_VOP2,
+	DCLK_VOP3,
+};
+
 static void __init rk3588_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -2488,6 +2505,8 @@ static void __init rk3588_clk_init(struct device_node *np)
 
 	if (!rk_dump_cru)
 		rk_dump_cru = rk3588_dump_cru;
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3588_cru, "rockchip,rk3588-cru", rk3588_clk_init);
