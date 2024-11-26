@@ -233,11 +233,17 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		if (!(params->module_cfg_update & ISP32_MODULE_RTT_FST))
 			return;
 		spin_lock_irqsave(&params_vdev->config_lock, flags);
-		while (!list_empty(&params_vdev->params)) {
-			buf = list_first_entry(&params_vdev->params,
-					       struct rkisp_buffer, queue);
-			if (buf == params_buf)
-				break;
+		if (params->module_cfg_update & ~ISP32_MODULE_RTT_FST) {
+			while (!list_empty(&params_vdev->params)) {
+				buf = list_first_entry(&params_vdev->params,
+						       struct rkisp_buffer, queue);
+				if (buf == params_buf)
+					break;
+				list_del(&buf->queue);
+				vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+			}
+		} else {
+			buf = list_last_entry(&params_vdev->params, struct rkisp_buffer, queue);
 			list_del(&buf->queue);
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		}
