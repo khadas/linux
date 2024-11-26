@@ -1030,6 +1030,14 @@ static void rk3562_dump_cru(void)
 }
 
 static int protect_clocks[] = {
+	PCLK_PWM1_PERI,
+	CLK_PWM1_PERI,
+	PCLK_PWM2_PERI,
+	CLK_PWM2_PERI,
+	PCLK_PWM3_PERI,
+	CLK_PWM3_PERI,
+	PCLK_PMU1_PWM0,
+	CLK_PMU1_PWM0,
 	ACLK_VO_PRE,
 	HCLK_VO_PRE,
 	ACLK_VOP,
