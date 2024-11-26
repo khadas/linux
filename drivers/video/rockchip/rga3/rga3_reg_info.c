@@ -2151,6 +2151,16 @@ static int rga3_get_version(struct rga_scheduler_t *scheduler)
 	return 0;
 }
 
+static int rga3_read_status(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	job->intr_status = rga_read(RGA3_INT_RAW, scheduler);
+	job->hw_status = rga_read(RGA3_STATUS0, scheduler);
+	job->cmd_status = rga_read(RGA3_CMD_STATE, scheduler);
+	job->work_cycle = 0;
+
+	return 0;
+}
+
 static int rga3_irq(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job = scheduler->running_job;
@@ -2165,9 +2175,7 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
 		return IRQ_WAKE_THREAD;
 
-	job->intr_status = rga_read(RGA3_INT_RAW, scheduler);
-	job->hw_status = rga_read(RGA3_STATUS0, scheduler);
-	job->cmd_status = rga_read(RGA3_CMD_STATE, scheduler);
+	scheduler->ops->read_status(job, scheduler);
 
 	if (DEBUGGER_EN(INT_FLAG))
 		rga_job_log(job, "irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
@@ -2224,7 +2232,7 @@ const struct rga_backend_ops rga3_ops = {
 	.init_reg = rga3_init_reg,
 	.soft_reset = rga3_soft_reset,
 	.read_back_reg = NULL,
-	.read_status = NULL,
+	.read_status = rga3_read_status,
 	.irq = rga3_irq,
 	.isr_thread = rga3_isr_thread,
 };
