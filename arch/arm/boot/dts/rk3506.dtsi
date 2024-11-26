@@ -47,6 +47,8 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN0>, <&cru SRST_H_CAN0>;
 		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN0>;
+		assigned-clock-rates = <300000000>;
 		status = "disabled";
 	};
 
@@ -58,6 +60,8 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN1>, <&cru SRST_H_CAN1>;
 		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN1>;
+		assigned-clock-rates = <300000000>;
 		status = "disabled";
 	};
 
