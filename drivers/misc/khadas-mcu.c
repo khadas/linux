@@ -106,11 +106,11 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 
-/*extern void realtek_enable_wol(int enable, bool suspend);
+extern void realtek_enable_wol(int enable, bool suspend);
 void mcu_enable_wol(int enable, bool suspend)
 {
 	realtek_enable_wol(enable, suspend);
-}*/
+}
 static int i2c_master_reg8_send(const struct i2c_client *client,
 		const char reg, const char *buf, int count)
 {
@@ -635,7 +635,7 @@ static ssize_t store_wol_enable(struct class *cls, struct class_attribute *attr,
 	}
 
 	g_mcu_data->wol_enable = reg[0];
-//	mcu_enable_wol(g_mcu_data->wol_enable, false);
+	mcu_enable_wol(g_mcu_data->wol_enable, false);
 
 	printk("write wol state: %d\n", g_mcu_data->wol_enable);
 	return count;
@@ -858,7 +858,6 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit;
 
 	g_mcu_data->wol_enable = (int)reg[0] & 0x01;
-	//printk("hlm wol_enable=%d\n", g_mcu_data->wol_enable);
 /*	if (g_mcu_data->wol_enable)
                 mcu_enable_wol(g_mcu_data->wol_enable, false);*/
 
