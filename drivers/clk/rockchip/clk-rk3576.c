@@ -1739,6 +1739,12 @@ static void rk3576_dump_cru(void)
 }
 
 static int protect_clocks[] = {
+	CLK_PMU1PWM,
+	PCLK_PMU1PWM,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
 	ACLK_EBC,
 	HCLK_EBC,
 	DCLK_EBC,
