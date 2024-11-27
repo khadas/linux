@@ -46,6 +46,7 @@ struct analogix_dp_plat_data {
 
 	bool split_mode;
 	bool dual_channel_mode;
+	bool dual_channel_swap;
 
 	/* split with other display interface */
 	bool dual_connector_split;

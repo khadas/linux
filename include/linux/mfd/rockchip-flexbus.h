@@ -84,6 +84,7 @@
 /* Bit fields in TX_CTL */
 #define FLEXBUS_TX_CTL_UNIT_BYTE	BIT(14)
 #define FLEXBUS_TX_CTL_MSB		BIT(13)
+#define FLEXBUS_TX_CTL_CPHA_SHIFT	2
 
 /* Bit fields in RX_CTL */
 #define FLEXBUS_RX_CTL_FILL_DUMMY	BIT(17)
@@ -91,6 +92,7 @@
 #define FLEXBUS_RX_CTL_MSB		BIT(15)
 #define FLEXBUS_AUTOPAD			BIT(14)
 #define FLEXBUS_RXD_DY			BIT(5)
+#define FLEXBUS_RX_CTL_CPHA_SHIFT	2
 
 /* Bit fields in DMA_WAT_INT */
 #define FLEXBUS_SRC_WAT_LVL_MASK	0x3

@@ -2385,6 +2385,11 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 w = out_crop->width, h = out_crop->height;
 	u32 i, value, ctrl, thumb_row, thumb_col, blk_het, blk_wid;
 
+	if (dev->unite_div > ISP_UNITE_DIV1)
+		w = w / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+	if (dev->unite_div == ISP_UNITE_DIV4)
+		h = h / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+
 	ctrl = isp3_param_read(params_vdev, ISP3X_DHAZ_CTRL, id);
 	ctrl &= ISP3X_DHAZ_ENMUX;
 

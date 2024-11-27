@@ -22,11 +22,12 @@
 enum rk801_reg {
 	RK801_ID_DCDC1,
 	RK801_ID_DCDC2,
-	RK801_ID_DCDC3,
 	RK801_ID_DCDC4,
+	RK801_ID_DCDC3,
 	RK801_ID_LDO1,
 	RK801_ID_LDO2,
 	RK801_ID_SWITCH,
+	RK801_ID_MAX,
 };
 
 #define RK801_SLP_REG_OFFSET                     5
@@ -106,6 +107,11 @@ enum rk801_reg {
 #define RK801_IRQ_HOTDIE_MSK                     BIT(4)
 #define RK801_IRQ_VDC_RISE_MSK                   BIT(5)
 #define RK801_IRQ_VDC_FALL_MSK                   BIT(6)
+
+/* RK801_SLP_LP_CONFIG_REG */
+#define RK801_BUCK_SLP_LP_EN                     BIT(3)
+#define RK801_PLDO_SLP_LP_EN                     BIT(1)
+#define RK801_SLP_LP_MASK                        (RK801_PLDO_SLP_LP_EN | RK801_BUCK_SLP_LP_EN)
 
 /* RK801_SLEEP_CFG_REG */
 #define RK801_SLEEP_FUN_MSK                      0x3

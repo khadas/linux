@@ -32,8 +32,10 @@
 #define RK3588_PCIE3PHY_GRF_CMN_CON0		0x0
 #define RK3588_PCIE3PHY_GRF_PHY0_STATUS1	0x904
 #define RK3588_PCIE3PHY_GRF_PHY1_STATUS1	0xa04
-#define RK3588_SRAM_INIT_DONE(reg)		((reg & 0xff) == 0x49)
-#define RK3588_SRAM_INIT_TIMEOUT		20000
+#define RK3588_SRAM_INIT_DONE(reg)		((reg & 0xf) == 0xf)
+
+/* Common definition */
+#define RK_PCIE_SRAM_INIT_TIMEOUT		20000
 
 struct rockchip_p3phy_ops;
 
@@ -55,6 +57,7 @@ struct rockchip_p3phy_priv {
 
 struct rockchip_p3phy_ops {
 	int (*phy_init)(struct rockchip_p3phy_priv *priv);
+	int (*phy_calibrate)(struct rockchip_p3phy_priv *priv);
 };
 
 static int rockchip_p3phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -132,39 +135,63 @@ out:
 	return ret;
 }
 
+static int rockchip_p3phy_rk3568_calibrate(struct rockchip_p3phy_priv *priv)
+{
+	int ret;
+	u32 reg;
+
+	ret = regmap_read_poll_timeout(priv->phy_grf,
+				       GRF_PCIE30PHY_STATUS0,
+				       reg, SRAM_INIT_DONE(reg),
+				       100, RK_PCIE_SRAM_INIT_TIMEOUT);
+	if (ret)
+		pr_err("%s: lock failed 0x%x, check input refclk and power supply\n",
+		       __func__, reg);
+
+	return ret;
+}
+
 static const struct rockchip_p3phy_ops rk3568_ops = {
 	.phy_init = rockchip_p3phy_rk3568_init,
+	.phy_calibrate = rockchip_p3phy_rk3568_calibrate,
 };
 
 static int rockchip_p3phy_rk3588_init(struct rockchip_p3phy_priv *priv)
 {
-	u32 reg = 0;
-	int ret;
-
 	/* Deassert PCIe PMA output clamp mode */
 	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0, BIT(8) | BIT(24));
 
 	reset_control_deassert(priv->p30phy);
 
+	return 0;
+}
+
+static int rockchip_p3phy_rk3588_calibrate(struct rockchip_p3phy_priv *priv)
+{
+	int ret = 0;
+	u32 reg;
+
 	ret = regmap_read_poll_timeout(priv->phy_grf,
 				       RK3588_PCIE3PHY_GRF_PHY0_STATUS1,
 				       reg, RK3588_SRAM_INIT_DONE(reg),
-				       100, RK3588_SRAM_INIT_TIMEOUT);
+				       100, RK_PCIE_SRAM_INIT_TIMEOUT);
 	if (priv->pcie30_phymode == PHY_MODE_PCIE_AGGREGATION) {
 		ret |= regmap_read_poll_timeout(priv->phy_grf,
 						RK3588_PCIE3PHY_GRF_PHY1_STATUS1,
 						reg, RK3588_SRAM_INIT_DONE(reg),
-						100, RK3588_SRAM_INIT_TIMEOUT);
+						100, RK_PCIE_SRAM_INIT_TIMEOUT);
 	}
 
 	if (ret)
 		dev_err(&priv->phy->dev, "%s: lock failed 0x%x, check input refclk and power supply\n",
 		       __func__, reg);
+
 	return ret;
 }
 
 static const struct rockchip_p3phy_ops rk3588_ops = {
 	.phy_init = rockchip_p3phy_rk3588_init,
+	.phy_calibrate = rockchip_p3phy_rk3588_calibrate,
 };
 
 static int rochchip_p3phy_init(struct phy *phy)

@@ -100,6 +100,7 @@ static struct rockchip_cpuclk_rate_table rk3506_cpuclk_rates[] __initdata = {
 	RK3506_CPUCLK_RATE(1008000000, 1, 7),
 	RK3506_CPUCLK_RATE(903168000, 1, 7),
 	RK3506_CPUCLK_RATE(800000000, 1, 6),
+	RK3506_CPUCLK_RATE(750000000, 1, 5),
 	RK3506_CPUCLK_RATE(589824000, 1, 4),
 	RK3506_CPUCLK_RATE(400000000, 1, 3),
 	RK3506_CPUCLK_RATE(200000000, 1, 1),
@@ -160,7 +161,8 @@ static struct rockchip_pll_clock rk3506_pll_clks[] __initdata = {
 		     RK3506_MODE_CON, 2, 0, 0, rk3506_pll_rates),
 	[v1pll] = PLL(pll_rk3328, PLL_V1PLL, "v1pll", mux_pll_p,
 		     0, RK3506_PLL_CON(16),
-		     RK3506_MODE_CON, 4, 1, 0, rk3506_pll_rates),
+		     RK3506_MODE_CON, 4, 1,
+		     ROCKCHIP_PLL_ALLOW_POWER_DOWN, rk3506_pll_rates),
 };
 
 static struct rockchip_clk_branch rk3506_armclk __initdata =

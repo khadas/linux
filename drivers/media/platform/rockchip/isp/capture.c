@@ -356,7 +356,7 @@ void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
 		if (!isp ||
 		    (isp && !(isp->isp_inp & INP_CSI)))
 			continue;
-		for (j = RKISP_STREAM_DMATX0; j < RKISP_MAX_STREAM; j++) {
+		for (j = RKISP_STREAM_DMATX0; j <= RKISP_STREAM_DMATX3; j++) {
 			stream = &isp->cap_dev.stream[j];
 			if (!stream->linked || stream->curr_buf || stream->next_buf)
 				continue;

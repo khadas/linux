@@ -741,6 +741,7 @@
 &pcie0 {
 	reset-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
+	rockchip,s2r-perst-inactive-ms = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_poweren_gpio>;
 	status = "okay";

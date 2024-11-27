@@ -145,8 +145,8 @@ static const uint32_t formats_for_rk356x_esmart[] = {
 	DRM_FORMAT_NV15, /* yuv420_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV20, /* yuv422_10bit linear mode, 2 plane, no padding */
 	DRM_FORMAT_NV30, /* yuv444_10bit linear mode, 2 plane, no padding */
-	DRM_FORMAT_YUYV, /* yuv422_8bit[YUYV] linear mode */
-	DRM_FORMAT_UYVY, /* yuv422_8bit[UYVY] linear mode */
+	DRM_FORMAT_YVYU, /* yuv422_8bit[YVYU] linear mode */
+	DRM_FORMAT_VYUY, /* yuv422_8bit[VYUY] linear mode */
 };
 
 /* used from rk3576, add argb1555 format */
@@ -1487,6 +1487,9 @@ static const struct vop2_video_port_regs rk3576_vop_vp0_regs = {
 	.post_dsp_out_r2y = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 15),
 	.pre_dither_down_en = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 16),
 	.dither_down_en = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 17),
+	.dither_frc_0 = VOP_REG(RK3576_VP0_POST_DITHER_FRC_0, 0xffffffff, 0),
+	.dither_frc_1 = VOP_REG(RK3576_VP0_POST_DITHER_FRC_1, 0xffffffff, 0),
+	.dither_frc_2 = VOP_REG(RK3576_VP0_POST_DITHER_FRC_2, 0xffffffff, 0),
 	.dither_down_sel = VOP_REG(RK3568_VP0_DSP_CTRL, 0x3, 18),
 	.dither_down_mode = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 20),
 	.gamma_update_en = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 22),
@@ -1600,6 +1603,9 @@ static const struct vop2_video_port_regs rk3576_vop_vp1_regs = {
 	.post_dsp_out_r2y = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 15),
 	.pre_dither_down_en = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 16),
 	.dither_down_en = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 17),
+	.dither_frc_0 = VOP_REG(RK3576_VP1_POST_DITHER_FRC_0, 0xffffffff, 0),
+	.dither_frc_1 = VOP_REG(RK3576_VP1_POST_DITHER_FRC_1, 0xffffffff, 0),
+	.dither_frc_2 = VOP_REG(RK3576_VP1_POST_DITHER_FRC_2, 0xffffffff, 0),
 	.dither_down_sel = VOP_REG(RK3568_VP1_DSP_CTRL, 0x3, 18),
 	.dither_down_mode = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 20),
 	.gamma_update_en = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 22),
