@@ -558,6 +558,7 @@ static void rkisp_dvfs(struct rkisp_device *dev)
 static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 {
 	struct rkisp_hw_dev *hw = dev->hw_dev;
+	u32 val;
 
 	if (on) {
 		/* enable mi */
@@ -571,6 +572,9 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			rkisp_update_regs(dev, ISP3X_MI_BP_WR_CTRL, ISP3X_MI_BP_WR_CTRL);
 			rkisp_update_regs(dev, ISP32_MI_BPDS_WR_CTRL, ISP32_MI_BPDS_WR_CTRL);
 			rkisp_update_regs(dev, ISP32_MI_MPDS_WR_CTRL, ISP32_MI_MPDS_WR_CTRL);
+			/* restore bay3d iir_wr and ds_wr */
+			rkisp_update_regs(dev, ISP3X_MI_BAY3D_IIR_WR_BASE, ISP3X_MI_BAY3D_IIR_WR_SIZE);
+			rkisp_update_regs(dev, ISP3X_MI_BAY3D_DS_WR_BASE, ISP3X_MI_BAY3D_DS_WR_SIZE);
 		}
 	} else {
 		/* disabled mi. rv1106 sdmmc workaround, 3a_wr no close */
@@ -590,6 +594,14 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
 			writel(0, hw->base_addr + ISP32_MI_BPDS_WR_CTRL);
 			writel(0, hw->base_addr + ISP32_MI_MPDS_WR_CTRL);
+			/* drop bay3d iir_wr and ds_wr data */
+			writel(4096, hw->base_addr + ISP3X_MI_BAY3D_IIR_WR_SIZE);
+			writel(4096, hw->base_addr + ISP3X_MI_BAY3D_DS_WR_SIZE);
+			val = readl(hw->base_addr +  ISP3X_MI_3A_WR_BASE);
+			if (val) {
+				writel(val, hw->base_addr + ISP3X_MI_BAY3D_IIR_WR_BASE);
+				writel(val, hw->base_addr + ISP3X_MI_BAY3D_DS_WR_BASE);
+			}
 		}
 	}
 	rkisp_unite_write(dev, ISP3X_MI_WR_INIT, CIF_MI_INIT_SOFT_UPD, true);
