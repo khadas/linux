@@ -1385,6 +1385,29 @@
 		};
 	};
 
+	rm_io_idle {
+		/omit-if-no-ref/
+		rm_io9_idle_pins: rm-io9-idle-pins {
+			rockchip,pins =
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+		/omit-if-no-ref/
+		rm_io10_idle_pins: rm-io10-idle-pins {
+			rockchip,pins =
+				<0 RK_PB2 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+		/omit-if-no-ref/
+		rm_io11_idle_pins: rm-io11-idle-pins {
+			rockchip,pins =
+				<0 RK_PB3 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+		/omit-if-no-ref/
+		rm_io12_idle_pins: rm-io12-idle-pins {
+			rockchip,pins =
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+	};
+
 	vo_lcdc {
 		/omit-if-no-ref/
 		bt1120_pins: bt1120-pins {
