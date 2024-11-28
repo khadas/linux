@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
@@ -5997,9 +5998,9 @@ static int dw_dp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops dw_dp_pm_ops = {
-	SET_RUNTIME_PM_OPS(dw_dp_runtime_suspend, dw_dp_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dw_dp_suspend_noirq, dw_dp_resume_noirq)
-	SET_SYSTEM_SLEEP_PM_OPS(dw_dp_suspend, dw_dp_resume)
+	RUNTIME_PM_OPS(dw_dp_runtime_suspend, dw_dp_runtime_resume, NULL)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(dw_dp_suspend_noirq, dw_dp_resume_noirq)
+	SYSTEM_SLEEP_PM_OPS(dw_dp_suspend, dw_dp_resume)
 };
 
 static const struct dw_dp_chip_data rk3588_dp[] = {
@@ -6058,6 +6059,6 @@ struct platform_driver dw_dp_driver = {
 	.driver = {
 		.name = "dw-dp",
 		.of_match_table = dw_dp_of_match,
-		.pm = &dw_dp_pm_ops,
+		.pm = pm_ptr(&dw_dp_pm_ops),
 	},
 };

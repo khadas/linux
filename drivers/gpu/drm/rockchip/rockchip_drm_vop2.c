@@ -21,6 +21,7 @@
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
 #endif
+#include <dt-bindings/display/rockchip_vop.h>
 
 #include <linux/debugfs.h>
 #include <linux/fixp-arith.h>
@@ -242,20 +243,6 @@ enum vop2_hdr_lut_mode {
 
 enum vop2_pending {
 	VOP_PENDING_FB_UNREF,
-};
-
-enum vop2_layer_phy_id {
-	ROCKCHIP_VOP2_CLUSTER0 = 0,
-	ROCKCHIP_VOP2_CLUSTER1,
-	ROCKCHIP_VOP2_ESMART0,
-	ROCKCHIP_VOP2_ESMART1,
-	ROCKCHIP_VOP2_SMART0,
-	ROCKCHIP_VOP2_SMART1,
-	ROCKCHIP_VOP2_CLUSTER2,
-	ROCKCHIP_VOP2_CLUSTER3,
-	ROCKCHIP_VOP2_ESMART2,
-	ROCKCHIP_VOP2_ESMART3,
-	ROCKCHIP_VOP2_PHY_ID_INVALID = -1,
 };
 
 struct pixel_shift_data {
@@ -810,7 +797,7 @@ struct vop2_video_port {
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
 	 * will be used to show uboot logo and kernel logo
 	 */
-	enum vop2_layer_phy_id primary_plane_phy_id;
+	int primary_plane_phy_id;
 
 	struct post_acm acm_info;
 	struct post_csc csc_info;
@@ -2463,7 +2450,8 @@ static bool vop3_output_rb_swap(struct rockchip_crtc_state *vcstate)
 	 * The default component order of serial rgb3x8 formats
 	 * is BGR. So it is needed to enable RB swap.
 	 */
-	if (bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
+	if (bus_format == MEDIA_BUS_FMT_BGR888_1X24 ||
+	    bus_format == MEDIA_BUS_FMT_RGB888_3X8 ||
 	    bus_format == MEDIA_BUS_FMT_RGB888_DUMMY_4X8)
 		return true;
 	else
@@ -3259,9 +3247,15 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 	int is_output_yuv = vcstate->yuv_overlay;
 	struct vop2_win *win = to_vop2_win(pstate->plane);
 	int csc_y2r_bit_depth = CSC_10BIT_DEPTH;
+	int input_color_range = pstate->color_range;
 
 	if (win->feature & WIN_FEATURE_Y2R_13BIT_DEPTH)
 		csc_y2r_bit_depth = CSC_13BIT_DEPTH;
+
+	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data) {
+		is_input_yuv = true;
+		input_color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	}
 
 	vpstate->y2r_en = 0;
 	vpstate->r2y_en = 0;
@@ -3272,7 +3266,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 			if (is_input_yuv) {
 				vpstate->y2r_en = 1;
 				vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
-									  pstate->color_range,
+									  input_color_range,
 									  CSC_13BIT_DEPTH);
 			}
 			return;
@@ -3280,7 +3274,7 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 			if (is_input_yuv) {
 				vpstate->y2r_en = 1;
 				vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
-									  pstate->color_range,
+									  input_color_range,
 									  csc_y2r_bit_depth);
 			}
 			return;
@@ -3316,15 +3310,16 @@ static void vop2_setup_csc_mode(struct vop2_video_port *vp,
 		}
 	}
 
-	if ((win->feature & WIN_FEATURE_DCI) && vpstate->dci_data)
-		is_input_yuv = true;
-
 	if (is_input_yuv && !is_output_yuv) {
 		vpstate->y2r_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding, pstate->color_range, csc_y2r_bit_depth);
+		vpstate->csc_mode = vop2_convert_csc_mode(pstate->color_encoding,
+							  input_color_range,
+							  csc_y2r_bit_depth);
 	} else if (!is_input_yuv && is_output_yuv) {
 		vpstate->r2y_en = 1;
-		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_10BIT_DEPTH);
+		vpstate->csc_mode = vop2_convert_csc_mode(vcstate->color_encoding,
+							  vcstate->color_range,
+							  CSC_10BIT_DEPTH);
 
 		/**
 		 * VOP YUV overlay only can support YUV limit range, so force
@@ -4159,6 +4154,10 @@ static void vop3_layer_map_initial(struct vop2 *vop2, uint32_t current_vp_id)
 {
 	uint16_t vp_id;
 	struct drm_plane *plane = NULL;
+	int i = 0;
+
+	for (i = 0; i < vop2->data->nr_vps; i++)
+		vop2->vps[i].win_mask = 0;
 
 	drm_for_each_plane(plane, vop2->drm_dev) {
 		struct vop2_win *win = to_vop2_win(plane);
@@ -4382,14 +4381,6 @@ static void vop2_initial(struct drm_crtc *crtc)
 		if (vop2->version == VOP_VERSION_RK3576) {
 			/* Default use rkiommu 1.0 for axi0 */
 			VOP_CTRL_SET(vop2, rkmmu_v2_en, 0);
-
-			/* Init frc2.0 config */
-			vop2_writel(vop2, 0xca0, 0xc8);
-			vop2_writel(vop2, 0xca4, 0x01000100);
-			vop2_writel(vop2, 0xca8, 0x03ff0100);
-			vop2_writel(vop2, 0xda0, 0xc8);
-			vop2_writel(vop2, 0xda4, 0x01000100);
-			vop2_writel(vop2, 0xda8, 0x03ff0100);
 
 			if (vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
@@ -8103,9 +8094,9 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 		pre_dither_down_en = false;
 
 	if (vp_data->feature & VOP_FEATURE_POST_FRC_V2 && pre_dither_down_en) {
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_0, 0x00000000);
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_1, 0x01000100);
-		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_2, 0x04030100);
+		VOP_MODULE_SET(vop2, vp, dither_frc_0, 0x00000000);
+		VOP_MODULE_SET(vop2, vp, dither_frc_1, 0x01000100);
+		VOP_MODULE_SET(vop2, vp, dither_frc_2, 0x04030100);
 
 		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);/* enable frc2.0 do 10->8 */
@@ -11533,7 +11524,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	if (is_yuv_output(vcstate->bus_format))
 		convert_mode.is_output_yuv = true;
 
-	if (vp->has_dci_enabled_win)
+	if (!vcstate->yuv_overlay || vp->has_dci_enabled_win)
 		convert_mode.is_input_full_range = true;
 	else if (has_yuv_plane)
 		convert_mode.is_input_full_range =

@@ -3597,10 +3597,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	dclk_inv = (s->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
-	/* For improving signal quality, dclk need to be inverted by default on rv1106. */
-	if (vop->version == VOP_VERSION_RV1106)
-		dclk_inv = !dclk_inv;
-
 	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
@@ -3616,6 +3612,15 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_DPI:
+		/*
+		 * In order to ensure that the data is sampled along the rising
+		 * edge without flag DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE, dclk of
+		 * bt1120/bt656/rgb need to be inverted by default on rv1106 and
+		 * rk3506.
+		 */
+		if (vop->version == VOP_VERSION_RV1106 || vop->version == VOP_VERSION_RK3506)
+			dclk_inv = !dclk_inv;
+		fallthrough;
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
 		VOP_CTRL_SET(vop, rgb_pin_pol, val);

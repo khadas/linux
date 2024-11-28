@@ -3108,8 +3108,7 @@ static time64_t rk817_get_rtc_sec(void)
 	return rtc_tm_to_time64(&tm);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int  rk817_bat_pm_suspend(struct device *dev)
+static int rk817_bat_pm_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rk817_battery_device *battery = dev_get_drvdata(&pdev->dev);
@@ -3395,18 +3394,17 @@ static int rk817_bat_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(rk817_bat_pm_ops,
-			 rk817_bat_pm_suspend,
-			 rk817_bat_pm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(rk817_bat_pm_ops,
+				rk817_bat_pm_suspend,
+				rk817_bat_pm_resume);
 
 static struct platform_driver rk817_battery_driver = {
 	.probe = rk817_battery_probe,
 	.shutdown = rk817_battery_shutdown,
 	.driver = {
 		.name = "rk817-battery",
-		.pm = &rk817_bat_pm_ops,
+		.pm = pm_sleep_ptr(&rk817_bat_pm_ops),
 		.of_match_table = of_match_ptr(rk817_bat_of_match),
 	},
 };

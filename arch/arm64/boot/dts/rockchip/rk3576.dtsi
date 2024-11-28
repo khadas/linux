@@ -75,6 +75,8 @@
 		spi4 = &spi4;
 		spi5 = &sfc0;
 		spi6 = &sfc1;
+		spi7 = &flexbus_spi;
+		spi8 = &flexbus_fspi;
 	};
 
 	clocks {
@@ -394,8 +396,9 @@
 		opp-shared;
 		rockchip,opp-shared-cci;
 
-		nvmem-cells = <&cpul_leakage>, <&cpul_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		nvmem-cells = <&cpul_leakage>, <&cpul_opp_info>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
 			0	1764	0
@@ -436,27 +439,32 @@
 		rockchip,low-temp-min-volt = <800000>;
 
 		opp-408000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <712500 712500 950000>;
 			opp-microvolt-L0 = <725000 725000 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <712500 712500 950000>;
 			opp-microvolt-L0 = <737500 737500 950000>;
@@ -464,6 +472,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <712500 712500 950000>;
 			opp-microvolt-L0 = <775000 775000 950000>;
@@ -475,6 +484,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <812500 812500 950000>;
 			opp-microvolt-L1 = <800000 800000 950000>;
@@ -490,6 +500,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <887500 887500 950000>;
 			opp-microvolt-L1 = <875000 875000 950000>;
@@ -505,7 +516,25 @@
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
+		/* The Max frequency of RK3576S cluster0 is 1920MHz */
+		opp-s-1920000000 {
+			opp-supported-hw = <0x08 0xffff>;
+			opp-hz = /bits/ 64 <1920000000>;
+			opp-microvolt = <925000 92500 950000>;
+			opp-microvolt-L1 = <912500 912500 950000>;
+			opp-microvolt-L2 = <900000 900000 950000>;
+			opp-microvolt-L3 = <887500 887500 950000>;
+			opp-microvolt-L4 = <875000 875000 950000>;
+			opp-microvolt-L5 = <862500 862500 950000>;
+			opp-microvolt-L6 = <850000 850000 950000>;
+			opp-microvolt-L7 = <837500 837500 950000>;
+			opp-microvolt-L8 = <825000 825000 950000>;
+			opp-microvolt-L9 = <812500 812500 950000>;
+			opp-microvolt-L10 = <800000 800000 950000>;
+			clock-latency-ns = <40000>;
+		};
 		opp-2016000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <950000 950000 950000>;
 			opp-microvolt-L1 = <937500 937500 950000>;
@@ -527,8 +556,9 @@
 		opp-shared;
 		rockchip,cpu-freq-percent = <90>;
 
-		nvmem-cells = <&cpub_leakage>, <&cpub_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		nvmem-cells = <&cpub_leakage>, <&cpub_opp_info>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
 			0	1919	0
@@ -569,27 +599,32 @@
 		rockchip,low-temp-min-volt = <800000>;
 
 		opp-408000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <408000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-600000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <816000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1008000000>;
 			opp-microvolt = <712500 712500 950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <712500 712500 950000>;
 			opp-microvolt-L0 = <750000 750000 950000>;
@@ -599,6 +634,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1416000000>;
 			opp-microvolt = <712500 712500 950000>;
 			opp-microvolt-L0 = <750000 750000 950000>;
@@ -608,6 +644,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <725000 725000 950000>;
 			opp-microvolt-L0 = <775000 775000 950000>;
@@ -618,6 +655,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <825000 825000 950000>;
 			opp-microvolt-L1 = <825000 825000 950000>;
@@ -633,6 +671,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2016000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <887500 887500 950000>;
 			opp-microvolt-L1 = <887500 887500 950000>;
@@ -647,7 +686,25 @@
 			opp-microvolt-L10 = <775000 775000 950000>;
 			clock-latency-ns = <40000>;
 		};
+		/* The Max frequency of RK3576S cluster1 is 2112MHz */
+		opp-s-2112000000 {
+			opp-supported-hw = <0x08 0xffff>;
+			opp-hz = /bits/ 64 <2112000000>;
+			opp-microvolt = <937500 937500 950000>;
+			opp-microvolt-L1 = <925000 925000 950000>;
+			opp-microvolt-L2 = <912500 912500 950000>;
+			opp-microvolt-L3 = <900000 900000 950000>;
+			opp-microvolt-L4 = <887500 887500 950000>;
+			opp-microvolt-L5 = <875000 875000 950000>;
+			opp-microvolt-L6 = <862500 862500 950000>;
+			opp-microvolt-L7 = <850000 850000 950000>;
+			opp-microvolt-L8 = <837500 837500 950000>;
+			opp-microvolt-L9 = <825000 825000 950000>;
+			opp-microvolt-L10 = <812500 812500 950000>;
+			clock-latency-ns = <40000>;
+		};
 		opp-2208000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <2208000000>;
 			opp-microvolt = <950000 950000 950000>;
 			opp-microvolt-L1 = <950000 950000 950000>;
@@ -2067,8 +2124,9 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&npu_leakage>, <&npu_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		nvmem-cells = <&npu_leakage>, <&npu_opp_info>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
 			0	719	0
@@ -2111,26 +2169,40 @@
 		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <725000 725000 875000>;
 		};
 		opp-400000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <725000 725000 875000>;
 		};
+		/* The Max frequency of RK3576S NPU is 500MHz */
+		opp-s-500000000 {
+			opp-supported-hw = <0x08 0xffff>;
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <725000 725000 875000>;
+			opp-microvolt-L0 = <750000 750000 875000>;
+			opp-microvolt-L1 = <737500 737500 875000>;
+			opp-microvolt-L2 = <737500 737500 875000>;
+		};
 		opp-500000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <725000 725000 875000>;
 			opp-microvolt-L0 = <737500 737500 875000>;
 			opp-microvolt-L1 = <737500 737500 875000>;
 		};
 		opp-600000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <725000 725000 875000>;
 			opp-microvolt-L0 = <737500 737500 875000>;
 			opp-microvolt-L1 = <737500 737500 875000>;
 		};
 		opp-700000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <725000 725000 875000>;
 			opp-microvolt-L0 = <775000 775000 875000>;
@@ -2142,6 +2214,7 @@
 			opp-microvolt-L6 = <725000 725000 875000>;
 		};
 		opp-800000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <800000 800000 875000>;
 			opp-microvolt-L1 = <800000 800000 875000>;
@@ -2156,6 +2229,7 @@
 			opp-microvolt-L10 = <725000 725000 875000>;
 		};
 		opp-900000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <850000 850000 875000>;
 			opp-microvolt-L1 = <850000 850000 875000>;
@@ -2170,6 +2244,7 @@
 			opp-microvolt-L10 = <737500 737500 875000>;
 		};
 		opp-950000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <950000000>;
 			opp-microvolt = <875000 875000 875000>;
 			opp-microvolt-L1 = <875000 875000 875000>;
@@ -2226,8 +2301,9 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>;
-		nvmem-cell-names = "leakage", "opp-info";
+		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
 			0	704	0
@@ -2268,22 +2344,27 @@
 		rockchip,low-temp-min-volt = <750000>;
 
 		opp-300000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-400000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-500000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-600000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <712500 712500 875000>;
 		};
 		opp-700000000 {
+			opp-supported-hw = <0xff 0xffff>;
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <712500 712500 875000>;
 			opp-microvolt-L0 = <750000 750000 875000>;
@@ -2292,7 +2373,24 @@
 			opp-microvolt-L3 = <725000 725000 875000>;
 			opp-microvolt-L4 = <725000 725000 875000>;
 		};
+		/* The Max frequency of RK3576S GPU is 800MHz */
+		opp-s-800000000 {
+			opp-supported-hw = <0x08 0xffff>;
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <837500 837500 875000>;
+			opp-microvolt-L1 = <825000 825000 875000>;
+			opp-microvolt-L2 = <812500 812500 875000>;
+			opp-microvolt-L3 = <800000 800000 875000>;
+			opp-microvolt-L4 = <787500 787500 875000>;
+			opp-microvolt-L5 = <775000 775000 875000>;
+			opp-microvolt-L6 = <762500 762500 875000>;
+			opp-microvolt-L7 = <750000 750000 875000>;
+			opp-microvolt-L8 = <737500 737500 875000>;
+			opp-microvolt-L9 = <725000 725000 875000>;
+			opp-microvolt-L10 = <725000 725000 875000>;
+		};
 		opp-800000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <812500 812500 875000>;
 			opp-microvolt-L1 = <812500 812500 875000>;
@@ -2307,6 +2405,7 @@
 			opp-microvolt-L10 = <725000 725000 875000>;
 		};
 		opp-900000000 {
+			opp-supported-hw = <0xf7 0xffff>;
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <875000 875000 875000>;
 			opp-microvolt-L1 = <875000 875000 875000>;
@@ -4271,6 +4370,13 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		flexbus_spi: spi {
+			compatible = "rockchip,flexbus-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	sfc1: spi@2a300000 {
@@ -4395,6 +4501,10 @@
 		otp_cpu_version: cpu-version@5 {
 			reg = <0x05 0x1>;
 			bits = <3 3>;
+		};
+		specification_serial_number: specification-serial-number@8 {
+			reg = <0x08 0x1>;
+			bits = <0 5>;
 		};
 		otp_id: id@a {
 			reg = <0x0a 0x10>;

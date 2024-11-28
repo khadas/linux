@@ -893,9 +893,9 @@ static int iep2_init(struct mpp_dev *mpp)
 	iep->roi.vaddr = dma_alloc_coherent(mpp->dev, iep->roi.size,
 					    &iep->roi.iova,
 					    GFP_KERNEL);
-	if (iep->roi.vaddr) {
+	if (!iep->roi.vaddr) {
 		dev_err(mpp->dev, "allocate roi buffer failed\n");
-		//return -ENOMEM;
+		return -ENOMEM;
 	}
 
 	return 0;

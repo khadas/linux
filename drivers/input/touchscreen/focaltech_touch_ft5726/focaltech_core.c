@@ -2108,7 +2108,7 @@ static int fts_core_pm_resume(struct device *dev)
     return 0;
 }
 const struct dev_pm_ops fts_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fts_core_pm_suspend, fts_core_pm_resume)
+	SYSTEM_SLEEP_PM_OPS(fts_core_pm_suspend, fts_core_pm_resume)
 	//SET_RUNTIME_PM_OPS(fts_core_rt_suspend, fts_core_rt_resume,NULL)
 	//.suspend = fts_core_pm_suspend,
       // .resume = fts_core_pm_resume,

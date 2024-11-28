@@ -898,6 +898,9 @@ struct vop2_video_port_regs {
 	struct vop_reg dither_down_mode;
 	struct vop_reg dither_down_en;
 	struct vop_reg pre_dither_down_en;
+	struct vop_reg dither_frc_0;
+	struct vop_reg dither_frc_1;
+	struct vop_reg dither_frc_2;
 	struct vop_reg dither_up_en;
 	struct vop_reg bg_dly;
 
