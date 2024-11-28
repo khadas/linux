@@ -5775,10 +5775,12 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		int hsub = fb->format->hsub;
 		int vsub = fb->format->vsub;
 
-		if (fb->format->char_per_block[0] == 0)
+		if (fb->format->char_per_block[0] == 0) {
 			offset = ALIGN_DOWN(src->x1 >> 16, tile_size) * fb->format->cpp[1] / hsub * tile_size;
-		else
-			offset = drm_format_info_min_pitch(fb->format, 1, ALIGN_DOWN(src->x1 >> 16, tile_size)) * tile_size / hsub;
+		} else {
+			offset = drm_format_info_min_pitch(fb->format, 1, ALIGN_DOWN(src->x1 >> 16, tile_size)) * tile_size;
+			offset /= hsub;
+		}
 
 		if (vpstate->tiled_en)
 			offset /= vsub;
@@ -8604,7 +8606,8 @@ static int vop2_calc_dsc_clk(struct drm_crtc *crtc)
 	 * so when txp_clk is equal to v_pixclk, we set dsc_cds = crtc_clock / 4,
 	 * otherwise dsc_cds = crtc_clock / 8;
 	 */
-	vcstate->dsc_cds_clk_rate = v_pixclk / (vcstate->dsc_txp_clk_rate == v_pixclk ? 4 : 8);
+	vcstate->dsc_cds_clk_rate = v_pixclk;
+	do_div(vcstate->dsc_cds_clk_rate, (vcstate->dsc_txp_clk_rate == v_pixclk ? 4 : 8));
 
 	return 0;
 }
