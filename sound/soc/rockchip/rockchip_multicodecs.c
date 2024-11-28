@@ -740,6 +740,16 @@ static int rk_multicodecs_probe_keys(struct platform_device *pdev,
 	return ret;
 }
 
+static int rk_multicodecs_resume_post(struct snd_soc_card *card)
+{
+	struct multicodecs_data *mc_data = dev_get_drvdata(card->dev);
+
+	if (gpiod_to_irq(mc_data->hp_det_gpio) >= 0)
+		queue_delayed_work(system_power_efficient_wq, &mc_data->handler,
+				   msecs_to_jiffies(200));
+	return 0;
+}
+
 static int rk_multicodecs_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
@@ -917,6 +927,8 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	mc_data->hp_det_gpio = devm_gpiod_get_optional(&pdev->dev, "hp-det", GPIOD_IN);
 	if (IS_ERR(mc_data->hp_det_gpio))
 		return PTR_ERR(mc_data->hp_det_gpio);
+	if (gpiod_to_irq(mc_data->hp_det_gpio) >= 0)
+		card->resume_post = &rk_multicodecs_resume_post;
 
 	mc_data->extcon = devm_extcon_dev_allocate(&pdev->dev, headset_extcon_cable);
 	if (IS_ERR(mc_data->extcon)) {
