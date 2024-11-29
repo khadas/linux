@@ -3624,6 +3624,7 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	struct vop2_wb_connector_state *wb_state = to_wb_state(conn_state);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(cstate);
 	struct vop2_video_port *vp = to_vop2_video_port(cstate->crtc);
+	struct vop2 *vop2 = vp->vop2;
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
@@ -3637,6 +3638,7 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 		cstate->connectors_changed = false;
 		DRM_DEBUG("VP%d force change connectors_changed to false when only wb changed\n", vp->id);
 	}
+
 	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
 		return 0;
 
@@ -3646,6 +3648,16 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	if (!fb->format->is_yuv && is_yuv_output(vcstate->bus_format)) {
 		DRM_ERROR("YUV2RGB is not supported by writeback\n");
 		return -EINVAL;
+	}
+
+	/*
+	 * For vop version of rk3568/88, a non-16pixel-aligned width will be round
+	 * down to 16 pixel aligned by VOP hardware.
+	 */
+	if (vop2->version <= VOP_VERSION_RK3588) {
+		if (fb->width & 0xf)
+			drm_warn(vop2->drm_dev, "writeback width will be aligned down to %d\n",
+				 ALIGN_DOWN(fb->width, 16));
 	}
 
 	if ((fb->width > cstate->mode.hdisplay) ||
