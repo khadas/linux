@@ -68,7 +68,9 @@
 #define CLK_PPM_MIN				(-1000)
 #define CLK_PPM_MAX				(1000)
 #define CLK_SHIFT_RATE_HZ_MAX			5
+#define MAXBURST				16
 #define MAXBURST_PER_FIFO			8
+#define DEPTH_PER_FIFO				32
 #define WAIT_TIME_MS_MAX			10000
 
 #define TRCM_TXRX				0
@@ -2421,7 +2423,7 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 				 int slots, int slot_width)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
-	unsigned int mask, val;
+	unsigned int mask, val, wl, fifos;
 	int ret;
 
 	i2s_tdm->tdm_mode = true;
@@ -2458,10 +2460,24 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 	 *
 	 * 16 word: WL = 16 / 4 = 4
 	 */
+	if (!i2s_tdm->tdm_fsync_half_frame)
+		fifos = slots / 4;
+	else
+		fifos = slots / 2;
+
+	if (!fifos)
+		fifos = 1;
+
+	/* RK3568 I2S2/I2S3 TDM has only one FIFO */
+	if (strstr(dev_name(dai->dev), "fe420000") || strstr(dev_name(dai->dev), "fe430000"))
+		fifos = 1;
+
+	wl = ((DEPTH_PER_FIFO * fifos) - MAXBURST) / fifos;
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
-			   I2S_DMACR_TDL(28));
+			   I2S_DMACR_TDL(wl));
+	wl = MAXBURST / fifos;
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
-			   I2S_DMACR_RDL(4));
+			   I2S_DMACR_RDL(wl));
 
 	pm_runtime_put(dai->dev);
 
