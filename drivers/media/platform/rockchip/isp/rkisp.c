@@ -1128,7 +1128,7 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 				isp->sw_rd_cnt *= 2;
 				isp->sw_rd_cnt += 1;
 			}
-		} else {
+		} else if (hw->unite == ISP_UNITE_ONE) {
 			isp->sw_rd_cnt += (isp->unite_div - 1);
 		}
 		/* first frame handle twice for thunderboot
