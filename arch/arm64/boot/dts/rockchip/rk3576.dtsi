@@ -4785,7 +4785,6 @@
 			 <&cru CLK_REF_UFS_CLKOUT>;
 		clock-names = "core", "pclk", "pclk_mphy",
 			      "ref_out";
-		freq-table-hz = <50000000 250000000>, <0 0>, <0 0>, <0 0>;
 		assigned-clocks = <&cru CLK_REF_OSC_MPHY>;
 		assigned-clock-parents = <&cru CLK_REF_MPHY_26M>;
 		interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>;
