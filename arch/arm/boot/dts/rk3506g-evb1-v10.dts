@@ -131,6 +131,20 @@
 	status = "okay";
 };
 
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io26_uart3_tx &rm_io25_uart3_rx &rm_io24_uart3_rtsn &rm_io29_uart3_ctsn>;
+	linux,rs485-enabled-at-boot-time;	/* enable rs485 */
+	status = "okay";
+};
+
+&uart4 {
+	dma-names = "!tx", "!rx";	/* remove ! to enable dma */
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io27_uart4_tx &rm_io28_uart4_rx>;   /* vccio1 */
+	status = "okay";
+};
+
 &u2phy_otg0 {
 	vbus-supply = <&vcc5v0_otg0>;
 	rockchip,gpio-vbus-det;
