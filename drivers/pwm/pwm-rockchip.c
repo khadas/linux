@@ -20,9 +20,12 @@
 #include <linux/pwm.h>
 #include <linux/pwm-rockchip.h>
 #include <linux/time.h>
+#include <media/rc-core.h>
 #include "pwm-rockchip-irq-callbacks.h"
 
 #define PWM_MAX_CHANNEL_NUM	8
+
+#define PWM_IR_TRANSMIT_BUFFER_SIZE	7
 
 /*
  * regs for pwm v1-v3
@@ -101,6 +104,9 @@
 #define CLK_PRESCALE(v)			HIWORD_UPDATE(v, 0, 2)
 #define CLK_SCALE(v)			HIWORD_UPDATE(v, 4, 12)
 #define CLK_SRC_SEL(v)			HIWORD_UPDATE(v, 13, 14)
+#define SRC_CLK_PWM			0
+#define SRC_CLK_PWM_OSC			1
+#define SRC_CLK_PWM_RC			2
 #define CLK_GLOBAL_SEL(v)		HIWORD_UPDATE(v, 15, 15)
 /* CTRL */
 #define CTRL_V4				0xc
@@ -220,6 +226,46 @@
 #define GLOBAL_CTRL			0xc4
 #define GLOBAL_PWM_EN(v)		HIWORD_UPDATE(v, 0, 0)
 #define GLOBAL_PWM_UPDATE_EN(v)		HIWORD_UPDATE(v, 1, 1)
+/* IR_TRANS_ARBITER */
+#define IR_TRANS_ARBITER		0x180
+#define IR_TRANS_GRANT_SHIFT		0
+#define IR_TRANS_READ_LOCK_SHIFT	16
+/* IR_TRANS_CTRL0 */
+#define IR_TRANS_CTRL0			0x184
+#define IR_TRANS_OUT_ENABLE(v)		HIWORD_UPDATE(v, 0, 0)
+#define IR_TRANS_DUTY_POL(v)		HIWORD_UPDATE(v, 1, 1)
+#define IR_TRANS_INACTIVE_POL(v)	HIWORD_UPDATE(v, 2, 2)
+#define IR_TRANS_MODE(v)		HIWORD_UPDATE(v, 3, 3)
+#define IR_TRANS_FORMAT(v)		HIWORD_UPDATE(v, 4, 7)
+#define NEC_WITH_SIMPLE_REPEAT_CODE	0
+#define NEC_WITH_FULL_REPEAT_CODE	1
+#define TC9012				2
+#define SONY				3
+/* IR_TRANS_CTRL1 */
+#define IR_TRANS_CTRL1			0x188
+#define IR_TRANS_RPT(v)			HIWORD_UPDATE(v, 0, 15)
+/* IR_TRANS_PRE */
+#define IR_TRANS_PRE			0x18c
+#define IR_TRANS_OUT_LOW_PRELOAD_SHIFT	0
+#define IR_TRANS_OUT_HIGH_PRELOAD_SHIFT	16
+/* IR_TRANS_SPRE */
+#define IR_TRANS_SPRE			0x190
+#define IR_TRANS_OUT_HIGH_SIMPLE_PRELOAD_SHIFT	0
+/* IR_TRANS_LD */
+#define IR_TRANS_LD			0x194
+#define IR_TRANS_OUT_DATA_LOW_PERIOD_SHIFT	0
+/* IR_TRANS_HD */
+#define IR_TRANS_HD			0x198
+#define IR_TRANS_OUT_HIGH_PERIOD_FOR_ZERO_SHIFT	0
+#define IR_TRANS_OUT_HIGH_PERIOD_FOR_ONE_SHIFT	16
+/* IR_TRANS_BURST_FRAME */
+#define IR_TRANS_BURST_FRAME		0x19c
+#define IR_TRANS_OUT_FRAME_PERIOD_SHIFT	0
+#define IR_TRANS_OUT_FRAME_PERIOD_MASK	(0x3ffff << IR_TRANS_OUT_FRAME_PERIOD_SHIFT)
+#define IR_TRANS_OUT_BURST_PERIOD_SHIFT	20
+/* IR_TRANS_DATA_VALUE */
+#define IR_TRANS_DATA_VALUE		0x1a0
+#define IR_TRANS_OUT_VALUE_SHIFT	0
 /* FREQ_ARBITER */
 #define FREQ_ARBITER			0x1c0
 #define FREQ_GRANT_SHIFT		0
@@ -264,6 +310,7 @@ struct rockchip_pwm_chip {
 	const struct rockchip_pwm_biphasic_config *biphasic_config;
 	struct resource *res;
 	struct dentry *debugfs;
+	struct completion ir_trans_completion;
 	void __iomem *base;
 	unsigned long clk_rate;
 	unsigned long is_clk_enabled;
@@ -273,6 +320,7 @@ struct rockchip_pwm_chip {
 	bool capture_en;
 	bool wave_en;
 	bool global_ctrl_grant;
+	bool ir_trans_support;
 	bool freq_meter_support;
 	bool counter_support;
 	bool wave_support;
@@ -322,6 +370,7 @@ struct rockchip_pwm_funcs {
 			    struct rockchip_pwm_biphasic_config *config);
 	int (*get_biphasic_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				   unsigned long *biphasic_res);
+	int (*ir_transmit)(struct pwm_chip *chip, unsigned int *txbuf, unsigned int count);
 	irqreturn_t (*irq_handler)(int irq, void *data);
 };
 
@@ -709,6 +758,13 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 		writel_relaxed(WAVE_MAX_INT, pc->base + INTSTS);
 
 		rockchip_pwm_wave_max_callback(&pc->chip.pwms[0]);
+
+		ret = IRQ_HANDLED;
+	}
+
+	if (val & IR_TRANS_END_INT) {
+		writel_relaxed(IR_TRANS_END_INT, pc->base + INTSTS);
+		complete(&pc->ir_trans_completion);
 
 		ret = IRQ_HANDLED;
 	}
@@ -1844,6 +1900,143 @@ int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biph
 }
 EXPORT_SYMBOL_GPL(rockchip_pwm_get_biphasic_result);
 
+#ifdef CONFIG_RC_CORE
+static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbuf,
+				       unsigned int count)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u32 arbiter;
+	u32 preload, spreload;
+	u32 low_period, high_period;
+	u32 tx_value;
+	u32 timeout_ms;
+	u32 val;
+	int ret = 0;
+
+	if (count != PWM_IR_TRANSMIT_BUFFER_SIZE) {
+		dev_err(chip->dev, "Unsupported ir transmit buf size: %d\n", count);
+		return -EINVAL;
+	}
+
+	ret = clk_enable(pc->clk);
+	if (ret)
+		return ret;
+
+	arbiter = BIT(pc->channel_id) << IR_TRANS_READ_LOCK_SHIFT |
+		  BIT(pc->channel_id) << IR_TRANS_GRANT_SHIFT;
+	writel_relaxed(arbiter, pc->base + IR_TRANS_ARBITER);
+	val = readl_relaxed(pc->base + IR_TRANS_ARBITER);
+	if (!(val & arbiter)) {
+		dev_err(chip->dev, "Failed to abtain ir transmit arbitration for PWM%d\n",
+			pc->channel_id);
+		ret = -EINVAL;
+		goto err_clk;
+	}
+
+	reinit_completion(&pc->ir_trans_completion);
+
+	/*
+	 * Each value in the txbuf[] is in microseconds(us).
+	 * txbuf[0]: the low duration of NEC leader code.
+	 * txbuf[1]: the high duration of NEC leader code.
+	 * txbuf[2]: the high duration of NEC repeat code.
+	 * txbuf[3]: the low duration of NEC logic '0' and '1'.
+	 * txbuf[4]: the high duration of NEC logic '0'.
+	 * txbuf[5]: the high duration of NEC logic '1'.
+	 * txbuf[6]:
+	 *   bit[31:24]    bit[23:16]             bit[15:8]     bit[7:0]
+	 *   address code  address inverted code  command code  command inverted code
+	 */
+	preload = txbuf[0] << IR_TRANS_OUT_LOW_PRELOAD_SHIFT |
+		  txbuf[1] << IR_TRANS_OUT_HIGH_PRELOAD_SHIFT;
+	spreload = txbuf[2] << IR_TRANS_OUT_HIGH_SIMPLE_PRELOAD_SHIFT;
+	low_period = txbuf[3] << IR_TRANS_OUT_DATA_LOW_PERIOD_SHIFT;
+	high_period = txbuf[4] << IR_TRANS_OUT_HIGH_PERIOD_FOR_ZERO_SHIFT |
+		      txbuf[5] << IR_TRANS_OUT_HIGH_PERIOD_FOR_ONE_SHIFT;
+	tx_value = txbuf[6] << IR_TRANS_OUT_VALUE_SHIFT;
+
+	/* Set the dclk to 1M */
+	writel_relaxed(CLK_SCALE(0x32), pc->base + CLK_CTRL);
+	writel_relaxed(PWM_CLK_EN(true), pc->base + ENABLE);
+	writel_relaxed(IR_TRANS_END_INT_EN(true), pc->base + INT_EN);
+
+	writel_relaxed(preload, pc->base + IR_TRANS_PRE);
+	writel_relaxed(spreload, pc->base + IR_TRANS_SPRE);
+	writel_relaxed(low_period, pc->base + IR_TRANS_LD);
+	writel_relaxed(high_period, pc->base + IR_TRANS_HD);
+	writel_relaxed(tx_value, pc->base + IR_TRANS_DATA_VALUE);
+
+	val = readl_relaxed(pc->base + IR_TRANS_BURST_FRAME);
+	timeout_ms = ((val & IR_TRANS_OUT_FRAME_PERIOD_MASK) >>
+		      IR_TRANS_OUT_FRAME_PERIOD_SHIFT) / 1000;
+
+	writel_relaxed(IR_TRANS_INACTIVE_POL(true) | IR_TRANS_OUT_ENABLE(true),
+		       pc->base + IR_TRANS_CTRL0);
+
+	ret = wait_for_completion_timeout(&pc->ir_trans_completion,
+					  msecs_to_jiffies(timeout_ms * 3 / 2));
+	if (!ret) {
+		dev_err(chip->dev, "Failed to wait for PWM%d ir transmit to complete\n",
+			pc->channel_id);
+		ret = -ETIMEDOUT;
+	}
+
+	writel_relaxed(IR_TRANS_OUT_ENABLE(false), pc->base + IR_TRANS_CTRL0);
+	writel_relaxed(IR_TRANS_END_INT_EN(false), pc->base + INT_EN);
+	writel_relaxed(PWM_CLK_EN(false), pc->base + ENABLE);
+	writel_relaxed(0, pc->base + IR_TRANS_ARBITER);
+
+err_clk:
+	clk_disable(pc->clk);
+
+	return ret ? ret : count;
+}
+
+static int rockchip_pwm_ir_transmit(struct rc_dev *dev, unsigned int *txbuf, unsigned int count)
+{
+	struct rockchip_pwm_chip *pc = dev->priv;
+	struct pwm_chip *chip = &pc->chip;
+	struct pwm_state curstate;
+	int ret;
+
+	if (!pc->data->funcs.ir_transmit) {
+		dev_err(chip->dev, "Unsupported ir transmit mode\n");
+		return -EINVAL;
+	}
+
+	pwm_get_state(&pc->chip.pwms[0], &curstate);
+	if (curstate.enabled) {
+		dev_err(chip->dev, "Failed to enable ir transmit mode because PWM%d is busy\n",
+			pc->channel_id);
+		return -EBUSY;
+	}
+
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		return ret;
+	}
+
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
+
+	ret = pc->data->funcs.ir_transmit(chip, txbuf, count);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to transmit ir buf\n");
+
+	clk_disable(pc->pclk);
+
+	return ret;
+}
+#else
+static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbuf,
+				       unsigned int count)
+{
+	return count;
+}
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
 {
@@ -2034,6 +2227,7 @@ static const struct rockchip_pwm_data pwm_data_v4 = {
 		.set_wave = rockchip_pwm_set_wave_v4,
 		.set_biphasic = rockchip_pwm_set_biphasic_v4,
 		.get_biphasic_result = rockchip_pwm_get_biphasic_result_v4,
+		.ir_transmit = rockchip_pwm_ir_transmit_v4,
 		.irq_handler = rockchip_pwm_irq_v4,
 	},
 };
@@ -2140,6 +2334,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (pc->main_version >= 4) {
 		version = readl_relaxed(pc->base + pc->data->regs.version);
 		pc->channel_id = (version & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+		pc->ir_trans_support = !!(version & IR_TRANS_SUPPORT);
 		pc->freq_meter_support = !!(version & FREQ_METER_SUPPORT);
 		pc->counter_support = !!(version & COUNTER_SUPPORT);
 		pc->wave_support = !!(version & WAVE_SUPPORT);
@@ -2217,6 +2412,27 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 			goto err_pclk;
 		}
 	}
+
+#ifdef CONFIG_RC_CORE
+	if (pc->ir_trans_support &&
+	    device_property_present(&pdev->dev, "rockchip,pwm-ir-transmit")) {
+		struct rc_dev *rcdev;
+
+		init_completion(&pc->ir_trans_completion);
+
+		rcdev = devm_rc_allocate_device(&pdev->dev, RC_DRIVER_IR_RAW_TX);
+		if (!rcdev)
+			goto err_pclk;
+
+		rcdev->priv = pc;
+		rcdev->driver_name = "rockchip-pwm-ir-tx";
+		rcdev->device_name = "Rockchip IR TX";
+		rcdev->tx_ir = rockchip_pwm_ir_transmit;
+		ret = devm_rc_register_device(&pdev->dev, rcdev);
+		if (ret < 0)
+			goto err_pclk;
+	}
+#endif
 
 	rockchip_pwm_debugfs_init(pc);
 
