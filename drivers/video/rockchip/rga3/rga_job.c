@@ -234,7 +234,8 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 		return NULL;
 	}
 
-	if (!test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+	if (!test_bit(RGA_JOB_STATE_FINISH, &job->state) &&
+	    !test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
 		rga_err("%s(%#x) running job has not yet been completed.",
 			rga_get_core_name(scheduler->core), scheduler->core);
 
