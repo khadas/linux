@@ -94,6 +94,14 @@
 	rockchip,force-iram;
 };
 
+&dp_in_vopb {
+	status = "okay";
+};
+
+&dp_in_vopl {
+	status = "disabled";
+};
+
 &dp_sound {
 	status = "disabled";
 };
