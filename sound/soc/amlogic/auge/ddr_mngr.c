@@ -2429,7 +2429,9 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&attach_resample_a.lock);
+	attach_resample_a.attach_module = TODDR_INVAL;
 	mutex_init(&attach_resample_b.lock);
+	attach_resample_b.attach_module = TODDR_INVAL;
 
 	ret = register_pm_notifier(&ddr_pm_notifier_block);
 	if (ret)
