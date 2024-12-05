@@ -1834,11 +1834,9 @@ int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biph
 		return ret;
 
 	ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
-	if (ret) {
+	if (ret)
 		dev_err(chip->dev, "Failed to get biphasic counter result for PWM%d\n",
 			pc->channel_id);
-		return -EINVAL;
-	}
 
 	clk_disable(pc->pclk);
 
