@@ -1136,6 +1136,7 @@
 			91001    100000  3
 		>;
 		rockchip,pvtm-ch = <0 5>;
+		rockchip,init-freq = <900000>;
 
 		/* RK3568 && RK3568M npu OPPs */
 		opp-200000000 {
