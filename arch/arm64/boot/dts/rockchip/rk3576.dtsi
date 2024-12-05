@@ -2495,6 +2495,7 @@
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
+		rockchip,init-freq = <950000>;
 
 		opp-300000000 {
 			opp-supported-hw = <0xf9 0xffff>;
