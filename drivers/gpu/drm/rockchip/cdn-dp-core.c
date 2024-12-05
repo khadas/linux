@@ -442,12 +442,77 @@ static int cdn_dp_disable_phy(struct cdn_dp_device *dp,
 	return 0;
 }
 
+static int cdn_dp_link_power_up(struct cdn_dp_device *dp)
+{
+	u8 value;
+	int err;
+
+	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
+	if (dp->dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	err = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
+	if (err < 0)
+		return err;
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D0;
+
+	err = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
+	if (err < 0)
+		return err;
+
+	/*
+	 * According to the DP 1.1 specification, a "Sink Device must exit the
+	 * power saving state within 1 ms" (Section 2.5.3.1, Table 5-52, "Sink
+	 * Control Field" (register 0x600).
+	 */
+	usleep_range(1000, 2000);
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D0;
+
+	err = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
+	if (err < 0)
+		return err;
+
+	usleep_range(1000, 2000);
+
+	return 0;
+}
+
+static int cdn_dp_link_power_down(struct cdn_dp_device *dp)
+{
+	u8 value;
+	int err;
+
+	/* DP_SET_POWER register is only available on DPCD v1.1 and later */
+	if (dp->dpcd[DP_DPCD_REV] < 0x11)
+		return 0;
+
+	err = drm_dp_dpcd_readb(&dp->aux, DP_SET_POWER, &value);
+	if (err < 0)
+		return err;
+
+	value &= ~DP_SET_POWER_MASK;
+	value |= DP_SET_POWER_D3;
+
+	err = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, value);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static int cdn_dp_disable(struct cdn_dp_device *dp)
 {
 	int ret, i;
 
 	if (!dp->active)
 		return 0;
+
+	if (dp->connected)
+		cdn_dp_link_power_down(dp);
 
 	for (i = 0; i < dp->ports; i++)
 		cdn_dp_disable_phy(dp, dp->port[i]);
@@ -506,7 +571,7 @@ static int cdn_dp_enable(struct cdn_dp_device *dp)
 			ret = cdn_dp_enable_phy(dp, port);
 			if (ret)
 				continue;
-
+			cdn_dp_link_power_up(dp);
 			ret = cdn_dp_get_sink_capability(dp);
 			if (ret) {
 				cdn_dp_disable_phy(dp, port);
