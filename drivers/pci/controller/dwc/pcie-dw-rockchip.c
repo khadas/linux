@@ -163,6 +163,7 @@ struct rk_pcie {
 	u8				slot_power_limit_value;
 	u8				slot_power_limit_scale;
 	u32				rasdes_off;
+	u32				linkcap_off;
 };
 
 struct rk_pcie_of_data {
@@ -1550,14 +1551,26 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
 	}
 
-	/* Enable RASDES Error event by default */
-	if (!rk_pcie->in_suspend)
+	/* Enable RASDES Error event and L0s capability by default */
+	if (!rk_pcie->in_suspend) {
 		rk_pcie->rasdes_off = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_VNDR);
+		rk_pcie->linkcap_off = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+		if (rk_pcie->linkcap_off)
+			rk_pcie->linkcap_off += PCI_EXP_LNKCAP;
+	}
+
 	if (!rk_pcie->rasdes_off) {
 		dev_err(pci->dev, "Unable to find RASDES CAP!\n");
 	} else {
 		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x1c);
 		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x3);
+	}
+
+	/* Enable L0s capability */
+	if (rk_pcie->linkcap_off) {
+		val = dw_pcie_readl_dbi(rk_pcie->pci, rk_pcie->linkcap_off);
+		val |= PCI_EXP_LNKCAP_ASPM_L0S;
+		dw_pcie_writel_dbi(rk_pcie->pci, rk_pcie->linkcap_off, val);
 	}
 
 	rk_pcie_fast_link_setup(rk_pcie);
