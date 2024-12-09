@@ -2,7 +2,7 @@
 /*
  * vehicle sensor nvp6324
  *
- * Copyright (C) 2020 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Authors:
  *      wpzz <randy.wang@rock-chips.com>
  *
