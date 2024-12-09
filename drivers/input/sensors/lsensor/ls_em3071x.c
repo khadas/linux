@@ -2,7 +2,7 @@
 /*
  * kernel/drivers/input/sensors/lsensor/ls_em3071x.c
  *
- * Copyright (C) 2020 Rockchip Co.,Ltd.
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Author: Wang Jie <dave.wang@rock-chips.com>
  */
 
