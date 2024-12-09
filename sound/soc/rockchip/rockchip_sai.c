@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip SAI Controller driver
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>

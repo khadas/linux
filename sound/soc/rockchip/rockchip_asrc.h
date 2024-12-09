@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip ASRC Controller driver
  *
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _ROCKCHIP_ASRC_H_

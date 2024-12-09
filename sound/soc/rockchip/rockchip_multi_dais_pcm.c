@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip Multi-DAIS-PCM driver
  *
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  * Author: Sugar Zhang <sugar.zhang@rock-chips.com>
  *
  */

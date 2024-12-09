@@ -2,7 +2,7 @@
 /*
  * Rockchip PDM ALSA SoC Digital Audio Interface(DAI)  driver
  *
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _ROCKCHIP_PDM_V2_H

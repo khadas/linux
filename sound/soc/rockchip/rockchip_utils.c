@@ -2,7 +2,7 @@
 /*
  * Rockchip Utils API
  *
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk-provider.h>

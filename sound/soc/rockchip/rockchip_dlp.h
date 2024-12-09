@@ -2,7 +2,7 @@
 /*
  * Rockchip DLP (Digital Loopback) driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Author: Sugar Zhang <sugar.zhang@rock-chips.com>
  *
  */
