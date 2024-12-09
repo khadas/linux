@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  * Author: Sugar Zhang <sugar.zhang@rock-chips.com>
  */
 #include <linux/clk.h>
