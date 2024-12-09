@@ -2,7 +2,7 @@
 /*
  * serdes-pinctrl.c  -- serdes pin control driver.
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */

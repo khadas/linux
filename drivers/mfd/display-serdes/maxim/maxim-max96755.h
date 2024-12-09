@@ -2,7 +2,7 @@
 /*
  * maxim-max96755.h -- register define for max96755 chip
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author:
  *
