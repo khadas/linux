@@ -2,7 +2,7 @@
 /*
  * dw-hdmi-qp-i2s-audio.c
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  * Author: Sugar Zhang <sugar.zhang@rock-chips.com>
  */
 
