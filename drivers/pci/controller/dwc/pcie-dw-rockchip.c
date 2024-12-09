@@ -1975,7 +1975,7 @@ no_l2:
 
 	rk_pcie->in_suspend = true;
 
-	return ret;
+	return 0;
 }
 
 static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
