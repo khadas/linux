@@ -2,7 +2,7 @@
 /*
  * rk730.h -- RK730 ALSA SoC Audio driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co.,Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _RK730_H

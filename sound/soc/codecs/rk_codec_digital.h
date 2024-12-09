@@ -2,7 +2,7 @@
 /*
  * Rockchip Audio Codec Digital driver
  *
- * Copyright (C) 2020 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  */
 
