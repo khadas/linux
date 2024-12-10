@@ -849,7 +849,7 @@ static bool rockchip_sfc_supports_op(struct spi_mem *mem, const struct spi_mem_o
 	if (op->addr.nbytes > 4)
 		return false;
 
-	return true;
+	return spi_mem_default_supports_op(mem, op);
 }
 
 static const struct spi_controller_mem_ops rockchip_sfc_mem_ops = {
