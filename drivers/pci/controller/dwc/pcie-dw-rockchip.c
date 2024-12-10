@@ -1536,6 +1536,8 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 	struct dw_pcie *pci = rk_pcie->pci;
 	u32 val;
 
+	dw_pcie_dbi_ro_wr_en(pci);
+
 	if (rk_pcie->is_lpbk) {
 		val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
 		val |= PORT_LINK_LPBK_ENABLE;
@@ -1557,8 +1559,6 @@ static int rk_pcie_host_config(struct rk_pcie *rk_pcie)
 		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x1c);
 		dw_pcie_writel_dbi(pci, rk_pcie->rasdes_off + 8, 0x3);
 	}
-
-	dw_pcie_dbi_ro_wr_en(pci);
 
 	rk_pcie_fast_link_setup(rk_pcie);
 
