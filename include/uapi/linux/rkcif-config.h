@@ -83,6 +83,9 @@
 #define RKCIF_CMD_SET_SENSOR_FLIP_END \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 21, int)
 
+#define RKCIF_CMD_SUPPORT_GET_EXP \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 22, int)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel
