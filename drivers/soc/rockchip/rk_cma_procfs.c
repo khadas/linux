@@ -2,7 +2,7 @@
 /*
  * CMA ProcFS Interface
  *
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/cma.h>
