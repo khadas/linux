@@ -2,7 +2,7 @@
 /*
  * gc0403 driver
  *
- * Copyright (C) 2019 Fuzhou Rockchip Electronics Co.,Ltd.
+ * Copyright (C) 2019 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X02 add enum_frame_interval function.
  * V0.0X01.0X03 add quick stream on/off
  * V0.0X01.0X04 add function g_mbus_config
