@@ -2,7 +2,7 @@
 /*
  * Regulator driver for Rockchip RK801
  *
- * Copyright (c) 2024, Rockchip Electronics Co., Ltd
+ * Copyright (c) 2024, Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/delay.h>
