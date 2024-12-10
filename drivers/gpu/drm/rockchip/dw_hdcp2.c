@@ -2,7 +2,7 @@
 /*
  * Synopsys DesignWare Cores HDCP Controller
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  *
  * Author: Zhang Yubing <yubing.zhang@rock-chips.com>
  */

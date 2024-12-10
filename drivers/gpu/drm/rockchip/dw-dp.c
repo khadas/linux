@@ -2,7 +2,7 @@
 /*
  * Synopsys DesignWare Cores DisplayPort Transmitter Controller
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  *	   Zhang Yubing <yubing.zhang@rock-chips.com>
