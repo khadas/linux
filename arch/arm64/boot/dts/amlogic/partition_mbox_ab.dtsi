@@ -11,7 +11,7 @@
 
 / {
     partitions: partitions{
-		parts = <25>;
+		parts = <26>;
 		part-0 = <&frp>;
 		part-1 = <&factory>;
 		part-2 = <&vendor_boot_a>;
@@ -23,20 +23,21 @@
 		part-8 = <&dtbo_b>;
 		part-9 = <&cri_data>;
 		part-10 = <&param>;
-		part-11 = <&odm_ext_a>;
-		part-12 = <&odm_ext_b>;
-		part-13 = <&oem_a>;
-		part-14 = <&oem_b>;
-		part-15 = <&boot_a>;
-		part-16 = <&boot_b>;
-		part-17 = <&rsv>;
-		part-18 = <&metadata>;
-		part-19 = <&vbmeta_a>;
-		part-20 = <&vbmeta_b>;
-		part-21 = <&vbmeta_system_a>;
-		part-22 = <&vbmeta_system_b>;
-		part-23 = <&super>;
-		part-24 = <&userdata>;
+		part-11 = <&custom>;
+		part-12 = <&odm_ext_a>;
+		part-13 = <&odm_ext_b>;
+		part-14 = <&oem_a>;
+		part-15 = <&oem_b>;
+		part-16 = <&boot_a>;
+		part-17 = <&boot_b>;
+		part-18 = <&rsv>;
+		part-19 = <&metadata>;
+		part-20 = <&vbmeta_a>;
+		part-21 = <&vbmeta_b>;
+		part-22 = <&vbmeta_system_a>;
+		part-23 = <&vbmeta_system_b>;
+		part-24 = <&super>;
+		part-25 = <&userdata>;
 
 		frp:frp{
 			pname = "frp";
@@ -122,6 +123,12 @@
 		param:param{
 			pname = "param";
 			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		custom:custom
+		{
+			pname = "custom";
+			size = <0x0 0x6400000>;
 			mask = <2>;
 		};
 		odm_ext_a:odm_ext_a
