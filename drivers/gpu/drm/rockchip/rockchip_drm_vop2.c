@@ -5267,6 +5267,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2->active_display_mask &= ~BIT(vp->id);
 	vcstate->splice_mode = false;
 	vcstate->output_flags = 0;
+	vcstate->output_type = 0;
 	vp->splice_mode_right = false;
 	vp->loader_protect = false;
 	splice_vp->splice_mode_right = false;
