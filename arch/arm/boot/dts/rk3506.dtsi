@@ -79,6 +79,9 @@
 		resets = <&cru SRST_A_MAC0>;
 		reset-names = "stmmaceth";
 
+		assigned-clocks = <&cru CLK_MAC0_PTP>;
+		assigned-clock-rates = <62500000>;
+
 		snps,mixed-burst;
 		snps,tso;
 
@@ -129,6 +132,9 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_MAC1>;
 		reset-names = "stmmaceth";
+
+		assigned-clocks = <&cru CLK_MAC1_PTP>;
+		assigned-clock-rates = <62500000>;
 
 		snps,mixed-burst;
 		snps,tso;
