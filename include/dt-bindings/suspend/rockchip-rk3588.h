@@ -62,4 +62,26 @@
 #define RKPM_VCCIO5_RET_EN		BIT(5)
 #define RKPM_VCCIO6_RET_EN		BIT(6)
 #define RKPM_PMUIO2_RET_EN		BIT(7)
+
+/* sleep pin */
+#define RKPM_SLEEP_PIN0_ACT_LOW		BIT(0)	/* GPIO0_A2 */
+#define RKPM_SLEEP_PIN1_ACT_LOW		BIT(1)	/* GPIO0_A3 */
+
+#define RKPM_SLEEP_PIN_SRC_VD_NPU	0x1
+#define RKPM_SLEEP_PIN_SRC_VD_GPU	0x2
+#define RKPM_SLEEP_PIN_SRC_VD_BIGCORE0	0x3
+#define RKPM_SLEEP_PIN_SRC_VD_BIGCORE1	0x4
+#define RKPM_SLEEP_PIN_SRC_VD_DSU	0x5
+#define RKPM_SLEEP_PIN_SRC_VD_VCODEC	0x6
+#define RKPM_SLEEP_PIN_SRC_VD_DDR	0x7
+#define RKPM_SLEEP_PIN_SRC_LP_DEEP_LP	0x8
+#define RKPM_SLEEP_PIN_SRC_SFT_EN	0xf
+
+#define RKPM_SLEEP_PIN0_SRC(n)		(((n) & 0xf) << 0)
+#define RKPM_SLEEP_PIN1_SRC(n)		(((n) & 0xf) << 4)
+#define RKPM_SLEEP_PIN2_SRC(n)		(((n) & 0xf) << 8)
+#define RKPM_SLEEP_PIN3_SRC(n)		(((n) & 0xf) << 12)
+#define RKPM_SLEEP_PIN4_SRC(n)		(((n) & 0xf) << 16)
+#define RKPM_SLEEP_PIN5_SRC(n)		(((n) & 0xf) << 20)
+
 #endif
