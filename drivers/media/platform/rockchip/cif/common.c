@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2021 Rockchip Electronics Co., Ltd */
+/* Copyright (C) 2021 Rockchip Electronics Co., Ltd. */
 
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
