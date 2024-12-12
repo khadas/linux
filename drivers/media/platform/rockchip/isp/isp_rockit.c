@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2022 Rockchip Electronics Co., Ltd */
+/* Copyright (C) 2022 Rockchip Electronics Co., Ltd. */
 
 #define pr_fmt(fmt) "isp_rockit: %s:%d " fmt, __func__, __LINE__
 
