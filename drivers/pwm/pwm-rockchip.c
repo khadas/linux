@@ -1944,8 +1944,13 @@ static int rockchip_pwm_ir_transmit_v4(struct pwm_chip *chip, unsigned int *txbu
 	 * txbuf[4]: the high duration of NEC logic '0'.
 	 * txbuf[5]: the high duration of NEC logic '1'.
 	 * txbuf[6]:
-	 *   bit[31:24]    bit[23:16]             bit[15:8]     bit[7:0]
-	 *   address code  address inverted code  command code  command inverted code
+	 * For 8-bit address code:
+	 *   bit[31:24]             bit[23:16]    bit[15:8]              bit[7:0]
+	 *   command inverted code  command code  address inverted code  address code
+	 *
+	 * For 16-bit address code:
+	 *   bit[31:24]             bit[23:16]    bit[15:8]              bit[7:0]
+	 *   command inverted code  command code  address code bit[15:8] address code bit[7:0]
 	 */
 	preload = txbuf[0] << IR_TRANS_OUT_LOW_PRELOAD_SHIFT |
 		  txbuf[1] << IR_TRANS_OUT_HIGH_PRELOAD_SHIFT;
