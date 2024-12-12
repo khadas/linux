@@ -2,7 +2,7 @@
 /*
  * Maxim MAX96745 MFD driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>
