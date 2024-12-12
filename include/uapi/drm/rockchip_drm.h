@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (c) Rockchip Electronics Co., Ltd.
  * Authors:
  *       Mark Yao <yzq@rock-chips.com>
  *
