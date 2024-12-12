@@ -12,7 +12,7 @@
 /* Driver information */
 #define DRIVER_DESC			"RGA2 Device Driver"
 #define DRIVER_NAME			"rga2"
-#define DRIVER_VERSION		"2.1.0"
+#define DRIVER_VERSION		"2.1.1"
 
 /* Logging */
 #define RGA_DEBUG 1
