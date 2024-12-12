@@ -2189,6 +2189,14 @@
 			| RKPM_CPU0_WKUP_EN
 			)
 		>;
+
+		rockchip,sleep-pin-config = <
+			(0
+			| RKPM_SLEEP_PIN0_SRC(RKPM_SLEEP_PIN_SRC_VD_DDR)
+			| RKPM_SLEEP_PIN1_SRC(RKPM_SLEEP_PIN_SRC_LP_DEEP_LP)
+			)
+			(0)
+		>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
