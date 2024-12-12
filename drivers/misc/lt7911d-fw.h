@@ -2,7 +2,7 @@
 /*
  * Lontium lt7911 dp2lvds firmware v0.2
  *
- * Copyright (C) 2023 Rockchip Electronic Co,. Ltd.
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  */
 
 static unsigned char FirmwareData[17594] = {

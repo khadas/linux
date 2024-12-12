@@ -2,7 +2,7 @@
 /*
  * Rockchip Endpoint function driver
  *
- * Copyright (C) 2023 Rockchip Electronic Co,. Ltd.
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>
