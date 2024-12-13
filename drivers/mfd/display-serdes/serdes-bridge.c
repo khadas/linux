@@ -7,6 +7,8 @@
  * Author: luowei <lw@rock-chips.com>
  */
 
+#include <linux/string.h>
+
 #include "core.h"
 
 static struct serdes_bridge *to_serdes_bridge(struct drm_bridge *bridge)
@@ -24,7 +26,7 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_br
 	int ret;
 
 	if (serdes->chip_data->name)
-		memcpy(&info.type, serdes->chip_data->name, ARRAY_SIZE(info.type));
+		strscpy(info.type, serdes->chip_data->name, sizeof(info.type));
 
 	SERDES_DBG_MFD("%s: type=%s, name=%s\n", __func__,
 		       info.type, serdes->chip_data->name);
