@@ -1423,15 +1423,12 @@ static int rkisp_stream_start(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	bool async = false;
+	bool async = (dev->isp_state & ISP_STOP) ? false : true;
 	int ret;
 
 	stream->need_scl_upd = false;
 	if (stream->id == RKISP_STREAM_LDC)
 		goto skip;
-
-	async = (dev->cap_dev.stream[RKISP_STREAM_MP].streaming ||
-		 dev->cap_dev.stream[RKISP_STREAM_SP].streaming);
 
 	/*
 	 * can't be async now, otherwise the latter started stream fails to
