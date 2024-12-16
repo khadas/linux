@@ -55,14 +55,6 @@ struct iommu_domain;
 #define VOP_OUTPUT_IF_HDMI1	BIT(12)
 #define VOP_OUTPUT_IF_DP2	BIT(13)
 
-#ifndef DRM_FORMAT_NV20
-#define DRM_FORMAT_NV20		fourcc_code('N', 'V', '2', '0') /* 2x1 subsampled Cr:Cb plane */
-#endif
-
-#ifndef DRM_FORMAT_NV30
-#define DRM_FORMAT_NV30		fourcc_code('N', 'V', '3', '0') /* non-subsampled Cr:Cb plane */
-#endif
-
 #define RK_IF_PROP_COLOR_DEPTH		"color_depth"
 #define RK_IF_PROP_COLOR_FORMAT		"color_format"
 #define RK_IF_PROP_COLOR_DEPTH_CAPS	"color_depth_caps"
