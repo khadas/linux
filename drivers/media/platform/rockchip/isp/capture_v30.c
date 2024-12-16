@@ -1170,6 +1170,9 @@ static int rkisp_queue_setup(struct vb2_queue *queue,
 			plane_fmt->sizeimage / pixm->height *
 			ALIGN(pixm->height, 16) :
 			plane_fmt->sizeimage;
+		/* attach information size */
+		if (stream->is_attach_info && i == isp_fmt->mplanes - 1)
+			sizes[i] += sizeof(struct rkisp_frame_info);
 	}
 
 	rkisp_chk_tb_over(dev);
