@@ -4658,7 +4658,7 @@ static const struct vop2_ctrl rk3576_vop_ctrl = {
 	.version = VOP_REG(RK3568_VERSION_INFO, 0xffff, 16),
 	.lut_dma_en = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 0),
 	.lut_use_axi1 = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 9),
-	.dsp_vs_t_sel = VOP_REG(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
+	.dsp_vs_t_sel = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x1, 4),
 	.rkmmu_v2_en = VOP_REG_MASK(RK3576_SYS_MMU_CTRL_IMD, 0x1, 0),
 	.rkmmu_v2_sel_axi = VOP_REG_MASK(RK3576_SYS_MMU_CTRL_IMD, 0x1, 1),
 
