@@ -17,7 +17,9 @@
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable_h &clkm1_32k_out>;
+		post-power-on-delay-ms = <200>;
 		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
+		status = "okay";
 	};
 
 	wireless_bluetooth: wireless-bluetooth {
