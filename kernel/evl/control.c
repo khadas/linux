@@ -338,13 +338,24 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
 static int control_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	void *p = evl_get_heap_base(&evl_shared_heap);
-	unsigned long pfn = __pa(p) >> PAGE_SHIFT;
 	size_t len = vma->vm_end - vma->vm_start;
+	unsigned long addr = vma->vm_start;
+	int err;
+	struct page *page;
 
 	if (len != evl_shm_size)
 		return -EINVAL;
 
-	return remap_pfn_range(vma, vma->vm_start, pfn, len, PAGE_SHARED);
+	while (addr < vma->vm_end) {
+		page = vmalloc_to_page(p);
+		err = vm_insert_page(vma, addr, page);
+		if (err < 0)
+			return err;
+		addr += PAGE_SIZE;
+		p += PAGE_SIZE;
+	}
+
+	return 0;
 }
 
 static const struct file_operations control_fops = {

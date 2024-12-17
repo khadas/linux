@@ -630,13 +630,13 @@ static int init_shared_heap(void)
 		CONFIG_EVL_NR_MONITORS *
 		sizeof(struct evl_monitor_state);
 	size = PAGE_ALIGN(size);
-	mem = kzalloc(size, GFP_KERNEL);
+	mem = vzalloc(size);
 	if (mem == NULL)
 		return -ENOMEM;
 
 	ret = evl_init_heap(&evl_shared_heap, mem, size);
 	if (ret) {
-		kfree(mem);
+		vfree(mem);
 		return ret;
 	}
 
@@ -650,7 +650,7 @@ static void cleanup_shared_heap(void)
 	void *membase = evl_get_heap_base(&evl_shared_heap);
 
 	evl_destroy_heap(&evl_shared_heap);
-	kfree(membase);
+	vfree(membase);
 }
 
 static int init_system_heap(void)
