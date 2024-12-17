@@ -1038,6 +1038,9 @@ static const struct drm_bus_format_enum_list drm_bus_format_enum_list[] = {
 
 static DRM_ENUM_NAME_FN(drm_get_bus_format_name, drm_bus_format_enum_list)
 
+static inline void vop2_cfg_done(struct drm_crtc *crtc);
+static void vop2_wait_for_fs_by_done_bit_status(struct vop2_video_port *vp);
+
 static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc *rockchip_crtc;
@@ -1224,7 +1227,12 @@ static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
 	else if (intf & VOP_OUTPUT_IF_DP2)
 		VOP_CTRL_SET(vop2, dp2_en, 1);
 
-	dev_info(vop2->dev, "vop enable intf:%x\n", intf);
+	if (output_if_is_dp(intf)) {
+		vop2_cfg_done(crtc);
+		vop2_wait_for_fs_by_done_bit_status(vp);
+	}
+
+	drm_info(vop2, "vop enable intf:%x\n", intf);
 }
 
 static void vop2_crtc_output_pre_disable(struct drm_crtc *crtc, int intf)
@@ -1239,7 +1247,12 @@ static void vop2_crtc_output_pre_disable(struct drm_crtc *crtc, int intf)
 	else if (intf & VOP_OUTPUT_IF_DP2)
 		VOP_CTRL_SET(vop2, dp2_en, 0);
 
-	dev_info(vop2->dev, "vop disable intf:%x\n", intf);
+	if (output_if_is_dp(intf)) {
+		vop2_cfg_done(crtc);
+		vop2_wait_for_fs_by_done_bit_status(vp);
+	}
+
+	drm_info(vop2, "vop disable intf:%x\n", intf);
 }
 
 static inline const struct vop2_win_regs *vop2_get_win_regs(struct vop2_win *win,
