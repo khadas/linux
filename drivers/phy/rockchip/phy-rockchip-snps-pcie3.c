@@ -276,17 +276,15 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
 
 	ret = device_property_read_u32(dev, "rockchip,pcie30-phymode", &val);
-	if (!ret)
+	if (!ret) {
 		priv->pcie30_phymode = val;
-	else
+		if (priv->pcie30_phymode > 4)
+			priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
+		regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
+			     (0x7<<16) | priv->pcie30_phymode);
+	} else {
 		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
-
-	/* Select correct pcie30_phymode */
-	if (priv->pcie30_phymode > 4)
-		priv->pcie30_phymode = PHY_MODE_PCIE_AGGREGATION;
-
-	regmap_write(priv->phy_grf, RK3588_PCIE3PHY_GRF_CMN_CON0,
-		     (0x7<<16) | priv->pcie30_phymode);
+	}
 
 	/* Set pcie1ln_sel in PHP_GRF_PCIESEL_CON */
 	if (!IS_ERR(priv->pipe_grf)) {
