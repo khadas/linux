@@ -965,6 +965,7 @@
 };
 
 &hdptxphy_hdmi0 {
+	#clock-cells = <0>;
 	status = "okay";
 };
 
