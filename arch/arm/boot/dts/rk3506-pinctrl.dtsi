@@ -101,7 +101,7 @@
 		dsmc_clk_pins: dsmc-clk-pins {
 			rockchip,pins =
 				/* dsmc_clkn */
-				<1 RK_PA1 2 &pcfg_pull_up>,
+				<1 RK_PA1 2 &pcfg_pull_up_drv_level_3>,
 				/* dsmc_resetn */
 				<1 RK_PC0 2 &pcfg_pull_up>;
 		};
@@ -123,7 +123,7 @@
 		dsmc_bus16_pins: dsmc-bus16-pins {
 			rockchip,pins =
 				/* dsmc_clkp */
-				<1 RK_PA0 2 &pcfg_pull_down>,
+				<1 RK_PA0 2 &pcfg_pull_down_drv_level_3>,
 				/* dsmc_d0 */
 				<1 RK_PA3 2 &pcfg_pull_down>,
 				/* dsmc_d1 */
