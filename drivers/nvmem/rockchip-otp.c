@@ -783,19 +783,15 @@ static const struct rockchip_data rk3528_data = {
 	.reg_read = rk3568_otp_read,
 };
 
-static const char * const rk3562_otp_clocks[] = {
+static const char * const rk3568_otp_clocks[] = {
 	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rk3562_data = {
 	.size = 0x80,
-	.clocks = rk3562_otp_clocks,
-	.num_clks = ARRAY_SIZE(rk3562_otp_clocks),
+	.clocks = rk3568_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3568_otp_clocks),
 	.reg_read = rk3568_otp_read,
-};
-
-static const char * const rk3568_otp_clocks[] = {
-	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rk3568_data = {
@@ -829,14 +825,10 @@ static const struct rockchip_data rk3588_data = {
 	.reg_read = rk3588_otp_read,
 };
 
-static const char * const rv1106_otp_clocks[] = {
-	"usr", "sbpi", "apb", "phy",
-};
-
 static const struct rockchip_data rv1106_data = {
 	.size = 0x80,
-	.clocks = rv1106_otp_clocks,
-	.num_clks = ARRAY_SIZE(rv1106_otp_clocks),
+	.clocks = rk3568_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3568_otp_clocks),
 	.reg_read = rk3568_otp_read,
 };
 
