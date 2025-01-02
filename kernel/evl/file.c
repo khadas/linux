@@ -113,14 +113,14 @@ void install_inband_fd(unsigned int fd, struct file *filp,
 	struct evl_fd *efd;
 	int ret = -ENOMEM;
 
-	if (filp->oob_data == NULL)
+	if (filp->f_oob_ctx == NULL)
 		return;
 
 	efd = evl_alloc(sizeof(struct evl_fd));
 	if (efd) {
 		efd->fd = fd;
 		efd->files = files;
-		efd->efilp = filp->oob_data;
+		efd->efilp = filp->f_oob_ctx;
 		INIT_LIST_HEAD(&efd->poll_nodes);
 		raw_spin_lock_irqsave(&fdt_lock, flags);
 		ret = index_efd(efd, filp);
@@ -144,7 +144,7 @@ void uninstall_inband_fd(unsigned int fd, struct file *filp,
 	unsigned long flags;
 	struct evl_fd *efd;
 
-	if (filp->oob_data == NULL)
+	if (filp->f_oob_ctx == NULL)
 		return;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
@@ -165,7 +165,7 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 	unsigned long flags;
 	struct evl_fd *efd;
 
-	if (filp->oob_data == NULL)
+	if (filp->f_oob_ctx == NULL)
 		return;
 
 	raw_spin_lock_irqsave(&fdt_lock, flags);
@@ -173,7 +173,7 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
 	efd = lookup_efd(fd, files);
 	if (efd) {
 		drop_watchpoints(efd);
-		efd->efilp = filp->oob_data;
+		efd->efilp = filp->f_oob_ctx;
 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
 		evl_schedule();
 		return;
@@ -239,7 +239,7 @@ void evl_ignore_fd(struct evl_poll_node *node)
 int evl_open_file(struct evl_file *efilp, struct file *filp)
 {
 	efilp->filp = filp;
-	filp->oob_data = efilp;	/* mark filp as oob-capable. */
+	filp->f_oob_ctx = efilp; /* mark filp as oob-capable. */
 	evl_init_crossing(&efilp->crossing);
 
 	return 0;
