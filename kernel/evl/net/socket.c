@@ -62,8 +62,8 @@ struct domain_list_head {
  */
 static inline struct evl_socket *evl_sk_from_file(struct file *filp)
 {
-	return filp->oob_data ?
-		container_of(filp->oob_data, struct evl_socket, efile) :
+	return filp->f_oob_ctx ?
+		container_of(filp->f_oob_ctx, struct evl_socket, efile) :
 		NULL;
 }
 
