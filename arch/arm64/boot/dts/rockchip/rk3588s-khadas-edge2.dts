@@ -710,7 +710,9 @@
 	rockchip,typec-vbus-det;
 };
 
-
+&u2phy3_host {
+       phy-supply = <&vcc5v0_host>;
+};
 
 &uart9 {
 	status = "okay";
