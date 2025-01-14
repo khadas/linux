@@ -1,6 +1,6 @@
 /* drivers/input/sensors/lsensor/cm3218.c
  *
- * Copyright (C) 2012-2016 ROCKCHIP.
+ * Copyright (C) 2012-2016 Rockchip Electronics Co., Ltd.
  * Author: luowei <lw@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

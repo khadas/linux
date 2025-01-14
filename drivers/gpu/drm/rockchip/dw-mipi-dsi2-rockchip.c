@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:
  *      Guochun Huang <hero.huang@rock-chips.com>
  */
@@ -2106,13 +2106,18 @@ static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
 };
 
 static const struct of_device_id dw_mipi_dsi2_dt_ids[] = {
+#if IS_ENABLED(CONFIG_CPU_RK3576)
 	{
 		.compatible = "rockchip,rk3576-mipi-dsi2",
 		.data = &rk3576_mipi_dsi2_plat_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3588)
+	{
 		.compatible = "rockchip,rk3588-mipi-dsi2",
 		.data = &rk3588_mipi_dsi2_plat_data,
 	},
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_mipi_dsi2_dt_ids);

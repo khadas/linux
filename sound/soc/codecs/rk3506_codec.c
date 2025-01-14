@@ -211,6 +211,9 @@ static int rk3506_hw_params(struct snd_pcm_substream *substream,
 	unsigned int width, rate;
 	int ratio;
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
 	if ((params_rate(params) % 12000) == 0) {
 		clk_set_rate(rk3506->mclk, MCLK_REFERENCE_12000);
 		ratio = MCLK_REFERENCE_12000 / MCLK_I2S_REFERENCE_DIV /
@@ -282,6 +285,9 @@ static void rk3506_pcm_shutdown(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rk3506_codec_priv *rk3506 = snd_soc_component_get_drvdata(component);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return;
 
 	rk3506_codec_capture_off(component);
 	regcache_cache_only(rk3506->regmap, false);

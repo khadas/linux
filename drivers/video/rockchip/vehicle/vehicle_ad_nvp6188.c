@@ -2,7 +2,7 @@
 /*
  * vehicle sensor nvp6188
  *
- * Copyright (C) 2022 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Authors:
  *      wpzz <randy.wang@rock-chips.com>
  *      Jianwei Fan <jianwei.fan@rock-chips.com>

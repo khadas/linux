@@ -793,7 +793,7 @@
 		rst_gpio_number = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 	};
 
-	tc358749x: tc358749x@0f {
+	tc358749x: tc358749x@f {
 		#sound-dai-cells = <0>;
 		compatible = "toshiba,tc358749x";
 		reg = <0x0f>;
@@ -914,7 +914,7 @@
 		};
 	};
 
-	sensor@0d {
+	sensor@d {
 		status = "okay";
 		compatible = "ak8963";
 		pinctrl-names = "default";

@@ -2,7 +2,7 @@
 /*
  * Early setup for Rockchip DMA CMA
  *
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Author: Simon Xue <xxm@rock-chips.com>
  */
 

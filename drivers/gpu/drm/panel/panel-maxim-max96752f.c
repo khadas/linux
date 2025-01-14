@@ -2,7 +2,7 @@
 /*
  * Maxim MAX96752F GMSL2 Deserializer
  *
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/backlight.h>

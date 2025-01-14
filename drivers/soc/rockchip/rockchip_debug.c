@@ -4,7 +4,7 @@
  *
  * Arm debug driver
  *
- * Copyright (C) 2019 ROCKCHIP, Inc.
+ * Copyright (C) 2019 Rockchip Electronics Co., Ltd.
  */
 
 /*	RK3399

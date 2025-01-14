@@ -7,9 +7,13 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/v4l2-mediabus.h>
+#include <linux/regmap.h>
 
 #include "dev.h"
 #include "procfs.h"
+#include "mipi-csi2.h"
+#include "../../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
+#include "../../../../phy/rockchip/phy-rockchip-samsung-dcphy.h"
 
 #ifdef CONFIG_PROC_FS
 
@@ -211,6 +215,24 @@ static const char *rkcif_get_monitor_mode(enum rkcif_monitor_mode monitor_mode)
 	}
 }
 
+static const char *rkcif_get_sync_mode(enum rkmodule_sync_mode sync_mode)
+{
+	switch (sync_mode) {
+	case NO_SYNC_MODE:
+		return "no sync";
+	case EXTERNAL_MASTER_MODE:
+		return "external master";
+	case INTERNAL_MASTER_MODE:
+		return "internal master";
+	case SLAVE_MODE:
+		return "slave";
+	case SOFT_SYNC_MODE:
+		return "soft sync";
+	default:
+		return "unknown";
+	}
+}
+
 static void rkcif_show_mixed_info(struct rkcif_device *dev, struct seq_file *f)
 {
 	enum rkcif_monitor_mode monitor_mode;
@@ -240,13 +262,267 @@ static void rkcif_show_clks(struct rkcif_device *dev, struct seq_file *f)
 	}
 }
 
+static void rkcif_show_toisp_info(struct rkcif_device *dev, struct seq_file *f)
+{
+	struct sditf_priv *priv = dev->sditf[0];
+	char name_strings[32] = {0};
+
+	seq_puts(f, "\nToisp Info:\n");
+	seq_printf(f, "\tisp_name: %s\n", priv->mode.name);
+	switch (priv->mode.rdbk_mode) {
+	case RKISP_VICAP_ONLINE:
+		sprintf(name_strings, "%s", "online");
+		break;
+	case RKISP_VICAP_ONLINE_ONE_FRAME:
+		sprintf(name_strings, "%s", "online_one_frame");
+		break;
+	case RKISP_VICAP_ONLINE_MULTI:
+		sprintf(name_strings, "%s", "online_multi");
+		break;
+	case RKISP_VICAP_ONLINE_UNITE:
+		sprintf(name_strings, "%s", "online_unite");
+		break;
+	case RKISP_VICAP_RDBK_AIQ:
+		sprintf(name_strings, "%s", "rdbk_aiq");
+		break;
+	case RKISP_VICAP_RDBK_AUTO:
+		sprintf(name_strings, "%s", "rdbk_auto");
+		break;
+	case RKISP_VICAP_RDBK_AUTO_ONE_FRAME:
+		sprintf(name_strings, "%s", "rdbk_one_frame");
+		break;
+	default:
+		sprintf(name_strings, "%s", "error");
+		break;
+	}
+	seq_printf(f, "\trdbk_mode: %s\n", name_strings);
+	if (priv->mode.rdbk_mode > RKISP_VICAP_RDBK_AIQ)
+		seq_printf(f, "\treserved buf: %d\n", priv->cif_dev->fb_res_bufs);
+	if (priv->hdr_wrap_line)
+		seq_printf(f, "\twrap line: %d\n", priv->hdr_wrap_line);
+	if (priv->is_combine_mode)
+		seq_printf(f, "\tcombine num: %d\n", dev->sditf_cnt);
+}
+
+static int rkcif_get_csi_offset(struct rkcif_device *dev, int csi_host_idx)
+{
+	int csi_offset = 0;
+
+	if (dev->chip_id == CHIP_RK3588_CIF) {
+		csi_offset = csi_host_idx * 0x100;
+	} else if (dev->chip_id == CHIP_RV1106_CIF ||
+		   dev->chip_id == CHIP_RV1103B_CIF) {
+		csi_offset = csi_host_idx * 0x200;
+	} else if (dev->chip_id == CHIP_RK3562_CIF) {
+		if (csi_host_idx < 3)
+			csi_offset = csi_host_idx * 0x200;
+		else
+			csi_offset = 0x500;
+	} else if (dev->chip_id == CHIP_RK3576_CIF) {
+		if (csi_host_idx < 2)
+			csi_offset = csi_host_idx * 0x200;
+		else
+			csi_offset = 0x100 + csi_host_idx * 0x100;
+	}
+	csi_offset += 0x100;
+	return csi_offset;
+}
+
+static void rkcif_show_reg_vicap(struct rkcif_device *dev, struct seq_file *f)
+{
+	void *buf = dev->sw_reg;
+	struct sditf_priv *priv = dev->sditf[0];
+	u32 *reg = NULL;
+	int i, j;
+	int csi_offset = 0;
+
+	seq_puts(f, "\nVicap reg:\n");
+	memcpy_fromio(buf, dev->hw_dev->base_addr, RKCIF_REG_MAX);
+	if (dev->reg_dbg == RKCIF_REG_DBG_PART) {
+		if (dev->inf_id == RKCIF_MIPI_LVDS) {
+			for (j = 0; j < dev->csi_info.csi_num; j++) {
+				seq_printf(f, "\nmipi%d reg:\n", dev->csi_info.csi_idx[j]);
+				csi_offset = rkcif_get_csi_offset(dev, dev->csi_info.csi_idx[j]);
+				reg = buf + csi_offset;
+				for (i = 0; i < 0x100 / 16; i++)
+					seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+						   (u32)(dev->hw_dev->res->start + csi_offset + i * 16),
+						   *(reg + i * 4), *(reg + i * 4 + 1),
+						   *(reg + i * 4 + 2), *(reg + i  * 4 + 3));
+			}
+		} else {
+			reg = buf;
+			for (i = 0; i < 0x100 / 16; i++)
+				seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+					   (u32)(dev->hw_dev->res->start + i * 16),
+					   *(reg + i * 4), *(reg + i * 4 + 1),
+					   *(reg + i * 4 + 2), *(reg + i  * 4 + 3));
+		}
+		if (priv && priv->mode.rdbk_mode < RKISP_VICAP_RDBK_AIQ) {
+			seq_puts(f, "\ntoisp reg:\n");
+			reg = buf + 0x780;
+			for (i = 0; i < 0x30 / 16; i++)
+				seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+					   (u32)(dev->hw_dev->res->start + 0x780 + i * 16),
+					   *(reg + i * 4), *(reg + i * 4 + 1),
+					   *(reg + i * 4 + 2), *(reg + i  * 4 + 3));
+			reg = buf;
+			seq_puts(f, "\nglobal reg:\n");
+			for (i = 0; i < 0x10 / 16; i++)
+				seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+					   (u32)(dev->hw_dev->res->start + i * 16),
+					   *(reg + i * 4), *(reg + i * 4 + 1),
+					   *(reg + i * 4 + 2), *(reg + i  * 4 + 3));
+		}
+	} else {
+		reg = buf;
+		for (i = 0; i < RKCIF_REG_MAX / 16; i++)
+			seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   (u32)(dev->hw_dev->res->start + i * 16),
+				   *(reg + i * 4), *(reg + i * 4 + 1),
+				   *(reg + i * 4 + 2), *(reg + i  * 4 + 3));
+	}
+}
+
+static void rkcif_show_reg_csi2(struct rkcif_device *dev, struct seq_file *f)
+{
+	struct csi2_dev *csi2 = container_of(dev->active_sensor->sd, struct csi2_dev, sd);
+	struct csi2_hw *csi2_hw = NULL;
+	int i, j;
+	int csi_idx = 0;
+	u32 buf[20];
+
+	for (j = 0; j < csi2->csi_info.csi_num; j++) {
+		csi_idx = csi2->csi_info.csi_idx[j];
+		csi2_hw = csi2->csi2_hw[csi_idx];
+		seq_printf(f, "\nmipi%d csi2 reg:\n", csi_idx);
+		memcpy_fromio(buf, csi2_hw->base, 0x50);
+		for (i = 0; i < 0x50 / 16; i++)
+			seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+				   (u32)(csi2_hw->res->start + i * 16),
+				   *(buf + i * 4), *(buf + i * 4 + 1),
+				   *(buf + i * 4 + 2), *(buf + i  * 4 + 3));
+	}
+}
+
+static void rkcif_show_reg_dcphy(struct samsung_mipi_dcphy *dcphy, int index, struct seq_file *f)
+{
+	u32 bias_reg[4];
+	char *dcphy_reg = NULL;
+	u32 *buf = NULL;
+	int i = 0;
+
+	seq_printf(f, "\ndcphy%d reg:\n", index);
+	regmap_bulk_read(dcphy->regmap, 0, bias_reg, 4);
+	seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		   (u32)dcphy->res->start,
+		   bias_reg[0], bias_reg[1],
+		   bias_reg[2], bias_reg[3]);
+
+	dcphy_reg = kzalloc(0x500, GFP_KERNEL);
+	if (!dcphy_reg)
+		return;
+	regmap_bulk_read(dcphy->regmap, 0xb00, dcphy_reg, 0x500 / 4);
+	buf = (u32 *)dcphy_reg;
+	for (i = 0; i < 0x500 / 16; i++)
+		seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   (u32)(dcphy->res->start + 0xb00 + i * 16),
+			   *(buf + i * 4), *(buf + i * 4 + 1),
+			   *(buf + i * 4 + 2), *(buf + i  * 4 + 3));
+	kfree(dcphy_reg);
+}
+
+static void rkcif_show_reg_dphy(struct csi2_dphy_hw *dphy_hw, int index, struct seq_file *f)
+{
+	char *dphy_reg = NULL;
+	u32 *buf = NULL;
+	int i = 0;
+
+	seq_printf(f, "\ndphy%d reg:\n", index);
+	dphy_reg = kzalloc(0x900, GFP_KERNEL);
+	if (!dphy_reg)
+		return;
+	memcpy_fromio(dphy_reg, dphy_hw->hw_base_addr, 0x900);
+	buf = (u32 *)dphy_reg;
+	for (i = 0; i < 0x900 / 16; i++)
+		seq_printf(f, "0x%x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   (u32)(dphy_hw->res->start + i * 16),
+			   *(buf + i * 4), *(buf + i * 4 + 1),
+			   *(buf + i * 4 + 2), *(buf + i  * 4 + 3));
+	kfree(dphy_reg);
+}
+
+static void rkcif_show_reg_dphys(struct rkcif_device *dev, struct seq_file *f)
+{
+	struct csi2_dphy *dphy = NULL;
+	struct csi2_dphy_hw *dphy_hw = NULL;
+	struct samsung_mipi_dcphy *dcphy_hw = NULL;
+	struct rkcif_pipeline *p = NULL;
+	struct v4l2_subdev *sd = NULL;
+	int j;
+	int csi_idx = 0;
+
+	p = &dev->pipe;
+	for (j = 0; j < p->num_subdevs; j++) {
+		if (p->subdevs[j] != dev->terminal_sensor.sd &&
+		    p->subdevs[j] != dev->active_sensor->sd) {
+			sd = p->subdevs[j];
+			break;
+		}
+	}
+	if (!sd)
+		return;
+	dphy = container_of(sd, struct csi2_dphy, sd);
+
+	for (j = 0; j < dev->csi_info.csi_num; j++) {
+		csi_idx = dev->csi_info.csi_idx[j];
+		if (dphy->drv_data->chip_id == CHIP_ID_RK3568 ||
+		    dphy->drv_data->chip_id == CHIP_ID_RV1106) {
+			dphy_hw = dphy->dphy_hw_group[0];
+			if (dphy_hw)
+				rkcif_show_reg_dphy(dphy_hw, 0, f);
+		} else if (dphy->drv_data->chip_id == CHIP_ID_RK3588) {
+			if (csi_idx < 2) {
+				dcphy_hw = dphy->samsung_phy_group[csi_idx];
+				if (dcphy_hw)
+					rkcif_show_reg_dcphy(dcphy_hw, csi_idx, f);
+			} else {
+				dphy_hw = dphy->dphy_hw_group[(csi_idx - 2) / 2];
+				if (dphy_hw)
+					rkcif_show_reg_dphy(dphy_hw, (csi_idx - 2) / 2, f);
+			}
+		} else {
+			dphy_hw = dphy->dphy_hw_group[csi_idx / 2];
+			if (dphy_hw)
+				rkcif_show_reg_dphy(dphy_hw, csi_idx / 2, f);
+		}
+	}
+}
+
+static void rkcif_show_reg_dbg(struct rkcif_device *dev, struct seq_file *f)
+{
+	int i;
+
+	rkcif_show_reg_vicap(dev, f);
+	if (dev->inf_id == RKCIF_MIPI_LVDS) {
+		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
+		    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
+			for (i = 0; i < 5; i++) {
+				rkcif_show_reg_csi2(dev, f);
+				usleep_range(2000, 4000);
+			}
+		}
+		rkcif_show_reg_dphys(dev, f);
+	}
+}
+
 static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 {
 	struct rkcif_stream *stream = &dev->stream[0];
 	struct rkcif_pipeline *pipe = &dev->pipe;
 	struct rkcif_sensor_info *sensor = &dev->terminal_sensor;
 	struct v4l2_rect *rect = &sensor->raw_rect;
-	struct v4l2_subdev_frame_interval *interval = &sensor->fi;
+	struct v4l2_subdev_frame_interval *interval = &sensor->src_fi;
 	struct v4l2_subdev_selection *sel = &sensor->selection;
 	u32 mbus_flags;
 	u64 fps, timestamp0, timestamp1;
@@ -371,7 +647,20 @@ static void rkcif_show_format(struct rkcif_device *dev, struct seq_file *f)
 			   dev->stream[1].total_buf_num,
 			   dev->stream[2].total_buf_num,
 			   dev->stream[3].total_buf_num);
+		if (dev->sditf[0])
+			rkcif_show_toisp_info(dev, f);
+		if (dev->reg_dbg)
+			rkcif_show_reg_dbg(dev, f);
 	}
+}
+
+static void rkcif_show_group_info(struct rkcif_device *dev, struct seq_file *f)
+{
+	seq_puts(f, "\nGroup Info:\n");
+	seq_printf(f, "\tSync Mode:%s\n",
+		   rkcif_get_sync_mode(dev->sync_cfg.type));
+	if (dev->sync_cfg.type != NO_SYNC_MODE)
+		seq_printf(f, "\tGroup Id:%d\n", dev->sync_cfg.group);
 }
 
 static int rkcif_proc_show(struct seq_file *f, void *v)
@@ -382,6 +671,7 @@ static int rkcif_proc_show(struct seq_file *f, void *v)
 		rkcif_show_mixed_info(dev, f);
 		rkcif_show_clks(dev, f);
 		rkcif_show_format(dev, f);
+		rkcif_show_group_info(dev, f);
 	} else {
 		seq_puts(f, "dev null\n");
 	}

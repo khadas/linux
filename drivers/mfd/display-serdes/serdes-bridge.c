@@ -2,10 +2,12 @@
 /*
  * serdes-bridge.c  --  drm bridge access for different serdes chips
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */
+
+#include <linux/string.h>
 
 #include "core.h"
 
@@ -24,7 +26,7 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_br
 	int ret;
 
 	if (serdes->chip_data->name)
-		memcpy(&info.type, serdes->chip_data->name, ARRAY_SIZE(info.type));
+		strscpy(info.type, serdes->chip_data->name, sizeof(info.type));
 
 	SERDES_DBG_MFD("%s: type=%s, name=%s\n", __func__,
 		       info.type, serdes->chip_data->name);
@@ -243,7 +245,7 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct serdes_bridge *serdes_bridge;
 
-	if (!serdes->dev)
+	if (!serdes->dev || !serdes->chip_data)
 		return -1;
 
 	serdes_bridge = devm_kzalloc(dev, sizeof(*serdes_bridge), GFP_KERNEL);

@@ -228,6 +228,12 @@
 	};
 };
 
+&bus_a72 {
+	bus-supply = <&vdd_logic_s0>;
+	pvtm-supply = <&vdd_logic_s0>;
+	status = "okay";
+};
+
 &combphy0_ps {
 	status = "okay";
 };

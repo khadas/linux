@@ -705,7 +705,7 @@
 		mpu-debug = <1>;
 	};
 
-	sensor@0d {
+	sensor@d {
 		status = "okay";
 		compatible = "ak8963";
 		pinctrl-names = "default";

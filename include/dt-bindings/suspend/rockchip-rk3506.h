@@ -2,7 +2,7 @@
 /*
  * Header providing constants for Rockchip suspend bindings.
  *
- * Copyright (C) 2024, Rockchip Electronics Co., Ltd
+ * Copyright (C) 2024, Rockchip Electronics Co., Ltd.
  */
 
 #ifndef __DT_BINDINGS_RK3506_PM_H__

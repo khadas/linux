@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2017-2018 Rockchip Electronics Co., Ltd.
  * Author: XiaoDong Huang <derrick.huang@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify

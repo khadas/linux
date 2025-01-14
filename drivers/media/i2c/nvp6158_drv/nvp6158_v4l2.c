@@ -2,7 +2,7 @@
 /*
  * nvp6158_v4l2 interface driver
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01

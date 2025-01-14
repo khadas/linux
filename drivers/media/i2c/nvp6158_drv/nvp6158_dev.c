@@ -2,7 +2,7 @@
 /********************************************************************************
 *
 *  Copyright (C) 2017 	NEXTCHIP Inc. All rights reserved.
-*  Copyright (c) 2021 	Rockchip Electronics Co. Ltd.All rights reserved.
+*  Copyright (c) 2021 	Rockchip Electronics Co., Ltd. All rights reserved.
 *  Module		: install driver main
 *  Description	: driver main
 *  Author		:

@@ -35,9 +35,15 @@ Optional dai-link subnode properties:
 					  dai-link uses bit clock inversion.
 - rockchip,frame-inversion		: bool property. Add this if the
 					  dai-link uses frame clock inversion.
-- rockchip,mclk-fs     			: Multiplication factor between stream
+- rockchip,mclk-fs			: Multiplication factor between stream
 					  rate and codec mclk, applied only for
 					  the dai-link.
+- rockchip,mclk-fs-mapping		: u32 properties. Multiplication factor
+					  between steam rate and codec mclk,
+					  these values will overwrite the mclk-fs.
+					  mclk-fs-mapping = <256 1024> means:
+					  (mclk of first codec) = 256 * fs,
+					  (mclk of second codec) = 1024 * fs.
 
 Example:
 
@@ -86,3 +92,41 @@ es8388_sound: es8388-sound {
                 press-threshold-microvolt = <2000>;
 	};
 };
+
+Example 3 for rockchip,mclk-fs-mapping:
+
+sai_dais: sai-dais {
+	status = "okay";
+	compatible = "rockchip,multi-dais";
+	dais = <&sai1>, <&sai4>;
+	capture,channel-mapping = <2 2>;
+	playback,channel-mapping = <2 0>;
+	bitclock-inversion = <0 0>;
+	mclk-fs-mapping = <256 1024>;
+};
+
+es8388_sound: es8388-sound {
+	status = "okay";
+	compatible = "rockchip,multicodecs-card";
+	rockchip,card-name = "rockchip-es8388";
+	spk-con-gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+	rockchip,pre-power-on-delay-ms = <30>;
+	rockchip,post-power-down-delay-ms = <40>;
+	rockchip,format = "i2s";
+	rockchip,cpu = <&sai_dais>;
+	rockchip,codec = <&es8388>, <&audio_codec>;
+	rockchip,mclk-fs = <256>;
+	rockchip,mclk-fs-mapping = <256 1024>;
+	rockchip,audio-routing =
+		"Speaker", "LOUT1",
+		"Speaker", "ROUT1",
+		"Speaker", "Speaker Power",
+		"Speaker", "Speaker Power",
+		"LINPUT1", "Main Mic",
+		"LINPUT2", "Main Mic",
+		"RINPUT1", "Main Mic",
+		"RINPUT2", "Main Mic";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spk_ctrl>;
+};
+

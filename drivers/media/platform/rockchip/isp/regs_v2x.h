@@ -2678,13 +2678,21 @@ static inline void raw_rd_ctrl(void __iomem *base, u32 val)
 static inline void mi_raw_length(struct rkisp_stream *stream)
 {
 	bool is_direct = true;
+	u32 bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
 
 	if (stream->config->mi.length == MI_RAW0_RD_LENGTH ||
 	    stream->config->mi.length == MI_RAW1_RD_LENGTH ||
-	    stream->config->mi.length == MI_RAW2_RD_LENGTH)
+	    stream->config->mi.length == MI_RAW2_RD_LENGTH) {
 		is_direct = false;
-	rkisp_unite_write(stream->ispdev, stream->config->mi.length,
-			  stream->out_fmt.plane_fmt[0].bytesperline, is_direct);
+		if (stream->ispdev->isp_ver == ISP_V33 &&
+		    !IS_HDR_RDBK(stream->ispdev->rd_mode) &&
+		    stream->config->mi.length == MI_RAW2_RD_LENGTH &&
+		    stream->ispdev->unite_div == ISP_UNITE_DIV2) {
+			bytesperline = stream->out_fmt.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+			bytesperline = ALIGN(bytesperline * stream->out_isp_fmt.bpp[0] / 8, 256);
+		}
+	}
+	rkisp_unite_write(stream->ispdev, stream->config->mi.length, bytesperline, is_direct);
 	if (stream->ispdev->isp_ver == ISP_V21 || stream->ispdev->isp_ver == ISP_V30)
 		rkisp_unite_set_bits(stream->ispdev, MI_RD_CTRL2, 0, BIT(30), false);
 }

@@ -8,6 +8,16 @@ config VIDEO_REVERSE_IMAGE
 
 if VIDEO_REVERSE_IMAGE
 
+config VIDEO_REVERSE_TP2815
+	bool "tp2815 for reverse sensor"
+	help
+	  Say y if use tp2815.
+
+config VIDEO_REVERSE_TP2855
+	bool "tp2855 for reverse sensor"
+	help
+	  Say y if use tp2855.
+
 config VIDEO_REVERSE_NVP6324
 	bool "nvp6324 for reverse sensor"
 	help
@@ -27,11 +37,6 @@ config VIDEO_REVERSE_GC2145
 	bool "gc2145 for reverse sensor"
 	help
 	  Say y if use gc2145.
-
-config VIDEO_REVERSE_TP2825
-	bool "tp2825 for reverse sensor"
-	help
-	  Say y if use tp2825.
 
 config VIDEO_REVERSE_AD7181
 	bool "ad7181 for reverse sensor"

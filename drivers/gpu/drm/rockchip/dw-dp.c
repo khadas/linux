@@ -2,7 +2,7 @@
 /*
  * Synopsys DesignWare Cores DisplayPort Transmitter Controller
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  *	   Zhang Yubing <yubing.zhang@rock-chips.com>
@@ -171,6 +171,9 @@
 #define DPTX_AUX_DATA3				0x0b14
 
 #define DPTX_GENERAL_INTERRUPT			0x0d00
+#define VIDEO_FIFO_OVERFLOW_STREAM3		BIT(26)
+#define VIDEO_FIFO_OVERFLOW_STREAM2		BIT(20)
+#define VIDEO_FIFO_OVERFLOW_STREAM1		BIT(14)
 #define VIDEO_FIFO_OVERFLOW_STREAM0		BIT(6)
 #define AUDIO_FIFO_OVERFLOW_STREAM0		BIT(5)
 #define SDP_EVENT_STREAM0			BIT(4)
@@ -2840,7 +2843,6 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 			dp->hotplug.long_hpd = true;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
-			schedule_work(&dp->hpd_work);
 		}
 	} else if (dp->hotplug.state == GPIO_STATE_PLUG) {
 		if (!hpd) {
@@ -2855,9 +2857,12 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 			dp->hotplug.long_hpd = false;
 			dp->hotplug.status = hpd;
 			dp->hotplug.state = GPIO_STATE_PLUG;
-			schedule_work(&dp->hpd_work);
 		}
 	}
+
+	if (hpd)
+		schedule_work(&dp->hpd_work);
+
 	mutex_unlock(&dp->irq_lock);
 
 
@@ -2867,6 +2872,10 @@ static irqreturn_t dw_dp_hpd_irq_handler(int irq, void *arg)
 static void dw_dp_hpd_init(struct dw_dp *dp)
 {
 	dp->hotplug.status = dw_dp_detect_no_power(dp);
+	if (dp->hpd_gpio && dp->hotplug.status) {
+		dp->hotplug.state = GPIO_STATE_PLUG;
+		dp->hotplug.long_hpd = true;
+	}
 
 	if (dp->hpd_gpio || dp->force_hpd || dp->usbdp_hpd) {
 		regmap_update_bits(dp->regmap, DPTX_CCTL, FORCE_HPD,
@@ -2900,6 +2909,14 @@ static void dw_dp_init(struct dw_dp *dp)
 
 	dw_dp_hpd_init(dp);
 	dw_dp_aux_init(dp);
+
+	regmap_update_bits(dp->regmap, DPTX_GENERAL_INTERRUPT_ENABLE,
+			   VIDEO_FIFO_OVERFLOW_STREAM0 | VIDEO_FIFO_OVERFLOW_STREAM1 |
+			   VIDEO_FIFO_OVERFLOW_STREAM2 | VIDEO_FIFO_OVERFLOW_STREAM3,
+			   FIELD_PREP(VIDEO_FIFO_OVERFLOW_STREAM0, 1) |
+			   FIELD_PREP(VIDEO_FIFO_OVERFLOW_STREAM1, 1) |
+			   FIELD_PREP(VIDEO_FIFO_OVERFLOW_STREAM2, 1) |
+			   FIELD_PREP(VIDEO_FIFO_OVERFLOW_STREAM3, 1));
 }
 
 static void dw_dp_encoder_enable(struct drm_encoder *encoder)
@@ -3226,6 +3243,8 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 	u32 value;
 
 	if (on) {
+		if (dp->dynamic_pd_ctrl)
+			pm_runtime_get_sync(dp->dev);
 		di->color_formats = DRM_COLOR_FORMAT_RGB444;
 		di->bpc = 8;
 
@@ -3272,6 +3291,11 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 		phy_power_off(dp->phy);
 		extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
 		dw_dp_audio_handle_plugged_change(dp->audio, false);
+
+		if (dp->dynamic_pd_ctrl) {
+			pm_runtime_mark_last_busy(dp->dev);
+			pm_runtime_put_autosuspend(dp->dev);
+		}
 	}
 }
 
@@ -3814,26 +3838,6 @@ static void dw_dp_link_disable(struct dw_dp *dp)
 	link->train.channel_equalized = false;
 }
 
-static void dw_dp_reset(struct dw_dp *dp)
-{
-	int val;
-
-	disable_irq(dp->irq);
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 1));
-	udelay(100);
-	regmap_update_bits(dp->regmap, DPTX_SOFT_RESET_CTRL, CONTROLLER_RESET,
-			   FIELD_PREP(CONTROLLER_RESET, 0));
-
-	dw_dp_init(dp);
-	if (!dp->hpd_gpio) {
-		regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, val,
-					 FIELD_GET(HPD_HOT_PLUG, val), 200, 200000);
-		regmap_write(dp->regmap, DPTX_HPD_STATUS, HPD_HOT_PLUG);
-	}
-	enable_irq(dp->irq);
-}
-
 static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 					     struct drm_atomic_state *state)
 {
@@ -3886,10 +3890,8 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 	drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, false);
 
 	dw_dp_video_disable(dp, mst_enc->stream_id);
-	if (!dp->active_mst_links) {
+	if (!dp->active_mst_links)
 		dw_dp_link_disable(dp);
-		dw_dp_reset(dp);
-	}
 
 	pm_runtime_mark_last_busy(dp->dev);
 	pm_runtime_put_autosuspend(dp->dev);
@@ -4470,7 +4472,6 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	dw_dp_video_disable(dp, 0);
 	dw_dp_link_disable(dp);
 	bitmap_zero(dp->sdp_reg_bank, SDP_REG_BANK_SIZE);
-	dw_dp_reset(dp);
 
 	extcon_set_state_sync(dp->audio->extcon, EXTCON_DISP_DP, false);
 	dw_dp_audio_handle_plugged_change(dp->audio, false);
@@ -4605,6 +4606,8 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	u32 *output_fmts;
 	unsigned int i, j = 0;
 
+	dp->eotf_type = dw_dp_get_eotf(conn_state);
+
 	if (dp->split_mode || dp->dual_connector_split)
 		drm_mode_convert_to_origin_mode(&mode);
 
@@ -4674,6 +4677,14 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		dw_dp_swap_fmts(output_fmts, j);
 
 	*num_output_fmts = j;
+
+	if (*num_output_fmts == 0) {
+		dev_warn(dp->dev, "here is not satisfied the require bus format\n");
+		dev_info(dp->dev,
+			 "max bpc:%d, max fmt:%x, lanes:%d, rate:%d, bpc:%d, fmt:%d, eotf:%d\n",
+			 conn_state->max_bpc, di->color_formats, link->lanes, link->max_rate,
+			 dp_state->bpc, dp_state->color_format, dp->eotf_type);
+	}
 
 	return output_fmts;
 }
@@ -5009,24 +5020,30 @@ static void dw_dp_hpd_work(struct work_struct *work)
 	dev_dbg(dp->dev, "got hpd irq - %s\n", long_hpd ? "long" : "short");
 
 	if (!long_hpd) {
+		phy_power_on(dp->phy);
 		if (dp->is_mst) {
 			dw_dp_check_mst_status(dp);
+			phy_power_off(dp->phy);
 			return;
 		}
 
-		if (dw_dp_hpd_short_pulse(dp))
+		if (dw_dp_hpd_short_pulse(dp)) {
+			phy_power_off(dp->phy);
 			return;
+		}
 
 		if (dp->compliance.test_active &&
 		    dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
 			dw_dp_phy_test(dp);
 			/* just do the PHY test and nothing else */
+			phy_power_off(dp->phy);
 			return;
 		}
 
 		ret = dw_dp_link_retrain(dp);
 		if (ret)
 			dev_warn(dp->dev, "Retrain link failed\n");
+		phy_power_off(dp->phy);
 	} else {
 		drm_helper_hpd_irq_event(dp->bridge.dev);
 	}
@@ -5083,6 +5100,30 @@ static irqreturn_t dw_dp_irq_handler(int irq, void *data)
 
 	if (value & HDCP_EVENT)
 		dw_dp_handle_hdcp_event(dp);
+
+	if (value & VIDEO_FIFO_OVERFLOW_STREAM0) {
+		dev_err_ratelimited(dp->dev, "video fifo overflow stream0\n");
+		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
+			     VIDEO_FIFO_OVERFLOW_STREAM0);
+	}
+
+	if (value & VIDEO_FIFO_OVERFLOW_STREAM1) {
+		dev_err_ratelimited(dp->dev, "video fifo overflow stream1\n");
+		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
+			     VIDEO_FIFO_OVERFLOW_STREAM1);
+	}
+
+	if (value & VIDEO_FIFO_OVERFLOW_STREAM2) {
+		dev_err_ratelimited(dp->dev, "video fifo overflow stream2\n");
+		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
+			     VIDEO_FIFO_OVERFLOW_STREAM2);
+	}
+
+	if (value & VIDEO_FIFO_OVERFLOW_STREAM3) {
+		dev_err_ratelimited(dp->dev, "video fifo overflow stream3\n");
+		regmap_write(dp->regmap, DPTX_GENERAL_INTERRUPT,
+			     VIDEO_FIFO_OVERFLOW_STREAM3);
+	}
 
 	return IRQ_HANDLED;
 }

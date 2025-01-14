@@ -2,7 +2,7 @@
 /*
  * Rockchip AMP support.
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  * Author: Tony Xie <tony.xie@rock-chips.com>
  */
 

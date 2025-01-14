@@ -2,7 +2,7 @@
 /*
  * Header providing constants for Rockchip suspend bindings.
  *
- * Copyright (C) 2022, Rockchip Electronics Co., Ltd
+ * Copyright (C) 2022, Rockchip Electronics Co., Ltd.
  * Author: XiaoDong.Huang
  */
 

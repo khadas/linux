@@ -2,7 +2,7 @@
 /*
  * core.h -- core define for mfd display arch
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  *
@@ -106,7 +106,7 @@
 #define SERDES_DBG_CHIP(x...) no_printk(x)
 #endif
 
-#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-240815"
+#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-241025"
 #define MAX_NUM_SERDES_SPLIT 8
 struct serdes;
 enum ser_link_mode {
@@ -114,6 +114,11 @@ enum ser_link_mode {
 	SER_LINKA,
 	SER_LINKB,
 	SER_SPLITTER_MODE,
+};
+
+struct check_reg_data {
+	char name[30];
+	struct reg_sequence seq;
 };
 
 struct serdes_chip_pinctrl_info {
@@ -181,6 +186,10 @@ struct serdes_chip_split_ops {
 	int (*set_i2c_addr)(struct serdes *serdes, int address, int link);
 };
 
+struct serdes_check_reg_ops {
+	int (*check_reg)(struct serdes *serdes);
+};
+
 struct serdes_chip_pm_ops {
 	/* serdes chip function for suspend and resume */
 	int (*suspend)(struct serdes *serdes);
@@ -217,6 +226,7 @@ struct serdes_chip_data {
 	struct serdes_chip_pinctrl_ops *pinctrl_ops;
 	struct serdes_chip_gpio_ops *gpio_ops;
 	struct serdes_chip_split_ops *split_ops;
+	struct serdes_check_reg_ops *check_ops;
 	struct serdes_chip_pm_ops *pm_ops;
 	struct serdes_chip_irq_ops *irq_ops;
 };
@@ -373,6 +383,7 @@ struct serdes {
 	int lock_irq_trig;
 	int err_irq_trig;
 	atomic_t flag_ser_init;
+	atomic_t flag_early_suspend;
 
 	struct workqueue_struct *mfd_wq;
 	struct delayed_work mfd_delay_work;

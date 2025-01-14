@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - rockchip,fspi
+      - rockchip,rk3506-fspi
       - rockchip,sfc
 
     description:

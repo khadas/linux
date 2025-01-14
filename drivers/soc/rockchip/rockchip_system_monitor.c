@@ -32,6 +32,7 @@
 #include <linux/version.h>
 #include <linux/delay.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+#include <soc/rockchip/rockchip_sip.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #ifdef CONFIG_ROCKCHIP_EARLYSUSPEND
@@ -75,11 +76,14 @@ struct system_monitor {
 
 	struct thermal_zone_device *tz;
 	struct delayed_work thermal_work;
+	struct temp_freq_table *temp_ddr_ref_mode;
 	int last_temp;
 	int offline_cpus_temp;
 	int temp_hysteresis;
 	unsigned int delay;
 	bool is_temp_offline;
+
+	int (*ddr_trefi_update)(u32 ref_mode);
 };
 
 static unsigned long system_status;
@@ -1494,6 +1498,8 @@ static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 		system_monitor->offline_cpus_temp = INT_MAX;
 	of_property_read_u32(np, "rockchip,temp-hysteresis",
 			     &system_monitor->temp_hysteresis);
+	rockchip_get_temp_freq_table(np, "rockchip,temp-ddr-ref-mode",
+				     &system_monitor->temp_ddr_ref_mode);
 
 	if (of_find_property(np, "rockchip,thermal-governor-dummy", NULL)) {
 		if (monitor->tz->governor->unbind_from_tz)
@@ -1589,6 +1595,26 @@ static void rockchip_system_monitor_temp_cpu_on_off(int temp)
 	rockchip_system_monitor_cpu_on_off();
 }
 
+static void rockchip_system_monitor_temp_ddr_ref_mode(int temp)
+{
+	unsigned int i, new_ref_mode = 0;
+	static unsigned int last_ref_mode;
+
+	if (!system_monitor->temp_ddr_ref_mode)
+		return;
+	if (!system_monitor->ddr_trefi_update)
+		return;
+
+	for (i = 0; system_monitor->temp_ddr_ref_mode[i].freq != UINT_MAX; i++) {
+		if (temp > system_monitor->temp_ddr_ref_mode[i].temp)
+			new_ref_mode = system_monitor->temp_ddr_ref_mode[i].freq;
+	}
+	if (new_ref_mode && (new_ref_mode != last_ref_mode)) {
+		system_monitor->ddr_trefi_update(new_ref_mode);
+		last_ref_mode = new_ref_mode;
+	}
+}
+
 static void rockchip_system_monitor_thermal_update(void)
 {
 	int temp, ret;
@@ -1613,6 +1639,7 @@ static void rockchip_system_monitor_thermal_update(void)
 	up_read(&mdev_list_sem);
 
 	rockchip_system_monitor_temp_cpu_on_off(temp);
+	rockchip_system_monitor_temp_ddr_ref_mode(temp);
 
 out:
 	mod_delayed_work(system_freezable_wq, &system_monitor->thermal_work,
@@ -1849,9 +1876,41 @@ static void system_monitor_early_min_volt_function(struct work_struct *work)
 static DECLARE_DELAYED_WORK(system_monitor_early_min_volt_work,
 			    system_monitor_early_min_volt_function);
 
+static int system_monitor_ddr_trefi_update(u32 ref_mode)
+{
+	struct arm_smccc_res res;
+
+	res = sip_smc_dram(0, ref_mode,
+			   ROCKCHIP_SIP_CONFIG_DRAM_TREFI_UPD);
+	if (res.a0 || res.a1) {
+		pr_err("rockchip_sip_config_dram_trefi_upd error:%lx\n", res.a0);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static __maybe_unused int rk3506_system_monitor_init(struct platform_device *pdev)
+{
+	system_monitor->ddr_trefi_update = system_monitor_ddr_trefi_update;
+
+	return 0;
+}
+
+static const struct of_device_id rockchip_system_monitor_of_match[] = {
+	{ .compatible = "rockchip,system-monitor", .data = NULL },
+#if IS_ENABLED(CONFIG_CPU_RK3506)
+	{ .compatible = "rk3506,system-monitor", .data = rk3506_system_monitor_init },
+#endif
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, rockchip_system_monitor_of_match);
+
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
+	int (*init)(struct platform_device *pdev);
 
 	system_monitor = devm_kzalloc(dev, sizeof(struct system_monitor),
 				      GFP_KERNEL);
@@ -1873,6 +1932,13 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 	cpumask_clear(&system_monitor->offline_cpus);
 
 	rockchip_system_monitor_parse_dt(system_monitor);
+
+	match = of_match_device(rockchip_system_monitor_of_match, &pdev->dev);
+	if (match && match->data) {
+		init = match->data;
+		init(pdev);
+	}
+
 	if (system_monitor->tz) {
 		system_monitor->last_temp = INT_MAX;
 		INIT_DELAYED_WORK(&system_monitor->thermal_work,
@@ -1907,14 +1973,6 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id rockchip_system_monitor_of_match[] = {
-	{
-		.compatible = "rockchip,system-monitor",
-	},
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, rockchip_system_monitor_of_match);
 
 static struct platform_driver rockchip_system_monitor_driver = {
 	.probe	= rockchip_system_monitor_probe,

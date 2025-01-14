@@ -175,6 +175,7 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
     RK_U32 sw, sh;
     RK_U32 dw, dh;
     RK_U8 rotate_mode;
+    RK_U8 vsp_scale_mode = 0;
     RK_U8 scale_w_flag, scale_h_flag;
 
     bRGA_SRC_INFO = (RK_U32 *)(base + RGA2_SRC_INFO_OFFSET);
@@ -235,6 +236,18 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
             if(msg->rotate_mode >> 6)
                 scale_h_flag = 3;
         }
+    }
+
+    /* VSP scale mode select, HSD > VSD > VSP > HSP */
+    if (scale_h_flag == 0x2) {
+        /* After HSD, VSP needs to check dst_width */
+        if ((scale_w_flag == 0x1) && (dw < RGA2_VSP_BICUBIC_LIMIT))
+            vsp_scale_mode = 0x0;
+        else if (sw < RGA2_VSP_BICUBIC_LIMIT)
+            vsp_scale_mode = 0x0;
+        else
+            /* default select bilinear */
+            vsp_scale_mode = 0x1;
     }
 
     switch (msg->src.format)
@@ -299,7 +312,7 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_TRANS_MODE)) | (s_RGA2_SRC_INFO_SW_SW_SRC_TRANS_MODE(msg->src_trans_mode)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_TRANS_E)) | (s_RGA2_SRC_INFO_SW_SW_SRC_TRANS_E(msg->src_trans_mode >> 1)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_DITHER_UP_E)) | (s_RGA2_SRC_INFO_SW_SW_SRC_DITHER_UP_E((msg->alpha_rop_flag >> 4) & 0x1)));
-    reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL)) | (s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL((msg->scale_bicu_mode>>4))));
+    reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL)) | (s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL(vsp_scale_mode)));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_YUV10_E)) | (s_RGA2_SRC_INFO_SW_SW_YUV10_E((yuv10))));
 #if 1
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E)) | (s_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E((yuv10))));
@@ -1255,9 +1268,6 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
         req->rotate_mode |= (3 << 4);
         break;
     }
-
-    if((req->dst.act_w > 2048) && (req->src.act_h < req->dst.act_h))
-        req->scale_bicu_mode |= (1<<4);
 
     req->LUT_addr = req_rga->LUT_addr;
     req->rop_mask_addr = req_rga->rop_mask_addr;

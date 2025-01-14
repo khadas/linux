@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
@@ -229,7 +229,7 @@
 #define CLK_DDR_TIMER0			226
 #define CLK_DDR_TIMER1			227
 #define TCLK_WDT_DDR			228
-#define CLK_DDR_CM0_RTC			228
+#define CLK_DDR_CM0_RTC			229
 #define PCLK_WDT			230
 #define PCLK_TIMER			231
 #define PCLK_DMA2DDR			232
@@ -713,8 +713,12 @@
 #define CLK_PHY0_REF_ALT_M		719
 #define CLK_PHY1_REF_ALT_P		720
 #define CLK_PHY1_REF_ALT_M		721
+#define PCLK_DDR_MON_CH0		722
+#define PCLK_DDR_MON_CH1		723
+#define PCLK_DDR_MON_CH2		724
+#define PCLK_DDR_MON_CH3		725
 
-#define CLK_NR_CLKS			(CLK_PHY1_REF_ALT_M + 1)
+#define CLK_NR_CLKS			(PCLK_DDR_MON_CH3 + 1)
 
 /********Name=SOFTRST_CON01,Offset=0xA04********/
 #define SRST_A_TOP_BIU			19

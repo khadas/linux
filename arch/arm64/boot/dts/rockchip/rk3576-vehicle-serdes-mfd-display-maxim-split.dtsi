@@ -555,7 +555,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c8_max96752_pinctrl: i2c8-max96752-pinctrl {
@@ -878,7 +878,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c5_max96752_pinctrl: i2c5-max96752-pinctrl {
@@ -1005,7 +1005,7 @@
 
 			0050 0001
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c5_max96752_split_pinctrl: i2c5-max96752-split-pinctrl {

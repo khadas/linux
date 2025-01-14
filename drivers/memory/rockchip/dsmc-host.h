@@ -254,6 +254,9 @@
 
 #define XCCELA_MR4_WL_SHIFT				(5)
 #define XCCELA_MR4_WL_MASK				(0x7)
+#define XCCELA_MR4_REFRESH_SHIFT			(3)
+#define XCCELA_MR4_REFRESH_MASK				(0x3)
+#define XCCELA_MR4_0_5_REFRESH_RATE			(0x3)
 
 #define XCCELA_MR8_IO_TYPE_SHIFT			(6)
 #define XCCELA_MR8_IO_TYPE_MASK				(0x1)

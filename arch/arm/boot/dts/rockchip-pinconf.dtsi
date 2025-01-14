@@ -334,6 +334,12 @@
 	};
 
 	/omit-if-no-ref/
+	pcfg_input_enable_pull_down: pcfg-input-enable-pull-down {
+		input-enable;
+		bias-pull-down;
+	};
+
+	/omit-if-no-ref/
 	pcfg_output_high: pcfg-output-high {
 		output-high;
 	};

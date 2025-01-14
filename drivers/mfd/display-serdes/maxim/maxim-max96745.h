@@ -2,7 +2,7 @@
 /*
  * maxim-max96745.h -- register define for max96745 chip
  *
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  *
