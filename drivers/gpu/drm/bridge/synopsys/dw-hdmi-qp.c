@@ -2904,7 +2904,7 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 {
 	u32 val;
-	u64 color = MEDIA_BUS_FMT_YUV8_1X24;
+	u64 color = MEDIA_BUS_FMT_RGB888_1X24;
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
 	void *data = hdmi->plat_data->phy_data;
