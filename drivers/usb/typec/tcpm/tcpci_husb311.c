@@ -324,7 +324,6 @@ static void husb311_shutdown(struct i2c_client *client)
 
 	disable_irq(client->irq);
 	cancel_delayed_work_sync(&chip->pm_work);
-	tcpci_unregister_port(chip->tcpci);
 }
 
 static int husb311_pm_suspend(struct device *dev)

@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip SAI Controller driver
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _ROCKCHIP_SAI_H
@@ -95,6 +95,7 @@
 /* CKR Clock Generation Register */
 #define SAI_CKR_MDIV_MASK		GENMASK(14, 3)
 #define SAI_CKR_MDIV(x)			((x - 1) << 3)
+#define SAI_CKR_MDIV_V(v)		((((v) & SAI_CKR_MDIV_MASK) >> 3) + 1)
 #define SAI_CKR_MSS_MASK		BIT(2)
 #define SAI_CKR_MSS_SLAVE		BIT(2)
 #define SAI_CKR_MSS_MASTER		0

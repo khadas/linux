@@ -11,6 +11,7 @@
 #include "rk3576-vehicle-evb-v20-nca9539-io-expander.dtsi"
 #include "rk3576-vehicle-evb-v20-serdes-mfd-display-maxim.dtsi"
 #include "rk3576-vehicle-evb-v20-maxim-max96712-dphy0-isx021.dtsi"
+#include "rk3576-vehicle-evb-v20-maxim-max96712-dphy3-sc233at.dtsi"
 #include "rk3576-android.dtsi"
 
 / {
@@ -526,12 +527,10 @@
 };
 
 &u2phy0 {
-	rockchip,sel-pipe-phystatus;
 	status = "okay";
 };
 
 &u2phy0_otg {
-	/delete-property/rockchip,sel-pipe-phystatus;
 	//vbus-supply = <&usb_otg_vcc5v_buck>;
 	status = "okay";
 };

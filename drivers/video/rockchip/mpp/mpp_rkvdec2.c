@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2020 Rockchip Electronics Co., Ltd
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * author:
  *	Alpha Lin, alpha.lin@rock-chips.com
@@ -1361,6 +1361,24 @@ static int rkvdec2_vdpu382_reset(struct mpp_dev *mpp)
 
 }
 
+static int rkvdec2_rk3562_reset(struct mpp_dev *mpp)
+{
+	int ret = 0;
+
+	/*
+	 * only for rk3562
+	 * use mmu reset and cru reset
+	 * rkvdec will reset together when rkvdec_mmu force reset
+	 */
+	ret = rockchip_iommu_force_reset(mpp->dev);
+	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+	if (ret)
+		mpp_err("soft mmu reset fail, ret %d\n", ret);
+
+	return rkvdec2_reset(mpp);
+
+}
+
 static int rkvdec2_sip_reset(struct mpp_dev *mpp)
 {
 	mpp_debug_enter();
@@ -1387,7 +1405,7 @@ int rkvdec2_reset(struct mpp_dev *mpp)
 
 	/* cru reset */
 	if (dec->rst_a && dec->rst_h) {
-		mpp_err("cru reset\n");
+		mpp_debug(DEBUG_RESET, "cru reset in\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_niu_a);
 		mpp_safe_reset(dec->rst_niu_h);
@@ -1405,6 +1423,7 @@ int rkvdec2_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(dec->rst_cabac);
 		mpp_safe_unreset(dec->rst_hevc_cabac);
 		mpp_pmu_idle_request(mpp, false);
+		mpp_debug(DEBUG_RESET, "cru reset out\n");
 	}
 	mpp_debug_leave();
 
@@ -1480,6 +1499,15 @@ static struct mpp_hw_ops rkvdec_vdpu382_hw_ops = {
 	.get_freq = rkvdec2_get_freq,
 	.set_freq = rkvdec2_set_freq,
 	.reset = rkvdec2_vdpu382_reset,
+};
+
+static struct mpp_hw_ops rkvdec_rk3562_hw_ops = {
+	.init = rkvdec2_init,
+	.clk_on = rkvdec2_clk_on,
+	.clk_off = rkvdec2_clk_off,
+	.get_freq = rkvdec2_get_freq,
+	.set_freq = rkvdec2_set_freq,
+	.reset = rkvdec2_rk3562_reset,
 };
 
 static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
@@ -1562,7 +1590,7 @@ static const struct mpp_dev_var rkvdec_rk3562_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_vdpu382_hw_info,
 	.trans_info = rkvdec_v2_trans,
-	.hw_ops = &rkvdec_v2_hw_ops,
+	.hw_ops = &rkvdec_rk3562_hw_ops,
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 

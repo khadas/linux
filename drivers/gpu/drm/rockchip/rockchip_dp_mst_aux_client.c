@@ -2,7 +2,7 @@
 /*
  * Rockchip DP MST simulation axu client
  *
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  *
  * Author: Zhang Yubing <yubing.zhang@rock-chips.com>
  */

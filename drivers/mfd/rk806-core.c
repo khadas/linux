@@ -19,6 +19,7 @@
 #define TSD_TEMP_160	0x01
 #define VB_LO_ACT_SD	0x00
 #define VB_LO_ACT_INT	0x01
+#define VB_LO_3400MV	3400
 
 static const struct reg_field rk806_reg_fields[] = {
 	[POWER_EN0] = REG_FIELD(0x00, 0, 7),
@@ -213,7 +214,7 @@ static const struct reg_field rk806_reg_fields[] = {
 	[NLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6a, 0, 1),
 	/* SLEEP_VSEL_CTR_SEL4 */
 	[PLDO4_VSEL_CTR_SEL] = REG_FIELD(0x6d, 4, 5),
-	[PLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6d, 0, 0),
+	[PLDO3_VSEL_CTR_SEL] = REG_FIELD(0x6d, 0, 1),
 	[PLDO2_VSEL_CTR_SEL] = REG_FIELD(0x6c, 4, 5),
 	[PLDO1_VSEL_CTR_SEL] = REG_FIELD(0x6c, 0, 1),
 	/* SLEEP_VSEL_CTR_SEL5 */
@@ -279,6 +280,43 @@ static const struct reg_field rk806_reg_fields[] = {
 	[INT_FUNCTION] = REG_FIELD(0x7b, 2, 2),
 	[INT_POL] = REG_FIELD(0x7b, 1, 1),
 	[INT_FC_EN] = REG_FIELD(0x7b, 0, 0),
+
+	[BUCK1_SEQ] = REG_FIELD(0xB2, 0, 5),
+	[BUCK2_SEQ] = REG_FIELD(0xB3, 0, 5),
+	[BUCK3_SEQ] = REG_FIELD(0xB4, 0, 5),
+	[BUCK4_SEQ] = REG_FIELD(0xB5, 0, 5),
+	[BUCK5_SEQ] = REG_FIELD(0xB6, 0, 5),
+	[BUCK6_SEQ] = REG_FIELD(0xB7, 0, 5),
+	[BUCK7_SEQ] = REG_FIELD(0xB8, 0, 5),
+	[BUCK8_SEQ] = REG_FIELD(0xB9, 0, 5),
+	[BUCK9_SEQ] = REG_FIELD(0xBA, 0, 5),
+	[BUCK10_SEQ] = REG_FIELD(0xBB, 0, 5),
+
+	[NLDO1_SEQ] = REG_FIELD(0xBC, 0, 5),
+	[NLDO2_SEQ] = REG_FIELD(0xBD, 0, 5),
+	[NLDO3_SEQ] = REG_FIELD(0xBE, 0, 5),
+	[NLDO4_SEQ] = REG_FIELD(0xBF, 0, 5),
+	[NLDO5_SEQ] = REG_FIELD(0xC0, 0, 5),
+
+	[PLDO6_45_SEQ] = REG_FIELD(0xB5, 6, 7),
+	[PLDO6_23_SEQ] = REG_FIELD(0xB6, 6, 7),
+	[PLDO6_01_SEQ] = REG_FIELD(0xB7, 6, 7),
+
+	[PLDO1_45_SEQ] = REG_FIELD(0xB8, 6, 7),
+	[PLDO1_23_SEQ] = REG_FIELD(0xB9, 6, 7),
+	[PLDO1_01_SEQ] = REG_FIELD(0xBA, 6, 7),
+
+	[PLDO2_45_SEQ] = REG_FIELD(0xBB, 6, 7),
+	[PLDO2_23_SEQ] = REG_FIELD(0xBC, 6, 7),
+	[PLDO2_01_SEQ] = REG_FIELD(0xBD, 6, 7),
+
+	[PLDO3_45_SEQ] = REG_FIELD(0xBE, 6, 7),
+	[PLDO3_23_SEQ] = REG_FIELD(0xBF, 6, 7),
+	[PLDO3_01_SEQ] = REG_FIELD(0xC0, 6, 7),
+
+	[PLDO4_SEQ] = REG_FIELD(0xC1, 0, 5),
+	[PLDO5_SEQ] = REG_FIELD(0xC2, 0, 5),
+
 	[BUCK9_RATE2] = REG_FIELD(0xEA, 0, 0),
 	[BUCK10_RATE2] = REG_FIELD(0xEA, 1, 1),
 	[LDO_RATE] = REG_FIELD(0xEA, 3, 5),
@@ -511,6 +549,55 @@ int rk806_field_write(struct rk806 *rk806,
 }
 EXPORT_SYMBOL_GPL(rk806_field_write);
 
+static void rk806_vb_requence_config(struct rk806 *rk806)
+{
+	struct rk806_platform_data *pdata = rk806->pdata;
+	int i;
+
+	if (!pdata->support_vb_sequence || !pdata->vb_shutdown_sequence)
+		return;
+
+	for (i = RK806_ID_DCDC1; i <= RK806_ID_DCDC10; i++)
+		rk806_field_write(rk806, BUCK1_SEQ + i, pdata->vb_shutdown_sequence[i]);
+
+	for (i = RK806_ID_NLDO1; i <= RK806_ID_NLDO5; i++)
+		rk806_field_write(rk806,
+				  NLDO1_SEQ + (i - RK806_ID_NLDO1),
+				  pdata->vb_shutdown_sequence[i]);
+
+	rk806_field_write(rk806, PLDO1_01_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO1]);
+	rk806_field_write(rk806, PLDO2_01_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO2]);
+	rk806_field_write(rk806, PLDO3_01_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO3]);
+	rk806_field_write(rk806, PLDO4_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO4]);
+	rk806_field_write(rk806, PLDO5_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO5]);
+	rk806_field_write(rk806, PLDO6_01_SEQ, pdata->vb_shutdown_sequence[RK806_ID_PLDO6]);
+}
+
+void rk806_shutdown_requence_config(struct rk806 *rk806)
+{
+	struct rk806_platform_data *pdata = rk806->pdata;
+	int i;
+
+	if (!pdata->support_shutdown_sequence || !pdata->shutdown_sequence)
+		return;
+
+	for (i = RK806_ID_DCDC1; i <= RK806_ID_DCDC10; i++)
+		rk806_field_write(rk806, BUCK1_SEQ + i, pdata->shutdown_sequence[i]);
+
+	for (i = RK806_ID_NLDO1; i <= RK806_ID_NLDO5; i++)
+		rk806_field_write(rk806,
+				  NLDO1_SEQ + (i - RK806_ID_NLDO1),
+				  pdata->shutdown_sequence[i]);
+
+	rk806_field_write(rk806, PLDO1_01_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO1]);
+	rk806_field_write(rk806, PLDO2_01_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO2]);
+	rk806_field_write(rk806, PLDO3_01_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO3]);
+	rk806_field_write(rk806, PLDO4_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO4]);
+	rk806_field_write(rk806, PLDO5_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO5]);
+	rk806_field_write(rk806, PLDO6_01_SEQ, pdata->shutdown_sequence[RK806_ID_PLDO6]);
+}
+EXPORT_SYMBOL_GPL(rk806_shutdown_requence_config);
+
 static void rk806_irq_init(struct rk806 *rk806)
 {
 	/* INT pin polarity  active low */
@@ -571,47 +658,14 @@ static int rk806_pinctrl_init(struct rk806 *rk806)
 	return 0;
 }
 
-static irqreturn_t rk806_vb_low_irq(int irq, void *rk806)
+static void rk806_vb_force_shutdown_init(struct rk806 *rk806)
 {
-	return IRQ_HANDLED;
-}
+	struct rk806_platform_data *pdata = rk806->pdata;
 
-static int rk806_low_power_irqs(struct rk806 *rk806)
-{
-	struct rk806_platform_data *pdata;
-	int ret, vb_lo_irq;
-
-	pdata = rk806->pdata;
-
-	if (!pdata->low_voltage_threshold)
-		return 0;
-
-	rk806_field_write(rk806, VB_LO_ACT, VB_LO_ACT_INT);
-
+	rk806_vb_requence_config(rk806);
+	rk806_field_write(rk806, VB_LO_ACT, VB_LO_ACT_SD);
 	rk806_field_write(rk806, VB_LO_SEL,
 			  (pdata->low_voltage_threshold - 2800) / 100);
-
-	vb_lo_irq = regmap_irq_get_virq(rk806->irq_data, RK806_IRQ_VB_LO);
-	if (vb_lo_irq < 0) {
-		dev_err(rk806->dev, "vb_lo_irq request failed!\n");
-		return vb_lo_irq;
-	}
-
-	ret = devm_request_threaded_irq(rk806->dev, vb_lo_irq,
-					NULL,
-					rk806_vb_low_irq,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-					"rk806_vb_low", rk806);
-	if (ret) {
-		dev_err(rk806->dev, "vb_lo_irq request failed!\n");
-		return ret;
-	}
-
-	rk806->vb_lo_irq = vb_lo_irq;
-	disable_irq(rk806->vb_lo_irq);
-	enable_irq_wake(vb_lo_irq);
-
-	return 0;
 }
 
 static irqreturn_t rk806_vdc_irq(int irq, void *data)
@@ -685,13 +739,13 @@ static int rk806_parse_dt(struct rk806 *rk806)
 				       "low_voltage_threshold",
 				       &pdata->low_voltage_threshold);
 	if (ret < 0) {
-		pdata->low_voltage_threshold = 0;
+		pdata->low_voltage_threshold = VB_LO_3400MV;
 		dev_info(dev, "low_voltage_threshold missing!\n");
 	} else {
 		if ((pdata->low_voltage_threshold > 3500) ||
 		    (pdata->low_voltage_threshold < 2800)) {
 			dev_err(dev, "low_voltage_threshold out [2800 3500]!\n");
-			pdata->low_voltage_threshold = 2800;
+			pdata->low_voltage_threshold = VB_LO_3400MV;
 		}
 	}
 	ret = device_property_read_u32(dev,
@@ -734,6 +788,54 @@ static int rk806_parse_dt(struct rk806 *rk806)
 	if (device_property_read_bool(dev, "vdc-wakeup-enable"))
 		pdata->vdc_wakeup_enable = 1;
 
+	pdata->shutdown_sequence = devm_kzalloc(dev,
+						RK806_ID_END * sizeof(int),
+						GFP_KERNEL);
+	if (!pdata->shutdown_sequence)
+		return -EINVAL;
+
+	pdata->support_shutdown_sequence = 1;
+	ret = device_property_read_u32_array(dev,
+					     "shutdown-sequence",
+					     pdata->shutdown_sequence,
+					     RK806_ID_END);
+	if (ret) {
+		dev_info(dev, "shutdown-sequence missing!\n");
+		pdata->support_shutdown_sequence = 0;
+	}
+
+	pdata->vb_shutdown_sequence = devm_kzalloc(dev,
+						   RK806_ID_END * sizeof(int),
+						   GFP_KERNEL);
+	if (!pdata->vb_shutdown_sequence)
+		return -EINVAL;
+
+	pdata->support_vb_sequence = 1;
+	ret = device_property_read_u32_array(dev,
+					     "vb-shutdown-sequence",
+					     pdata->vb_shutdown_sequence,
+					     RK806_ID_END);
+	if (ret) {
+		pdata->support_vb_sequence = 0;
+		dev_info(dev, "vb-shutdown-sequence missing!\n");
+	}
+
+	pdata->dvs_control_suspend = devm_kzalloc(dev,
+						  RK806_ID_END * sizeof(int),
+						  GFP_KERNEL);
+	if (!pdata->dvs_control_suspend)
+		return -EINVAL;
+
+	pdata->support_dvs_control_suspend = 1;
+	ret = device_property_read_u32_array(dev,
+					     "dvs-suspend-control-by",
+					     pdata->dvs_control_suspend,
+					     RK806_ID_END);
+	if (ret) {
+		pdata->support_dvs_control_suspend = 0;
+		dev_info(dev, "dvs-suspend-control-by missing!\n");
+	}
+
 	return 0;
 }
 
@@ -761,7 +863,7 @@ static int rk806_init(struct rk806 *rk806)
 	/* Digital output 2MHz clock force enable */
 	rk806_field_write(rk806, ENB2_2M, 0x01);
 
-	rk806_low_power_irqs(rk806);
+	rk806_vb_force_shutdown_init(rk806);
 	rk806_vdc_irqs_init(rk806);
 
 	return 0;
@@ -822,6 +924,7 @@ int rk806_device_init(struct rk806 *rk806)
 		dev_err(rk806->dev, "Failed to add IRQ chip: err = %d\n", ret);
 		return ret;
 	}
+	enable_irq_wake(rk806->irq);
 
 	ret = devm_mfd_add_devices(rk806->dev,
 				   PLATFORM_DEVID_AUTO,

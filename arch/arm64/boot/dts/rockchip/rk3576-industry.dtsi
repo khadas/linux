@@ -127,6 +127,12 @@
 	};
 };
 
+&bus_a72 {
+	bus-supply = <&vdd_logic_s0>;
+	pvtm-supply = <&vdd_logic_s0>;
+	status = "okay";
+};
+
 &can0 {
 	assigned-clocks = <&cru CLK_CAN0>;
 	assigned-clock-rates = <200000000>;

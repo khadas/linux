@@ -2,7 +2,7 @@
 /*
  * Rockchip machine ASoC driver for Rockchip HDMI audio
  *
- * Copyright (C) 2021 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
  *
  * Authors: XiaoTan Luo <lxt@rock-chips.com>
  *

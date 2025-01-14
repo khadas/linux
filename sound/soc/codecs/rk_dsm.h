@@ -2,7 +2,7 @@
 /*
  * Rockchip Audio Delta-sigma Digital Converter driver
  *
- * Copyright (C) 2023 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  */
 

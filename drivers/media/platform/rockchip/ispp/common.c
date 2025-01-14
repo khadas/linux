@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2019 Rockchip Electronics Co., Ltd */
+/* Copyright (C) 2019 Rockchip Electronics Co., Ltd. */
 
 #include <media/videobuf2-dma-contig.h>
 #include <linux/delay.h>

@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (c) Rockchip Electronics Co., Ltd.
  * Authors:
  *       Mark Yao <yzq@rock-chips.com>
  *
@@ -109,6 +109,12 @@ enum rockchip_cabc_mode {
 	ROCKCHIP_DRM_CABC_MODE_NORMAL,
 	ROCKCHIP_DRM_CABC_MODE_LOWPOWER,
 	ROCKCHIP_DRM_CABC_MODE_USERSPACE,
+};
+
+enum rockchip_drm_error_event_type {
+	ROCKCHIP_DRM_ERROR_EVENT_IOMMU_FAULT	= (1 << 0),
+	ROCKCHIP_DRM_ERROR_EVENT_POST_BUF_EMPTY	= (1 << 1),
+	ROCKCHIP_DRM_ERROR_EVENT_REQUEST_RESET	= (1 << 2),
 };
 
 #define DRM_ROCKCHIP_GEM_CREATE		0x00

@@ -2,7 +2,7 @@
 /*
  * Header providing constants for Rockchip suspend bindings.
  *
- * Copyright (C) 2024, Rockchip Electronics Co., Ltd
+ * Copyright (C) 2024, Rockchip Electronics Co., Ltd.
  * Author: XiaoDong.Huang
  */
 
@@ -31,6 +31,7 @@
 #define RKPM_SLP_32K_EXT		BIT(24)
 #define RKPM_SLP_TIME_OUT_WKUP		BIT(25)
 #define RKPM_SLP_PMU_DBG		BIT(26)
+#define RKPM_SLP_ARCH_TIMER_RESET	BIT(27)
 
 /* the wake up source */
 #define RKPM_CPU0_WKUP_EN		BIT(0)

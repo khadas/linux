@@ -127,7 +127,7 @@
 &i2c1 {
 	status = "okay";
 
-	vm149c: vm149c@0c {
+	vm149c: vm149c@c {
 		compatible = "silicon touch,vm149c";
 		status = "okay";
 		reg = <0x0c>;
@@ -216,7 +216,7 @@
 		};
 	};
 
-	/delete-node/ tc358749x@0f;
+	/delete-node/ tc358749x@f;
 
 	tc35874x: tc35874x@0f {
 		status = "disabled";

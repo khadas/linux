@@ -2,7 +2,7 @@
 /*
  * vehicle sensor gc2145
  *
- * Copyright (C) 2020 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Authors:
  *      Zhiqin Wei <wzq@rock-chips.com>
  *

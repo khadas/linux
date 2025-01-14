@@ -482,6 +482,16 @@ enum rk806_fields {
 	LDO_RATE, BUCK1_RATE2, BUCK2_RATE2, BUCK3_RATE2, BUCK4_RATE2,
 	BUCK5_RATE2, BUCK6_RATE2, BUCK7_RATE2, BUCK8_RATE2, BUCK9_RATE2,
 	BUCK10_RATE2,
+
+	BUCK1_SEQ, BUCK2_SEQ, BUCK3_SEQ, BUCK4_SEQ, BUCK5_SEQ,
+	BUCK6_SEQ, BUCK7_SEQ, BUCK8_SEQ, BUCK9_SEQ, BUCK10_SEQ,
+	PLDO1_01_SEQ, PLDO1_23_SEQ, PLDO1_45_SEQ,
+	PLDO2_01_SEQ, PLDO2_23_SEQ, PLDO2_45_SEQ,
+	PLDO3_01_SEQ, PLDO3_23_SEQ, PLDO3_45_SEQ,
+	PLDO4_SEQ, PLDO5_SEQ,
+	PLDO6_01_SEQ, PLDO6_23_SEQ, PLDO6_45_SEQ,
+	NLDO1_SEQ, NLDO2_SEQ, NLDO3_SEQ, NLDO4_SEQ, NLDO5_SEQ,
+
 	F_MAX_FIELDS
 };
 
@@ -492,6 +502,14 @@ struct rk806_platform_data {
 	int shutdown_temperture_threshold;
 	int hotdie_temperture_threshold;
 	int vdc_wakeup_enable;
+
+	int *shutdown_sequence;
+	int *vb_shutdown_sequence;
+	int *dvs_control_suspend;
+
+	int support_shutdown_sequence;
+	int support_vb_sequence;
+	int support_dvs_control_suspend;
 };
 
 struct rk806_pin_info {
@@ -517,7 +535,6 @@ struct rk806 {
 	struct regmap_irq_chip_data *irq_data;
 	struct rk806_platform_data *pdata;
 	struct rk806_pin_info *pins;
-	int vb_lo_irq;
 };
 
 extern const struct regmap_config rk806_regmap_config;
@@ -529,4 +546,5 @@ int rk806_field_write(struct rk806 *rk806,
 		      unsigned int val);
 int rk806_field_read(struct rk806 *rk806,
 		     enum rk806_fields field_id);
+void rk806_shutdown_requence_config(struct rk806 *rk806);
 #endif /* __LINUX_REGULATOR_RK806_H */

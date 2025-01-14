@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 #ifndef __SOC_ROCKCHIP_DVBM_H
 #define __SOC_ROCKCHIP_DVBM_H

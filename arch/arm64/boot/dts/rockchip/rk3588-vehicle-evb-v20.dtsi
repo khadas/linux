@@ -343,11 +343,11 @@
 };
 
 &u2phy0 {
-	rockchip,sel-pipe-phystatus;
 	status = "okay";
 };
 
 &u2phy0_otg {
+	rockchip,sel-pipe-phystatus;
 	rockchip,dis-u2-susphy;
 	status = "okay";
 };
@@ -406,5 +406,6 @@
 	dr_mode = "host";
 	maximum-speed = "high-speed";
 	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 	status = "okay";
 };

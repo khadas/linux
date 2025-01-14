@@ -1,7 +1,7 @@
 /*
  * rk818 charger driver
  *
- * Copyright (C) 2016 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2016 Rockchip Electronics Co., Ltd.
  * chenjh <chenjh@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify it

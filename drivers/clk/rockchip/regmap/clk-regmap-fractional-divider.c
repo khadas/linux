@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2019 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2019 Rockchip Electronics Co., Ltd.
  *
  * Base on code in drivers/clk/clk-fractional-divider.c.
  * See clk-fractional-divider.c for further copyright information.

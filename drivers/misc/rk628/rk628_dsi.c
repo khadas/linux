@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
@@ -1292,7 +1292,11 @@ static void rk628_dsi_bridge_enable(struct rk628 *rk628,
 
 static int rk628_dsi_color_bar_show(struct seq_file *s, void *data)
 {
-	seq_puts(s, "  Enable color bar:\n");
+	seq_puts(s, "  Enable horizontal color bar:\n");
+	seq_puts(s, "      example: echo 3 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+	seq_puts(s, "  Enable vertical color bar:\n");
+	seq_puts(s, "      example: echo 2 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+	seq_puts(s, "  Enable BER pattern (vertical only):\n");
 	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
 	seq_puts(s, "  Disable color bar:\n");
 	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
@@ -1303,6 +1307,29 @@ static int rk628_dsi_color_bar_show(struct seq_file *s, void *data)
 static int rk628_dsi_color_bar_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, rk628_dsi_color_bar_show, inode->i_private);
+}
+
+static void rk628_dsi_color_bar(struct rk628 *rk628, struct rk628_dsi *dsi, u8 mode)
+{
+	switch (mode) {
+	case 3: // horizontal color bar
+		dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_ORIENTATION | VPG_MODE | VPG_EN,
+				VPG_ORIENTATION | 0 | VPG_EN);
+		break;
+	case 2: // vertical color bar
+		dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_ORIENTATION | VPG_MODE | VPG_EN,
+				0 | 0 | VPG_EN);
+		break;
+	case 1: // BER pattern (vertical only)
+		dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_ORIENTATION | VPG_MODE | VPG_EN,
+				0 | VPG_MODE | VPG_EN);
+		break;
+	default: // Disable color bar
+		dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_ORIENTATION | VPG_MODE | VPG_EN,
+				0 | 0 | 0);
+		dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
+		dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
+	}
 }
 
 static ssize_t rk628_dsi_color_bar_write(struct file *file, const char __user *ubuf,
@@ -1316,19 +1343,10 @@ static ssize_t rk628_dsi_color_bar_write(struct file *file, const char __user *u
 	if (kstrtou8_from_user(ubuf, len, 0, &mode))
 		return -EFAULT;
 
-	dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
-	if (!mode) {
-		dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
-		dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
-	}
+	rk628_dsi_color_bar(rk628, dsi, mode);
 
-	if (dsi->slave) {
-		dsi_update_bits(rk628, dsi1, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
-		if (!mode) {
-			dsi_write(rk628, dsi1, DSI_PWR_UP, RESET);
-			dsi_write(rk628, dsi1, DSI_PWR_UP, POWER_UP);
-		}
-	}
+	if (dsi->slave)
+		rk628_dsi_color_bar(rk628, dsi1, mode);
 
 	return len;
 }

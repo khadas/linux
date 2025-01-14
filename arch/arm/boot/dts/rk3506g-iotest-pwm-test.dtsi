@@ -3,6 +3,7 @@
  * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  */
 
+#ifndef IR_TRANSMIT_TEST
 / {
 	pwm_rockchip_test: pwm-rockchip-test {
 		compatible = "pwm-rockchip-test";
@@ -32,6 +33,7 @@
 			    "pwm1_7";
 	};
 };
+#endif
 
 /* use GPIO0_B0 ~ GPIO0_C3(rm_io8 ~ rm_io19) by default */
 &pwm0_4ch_0 {
@@ -157,5 +159,39 @@
 	pinctrl-0 = <&rm_io19_pwm1_ch7>;
 	assigned-clocks = <&cru CLK_PWM1>;
 	assigned-clock-rates = <100000000>;
+};
+#endif
+
+#ifdef IR_TRANSMIT_TEST
+&pwm1_8ch_0 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_1 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_2 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_3 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_4 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_5 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_6 {
+	rockchip,pwm-ir-transmit;
+};
+
+&pwm1_8ch_7 {
+	rockchip,pwm-ir-transmit;
 };
 #endif

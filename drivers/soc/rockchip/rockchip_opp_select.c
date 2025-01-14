@@ -1389,8 +1389,10 @@ static void rockchip_init_pvtpll_table(struct device *dev,
 	of_node_put(clkspec.np);
 
 	res = sip_smc_get_pvtpll_info(PVTPLL_GET_INFO, info->pvtpll_clk_id);
-	if (res.a0)
+	if (res.a0) {
+		info->pvtpll_smc = false;
 		goto out;
+	}
 	if (!res.a1)
 		info->pvtpll_low_temp = true;
 
@@ -1695,6 +1697,8 @@ int rockchip_init_opp_info(struct device *dev, struct rockchip_opp_info *info,
 	info->bin = -EINVAL;
 	info->process = -EINVAL;
 	info->volt_sel = -EINVAL;
+	info->pvtpll_clk_id = UINT_MAX;
+	info->pvtpll_smc = true;
 	info->is_runtime_active = true;
 	mutex_init(&info->dvfs_mutex);
 
@@ -2055,12 +2059,38 @@ static int rockchip_opp_parse_supplies(struct device *dev,
 	return 0;
 }
 
+static int rockchip_pvtpll_set_volt_sel(struct device *dev,
+					struct rockchip_opp_info *info)
+{
+	struct arm_smccc_res res;
+
+	if (!info)
+		return 0;
+	if (info->volt_sel < 0)
+		return 0;
+	if (info->pvtpll_clk_id == UINT_MAX)
+		return 0;
+
+	if (!info->pvtpll_smc)
+		return rockchip_pvtpll_volt_sel_adjust(info->pvtpll_clk_id,
+						       info->volt_sel);
+
+	res = sip_smc_pvtpll_config(PVTPLL_VOLT_SEL, info->pvtpll_clk_id,
+				    (u32)info->volt_sel, 0, 0, 0, 0);
+	if (res.a0)
+		dev_err(dev, "%s: error cfg clk_id=%u voltsel (%d)\n", __func__,
+			info->pvtpll_clk_id, (int)res.a0);
+
+	return 0;
+}
+
 int rockchip_adjust_opp_table(struct device *dev, struct rockchip_opp_info *info)
 {
 	rockchip_opp_parse_supplies(dev, info);
 	rockchip_adjust_power_scale(dev, info);
 	rockchip_pvtpll_calibrate_opp(info);
 	rockchip_pvtpll_add_length(info);
+	rockchip_pvtpll_set_volt_sel(dev, info);
 
 	return 0;
 }

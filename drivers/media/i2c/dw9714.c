@@ -2,7 +2,7 @@
 /*
  * dw9714 vcm driver
  *
- * Copyright (C) 2022 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/delay.h>

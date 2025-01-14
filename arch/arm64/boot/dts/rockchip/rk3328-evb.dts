@@ -138,6 +138,10 @@
 	};
 };
 
+&analog_sound {
+	status = "okay";
+};
+
 &avsd {
 	status = "okay";
 };
@@ -229,6 +233,10 @@
 	#sound-dai-cells = <0>;
 	ddc-i2c-scl-high-time-ns = <9625>;
 	ddc-i2c-scl-low-time-ns = <10000>;
+	status = "okay";
+};
+
+&hdmi_sound {
 	status = "okay";
 };
 

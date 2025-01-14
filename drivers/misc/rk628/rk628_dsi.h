@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
@@ -43,6 +43,8 @@
 #define DSI_MODE_CFG			0x0034
 #define CMD_VIDEO_MODE(x)		UPDATE(x,  0,  0)
 #define DSI_VID_MODE_CFG		0x0038
+#define VPG_ORIENTATION			BIT(24)
+#define VPG_MODE			BIT(20)
 #define VPG_EN				BIT(16)
 #define LP_CMD_EN			BIT(15)
 #define FRAME_BTA_ACK_EN		BIT(14)

@@ -100,6 +100,7 @@ struct sditf_priv {
 	struct rkmodule_hdr_cfg	hdr_cfg;
 	struct capture_info cap_info;
 	struct rkisp_vicap_mode mode;
+	struct rkisp_vicap_mode mode_src;
 	struct toisp_info toisp_inf;
 	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -123,6 +124,9 @@ struct sditf_priv {
 	u32 cur_time;
 	u32 cur_gain;
 	int one_to_multi_id;
+	u32 hdr_wrap_line;
+	bool is_toisp_off;
+	bool is_buf_init;
 };
 
 extern struct platform_driver rkcif_subdev_driver;

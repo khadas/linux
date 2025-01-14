@@ -1216,6 +1216,7 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 	dphy_hw->csi2dphy_regs = drv_data->csi2dphy_regs;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dphy_hw->res = res;
 	dphy_hw->hw_base_addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dphy_hw->hw_base_addr)) {
 		resource_size_t offset = res->start;

@@ -11,6 +11,12 @@ config VIDEO_CAM_SLEEP_WAKEUP
 	help
 	  Support for sensor sleep and wake up.
 
+config VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+	bool "Enable camera Thunderboot setup function"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if you need camera Thunderboot setup functions.
+
 comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
 
@@ -1069,6 +1075,17 @@ config VIDEO_OS05A20
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OS05A20 camera.
+
+config VIDEO_OS05L10
+	tristate "OmniVision OS05L10 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OS05L10 camera.
 
 config VIDEO_OS08A10
 	tristate "OmniVision OS08A10 sensor support"
@@ -2933,6 +2950,18 @@ config VIDEO_THCV244
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called thcv244.
+
+config VIDEO_TP2855
+	tristate "NEXTCHIP tp2855 driver support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the Nextchip TP2855 multi channels digital decode to
+	  MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tp2855.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"

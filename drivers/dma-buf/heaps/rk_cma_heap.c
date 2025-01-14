@@ -9,7 +9,7 @@
  * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
  *
- * Copyright (C) 2021, 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2021, 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/cma.h>

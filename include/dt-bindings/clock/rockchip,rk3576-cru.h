@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
@@ -558,6 +558,7 @@
 #define CLK_AUDIO_FRAC_2_SRC		556
 #define CLK_AUDIO_FRAC_3_SRC		557
 #define PCLK_HDPTX_APB			558
+#define PCLK_DDR_MON_CH1		559
 
 /* secure clk */
 #define CLK_STIMER0_ROOT		600

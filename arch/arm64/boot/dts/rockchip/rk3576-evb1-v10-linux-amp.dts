@@ -15,4 +15,14 @@
 / {
 	model = "Rockchip RK3576 EVB1 V10 Board";
 	compatible = "rockchip,rk3576-evb1-v10", "rockchip,rk3576";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		amp_reserved: amp@41800000 {
+			reg = <0x0 0x41800000 0x0 0x00800000>;
+			no-map;
+		};
+	};
 };

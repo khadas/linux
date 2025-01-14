@@ -14,7 +14,7 @@
 		};
 
 		display_reserved: framebuffer@10900000 {
-			reg = <0x0 0x10900000 0x0 0x3300000>;
+			reg = <0x0 0x10900000 0x0 0x3800000>;
 		};
 	};
 
@@ -24,6 +24,8 @@
 		eink_tcon = <&eink>;
 		memory-region = <&display_reserved>;
 		waveform-region = <&waveform_reserved>;
+		nvmem-cells = <&cpu_code>;
+		nvmem-cell-names = "cpu-code";
 		status = "okay";
 	};
 };

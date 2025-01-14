@@ -215,11 +215,13 @@ struct rockchip_usb2phy_port_cfg {
  * @clkout_ctl_phy: keep on/turn off output clk of phy via phy inner
  *		    debug register.
  * @ls_filter_con: set linestate filter time.
- * @port_cfgs: usb-phy port configurations.
- * @ls_filter_con: set linestate filter time.
  * @refclk_fsel: reference clock frequency select,
  *	true	- select 24 MHz
  *	false	- select 26 MHz
+ * @detclk_sel: usb phy grf reference clock select,
+ *	true	- select OSC clock
+ *	false	- select pclk
+ * @port_cfgs: usb-phy port configurations.
  * @chg_det: charger detection registers.
  */
 struct rockchip_usb2phy_cfg {
@@ -233,6 +235,7 @@ struct rockchip_usb2phy_cfg {
 	struct usb2phy_reg	clkout_ctl_phy;
 	struct usb2phy_reg	ls_filter_con;
 	struct usb2phy_reg	refclk_fsel;
+	struct usb2phy_reg	detclk_sel;
 	const struct rockchip_usb2phy_port_cfg	port_cfgs[USB2PHY_NUM_PORTS];
 	const struct rockchip_chg_det_reg	chg_det;
 };
@@ -3327,6 +3330,13 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 	if (wakeup_enable && rphy->irq > 0)
 		enable_irq_wake(rphy->irq);
 
+	/*
+	 * Select the usb2 phy interrupt logic clock from OSC clock
+	 * to support interrupt detection if VD_LOGIC is powerdown.
+	 */
+	if (phy_cfg->detclk_sel.enable)
+		property_enable(rphy->grf, &phy_cfg->detclk_sel, true);
+
 	return ret;
 }
 
@@ -3360,6 +3370,9 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 		if (ret)
 			dev_err(rphy->dev, "failed to set ls filter %d\n", ret);
 	}
+
+	if (phy_cfg->detclk_sel.enable)
+		property_enable(rphy->grf, &phy_cfg->detclk_sel, false);
 
 	for (index = 0; index < phy_cfg->num_ports; index++) {
 		rport = &rphy->ports[index];
@@ -4006,10 +4019,10 @@ static const struct rockchip_usb2phy_cfg rk3506_phy_cfgs[] = {
 				.ls_det_en	= { 0x0150, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0154, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x0158, 0, 0, 0, 1 },
-				.disfall_en	= { 0x0150, 7, 7, 0, 1 },
+				.disfall_en	= { 0x0150, 7, 7, 0, 0 },
 				.disfall_st	= { 0x0154, 7, 7, 0, 1 },
 				.disfall_clr	= { 0x0158, 7, 7, 0, 1 },
-				.disrise_en	= { 0x0150, 6, 6, 0, 1 },
+				.disrise_en	= { 0x0150, 6, 6, 0, 0 },
 				.disrise_st	= { 0x0154, 6, 6, 0, 1 },
 				.disrise_clr	= { 0x0158, 6, 6, 0, 1 },
 				.utmi_avalid	= { 0x0118, 1, 1, 0, 1 },
@@ -4018,6 +4031,7 @@ static const struct rockchip_usb2phy_cfg rk3506_phy_cfgs[] = {
 				.utmi_ls	= { 0x0118, 5, 4, 0, 1 },
 				.utmi_hstdet	= { 0x0118, 7, 7, 0, 1 },
 				.vbus_det_en	= { 0x003c, 15, 15, 1, 0 },
+				.port_ls_filter_con = { 0x0160, 19, 0, 0x30100, 0x20 },
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x0070, 8, 0, 0, 0x1d1 },
@@ -4037,10 +4051,10 @@ static const struct rockchip_usb2phy_cfg rk3506_phy_cfgs[] = {
 				.ls_det_en	= { 0x0170, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0174, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x0178, 0, 0, 0, 1 },
-				.disfall_en	= { 0x0170, 7, 7, 0, 1 },
+				.disfall_en	= { 0x0170, 7, 7, 0, 0 },
 				.disfall_st	= { 0x0174, 7, 7, 0, 1 },
 				.disfall_clr	= { 0x0178, 7, 7, 0, 1 },
-				.disrise_en	= { 0x0170, 6, 6, 0, 1 },
+				.disrise_en	= { 0x0170, 6, 6, 0, 0 },
 				.disrise_st	= { 0x0174, 6, 6, 0, 1 },
 				.disrise_clr	= { 0x0178, 6, 6, 0, 1 },
 				.utmi_avalid	= { 0x0118, 9, 9, 0, 1 },
@@ -4049,6 +4063,7 @@ static const struct rockchip_usb2phy_cfg rk3506_phy_cfgs[] = {
 				.utmi_ls	= { 0x0118, 13, 12, 0, 1 },
 				.utmi_hstdet	= { 0x0118, 15, 15, 0, 1 },
 				.vbus_det_en	= { 0x043c, 15, 15, 1, 0 },
+				.port_ls_filter_con = { 0x0180, 19, 0, 0x30100, 0x20 },
 			}
 		},
 		.chg_det = {
@@ -4273,8 +4288,9 @@ static const struct rockchip_usb2phy_cfg rk3576_phy_cfgs[] = {
 		.num_ports	= 1,
 		.phy_tuning	= rk3576_usb2phy_tuning,
 		.clkout_ctl	= { 0x0008, 0, 0, 1, 0 },
-		.ls_filter_con	= { 0x0020, 19, 0, 0x30100, 0x00020 },
+		.ls_filter_con	= { 0x0020, 19, 0, 0x30100, 0x06020 },
 		.refclk_fsel	= { 0x0004, 2, 0, 0x6, 0x2 },
+		.detclk_sel	= { 0x00d0, 0, 0, 0, 1 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x0000, 8, 0, 0, 0x1d1 },
@@ -4328,8 +4344,9 @@ static const struct rockchip_usb2phy_cfg rk3576_phy_cfgs[] = {
 		.num_ports	= 1,
 		.phy_tuning	= rk3576_usb2phy_tuning,
 		.clkout_ctl	= { 0x2008, 0, 0, 1, 0 },
-		.ls_filter_con	= { 0x2020, 19, 0, 0x30100, 0x00020 },
+		.ls_filter_con	= { 0x2020, 19, 0, 0x30100, 0x06020 },
 		.refclk_fsel	= { 0x2004, 2, 0, 0x6, 0x2 },
+		.detclk_sel	= { 0x20d0, 0, 0, 0, 1 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
 				.phy_sus	= { 0x2000, 8, 0, 0, 0x1d1 },
