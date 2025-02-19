@@ -244,23 +244,23 @@ static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
 static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
-	u32 bit_filed = SR_BUSY;
+	u32 bit_field = SR_BUSY;
 	u32 idle_val = 0;
 	uint32_t speed, us;
 
 	if (slave_mode && rs->version == ROCKCHIP_SPI_VER2_TYPE2) {
-		bit_filed = SR_SLAVE_TX_BUSY;
+		bit_field = SR_SLAVE_TX_BUSY;
 		idle_val = 0;
 	} else if (slave_mode) {
-		bit_filed = SR_TF_EMPTY;
-		idle_val = 1;
+		bit_field = SR_TF_EMPTY;
+		idle_val = SR_TF_EMPTY;
 	}
 
 	do {
-		if ((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & bit_filed) == idle_val) {
-			if (bit_filed == SR_TF_EMPTY) {
+		if ((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & bit_field) == idle_val) {
+			if (bit_field == SR_TF_EMPTY) {
 				speed = rs->speed_hz;
-				us = (8 * 1000000 / speed) * 2;
+				us = (8 * 1000000 / speed) * 2 + 1;
 				udelay(us);
 			}
 			return;

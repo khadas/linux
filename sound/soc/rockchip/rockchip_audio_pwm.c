@@ -2,7 +2,7 @@
 /*
  * Rockchip Audio PWM Driver
  *
- * Copyright (C) 2020 Fuzhou Rockchip Electronics Co.,Ltd
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  */
 

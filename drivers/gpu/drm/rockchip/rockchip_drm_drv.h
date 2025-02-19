@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
  * based on exynos_drm_drv.h
@@ -55,14 +55,6 @@ struct iommu_domain;
 #define VOP_OUTPUT_IF_HDMI1	BIT(12)
 #define VOP_OUTPUT_IF_DP2	BIT(13)
 
-#ifndef DRM_FORMAT_NV20
-#define DRM_FORMAT_NV20		fourcc_code('N', 'V', '2', '0') /* 2x1 subsampled Cr:Cb plane */
-#endif
-
-#ifndef DRM_FORMAT_NV30
-#define DRM_FORMAT_NV30		fourcc_code('N', 'V', '3', '0') /* non-subsampled Cr:Cb plane */
-#endif
-
 #define RK_IF_PROP_COLOR_DEPTH		"color_depth"
 #define RK_IF_PROP_COLOR_FORMAT		"color_format"
 #define RK_IF_PROP_COLOR_DEPTH_CAPS	"color_depth_caps"
@@ -75,6 +67,7 @@ enum rockchip_drm_debug_category {
 	VOP_DEBUG_WB		= BIT(2),
 	VOP_DEBUG_CFG_DONE	= BIT(3),
 	VOP_DEBUG_CLK		= BIT(4),
+	VOP_DEBUG_IOMMU_MAP     = BIT(5),
 	VOP_DEBUG_VSYNC		= BIT(7),
 	VOP_DEBUG_PIXEL_SHIFT	= BIT(8),
 };
@@ -348,6 +341,15 @@ struct rockchip_drm_vcnt {
 	int pipe;
 };
 
+struct rockchip_drm_error_event {
+	wait_queue_head_t wait;
+	struct task_struct *thread;
+	struct list_head event_list;
+	struct drm_event_vblank event;
+	bool error_state;
+	spinlock_t lock;
+};
+
 struct rockchip_logo {
 	dma_addr_t dma_addr;
 	struct drm_mm_node logo_reserved_node;
@@ -510,6 +512,7 @@ struct rockchip_crtc_funcs {
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode, struct dmcfreq_vop_info *vop_bw_info);
 	int (*get_crc)(struct drm_crtc *crtc);
+	void (*iommu_fault_handler)(struct drm_crtc *crtc, struct iommu_domain *iommu);
 };
 
 struct rockchip_dclk_pll {
@@ -557,6 +560,8 @@ struct rockchip_drm_private {
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 
+	uint64_t iommu_fault_count;
+
 	struct rockchip_dclk_pll default_pll;
 	struct rockchip_dclk_pll hdmi_pll;
 
@@ -567,6 +572,8 @@ struct rockchip_drm_private {
 	struct mutex ovl_lock;
 
 	struct rockchip_drm_vcnt vcnt[ROCKCHIP_MAX_CRTC];
+	struct rockchip_drm_error_event error_event;
+
 	/**
 	 * @loader_protect
 	 * ignore restore_fbdev_mode_atomic when in logo on state
@@ -633,7 +640,7 @@ uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info);
 uint32_t rockchip_drm_get_cycles_per_pixel(uint32_t bus_format);
 int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
-				   struct edid *edid);
+				   const struct edid *edid);
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 			       u8 *max_frl_rate_per_lane, u8 *max_lanes, u8 *add_func,
 			       const struct edid *edid);
@@ -646,10 +653,18 @@ int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate
 bool rockchip_drm_is_afbc(struct drm_plane *plane, u64 modifier);
 bool rockchip_drm_is_rfbc(struct drm_plane *plane, u64 modifier);
 const char *rockchip_drm_modifier_to_string(uint64_t modifier);
+void rockchip_drm_reset_iommu_fault_handler_rate_limit(void);
+void rockchip_drm_send_error_event(struct rockchip_drm_private *priv,
+				   enum rockchip_drm_error_event_type event);
 
 __printf(3, 4)
-void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
+void rockchip_drm_dbg(const struct device *dev,
+		      enum rockchip_drm_debug_category category,
 		      const char *format, ...);
+__printf(3, 4)
+void rockchip_drm_dbg_thread_info(const struct device *dev,
+				  enum rockchip_drm_debug_category category,
+				  const char *format, ...);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;

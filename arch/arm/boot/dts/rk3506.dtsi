@@ -47,6 +47,8 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN0>, <&cru SRST_H_CAN0>;
 		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN0>;
+		assigned-clock-rates = <300000000>;
 		status = "disabled";
 	};
 
@@ -58,6 +60,8 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN1>, <&cru SRST_H_CAN1>;
 		reset-names = "can", "can-apb";
+		assigned-clocks = <&cru CLK_CAN1>;
+		assigned-clock-rates = <300000000>;
 		status = "disabled";
 	};
 
@@ -74,6 +78,9 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_MAC0>;
 		reset-names = "stmmaceth";
+
+		assigned-clocks = <&cru CLK_MAC0_PTP>;
+		assigned-clock-rates = <62500000>;
 
 		snps,mixed-burst;
 		snps,tso;
@@ -125,6 +132,9 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_MAC1>;
 		reset-names = "stmmaceth";
+
+		assigned-clocks = <&cru CLK_MAC1_PTP>;
+		assigned-clock-rates = <62500000>;
 
 		snps,mixed-burst;
 		snps,tso;

@@ -2,7 +2,7 @@
 /*
  * it6621-codec.c -- IT6621 ALSA SoC audio codec driver
  *
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  * Author: Jason Zhang <jason.zhang@rock-chips.com>
  */
 

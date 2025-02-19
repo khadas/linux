@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  * Parts derived from drivers/block/brd.c, copyright
  * of their respective owners.

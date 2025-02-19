@@ -1,7 +1,7 @@
 /*
  * rk818_battery.h: fuel gauge driver structures
  *
- * Copyright (C) 2016 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2016 Rockchip Electronics Co., Ltd.
  * Author: chenjh <chenjh@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify it

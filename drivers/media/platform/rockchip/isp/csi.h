@@ -78,7 +78,7 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 			      struct v4l2_device *v4l2_dev);
 void rkisp_unregister_csi_subdev(struct rkisp_device *dev);
 int rkisp_csi_get_hdr_cfg(struct rkisp_device *dev, void *arg);
-int rkisp_csi_config_patch(struct rkisp_device *dev);
+int rkisp_csi_config_patch(struct rkisp_device *dev, bool is_pre_cfg);
 void rkisp_csi_sof(struct rkisp_device *dev, u8 id);
 void rkisp_get_remote_mipi_sensor(struct rkisp_device *dev,
 				  struct v4l2_subdev **sensor_sd, u32 function);

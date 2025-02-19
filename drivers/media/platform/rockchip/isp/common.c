@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2019 Rockchip Electronics Co., Ltd */
+/* Copyright (C) 2019 Rockchip Electronics Co., Ltd. */
 
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-dma-sg.h>
@@ -187,6 +187,10 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 		u32 *val = dev->sw_base_addr + i;
 		u32 *flag = dev->sw_base_addr + i + RKISP_ISP_SW_REG_SIZE;
 
+		if (dev->procfs.mode & RKISP_PROCFS_FIL_RAW &&
+		    (i == ISP3X_MI_RAW0_RD_BASE ||
+		     i == ISP3X_MI_RAW1_RD_BASE || i == ISP3X_MI_RAWS_RD_BASE))
+			continue;
 		if (dev->procfs.mode & RKISP_PROCFS_FIL_SW) {
 			if (!((i >= ISP3X_ISP_ACQ_H_OFFS && i <= ISP3X_ISP_ACQ_V_SIZE) ||
 			      (i >= ISP3X_ISP_OUT_H_OFFS && i <= ISP3X_ISP_OUT_V_SIZE) ||
@@ -227,8 +231,6 @@ int rkisp_buf_get_fd(struct rkisp_device *dev,
 
 	if (!buf || !buf->mem_priv)
 		return -EINVAL;
-	if (try_fd && buf->is_need_dmafd)
-		return 0;
 	if (try_fd) {
 		buf->is_need_dbuf = true;
 		buf->is_need_dmafd = true;
@@ -532,7 +534,7 @@ u64 rkisp_time_get_ns(struct rkisp_device *dev)
 {
 	u64 ns;
 
-	if (dev->isp_ver == ISP_V32)
+	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33)
 		ns = ktime_get_boottime_ns();
 	else
 		ns = ktime_get_ns();

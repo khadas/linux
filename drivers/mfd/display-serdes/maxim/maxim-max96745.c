@@ -2,7 +2,7 @@
 /*
  * maxim-max96745.c  --  I2C register interface access for max96745 serdes chip
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author:
  */
@@ -856,6 +856,49 @@ static struct serdes_chip_split_ops max96745_split_ops = {
 	.deselect = max96745_deselect,
 };
 
+static const struct check_reg_data max96745_improtant_reg[10] = {
+	{
+		"MAX96745 LINK LOCK",
+		{ 0x0013, (1 << 3) },
+	}, {
+		"MAX96745 LINKA LOCK",
+		{ 0x002A, (1 << 0) },
+	}, {
+		"MAX96745 LINKB LOCK",
+		{ 0x0034, (1 << 0) },
+	}, {
+		"MAX96745 X PCLK DET",
+		{ 0x0102, (1 << 7) },
+	}, {
+		"MAX96745 Y PCLK DET",
+		{ 0x0112, (1 << 7) },
+	},
+};
+
+static int max96745_check_reg(struct serdes *serdes)
+{
+	int i =  0, ret = 0;
+	unsigned int val = 0;
+
+	for (i = 0; i < ARRAY_SIZE(max96745_improtant_reg); i++) {
+		if (!max96745_improtant_reg[i].seq.reg)
+			break;
+
+		ret = serdes_reg_read(serdes, max96745_improtant_reg[i].seq.reg, &val);
+		if (!ret && !(val & max96745_improtant_reg[i].seq.def)
+		    && (!atomic_read(&serdes->flag_early_suspend)))
+			dev_info(serdes->dev, "warning %s %s reg[0x%x] = 0x%x\n", __func__,
+				 max96745_improtant_reg[i].name,
+				 max96745_improtant_reg[i].seq.reg, val);
+	}
+
+	return 0;
+}
+
+static struct serdes_check_reg_ops max96745_check_reg_ops = {
+	.check_reg = max96745_check_reg,
+};
+
 static int max96745_pm_suspend(struct serdes *serdes)
 {
 	return 0;
@@ -897,6 +940,7 @@ struct serdes_chip_data serdes_max96745_data = {
 	.pinctrl_ops	= &max96745_pinctrl_ops,
 	.gpio_ops	= &max96745_gpio_ops,
 	.split_ops	= &max96745_split_ops,
+	.check_ops	= &max96745_check_reg_ops,
 	.pm_ops		= &max96745_pm_ops,
 	.irq_ops	= &max96745_irq_ops,
 };

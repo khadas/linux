@@ -2,7 +2,7 @@
 /*
  * maxim-max96755.c  --  I2C register interface access for max96755 serdes chip
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author:
  */

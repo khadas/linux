@@ -296,6 +296,7 @@ struct rkisp_device {
 	bool is_hw_link;
 	bool is_bigmode;
 	bool is_rdbk_auto;
+	bool is_m_online;
 	bool is_pre_on;
 	bool is_first_double;
 	bool is_probe_end;
@@ -305,8 +306,13 @@ struct rkisp_device {
 	bool is_suspend_one_frame;
 	bool is_aiisp_en;
 	bool is_aiisp_upd;
+	bool is_frm_rd;
+	bool is_multi_one_sync;
+	bool is_wait_aiq;
 
 	struct rkisp_vicap_input vicap_in;
+	struct rkisp_vicap_sof vicap_sof;
+	u32 hdr_wrap_line;
 
 	u8 multi_mode;
 	u8 multi_index;
@@ -314,6 +320,9 @@ struct rkisp_device {
 	u8 unite_index;
 	u8 unite_div;
 };
+
+void rkisp_vicap_hw_link(struct rkisp_device *dev, int on);
+void rkisp_online_update_reg(struct rkisp_device *dev, bool is_init, bool is_reset);
 
 static inline void
 rkisp_unite_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)

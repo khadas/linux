@@ -1,7 +1,7 @@
 /*
  * drivers/misc/usb_cam_gpio.c
  *
- * Copyright (C) 2012-2016 Rockchip Co.,Ltd.
+ * Copyright (C) 2012-2016 Rockchip Electronics Co., Ltd.
  * Author: Bin Yang <yangbin@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

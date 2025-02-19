@@ -1,6 +1,6 @@
 /* drivers/input/sensors/access/kxtik.c
  *
- * Copyright (C) 2012-2015 ROCKCHIP.
+ * Copyright (C) 2012-2015 Rockchip Electronics Co., Ltd.
  * Author: Bruins <xwj@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

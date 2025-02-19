@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  *
  * Author: Dingxian Wen <shawn.wen@rock-chips.com>
  */
@@ -71,7 +71,7 @@ MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 #define MEMORY_ALIGN_ROUND_UP_BYTES	64
 #define HDMIRX_PLANE_Y			0
 #define HDMIRX_PLANE_CBCR		1
-#define INIT_FIFO_STATE			64
+#define INIT_FIFO_STATE			128
 #define RK_IRQ_HDMIRX_HDMI		210
 #define FILTER_FRAME_CNT		6
 #define CPU_LIMIT_FREQ_KHZ		1200000
@@ -85,15 +85,6 @@ MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 #define LOGIC_CPU_ID_2			2
 #define LOGIC_CPU_ID_5			5
 #define PHY_CPU_ID_4			4
-
-#define is_validfs(x) (x == 32000 || \
-			x == 44100 || \
-			x == 48000 || \
-			x == 88200 || \
-			x == 96000 || \
-			x == 176400 || \
-			x == 192000 || \
-			x == 768000)
 
 struct hdmirx_audiostate {
 	struct platform_device *pdev;
@@ -3394,6 +3385,52 @@ static u32 hdmirx_audio_ch(struct rk_hdmirx_dev *hdmirx_dev)
 	return ch;
 }
 
+static int supported_fs[] = {
+	32000,
+	44100,
+	48000,
+	88200,
+	96000,
+	176400,
+	192000,
+	768000,
+	-1
+};
+
+static bool is_validfs(int fs)
+{
+	int i = 0;
+	int fs_t;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		if (fs == fs_t)
+			return true;
+		fs_t = supported_fs[i++];
+	};
+	return false;
+}
+
+static int rk628_hdmirx_audio_find_closest_fs(struct rk_hdmirx_dev *hdmirx_dev, int fs)
+{
+	int i = 0;
+	int fs_t;
+	int difference;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		difference = abs(fs - fs_t);
+		if (difference <= 2000) {
+			if (fs != fs_t)
+				dev_dbg(hdmirx_dev->dev, "%s fix fs from %u to %u",
+					__func__, fs, fs_t);
+			return fs_t;
+		}
+		fs_t = supported_fs[i++];
+	};
+	return fs_t;
+}
+
 static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	u64 tmds_clk, fs_audio = 0;
@@ -3410,8 +3447,7 @@ static u32 hdmirx_audio_fs(struct rk_hdmirx_dev *hdmirx_dev)
 	if (acr_cts != 0) {
 		fs_audio = div_u64((tmds_clk * acr_n), acr_cts);
 		fs_audio /= 128;
-		fs_audio = div_u64(fs_audio + 50, 100);
-		fs_audio *= 100;
+		fs_audio = rk628_hdmirx_audio_find_closest_fs(hdmirx_dev, fs_audio);
 	}
 	dev_dbg(hdmirx_dev->dev, "%s: fs_audio=%llu; acr_cts=%u; acr_n=%u\n",
 		__func__, fs_audio, acr_cts, acr_n);
@@ -3456,10 +3492,41 @@ static void hdmirx_audio_clk_ppm_inc(struct rk_hdmirx_dev *hdmirx_dev, int ppm)
 	delta = (int)div64_u64((uint64_t)rate * ppm + 500000, 1000000);
 	delta *= inc;
 	rate = hdmirx_dev->audio_state.hdmirx_aud_clkrate + delta;
-	dev_dbg(hdmirx_dev->dev, "%s: %u to %u(delta:%d)\n",
-		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate, delta);
+	dev_dbg(hdmirx_dev->dev, "%s: %u to %u(delta:%d ppm:%d)\n",
+		__func__, hdmirx_dev->audio_state.hdmirx_aud_clkrate, rate, delta, ppm);
 	clk_set_rate(hdmirx_dev->clks[1].clk, rate);
 	hdmirx_dev->audio_state.hdmirx_aud_clkrate = rate;
+}
+
+static int hdmirx_audio_clk_adjust(struct rk_hdmirx_dev *hdmirx_dev,
+				   int total_offset, int single_offset)
+{
+	int shedule_time = 500;
+	int ppm = 10;
+	uint32_t offset_abs;
+
+	offset_abs = abs(total_offset);
+	if (offset_abs > 200) {
+		ppm += 200;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 100) {
+		ppm += 200;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 32) {
+		ppm += 20;
+		shedule_time -= 100;
+	}
+	if (offset_abs > 16)
+		ppm += 20;
+	if (total_offset > 16 && single_offset > 0)
+		hdmirx_audio_clk_ppm_inc(hdmirx_dev, ppm);
+	else if (total_offset < -16 && single_offset < 0)
+		hdmirx_audio_clk_ppm_inc(hdmirx_dev, -ppm);
+	if (!hdmirx_dev->audio_present)
+		shedule_time = 50;
+	return shedule_time;
 }
 
 static void hdmirx_audio_set_state(struct rk_hdmirx_dev *hdmirx_dev, enum audio_stat stat)
@@ -3694,10 +3761,8 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 			process_audio_change(hdmirx_dev);
 			hdmirx_dev->audio_present = true;
 		}
-		if (cur_state - init_state > 16 && cur_state - pre_state > 0)
-			hdmirx_audio_clk_ppm_inc(hdmirx_dev, 10);
-		else if (cur_state - init_state < -16 && cur_state - pre_state < 0)
-			hdmirx_audio_clk_ppm_inc(hdmirx_dev, -10);
+		delay = hdmirx_audio_clk_adjust(hdmirx_dev, cur_state - init_state,
+						cur_state - pre_state);
 	} else {
 		if (hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio off");

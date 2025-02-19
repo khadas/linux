@@ -2,7 +2,7 @@
 /*
  * drivers/video/rockchip/flinger/flinger.c
  *
- * Copyright (C) 2022 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  */
 #ifndef __VEHICLE_FLINGER_H

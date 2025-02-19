@@ -98,6 +98,13 @@ config DRM_PANEL_SIMPLE
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_SIMPLE_OF_ONLY
+	bool "compatible is simple-panel or panel-dpi or simple-panel-dsi only"
+	depends on DRM_PANEL_SIMPLE
+	depends on ROCKCHIP_MINI_KERNEL
+	help
+	  Only support panels which all parameters from device tree.
+
 config DRM_PANEL_EDP
 	tristate "support for simple Embedded DisplayPort panels"
 	depends on OF

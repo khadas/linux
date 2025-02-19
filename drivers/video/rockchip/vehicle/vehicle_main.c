@@ -2,7 +2,7 @@
 /*
  * drivers/video/rockchip/video/vehicle_main.c
  *
- * Copyright (C) 2022 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Authors:
  *	Zhiqin Wei <wzq@rock-chips.com>
  *      <randy.wang@rock-chips.com>

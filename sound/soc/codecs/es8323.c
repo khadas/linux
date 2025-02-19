@@ -2,7 +2,7 @@
 //
 // es8323.c -- es8323 ALSA SoC audio driver
 //
-// Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+// Copyright (c) 2016 Rockchip Electronics Co., Ltd.
 //
 // Author: Mark Brown <will@everset-semi.com>
 // Author: Jianqun Xu <jay.xu@rock-chips.com>

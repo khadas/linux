@@ -543,6 +543,27 @@
  * 19.clear isp force update bit
  * 20.isp39 aiisp offline mode default
  * 21.vpss: online support reset
+ *
+ * v2.9.0 (AIQ v6.9.0)
+ * 1.rawrd format sync with isp input format change
+ * 2.support bytesperline set by user for rawrd video
+ * 3.fix isp39 unite stats frame id
+ * 4.update iqtool video
+ * 5.fix isp32_lite repeat register iqtool video
+ * 6.fix lsc switch for isp30
+ * 7.add fpn function
+ * 8.fix buf config for isp20 and isp21
+ * 9.fix dhaz unite for isp39
+ * 10.fix isp39 no output
+ * 11.sync with kernel-5.10
+ * 12.remove graph_mutex
+ * 13.add raw filter to procfs debug
+ * 14.fix multi sensor with unite mode
+ * 15.fix group aov no working for isp32
+ * 16.fix bay3d if two readback for isp32
+ * 17.fix isp30 unite mode for rk3588
+ * 18.add sensor exposure for isp30 and isp39
+ * 19.support frame information attach to image tail
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

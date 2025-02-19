@@ -2,7 +2,7 @@
 /*
  * UCS12CM0 illuminance and correlated color temperature sensor
  *
- * Copyright (C) 2022-2025 ROCKCHIP.
+ * Copyright (C) 2022-2025 Rockchip Electronics Co., Ltd.
  * Author: Jason Zhang <jason.zhang@rock-chips.com>
  *
  * IIO driver for UCS12CM0 (7-bit I2C slave address 0x38)

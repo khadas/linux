@@ -76,5 +76,6 @@ config MTD_SPI_NOR_SWP_KEEP
 endchoice
 
 source "drivers/mtd/spi-nor/controllers/Kconfig"
+source "drivers/mtd/spi-nor/Kconfig.spinorlist"
 
 endif # MTD_SPI_NOR

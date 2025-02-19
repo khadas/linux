@@ -2,7 +2,7 @@
 /*
  * drivers/video/rockchip/video/vehicle_gpio.c
  *
- * Copyright (C) 2020 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Authors:
  *	Jianwei Fan <jianwei.fan@rock-chips.com>
  *

@@ -233,6 +233,16 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 		return NULL;
 	}
+
+	if (!test_bit(RGA_JOB_STATE_FINISH, &job->state) &&
+	    !test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		rga_err("%s(%#x) running job has not yet been completed.",
+			rga_get_core_name(scheduler->core), scheduler->core);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+		return NULL;
+	}
+
 	scheduler->running_job = NULL;
 
 	scheduler->timer.busy_time +=
@@ -261,15 +271,8 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 
 static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
 {
+	int ret = orig_ret;
 	struct rga_scheduler_t *scheduler = job->scheduler;
-
-	if (scheduler->ops->read_status) {
-		scheduler->ops->read_status(job, scheduler);
-		rga_job_err(job, "core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
-			scheduler->core,
-			job->intr_status, job->hw_status, job->cmd_status,
-			job->work_cycle, job->work_cycle);
-	}
 
 	if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 	    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
@@ -277,14 +280,24 @@ static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has finished, but the software has timeout!\n");
-		return -EBUSY;
+
+		ret = -EBUSY;
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has timeout.\n");
-		return -EBUSY;
+
+		if (scheduler->ops->read_status)
+			scheduler->ops->read_status(job, scheduler);
+
+		ret = -EBUSY;
 	}
 
-	return orig_ret;
+	rga_job_err(job, "timeout core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+		    scheduler->core,
+		    job->intr_status, job->hw_status, job->cmd_status,
+		    job->work_cycle, job->work_cycle);
+
+	return ret;
 }
 
 static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
@@ -631,6 +644,56 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *manag
 	request = idr_find(&manager->request_idr, id);
 
 	return request;
+}
+
+void rga_request_scheduler_shutdown(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job, *job_q;
+	unsigned long flags;
+
+	rga_power_enable(scheduler);
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+	if (job) {
+		if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state) ||
+		    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+			spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+			goto finish;
+		}
+
+		scheduler->running_job = NULL;
+		scheduler->status = RGA_SCHEDULER_ABORT;
+		scheduler->ops->soft_reset(scheduler);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		rga_mm_unmap_job_info(job);
+
+		job->ret = -EBUSY;
+		rga_request_release_signal(scheduler, job);
+
+		/*
+		 *  Since the running job was abort, turn off the power here that
+		 * should have been turned off after job done (corresponds to
+		 * power_enable in rga_job_run()).
+		 */
+		rga_power_disable(scheduler);
+	} else {
+		/* Clean up the jobs in the todo list that need to be free. */
+		list_for_each_entry_safe(job, job_q, &scheduler->todo_list, head) {
+			rga_mm_unmap_job_info(job);
+
+			job->ret = -EBUSY;
+			rga_request_release_signal(scheduler, job);
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+finish:
+	rga_power_disable(scheduler);
 }
 
 void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler)
@@ -1192,9 +1255,9 @@ int rga_request_submit(struct rga_request *request)
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		release_fence = rga_dma_fence_alloc();
-		if (IS_ERR(release_fence)) {
+		if (IS_ERR_OR_NULL(release_fence)) {
 			rga_req_err(request, "Can not alloc release fence!\n");
-			ret = IS_ERR(release_fence);
+			ret = IS_ERR(release_fence) ? PTR_ERR(release_fence) : -EINVAL;
 			goto err_reset_request;
 		}
 		request->release_fence = release_fence;

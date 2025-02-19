@@ -2,7 +2,7 @@
 /*
  * Maxim max96755f GMSL2 Serializer with MIPI-DSI Input
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <drm/drm_atomic_helper.h>

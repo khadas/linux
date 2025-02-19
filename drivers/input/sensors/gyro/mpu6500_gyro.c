@@ -1,6 +1,6 @@
 /* drivers/input/sensors/access/mpu6880_gyro.c
  *
- * Copyright (C) 2012-2015 ROCKCHIP.
+ * Copyright (C) 2012-2015 Rockchip Electronics Co., Ltd.
  * Author: ouenhui <oeh@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

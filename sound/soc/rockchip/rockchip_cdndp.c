@@ -1,7 +1,7 @@
 /*
  * Rockchip machine ASoC driver for boards using CDN DP
  *
- * Copyright (c) 2016, ROCKCHIP CORPORATION.  All rights reserved.
+ * Copyright (c) 2016, Rockchip Electronics Co., Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,

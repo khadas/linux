@@ -2,7 +2,7 @@
 /*
  * serdes-pinctrl.c  -- serdes pin control driver.
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */
@@ -229,7 +229,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	int pin_base = 0;
 	int i, j, ret;
 
-	if (!serdes->dev)
+	if (!serdes->dev || !serdes->chip_data)
 		return -1;
 
 	pinctrl_info = chip_data->pinctrl_info;
@@ -335,7 +335,8 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = pinctrl_enable(serdes_pinctrl->pctl);
+	if (!serdes->route_enable)
+		ret = pinctrl_enable(serdes_pinctrl->pctl);
 
 	ret = serdes_pinctrl_gpio_init(serdes);
 

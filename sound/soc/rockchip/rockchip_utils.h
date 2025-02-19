@@ -2,7 +2,7 @@
 /*
  * Rockchip Utils API
  *
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _ROCKCHIP_UTILS_H

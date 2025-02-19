@@ -1,7 +1,7 @@
 /*
  * drivers/input/touchscreen/gslx680_d708/rockchip_gsl3670.h
  *
- * Copyright (c) 2017 rockchip
+ * Copyright (c) 2017 Rockchip Electronics Co., Ltd.
  *
  *
  *  This program is free software; you can redistribute it and/or modify

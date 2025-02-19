@@ -1,7 +1,7 @@
 /*
  * Regulator driver for xz3216 DCDC chip for rk32xx
  *
- * Copyright (C) 2010, 2011 ROCKCHIP, Inc.
+ * Copyright (C) 2010, 2011 Rockchip Electronics Co., Ltd.
 
  * Based on xz3216.c that is work by zhangqing<zhangqing@rock-chips.com>
  *

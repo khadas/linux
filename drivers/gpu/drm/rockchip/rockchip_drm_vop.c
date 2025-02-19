@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:Mark Yao <mark.yao@rock-chips.com>
  */
 
@@ -1854,6 +1854,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	vop_plane_state->zpos = new_plane_state->zpos;
+	vop_plane_state->global_alpha = new_plane_state->alpha >> 8;
 	vop_plane_state->blend_mode = new_plane_state->pixel_blend_mode;
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
@@ -1993,8 +1994,8 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	if (!old_state->crtc)
 		return;
 
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d by %s\n",
-			 win->win_id, win->area_id, current->comm);
+	rockchip_drm_dbg_thread_info(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d",
+				     win->win_id, win->area_id);
 
 	spin_lock(&vop->reg_lock);
 
@@ -2249,12 +2250,12 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	if (rockchip_afbc(plane, fb->modifier))
 		afbc_en = true;
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE,
-			 "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad] by %s\n",
-			 win->win_id, win->area_id, actual_w, actual_h,
-			 dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
-			 afbc_en ? "[AFBC]" : "",
-			 &vop_plane_state->yrgb_mst, current->comm);
+	rockchip_drm_dbg_thread_info(vop->dev, VOP_DEBUG_PLANE,
+				     "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad]",
+				     win->win_id, win->area_id, actual_w, actual_h,
+				     dsp_w, dsp_h, dest->x1, dest->y1, vop_plane_state->zpos, &fb->format->format,
+				     afbc_en ? "[AFBC]" : "",
+				     &vop_plane_state->yrgb_mst);
 	/*
 	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
 	 * actual_w, actual_h)
@@ -2283,10 +2284,10 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	if (!plane->state->fb)
 		return -EINVAL;
 
-	if (state)
-		crtc_state = drm_atomic_get_existing_crtc_state(state,
-								new_plane_state->crtc);
-	else /* Special case for asynchronous cursor updates. */
+	crtc_state = drm_atomic_get_existing_crtc_state(state, new_plane_state->crtc);
+
+	/* Special case for asynchronous cursor updates. */
+	if (!crtc_state)
 		crtc_state = plane->crtc->state;
 
 	return drm_atomic_helper_check_plane_state(plane->state, crtc_state,
@@ -3094,7 +3095,7 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 
 	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop_bandwidth_cmp, NULL);
 
-	vop_bw_info->line_bw_mbyte = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
+	line_bw_mbyte = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
 	kfree(pbandwidth);
 	/*
 	 * line_bandwidth(MB/s)
@@ -4363,7 +4364,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop->pre_overlay = s->hdr.pre_overlay;
 	vop_cfg_done(vop);
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_CFG_DONE, "cfg_done\n\n");
+	rockchip_drm_dbg(vop->dev, VOP_DEBUG_CFG_DONE, "cfg_done\n");
 	/*
 	 * rk322x and rk332x odd-even field will mistake when in interlace mode.
 	 * we must switch to frame effect before switch screen and switch to
@@ -4730,7 +4731,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 		 * frame effective, but actually it's effective immediately, so
 		 * we config this register at frame start.
 		 */
-		rockchip_drm_dbg(vop->dev, VOP_DEBUG_VSYNC, "vsync\n");
+		rockchip_drm_dbg(vop->dev, VOP_DEBUG_VSYNC, "vsync");
 		spin_lock_irqsave(&vop->irq_lock, flags);
 		VOP_CTRL_SET(vop, level2_overlay_en, vop->pre_overlay);
 		VOP_CTRL_SET(vop, alpha_hard_calc, vop->pre_overlay);

@@ -2,7 +2,7 @@
 /*
  * serdes-bridge.c  --  drm bridge access for different serdes chips
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */
@@ -188,10 +188,16 @@ serdes_bridge_split_detect(struct drm_bridge *bridge)
 	struct serdes_bridge_split *serdes_bridge_split = to_serdes_bridge_split(bridge);
 	struct serdes *serdes = serdes_bridge_split->parent;
 	enum drm_connector_status status = connector_status_connected;
+	enum drm_connector_status last_status = serdes->serdes_bridge_split->status;
 
 	if (serdes->chip_data->bridge_ops->detect)
 		status = serdes->chip_data->bridge_ops->detect(serdes);
 
+	if (status != last_status)
+		dev_info(serdes->dev, "%s: %s, %s\n", __func__, serdes->chip_data->name,
+			 (status == connector_status_connected) ? "connected" : "disconnect");
+
+	serdes->serdes_bridge_split->status = status;
 	return status;
 }
 
@@ -238,7 +244,7 @@ static int serdes_bridge_split_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct serdes_bridge_split *serdes_bridge_split;
 
-	if (!serdes->dev)
+	if (!serdes->dev || !serdes->chip_data)
 		return -1;
 
 	serdes_bridge_split = devm_kzalloc(dev, sizeof(*serdes_bridge_split), GFP_KERNEL);

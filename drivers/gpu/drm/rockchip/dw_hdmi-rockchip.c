@@ -2820,7 +2820,7 @@ dw_hdmi_rockchip_get_color_changed(void *data)
 
 static int
 dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
-				   struct edid *edid)
+				   const struct edid *edid)
 {
 	if (!connector || !edid)
 		return -EINVAL;
@@ -2829,7 +2829,7 @@ dw_hdmi_rockchip_get_yuv422_format(struct drm_connector *connector,
 }
 
 static int
-dw_hdmi_rockchip_get_edid_dsc_info(void *data, struct edid *edid)
+dw_hdmi_rockchip_get_edid_dsc_info(void *data, const struct edid *edid)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 
@@ -2868,7 +2868,7 @@ dw_hdmi_rockchip_get_next_hdr_data(void *data, struct edid *edid,
 	return ret;
 };
 
-static int dw_hdmi_rockchip_get_colorimetry(void *data, struct edid *edid)
+static int dw_hdmi_rockchip_get_colorimetry(void *data, const struct edid *edid)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 

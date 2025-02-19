@@ -348,6 +348,12 @@ static const struct capture_fmt luma_fmts[] = {
 	},
 };
 
+static struct stream_config rkisp_luma_stream_config = {
+	.fmts = luma_fmts,
+	.fmt_size = ARRAY_SIZE(luma_fmts),
+	.frame_end_id = 0,
+};
+
 static struct stream_config rkisp_sp_stream_config_lite = {
 	/* constraints */
 	.max_rsz_width = CIF_ISP_INPUT_W_MAX_V32_L,
@@ -408,12 +414,6 @@ static struct stream_config rkisp_sp_stream_config_lite = {
 		.y_base_ad_shd = CIF_MI_SP_Y_BASE_AD_SHD,
 		.y_pic_size = ISP3X_MI_SP_WR_Y_PIC_SIZE,
 	},
-};
-
-static struct stream_config rkisp_luma_stream_config = {
-	.fmts = luma_fmts,
-	.fmt_size = ARRAY_SIZE(luma_fmts),
-	.frame_end_id = 0,
 };
 
 static struct stream_config rkisp_bp_stream_config = {
@@ -853,6 +853,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
 	struct ispsd_out_fmt *input_isp_fmt =
 			rkisp_get_ispsd_out_fmt(&dev->isp_sdev);
 	u32 sp_in_fmt, val, mask;
@@ -867,7 +868,8 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	* NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	* memory plane formats, so calculate the size explicitly.
 	*/
-	val = stream->u.sp.y_stride;
+	val = out_fmt->plane_fmt[0].bytesperline;
+	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
 	rkisp_unite_write(dev, ISP3X_MI_SP_WR_Y_LLENGTH, val, false);
 	val *= out_fmt->height;
 	rkisp_unite_write(dev, stream->config->mi.y_pic_size, val, false);
@@ -1287,7 +1289,6 @@ static int set_mirror_flip(struct rkisp_stream *stream)
 		val = ISP32_MP_WR_V_FLIP;
 		if (dev->cap_dev.wrap_line) {
 			stream->is_flip = false;
-			v4l2_warn(&dev->v4l2_dev, "flip not support width wrap function\n");
 			return -EINVAL;
 		}
 	}
@@ -1529,9 +1530,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	/* STREAM_VIR or STREAM_MP wrap buf from rockit */
 	if (stream->id == RKISP_STREAM_VIR ||
 	    (stream->id == RKISP_STREAM_MP && dev->cap_dev.wrap_line &&
-	     !stream->dummy_buf.mem_priv && stream->dummy_buf.dma_addr))
+	     !stream->dummy_buf.mem_priv && stream->dummy_buf.dma_addr)) {
+		set_mirror_flip(stream);
 		return 0;
-
+	}
 	if (dev->cap_dev.is_done_early &&
 	    (state == FRAME_IRQ || state == FRAME_WORK)) {
 		/* skip mainpath wrap mode */
@@ -1586,19 +1588,18 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = i;
 
-		if (vb2_buf->memory) {
-			if (vir->streaming && vir->conn_id == stream->id) {
-				spin_lock_irqsave(&vir->vbq_lock, lock_flags);
-				list_add_tail(&buf->queue,
-					      &dev->cap_dev.vir_cpy.queue);
-				spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
-				if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
-					complete(&dev->cap_dev.vir_cpy.cmpl);
-			} else {
-				rkisp_stream_buf_done(stream, buf);
-			}
+		if (vir->streaming && vir->conn_id == stream->id) {
+			spin_lock_irqsave(&vir->vbq_lock, lock_flags);
+			list_add_tail(&buf->queue,
+					  &dev->cap_dev.vir_cpy.queue);
+			spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
+			if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
+				complete(&dev->cap_dev.vir_cpy.cmpl);
 		} else {
-			rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END);
+			if (vb2_buf->memory)
+				rkisp_stream_buf_done(stream, buf);
+			else
+				rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END, buf);
 		}
 	}
 
@@ -1840,7 +1841,7 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
 		return;
-	rkisp_dvbm_deinit();
+	rkisp_dvbm_deinit(dev);
 	rkisp_free_buffer(dev, &stream->dummy_buf);
 	stream->dummy_buf.dma_addr = 0;
 }
@@ -1935,10 +1936,8 @@ end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
 
 	if (dev->is_pre_on && stream->id == RKISP_STREAM_MP) {
-		dev->is_rdbk_auto = false;
 		dev->is_pre_on = false;
-		v4l2_subdev_call(dev->active_sensor->sd, video, s_stream, false);
-		dev->pipe.close(&dev->pipe);
+		dev->params_vdev.first_cfg_params = false;
 		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
 	}
 }
@@ -2309,9 +2308,6 @@ void rkisp_unregister_stream_v32(struct rkisp_device *dev)
 		stream = &cap_dev->stream[RKISP_STREAM_LUMA];
 		rkisp_unregister_stream_vdev(stream);
 		rkisp_rockit_dev_deinit();
-	} else {
-		stream = &cap_dev->stream[RKISP_STREAM_VIR];
-		rkisp_unregister_stream_vdev(stream);
 	}
 }
 
@@ -2370,6 +2366,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 			stream->dbg.timestamp = ns;
 			stream->dbg.id = seq;
+			set_mirror_flip(stream);
 		} else {
 			mi_frame_end(stream, FRAME_IRQ);
 		}

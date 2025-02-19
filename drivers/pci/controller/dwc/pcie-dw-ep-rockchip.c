@@ -707,6 +707,9 @@ static int rockchip_pcie_config_host(struct rockchip_pcie *rockchip)
 	u32 reg, val;
 	int ret, retry, i;
 
+	/* Detecting ATU features to achieve DWC ATU interface development */
+	dw_pcie_iatu_detect(&rockchip->pci);
+
 	if (dw_pcie_link_up(&rockchip->pci))
 		goto already_linkup;
 	else

@@ -37,6 +37,9 @@
 #define RKMODULE_INTERNAL_MASTER_MODE	"internal_master"
 #define RKMODULE_EXTERNAL_MASTER_MODE	"external_master"
 #define RKMODULE_SLAVE_MODE		"slave"
+#define RKMODULE_SOFT_SYNC_MODE		"soft_sync"
+
+#define RKMODULE_CAMERA_STANDBY_HW	"rockchip,camera-module-stb"
 
 /* BT.656 & BT.1120 multi channel
  * On which channels it can send video data
@@ -188,6 +191,18 @@
 
 #define RKMODULE_GET_DSI_MODE       \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 42, __u32)
+
+#define RKCIS_CMD_FLASH_LIGHT_CTRL  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 43, struct rk_light_param)
+
+#define RKCIS_CMD_SELECT_SETTING  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 44, struct rk_sensor_setting)
+
+#define RKMODULE_GET_EXP_DELAY       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 45, struct rkmodule_exp_delay)
+
+#define RKMODULE_GET_EXP_INFO       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 46, struct rkmodule_exp_info)
 
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
@@ -714,6 +729,7 @@ enum rkmodule_sync_mode {
 	EXTERNAL_MASTER_MODE,
 	INTERNAL_MASTER_MODE,
 	SLAVE_MODE,
+	SOFT_SYNC_MODE,
 };
 
 struct rkmodule_mclk_data {
@@ -824,5 +840,59 @@ struct rkmodule_capture_info {
 		struct rkmodule_multi_combine_info multi_combine_info;
 	};
 };
+
+enum rk_light_type {
+	LIGHT_PWM,
+	LIGHT_GPIO,
+};
+
+struct rk_light_param {
+	__u8 light_type;
+	__u8 light_enable;
+	__u64 duty_cycle;
+	__u64 period;
+	__u32 polarity;
+} __attribute__ ((packed));
+
+struct rk_sensor_setting {
+	__u32 width;
+	__u32 height;
+	__u32 fps;
+	__u32 fmt;
+	__u32 mode;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_delay {
+	__u32 exp_delay;
+	__u32 gain_delay;
+	__u32 vts_delay;
+	__u32 dcg_delay;
+	__u32 reserved[2];
+} __attribute__ ((packed));
+
+enum rkmodule_gain_mode_e {
+	RKMODULE_GAIN_MODE_LINEAR,
+	RKMODULE_GAIN_MODE_DB,
+};
+
+struct rkmodule_gain_mode {
+	__u32 gain_mode;
+	__u32 factor;
+} __attribute__ ((packed));
+
+struct rkmodule_exp_info {
+	__u32 exp[3];
+	__u32 gain[3];
+	__u32 exp_reg[3];
+	__u32 gain_reg[3];
+	__u32 hts;
+	__u32 vts;
+	__u32 pclk;
+	__u32 dcg_used;
+	__u32 dcg_val[3];
+	struct rkmodule_dcg_ratio dcg_ratio;
+	struct rkmodule_gain_mode gain_mode;
+	__u32 reserved[6];
+} __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */

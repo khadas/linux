@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* Copyright (c) 2021 Rockchip Electronics Co. Ltd. */
+/* Copyright (c) 2021 Rockchip Electronics Co., Ltd. */
 
 #ifndef __RK_CRYPTODEV_H__
 #define __RK_CRYPTODEV_H__

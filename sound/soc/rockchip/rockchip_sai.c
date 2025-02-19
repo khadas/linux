@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip SAI Controller driver
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>
@@ -106,29 +106,42 @@ static bool rockchip_sai_stream_valid(struct snd_pcm_substream *substream,
 	return false;
 }
 
-static int rockchip_sai_fsync_lost_detect(struct rk_sai_dev *sai, bool en)
+static int rockchip_sai_fsync_lost_threshold_cfg(struct rk_sai_dev *sai,
+						 unsigned int sample_rate)
 {
-	unsigned int fw, cnt;
+	unsigned int div, cnt, mclk_rate;
 
 	if (sai->is_master_mode || sai->version < SAI_VER_2311)
 		return 0;
 
-	regmap_read(sai->regmap, SAI_FSCR, &fw);
-	cnt = SAI_FSCR_FW_V(fw) << 1; /* two fsync lost */
+	regmap_read(sai->regmap, SAI_CKR, &div);
+	div = SAI_CKR_MDIV_V(div);
+	mclk_rate = clk_get_rate(sai->mclk) / div;
+
+	cnt = (mclk_rate + sample_rate - 1) / sample_rate;
+	cnt = cnt << 1; /* two fsync lost */
+
+	/* the cnt is cycles of SCLK from cru, not external SCLK */
+	regmap_update_bits(sai->regmap, SAI_FS_TIMEOUT,
+			   SAI_FS_TIMEOUT_VAL_MASK,
+			   SAI_FS_TIMEOUT_VAL(cnt));
+
+	return 0;
+}
+
+static int rockchip_sai_fsync_lost_detect(struct rk_sai_dev *sai, bool en)
+{
+	if (sai->is_master_mode || sai->version < SAI_VER_2311)
+		return 0;
 
 	regmap_update_bits(sai->regmap, SAI_INTCR,
 			   SAI_INTCR_FSLOSTC, SAI_INTCR_FSLOSTC);
 	regmap_update_bits(sai->regmap, SAI_INTCR,
 			   SAI_INTCR_FSLOST_MASK,
 			   SAI_INTCR_FSLOST(en));
-	/*
-	 * the cnt is cycles of SCLK from cru, not external SCLK.
-	 * so, suggest to set SCLK freq equal to external SCLK
-	 * in SLAVE mode.
-	 */
 	regmap_update_bits(sai->regmap, SAI_FS_TIMEOUT,
-			   SAI_FS_TIMEOUT_VAL_MASK | SAI_FS_TIMEOUT_EN_MASK,
-			   SAI_FS_TIMEOUT_VAL(cnt) | SAI_FS_TIMEOUT_EN(en));
+			   SAI_FS_TIMEOUT_EN_MASK,
+			   SAI_FS_TIMEOUT_EN(en));
 
 	return 0;
 }
@@ -201,12 +214,11 @@ static int rockchip_sai_runtime_suspend(struct device *dev)
 	rockchip_sai_fsync_lost_detect(sai, 0);
 	rockchip_sai_fsync_err_detect(sai, 0);
 
-	if (sai->is_master_mode)
-		regmap_update_bits(sai->regmap, SAI_XFER,
-				   SAI_XFER_CLK_MASK |
-				   SAI_XFER_FSS_MASK,
-				   SAI_XFER_CLK_DIS |
-				   SAI_XFER_FSS_DIS);
+	regmap_update_bits(sai->regmap, SAI_XFER,
+			   SAI_XFER_CLK_MASK |
+			   SAI_XFER_FSS_MASK,
+			   SAI_XFER_CLK_DIS |
+			   SAI_XFER_FSS_DIS);
 
 	rockchip_sai_poll_clk_idle(sai);
 
@@ -642,6 +654,8 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 				   SAI_CKR_MDIV(div_bclk));
 	}
 
+	rockchip_sai_fsync_lost_threshold_cfg(sai, params_rate(params));
+
 	rockchip_utils_get_performance(substream, params, dai, fifo);
 
 	return 0;
@@ -666,24 +680,22 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 	if (!rockchip_sai_stream_valid(substream, dai))
 		return 0;
 
-	if (sai->is_master_mode) {
-		/*
-		 * Should wait for one BCLK ready after DIV and then ungate
-		 * output clk to achieve the clean clk.
-		 *
-		 * The best way is to use delay per samplerate, but, the max time
-		 * is quite a tiny value, so, let's make it simple to use the max
-		 * time.
-		 *
-		 * The max BCLK cycle time is: 15.6us @ 8K-8Bit (64K BCLK)
-		 */
-		udelay(20);
-		regmap_update_bits(sai->regmap, SAI_XFER,
-				   SAI_XFER_CLK_MASK |
-				   SAI_XFER_FSS_MASK,
-				   SAI_XFER_CLK_EN |
-				   SAI_XFER_FSS_EN);
-	}
+	/*
+	 * Should wait for one BCLK ready after DIV and then ungate
+	 * output clk to achieve the clean clk.
+	 *
+	 * The best way is to use delay per samplerate, but, the max time
+	 * is quite a tiny value, so, let's make it simple to use the max
+	 * time.
+	 *
+	 * The max BCLK cycle time is: 15.6us @ 8K-8Bit (64K BCLK)
+	 */
+	udelay(20);
+	regmap_update_bits(sai->regmap, SAI_XFER,
+			   SAI_XFER_CLK_MASK |
+			   SAI_XFER_FSS_MASK,
+			   SAI_XFER_CLK_EN |
+			   SAI_XFER_FSS_EN);
 
 	rockchip_sai_fsync_lost_detect(sai, 1);
 	rockchip_sai_fsync_err_detect(sai, 1);
