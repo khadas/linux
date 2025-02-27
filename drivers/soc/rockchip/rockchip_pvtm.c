@@ -2,7 +2,7 @@
 /*
  * Rockchip PVTM support.
  *
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  * Author: Finley Xiao <finley.xiao@rock-chips.com>
  */
 

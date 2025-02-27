@@ -2,7 +2,7 @@
 /*
  * Crypto acceleration support for Rockchip crypto
  *
- * Copyright (c) 2021, Rockchip Electronics Co., Ltd
+ * Copyright (c) 2021, Rockchip Electronics Co., Ltd.
  *
  * Author: Lin Jinhan <troy.lin@rock-chips.com>
  *

@@ -250,8 +250,8 @@ struct dw_hdmi_plat_data {
 	struct drm_property_blob *(*get_hdr_blob)(void *data);
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
-				 struct edid *edid);
-	int (*get_edid_dsc_info)(void *data, struct edid *edid);
+				 const struct edid *edid);
+	int (*get_edid_dsc_info)(void *data, const struct edid *edid);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
@@ -267,7 +267,7 @@ struct dw_hdmi_plat_data {
 	void (*update_color_format)(struct drm_connector_state *conn_state, void *data);
 	bool (*check_hdr_color_change)(struct drm_connector_state *conn_state, void *data);
 	void (*set_prev_bus_format)(void *data, unsigned long bus_format);
-	int (*get_colorimetry)(void *data, struct edid *edid);
+	int (*get_colorimetry)(void *data, const struct edid *edid);
 	void (*set_ddc_io)(void *data, bool enable);
 	void (*set_hdcp14_mem)(void *data, bool enable);
 	struct drm_display_mode *(*get_force_timing)(void *data);

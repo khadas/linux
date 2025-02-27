@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (C) 2017 ROCKCHIP, Inc.
+ * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

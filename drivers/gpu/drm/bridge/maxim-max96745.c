@@ -2,7 +2,7 @@
 /*
  * Maxim MAX96745 GMSL2 Serializer with eDP1.4a/DP1.4 Input
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <drm/drm_atomic_helper.h>

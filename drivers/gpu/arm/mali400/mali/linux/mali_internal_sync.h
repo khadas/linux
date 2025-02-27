@@ -187,5 +187,20 @@ int mali_internal_sync_fence_wait_async(struct mali_internal_sync_fence *sync_fe
 int mali_internal_sync_fence_cancel_async(struct mali_internal_sync_fence *sync_fence,
 		struct mali_internal_sync_fence_waiter *waiter);
 
+/**
+ * This function is a simplified version of dma_fence_is_signaled(),
+ * dma_fence_signal() is not called here.
+ */
+static inline bool mali_dma_fence_is_signaled(struct dma_fence *fence)
+{
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return true;
+
+	if (fence->ops->signaled && fence->ops->signaled(fence))
+		return true;
+
+	return false;
+}
+
 #endif /*LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)*/
 #endif /* _MALI_INTERNAL_SYNC_H */

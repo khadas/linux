@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:Mark Yao <mark.yao@rock-chips.com>
  *
  * based on exynos_drm_drv.c
@@ -18,7 +18,9 @@
 #include <linux/component.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
+#include <linux/kthread.h>
 #include <linux/of_reserved_mem.h>
+#include <uapi/linux/sched/types.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_debugfs.h>
@@ -46,6 +48,9 @@
 #include "rockchip_drm_logo.h"
 
 #include "../drm_crtc_internal.h"
+
+#define CREATE_TRACE_POINTS
+#include "rockchip_drm_trace.h"
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
@@ -78,24 +83,61 @@ static inline bool rockchip_drm_debug_enabled(enum rockchip_drm_debug_category c
 	return unlikely(drm_debug & category);
 }
 
+static void rockchip_drm_dbg_print(const struct device *dev, enum rockchip_drm_debug_category category,
+				   bool show_thread, struct va_format *vaf)
+{
+	if (rockchip_drm_debug_enabled(category)) {
+		if (dev) {
+			if (show_thread)
+				dev_printk(KERN_DEBUG, dev, "%s %pV\n", current->comm, vaf);
+			else
+				dev_printk(KERN_DEBUG, dev, "%pV\n", vaf);
+		} else {
+			if (show_thread)
+				printk(KERN_DEBUG "%s %pV\n", current->comm, vaf);
+			else
+				printk(KERN_DEBUG "%pV\n", vaf);
+		}
+	}
+
+	if (category == VOP_DEBUG_VSYNC)
+		trace_rockchip_drm_dbg_vsync(vaf);
+	else if (category == VOP_DEBUG_IOMMU_MAP)
+		trace_rockchip_drm_dbg_iommu(vaf);
+	else
+		trace_rockchip_drm_dbg_common(vaf);
+}
+
 __printf(3, 4)
-void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
+void rockchip_drm_dbg(const struct device *dev,
+		      enum rockchip_drm_debug_category category,
 		      const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if (!rockchip_drm_debug_enabled(category))
-		return;
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	rockchip_drm_dbg_print(dev, category, false, &vaf);
+
+	va_end(args);
+}
+
+__printf(3, 4)
+void rockchip_drm_dbg_thread_info(const struct device *dev,
+				  enum rockchip_drm_debug_category category,
+				  const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (dev)
-		dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
-	else
-		printk(KERN_DEBUG "%pV", &vaf);
+	rockchip_drm_dbg_print(dev, category, true, &vaf);
 
 	va_end(args);
 }
@@ -741,7 +783,7 @@ static u8 *find_cea_extension(const struct edid *edid)
 #define EDID_CEA_YCRCB422	(1 << 4)
 
 int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
-				   struct edid *edid)
+				   const struct edid *edid)
 {
 	struct drm_display_info *info;
 	const u8 *edid_ext;
@@ -1330,6 +1372,28 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 	priv->crtc_funcs[pipe] = NULL;
 }
 
+/*
+ * a high frequency of page faults will follow up, if
+ * there is a iommu fault, so it's better to limit the
+ * registers dump frequency to save log buffer
+ *
+ * Report no more than once every 10s, give userspace time
+ * to do recovery process, as for a serdes based display
+ * pipeline, the disable/enable time may very long.
+ */
+static DEFINE_RATELIMIT_STATE(fault_handler_rate, 10 * HZ, 1);
+
+static int fault_handler_rate_limit(void)
+{
+	return __ratelimit(&fault_handler_rate);
+}
+
+void rockchip_drm_reset_iommu_fault_handler_rate_limit(void)
+{
+	fault_handler_rate.begin = 0;
+	fault_handler_rate.printed = 0;
+}
+
 static int rockchip_drm_fault_handler(struct iommu_domain *iommu,
 				      struct device *dev,
 				      unsigned long iova, int flags, void *arg)
@@ -1337,10 +1401,26 @@ static int rockchip_drm_fault_handler(struct iommu_domain *iommu,
 	struct drm_device *drm_dev = arg;
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_crtc *crtc;
+	bool handled = false;
 
-	DRM_ERROR("iommu fault handler flags: 0x%x\n", flags);
+	DRM_ERROR("iommu fault handler flags: 0x%x: count: %lld\n",
+		  flags, ++priv->iommu_fault_count);
+
+	if (!fault_handler_rate_limit())
+		return 0;
+
 	drm_for_each_crtc(crtc, drm_dev) {
 		int pipe = drm_crtc_index(crtc);
+
+		/*
+		 * Only need to call iommu fault handler once for one iommu fault
+		 */
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->iommu_fault_handler &&
+		    !handled) {
+			priv->crtc_funcs[pipe]->iommu_fault_handler(crtc, iommu);
+			handled = true;
+		}
 
 		if (priv->crtc_funcs[pipe] &&
 		    priv->crtc_funcs[pipe]->regs_dump)
@@ -1744,6 +1824,111 @@ static void rockchip_drm_sysfs_fini(struct drm_device *drm_dev)
 	}
 }
 
+void rockchip_drm_send_error_event(struct rockchip_drm_private *priv,
+				   enum rockchip_drm_error_event_type event)
+{
+	struct rockchip_drm_error_event *error_event = &priv->error_event;
+	struct drm_event_vblank *e;
+	struct timespec64 tv;
+	unsigned long flags;
+
+	/*
+	 * Maybe the error thread has not be created.
+	 */
+	if (IS_ERR_OR_NULL(priv->error_event.thread))
+		return;
+
+	spin_lock_irqsave(&error_event->lock, flags);
+	tv = ktime_to_timespec64(ktime_get());
+	e = &error_event->event;
+	e->base.type = event;
+	e->base.length = sizeof(*e);
+	e->tv_sec = tv.tv_sec;
+	e->tv_usec = tv.tv_nsec / 1000;
+	e->sequence++;
+	error_event->error_state = true;
+	spin_unlock_irqrestore(&error_event->lock, flags);
+
+	wake_up_interruptible_all(&error_event->wait);
+}
+
+static int rockchip_drm_error_event_thread(void *data)
+{
+	struct drm_device *drm_dev = data;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct rockchip_drm_error_event *error_event = &priv->error_event;
+	struct drm_event_vblank *e;
+	int ret = 0;
+	int cnt = 0;
+
+	while (!kthread_should_stop()) {
+		e = &error_event->event;
+
+		error_event->error_state = false;
+		ret = wait_event_interruptible(error_event->wait, error_event->error_state);
+		if (!ret) {
+			sysfs_notify(&drm_dev->dev->kobj, NULL, "error_event");
+			drm_info(drm_dev, "rockchipdrm send_error_event_type: 0x%x, count:%d\n",
+				 e->base.type, ++cnt);
+		}
+	}
+
+	return 0;
+}
+
+static ssize_t rockchip_drm_error_event_show(struct device *dev,
+					     struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct rockchip_drm_error_event *error_event = &priv->error_event;
+	struct drm_event_vblank *e;
+	uint32_t length = sizeof(*e);
+	unsigned long flags;
+
+	spin_lock_irqsave(&error_event->lock, flags);
+	e = &error_event->event;
+	memcpy(buf, e, length);
+	spin_unlock_irqrestore(&error_event->lock, flags);
+
+	return length;
+}
+static DEVICE_ATTR(error_event, 0444, rockchip_drm_error_event_show, NULL);
+
+static void rockchip_drm_error_event_init(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO - 1 };
+	int ret;
+
+	ret = device_create_file(drm_dev->dev, &dev_attr_error_event);
+	if (ret) {
+		dev_warn(drm_dev->dev, "failed to create vcnt event file\n");
+		return;
+	}
+
+	init_waitqueue_head(&priv->error_event.wait);
+	spin_lock_init(&priv->error_event.lock);
+	priv->error_event.thread = kthread_run(rockchip_drm_error_event_thread,
+					       drm_dev, "display-error-event-thread");
+	if (IS_ERR(priv->error_event.thread)) {
+		priv->error_event.thread = NULL;
+		drm_err(drm_dev, "failed to run display error_event thread\n");
+	} else {
+		sched_setscheduler(priv->error_event.thread, SCHED_FIFO, &sched_param);
+		drm_info(drm_dev, "run display error_event monitor\n");
+	}
+}
+
+static void rockchip_drm_error_event_fini(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+
+	if (priv->error_event.thread)
+		kthread_stop(priv->error_event.thread);
+	device_remove_file(drm_dev->dev, &dev_attr_error_event);
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -1851,6 +2036,8 @@ static int rockchip_drm_bind(struct device *dev)
 	if (ret)
 		goto err_drm_fbdev_fini;
 
+	rockchip_drm_error_event_init(drm_dev);
+
 	return 0;
 err_drm_fbdev_fini:
 	rockchip_drm_fbdev_fini(drm_dev);
@@ -1875,6 +2062,7 @@ static void rockchip_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
+	rockchip_drm_error_event_fini(drm_dev);
 	rockchip_drm_sysfs_fini(drm_dev);
 	rockchip_drm_fbdev_fini(drm_dev);
 	drm_dev_unregister(drm_dev);
@@ -2397,7 +2585,7 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi_rockchip_driver,
 				CONFIG_ROCKCHIP_DW_MIPI_DSI);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_mipi_dsi2_rockchip_driver,
-				CONFIG_ROCKCHIP_DW_MIPI_DSI);
+				CONFIG_ROCKCHIP_DW_MIPI_DSI2);
 	ADD_ROCKCHIP_SUB_DRIVER(inno_hdmi_driver, CONFIG_ROCKCHIP_INNO_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(rk3066_hdmi_driver,
 				CONFIG_ROCKCHIP_RK3066_HDMI);

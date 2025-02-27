@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author Huicong Xu <xhc@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

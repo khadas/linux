@@ -37,8 +37,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include "tp2855.h"
 
-#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x1)
 #define TP2855_TEST_PATTERN 		0
 #define TP2855_XVCLK_FREQ			27000000
 #define TP2855_LINK_FREQ_297M		(297000000UL >> 1)
@@ -49,13 +50,20 @@
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT		"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP		"rockchip,camera_sleep"
 
+static const char *const tp2855_supply_names[] = {
+	"dovdd",		/* Digital I/O power */
+	"avdd",			/* Analog power */
+	"dvdd",			/* Digital power */
+};
+#define TP2855_NUM_SUPPLIES ARRAY_SIZE(tp2855_supply_names)
+
 enum{
-	CH_1=0,
-	CH_2=1,
-	CH_3=2,
-	CH_4=3,
-	CH_ALL=4,
-	MIPI_PAGE=8,
+	CH_1 = 0,
+	CH_2 = 1,
+	CH_3 = 2,
+	CH_4 = 3,
+	CH_ALL = 4,
+	MIPI_PAGE = 8,
 };
 
 enum{
@@ -75,8 +83,10 @@ struct tp2855_mode {
 	struct v4l2_fract max_fps;
 	u32 mipi_freq_idx;
 	u32 bpp;
-	const struct regval *global_reg_list;
-	const struct regval *reg_list;
+	const struct regval *common_reg_list;
+	const struct regval *mipi_reg_list;
+	int common_reg_size;
+	int mipi_reg_size;
 	u32 hdr_mode;
 	u32 vc[PAD_MAX];
 	u32 channel_reso[PAD_MAX];
@@ -91,6 +101,7 @@ struct tp2855 {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
+	struct regulator_bulk_data supplies[TP2855_NUM_SUPPLIES];
 
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
@@ -107,17 +118,16 @@ struct tp2855 {
 	const char		*module_name;
 	const char		*len_name;
 	bool			lost_video_status;
-	struct task_struct *detect_thread;
-
-	int streaming;
+	struct task_struct	*detect_thread;
+	u8			detect_status[PAD_MAX];
+	bool			do_reset;
+	int			streaming;
 };
 
 
 #define to_tp2855(sd) container_of(sd, struct tp2855, subdev)
 
 static __maybe_unused const struct regval common_setting_297M_720p_25fps_regs[] = {
-	{0x40, 0x04},
-	{0xf5, 0x00},
 	{0x02, 0x42},
 	{0x07, 0xc0},
 	{0x0b, 0xc0},
@@ -135,9 +145,6 @@ static __maybe_unused const struct regval common_setting_297M_720p_25fps_regs[] 
 	{0x21, 0x84},
 	{0x22, 0x36},
 	{0x23, 0x3c},
-#if TP2855_TEST_PATTERN
-	{0x2a, 0x3c}, //vi test
-#endif
 	{0x2b, 0x60},
 	{0x2c, 0x0a},
 	{0x2d, 0x30},
@@ -149,7 +156,26 @@ static __maybe_unused const struct regval common_setting_297M_720p_25fps_regs[] 
 	{0x35, 0x25},
 	{0x38, 0x00},
 	{0x39, 0x18},
+	//STD_HDA
+	{0x02, 0x46},
+	{0x0d, 0x71},
+	{0x18, 0x1b},
+	{0x20, 0x40},
+	{0x21, 0x46},
+	{0x25, 0xfe},
+	{0x26, 0x01},
+	{0x2c, 0x3a},
+	{0x2d, 0x5a},
+	{0x2e, 0x40},
+	{0x30, 0x9e},
+	{0x31, 0x20},
+	{0x32, 0x10},
+	{0x33, 0x90},
+	// {0x23, 0x02}, //vi test ok
+	// {0x23, 0x00},
+};
 
+static __maybe_unused const struct regval mipi_setting_297M_4ch_4lane_regs[] = {
 	{0x40, 0x08},
 	{0x01, 0xf0},
 	{0x02, 0x01},
@@ -162,18 +188,34 @@ static __maybe_unused const struct regval common_setting_297M_720p_25fps_regs[] 
 	{0x26, 0x03},
 	{0x27, 0x09},
 	{0x29, 0x02},
-	{0x33, 0x07},
+	{0x33, 0x0f},
 	{0x33, 0x00},
 	{0x14, 0xc4},
 	{0x14, 0x44},
+};
 
+static __maybe_unused const struct regval mipi_setting_594M_4ch_4lane_regs[] = {
+	{0x40, 0x08},
+	{0x01, 0xf0},
+	{0x02, 0x01},
+	{0x08, 0x0f},
+	{0x20, 0x44},
+	{0x34, 0xe4},
+	{0x15, 0x0C},
+	{0x25, 0x08},
+	{0x26, 0x06},
+	{0x27, 0x11},
+	{0x29, 0x0a},
+	{0x33, 0x0f},
+	{0x33, 0x00},
+	{0x14, 0x33},
+	{0x14, 0xb3},
+	{0x14, 0x33},
 	// {0x23, 0x02}, //vi test ok
 	// {0x23, 0x00},
 };
 
 static __maybe_unused const struct regval common_setting_594M_1080p_25fps_regs[] = {
-	{0x40, 0x04},
-	{0xf5, 0x00},
 	{0x02, 0x40},
 	{0x07, 0xc0},
 	{0x0b, 0xc0},
@@ -191,9 +233,6 @@ static __maybe_unused const struct regval common_setting_594M_1080p_25fps_regs[]
 	{0x21, 0x84},
 	{0x22, 0x36},
 	{0x23, 0x3c},
-#if TP2855_TEST_PATTERN
-	{0x2a, 0x3c}, //vi test
-#endif
 	{0x2b, 0x60},
 	{0x2c, 0x0a},
 	{0x2d, 0x30},
@@ -205,25 +244,22 @@ static __maybe_unused const struct regval common_setting_594M_1080p_25fps_regs[]
 	{0x35, 0x05},
 	{0x38, 0x00},
 	{0x39, 0x1C},
-
-	{0x40, 0x08},
-	{0x01, 0xf0},
-	{0x02, 0x01},
-	{0x08, 0x0f},
-	{0x20, 0x44},
-	{0x34, 0xe4},
-	{0x15, 0x0C},
-	{0x25, 0x08},
-	{0x26, 0x06},
-	{0x27, 0x11},
-	{0x29, 0x0a},
-	{0x33, 0x07},
-	{0x33, 0x00},
-	{0x14, 0x33},
-	{0x14, 0xb3},
-	{0x14, 0x33},
-	// {0x23, 0x02}, //vi test ok
-	// {0x23, 0x00},
+	//STD_HDA
+	{0x02, 0x44},
+	{0x0d, 0x73},
+	{0x15, 0x01},
+	{0x16, 0xf0},
+	{0x20, 0x3c},
+	{0x21, 0x46},
+	{0x25, 0xfe},
+	{0x26, 0x0d},
+	{0x2c, 0x3a},
+	{0x2d, 0x54},
+	{0x2e, 0x40},
+	{0x30, 0xa5},
+	{0x31, 0x86},
+	{0x32, 0xfb},
+	{0x33, 0x60},
 };
 
 static struct tp2855_mode supported_modes[] = {
@@ -235,7 +271,10 @@ static struct tp2855_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 250000,
 		},
-		.global_reg_list = common_setting_594M_1080p_25fps_regs,
+		.common_reg_list = common_setting_594M_1080p_25fps_regs,
+		.common_reg_size = ARRAY_SIZE(common_setting_594M_1080p_25fps_regs),
+		.mipi_reg_list = mipi_setting_594M_4ch_4lane_regs,
+		.mipi_reg_size = ARRAY_SIZE(mipi_setting_594M_4ch_4lane_regs),
 		.mipi_freq_idx = 0,
 		.bpp = 8,
 		.vc[PAD0] = 0,
@@ -251,7 +290,10 @@ static struct tp2855_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 250000,
 		},
-		.global_reg_list = common_setting_297M_720p_25fps_regs,
+		.common_reg_list = common_setting_297M_720p_25fps_regs,
+		.common_reg_size = ARRAY_SIZE(common_setting_297M_720p_25fps_regs),
+		.mipi_reg_list = mipi_setting_297M_4ch_4lane_regs,
+		.mipi_reg_size = ARRAY_SIZE(mipi_setting_297M_4ch_4lane_regs),
 		.mipi_freq_idx = 1,
 		.bpp = 8,
 		.vc[PAD0] = 0,
@@ -427,7 +469,7 @@ static int tp2855_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.height = mode->height;
 		fmt->format.code = mode->bus_fmt;
 		fmt->format.field = V4L2_FIELD_NONE;
-		if (fmt->pad < PAD_MAX && fmt->pad >= PAD0)
+		if (fmt->pad < PAD_MAX && fmt->pad > PAD0)
 			fmt->reserved[0] = mode->vc[fmt->pad];
 		else
 			fmt->reserved[0] = mode->vc[PAD0];
@@ -481,7 +523,18 @@ static int tp2855_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *cfg)
 {
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
-	cfg->bus.mipi_csi2.num_data_lanes = 4;
+	cfg->bus.mipi_csi2.num_data_lanes = TP2855_LANES;
+
+	return 0;
+}
+
+static int tp2855_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct tp2855 *tp2855 = to_tp2855(sd);
+	const struct tp2855_mode *mode = tp2855->cur_mode;
+
+	fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -531,8 +584,11 @@ static long tp2855_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = tp2855_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -545,6 +601,8 @@ static long tp2855_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = tp2855_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	default:
@@ -556,29 +614,86 @@ static long tp2855_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+static int tp2855_get_channel_input_status(struct tp2855 *tp2855, u8 ch)
+{
+	struct i2c_client *client = tp2855->client;
+	u8 val = 0;
+
+	mutex_lock(&tp2855->mutex);
+	tp2855_write_reg(client, 0x40, ch);
+	tp2855_read_reg(client, 0x01, &val);
+	mutex_unlock(&tp2855->mutex);
+	dev_dbg(&client->dev, "input_status ch %d : %x\n", ch, val);
+
+	return (val & 0x80) ? 0 : 1;
+}
+
+static int tp2855_get_all_input_status(struct tp2855 *tp2855, u8 *detect_status)
+{
+	struct i2c_client *client = tp2855->client;
+	u8 val = 0, i;
+
+	for (i = 0; i < PAD_MAX; i++) {
+		tp2855_write_reg(client, 0x40, i);
+		tp2855_read_reg(client, 0x01, &val);
+		detect_status[i] = tp2855_get_channel_input_status(tp2855, i);
+	}
+
+	return 0;
+}
+
+static int tp2855_set_decoder_mode(struct i2c_client *client, int ch, int status)
+{
+	u8 val = 0;
+
+	tp2855_write_reg(client, 0x40, ch);
+	tp2855_read_reg(client, 0x26, &val);
+	if (status)
+		val |= 0x1;
+	else
+		val &= ~0x1;
+	tp2855_write_reg(client, 0x26, val);
+
+	return 0;
+}
+
 static int detect_thread_function(void *data)
 {
 	struct tp2855 *tp2855 = (struct tp2855 *) data;
 	struct i2c_client *client = tp2855->client;
-	u8 detect_status = 0, reg26_val = 0;
-	bool lost_video = false;
-	tp2855->lost_video_status = true;
+	u8 detect_status = 0;
+	int i, need_reset_wait = -1;
+
+	if (tp2855->power_on) {
+		tp2855_get_all_input_status(tp2855, tp2855->detect_status);
+		for (i = 0; i < PAD_MAX; i++)
+			tp2855_set_decoder_mode(client, i, tp2855->detect_status[i]);
+		tp2855->do_reset = 0;
+	}
+
 	while (!kthread_should_stop()) {
 		if (tp2855->power_on) {
-			tp2855_write_reg(client, 0x40, 0x04);
-			tp2855_read_reg(client, 0x01, &detect_status);
-			tp2855_read_reg(client, 0x26, &reg26_val);
-			lost_video = (detect_status & 0x80) ? true : false;
-			if (tp2855->lost_video_status != lost_video) {
-				if (lost_video) {
-					tp2855_write_reg(client, 0x26, (reg26_val & 0xfe));
-				} else {
-					tp2855_write_reg(client, 0x26, (reg26_val | 0x01));
+			for (i = 0; i < PAD_MAX; i++) {
+				detect_status = tp2855_get_channel_input_status(tp2855, i);
+				if (detect_status != tp2855->detect_status[i]) {
+					if (!detect_status)
+						dev_info(&client->dev,
+							"detect channel %d video plug out\n", i);
+					else
+						dev_info(&client->dev,
+							"detect channel %d video plug in\n", i);
+					tp2855->detect_status[i] = detect_status;
+					tp2855_set_decoder_mode(client, i, detect_status);
+					need_reset_wait = 5;
 				}
-				tp2855->lost_video_status = lost_video;
-				tp2855_read_reg(client, 0x26, &reg26_val);
-				dev_err(&client->dev, "tp2855 detect video lost status %d reg26_val %x\n",
-						lost_video, reg26_val);
+			}
+			if (need_reset_wait > 0) {
+				need_reset_wait--;
+			} else if (need_reset_wait == 0) {
+				need_reset_wait = -1;
+				tp2855->do_reset = 1;
+				dev_info(&client->dev,
+					"trigger reset time up\n");
 			}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -609,24 +724,110 @@ static int __maybe_unused detect_thread_stop(struct tp2855 *tp2855) {
 	return 0;
 }
 
+static int tp2855_set_channel_reso(struct tp2855 *tp2855, int ch,
+			    enum tp2855_support_reso reso)
+{
+	int val = reso;
+	u8 tmp = 0;
+	const unsigned char SYS_MODE[5] = { 0x01, 0x02, 0x04, 0x08, 0x0f };
+
+	tp2855_write_reg(tp2855->client, 0x40, ch);
+
+	switch (val) {
+	case TP2855_CVSTD_1080P_25:
+		dev_info(&tp2855->client->dev, "set channel %d 1080P_25\n", ch);
+		tp2855_read_reg(tp2855->client, 0xf5, &tmp);
+		tmp &= ~SYS_MODE[ch];
+		tp2855_write_reg(tp2855->client, 0xf5, tmp);
+		tp2855_write_array(tp2855->client, common_setting_594M_1080p_25fps_regs,
+					ARRAY_SIZE(common_setting_594M_1080p_25fps_regs));
+		break;
+	case TP2855_CVSTD_720P_25:
+		dev_info(&tp2855->client->dev, "set channel %d 720P_25\n", ch);
+		tp2855_read_reg(tp2855->client, 0xf5, &tmp);
+		tmp |= SYS_MODE[ch];
+		tp2855_write_reg(tp2855->client, 0xf5, tmp);
+		tp2855_write_array(tp2855->client, common_setting_297M_720p_25fps_regs,
+					ARRAY_SIZE(common_setting_297M_720p_25fps_regs));
+		break;
+	default:
+		dev_info(&tp2855->client->dev,
+			"set channel %d is not supported, default 1080P_25\n", ch);
+		tp2855_read_reg(tp2855->client, 0xf5, &tmp);
+		tmp &= ~SYS_MODE[ch];
+		tp2855_write_reg(tp2855->client, 0xf5, tmp);
+		tp2855_write_array(tp2855->client, common_setting_594M_1080p_25fps_regs,
+					ARRAY_SIZE(common_setting_594M_1080p_25fps_regs));
+		break;
+	}
+
+#if TP2855_TEST_PATTERN
+	tp2855_write_reg(tp2855->client, 0x2a, 0x3c);
+#endif
+
+	return 0;
+}
+
+static int tp2855_get_channel_reso(struct tp2855 *tp2855, int ch)
+{
+	u8 detect_fmt = 0xff;
+	u8 reso = 0xff;
+
+	tp2855_write_reg(tp2855->client, 0x40, ch);
+	tp2855_read_reg(tp2855->client, 0x03, &detect_fmt);
+	reso = detect_fmt & 0x7;
+
+	switch (reso) {
+	case TP2855_CVSTD_1080P_30:
+		dev_info(&tp2855->client->dev, "detect channel %d 1080P_30\n", ch);
+		break;
+	case TP2855_CVSTD_1080P_25:
+		dev_info(&tp2855->client->dev, "detect channel %d 1080P_25\n", ch);
+		tp2855->cur_mode = &supported_modes[0];
+		break;
+	case TP2855_CVSTD_720P_30:
+		dev_info(&tp2855->client->dev, "detect channel %d 720P_30\n", ch);
+		break;
+	case TP2855_CVSTD_720P_25:
+		dev_info(&tp2855->client->dev, "detect channel %d 720P_25\n", ch);
+		tp2855->cur_mode = &supported_modes[1];
+		break;
+	case TP2855_CVSTD_SD:
+		dev_info(&tp2855->client->dev, "detect channel %d SD\n", ch);
+		break;
+	default:
+		dev_info(&tp2855->client->dev,
+			"detect channel %d is not supported, default 1080P_25\n", ch);
+		reso = TP2855_CVSTD_1080P_25;
+		tp2855->cur_mode = &supported_modes[0];
+	}
+
+	return reso;
+}
+
+static __maybe_unused int auto_detect_channel_fmt(struct tp2855 *tp2855)
+{
+	int ch = 0;
+	enum tp2855_support_reso reso = 0xff;
+
+	for (ch = 0; ch < PAD_MAX; ch++) {
+		reso = tp2855_get_channel_reso(tp2855, ch);
+		tp2855_set_channel_reso(tp2855, ch, reso);
+	}
+
+	return 0;
+}
+
 static int __tp2855_start_stream(struct tp2855 *tp2855)
 {
 	int ret;
-	int array_size = 0;
 	struct i2c_client *client = tp2855->client;
 
-    if (tp2855->cur_mode->global_reg_list == common_setting_594M_1080p_25fps_regs) {
-		array_size = ARRAY_SIZE(common_setting_594M_1080p_25fps_regs);
-	} else if (tp2855->cur_mode->global_reg_list == common_setting_297M_720p_25fps_regs) {
-		array_size = ARRAY_SIZE(common_setting_297M_720p_25fps_regs);
-	} else {
-		return -1;
-	}
-
+	auto_detect_channel_fmt(tp2855);
 	ret = tp2855_write_array(tp2855->client,
-		tp2855->cur_mode->global_reg_list, array_size);
+		tp2855->cur_mode->mipi_reg_list, tp2855->cur_mode->mipi_reg_size);
 	if (ret) {
-		dev_err(&client->dev, "__tp2855_start_stream global_reg_list faild");
+		dev_err(&client->dev, "__tp2855_start_stream mipi_reg_list failed");
 		return ret;
 	}
 
@@ -637,10 +838,6 @@ static int __tp2855_start_stream(struct tp2855 *tp2855)
 
 static int __tp2855_stop_stream(struct tp2855 *tp2855)
 {
-	struct i2c_client *client = tp2855->client;
-
-	tp2855_write_reg(client, 0x40, 0x08);
-	tp2855_write_reg(client, 0x23, 0x02);
 	detect_thread_stop(tp2855);
 
 	return 0;
@@ -738,6 +935,12 @@ static int __tp2855_power_on(struct tp2855 *tp2855)
 		goto err_clk;
 	}
 
+	ret = regulator_bulk_enable(TP2855_NUM_SUPPLIES, tp2855->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		goto disable_clk;
+	}
+
 	if (!IS_ERR(tp2855->reset_gpio)) {
 		gpiod_set_value_cansleep(tp2855->reset_gpio, 1);
 		usleep_range(10*1000, 20*1000);
@@ -748,6 +951,9 @@ static int __tp2855_power_on(struct tp2855 *tp2855)
 	usleep_range(10*1000, 20*1000);
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(tp2855->xvclk);
 
 err_clk:
 	if (!IS_ERR(tp2855->reset_gpio))
@@ -779,6 +985,7 @@ static void __tp2855_power_off(struct tp2855 *tp2855)
 
 	if (!IS_ERR(tp2855->power_gpio))
 		gpiod_set_value_cansleep(tp2855->power_gpio, 0);
+	regulator_bulk_disable(TP2855_NUM_SUPPLIES, tp2855->supplies);
 }
 
 static int tp2855_initialize_controls(struct tp2855 *tp2855)
@@ -877,6 +1084,7 @@ static const struct v4l2_subdev_internal_ops tp2855_internal_ops = {
 
 static const struct v4l2_subdev_video_ops tp2855_video_ops = {
 	.s_stream = tp2855_stream,
+	.g_frame_interval = tp2855_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops tp2855_subdev_pad_ops = {
@@ -901,16 +1109,38 @@ static const struct v4l2_subdev_ops tp2855_subdev_ops = {
 	.pad   = &tp2855_subdev_pad_ops,
 };
 
-static int check_chip_id(struct i2c_client *client){
+static int check_chip_id(struct i2c_client *client)
+{
+	int ret = 0;
 	struct device *dev = &client->dev;
-	unsigned char chip_id = 0xFF;
-	tp2855_read_reg(client, 0x34, &chip_id);
-	dev_err(dev, "chip_id : 0x%2x\n", chip_id);
-	if (chip_id != 0x0) {
-		return -1;
+	u8 chip_id_h = 0, chip_id_l = 0;
+
+	tp2855_write_reg(client, 0x40, 0x0);
+	tp2855_read_reg(client, 0xFE, &chip_id_h);
+	tp2855_read_reg(client, 0xFF, &chip_id_l);
+
+	if (chip_id_h != 0x28 || chip_id_l != 0x55) {
+		dev_err(dev, "expected 0x2855, detected: 0x%0x%0x\n", chip_id_h, chip_id_l);
+		ret = -EINVAL;
+	} else {
+		dev_info(dev, "Found TP2855 sensor, chip id: 0x%0x%0x\n", chip_id_h, chip_id_l);
 	}
-	return 0;
+
+	return ret;
 }
+
+static int tp2855_configure_regulators(struct tp2855 *tp2855)
+{
+	unsigned int i;
+
+	for (i = 0; i < TP2855_NUM_SUPPLIES; i++)
+		tp2855->supplies[i].supply = tp2855_supply_names[i];
+
+	return devm_regulator_bulk_get(&tp2855->client->dev,
+				       TP2855_NUM_SUPPLIES,
+				       tp2855->supplies);
+}
+
 
 static int tp2855_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -960,6 +1190,12 @@ static int tp2855_probe(struct i2c_client *client,
 	tp2855->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
 	if (IS_ERR(tp2855->power_gpio))
 		dev_warn(dev, "Failed to get power-gpios\n");
+
+	ret = tp2855_configure_regulators(tp2855);
+	if (ret) {
+		dev_err(dev, "Failed to get power regulators\n");
+		return ret;
+	}
 
 	tp2855->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(tp2855->pinctrl)) {
@@ -1075,6 +1311,7 @@ static const struct dev_pm_ops tp2855_pm_ops = {
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id tp2855_of_match[] = {
 	{ .compatible = "tp2855" },
+	{ .compatible = "tp2815" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tp2855_of_match);
@@ -1082,6 +1319,7 @@ MODULE_DEVICE_TABLE(of, tp2855_of_match);
 
 static const struct i2c_device_id tp2855_match_id[] = {
 	{ "tp2855", 0 },
+	{ "tp2815", 0 },
 	{ },
 };
 
@@ -1096,18 +1334,21 @@ static struct i2c_driver tp2855_i2c_driver = {
 	.id_table	= tp2855_match_id,
 };
 
-static int __init sensor_mod_init(void)
+int tp2855_sensor_mod_init(void)
 {
 	return i2c_add_driver(&tp2855_i2c_driver);
 }
 
-static void __exit sensor_mod_exit(void)
+#ifndef CONFIG_VIDEO_REVERSE_IMAGE
+device_initcall_sync(tp2855_sensor_mod_init);
+#endif
+
+static void __exit tp2855_sensor_mod_exit(void)
 {
 	i2c_del_driver(&tp2855_i2c_driver);
 }
 
-device_initcall_sync(sensor_mod_init);
-module_exit(sensor_mod_exit);
+module_exit(tp2855_sensor_mod_exit);
 
 MODULE_AUTHOR("Vicent Chi <vicent.chi@rock-chips.com>");
 MODULE_DESCRIPTION("tp2855 sensor driver");

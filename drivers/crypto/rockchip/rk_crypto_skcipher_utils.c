@@ -2,7 +2,7 @@
 /*
  * Rockchip crypto skcipher uitls
  *
- * Copyright (c) 2022, Rockchip Electronics Co., Ltd
+ * Copyright (c) 2022, Rockchip Electronics Co., Ltd.
  *
  * Author: Lin Jinhan <troy.lin@rock-chips.com>
  *

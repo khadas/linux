@@ -50,6 +50,16 @@ config VIDEO_ROCKCHIP_ISP_VERSION_V39_DBG
 	depends on VIDEO_ROCKCHIP_ISP_VERSION_V39
 	default n
 
+config VIDEO_ROCKCHIP_ISP_VERSION_V33
+	bool "isp33 for rv1103b"
+	depends on CPU_RV1103B
+	default y
+
+config VIDEO_ROCKCHIP_ISP_VERSION_V33_DBG
+	bool "isp33 params debug for rv1103b"
+	depends on VIDEO_ROCKCHIP_ISP_VERSION_V33
+	default n
+
 config VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 	bool "Rockchip Image Signal Processing Thunderboot helper"
 	depends on ROCKCHIP_THUNDER_BOOT

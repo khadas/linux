@@ -1,7 +1,7 @@
 /*
  * drivers/input/sensors/accel/bma2xx.c
  *
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  *
  * Author: Bin Yang <yangbin@rock - chips.com>
  *

@@ -2,7 +2,7 @@
 /*
  * kernel/drivers/input/sensors/gyro/icm2060x_gyro.c
  *
- * Copyright (C) 2020 Rockchip Co.,Ltd.
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  * Author: Wang Jie <dave.wang@rock-chips.com>
  */
 

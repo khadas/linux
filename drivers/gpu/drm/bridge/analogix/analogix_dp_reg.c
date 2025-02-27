@@ -738,9 +738,9 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 	case TEST_PATTERN_80BIT:
 		reg = 0x3e0f83e0;
 		analogix_dp_write(dp, ANALOGIX_DP_TEST_80B_PATTERN0, reg);
-		reg = 0x0f83e0f8;
+		reg = 0x3e0f83e0;
 		analogix_dp_write(dp, ANALOGIX_DP_TEST_80B_PATTERN1, reg);
-		reg = 0x0000f83e;
+		reg = 0x000f83e0;
 		analogix_dp_write(dp, ANALOGIX_DP_TEST_80B_PATTERN2, reg);
 		reg = SCRAMBLING_ENABLE | LINK_QUAL_PATTERN_SET_80BIT;
 		analogix_dp_write(dp, ANALOGIX_DP_TRAINING_PTN_SET, reg);

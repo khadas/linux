@@ -960,17 +960,16 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 			  struct rkisp_isp_readout_work *meas_work)
 {
 	unsigned int cur_frame_id = -1;
-	struct rkisp_buffer *cur_buf = stats_vdev->cur_buf;
+	struct rkisp_buffer *cur_buf = NULL;
 	struct rkisp3x_isp_stat_buffer *cur_stat_buf = NULL;
-	struct rkisp_stats_ops_v3x *ops =
-		(struct rkisp_stats_ops_v3x *)stats_vdev->priv_ops;
+	struct rkisp_stats_ops_v3x *ops = stats_vdev->priv_ops;
 	struct rkisp_isp_params_vdev *params_vdev = &stats_vdev->dev->params_vdev;
 	u32 size = sizeof(struct rkisp3x_isp_stat_buffer);
 
 	cur_frame_id = meas_work->frame_id;
 	spin_lock(&stats_vdev->rd_lock);
 	/* get one empty buffer */
-	if (!cur_buf) {
+	if (!stats_vdev->rdbk_drop) {
 		if (!list_empty(&stats_vdev->stat)) {
 			cur_buf = list_first_entry(&stats_vdev->stat,
 						   struct rkisp_buffer, queue);
@@ -980,8 +979,7 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 	spin_unlock(&stats_vdev->rd_lock);
 
 	if (cur_buf) {
-		cur_stat_buf =
-			(struct rkisp3x_isp_stat_buffer *)(cur_buf->vaddr[0]);
+		cur_stat_buf = cur_buf->vaddr[0];
 		cur_stat_buf->frame_id = cur_frame_id;
 		cur_stat_buf->params_id = params_vdev->cur_frame_id;
 	}
@@ -1031,7 +1029,7 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 		ops->get_dhaz_stats(stats_vdev, cur_stat_buf, 0);
 	}
 
-	if (stats_vdev->dev->hw_dev->unite) {
+	if (stats_vdev->dev->hw_dev->unite == ISP_UNITE_TWO) {
 		size *= 2;
 		if (cur_buf) {
 			cur_stat_buf++;
@@ -1071,10 +1069,7 @@ rkisp_stats_send_meas_v3x(struct rkisp_isp_stats_vdev *stats_vdev,
 		cur_buf->vb.sequence = cur_frame_id;
 		cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-		cur_buf = NULL;
 	}
-
-	stats_vdev->cur_buf = cur_buf;
 }
 
 static void

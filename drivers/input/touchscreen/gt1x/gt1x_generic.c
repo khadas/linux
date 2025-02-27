@@ -922,6 +922,7 @@ static s32 gt1x_enter_sleep(void)
 
 #if GTP_POWER_CTRL_SLEEP
 	if (!gt1x_power_switch(SWITCH_OFF)) {
+		GTP_GPIO_OUTPUT(GTP_RST_PORT, 0);
 		GTP_INFO("Enter sleep mode by poweroff");
 		return 0;
 	}

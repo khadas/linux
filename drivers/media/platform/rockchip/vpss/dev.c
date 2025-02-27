@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2023 Rockchip Electronics Co., Ltd */
+/* Copyright (C) 2023 Rockchip Electronics Co., Ltd. */
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -191,18 +191,16 @@ rkvpss_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	int ret;
 
 	dev = container_of(notifier, struct rkvpss_device, notifier);
-	mutex_lock(&dev->media_dev.graph_mutex);
 
 	ret = rkvpss_create_links(dev);
 	if (ret < 0)
-		goto unlock;
+		goto err;
 	ret = v4l2_device_register_subdev_nodes(&dev->v4l2_dev);
 	if (ret < 0)
-		goto unlock;
+		goto err;
 	rkvpss_pipeline_default_fmt(dev);
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
-unlock:
-	mutex_unlock(&dev->media_dev.graph_mutex);
+err:
 	return ret;
 }
 

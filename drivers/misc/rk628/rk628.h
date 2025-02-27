@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */

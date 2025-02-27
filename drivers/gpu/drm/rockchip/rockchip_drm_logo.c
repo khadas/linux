@@ -266,7 +266,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	if (!size)
 		return -ENOMEM;
 	if (!IS_ALIGNED(res.start, PAGE_SIZE) || !IS_ALIGNED(size, PAGE_SIZE))
-		DRM_ERROR("Reserved logo memory should be aligned as:0x%lx, cureent is:start[%pad] size[%pad]\n",
+		DRM_ERROR("Reserved logo memory should be aligned as:0x%lx, current is:start[%pad] size[%pad]\n",
 			  PAGE_SIZE, &res.start, &size);
 	if (pg_size != PAGE_SIZE)
 		DRM_WARN("iommu page size[0x%x] isn't equal to OS page size[0x%lx]\n", pg_size, PAGE_SIZE);
@@ -311,7 +311,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	if (!size)
 		return 0;
 	if (!IS_ALIGNED(res.start, PAGE_SIZE) || !IS_ALIGNED(size, PAGE_SIZE))
-		DRM_ERROR("Reserved drm cubic memory should be aligned as:0x%lx, cureent is:start[%pad] size[%pad]\n",
+		DRM_ERROR("Reserved drm cubic memory should be aligned as:0x%lx, current is:start[%pad] size[%pad]\n",
 			  PAGE_SIZE, &res.start, &size);
 
 	private->cubic_lut_kvaddr = phys_to_virt(start);
@@ -937,12 +937,24 @@ static int update_state(struct drm_device *drm_dev,
 {
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_connector *connector = set->sub_dev->connector;
+	struct drm_encoder *encoder;
 	struct drm_display_mode *mode = set->mode;
 	struct drm_plane_state *primary_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector_state *conn_state;
+	const struct drm_connector_helper_funcs *connector_helper_funcs;
 	int ret;
 	struct rockchip_crtc_state *s;
+
+	connector_helper_funcs = connector->helper_private;
+	if (!connector_helper_funcs)
+		return -ENXIO;
+	if (connector_helper_funcs->best_encoder)
+		encoder = connector_helper_funcs->best_encoder(connector);
+	else
+		encoder = rockchip_drm_connector_get_single_encoder(connector);
+	if (!encoder)
+		return -ENXIO;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
@@ -950,6 +962,10 @@ static int update_state(struct drm_device *drm_dev,
 	conn_state = drm_atomic_get_connector_state(state, connector);
 	if (IS_ERR(conn_state))
 		return PTR_ERR(conn_state);
+	ret = drm_atomic_add_encoder_bridges(state, encoder);
+	if (ret)
+		return ret;
+
 	s = to_rockchip_crtc_state(crtc_state);
 	s->left_margin = set->left_margin;
 	s->right_margin = set->right_margin;
@@ -968,19 +984,8 @@ static int update_state(struct drm_device *drm_dev,
 		crtc_state->active = true;
 	} else {
 		const struct drm_encoder_helper_funcs *encoder_helper_funcs;
-		const struct drm_connector_helper_funcs *connector_helper_funcs;
-		struct drm_encoder *encoder;
 		struct drm_bridge *bridge;
 
-		connector_helper_funcs = connector->helper_private;
-		if (!connector_helper_funcs)
-			return -ENXIO;
-		if (connector_helper_funcs->best_encoder)
-			encoder = connector_helper_funcs->best_encoder(connector);
-		else
-			encoder = rockchip_drm_connector_get_single_encoder(connector);
-		if (!encoder)
-			return -ENXIO;
 		encoder_helper_funcs = encoder->helper_private;
 		if (!encoder_helper_funcs->atomic_check)
 			return -ENXIO;

@@ -111,6 +111,13 @@
 #define LINUX_PM_STATE			0x09
 #define SUSPEND_IO_RET_CONFIG		0x0a
 #define SLEEP_PIN_CONFIG		0x0b
+#define SLEEP_IO_CONFIG			0x0c
+
+enum {
+	RK_PM_SLEEP_IO_CFG_CNT = 0,
+	RK_PM_SLEEP_IO_CFG_VAL = 1,
+	RK_PM_SLEEP_IO_CFG_MAX,
+};
 
 /* SIP_REMOTECTL_CFG call types */
 #define	REMOTECTL_SET_IRQ		0xf0
@@ -239,6 +246,7 @@ enum {
 	PVTPLL_GET_INFO = 0,
 	PVTPLL_ADJUST_TABLE = 1,
 	PVTPLL_LOW_TEMP = 2,
+	PVTPLL_VOLT_SEL = 3,
 };
 
 struct pt_regs;

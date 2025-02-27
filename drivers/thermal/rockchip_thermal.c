@@ -126,6 +126,7 @@ struct rockchip_tsadc_chip {
 	/* Chip-wide methods */
 	void (*initialize)(struct regmap *grf,
 			   void __iomem *reg, enum tshut_polarity p);
+	void (*suspend)(struct regmap *grf, void __iomem *reg);
 	void (*irq_ack)(void __iomem *reg);
 	void (*control)(void __iomem *reg, bool on);
 
@@ -1258,6 +1259,11 @@ static void rk_tsadcv13_initialize(struct regmap *grf, void __iomem *regs,
 		       regs + TSADCV2_AUTO_CON);
 }
 
+static void rk3506_tsadc_suspend(struct regmap *grf, void __iomem *regs)
+{
+	regmap_write(grf, RK3506_GRF_TSADC_CON, RV1106_VOGRF_TSADC_TSEN & 0xffff0000);
+}
+
 static void rk_tsadcv2_irq_ack(void __iomem *regs)
 {
 	u32 val;
@@ -1907,6 +1913,7 @@ static const struct rockchip_tsadc_chip rk3506_tsadc_data = {
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.tshut_temp = 95000,
 	.initialize = rk_tsadcv13_initialize,
+	.suspend = rk3506_tsadc_suspend,
 	.irq_ack = rk_tsadcv4_irq_ack,
 	.control = rk_tsadcv4_control,
 	.get_temp = rk_tsadcv4_get_temp,
@@ -2692,6 +2699,8 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 		rockchip_thermal_toggle_sensor(&thermal->sensors[i], false);
 
 	thermal->chip->control(thermal->regs, false);
+	if (thermal->chip->suspend)
+		thermal->chip->suspend(thermal->grf, thermal->regs);
 
 	clk_bulk_disable(thermal->num_clks, thermal->clks);
 

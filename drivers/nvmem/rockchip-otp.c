@@ -769,6 +769,13 @@ static const char * const rk3528_otp_clocks[] = {
 	"usr", "sbpi", "apb",
 };
 
+static const struct rockchip_data rk3506_data = {
+	.size = 0x78,
+	.clocks = rk3528_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3528_otp_clocks),
+	.reg_read = rk3568_otp_read,
+};
+
 static const struct rockchip_data rk3528_data = {
 	.size = 0x80,
 	.clocks = rk3528_otp_clocks,
@@ -776,19 +783,15 @@ static const struct rockchip_data rk3528_data = {
 	.reg_read = rk3568_otp_read,
 };
 
-static const char * const rk3562_otp_clocks[] = {
+static const char * const rk3568_otp_clocks[] = {
 	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rk3562_data = {
 	.size = 0x80,
-	.clocks = rk3562_otp_clocks,
-	.num_clks = ARRAY_SIZE(rk3562_otp_clocks),
+	.clocks = rk3568_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3568_otp_clocks),
 	.reg_read = rk3568_otp_read,
-};
-
-static const char * const rk3568_otp_clocks[] = {
-	"usr", "sbpi", "apb", "phy",
 };
 
 static const struct rockchip_data rk3568_data = {
@@ -822,14 +825,10 @@ static const struct rockchip_data rk3588_data = {
 	.reg_read = rk3588_otp_read,
 };
 
-static const char * const rv1106_otp_clocks[] = {
-	"usr", "sbpi", "apb", "phy",
-};
-
 static const struct rockchip_data rv1106_data = {
 	.size = 0x80,
-	.clocks = rv1106_otp_clocks,
-	.num_clks = ARRAY_SIZE(rv1106_otp_clocks),
+	.clocks = rk3568_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3568_otp_clocks),
 	.reg_read = rk3568_otp_read,
 };
 
@@ -870,7 +869,7 @@ static const struct of_device_id rockchip_otp_match[] = {
 #ifdef CONFIG_CPU_RK3506
 	{
 		.compatible = "rockchip,rk3506-otp",
-		.data = (void *)&rk3528_data,
+		.data = (void *)&rk3506_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3528

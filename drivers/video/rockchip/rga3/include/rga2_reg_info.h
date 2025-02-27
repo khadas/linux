@@ -292,11 +292,15 @@
 
 
 /* RGA_SRC_ACT_INFO */
-#define m_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH		(0x1fff << 0)
-#define m_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT		(0x1fff << 16)
+#define m_RGA2_SRC_ACT_INFO_SW_TILE4X4_IN_YOFF		(0x3 << 30)
+#define m_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT		(0x7ff << 16)
+#define m_RGA2_SRC_ACT_INFO_SW_TILE4X4_IN_XOFF		(0x3 << 14)
+#define m_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH		(0x7ff << 0)
 
-#define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH(x)		((x & 0x1fff) << 0)
-#define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT(x)	((x & 0x1fff) << 16)
+#define s_RGA2_SRC_ACT_INFO_SW_TILE4X4_IN_YOFF(x)	((x & 0x3) << 30)
+#define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_HEIGHT(x)	((x & 0x7ff) << 16)
+#define s_RGA2_SRC_ACT_INFO_SW_TILE4X4_IN_XOFF(x)	((x & 0x3) << 14)
+#define s_RGA2_SRC_ACT_INFO_SW_SRC_ACT_WIDTH(x)		((x & 0x7ff) << 0)
 
 /* RGA2_OSD_CTRL0 */
 #define m_RGA2_OSD_CTRL0_SW_OSD_MODE			(0x3 << 0)
@@ -480,6 +484,7 @@
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_FLUSH(x)		((x & 0x1) << 13)
 
 #define RGA2_VSP_BICUBIC_LIMIT				1996
+#define RGA2_BILINEAR_PREC				12
 
 union rga2_color_ctrl {
 	uint32_t value;

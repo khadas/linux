@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
  */
 
@@ -73,7 +73,11 @@ static struct rockchip_pll_rate_table rk3576_pll_rates[] = {
 	RK3588_PLL_RATE(1320000000, 2, 220, 1, 0),
 	RK3588_PLL_RATE(1200000000, 2, 200, 1, 0),
 	RK3588_PLL_RATE(1188000000, 2, 198, 1, 0),
+	RK3588_PLL_RATE(1186814000, 2, 198, 1, 52581),
+	RK3588_PLL_RATE(1186812000, 2, 198, 1, 52559),
+	RK3588_PLL_RATE(1109000000, 3, 554, 2, 32767),
 	RK3588_PLL_RATE(1100000000, 3, 550, 2, 0),
+	RK3588_PLL_RATE(1051000000, 3, 525, 2, 32767),
 	RK3588_PLL_RATE(1008000000, 2, 336, 2, 0),
 	RK3588_PLL_RATE(1000000000, 3, 500, 2, 0),
 	RK3588_PLL_RATE(983040000, 4, 655, 2, 23592),
@@ -84,11 +88,15 @@ static struct rockchip_pll_rate_table rk3576_pll_rates[] = {
 	RK3588_PLL_RATE(786432000, 2, 262, 2, 9437),
 	RK3588_PLL_RATE(786000000, 1, 131, 2, 0),
 	RK3588_PLL_RATE(785560000, 3, 392, 2, 51117),
+	RK3588_PLL_RATE(773000000, 2, 258, 2, 43690),
 	RK3588_PLL_RATE(722534400, 8, 963, 2, 24850),
+	RK3588_PLL_RATE(697000000, 2, 232, 2, 21845),
+	RK3588_PLL_RATE(604800000, 1, 101, 2, 52428),
 	RK3588_PLL_RATE(600000000, 2, 200, 2, 0),
 	RK3588_PLL_RATE(594000000, 2, 198, 2, 0),
 	RK3588_PLL_RATE(408000000, 2, 272, 3, 0),
 	RK3588_PLL_RATE(312000000, 2, 208, 3, 0),
+	RK3588_PLL_RATE(266580000, 1, 178, 4, 47185),
 	RK3588_PLL_RATE(216000000, 2, 288, 4, 0),
 	RK3588_PLL_RATE(96000000, 2, 256, 5, 0),
 	{ /* sentinel */ },
@@ -878,8 +886,10 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(PCLK_DDR_ROOT, "pclk_ddr_root", gpll_cpll_24m_p, CLK_IS_CRITICAL,
 			RK3576_CLKSEL_CON(76), 5, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3576_CLKGATE_CON(21), 0, GFLAGS),
-	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", CLK_IGNORE_UNUSED,
+	GATE(PCLK_DDR_MON_CH0, "pclk_ddr_mon_ch0", "pclk_ddr_root", 0,
 			RK3576_CLKGATE_CON(21), 1, GFLAGS),
+	GATE(PCLK_DDR_MON_CH1, "pclk_ddr_mon_ch1", "pclk_ddr_root", 0,
+			RK3576_CLKGATE_CON(21), 14, GFLAGS),
 	COMPOSITE(HCLK_DDR_ROOT, "hclk_ddr_root", gpll_cpll_p, CLK_IGNORE_UNUSED,
 			RK3576_CLKSEL_CON(77), 5, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3576_CLKGATE_CON(22), 11, GFLAGS),
@@ -1737,6 +1747,12 @@ static void rk3576_dump_cru(void)
 }
 
 static int protect_clocks[] = {
+	CLK_PMU1PWM,
+	PCLK_PMU1PWM,
+	CLK_PWM1,
+	PCLK_PWM1,
+	CLK_PWM2,
+	PCLK_PWM2,
 	ACLK_EBC,
 	HCLK_EBC,
 	DCLK_EBC,

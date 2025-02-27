@@ -526,6 +526,7 @@ static int dsmc_write(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint32
 
 static void dsmc_lb_dma_hw_mode_en(struct rockchip_dsmc *dsmc, uint32_t cs)
 {
+	struct device *dev = dsmc->dev;
 	struct dsmc_transfer *xfer = &dsmc->xfer;
 	size_t size = xfer->transfer_size;
 	uint32_t burst_byte = xfer->brst_len * xfer->brst_size;
@@ -533,7 +534,7 @@ static void dsmc_lb_dma_hw_mode_en(struct rockchip_dsmc *dsmc, uint32_t cs)
 
 	dma_req_num = size / burst_byte;
 	if (size % burst_byte) {
-		pr_warn("DSMC: DMA size is unaligned\n");
+		dev_warn(dev, "DMA size is unaligned\n");
 		dma_req_num++;
 	}
 	writel(dma_req_num, dsmc->regs + DSMC_DMA_REQ_NUM(cs));
@@ -683,7 +684,7 @@ static int dsmc_copy_from(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, ui
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
 
 	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
-		pr_warn("DSMC: copy_from: the transfer is busy!\n");
+		dev_warn(dev, "copy_from: the transfer is busy!\n");
 		return -EBUSY;
 	}
 
@@ -721,7 +722,7 @@ static int dsmc_copy_to(struct rockchip_dsmc_device *dsmc_dev, uint32_t cs, uint
 	struct rockchip_dsmc *dsmc = &dsmc_dev->dsmc;
 
 	if (atomic_read(&dsmc->xfer.state) & (RXDMA | TXDMA)) {
-		pr_warn("DSMC: copy_to: the transfer is busy!\n");
+		dev_warn(dev, "copy_to: the transfer is busy!\n");
 		return -EBUSY;
 	}
 
@@ -785,6 +786,29 @@ static void dsmc_data_init(struct rockchip_dsmc *dsmc)
 	}
 }
 
+static int dsmc_check_mult_psram_cap(struct rockchip_dsmc *dsmc)
+{
+	uint32_t cs;
+	uint32_t io_width = 0xffffffff;
+	struct device *dev = dsmc->dev;
+	struct dsmc_ctrl_config *cfg = &dsmc->cfg;
+
+	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
+		if (cfg->cs_cfg[cs].device_type == DSMC_UNKNOWN_DEVICE)
+			continue;
+		if (io_width == 0xffffffff) {
+			io_width = dsmc->cfg.cs_cfg[cs].io_width;
+		} else {
+			if (io_width != dsmc->cfg.cs_cfg[cs].io_width) {
+				dev_err(dev, "The io width error for mult rank!\n");
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static void dsmc_reset_ctrl(struct rockchip_dsmc *dsmc)
 {
 	reset_control_assert(dsmc->areset);
@@ -797,6 +821,7 @@ static void dsmc_reset_ctrl(struct rockchip_dsmc *dsmc)
 static int dsmc_init(struct rockchip_dsmc *dsmc)
 {
 	uint32_t cs;
+	struct device *dev = dsmc->dev;
 	struct dsmc_ctrl_config *cfg = &dsmc->cfg;
 	struct dsmc_config_cs *cs_cfg;
 	uint32_t ret = 0;
@@ -812,13 +837,18 @@ static int dsmc_init(struct rockchip_dsmc *dsmc)
 				return ret;
 		}
 	}
+
+	ret = dsmc_check_mult_psram_cap(dsmc);
+	if (ret)
+		return ret;
+
 	dsmc_reset_ctrl(dsmc);
 
 	for (cs = 0; cs < DSMC_MAX_SLAVE_NUM; cs++) {
 		if (cfg->cs_cfg[cs].device_type == DSMC_UNKNOWN_DEVICE)
 			continue;
 		cs_cfg = &dsmc->cfg.cs_cfg[cs];
-		pr_info("DSMC: init cs%d %s device\n",
+		dev_info(dev, "init cs%d %s device\n",
 			cs, (cs_cfg->device_type == DSMC_LB_DEVICE) ? "LB" : "PSRAM");
 		rockchip_dsmc_ctrller_init(dsmc, cs);
 		if (cs_cfg->device_type == OPI_XCCELA_PSRAM)

@@ -260,8 +260,8 @@
 			0057 0021
 			//Clock Select, X for portA, Y/Z for PortB
 			0308 0076
-			//Start DSI Port
-			0311 0061
+			//Start DSI-A Port
+			0311 0001
 			//Set Port A Lane Mapping
 			0332 004E
 			//Set Port B Lane Mapping
@@ -341,7 +341,7 @@
 			//Turn on video pipe
 			0002 0033
 			//Enable splitter mode  reset one shot
-			0010 0023
+			0010 0021
 			ffff f000	//0xf000 ms delay
 		];
 
@@ -431,7 +431,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c8_max96752_pinctrl: i2c8-max96752-pinctrl {
@@ -921,22 +921,21 @@
 		i2c5_max96745_bridge: i2c5-max96745-bridge {
 			compatible = "maxim,max96745-bridge";
 			status = "okay";
-		};
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				i2c5_max96745_from_dp: endpoint {
-					remote-endpoint = <&dp_out_i2c5_max96745>;
+				port@0 {
+					reg = <0>;
+					i2c5_max96745_from_dp: endpoint {
+						remote-endpoint = <&dp_out_i2c5_max96745>;
+					};
 				};
-			};
-			port@1 {
-				reg = <1>;
-				i2c5_max96745_out_i2c5_max96752: endpoint {
-					remote-endpoint = <&i2c5_max96752_from_i2c5_max96745>;
+				port@1 {
+					reg = <1>;
+					i2c5_max96745_out_i2c5_max96752: endpoint {
+						remote-endpoint = <&i2c5_max96752_from_i2c5_max96745>;
+					};
 				};
 			};
 		};
@@ -964,7 +963,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c5_max96752_pinctrl: i2c5-max96752-pinctrl {
@@ -1090,7 +1089,7 @@
 		reg = <0x42>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_serdes_pins>;
-		lock-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		id-serdes-bridge-split = <0x02>;
@@ -1444,25 +1443,25 @@
 		i2c3_max96745_bridge: i2c3-max96745-bridge {
 			compatible = "maxim,max96745-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c3_max96745_from_edp: endpoint {
-					remote-endpoint = <&edp_out_i2c3_max96745>;
+					i2c3_max96745_from_edp: endpoint {
+						remote-endpoint = <&edp_out_i2c3_max96745>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c3_max96745_out_i2c3_max96752: endpoint {
-					remote-endpoint = <&i2c3_max96752_from_i2c3_max96745>;
+					i2c3_max96745_out_i2c3_max96752: endpoint {
+						remote-endpoint = <&i2c3_max96752_from_i2c3_max96745>;
+					};
 				};
 			};
 		};
@@ -1490,7 +1489,7 @@
 
 			0050 0000
 			01ce 004e
-			01ea 0005
+			01ea 0004
 		];
 
 		i2c3_max96752_pinctrl: i2c3-max96752-pinctrl {
@@ -1696,9 +1695,14 @@
 	assigned-clock-rates = <1150000000>;
 };
 
+//edp
+&vp0 {
+	assigned-clocks = <&cru DCLK_VP0_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
 //dsi
 &vp1 {
 	assigned-clocks = <&cru DCLK_VP1_SRC>;
 	assigned-clock-parents = <&cru PLL_VPLL>;
 };
-

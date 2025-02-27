@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2017 Rockchip Electronics Co., Ltd.
  *
  * Base on code in drivers/clk/clk-gate.c.
  * See clk-gate.c for further copyright information.

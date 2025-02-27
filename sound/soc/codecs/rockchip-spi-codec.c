@@ -2,7 +2,7 @@
 /*
  * Rockchip Audio CODEC Driver for remote dsp
  *
- * Copyright (C) 2023 Rockchip Electronics Co.,Ltd
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  */
 

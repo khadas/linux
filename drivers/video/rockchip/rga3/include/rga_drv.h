@@ -88,7 +88,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		3
-#define DRIVER_REVISION_VERSION		5
+#define DRIVER_REVISION_VERSION		7
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -450,6 +450,9 @@ struct rga_drvdata_t {
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	struct rga_debugger *debugger;
 #endif
+
+	bool shutdown;
+	struct rw_semaphore rwsem;
 };
 
 struct rga_irqs_data_t {

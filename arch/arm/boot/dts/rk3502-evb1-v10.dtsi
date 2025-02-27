@@ -410,14 +410,32 @@
 		| RKPM_PWREN_SLEEP_GPIO0A0 | RKPM_PWREN_SLEEP_ACT_LOW
 		)
 	>;
+
+#define GPIO0_IOC_GPIO0A_PULL_REG	0xff950200
+#define GPIO0_IOC_GPIO0B_PULL_REG	0xff950204
+#define GPIO0_IOC_GPIO0C_PULL_REG	0xff950208
+#define GPIO0A3_PULL_DOWN		0x00c00080
+#define GPIO0B0_PULL_DOWN		0x00030002
+#define GPIO0C5_PULL_DOWN		0x0c000800
+
+	/* Note: support max 16 pairs */
+	rockchip,sleep-io-config = <
+		GPIO0_IOC_GPIO0C_PULL_REG GPIO0C5_PULL_DOWN /* PWM0_CH0_CPU */
+		GPIO0_IOC_GPIO0A_PULL_REG GPIO0A3_PULL_DOWN /* PWM0_CH2_LCD_BL */
+		GPIO0_IOC_GPIO0B_PULL_REG GPIO0B0_PULL_DOWN /* SAI1_MCLK */
+	>;
 };
 
 &sai1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&rm_io9_sai1_sclk
 		     &rm_io10_sai1_lrck
 		     &rm_io11_sai1_sdi
 		     &rm_io12_sai1_sdo0>;
+	pinctrl-1 = <&rm_io9_idle_pins
+		     &rm_io10_idle_pins
+		     &rm_io11_idle_pins
+		     &rm_io12_idle_pins>;
 };
 
 &sai4 {

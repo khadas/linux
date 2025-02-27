@@ -2,7 +2,7 @@
 /*
  * Hash acceleration support for Rockchip Crypto v2
  *
- * Copyright (c) 2020, Rockchip Electronics Co., Ltd
+ * Copyright (c) 2020, Rockchip Electronics Co., Ltd.
  *
  * Author: Lin Jinhan <troy.lin@rock-chips.com>
  *

@@ -1753,29 +1753,75 @@ int spi_nor_sr2_bit2_quad_enable(struct spi_nor *nor)
 }
 
 static const struct spi_nor_manufacturer *manufacturers[] = {
+#ifdef CONFIG_MTD_SPI_NOR_ATMEL
 	&spi_nor_atmel,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_BOYA
 	&spi_nor_boya,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_CATALYST
 	&spi_nor_catalyst,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_DOSILICON
 	&spi_nor_dosilicon,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_EON
 	&spi_nor_eon,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_ESMT
 	&spi_nor_esmt,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_EVERSPIN
 	&spi_nor_everspin,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_FMSH
 	&spi_nor_fmsh,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_FUJITSU
 	&spi_nor_fujitsu,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_GIGADEVICE
 	&spi_nor_gigadevice,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_NORMEM
 	&spi_nor_normem,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_INTEL
 	&spi_nor_intel,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_ISSI
 	&spi_nor_issi,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_MACRONIX
 	&spi_nor_macronix,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_STMICRO
 	&spi_nor_micron,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_PUYA
 	&spi_nor_puya,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_STMICRO
 	&spi_nor_st,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_SPANSION
 	&spi_nor_spansion,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_SST
 	&spi_nor_sst,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_WINBOND
 	&spi_nor_winbond,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_XILINX
 	&spi_nor_xilinx,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_XMC
 	&spi_nor_xmc,
+#endif
+#ifdef CONFIG_MTD_SPI_NOR_XTX
 	&spi_nor_xtx,
+#endif
 };
 
 static const struct flash_info *spi_nor_match_id(struct spi_nor *nor,

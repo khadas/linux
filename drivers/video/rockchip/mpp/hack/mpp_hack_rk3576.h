@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2024 Rockchip Electronics Co., Ltd
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  *
  * author:
  *	Ding Wei <leo.ding@rock-chips.com>

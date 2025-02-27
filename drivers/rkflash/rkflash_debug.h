@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
+/* Copyright (c) 2018 Rockchip Electronics Co., Ltd. */
 
 #ifndef _RKFLASH_DEBUG_H
 #define _RKFLASH_DEBUG_H

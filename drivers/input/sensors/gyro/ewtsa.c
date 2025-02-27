@@ -1,6 +1,6 @@
 /* drivers/input/sensors/gyro/Ewtsa.c
  *
- * Copyright (C) 2012-2015 ROCKCHIP.
+ * Copyright (C) 2012-2015 Rockchip Electronics Co., Ltd.
  * Author: zhangaihui <zah@rock-chips.com>
  *
  * This software is licensed under the terms of the GNU General Public

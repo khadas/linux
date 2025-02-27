@@ -1043,6 +1043,7 @@ struct isp3x_isp_params_cfg {
 	__u32 frame_id;
 	struct isp3x_isp_meas_cfg meas;
 	struct isp3x_isp_other_cfg others;
+	struct sensor_exposure_cfg exposure;
 } __attribute__ ((packed));
 
 struct isp3x_stat {

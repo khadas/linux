@@ -117,6 +117,7 @@ struct rk_iommu {
 	bool dlr_disable; /* avoid access iommu when runtime ops called */
 	bool cmd_retry;
 	bool master_handle_irq;
+	bool first_reset_disabled;
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
@@ -577,7 +578,7 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 	bool val;
 	u32 dte_address_mask;
 
-	if (iommu->reset_disabled)
+	if (iommu->reset_disabled || iommu->first_reset_disabled)
 		return 0;
 
 	if (iommu->skip_read)
@@ -1189,8 +1190,10 @@ out_disable_stall:
 out_disable_clocks:
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
 
-	if (!ret)
+	if (!ret) {
 		iommu->iommu_enabled = true;
+		iommu->first_reset_disabled = false;
+	}
 
 	return ret;
 }
@@ -1622,7 +1625,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	iommu->need_res_map = device_property_read_bool(dev,
 					"rockchip,reserve-map");
-
+	iommu->first_reset_disabled = device_property_read_bool(dev,
+					"rockchip,disable-first-mmu-reset");
 	/*
 	 * iommu clocks should be present for all new devices and devicetrees
 	 * but there are older devicetrees without clocks out in the wild.

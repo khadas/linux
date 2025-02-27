@@ -2,7 +2,7 @@
 /*
  * rk730.h -- RK730 ALSA SoC Audio driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co.,Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _RK730_H
@@ -247,6 +247,9 @@
 #define RK730_DTOP_DIGEN_CLKE_I2SRX_DIS		0
 
 /* RK730_DTOP_SRT */
+#define RK730_DTOP_SRST_MASK			BIT(7)
+#define RK730_DTOP_SRST_EN			BIT(7)
+#define RK730_DTOP_SRST_DIS			0
 #define RK730_DTOP_DACSRT_MASK			GENMASK(6, 4)
 #define RK730_DTOP_DACSRT(x)			((x) << 4)
 #define RK730_DTOP_ADCSRT_MASK			GENMASK(2, 0)

@@ -2,7 +2,7 @@
 /*
  * serdes-panel.c  --  drm panel access for different serdes chips
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */
@@ -29,6 +29,7 @@ static int serdes_panel_prepare(struct drm_panel *panel)
 	if (serdes->chip_data->panel_ops && serdes->chip_data->panel_ops->prepare)
 		ret = serdes->chip_data->panel_ops->prepare(serdes);
 
+	serdes_set_pinctrl_sleep(serdes);
 	serdes_set_pinctrl_default(serdes);
 
 	SERDES_DBG_MFD("%s: %s\n", __func__, serdes->chip_data->name);

@@ -749,6 +749,7 @@ static struct rockchip_mux_recalced_data rk3328_mux_recalced_data[] = {
 		.bit = 8,
 		.mask = 0x3
 	}, {
+		/* gpio2_b7_sel */
 		.num = 2,
 		.pin = 13,
 		.reg = 0x24,
@@ -767,9 +768,59 @@ static struct rockchip_mux_recalced_data rk3328_mux_recalced_data[] = {
 		.bit = 0,
 		.mask = 0x7
 	}, {
+		/* gpio2_c7_sel */
 		.num = 2,
 		.pin = 23,
 		.reg = 0x30,
+		.bit = 14,
+		.mask = 0x3
+	}, {
+		/* gpio3_b1_sel */
+		.num = 3,
+		.pin = 9,
+		.reg = 0x44,
+		.bit = 2,
+		.mask = 0x3
+	}, {
+		/* gpio3_b2_sel */
+		.num = 3,
+		.pin = 10,
+		.reg = 0x44,
+		.bit = 4,
+		.mask = 0x3
+	}, {
+		/* gpio3_b3_sel */
+		.num = 3,
+		.pin = 11,
+		.reg = 0x44,
+		.bit = 6,
+		.mask = 0x3
+	}, {
+		/* gpio3_b4_sel */
+		.num = 3,
+		.pin = 12,
+		.reg = 0x44,
+		.bit = 8,
+		.mask = 0x3
+	}, {
+		/* gpio3_b5_sel */
+		.num = 3,
+		.pin = 13,
+		.reg = 0x44,
+		.bit = 10,
+		.mask = 0x3
+	}, {
+		/* gpio3_b6_sel */
+		.num = 3,
+		.pin = 14,
+		.reg = 0x44,
+		.bit = 12,
+		.mask = 0x3
+	}, {
+		/* gpio3_b7_sel */
+		.num = 3,
+		.pin = 15,
+		.reg = 0x44,
 		.bit = 14,
 		.mask = 0x3
 	},
@@ -3789,6 +3840,7 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 	case RK3188:
 	case RK3288:
 	case RK3308:
+	case RK3328:
 	case RK3368:
 	case RK3399:
 	case RK3506:
@@ -3853,6 +3905,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	case RK3188:
 	case RK3288:
 	case RK3308:
+	case RK3328:
 	case RK3368:
 	case RK3399:
 	case RK3506:
@@ -4167,8 +4220,10 @@ static int rockchip_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 
 	if (ret && cnt) {
 		/* revert the already done pin settings */
-		for (cnt--; cnt >= 0 && !data[cnt].func; cnt--)
+		for (cnt--; cnt >= 0; cnt--) {
+			bank = pin_to_bank(info, pins[cnt]);
 			rockchip_set_mux(bank, pins[cnt] - bank->pin_base, 0);
+		}
 
 		return ret;
 	}
@@ -4183,8 +4238,19 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct rockchip_pin_bank *bank;
+	struct pin_desc *desc;
+	int mux, pin = offset % 32;
+	static unsigned long bitmap[BITS_TO_LONGS(2048)];
 
 	bank = pin_to_bank(info, offset);
+	mux = rockchip_get_mux(bank, pin);
+	desc = pin_desc_get(pctldev, offset);
+	if (offset < 2048 && !test_bit(offset, bitmap) && desc->mux_owner && mux) {
+		set_bit(offset, bitmap);
+		WARN(1, "pin %u already requested by %s; switch mux %d to GPIO\n",
+		     offset, desc->mux_owner, mux);
+	}
+
 	return rockchip_set_mux(bank, offset - bank->pin_base, RK_FUNC_GPIO);
 }
 
@@ -4218,6 +4284,7 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	case RK3188:
 	case RK3288:
 	case RK3308:
+	case RK3328:
 	case RK3368:
 	case RK3399:
 	case RK3506:
@@ -5407,7 +5474,7 @@ static struct rockchip_pin_bank rk3328_pin_banks[] = {
 	PIN_BANK_IOMUX_FLAGS(0, 32, "gpio0", 0, 0, 0, 0),
 	PIN_BANK_IOMUX_FLAGS(1, 32, "gpio1", 0, 0, 0, 0),
 	PIN_BANK_IOMUX_FLAGS(2, 32, "gpio2", 0,
-			     IOMUX_WIDTH_3BIT,
+			     0,
 			     IOMUX_WIDTH_3BIT,
 			     0),
 	PIN_BANK_IOMUX_FLAGS(3, 32, "gpio3",
@@ -5421,7 +5488,7 @@ static struct rockchip_pin_ctrl rk3328_pin_ctrl __maybe_unused = {
 		.pin_banks		= rk3328_pin_banks,
 		.nr_banks		= ARRAY_SIZE(rk3328_pin_banks),
 		.label			= "RK3328-GPIO",
-		.type			= RK3288,
+		.type			= RK3328,
 		.grf_mux_offset		= 0x0,
 		.iomux_recalced		= rk3328_mux_recalced_data,
 		.niomux_recalced	= ARRAY_SIZE(rk3328_mux_recalced_data),

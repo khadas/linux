@@ -9,6 +9,7 @@
 #include <linux/rk-isp3-config.h>
 #include <linux/rk-isp32-config.h>
 #include <linux/rk-isp39-config.h>
+#include <linux/rk-isp33-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
@@ -66,6 +67,7 @@ struct rkisp_isp_params_vdev {
 		struct isp3x_isp_params_cfg *isp3x_params;
 		struct isp32_isp_params_cfg *isp32_params;
 		struct isp39_isp_params_cfg *isp39_params;
+		struct isp33_isp_params_cfg *isp33_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;

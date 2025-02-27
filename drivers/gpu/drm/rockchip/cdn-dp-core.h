@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Chris Zhong <zyw@rock-chips.com>
- * Copyright (C) 2016 ROCKCHIP, Inc.
+ * Copyright (C) 2016 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _CDN_DP_CORE_H
@@ -58,6 +58,9 @@ struct cdn_dp_port {
 	u8 lanes;
 	bool phy_enabled;
 	u8 id;
+
+	struct gpio_desc *hpd_gpio;
+	int hpd_irq;
 };
 
 struct cdn_dp_device {
@@ -76,6 +79,7 @@ struct cdn_dp_device {
 	bool active;
 	bool suspended;
 	bool use_fw_training;
+	bool registered;
 
 	const struct firmware *fw;	/* cdn dp firmware */
 	unsigned int fw_version;	/* cdn fw version */

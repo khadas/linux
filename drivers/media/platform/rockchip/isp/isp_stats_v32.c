@@ -548,7 +548,6 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev,
 		      struct rkisp_isp_readout_work *meas_work)
 {
 	struct rkisp_device *dev = stats_vdev->dev;
-	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
 	struct rkisp_buffer *cur_buf = stats_vdev->cur_buf;
 	struct rkisp32_isp_stat_buffer *cur_stat_buf = NULL;
@@ -573,7 +572,7 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev,
 		}
 
 		/* buffer done when frame of right handle */
-		if (hw->unite == ISP_UNITE_ONE) {
+		if (dev->unite_div > ISP_UNITE_DIV1) {
 			if (dev->unite_index == ISP_UNITE_LEFT) {
 				cur_buf = NULL;
 				is_dummy = false;
@@ -584,7 +583,7 @@ rkisp_stats_send_meas(struct rkisp_isp_stats_vdev *stats_vdev,
 			}
 		}
 
-		if (hw->unite != ISP_UNITE_ONE || dev->unite_index == ISP_UNITE_RIGHT) {
+		if (dev->unite_div < ISP_UNITE_DIV2 || dev->unite_index == ISP_UNITE_RIGHT) {
 			/* config buf for next frame */
 			stats_vdev->cur_buf = NULL;
 			if (stats_vdev->nxt_buf) {

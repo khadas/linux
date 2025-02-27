@@ -2,7 +2,7 @@
 /*
  * vehicle sensor adv7181
  *
- * Copyright (C) 2022 Rockchip Electronics Co.Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Authors:
  *      Zhiqin Wei <wzq@rock-chips.com>
  *

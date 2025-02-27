@@ -5948,8 +5948,8 @@ static int kbase_device_runtime_idle(struct device *dev)
 /* The power management operations for the platform driver.
  */
 static const struct dev_pm_ops kbase_pm_ops = {
-	.suspend = kbase_device_suspend,
-	.resume = kbase_device_resume,
+	SYSTEM_SLEEP_PM_OPS(kbase_device_suspend,
+			    kbase_device_resume)
 #ifdef KBASE_PM_RUNTIME
 	.runtime_suspend = kbase_device_runtime_suspend,
 	.runtime_resume = kbase_device_runtime_resume,
