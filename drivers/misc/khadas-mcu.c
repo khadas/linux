@@ -36,7 +36,7 @@
 #define MCU_VERSION_H_REG       0x12
 #define MCU_VERSION_L_REG       0x13
 #define MCU_FAN_FLAG_REG        0x8a
-#define MCU_AGEING_TEST	        0x38
+#define MCU_AGEING_TEST	        0x16
 #define MCU_ETHERNET_MODE_REG   0x39
 
 #define KHADAS_FAN_TRIG_TEMP_LEVEL0		50	// 50 degree if not set
