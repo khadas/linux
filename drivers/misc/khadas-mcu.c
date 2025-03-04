@@ -20,6 +20,11 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/wakelock.h>
+#include <linux/delay.h>
+
+#define MCU_AGEING_TEST	0x16
+#define MCU_USID        0x06
 
 /* Device registers */
 #define MCU_PWR_OFF_CMD_REG             0x80
@@ -112,6 +117,49 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 int ageing_test_flag = 0;
+int key_test_flag = 0;
+
+int StringToHex(char *str, unsigned char *out, unsigned int *outlen)
+{
+	char *p = str;
+	char high = 0, low = 0;
+	int tmplen = strlen(p), cnt = 0;
+	tmplen = strlen(p);
+	while(cnt < (tmplen / 2)) {
+		high = ((*p > '9') && ((*p <= 'F') || (*p <= 'f'))) ? *p - 48 - 7 : *p - 48;
+		low = (*(++ p) > '9' && ((*p <= 'F') || (*p <= 'f'))) ? *(p) - 48 - 7 : *(p) - 48;
+		out[cnt] = ((high & 0x0f) << 4 | (low & 0x0f));
+		p ++;
+		cnt ++;
+	}
+	if(tmplen % 2 != 0) out[cnt] = ((*p > '9') && ((*p <= 'F') || (*p <= 'f'))) ? *p - 48 - 7 : *p - 48;
+
+	if(outlen != NULL) *outlen = tmplen / 2 + tmplen % 2;
+	return tmplen / 2 + tmplen % 2;
+}
+
+void HexToAscii(unsigned char *pHex, unsigned char *pAscii, int nLen)
+{
+    unsigned char Nibble[2];
+    unsigned int i,j;
+    for (i = 0; i < nLen; i++) {
+        Nibble[0] = (pHex[i] & 0xF0) >> 4;
+        Nibble[1] = pHex[i] & 0x0F;
+        for (j = 0; j < 2; j++) {
+            if (Nibble[j] < 10) {
+                Nibble[j] += 0x30;
+            } else {
+                if (Nibble[j] < 16)
+                    Nibble[j] = Nibble[j] - 10 + 'A';
+            }
+
+            *pAscii++ = Nibble[j];
+            if (i==(nLen-1) && j==1) {
+               *pAscii = '\0';
+            }
+        }
+    }
+}
 
 static int i2c_master_reg8_send(const struct i2c_client *client,
 		const char reg, const char *buf, int count)
@@ -135,36 +183,36 @@ static int i2c_master_reg8_send(const struct i2c_client *client,
 	return (ret == 1) ? count : ret;
 }
 
-//static int i2c_master_reg8_recv(const struct i2c_client *client,
-//		const char reg, char *buf, int count)
-//{
-//	struct i2c_adapter *adap = client->adapter;
-//	struct i2c_msg msgs[2];
-//	int ret;
-//	char reg_buf = reg;
+static int i2c_master_reg8_recv(const struct i2c_client *client,
+		const char reg, char *buf, int count)
+{
+	struct i2c_adapter *adap = client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf = reg;
 
-//	msgs[0].addr = client->addr;
-//	msgs[0].flags = client->flags;
-//	msgs[0].len = 1;
-//	msgs[0].buf = &reg_buf;
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 1;
+	msgs[0].buf = &reg_buf;
 
-//	msgs[1].addr = client->addr;
-//	msgs[1].flags = client->flags | I2C_M_RD;
-//	msgs[1].len = count;
-//	msgs[1].buf = (char *)buf;
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count;
+	msgs[1].buf = (char *)buf;
 
-//	ret = i2c_transfer(adap, msgs, 2);
+	ret = i2c_transfer(adap, msgs, 2);
 
-//	return (ret == 2) ? count : ret;
-//}
+	return (ret == 2) ? count : ret;
+}
 
-//static int mcu_i2c_read_regs(struct i2c_client *client,
-//		u8 reg, u8 buf[], unsigned len)
-//{
-//	int ret;
-//	ret = i2c_master_reg8_recv(client, reg, buf, len);
-//	return ret;
-//}
+static int mcu_i2c_read_regs(struct i2c_client *client,
+		u8 reg, u8 buf[], unsigned len)
+{
+	int ret;
+	ret = i2c_master_reg8_recv(client, reg, buf, len);
+	return ret;
+}
 
 static int mcu_i2c_write_regs(struct i2c_client *client,
 		u8 reg, u8 const buf[], __u16 len)
@@ -622,12 +670,131 @@ static ssize_t store_mculed_mode(struct class *cls,
 	if (kstrtoint(buf, 0, &reg16))
 		return -EINVAL;
 
-	printk("mcu===>reg16=0x%x\n",reg16);
+	//printk("mcu===>reg16=0x%x\n",reg16);
 	reg = reg16>>8;
 	val = (int)((u8)reg16);
 
-	printk("mcu===>reg=0x%x,val=0x%x\n",reg,val);
+	//printk("mcu===>reg=0x%x,val=0x%x\n",reg,val);
 	mcu_mculed_set(reg,val);
+	return count;
+}
+
+static ssize_t show_ageing_test(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr[1]={0};
+
+	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_AGEING_TEST, addr, 1);
+	if (ret < 0)
+		printk("%s: AGEING_TEST failed (%d)",__func__, ret);
+
+	return sprintf(buf, "%d\n", addr[0]);
+}
+
+static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	u8 reg[2];
+	int ret;
+	int enable;
+
+	if (kstrtoint(buf, 0, &enable))
+		return -EINVAL;
+	reg[0] = enable;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_AGEING_TEST, reg, 1);
+	if (ret < 0) {
+		printk("ageing_test state err\n");
+		return ret;
+	}
+	printk("ageing_test state: %d\n", enable);
+	ageing_test_flag = 1;
+	return count;
+}
+
+static ssize_t store_key_test(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 0, &key_test_flag))
+		return -EINVAL;
+	printk("key_test_flag: %d\n", key_test_flag);
+	return count;
+}
+
+static ssize_t show_usid_addr(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned char addr_usid[15]={0};
+	unsigned char addr[7]={0};
+	int i;
+
+	for(i=0; i<=6; i++){
+		ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_USID+i, &addr[i], 1);
+		if (ret < 0)
+			printk("%s: usid address failed (%d)",__func__, ret);
+			//printk("%s: mac address: %02x\n",__func__, addr[i]);
+	}
+	HexToAscii(addr,addr_usid,7);
+	printk("usid address (%s)\n", addr_usid);
+
+	return sprintf(buf, "%s\n", addr_usid);
+}
+
+static ssize_t store_usid_addr(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret;
+	char addr_usid[15]={0};
+	unsigned char addr[7]={0};
+	int outlen = 0;
+	int i;
+	unsigned char cmd[2];
+	unsigned char password[] = {
+		0x01,
+		0x73,
+		0x61,
+		0x64,
+		0x61,
+		0x68,
+		0x4B,
+		0x00
+	};
+
+	sscanf(buf,"%s",addr_usid);
+
+	ret=StringToHex(addr_usid,addr,&outlen);
+	if (ret <=0){
+		printk("%s: input usid String error (%d)\n",__func__, ret);
+		return ret;
+	}
+
+	cmd[0] = 0x81;
+	for (i = 0; i < sizeof(password); i++) {
+		cmd[1] = password[i];
+		ret = mcu_i2c_write_regs(g_mcu_data->client, cmd[0], &cmd[1], 1);
+		if (ret < 0) {
+			printk("%s: write password failed (%d)\n", __func__, ret);
+			return ret;
+		}
+
+		if (i == 0) {
+			cmd[0] = 0x82;
+		} else if (i == 6) {
+			cmd[0] = 0x81;
+		}
+	}
+
+	printk("usid address: %02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+			addr[0], addr[1], addr[2],
+			addr[3], addr[4], addr[5], addr[6]);
+	for (i=0; i<=6; i++) {
+		ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_USID+i, &addr[i], 1);
+		if (ret < 0) {
+			printk("%s: usid address failed (%d)\n",__func__, ret);
+			return ret;
+		}
+	}
 	return count;
 }
 
@@ -647,6 +814,9 @@ static struct class_attribute fan_class_attrs[] = {
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
+	__ATTR(sn_addr, 0644, show_usid_addr, store_usid_addr),
+	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
+	__ATTR(key_test, 0644, NULL, store_key_test),
 	__ATTR(mculed, 0644, NULL, store_mculed_mode),
 	__ATTR(dpmode, 0644, show_dpmode_temp, NULL),
 };
