@@ -28,6 +28,7 @@
 static char adc_key_mode_name[MAX_NAME_LEN] = "abcdef";
 static char kernelkey_en_name[MAX_NAME_LEN] = "abcdef";
 static bool keypad_enable_flag = true;
+extern int key_test_flag;
 
 static int meson_adc_kp_search_key(struct meson_adc_kp *kp)
 {
@@ -59,7 +60,9 @@ static void meson_adc_kp_poll(struct input_polled_dev *dev)
 	struct meson_adc_kp *kp = dev->private;
 
 	int code = meson_adc_kp_search_key(kp);
-
+    if (key_test_flag) {
+		code = KEY_VOLUMEDOWN;
+    }
 	if (kp->report_code && kp->report_code != code) {
 		dev_info(&kp->poll_dev->input->dev,
 			 "key %d up\n", kp->report_code);
@@ -545,6 +548,7 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	input_set_capability(input, EV_KEY, KEY_VOLUMEDOWN);
 	return ret;
 
 err1:

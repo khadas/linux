@@ -39,7 +39,23 @@ struct gpio_keypad {
 	struct pin_desc *current_key;
 	struct timer_list polling_timer;
 	struct input_dev *input_dev;
+	struct class kp_class;
 };
+
+int key_test_flag = 0;
+EXPORT_SYMBOL(key_test_flag);
+
+static ssize_t keytest_store(struct class *cls, struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+    if (kstrtoint(buf, 0, &key_test_flag))
+            return -EINVAL;
+	key_test_flag = 1;
+    printk("key_test_flag: %d\n", key_test_flag);
+    return count;
+}
+
+static CLASS_ATTR_WO(keytest);
 
 static irqreturn_t gpio_irq_handler(int irq, void *data)
 {
@@ -54,7 +70,9 @@ static irqreturn_t gpio_irq_handler(int irq, void *data)
 static void report_key_code(struct gpio_keypad *keypad, int gpio_val)
 {
 	struct pin_desc *key = keypad->current_key;
-
+	if (key_test_flag) {
+		key->code = KEY_VOLUMEUP;
+	}
 	if (key->count >= KEY_JITTER_COUNT) {
 		key->current_status = gpio_val;
 		if (key->current_status) {
@@ -113,6 +131,34 @@ static void polling_timer_handler(struct timer_list *t)
 		}
 	}
 }
+
+static ssize_t table_show(struct class *cls, struct class_attribute *attr,
+			  char *buf)
+{
+	struct gpio_keypad *keypad = container_of(cls,
+					struct gpio_keypad, kp_class);
+	int i;
+	int len = 0;
+
+	for (i = 0; i < keypad->key_size; i++) {
+		len += sprintf(buf + len,
+			"[%d]: name = %-21s status = %-5d\n", i,
+			keypad->key[i].name,
+			keypad->key[i].current_status);
+	}
+
+	return len;
+}
+
+static CLASS_ATTR_RO(table);
+
+static struct attribute *meson_gpiokey_attrs[] = {
+	&class_attr_table.attr,
+	&class_attr_keytest.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(meson_gpiokey);
 
 static int meson_gpio_kp_probe(struct platform_device *pdev)
 {
@@ -185,6 +231,16 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 		gpiod_direction_input(keypad->key[i].desc);
 		gpiod_set_pull(keypad->key[i].desc, GPIOD_PULL_UP);
 	}
+
+	keypad->kp_class.name = "gpio_keypad";
+	keypad->kp_class.owner = THIS_MODULE;
+	keypad->kp_class.class_groups = meson_gpiokey_groups;
+	ret = class_register(&keypad->kp_class);
+	if (ret) {
+		dev_err(&pdev->dev, "fail to create gpio keypad class.\n");
+		return -EINVAL;
+	}
+
 	/* input */
 	input_dev = input_allocate_device();
 	if (!input_dev)
@@ -255,6 +311,7 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 				 "failed to register wakeup source!\n");
 	}
 
+	input_set_capability(input_dev, EV_KEY, KEY_VOLUMEUP);
 	return 0;
 }
 
@@ -263,6 +320,7 @@ static int meson_gpio_kp_remove(struct platform_device *pdev)
 	struct gpio_keypad *keypad;
 
 	keypad = platform_get_drvdata(pdev);
+	class_unregister(&keypad->kp_class);
 	input_unregister_device(keypad->input_dev);
 	input_free_device(keypad->input_dev);
 	del_timer(&keypad->polling_timer);
