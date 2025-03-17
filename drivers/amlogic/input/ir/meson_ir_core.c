@@ -25,6 +25,7 @@
 #include <linux/of_address.h>
 #include "meson_ir_core.h"
 #include "meson_ir_main.h"
+extern int ageing_test_flag;
 
 static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 {
@@ -32,7 +33,7 @@ static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
 
-	if (!ct)
+	if (!ct || ageing_test_flag)
 		return;
 
 	if (DECIDE_VENDOR_TA_ID) {
@@ -80,7 +81,7 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
 
-	if (!ct)
+	if (!ct || ageing_test_flag)
 		return;
 	meson_ir_dbg(dev, "keypressed=0x%x\n", dev->keypressed);
 

@@ -139,6 +139,7 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 int ageing_test_flag = 0;
+EXPORT_SYMBOL(ageing_test_flag);
 
 extern void send_power_key(int state);
 
