@@ -125,6 +125,7 @@ struct mcu_data {
 
 struct mcu_data *g_mcu_data;
 int ageing_test_flag = 0;
+int key_test_flag = 0;
 
 extern void send_power_key(int state);
 extern void realtek_enable_wol(int enable, bool suspend);
@@ -698,11 +699,21 @@ static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr
 	return count;
 }
 
+static ssize_t store_key_test(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 0, &key_test_flag))
+		return -EINVAL;
+	printk("key_test_flag: %d\n", key_test_flag);
+	return count;
+}
+
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(rst, 0644, NULL, store_rst_mcu),
 	__ATTR(portmode, 0644, show_portmode, store_portmode),
 	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
 	__ATTR(ethernet_mode, 0644, show_ethernet_mode, store_ethernet_mode),
+	__ATTR(key_test, 0644, NULL, store_key_test),
 };
 
 static struct class_attribute wol_class_attrs[] = {

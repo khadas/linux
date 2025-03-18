@@ -55,6 +55,8 @@ struct gpio_keypad {
 	struct input_dev *input_dev;
 };
 
+extern int key_test_flag;
+
 static struct input_dev *g_input_dev;
 void send_power_key(int state)
 {
@@ -103,16 +105,20 @@ static void report_key_code(struct gpio_keypad *keypad, int gpio_val)
 		key = keypad->current_key;
 		key->current_status = gpio_val;
 		if (key->current_status) {
-			input_report_key(keypad->input_dev,
-				key->code, 0);
+			if (key_test_flag)
+				input_report_key(keypad->input_dev, KEY_VOLUMEUP, 0);
+			else
+				input_report_key(keypad->input_dev, key->code, 0);
 			if (keypad->use_irq)
 				enable_irq(key->irq_num);
 			dev_info(&(keypad->input_dev->dev),
 				"key %d up.\n",
 				key->code);
 		} else {
-			input_report_key(keypad->input_dev,
-				key->code, 1);
+			if (key_test_flag)
+				input_report_key(keypad->input_dev, KEY_VOLUMEUP, 1);
+			else
+				input_report_key(keypad->input_dev, key->code, 1);
 			if (keypad->use_irq)
 				disable_irq_nosync(key->irq_num);
 
@@ -294,6 +300,7 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 		mod_timer(&(keypad->polling_timer),
 			jiffies+msecs_to_jiffies(keypad->scan_period));
 	}
+	input_set_capability(input_dev, EV_KEY, KEY_VOLUMEUP);
 	return 0;
 }
 
