@@ -437,6 +437,42 @@ static int setup_aml_clk(struct platform_device *pdev)
  * this function is to read the driver parameters from device-tree and
  * set some private fields that will be used by the main at runtime.
  */
+extern ssize_t efuse_user_attr_read(char *name, char *buf);
+static int get_mac_from_efuse(u8 *mac)
+{
+	int i = 0, ret = 0;
+	u8 efuse_mac[12] = {0};
+
+	// Read MAC address from efuse
+	ret = efuse_user_attr_read("mac", efuse_mac);
+	if (ret > 0) {
+		if (12 == ret) {
+			// For VIM3/3L
+			// ASCII to HEX
+			for (i=0; i<12; i++) {
+				if (efuse_mac[i] >= '0' && efuse_mac[i] <= '9')
+					efuse_mac[i] = 0x0 + (efuse_mac[i] - '0');
+				else if (efuse_mac[i] >= 'a' && efuse_mac[i] <= 'f')
+					efuse_mac[i] = 0xa + (efuse_mac[i] - 'a');
+				else if (efuse_mac[i] >= 'A' && efuse_mac[i] <= 'F')
+					efuse_mac[i] = 0xa + (efuse_mac[i] - 'A');
+				else
+					efuse_mac[i] = 0x00;
+
+				if (i % 2 == 1)
+					mac[i / 2] = (efuse_mac[i] & 0x0f) | ((efuse_mac[i - 1] & 0x0f) << 4);
+			}
+		} else if (6 == ret) {
+			// For VIM4/1S
+			memcpy(mac, efuse_mac, 6);
+		}
+	} else {
+		pr_info("read mac from efuse failed!\n");
+	}
+
+	return ret;
+}
+
 struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 {
@@ -451,12 +487,16 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
-	rc = of_get_mac_address(np, mac);
-	if (rc) {
-		if (rc == -EPROBE_DEFER)
-			return ERR_PTR(rc);
+	// Get MAC address from efuse first, then get MAC address from dts.
+	rc = get_mac_from_efuse(mac);
+	if (rc < 0) {
+		rc = of_get_mac_address(np, mac);
+		if (rc) {
+			if (rc == -EPROBE_DEFER)
+				return ERR_PTR(rc);
 
-		eth_zero_addr(mac);
+			eth_zero_addr(mac);
+		}
 	}
 
 	phy_mode = device_get_phy_mode(&pdev->dev);
