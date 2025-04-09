@@ -20,7 +20,7 @@
 static struct timer_list mytimer;
 static unsigned int hw_margin = 3;
 static int khadas_input_pin;
-static unsigned int khadas_enble = 1;
+static unsigned int khadas_enable = 1;
 
 static void time_pre(struct timer_list *timer)
 {
@@ -30,7 +30,7 @@ static void time_pre(struct timer_list *timer)
 
     //printk("%s\n", __func__);
     mytimer.expires = jiffies + hw_margin * HZ/1000;  // 500ms 运行一次
-	if(khadas_enble)
+	if(khadas_enable)
 		mod_timer(&mytimer, mytimer.expires);
 }
 
@@ -44,24 +44,24 @@ static void wdt_exit(void)
     printk("exit Success \n");
 }*/
 
-static ssize_t show_enble(struct class *cls,
+static ssize_t show_enable(struct class *cls,
 				struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", khadas_enble);
+	return sprintf(buf, "%d\n", khadas_enable);
 }
 
-static ssize_t store_enble(struct class *cls, struct class_attribute *attr,
+static ssize_t store_enable(struct class *cls, struct class_attribute *attr,
 		        const char *buf, size_t count)
 {
 	int enable;
 
 	if (kstrtoint(buf, 0, &enable)){
-		printk("khadas_enble error\n");
+		printk("khadas_enable error\n");
 		return -EINVAL;
 	}
-	printk("khadas_enble=%d\n",enable);
-	khadas_enble = enable;
-	if(khadas_enble){
+	printk("khadas_enable=%d\n",enable);
+	khadas_enable = enable;
+	if(khadas_enable){
 		mytimer.expires = jiffies + hw_margin * HZ/1000;  // 500ms 运行一次
 		mod_timer(&mytimer, mytimer.expires);
 	}
@@ -83,7 +83,7 @@ static ssize_t store_pin_out(struct class *cls, struct class_attribute *attr,
 }
 
 static struct class_attribute khadas_attrs[] = {
-	__ATTR(enble, 0644, show_enble, store_enble),
+	__ATTR(enable, 0644, show_enable, store_enable),
 	__ATTR(pin_out, 0644, NULL, store_pin_out),
 };
 
@@ -92,7 +92,7 @@ static void create_khadas_attrs(void)
 	int i;
 	struct class *khadas_class;
 	printk("%s\n",__func__);
-	khadas_class = class_create(THIS_MODULE, "khadas");
+	khadas_class = class_create(THIS_MODULE, "khadas_wdt");
 	if (IS_ERR(khadas_class)) {
 		pr_err("create khadas_class debug class fail\n");
 		return;
