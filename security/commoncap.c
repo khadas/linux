@@ -1243,10 +1243,10 @@ static int cap_prctl_drop(unsigned long cap)
 {
 	struct cred *new;
 
-	if (!ns_capable(current_user_ns(), CAP_SETPCAP))
+	/*if (!ns_capable(current_user_ns(), CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
-		return -EINVAL;
+		return -EINVAL;*/
 
 	new = prepare_creds();
 	if (!new)
