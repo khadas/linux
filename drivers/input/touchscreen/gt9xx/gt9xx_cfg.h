@@ -42,6 +42,10 @@ static u8 gtp_dat_8_9[] = {
 	#include "WGJ10162B_GT9271_1920_1200.cfg"
 };
 
+static u8 gtp_dat_8_9_2[] = {
+	#include "WM101MC077FH-A_GT9271_Config_20250331_V72.cfg"
+};
+
 static u8 gtp_dat_8_9_1[] = {
 	#include "GT9271_Config_20170526.cfg"
 };

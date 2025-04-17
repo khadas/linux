@@ -1447,6 +1447,7 @@ Output:
     Executive outcomes.
         0: succeed, otherwise: failed
 *******************************************************/
+extern int khadas_mipi_id;
 static s32 gtp_init_panel(struct goodix_ts_data *ts)
 {
     s32 ret = -1;
@@ -1477,8 +1478,13 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 		    send_cfg_buf[0] = gtp_dat_8_9_1;
 		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9_1);
 	    } else {
-		    send_cfg_buf[0] = gtp_dat_8_9;
-		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
+            if (2 == khadas_mipi_id) {
+                send_cfg_buf[0] = gtp_dat_8_9;//old TS101 0x41
+                cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
+            } else if (4 == khadas_mipi_id) {
+                send_cfg_buf[0] = gtp_dat_8_9_2;//wuming TS101 0x48
+                cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9_2);
+            }
 	    }
     }
     

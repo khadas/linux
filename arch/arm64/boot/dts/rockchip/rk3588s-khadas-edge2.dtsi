@@ -855,6 +855,11 @@
 			05 14 01 29
 		];
 
+		panel-init-sequence3 = [
+			05 C8 01 11
+			05 64 01 29
+		];
+
 		panel-exit-sequence = [
 			05 05 01 28
 			05 78 01 10
@@ -913,6 +918,25 @@
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		disp_timings03: display-timings3 {
+			native-mode = <&dsi0_timing03>;
+			dsi0_timing03: timing03 {
+				clock-frequency = <152346840>;
+				hactive = <1920>;
+				vactive = <1200>;
+				hfront-porch = <119>;
+				hsync-len = <4>;
+				hback-porch = <23>;
+				vfront-porch = <11>;
+				vsync-len = <4>;
+				vback-porch = <14>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+				de-active = <1>;
 				pixelclk-active = <0>;
 			};
 		};
@@ -1512,6 +1536,11 @@
 			05 14 01 29
 		];
 
+		panel-init-sequence3 = [
+			05 C8 01 11
+			05 64 01 29
+		];
+
 		panel-exit-sequence = [
 			05 05 01 28
 			05 78 01 10
@@ -1570,6 +1599,25 @@
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		disp_timings13: display-timings3 {
+			native-mode = <&dsi1_timing03>;
+			dsi1_timing03: timing03 {
+				clock-frequency = <152346840>;
+				hactive = <1920>;
+				vactive = <1200>;
+				hfront-porch = <119>;
+				hsync-len = <4>;
+				hback-porch = <23>;
+				vfront-porch = <11>;
+				vsync-len = <4>;
+				vback-porch = <14>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+				de-active = <1>;
 				pixelclk-active = <0>;
 			};
 		};

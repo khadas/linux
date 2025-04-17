@@ -5340,7 +5340,9 @@ static int __init khadas_mipi_id_para_setup(char *str)
 	if (str != NULL) {
 		sprintf(lcd_propname, "%s", str);
 
-		if(!strcmp(lcd_propname, "3")) {
+		if(!strcmp(lcd_propname, "4")) {
+			khadas_mipi_id = 4;
+		} else if(!strcmp(lcd_propname, "3")) {
 			khadas_mipi_id = 3;
 		} else if(!strcmp(lcd_propname, "2")) {
 			khadas_mipi_id = 2;

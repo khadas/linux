@@ -153,7 +153,9 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		return NULL;
 
 	printk("of_get_display_timings\n");
-	if(2 == khadas_mipi_id){
+	if (4 == khadas_mipi_id) {
+		timings_np = of_get_child_by_name(np, "display-timings3");
+	} else if (2 == khadas_mipi_id) {
 		timings_np = of_get_child_by_name(np, "display-timings1");
 	} else if(3 == khadas_mipi_id || 0 == khadas_mipi_id) {//new TS050
 		timings_np = of_get_child_by_name(np, "display-timings2");
