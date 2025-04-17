@@ -60,12 +60,12 @@ static void meson_adc_kp_poll(struct input_polled_dev *dev)
 	struct meson_adc_kp *kp = dev->private;
 
 	int code = meson_adc_kp_search_key(kp);
-    if (key_test_flag) {
-		code = KEY_VOLUMEDOWN;
-    }
+
 	if (kp->report_code && kp->report_code != code) {
 		dev_info(&kp->poll_dev->input->dev,
 			 "key %d up\n", kp->report_code);
+		if (key_test_flag)
+			code = KEY_VOLUMEDOWN;
 		input_report_key(kp->poll_dev->input, kp->report_code, 0);
 		input_sync(kp->poll_dev->input);
 		kp->report_code = 0;
@@ -81,6 +81,8 @@ static void meson_adc_kp_poll(struct input_polled_dev *dev)
 			if (keypad_enable_flag && kp->report_code != code) {
 				dev_info(&kp->poll_dev->input->dev,
 					 "key %d down\n", code);
+				if (key_test_flag)
+					code = KEY_VOLUMEDOWN;
 				input_report_key(kp->poll_dev->input, code, 1);
 				input_sync(kp->poll_dev->input);
 				kp->report_code = code;
