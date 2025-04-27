@@ -42,10 +42,6 @@
 	status = "okay";
 };
 
-&u2phy1_otg {
-	status = "okay";
-};
-
 &u2phy2_host {
 	phy-supply = <&vcc5v0_usb20_host>;
 };
