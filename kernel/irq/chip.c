@@ -508,7 +508,6 @@ static bool irq_check_poll(struct irq_desc *desc)
 
 enum {
 	IRQ_FLOW_START,
-	IRQ_FLOW_PILEUP,
 	IRQ_FLOW_REPLAY,
 	IRQ_FLOW_FORWARD,
 };
@@ -579,7 +578,10 @@ static irqreturn_t forward_irq_event(struct irq_desc *desc)
  *   issue a forwarding request of the incoming event to the in-band
  *   stage once done. In this case, the same IRQ action handler is
  *   called twice, first from the oob stage then from the in-band
- *   stage.
+ *   stage. The IRQ handling code should account for the fact that
+ *   multiple incoming events may be received on the oob stage from a
+ *   given source before the forwarding handler is eventually called
+ *   in-band only once by the pipeline core to cover all of them.
  *
  * When IRQ forwarding is requested by an oob action handler
  * (IRQS_FORWARDED is set in the per-descriptor state), acknowledge
@@ -591,44 +593,60 @@ static irqreturn_t forward_irq_event(struct irq_desc *desc)
  * stage as well. The internal per-descriptor IRQS_DEFERRED flag
  * disambiguates between the latter context and events being replayed
  * after deferral to the in-band stage, so that we do ack the hardware
- * for cascaded events as expected.
+ * for cascaded events as expected. We might also receive an event
+ * while a previous one is still pending replay or forwarding.
  *
- * We might also receive a subsequent unmasked edge event on the same
- * line while a deferred one is still pending replay from the in-band
- * stage (hard irqs are on for replay). The flow state enumeration
- * disambiguates all cases as follows:
+ * The flow state enumeration below disambiguates all cases:
  *
  * - IRQ_FLOW_START: we are running oob on behalf of the low-level irq
- *   entry code, no deferred event is pending replay for the same
- *   line, we need to send ack to the hardware.
- *
- * - IRQ_FLOW_PILEUP: we are running in-band for synchronizing the irq
- *   log, one or more deferred events are already pending replay for
- *   the same line, we need to ack the subsequent event to the
- *   hardware too.
+ *   entry code, we need to send ack to the hardware. This includes
+ *   the case when we receive a new event on any stage while an event
+ *   of the same type is already pending replay or forwarding.
  *
  * - IRQ_FLOW_REPLAY: we are (re)playing a deferred event from the
  *   in-band stage, as a result of synchronizing the irq log. A
  *   deferred event was NOT handled from the oob stage by definition.
  *
- * - IRQ_FLOW_FORWARD: we are running in-band for passing a forwarded
- *   event already handled from the oob stage to the action
- *   handler. This mode allows for two-step subsequent handling of an
- *   IRQ event over both stages by the same action
+ * - IRQ_FLOW_FORWARD: an event already handled from the oob stage by
+ *   an action handler is forwarded to the same handler for execution
+ *   on the in-band stage.  This mode allows for two-step handling of
+ *   an IRQ event over both stages by the same action
  *   handler. IRQ_FLOW_FORWARD is mutually exclusive with
  *   IRQ_FLOW_REPLAY since only the oob handler may request
  *   forwarding.
  */
 static inline unsigned int get_flow_step(struct irq_desc *desc)
 {
-	if (!irqs_pipelined())
+	if (likely(!irqs_pipelined() || in_pipeline()))
 		return IRQ_FLOW_START;
 
-	if (!(desc->istate & IRQS_DEFERRED))
-		return desc->istate & IRQS_FORWARDED ?
-			IRQ_FLOW_FORWARD : IRQ_FLOW_START;
+	/*
+	 * We must be running in-band, synchronizing the interrupt log
+	 * on the current CPU. Determine whether we are handling a
+	 * deferred or forwarded interrupt.
+	 */
+	WARN_ON(irq_pipeline_debug() && running_oob());
 
-	return in_pipeline() ? IRQ_FLOW_PILEUP : IRQ_FLOW_REPLAY;
+	if (desc->istate & IRQS_FORWARDED)
+		return IRQ_FLOW_FORWARD;
+
+	if (desc->istate & IRQS_DEFERRED)
+		return IRQ_FLOW_REPLAY;
+
+	/*
+	 * Rare case: disambiguate between forwarded IRQs and replayed
+	 * ones for multiple non-oob events from the same source which
+	 * don't need masking on receipt (e.g. edge IRQs), causing the
+	 * replay condition bit to be cleared by
+	 * should_feed_pipeline() on the first occurrence, leaving no
+	 * information to handle the second one appropriately.  We can
+	 * still figure out that a replay condition is pending
+	 * nevertheless (instead of a forwarding) by checking the oob
+	 * capability for the interrupt: oob handled IRQs visible to
+	 * the in-band stage are never deferred (IRQS_DEFERRED), they
+	 * can only be forwarded (IRQS_FORWARDED).
+	 */
+	return irq_settings_is_oob(desc) ? IRQ_FLOW_FORWARD : IRQ_FLOW_REPLAY;
 }
 
 /*
