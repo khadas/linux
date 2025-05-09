@@ -27,6 +27,12 @@
 				data-lanes = <1 2 3 4>;
 			};
 
+			mipi_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&imx678_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
 		};
 		port@1 {
 			reg = <1>;
@@ -88,6 +94,30 @@
 		port {
 			imx585_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	imx678: imx678@1a {
+		compatible = "sony,imx678";
+		status = "okay";
+		reg = <0x1a>;
+		clocks = <&cru CLK_MIPI_CAMERAOUT_M0>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clk0m0_clk0>;
+		power-domains = <&power RK3576_PD_VI>;
+		avdd-supply = <&vcc_mipidcphy0>;
+		reset-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "FH34SRJ-30S";
+		rockchip,camera-module-lens-name = "YG4118";
+		port {
+			imx678_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
