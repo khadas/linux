@@ -57,6 +57,20 @@
 	status = "okay";
 	pinctrl-0 = <&i2c4m3_xfer>;
 
+	dw9714: dw9714@c {
+		compatible = "dongwoon,dw9714";
+		status = "okay";
+		reg = <0x0c>;
+		pinctrl-names = "focus_gpio";
+		pinctrl-0 = <&focus_gpio>;
+		focus-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		rockchip,vcm-start-current = <0>;
+		rockchip,vcm-rated-current = <65>;
+		rockchip,vcm-step-mode = <4>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	imx415: imx415@1a {
 		compatible = "sony,imx415";
 		status = "okay";
@@ -73,6 +87,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
+		lens-focus = <&dw9714>;
 		port {
 			imx415_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
@@ -250,4 +265,13 @@
 
 &rkvpss_vir0 {
 	status = "okay";
+};
+
+&pinctrl {
+	cam {
+		focus_gpio: focus-gpio {
+			rockchip,pins =
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
