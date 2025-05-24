@@ -135,6 +135,14 @@ static void vector_cleanup_callback(struct timer_list *tmr)
 
 #endif	/* !CONFIG_SMP */
 
+void __lock_vector_lock(void)
+{
+	/* Used to the online set of cpus does not change
+	 * during assign_irq_vector.
+	 */
+	raw_spin_lock(&vector_lock);
+}
+
 void lock_vector_lock(void)
 {
 	/*
@@ -144,15 +152,17 @@ void lock_vector_lock(void)
 	 */
 	WARN_ON_ONCE(irq_pipeline_debug() && !hard_irqs_disabled());
 	hard_cond_local_irq_disable();
-	/* Used to the online set of cpus does not change
-	 * during assign_irq_vector.
-	 */
-	raw_spin_lock(&vector_lock);
+	__lock_vector_lock();
+}
+
+void __unlock_vector_lock(void)
+{
+	raw_spin_unlock(&vector_lock);
 }
 
 void unlock_vector_lock(void)
 {
-	raw_spin_unlock(&vector_lock);
+	__unlock_vector_lock();
 	hard_cond_local_irq_enable();
 }
 

@@ -92,7 +92,9 @@ struct irq_cfg {
 
 extern struct irq_cfg *irq_cfg(unsigned int irq);
 extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
+extern void __lock_vector_lock(void);
 extern void lock_vector_lock(void);
+extern void __unlock_vector_lock(void);
 extern void unlock_vector_lock(void);
 #ifdef CONFIG_SMP
 extern void vector_schedule_cleanup(struct irq_cfg *);
@@ -104,7 +106,9 @@ static inline void irq_complete_move(struct irq_cfg *c) { }
 
 extern void apic_ack_edge(struct irq_data *data);
 #else	/*  CONFIG_IRQ_DOMAIN_HIERARCHY */
+static inline void __lock_vector_lock(void) {}
 static inline void lock_vector_lock(void) {}
+static inline void __unlock_vector_lock(void) {}
 static inline void unlock_vector_lock(void) {}
 #endif	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 
