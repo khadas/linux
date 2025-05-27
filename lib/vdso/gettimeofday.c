@@ -22,7 +22,7 @@ static inline bool vdso_cycles_ok(u64 cycles)
 }
 #endif
 
-#if defined(CONFIG_GENERIC_CLOCKSOURCE_VDSO) && !defined(BUILD_VDSO32)
+#if defined(CONFIG_GENERIC_CLOCKSOURCE_VDSO) && (!defined(CONFIG_COMPAT_VDSO) || !defined(BUILD_VDSO32))
 
 #include <linux/fcntl.h>
 #include <linux/io.h>
