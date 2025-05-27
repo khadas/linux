@@ -363,6 +363,7 @@ ssize_t efuse_user_attr_store(char *name, const char *buf, size_t count)
 
 	c = ":";
 	s = op;
+	printk("0 input mac: %*phC count=%d\n",info.size,op,count);
 	if (strstr(s, c)) {
 		for (i = 0; i < info.size; i++) {
 			uint_val = 0;
@@ -387,6 +388,16 @@ ssize_t efuse_user_attr_store(char *name, const char *buf, size_t count)
 			if (!strncmp(s, c, 1))
 				s++;
 		}
+	} else if ((op[count - 1] == 0x0A && (count - 1) == info.size*2) || count == info.size*2) {
+		for (i = 0; i < info.size; i++) {
+			char tmp[3] = { op[i * 2], op[i * 2 + 1], '\0' };
+			ret = kstrtou8(tmp, 16, (unsigned char *)&op[i]);
+			if (ret < 0) {
+				kfree(op);
+				pr_err("efuse: hex parse error at byte %d\n", i);
+				goto exit;
+			}
+		}
 	} else if ((op[count - 1] != 0x0A && count != info.size) ||
 		   count - 1 > info.size || count < info.size) {
 		kfree(op);
@@ -394,7 +405,7 @@ ssize_t efuse_user_attr_store(char *name, const char *buf, size_t count)
 		pr_err("efuse: key data length not match\n");
 		goto exit;
 	}
-
+	printk("input mac: %*phC count=%d\n",info.size,op,count);
 	pos = ((loff_t)(info.offset)) & 0xffffffff;
 	ret = efuse_write_usr(op, info.size, &pos);
 	kfree(op);
