@@ -358,16 +358,8 @@ static void bt_device_off(struct rfkill_rk_platform_data *pdata)
 			msleep(20);
 		}
 	}
-	else 
-	{
-		if (gpio_is_valid(pdata->poweron_gpio.io)) 
-		{
-			gpio_direction_output(pdata->poweron_gpio.io,
-					      !pdata->poweron_gpio.enable);
-			msleep(20);
-		}
-	}
-	return ;
+
+	return;
 }
 
 /**
@@ -382,6 +374,10 @@ static void bt_device_on(struct rfkill_rk_platform_data *pdata)
 	struct rfkill_rk_gpio *reset = &pdata->reset_gpio;
 	struct rfkill_rk_gpio *rts = &pdata->rts_gpio;
 	struct pinctrl *pinctrl = pdata->pinctrl;
+
+	if (pdata->power_down_disable == 1)
+		return;
+
 	if (gpio_is_valid(wake_host->io)) 
 	{
 		LOG("%s: set bt wake_host high!\n", __func__);
@@ -883,14 +879,14 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 		if (pdata->power_down_disable == 1)
 		{
 			pdata->power_down_disable = 0;
-			bt_device_off(pdata);
+			bt_device_on(pdata);
 			pdata->power_down_disable = 1;
 		}
 	}
 	else
 	{
 		pdata->power_down_disable = 0;
-		bt_device_off(pdata);
+		bt_device_on(pdata);
 	}
 	platform_set_drvdata(pdev, rfkill);
 
