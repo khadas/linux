@@ -470,7 +470,7 @@
 		port {
 			imx585c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam2>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
