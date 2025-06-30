@@ -2,7 +2,7 @@
 /*
  * rk730.c -- RK730 ALSA SoC Audio driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co.,Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>
@@ -53,7 +53,9 @@ enum rk730_chop_freq {
 struct rk730_priv {
 	struct regmap *regmap;
 	struct clk *mclk;
+	unsigned int sysclk;
 	atomic_t mix_mode;
+	bool fixed_mclk_fs;
 };
 
 /* ADC Digital Volume */
@@ -140,6 +142,14 @@ static const struct snd_kcontrol_new rk730_out2_switch =
 
 static SOC_ENUM_SINGLE_DECL(ana_ldo_volt_enum, RK730_LDO,
 			    4, ana_ldo_volt_text);
+
+static const char * const adc_sdo_sel_tx_text[] = {
+	"ADCL ADCR", "ADCL ADCR DACL DACR", "ADCL DACL", "ADCL DACR",
+	"ADCR DACL", "ADCR DACR",           "DACL DACR",
+};
+
+static SOC_ENUM_SINGLE_DECL(adc_sdo_sel_tx_enum, RK730_DI2S_TXCR2,
+			    5, adc_sdo_sel_tx_text);
 
 static int rk730_pll_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
@@ -475,6 +485,7 @@ static const struct snd_kcontrol_new rk730_snd_controls[] = {
 	SOC_ENUM("Mic Bias Volt", micbias_volt_enum),
 	SOC_ENUM("DAC HPF Center Freq", dac_hfp_center_freq_enum),
 	SOC_ENUM("ADC CAPACITY TRIM", adc_capacity_trim_enum),
+	SOC_ENUM("ADC SDO SEL TX", adc_sdo_sel_tx_enum),
 	SOC_SINGLE("ADC Volume Bypass Switch", RK730_DTOP_VUCTL, 7, 1, 0),
 	SOC_SINGLE("DAC Volume Bypass Switch", RK730_DTOP_VUCTL, 6, 1, 0),
 	SOC_SINGLE("ADC Fade Switch", RK730_DTOP_VUCTL, 5, 1, 0),
@@ -607,16 +618,130 @@ static const struct snd_soc_dapm_route rk730_dapm_routes[] = {
 	{"MIC2", NULL, "MICBIAS"},
 };
 
+struct _coeff_div {
+	int mclk;
+	int rate;
+	char syspll_channel;
+	char fsclk_channel;
+	char refclk_channel;
+};
+
+/* codec hifi mclk clock divider coefficients */
+static const struct _coeff_div coeff_div[] = {
+	/* mclk */
+	{12288000, 48000, 0x0, 0x1, 0x0},
+	{12288000, 96000, 0x0, 0x1, 0x0},
+	{12288000, 192000, 0x0, 0x1, 0x0},
+	{12288000, 44100, 0x1, 0x1, 0x0},
+	{12288000, 88200, 0x1, 0x1, 0x0},
+	{12288000, 176000, 0x1, 0x1, 0x0},
+	{12288000, 8000, 0x2, 0x3, 0x0},
+	{12288000, 16000, 0x2, 0x3, 0x0},
+	{12288000, 32000, 0x2, 0x3, 0x0},
+	{12288000, 64000, 0x2, 0x3, 0x0},
+	{12288000, 128000, 0x2, 0x3, 0x0},
+
+	{12000000, 48000, 0x3, 0x1, 0x0},
+	{12000000, 96000, 0x3, 0x1, 0x0},
+	{12000000, 192000, 0x3, 0x1, 0x0},
+	{12000000, 44100, 0x4, 0x1, 0x0},
+	{12000000, 88200, 0x4, 0x1, 0x0},
+	{12000000, 176000, 0x4, 0x1, 0x0},
+	{12000000, 8000, 0x5, 0x3, 0x0},
+	{12000000, 16000, 0x5, 0x3, 0x0},
+	{12000000, 32000, 0x5, 0x3, 0x0},
+	{12000000, 64000, 0x5, 0x3, 0x0},
+	{12000000, 128000, 0x5, 0x3, 0x0},
+
+	{24000000, 48000, 0x9, 0x1, 0x1},
+	{24000000, 96000, 0x9, 0x1, 0x1},
+	{24000000, 192000, 0x9, 0x1, 0x1},
+	{24000000, 44100, 0xa, 0x1, 0x1},
+	{24000000, 88200, 0xa, 0x1, 0x1},
+	{24000000, 176000, 0xa, 0x1, 0x1},
+	{24000000, 8000, 0xb, 0x3, 0x1},
+	{24000000, 16000, 0xb, 0x3, 0x1},
+	{24000000, 32000, 0xb, 0x3, 0x1},
+	{24000000, 64000, 0xb, 0x3, 0x1},
+	{24000000, 128000, 0xb, 0x3, 0x1},
+
+	{6144000, 48000, 0xc, 0x1, 0x0},
+	{6144000, 96000, 0xc, 0x1, 0x0},
+	{6144000, 192000, 0xc, 0x1, 0x0},
+	{11289600, 44100, 0xd, 0x1, 0x0},
+	{11289600, 88200, 0xd, 0x1, 0x0},
+	{11289600, 176000, 0xd, 0x1, 0x0},
+	{8192000, 8000, 0xe, 0x3, 0x0},
+	{8192000, 16000, 0xe, 0x3, 0x0},
+	{8192000, 32000, 0xe, 0x3, 0x0},
+	{8192000, 64000, 0xe, 0x3, 0x0},
+	{8192000, 128000, 0xe, 0x3, 0x0},
+
+	/* uncommon sample rate groups */
+	{12288000, 11025, 0x1, 0x1, 0x0},
+	{12288000, 22050, 0x1, 0x1, 0x0},
+	{12000000, 11025, 0x4, 0x1, 0x0},
+	{12000000, 22050, 0x4, 0x1, 0x0},
+	{24000000, 11025, 0xa, 0x1, 0x0},
+	{24000000, 22050, 0xa, 0x1, 0x0},
+	{11289600, 11025, 0xd, 0x1, 0x0},
+	{11289600, 22050, 0xd, 0x1, 0x0},
+};
+
+static inline int get_coeff(int mclk, int rate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(coeff_div); i++) {
+		if (coeff_div[i].rate == rate && coeff_div[i].mclk == mclk)
+			return i;
+	}
+	return -EINVAL;
+}
+
+struct _coeff_clk {
+	int mclk;
+	int rate;
+};
+
+/* codec selects the required mclk and sets it by itself  */
+static const struct _coeff_clk coeff_clk[] = {
+	/* mclks */
+	{12288000, 48000},
+	{12288000, 96000},
+	{12288000, 192000},
+	{11289600, 44100},
+	{11289600, 88200},
+	{11289600, 176000},
+	{8192000, 8000},
+	{8192000, 16000},
+	{8192000, 32000},
+	{8192000, 64000},
+	{8192000, 128000},
+	/* uncommon sample rate groups */
+	{11289600, 11025},
+	{11289600, 22050},
+};
+
+static inline int get_coeff_clk(int rate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(coeff_clk); i++) {
+		if (coeff_clk[i].rate == rate)
+			return coeff_clk[i].mclk;
+	}
+	return -EINVAL;
+}
+
 static unsigned int samplerate_to_bit(unsigned int samplerate)
 {
 	switch (samplerate) {
 	case 8000:
 	case 11025:
-	case 12000:
 		return 0;
 	case 16000:
 	case 22050:
-	case 24000:
 		return 1;
 	case 32000:
 	case 44100:
@@ -640,28 +765,82 @@ static int rk730_dai_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
+	struct rk730_priv *rk730 = snd_soc_component_get_drvdata(component);
 	unsigned int rate;
+	int coeff;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
-					      RK730_DI2S_RXCR2_VDW_MASK,
-					      RK730_DI2S_RXCR2_VDW(16));
-		snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
-					      RK730_DI2S_TXCR2_VDW_MASK,
-					      RK730_DI2S_TXCR2_VDW(16));
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
-		snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
-					      RK730_DI2S_RXCR2_VDW_MASK,
-					      RK730_DI2S_RXCR2_VDW(24));
-		snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
-					      RK730_DI2S_TXCR2_VDW_MASK,
-					      RK730_DI2S_TXCR2_VDW(24));
-		break;
-	default:
-		return -EINVAL;
+	if (!rk730->fixed_mclk_fs) {
+		rk730->sysclk = get_coeff_clk(params_rate(params));
+		if ((int)rk730->sysclk < 0) {
+			dev_err(component->dev,
+				"Unable to lookup coeff clk with sample rate %dHz\n",
+				params_rate(params));
+			return -EINVAL;
+		}
+		dev_info(component->dev, "%s: Lookup mclk:%d for rate:%d\n",
+			 __func__, rk730->sysclk, params_rate(params));
+
+		if (clk_set_rate(rk730->mclk, rk730->sysclk) < 0) {
+			dev_err(component->dev,
+				"Unable to set mclk %dHz\n", rk730->sysclk);
+			return -EINVAL;
+		}
+	}
+
+	coeff = get_coeff(rk730->sysclk, params_rate(params));
+	if (coeff < 0)
+		coeff = get_coeff(rk730->sysclk / 2, params_rate(params));
+	if (coeff < 0)
+		coeff = get_coeff(rk730->sysclk * 2, params_rate(params));
+	if (coeff < 0) {
+		dev_err(component->dev,
+			"Unable to configure sample rate %dHz with %dHz MCLK\n",
+			params_rate(params), rk730->sysclk);
+		return coeff;
+	}
+	dev_info(component->dev, "%s:index %d  mclk=%d rate=%d\n",
+		 __func__, coeff, coeff_div[coeff].mclk, coeff_div[coeff].rate);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(16));
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(24));
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_RXCR2,
+						      RK730_DI2S_RXCR2_VDW_MASK,
+						      RK730_DI2S_RXCR2_VDW(32));
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(16));
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(24));
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			snd_soc_component_update_bits(component, RK730_DI2S_TXCR2,
+						      RK730_DI2S_TXCR2_VDW_MASK,
+						      RK730_DI2S_TXCR2_VDW(32));
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	rate = samplerate_to_bit(params_rate(params));
@@ -674,6 +853,10 @@ static int rk730_dai_hw_params(struct snd_pcm_substream *substream,
 					      RK730_DTOP_ADCSRT_MASK,
 					      RK730_DTOP_ADCSRT(rate));
 	}
+	snd_soc_component_write(component, RK730_SYSPLL_3,
+				coeff_div[coeff].syspll_channel << 4 |
+				coeff_div[coeff].fsclk_channel << 2 |
+				coeff_div[coeff].refclk_channel << 0);
 	return 0;
 }
 
@@ -810,6 +993,19 @@ static int rk730_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+/*
+ * Note that this should be called from init rather than from hw_params.
+ */
+static int rk730_set_dai_sysclk(struct snd_soc_dai *codec_dai,
+				 int clk_id, unsigned int freq, int dir)
+{
+	struct snd_soc_component *component = codec_dai->component;
+	struct rk730_priv *rk730 = snd_soc_component_get_drvdata(component);
+
+	rk730->sysclk = freq;
+	return 0;
+}
+
 #define RK730_RATES	SNDRV_PCM_RATE_8000_192000
 #define RK730_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
 			 SNDRV_PCM_FMTBIT_S32_LE)
@@ -818,6 +1014,7 @@ static const struct snd_soc_dai_ops rk730_dai_ops = {
 	.set_fmt = rk730_dai_set_fmt,
 	.hw_params = rk730_dai_hw_params,
 	.mute_stream = rk730_dai_mute,
+	.set_sysclk = rk730_set_dai_sysclk,
 };
 
 static struct snd_soc_dai_driver rk730_dai = {
@@ -845,6 +1042,12 @@ static int rk730_reset(struct snd_soc_component *component)
 
 	clk_prepare_enable(rk730->mclk);
 	udelay(10);
+	snd_soc_component_update_bits(component, RK730_DTOP_SRT,
+				      RK730_DTOP_SRST_MASK,
+				      RK730_DTOP_SRST_EN);
+	snd_soc_component_update_bits(component, RK730_DTOP_SRT,
+				      RK730_DTOP_SRST_MASK,
+				      RK730_DTOP_SRST_DIS);
 	/* WA: Initial micbias default, ADC stopped with micbias(>2.5v) */
 	snd_soc_component_update_bits(component, RK730_MIC_BIAS,
 				      RK730_MIC_BIAS_VOLT_MASK,
@@ -856,7 +1059,6 @@ static int rk730_reset(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, RK730_ADC_PGA_BLOCK_1,
 				      RK730_ADC_PGA_BLOCK_1_PGA_CHOP_MASK,
 				      RK730_ADC_PGA_BLOCK_1_PGA_CHOP(RK730_CHOP_FREQ_400KHZ));
-	snd_soc_component_write(component, RK730_SYSPLL_3, 0x64);
 	clk_disable_unprepare(rk730->mclk);
 
 	return 0;
@@ -1019,6 +1221,9 @@ static int rk730_i2c_probe(struct i2c_client *i2c,
 	rk730->mclk = devm_clk_get(&i2c->dev, "mclk");
 	if (IS_ERR(rk730->mclk))
 		return PTR_ERR(rk730->mclk);
+
+	rk730->fixed_mclk_fs =
+		device_property_read_bool(&i2c->dev, "rockchip,mclk-fs-fixed");
 
 	i2c_set_clientdata(i2c, rk730);
 

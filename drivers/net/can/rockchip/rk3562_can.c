@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  * Rk3562 CAN driver
  */
 

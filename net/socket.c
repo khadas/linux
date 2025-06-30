@@ -1548,8 +1548,13 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 	rcu_read_unlock();
 
 	err = pf->create(net, sock, protocol, kern);
-	if (err < 0)
+	if (err < 0) {
+		/* ->create should release the allocated sock->sk object on error
+		 * but it may leave the dangling pointer
+		 */
+		sock->sk = NULL;
 		goto out_module_put;
+	}
 
 	/*
 	 * Now to bump the refcnt of the [loadable] module that owns this
@@ -3238,7 +3243,11 @@ out_mount:
 	goto out;
 }
 
+#ifdef CONFIG_INITCALL_ASYNC
+pure_initcall(sock_init);	/* early initcall */
+#else
 core_initcall(sock_init);	/* early initcall */
+#endif
 
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)

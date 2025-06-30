@@ -37,7 +37,6 @@ struct vehicle_rkcif_dummy_buffer {
 struct rk_cif_clk {
 	/************clk************/
 	struct clk	*clks[RKCIF_MAX_BUS_CLK];
-	struct clk	*xvclk;
 	int		clks_num;
 	/************reset************/
 	struct reset_control	*cif_rst[RKCIF_MAX_RESET];
@@ -135,6 +134,7 @@ struct vehicle_cif {
 	struct csi2_dphy_hw	*dphy_hw;
 	int		num_channels;
 	int		chip_id;
+	int		vc;
 	int		inf_id;
 	unsigned int	csi_host_idx;
 	struct		vehicle_csi_channel_info channels[RKCIF_MAX_CSI_CHANNEL];

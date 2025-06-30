@@ -1235,4 +1235,8 @@ static int __init phy_core_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+subsys_initcall(phy_core_init);
+#else
 device_initcall(phy_core_init);
+#endif

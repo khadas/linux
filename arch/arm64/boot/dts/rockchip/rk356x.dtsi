@@ -220,8 +220,10 @@
 
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
-		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
-		nvmem-cell-names = "id", "cpu-version", "cpu-code";
+		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>,
+			      <&specification_serial_number>, <&remark_spec_serial_number>;
+		nvmem-cell-names = "id", "cpu-version", "cpu-code",
+				   "specification_serial_number", "remark_spec_serial_number";
 	};
 
 	display_subsystem: display-subsystem {
@@ -281,6 +283,11 @@
 				connect = <&vp2_out_rgb>;
 			};
 		};
+	};
+
+	dmcdbg: dmcdbg {
+		compatible = "rockchip,rk3568-dmcdbg";
+		status = "disabled";
 	};
 
 	firmware {
@@ -1136,6 +1143,7 @@
 			91001    100000  3
 		>;
 		rockchip,pvtm-ch = <0 5>;
+		rockchip,init-freq = <900000>;
 
 		/* RK3568 && RK3568M npu OPPs */
 		opp-200000000 {
@@ -2615,6 +2623,7 @@
 		rockchip,grf = <&grf>;
 		rockchip,playback-only;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "I2S0";
 		status = "disabled";
 	};
 
@@ -2639,6 +2648,7 @@
 			     &i2s1m0_sdo0   &i2s1m0_sdo1
 			     &i2s1m0_sdo2   &i2s1m0_sdo3>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "I2S1";
 		status = "disabled";
 	};
 
@@ -2660,6 +2670,7 @@
 			     &i2s2m0_sdi
 			     &i2s2m0_sdo>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "I2S2";
 		status = "disabled";
 	};
 
@@ -2684,6 +2695,7 @@
 			     &i2s3m0_lrck
 			     &i2s3m0_sdi
 			     &i2s3m0_sdo>;
+		sound-name-prefix = "I2S3";
 		status = "disabled";
 	};
 
@@ -2705,6 +2717,7 @@
 		resets = <&cru SRST_M_PDM>;
 		reset-names = "pdm-m";
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "PDM";
 		status = "disabled";
 	};
 

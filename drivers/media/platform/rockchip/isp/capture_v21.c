@@ -1260,7 +1260,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = stream->curr_buf->vb.sequence;
 		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
-			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
+			stream->dbg.delay = ns - vb2_buf->timestamp;
 
 		if (!stream->streaming) {
 			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_ERROR);

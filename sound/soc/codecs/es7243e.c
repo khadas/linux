@@ -2405,49 +2405,49 @@ es7243e_i2c_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (adapter->nr == ES7243E_I2C_BUS_NUM) {
 #if ES7243E_CHANNELS_MAX > 0
 		if (client->addr == ES7243E_I2C_CHIP_ADDRESS_0) {
-			strlcpy(info->type, "ES7243E_MicArray_0", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_0", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 2
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_1) {
-			strlcpy(info->type, "ES7243E_MicArray_1", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_1", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 4
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_2) {
-			strlcpy(info->type, "ES7243E_MicArray_2", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_2", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 6
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_3) {
-			strlcpy(info->type, "ES7243E_MicArray_3", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_3", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 8
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_4) {
-			strlcpy(info->type, "ES7243E_MicArray_4", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_4", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 10
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_5) {
-			strlcpy(info->type, "ES7243E_MicArray_5", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_5", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 12
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_6) {
-			strlcpy(info->type, "ES7243E_MicArray_6", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_6", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif
 #if ES7243E_CHANNELS_MAX > 14
 		else if (client->addr == ES7243E_I2C_CHIP_ADDRESS_7) {
-			strlcpy(info->type, "ES7243E_MicArray_7", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7243E_MicArray_7", I2C_NAME_SIZE);
 			return 0;
 		}
 #endif

@@ -75,7 +75,7 @@ struct IEP_CAP {
 #if IEP_DEBUG
 #define IEP_DBG(format, args...)	printk("%s: " format, DRIVER_NAME, ## args)
 #else
-#define IEP_DBG(format, args...)
+#define IEP_DBG(format, args...)	no_printk("%s: " format, DRIVER_NAME, ## args)
 #endif
 
 #define IEP_INFORMATION 1

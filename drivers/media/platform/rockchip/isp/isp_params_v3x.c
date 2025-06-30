@@ -4009,10 +4009,11 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_ops_v3x *)params_vdev->priv_ops;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
-	params_vdev->cur_frame_id = new_params->frame_id;
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
+	params_vdev->cur_frame_id = new_params->frame_id;
+	params_vdev->exposure = new_params->exposure;
 	v4l2_dbg(4, rkisp_debug, &params_vdev->dev->v4l2_dev,
 		 "%s id:%d seq:%d module_cfg_update:0x%llx\n",
 		 __func__, id, new_params->frame_id, module_cfg_update);
@@ -4413,10 +4414,11 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_isp_params_val_v3x *priv_val = params_vdev->priv_val;
 	struct isp3x_isp_params_cfg *params = params_vdev->isp3x_params;
+	unsigned long flags = 0;
 	int i;
 
 	dev->is_bigmode = rkisp_params_check_bigmode_v3x(params_vdev);
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	/* override the default things */
 	if (!params->module_cfg_update && !params->module_en_update)
 		dev_warn(dev->dev, "can not get first iq setting in stream on\n");
@@ -4436,7 +4438,7 @@ rkisp_params_first_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		__isp_isr_other_en(params_vdev, params + i, RKISP_PARAMS_ALL, i);
 		__isp_isr_meas_en(params_vdev, params + i, RKISP_PARAMS_ALL, i);
 	}
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void rkisp_save_first_param_v3x(struct rkisp_isp_params_vdev *params_vdev, void *param)
@@ -4702,8 +4704,9 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
+	unsigned long flags = 0;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (!params_vdev->streamon)
 		goto unlock;
 
@@ -4777,7 +4780,7 @@ rkisp_params_cfg_v3x(struct rkisp_isp_params_vdev *params_vdev,
 
 unlock:
 	params_vdev->cur_buf = cur_buf;
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void

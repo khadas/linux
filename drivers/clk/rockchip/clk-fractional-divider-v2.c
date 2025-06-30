@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2024 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
  *
  * Adjustable fractional divider clock implementation.
  * Uses rational best approximation algorithm.

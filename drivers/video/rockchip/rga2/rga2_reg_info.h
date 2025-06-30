@@ -258,6 +258,7 @@
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_EN(x)                  (  (x&0x1)<<12 )
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_FLUSH(x)               (  (x&0x1)<<13 )
 
+#define RGA2_VSP_BICUBIC_LIMIT                         1996
 
 #define RGA2_SYS_CTRL_OFFSET             0x0
 #define RGA2_CMD_CTRL_OFFSET             0x4

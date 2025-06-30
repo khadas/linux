@@ -660,4 +660,8 @@ static int __init pwm_sysfs_init(void)
 {
 	return class_register(&pwm_class);
 }
+#ifdef CONFIG_INITCALL_ASYNC
+postcore_initcall(pwm_sysfs_init);
+#else
 subsys_initcall(pwm_sysfs_init);
+#endif

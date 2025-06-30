@@ -7,7 +7,7 @@
 #define UNITE_ENLARGE 16
 #define UNITE_LEFT_ENLARGE 16
 
-#include "hw.h"
+extern char rkvpss_regfile[RKVPSS_REGFILE_LEN];
 
 struct rkvpss_ofl_incfginfo {
 	int width;
@@ -75,6 +75,9 @@ struct rkvpss_offline_dev {
 	struct rkvpss_unite_scl_params unite_params[RKVPSS_OUTPUT_MAX];
 	struct completion pm_cmpl;
 	u32 unite_right_enlarge;
+	struct idr file_idr;
+	struct mutex idr_lock;
+	struct mutex handle_lock;
 	bool mode_sel_en;
 	bool pm_need_wait;
 };
@@ -82,5 +85,6 @@ struct rkvpss_offline_dev {
 int rkvpss_register_offline(struct rkvpss_hw_dev *hw);
 void rkvpss_unregister_offline(struct rkvpss_hw_dev *hw);
 void rkvpss_offline_irq(struct rkvpss_hw_dev *hw, u32 irq);
+void rkvpss_dump_reg(struct rkvpss_offline_dev *ofl, int sequence, int size);
 
 #endif

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2022 Fuzhou Rockchip Electronics Co., Ltd. */
+/* Copyright (c) 2022 Rockchip Electronics Co., Ltd. */
 
 #ifndef IMX214_EEPROM_HEAD_H
 #define IMX214_EEPROM_HEAD_H

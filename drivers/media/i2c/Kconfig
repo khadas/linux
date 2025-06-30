@@ -11,6 +11,12 @@ config VIDEO_CAM_SLEEP_WAKEUP
 	help
 	  Support for sensor sleep and wake up.
 
+config VIDEO_ROCKCHIP_THUNDER_BOOT_SETUP
+	bool "Enable camera Thunderboot setup function"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if you need camera Thunderboot setup functions.
+
 comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
 
@@ -205,6 +211,19 @@ config VIDEO_GC1084
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc1084.
 
+config VIDEO_GC16B3C
+	tristate "GalaxyCore GC16B3C sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC16B3C sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc16B3C.
+
 config VIDEO_GC2035
 	tristate "GalaxyCore GC2035 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -322,6 +341,19 @@ config VIDEO_GC3003
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc3003.
 
+config VIDEO_GC32E1
+	tristate "GalaxyCore GC32E1 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC32E1 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called GC32E1.
+
 config VIDEO_GC4023
 	tristate "GalaxyCore GC4023 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -413,6 +445,19 @@ config VIDEO_GC5035
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc5035.
 
+config VIDEO_GC6603
+	tristate "GalaxyCore GC6603 sensor support"
+	depends on VIDEO_DEV && I2C
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC6603 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc6603.
+
 config VIDEO_GC8034
 	tristate "GalaxyCore GC8034 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -425,6 +470,19 @@ config VIDEO_GC8034
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc8034.
+
+config VIDEO_GC8613
+	tristate "GalaxyCore GC8613 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC8613 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called GC8613.
 
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
@@ -688,6 +746,20 @@ config VIDEO_IMX378
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx378.
 
+config VIDEO_IMX386
+	tristate "Sony IMX386 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX386 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx386.
+
 config VIDEO_IMX412
 	tristate "Sony IMX412 sensor support"
 	depends on OF_GPIO
@@ -803,6 +875,19 @@ config VIDEO_IMX678
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx678.
+
+config VIDEO_IMX766
+	tristate "Sony IMX766 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX766 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx766.
 
 config VIDEO_JX_F37
 	tristate "Soi JX_F37 sensor support"
@@ -1091,6 +1176,17 @@ config VIDEO_OS08A20
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OS08A20 camera.
+
+config VIDEO_OS12D40
+	tristate "OmniVision OS12D40 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OS12D40 camera.
 
 config VIDEO_OV02A10
 	tristate "OmniVision OV02A10 sensor support"
@@ -1617,6 +1713,19 @@ config VIDEO_OV9734
 	  To compile this driver as a module, choose M here: the
 	  module's name is ov9734.
 
+config VIDEO_OX03C10
+	tristate "OmniVision OX03C10 sensor support"
+	depends on VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OX03C10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module's name is OX03C10.
+
 config VIDEO_PREISP_DUMMY_SENSOR
 	tristate "Preisp dummy sensor support"
 	depends on VIDEO_DEV && I2C
@@ -1626,6 +1735,16 @@ config VIDEO_PREISP_DUMMY_SENSOR
 	  Support for the preisp dummy sensor.
 	  To compile this driver as a module, choose M here: the
 	  module will be called pisp_dmy.
+
+config VIDEO_PS5458
+	tristate "Prime PS5458 sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Prime
+	  PS5458 camera.
 
 config VIDEO_RDACM20
 	tristate "IMI RDACM20 camera support"
@@ -2031,6 +2150,16 @@ config VIDEO_SC5336
 	help
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC5336 camera.
+
+config VIDEO_SC635HAI
+	tristate "SmartSens SC635HAI sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC635HAI camera.
 
 config VIDEO_SC830AI
 	tristate "SmartSens SC830AI sensor support"
@@ -2933,6 +3062,18 @@ config VIDEO_THCV244
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called thcv244.
+
+config VIDEO_TP2855
+	tristate "NEXTCHIP tp2855 driver support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the Nextchip TP2855 multi channels digital decode to
+	  MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tp2855.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"

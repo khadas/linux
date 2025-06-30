@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 Rockchip Co.,Ltd.
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
  * Author: Wang Jie <dave.wang@rock-chips.com>
  *
  * Hynetek Husb311 Type-C Chip Driver
@@ -324,7 +324,6 @@ static void husb311_shutdown(struct i2c_client *client)
 
 	disable_irq(client->irq);
 	cancel_delayed_work_sync(&chip->pm_work);
-	tcpci_unregister_port(chip->tcpci);
 }
 
 static int husb311_pm_suspend(struct device *dev)
@@ -343,6 +342,45 @@ static int husb311_pm_suspend(struct device *dev)
 	}
 
 	return 0;
+}
+
+static int match_fwnode(struct device *dev, void *data)
+{
+	return dev_fwnode(dev) == data;
+}
+
+static bool is_partner_altmode_device_registered(struct device *dev)
+{
+	struct device *port, *partner, *altmode;
+	struct fwnode_handle *fwnode;
+	char device_name[20];
+
+	/* get typec port device */
+	fwnode = device_get_named_child_node(dev, "connector");
+	if (!fwnode)
+		return false;
+
+	port = device_find_child(dev, fwnode, match_fwnode);
+	fwnode_handle_put(fwnode);
+	if (!port)
+		return false;
+
+	/* get the partner device */
+	snprintf(device_name, sizeof(device_name), "%s-partner", dev_name(port));
+	partner = device_find_child_by_name(port, device_name);
+	put_device(port);
+	if (!partner)
+		return false;
+
+	/* get the altmode device, now only dp register */
+	snprintf(device_name, sizeof(device_name), "%s.0", dev_name(partner));
+	altmode = device_find_child_by_name(partner, device_name);
+	put_device(partner);
+	if (!altmode)
+		return false;
+	put_device(altmode);
+
+	return true;
 }
 
 static int husb311_pm_resume(struct device *dev)
@@ -366,7 +404,7 @@ static int husb311_pm_resume(struct device *dev)
 	 * husb311 powered off in suspend, the value would reset to default.
 	 */
 	ret = husb311_read8(chip, HUSB311_TCPC_FILTER, &filter);
-	if (filter != 0x0F || ret < 0) {
+	if (filter != 0x0F || ret < 0 || is_partner_altmode_device_registered(dev)) {
 		ret = husb311_sw_reset(chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "fail to soft reset, ret = %d\n", ret);

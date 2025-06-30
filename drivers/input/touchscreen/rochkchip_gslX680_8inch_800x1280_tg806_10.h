@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  *
  * Author: Wangqiang Guo <kay.guo@rock-chips.com>
  */
@@ -22,10 +22,6 @@ struct gsl_touch_info{
 	int id[10];
 	int finger_num;
 };
-extern unsigned int gsl_mask_tiaoping(void);
-extern unsigned int gsl_version_id(void);
-extern void gsl_alg_id_main(struct gsl_touch_info *cinfo);
-extern void gsl_DataInit(int *ret);
 
 static unsigned int gsl_config_data_id_3673[] = {
 	0xb976bc,

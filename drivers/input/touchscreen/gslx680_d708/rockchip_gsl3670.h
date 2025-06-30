@@ -1,7 +1,7 @@
 /*
  * drivers/input/touchscreen/gslx680_d708/rockchip_gsl3670.h
  *
- * Copyright (c) 2017 rockchip
+ * Copyright (c) 2017 Rockchip Electronics Co., Ltd.
  *
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -20,11 +20,6 @@ struct gsl_touch_info {
 	int id[10];
 	int finger_num;
 };
-
-extern unsigned int gsl_mask_tiaoping(void);
-extern unsigned int gsl_version_id(void);
-extern void gsl_alg_id_main(struct gsl_touch_info *cinfo);
-extern void gsl_DataInit(int *ret);
 
 unsigned int gsl_config_data_id[] = {
 	0x79a1cc,

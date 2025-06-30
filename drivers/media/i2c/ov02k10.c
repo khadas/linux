@@ -847,10 +847,10 @@ static void ov02k10_get_module_inf(struct ov02k10 *ov02k10,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, OV02K10_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, ov02k10->module_name,
+	strscpy(inf->base.sensor, OV02K10_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, ov02k10->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, ov02k10->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, ov02k10->len_name, sizeof(inf->base.lens));
 }
 
 

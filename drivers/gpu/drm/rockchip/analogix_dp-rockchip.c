@@ -59,6 +59,9 @@ struct rockchip_grf_reg_field {
  * @ssc: check if SSC is supported by source
  * @audio: check if audio is supported by source
  * @split_mode: check if split mode is supported
+ * @format_yuv: check if YUV output format is supported
+ * @support_dp_mode: check if dp mode is supported
+ * @max_bpc: the maximum supported bpc
  */
 struct rockchip_dp_chip_data {
 	const struct rockchip_grf_reg_field lcdc_sel;
@@ -71,6 +74,7 @@ struct rockchip_dp_chip_data {
 	bool	audio;
 	bool	split_mode;
 	bool	format_yuv;
+	bool	support_dp_mode;
 	u8	max_bpc;
 };
 
@@ -362,24 +366,6 @@ static void rockchip_dp_drm_encoder_mode_set(struct drm_encoder *encoder,
 	/* do nothing */
 }
 
-static
-struct drm_crtc *rockchip_dp_drm_get_new_crtc(struct drm_encoder *encoder,
-					      struct drm_atomic_state *state)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-
-	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
-	if (!connector)
-		return NULL;
-
-	conn_state = drm_atomic_get_new_connector_state(state, connector);
-	if (!conn_state)
-		return NULL;
-
-	return conn_state->crtc;
-}
-
 static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 					   struct drm_atomic_state *state)
 {
@@ -391,7 +377,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 	char name[32];
 	int ret;
 
-	crtc = rockchip_dp_drm_get_new_crtc(encoder, state);
+	crtc = drm_atomic_get_new_crtc_for_encoder(state, encoder);
 	if (!crtc)
 		return;
 
@@ -429,13 +415,17 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 					    struct drm_atomic_state *state)
 {
 	struct rockchip_dp_device *dp = encoder_to_dp(encoder);
-	struct drm_crtc *crtc;
-	struct drm_crtc *old_crtc = encoder->crtc;
+	struct drm_crtc *old_crtc, *new_crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(old_crtc->state);
+	struct rockchip_crtc_state *s;
 	int ret;
 
-	if (old_crtc->state->active_changed) {
+	old_crtc = drm_atomic_get_old_crtc_for_encoder(state, encoder);
+	new_crtc = drm_atomic_get_new_crtc_for_encoder(state, encoder);
+
+	if (old_crtc && old_crtc != new_crtc) {
+		s = to_rockchip_crtc_state(old_crtc->state);
+
 		if (dp->plat_data.split_mode)
 			s->output_if &= ~(VOP_OUTPUT_IF_eDP1 | VOP_OUTPUT_IF_eDP0);
 		else
@@ -443,17 +433,16 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 		s->output_if_left_panel &= ~(dp->id ? VOP_OUTPUT_IF_eDP1 : VOP_OUTPUT_IF_eDP0);
 	}
 
-	crtc = rockchip_dp_drm_get_new_crtc(encoder, state);
 	/* No crtc means we're doing a full shutdown */
-	if (!crtc)
+	if (!new_crtc)
 		return;
 
-	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
 	/* If we're not entering self-refresh, no need to wait for vact */
 	if (!new_crtc_state || !new_crtc_state->self_refresh_active)
 		return;
 
-	ret = rockchip_drm_wait_vact_end(crtc, PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
+	ret = rockchip_drm_wait_vact_end(new_crtc, PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
 	if (ret)
 		DRM_DEV_ERROR(dp->dev, "line flag irq timed out\n");
 }
@@ -731,6 +720,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->adp = ERR_PTR(-ENODEV);
 	dp->data = &dp_data[id];
 	dp->plat_data.ssc = dp->data->ssc;
+	dp->plat_data.support_dp_mode = dp->data->support_dp_mode;
 	dp->plat_data.max_bpc = dp->data->max_bpc ? dp->data->max_bpc : 8;
 	dp->plat_data.panel = panel;
 	dp->plat_data.dev_type = dp->data->chip_type;
@@ -891,6 +881,7 @@ static const struct rockchip_dp_chip_data rk3576_edp[] = {
 		.audio = true,
 		.split_mode = true,
 		.format_yuv = true,
+		.support_dp_mode = true,
 		.max_bpc = 10,
 	},
 	{ /* sentinel */ }
@@ -906,6 +897,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.audio = true,
 		.split_mode = true,
 		.format_yuv = true,
+		.support_dp_mode = true,
 		.max_bpc = 10,
 	},
 	{
@@ -917,6 +909,7 @@ static const struct rockchip_dp_chip_data rk3588_edp[] = {
 		.audio = true,
 		.split_mode = true,
 		.format_yuv = true,
+		.support_dp_mode = true,
 		.max_bpc = 10,
 	},
 	{ /* sentinel */ }

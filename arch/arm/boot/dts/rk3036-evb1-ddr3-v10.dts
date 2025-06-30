@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  *
  */
 
@@ -435,8 +435,8 @@
 					15 00 02 d2 32
 					15 00 02 d3 00
 					39 00 04 ff 98 81 00
-					05 00 01 11
-					05 01 01 29
+					05 96 01 11
+					05 14 01 29
 				];
 			};
 		};

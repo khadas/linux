@@ -2,7 +2,7 @@
 /*
  * serdes-i2c.c  --  I2C access for different serdes chips
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */
@@ -61,6 +61,7 @@ static int serdes_set_i2c_address(struct serdes *serdes, u32 reg_hw, u32 reg_use
 	int ret = 0;
 	struct i2c_client *client_split;
 	struct serdes *serdes_split = serdes->g_serdes_bridge_split;
+	unsigned int def = 0;
 
 	if (!serdes_split) {
 		dev_info(serdes->dev, "%s serdes_split is null\n", __func__);
@@ -72,7 +73,12 @@ static int serdes_set_i2c_address(struct serdes *serdes, u32 reg_hw, u32 reg_use
 		       __func__, dev_name(serdes_split->dev), client_split->name,
 		       client_split->addr, serdes->reg_hw, serdes->reg_use, serdes_split);
 
-	client_split->addr = serdes->reg_hw;
+	client_split->addr = serdes->reg_use;
+	ret = serdes_reg_read(serdes, serdes->serdes_init_seq->reg_sequence[0].reg, &def);
+	if (ret) {
+		client_split->addr = serdes->reg_hw;
+		dev_info(serdes->dev, "%s try to use addr 0x%x\n", __func__, serdes->reg_hw);
+	}
 
 	if (serdes_split && serdes_split->chip_data->split_ops &&
 	    serdes_split->chip_data->split_ops->select)
@@ -171,6 +177,9 @@ static int serdes_i2c_check_register(struct serdes *serdes, int *flag)
 		return ret;
 	}
 
+	if (serdes->chip_data->check_ops->check_reg)
+		ret = serdes->chip_data->check_ops->check_reg(serdes);
+
 	return ret;
 }
 
@@ -207,6 +216,7 @@ static int serdes_reg_check_work_setup(struct serdes *serdes)
 		return PTR_ERR(serdes->kworker);
 	mutex_init(&serdes->reg_check_lock);
 	atomic_set(&serdes->flag_ser_init, 1);
+	atomic_set(&serdes->flag_early_suspend, 0);
 	kthread_queue_delayed_work(serdes->kworker, &serdes->reg_check_work,
 				   msecs_to_jiffies(20000));
 
@@ -406,10 +416,13 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	if (serdes->reg_hw) {
 		SERDES_DBG_MFD("%s: %s start change i2c address from 0x%x to 0x%x\n",
 			       __func__, dev->of_node->name, serdes->reg_hw, serdes->reg_use);
-		ret = serdes_set_i2c_address(serdes, serdes->reg_hw,
-					     serdes->reg_use, serdes->link_use);
-		if (ret)
-			dev_err(dev, "%s failed to set i2c address\n", serdes->chip_data->name);
+
+		if (!serdes->route_enable) {
+			ret = serdes_set_i2c_address(serdes, serdes->reg_hw,
+						     serdes->reg_use, serdes->link_use);
+			if (ret)
+				dev_err(dev, "%s failed to set addr\n", serdes->chip_data->name);
+		}
 	}
 
 	serdes->use_delay_work = of_property_read_bool(dev->of_node, "use-delay-work");
@@ -432,6 +445,8 @@ static int serdes_i2c_probe(struct i2c_client *client,
 
 		SERDES_DBG_MFD("%s: use_reg_check_work=%d\n", __func__, serdes->use_reg_check_work);
 	}
+
+	serdes_create_debugfs(serdes);
 
 	dev_info(dev, "serdes %s serdes_i2c_probe successful version %s\n",
 		 serdes->chip_data->name, MFD_SERDES_DISPLAY_VERSION);
@@ -459,10 +474,17 @@ static void serdes_i2c_remove(struct i2c_client *client)
 		cancel_delayed_work_sync(&serdes->mfd_delay_work);
 		destroy_workqueue(serdes->mfd_wq);
 	}
+
+	serdes_destroy_debugfs(serdes);
 }
 
 static int serdes_i2c_prepare(struct device *dev)
 {
+	struct serdes *serdes = dev_get_drvdata(dev);
+
+	atomic_set(&serdes->flag_early_suspend, 1);
+
+	SERDES_DBG_MFD("%s: name=%s\n", __func__, dev_name(serdes->dev));
 	return 0;
 }
 
@@ -473,6 +495,7 @@ static void serdes_i2c_complete(struct device *dev)
 	if (serdes->chip_data->serdes_type == TYPE_SER)
 		serdes_i2c_set_sequence(serdes);
 
+	atomic_set(&serdes->flag_early_suspend, 0);
 	SERDES_DBG_MFD("%s: name=%s\n", __func__, dev_name(serdes->dev));
 }
 
@@ -565,12 +588,24 @@ static int __init serdes_i2c_init(void)
 	int ret;
 
 	ret = i2c_add_driver(&serdes_i2c_driver);
-	if (ret != 0)
+	if (ret != 0) {
 		pr_err("Failed to register serdes I2C driver: %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	serdes_debugfs_init();
+
+	return 0;
 }
+
+static void __exit serdes_i2c_exit(void)
+{
+	i2c_del_driver(&serdes_i2c_driver);
+	serdes_debugfs_exit();
+}
+
 subsys_initcall(serdes_i2c_init);
+module_exit(serdes_i2c_exit);
 
 MODULE_AUTHOR("Luo Wei <lw@rock-chips.com>");
 MODULE_DESCRIPTION("display i2c interface for different serdes");

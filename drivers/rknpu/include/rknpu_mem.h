@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -33,6 +33,7 @@ struct rknpu_mem_object {
 	struct page **pages;
 	struct sg_table *sgt;
 	struct dma_buf *dmabuf;
+	struct dma_buf_attachment *attachment;
 	struct list_head head;
 	unsigned int owner;
 };

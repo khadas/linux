@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Shunqing Chen <csq@rock-chips.com>
  */
@@ -276,7 +276,13 @@ int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 		return -EINVAL;
 	}
 
-	ret = regmap_write(rk628->regmap[region], reg, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_write(rk628->regmap[region], reg, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_write(rk628->regmap[region], reg, val);
+	}
 	if (ret < 0)
 		dev_err(rk628->dev,
 			"%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
@@ -296,7 +302,13 @@ int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
 		return -EINVAL;
 	}
 
-	ret = regmap_read(rk628->regmap[region], reg, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_read(rk628->regmap[region], reg, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_read(rk628->regmap[region], reg, val);
+	}
 	if (ret < 0)
 		dev_err(rk628->dev,
 			"%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
@@ -309,6 +321,7 @@ int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 					u32 val)
 {
 	int region = (reg >> 16) & 0xff;
+	int ret;
 
 	if (region >= RK628_DEV_MAX) {
 		dev_err(rk628->dev,
@@ -316,7 +329,15 @@ int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	if (region == RK628_DEV_HDMIRX) {
+		mutex_lock(&rk628->rst_lock);
+		ret = regmap_update_bits(rk628->regmap[region], reg, mask, val);
+		mutex_unlock(&rk628->rst_lock);
+	} else {
+		ret = regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(rk628_media_i2c_update_bits);
 
@@ -488,7 +509,13 @@ static void rk628_dbg_en_node(struct rk628 *rk628)
 
 void rk628_debugfs_create(struct rk628 *rk628)
 {
-	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
+	struct dentry *debugfs, *debugfs_tmp = debugfs_lookup("rk628", NULL);
+
+	debugfs = debugfs_tmp;
+	if (!debugfs)
+		debugfs = debugfs_create_dir("rk628", NULL);
+	dput(debugfs_tmp);
+	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs);
 	if (IS_ERR(rk628->debug_dir))
 		return;
 
@@ -497,6 +524,12 @@ void rk628_debugfs_create(struct rk628 *rk628)
 	rk628_post_process_pattern_node(rk628);
 }
 EXPORT_SYMBOL(rk628_debugfs_create);
+
+void rk628_debugfs_remove(struct rk628 *rk628)
+{
+	debugfs_remove_recursive(rk628->debug_dir);
+}
+EXPORT_SYMBOL(rk628_debugfs_remove);
 
 struct rk628 *rk628_i2c_register(struct i2c_client *client)
 {
@@ -706,13 +739,15 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   u64 *dst_pclk)
 {
 	u64 dst_rate, src_rate;
-	u64 dst_htotal, src_htotal;
+	u64 dst_htotal, dst_vtotal, src_htotal, src_vtotal;
 
 	src_rate = src->pixelclock;
 	dst_htotal = dst->hactive + dst->hfront_porch + dst->hsync_len + dst->hback_porch;
-	dst_rate = src_rate * dst->vactive * dst_htotal;
+	dst_vtotal = dst->vactive + dst->vfront_porch + dst->vsync_len + dst->vback_porch;
+	dst_rate = src_rate * dst_vtotal * dst_htotal;
 	src_htotal = src->hactive + src->hfront_porch + src->hsync_len + src->hback_porch;
-	do_div(dst_rate, (src->vactive * src_htotal));
+	src_vtotal = src->vactive + src->vfront_porch + src->vsync_len + src->vback_porch;
+	do_div(dst_rate, (src_vtotal * src_htotal));
 	dst->pixelclock = dst_rate;
 	*dst_pclk = dst->pixelclock;
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Google, Inc.
  * Copyright (C) 2019 Linaro Ltd.
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Author: Simon Xue <xxm@rock-chips.com>
  */
 #ifndef _UAPI_LINUX_DMABUF_POOL_H
@@ -20,8 +20,9 @@
 /* Valid FD_FLAGS are O_CLOEXEC, O_RDONLY, O_WRONLY, O_RDWR */
 #define RK_DMA_HEAP_VALID_FD_FLAGS (O_CLOEXEC | O_ACCMODE)
 
-/* Currently no heap flags */
-#define RK_DMA_HEAP_VALID_HEAP_FLAGS (0)
+/* Currently heap flags */
+#define RK_DMA_HEAP_UNCACHED (1UL << 0)
+#define RK_DMA_HEAP_VALID_HEAP_FLAGS (RK_DMA_HEAP_UNCACHED)
 
 /**
  * struct rk_dma_heap_allocation_data - metadata passed from userspace for

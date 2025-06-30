@@ -31,8 +31,8 @@ static const struct dev_pm_ops gt1x_ts_pm_ops;
 #endif
 #ifdef GTP_CONFIG_OF
 bool gt1x_gt5688;
-int gt1x_rst_gpio;
-int gt1x_int_gpio;
+struct gpio_desc *gt1x_rst_gpio;
+struct gpio_desc *gt1x_int_gpio;
 static bool power_invert;
 #endif
 
@@ -321,19 +321,16 @@ static int gt1x_parse_dt(struct device *dev)
 			gt1x_gt5688 = true;
 	}
 
-	gt1x_int_gpio = of_get_named_gpio(np, "goodix,irq-gpio", 0);
-	gt1x_rst_gpio = of_get_named_gpio(np, "goodix,rst-gpio", 0);
-
-	if (!gpio_is_valid(gt1x_int_gpio) && !gpio_is_valid(gt1x_rst_gpio)) {
-		GTP_ERROR("Invalid GPIO, irq-gpio:%d, rst-gpio:%d",
-				gt1x_int_gpio, gt1x_rst_gpio);
-		return -EINVAL;
+	gt1x_int_gpio = devm_gpiod_get(dev, "goodix,irq", GPIOD_IN);
+	if (IS_ERR(gt1x_int_gpio)) {
+		GTP_ERROR("Failed to get irq GPIO");
+		return PTR_ERR(gt1x_int_gpio);
 	}
 
-	if (!gpio_is_valid(gt1x_int_gpio)) {
-		GTP_ERROR("Invalid GPIO, irq-gpio:%d",
-				gt1x_int_gpio);
-		return -EINVAL;
+	gt1x_rst_gpio = devm_gpiod_get_optional(dev, "goodix,rst", GPIOD_OUT_LOW);
+	if (IS_ERR(gt1x_rst_gpio)) {
+		GTP_ERROR("Failed to get reset GPIO");
+		return PTR_ERR(gt1x_rst_gpio);
 	}
 
 	vdd_ana = devm_regulator_get_optional(dev, "vdd_ana");
@@ -403,12 +400,6 @@ int gt1x_power_switch(int on)
 
 static void gt1x_remove_gpio_and_power(void)
 {
-	if (gpio_is_valid(gt1x_int_gpio))
-		gpio_free(gt1x_int_gpio);
-
-	if (gpio_is_valid(gt1x_rst_gpio))
-		gpio_free(gt1x_rst_gpio);
-
 	if (gt1x_i2c_client && gt1x_i2c_client->irq)
 		free_irq(gt1x_i2c_client->irq, gt1x_i2c_client);
 }
@@ -419,27 +410,15 @@ static void gt1x_remove_gpio_and_power(void)
  */
 static s32 gt1x_request_io_port(void)
 {
-	s32 ret = 0;
-
 	GTP_DEBUG_FUNC();
-	ret = gpio_request(GTP_INT_PORT, "GTP_INT_IRQ");
-	if (ret < 0) {
-		GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_INT_PORT, ret);
-		return ret;
-	}
 
+	if (IS_ERR_OR_NULL(gt1x_int_gpio))
+		return -1;
 	GTP_GPIO_AS_INT(GTP_INT_PORT);
 	gt1x_i2c_client->irq = GTP_INT_IRQ;
-
-	if (gpio_is_valid(gt1x_rst_gpio)) {
-		ret = gpio_request(GTP_RST_PORT, "GTP_RST_PORT");
-		if (ret < 0) {
-			GTP_ERROR("Failed to request GPIO:%d, ERRNO:%d", (s32) GTP_RST_PORT, ret);
-			gpio_free(GTP_INT_PORT);
-			return ret;
-		}
-
-	GTP_GPIO_AS_INPUT(GTP_RST_PORT);
+	if (gt1x_i2c_client->irq < 0) {
+		GTP_ERROR("Failed to get IRQ from GPIO");
+		return gt1x_i2c_client->irq;
 	}
 
 	return 0;
@@ -458,11 +437,12 @@ static s32 gt1x_request_irq(void)
 	GTP_DEBUG_FUNC();
 	GTP_DEBUG("INT trigger type:%x", gt1x_int_type);
 
+	if (IS_ERR_OR_NULL(gt1x_int_gpio))
+		return -1;
 	ret = request_irq(gt1x_i2c_client->irq, gt1x_ts_irq_handler, irq_table[gt1x_int_type], gt1x_i2c_client->name, gt1x_i2c_client);
 	if (ret) {
 		GTP_ERROR("Request IRQ failed!ERRNO:%d.", ret);
 		GTP_GPIO_AS_INPUT(GTP_INT_PORT);
-		gpio_free(GTP_INT_PORT);
 
 		return -1;
 	} else {

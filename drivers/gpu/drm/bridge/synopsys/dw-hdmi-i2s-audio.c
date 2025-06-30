@@ -59,6 +59,8 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
+	dw_hdmi_audio_disable(hdmi);
+
 	/* Reset the FIFOs before applying new params */
 	hdmi_update_bits(audio, HDMI_AUD_CONF0_SW_RESET,
 			 HDMI_AUD_CONF0_SW_RESET, HDMI_AUD_CONF0);
@@ -137,6 +139,11 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 	hdmi_write(audio, conf0, HDMI_AUD_CONF0);
 	hdmi_write(audio, conf1, HDMI_AUD_CONF1);
 	hdmi_write(audio, conf2, HDMI_AUD_CONF2);
+
+	dw_hdmi_audio_enable(hdmi);
+	hdmi_update_bits(audio, HDMI_AUD_CONF0_SW_RESET,
+			 HDMI_AUD_CONF0_SW_RESET, HDMI_AUD_CONF0);
+	hdmi_write(audio, (u8)~HDMI_MC_SWRSTZ_I2SSWRST_REQ, HDMI_MC_SWRSTZ);
 
 	return 0;
 }

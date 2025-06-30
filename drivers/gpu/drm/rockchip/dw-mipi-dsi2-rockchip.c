@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:
  *      Guochun Huang <hero.huang@rock-chips.com>
  */
@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
@@ -150,7 +151,7 @@
 #define DSI2_IPI_VID_VACT_MAN_CFG	0X0334
 #define VID_VACT_LINES(x)		UPDATE(x, 13, 0)
 #define DSI2_IPI_VID_VFP_MAN_CFG	0X033C
-#define VID_VFP_LINES(x)		UPDATE(x, 9, 0)
+#define VID_VFP_LINES(x)		UPDATE(x, 12, 0)
 #define DSI2_IPI_PIX_PKT_CFG		0x0344
 #define MAX_PIX_PKT(x)			UPDATE(x, 15, 0)
 
@@ -226,7 +227,9 @@ struct dw_mipi_dsi2_plat_data {
 	const u32 *dsi1_grf_reg_fields;
 	unsigned long long dphy_max_bit_rate_per_lane;
 	unsigned long long cphy_max_symbol_rate_per_lane;
-
+	const u32 max_vfp;
+	const u32 max_vsync;
+	const u32 max_vbp;
 };
 
 struct dw_mipi_dsi2 {
@@ -501,6 +504,7 @@ static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(encoder->crtc->state);
 	struct drm_crtc *new_crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
+	int output_if;
 
 	new_crtc = dw_mipi_dsi2_get_new_crtc(dsi2, old_state);
 	if (new_crtc)
@@ -528,6 +532,13 @@ static void dw_mipi_dsi2_encoder_atomic_disable(struct drm_encoder *encoder,
 	}
 
 	dw_mipi_dsi2_post_disable(dsi2);
+
+	if (dsi2->slave)
+		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
+	else
+		output_if = dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
+
+	rockchip_drm_crtc_output_pre_disable(encoder->crtc, output_if);
 
 	dsi2->enabled = false;
 	if (dsi2->slave)
@@ -919,12 +930,16 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 	dw_mipi_dsi2_ipi_set(dsi2);
 
 	if (dsi2->auto_calc_mode) {
+		regmap_update_bits(dsi2->regmap, DSI2_DSI_GENERAL_CFG, BTA_EN, 0);
+
 		regmap_write(dsi2->regmap, DSI2_MODE_CTRL, AUTOCALC_MODE);
 		ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_MODE_STATUS,
 					       mode, mode == IDLE_MODE,
 					       1000, MODE_STATUS_TIMEOUT_US);
 		if (ret < 0)
 			dev_err(dsi2->dev, "auto calculation training failed\n");
+
+		regmap_update_bits(dsi2->regmap, DSI2_DSI_GENERAL_CFG, BTA_EN, BTA_EN);
 	}
 
 	if (dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)
@@ -1008,7 +1023,7 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state = NULL;
-	int ret;
+	int output_if, ret;
 
 	crtc = dw_mipi_dsi2_get_new_crtc(dsi2, state);
 	if (crtc)
@@ -1054,6 +1069,13 @@ static void dw_mipi_dsi2_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		rockchip_drm_crtc_standby(encoder->crtc, 0);
+
+	if (dsi2->slave)
+		output_if = VOP_OUTPUT_IF_MIPI0 | VOP_OUTPUT_IF_MIPI1;
+	else
+		output_if = dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
+
+	rockchip_drm_crtc_output_post_enable(encoder->crtc, output_if);
 
 	dsi2->enabled = true;
 	if (dsi2->slave)
@@ -1224,10 +1246,11 @@ dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 	if (vm.vactive > 16383)
 		return MODE_VIRTUAL_Y;
 
-	if (vm.vsync_len > 1023)
+	if (vm.vsync_len > dsi2->pdata->max_vsync)
 		return MODE_VSYNC_WIDE;
 
-	if (vm.vback_porch > 1023 || vm.vfront_porch > 1023)
+	if (vm.vback_porch > dsi2->pdata->max_vbp ||
+	    vm.vfront_porch > dsi2->pdata->max_vfp)
 		return MODE_VBLANK_WIDE;
 
 	/*
@@ -2095,6 +2118,9 @@ static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
 	.dsi0_grf_reg_fields = rk3576_dsi_grf_reg_fields,
 	.dphy_max_bit_rate_per_lane = 2500000000ULL,
 	.cphy_max_symbol_rate_per_lane = 1700000000ULL,
+	.max_vfp = 8191,
+	.max_vsync = 1023,
+	.max_vbp = 1023,
 };
 
 static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
@@ -2103,16 +2129,24 @@ static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
 	.dsi1_grf_reg_fields = rk3588_dsi1_grf_reg_fields,
 	.dphy_max_bit_rate_per_lane = 4500000000ULL,
 	.cphy_max_symbol_rate_per_lane = 2000000000ULL,
+	.max_vfp = 1023,
+	.max_vsync = 1023,
+	.max_vbp = 1023,
 };
 
 static const struct of_device_id dw_mipi_dsi2_dt_ids[] = {
+#if IS_ENABLED(CONFIG_CPU_RK3576)
 	{
 		.compatible = "rockchip,rk3576-mipi-dsi2",
 		.data = &rk3576_mipi_dsi2_plat_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3588)
+	{
 		.compatible = "rockchip,rk3588-mipi-dsi2",
 		.data = &rk3588_mipi_dsi2_plat_data,
 	},
+#endif
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_mipi_dsi2_dt_ids);

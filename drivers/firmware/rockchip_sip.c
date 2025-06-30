@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <soc/rockchip/rockchip_sip.h>
 
 #ifdef CONFIG_64BIT
@@ -210,28 +211,29 @@ struct dram_addrmap_info *sip_smc_get_dram_map(void)
 {
 	struct arm_smccc_res res;
 	static struct dram_addrmap_info *map;
+	struct dram_addrmap_info *m;
 
 	if (map)
-		return map;
+		return map->bank_bit_first ? map : NULL;
 
 	/* Request share memory size 4KB */
 	res = sip_smc_request_share_mem(1, SHARE_PAGE_TYPE_DDR_ADDRMAP);
 	if (res.a0 != 0) {
-		pr_err("no ATF memory for init\n");
+		pr_err("%s: request share memory error!\n", __func__);
 		return NULL;
 	}
-
-	map = (struct dram_addrmap_info *)res.a1;
+	m = (struct dram_addrmap_info *)res.a1;
+	memset_io(m, 0x0, sizeof(*m));
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR_ADDRMAP, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_ADDRMAP_GET);
 	if (res.a0) {
-		pr_err("rockchip_sip_config_dram_init error:%lx\n", res.a0);
-		map = NULL;
+		pr_err("rockchip_sip_config_dram_addrmap_get error:%lx\n", res.a0);
 		return NULL;
 	}
+	map = m;
 
-	return map;
+	return map->bank_bit_first ? map : NULL;
 }
 EXPORT_SYMBOL_GPL(sip_smc_get_dram_map);
 
@@ -357,6 +359,28 @@ struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2)
 }
 EXPORT_SYMBOL_GPL(sip_hdcp_config);
 
+struct arm_smccc_res sip_smc_gpio_config(u32 sub_func_id, u32 arg1, u32 arg2,
+					 u32 arg3)
+{
+	struct arm_smccc_res res;
+
+	/*
+	 * res.a0: error code(0: success, !0: error).
+	 */
+	arm_smccc_smc(SIP_GPIO_CFG, sub_func_id, arg1, arg2, arg3, 0, 0, 0, &res);
+	return res;
+}
+EXPORT_SYMBOL_GPL(sip_smc_gpio_config);
+
+int sip_smc_cpu_pm_config(u32 func, u32 id, u32 cfg)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_CPU_PM_CFG, func, id, cfg);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_cpu_pm_config);
+
 /************************** fiq debugger **************************************/
 /*
  * AArch32 is not allowed to call SMC64(ATF framework does not support), so we
@@ -366,13 +390,17 @@ EXPORT_SYMBOL_GPL(sip_hdcp_config);
  */
 #ifdef CONFIG_ARM64
 #define SIP_UARTDBG_FN		SIP_UARTDBG_CFG64
+#define SIP_FIQ_DBG_STACK_SIZE	IRQ_STACK_SIZE
 #else
 #define SIP_UARTDBG_FN		SIP_UARTDBG_CFG
+#define SIP_FIQ_DBG_STACK_SIZE	SZ_8K
+
 static int firmware_64_32bit;
 #endif
 
 static int fiq_sip_enabled;
 static int fiq_target_cpu;
+static unsigned long fiq_stack_top;
 static phys_addr_t ft_fiq_mem_phy;
 static void __iomem *ft_fiq_mem_base;
 static sip_fiq_debugger_uart_irq_tf_cb_t sip_fiq_debugger_uart_irq_tf;
@@ -481,13 +509,26 @@ int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, sip_fiq_debugger_uart_irq_tf_c
 {
 	struct arm_smccc_res res;
 
-	fiq_target_cpu = 0;
+	/* Alloc a page for fiq_debugger's stack */
+	if (fiq_stack_top == 0) {
+		fiq_stack_top = __get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						 get_order(SIP_FIQ_DBG_STACK_SIZE));
+		if (fiq_stack_top) {
+			fiq_stack_top += SIP_FIQ_DBG_STACK_SIZE;
+		} else {
+			pr_err("%s: alloc stack failed\n", __func__);
+			return -ENOMEM;
+		}
+	}
 
 	/* init fiq debugger callback */
 	sip_fiq_debugger_uart_irq_tf = callback_fn;
-	res = __invoke_sip_fn_smc(SIP_UARTDBG_FN, irq_id,
-				  (unsigned long)sip_fiq_debugger_uart_irq_tf_cb,
-				  UARTDBG_CFG_INIT);
+	arm_smccc_smc(SIP_UARTDBG_FN,
+		      irq_id,
+		      (unsigned long)sip_fiq_debugger_uart_irq_tf_cb,
+		      UARTDBG_CFG_INIT,
+		      fiq_stack_top, 0, 0, 0, &res);
+
 	if (IS_SIP_ERROR(res.a0)) {
 		pr_err("%s error: %d\n", __func__, (int)res.a0);
 		return res.a0;

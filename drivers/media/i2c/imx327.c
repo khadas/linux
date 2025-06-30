@@ -987,10 +987,10 @@ static void imx327_get_module_inf(struct imx327 *imx327,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX327_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx327->module_name,
+	strscpy(inf->base.sensor, IMX327_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx327->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx327->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx327->len_name, sizeof(inf->base.lens));
 }
 
 static int imx327_set_conversion_gain(struct imx327 *imx327, u32 *cg)

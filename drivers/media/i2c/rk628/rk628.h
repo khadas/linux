@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Shunqing Chen <csq@rock-chips.com>
  */
@@ -306,6 +306,8 @@ struct rk628 {
 	bool dual_mipi;
 	struct mipi_timing mipi_timing[2];
 	struct mutex rst_lock;
+	int dvi_mode;
+	int vic;
 	int tx_mode;
 	int dbg_en;
 	struct dentry *debug_dir;
@@ -347,5 +349,6 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   u64 *dst_pclk);
 void rk628_version_parse(struct rk628 *rk628);
 void rk628_debugfs_create(struct rk628 *rk628);
+void rk628_debugfs_remove(struct rk628 *rk628);
 
 #endif

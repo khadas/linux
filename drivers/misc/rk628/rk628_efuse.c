@@ -2,7 +2,7 @@
 /*
  * RK628 eFuse Driver
  *
- * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
  *
  * Author: Weixin Zhou <zwx@rock-chips.com>
  */

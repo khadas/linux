@@ -5,14 +5,3 @@ menuconfig ROCKCHIP_DVBM
 	depends on ARCH_ROCKCHIP
 	help
 	  rockchip dvbm module.
-
-if ROCKCHIP_DVBM
-
-config ROCKCHIP_DVBM_PROC_FS
-	bool "enable dvbm procfs"
-	depends on PROC_FS
-	default y
-	help
-	  rockchip dvbm procfs.
-
-endif

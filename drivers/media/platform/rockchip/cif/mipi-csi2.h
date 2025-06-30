@@ -95,6 +95,8 @@ enum rkcsi2_chip_id {
 	CHIP_RV1106_CSI2,
 	CHIP_RK3562_CSI2,
 	CHIP_RK3576_CSI2,
+	CHIP_RV1103B_CSI2,
+	CHIP_RV1126B_CSI2,
 };
 
 enum csi2_pads {
@@ -150,7 +152,7 @@ struct csi2_dev {
 
 	void __iomem		*base;
 	struct v4l2_async_notifier	notifier;
-	struct v4l2_mbus_config_mipi_csi2	bus;
+	struct v4l2_mbus_config mbus;
 
 	/* lock to protect all members below */
 	struct mutex lock;
@@ -161,6 +163,7 @@ struct csi2_dev {
 	struct v4l2_subdev	*src_sd;
 	bool			sink_linked[CSI2_NUM_SRC_PADS];
 	bool			is_check_sot_sync;
+	bool			is_detect_fs_fe;
 	struct csi2_sensor_info	sensors[MAX_CSI2_SENSORS];
 	const struct csi2_match_data	*match_data;
 	int			num_sensors;
@@ -184,6 +187,7 @@ struct csi2_hw {
 	const struct csi2_hw_match_data	*match_data;
 
 	void __iomem		*base;
+	struct resource		*res;
 
 	/* lock to protect all members below */
 	struct mutex lock;
@@ -191,6 +195,7 @@ struct csi2_hw {
 	int			irq1;
 	int			irq2;
 	const char		*dev_name;
+	atomic_t		stream_count;
 };
 
 u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);

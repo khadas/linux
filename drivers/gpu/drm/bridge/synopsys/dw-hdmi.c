@@ -335,6 +335,7 @@ struct dw_hdmi {
 	bool logo_plug_out;		/* hdmi is plug out when kernel logo */
 	bool update;
 	bool hdr2sdr;			/* from hdr to sdr */
+	bool cts_manual;
 };
 
 #define HDMI_IH_PHY_STAT0_RX_SENSE \
@@ -1068,7 +1069,7 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 	config3 = hdmi_readb(hdmi, HDMI_CONFIG3_ID);
 
 	/* Compute CTS when using internal AHB audio or General Parallel audio*/
-	if ((config3 & HDMI_CONFIG3_AHBAUDDMA) || (config3 & HDMI_CONFIG3_GPAUD)) {
+	if ((config3 & HDMI_CONFIG3_AHBAUDDMA) || (config3 & HDMI_CONFIG3_GPAUD) || hdmi->cts_manual) {
 		/*
 		 * Compute the CTS value from the N value.  Note that CTS and N
 		 * can be up to 20 bits in total, so we need 64-bit math.  Also
@@ -1672,6 +1673,18 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 	} else {
 		return;
 	}
+
+	/*
+	 * GCP is sent by default after power on.
+	 * In kernel 4.19/5.10, we did not intentionally
+	 * disable sending of GCP. The kernel 6.1 upstream
+	 * code disable GCP transmission in 8bit color depth.
+	 * Therefore, when you need to use avmute function,
+	 * it is need to enable GCP transmission.
+	 */
+	val = hdmi_readb(hdmi, HDMI_FC_GCP);
+	if (val & (HDMI_FC_GCP_SET_AVMUTE | HDMI_FC_GCP_CLEAR_AVMUTE))
+		clear_gcp_auto = 0;
 
 	/* set the packetizer registers */
 	val = (color_depth << HDMI_VP_PR_CD_COLOR_DEPTH_OFFSET) &
@@ -3610,8 +3623,25 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 	mutex_unlock(&hdmi->mutex);
 }
 
+static int drm_hdmi_probe_single_connector_modes(struct drm_connector *connector,
+						 uint32_t maxX, uint32_t maxY)
+{
+	struct dw_hdmi *hdmi =
+		container_of(connector, struct dw_hdmi, connector);
+	struct drm_display_info *info = &connector->display_info;
+	void *data = hdmi->plat_data->phy_data;
+	int ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
+
+	if (hdmi->plat_data->get_mode_color_caps)
+		hdmi->plat_data->get_mode_color_caps(connector, info, data);
+
+	return ret;
+}
+
 static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	.fill_modes = drm_hdmi_probe_single_connector_modes,
 	.detect = dw_hdmi_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.force = dw_hdmi_connector_force,
@@ -5177,6 +5207,8 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 
 	config0 = hdmi_readb(hdmi, HDMI_CONFIG0_ID);
 	config3 = hdmi_readb(hdmi, HDMI_CONFIG3_ID);
+
+	hdmi->cts_manual = of_property_read_bool(np, "rockchip,cts-manual");
 
 	if (iores && config3 & HDMI_CONFIG3_AHBAUDDMA) {
 		struct dw_hdmi_audio_data audio;

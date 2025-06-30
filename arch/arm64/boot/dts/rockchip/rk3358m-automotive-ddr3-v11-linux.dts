@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3358m-automotive-ddr3-v11.dtsi"
+#include "rk3358-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3358M AUTOMOTIVE DDR3 V11 Linux board";
+	compatible = "rockchip,rk3358m-automotive-ddr3-v11-linux", "rockchip,px30", "rockchip,rk3358";
+};

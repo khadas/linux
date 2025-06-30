@@ -10,7 +10,8 @@
 #include <linux/kernel.h>
 #include <linux/mtd/spinand.h>
 
-#define SPINAND_MFR_ESMT		0xC8
+/* ESMT uses GigaDevice 0xc8 JECDEC ID on some SPI NANDs */
+#define SPINAND_MFR_ESMT_C8			0xc8
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
@@ -111,7 +112,7 @@ static int f50l2g41ka_ecc_ecc_get_status(struct spinand_device *spinand,
 		return -EBADMSG;
 }
 
-static const struct spinand_info esmt_spinand_table[] = {
+static const struct spinand_info esmt_c8_spinand_table[] = {
 	SPINAND_INFO("F50L1G41LB",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x01),
 		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
@@ -135,10 +136,10 @@ static const struct spinand_info esmt_spinand_table[] = {
 static const struct spinand_manufacturer_ops esmt_spinand_manuf_ops = {
 };
 
-const struct spinand_manufacturer esmt_spinand_manufacturer = {
-	.id = SPINAND_MFR_ESMT,
-	.name = "esmt",
-	.chips = esmt_spinand_table,
-	.nchips = ARRAY_SIZE(esmt_spinand_table),
+const struct spinand_manufacturer esmt_c8_spinand_manufacturer = {
+	.id = SPINAND_MFR_ESMT_C8,
+	.name = "ESMT",
+	.chips = esmt_c8_spinand_table,
+	.nchips = ARRAY_SIZE(esmt_c8_spinand_table),
 	.ops = &esmt_spinand_manuf_ops,
 };

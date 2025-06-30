@@ -2,7 +2,7 @@
 /*
  * maxim-bu18rl82.c  --  I2C register interface access for bu18rl82 serdes chip
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  */

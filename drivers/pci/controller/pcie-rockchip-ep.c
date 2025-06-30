@@ -2,7 +2,7 @@
 /*
  * Rockchip AXI PCIe endpoint controller driver
  *
- * Copyright (c) 2018 Rockchip, Inc.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  *
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  *         Simon Xue <xxm@rock-chips.com>
@@ -98,10 +98,8 @@ static int rockchip_pcie_ep_write_header(struct pci_epc *epc, u8 fn, u8 vfn,
 
 	/* All functions share the same vendor ID with function 0 */
 	if (fn == 0) {
-		u32 vid_regs = (hdr->vendorid & GENMASK(15, 0)) |
-			       (hdr->subsys_vendor_id & GENMASK(31, 16)) << 16;
-
-		rockchip_pcie_write(rockchip, vid_regs,
+		rockchip_pcie_write(rockchip,
+				    hdr->vendorid | hdr->subsys_vendor_id << 16,
 				    PCIE_CORE_CONFIG_VENDOR);
 	}
 

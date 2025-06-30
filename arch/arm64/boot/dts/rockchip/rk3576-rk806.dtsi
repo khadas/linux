@@ -28,6 +28,15 @@
 		/* 140 160 */
 		shutdown_temperture_threshold = <160>;
 		hotdie_temperture_threshold = <115>;
+		/* shutdown sequence */
+		shutdown-sequence = <2 2 2 0 2 0 2 1 1 2
+					2 2 2 2 2
+					1 0 0 0 0 2>;
+
+		/* low power forced shutdown sequence */
+		vb-shutdown-sequence = <2 2 2 0 2 0 2 0 0 2
+					2 2 2 2 2
+					0 0 0 0 0 2>;
 
 		/* 0: restart PMU;
 		 * 1: reset all the power off reset registers,

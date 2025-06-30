@@ -2,7 +2,7 @@
 /*
  * s5kjn1 driver
  *
- * Copyright (C) 2022 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 init version.
  * V0.0X01.0X01 adjust supply sequence to suit spec

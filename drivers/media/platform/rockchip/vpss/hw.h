@@ -4,8 +4,22 @@
 #ifndef _RKVPSS_HW_H
 #define _RKVPSS_HW_H
 
-#include "common.h"
-#include "vpss_offline.h"
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/iommu.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
+#include <media/videobuf2-cma-sg.h>
+#include <media/videobuf2-dma-sg.h>
+#include <soc/rockchip/rockchip_iommu.h>
 
 #define VPSS_MAX_BUS_CLK 4
 #define VPSS_MAX_DEV	 8
@@ -54,7 +68,23 @@ struct rkvpss_hw_dev {
 	bool is_dma_contig;
 	bool is_shutdown;
 	bool is_suspend;
+	bool is_first;
+	bool is_probe_end;
+	int dvbm_refcnt;
+	int dvbm_flag;
 };
+
+#ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V10
+static inline bool is_vpss_v10(const struct rkvpss_hw_dev *hw_dev) { return hw_dev->vpss_ver == VPSS_V10; }
+#else
+static inline bool is_vpss_v10(const struct rkvpss_hw_dev *hw_dev) { return false; }
+#endif
+
+#ifdef CONFIG_VIDEO_ROCKCHIP_VPSS_V20
+static inline bool is_vpss_v20(const struct rkvpss_hw_dev *hw_dev) { return hw_dev->vpss_ver == VPSS_V20; }
+#else
+static inline bool is_vpss_v20(const struct rkvpss_hw_dev *hw_dev) { return false; }
+#endif
 
 #define RKVPSS_ZME_TAP_COE(x, y) (((x) & 0x3ff) | (((y) & 0x3ff) << 16))
 extern const s16 rkvpss_zme_tap8_coe[11][17][8];

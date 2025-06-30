@@ -393,10 +393,10 @@ static void imx323_get_module_inf(struct imx323 *imx323,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX323_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx323->module_name,
+	strscpy(inf->base.sensor, IMX323_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx323->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx323->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx323->len_name, sizeof(inf->base.lens));
 }
 
 static long imx323_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

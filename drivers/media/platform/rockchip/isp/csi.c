@@ -418,7 +418,7 @@ int rkisp_expander_config(struct rkisp_device *dev,
 	u32 i, val, num, d0, d1, drop_bit = 0;
 	u32 output_bit, input_bit, max;
 
-	if (dev->isp_ver != ISP_V39)
+	if (dev->isp_ver != ISP_V39 && dev->isp_ver != ISP_V35)
 		return 0;
 
 	if (!on) {
@@ -497,6 +497,7 @@ int rkisp_csi_get_hdr_cfg(struct rkisp_device *dev, void *arg)
 	struct rkmodule_hdr_cfg *cfg = arg;
 	struct v4l2_subdev *sd = NULL;
 	u32 type;
+	int ret;
 
 	if (dev->isp_inp & INP_CSI) {
 		type = MEDIA_ENT_F_CAM_SENSOR;
@@ -521,10 +522,16 @@ int rkisp_csi_get_hdr_cfg(struct rkisp_device *dev, void *arg)
 		return -EINVAL;
 	}
 
-	return v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_HDR_CFG, cfg);
+	ret = v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_HDR_CFG, cfg);
+	if (ret == -ENOIOCTLCMD) {
+		cfg->esp.mode = HDR_NORMAL_VC;
+		cfg->hdr_mode = NO_HDR;
+		ret = 0;
+	}
+	return ret;
 }
 
-int rkisp_csi_config_patch(struct rkisp_device *dev)
+int rkisp_csi_config_patch(struct rkisp_device *dev, bool is_pre_cfg)
 {
 	int val = 0, ret = 0;
 	struct v4l2_subdev *mipi_sensor;
@@ -541,10 +548,11 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		ret = rkisp_csi_get_hdr_cfg(dev, &hdr_cfg);
 		if (dev->isp_inp & INP_CIF) {
 			struct rkisp_vicap_mode mode;
-			int buf_cnt = 0;
+			struct rkisp_init_buf init_buf = { 0 };
+			u32 op_mode;
 
 			memset(&mode, 0, sizeof(mode));
-			mode.name = dev->name;
+			strscpy(mode.name, dev->name, sizeof(mode.name));
 
 			rkisp_get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
 			if (!mipi_sensor)
@@ -563,46 +571,80 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 
 			if (dev->isp_inp == INP_CIF && dev->isp_ver > ISP_V21) {
 				/* read back mode default if more sensor link to isp */
-				if (!dev->hw_dev->is_single)
+				if (!dev->hw_dev->is_single && !dev->is_m_online)
 					dev->is_rdbk_auto = true;
-				mode.rdbk_mode = dev->is_rdbk_auto ? RKISP_VICAP_RDBK_AUTO : RKISP_VICAP_ONLINE;
+				if (dev->is_m_online && dev->unite_div == ISP_UNITE_DIV2)
+					mode.rdbk_mode = RKISP_VICAP_ONLINE_UNITE;
+				else if (dev->is_m_online)
+					mode.rdbk_mode = RKISP_VICAP_ONLINE_MULTI;
+				else if (dev->is_rdbk_auto)
+					mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+				else
+					mode.rdbk_mode = RKISP_VICAP_ONLINE;
 			} else {
 				mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 			}
+			/* vicap pre capture raw for thunderboot mode */
+			if (is_pre_cfg)
+				mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+			mode.dev_id = dev->dev_id;
 			v4l2_subdev_call(mipi_sensor, core, ioctl, RKISP_VICAP_CMD_MODE, &mode);
 			dev->vicap_in = mode.input;
+
+			op_mode = dev->hdr.op_mode;
 			/* vicap direct to isp */
-			if (dev->isp_ver >= ISP_V30 && !mode.rdbk_mode) {
-				switch (dev->hdr.op_mode) {
+			if (dev->isp_ver >= ISP_V30 &&
+			    mode.rdbk_mode <= RKISP_VICAP_ONLINE_UNITE) {
+				switch (op_mode) {
 				case HDR_RDBK_FRAME3:
-					dev->hdr.op_mode = HDR_LINEX3_DDR;
+					op_mode = HDR_LINEX3_DDR;
 					break;
 				case HDR_RDBK_FRAME2:
-					dev->hdr.op_mode = HDR_LINEX2_DDR;
+					op_mode = HDR_LINEX2_DDR;
 					break;
 				default:
-					dev->hdr.op_mode = HDR_NORMAL;
+					op_mode = HDR_NORMAL;
+					dev->hdr_wrap_line = 0;
 				}
-				if (dev->hdr.op_mode != HDR_NORMAL) {
-					buf_cnt = 1;
+				if (op_mode != HDR_NORMAL ||
+				    mode.rdbk_mode == RKISP_VICAP_ONLINE_UNITE) {
+					init_buf.buf_cnt = 1;
+					init_buf.hdr_wrap_line = dev->hdr_wrap_line;
 				}
 			} else if (mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+				dev->hdr_wrap_line = 0;
 				if (dev->vicap_buf_cnt)
-					buf_cnt = dev->vicap_buf_cnt;
+					init_buf.buf_cnt = dev->vicap_buf_cnt;
 				else
-					buf_cnt = RKISP_VICAP_BUF_CNT;
+					init_buf.buf_cnt = RKISP_VICAP_BUF_CNT;
 			}
-			if (buf_cnt)
+			if (init_buf.buf_cnt) {
+				if (!dev->is_pre_on || is_pre_cfg)
+					dev->rd_mode = op_mode;
 				v4l2_subdev_call(mipi_sensor, core, ioctl,
-						 RKISP_VICAP_CMD_INIT_BUF, &buf_cnt);
+						 RKISP_VICAP_CMD_INIT_BUF, &init_buf);
+			}
+			if (dev->is_pre_on && !is_pre_cfg) {
+				if (dev->cap_dev.wrap_line &&
+				    (dev->isp_ver == ISP_V33 || dev->isp_ver == ISP_V35)) {
+					val = ISP33_SW_ISP2ENC_PATH_EN | ISP33_PP_ENC_PIPE_EN;
+					rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, val, false);
+				}
+				return 0;
+			}
+			dev->hdr.op_mode = op_mode;
 		} else {
 			dev->hdr.op_mode = hdr_cfg.hdr_mode;
 		}
 
-		if (!dev->hw_dev->is_mi_update)
+		if (dev->isp_ver < ISP_V30) {
+			if (!dev->hw_dev->is_mi_update)
+				rkisp_unite_write(dev, CSI2RX_CTRL0,
+						  SW_IBUF_OP_MODE(dev->hdr.op_mode), true);
+		} else {
 			rkisp_unite_write(dev, CSI2RX_CTRL0,
-					  SW_IBUF_OP_MODE(dev->hdr.op_mode), true);
-
+					  SW_IBUF_OP_MODE(dev->hdr.op_mode), false);
+		}
 		/* hdr merge */
 		switch (dev->hdr.op_mode) {
 		case HDR_RDBK_FRAME2:
@@ -633,14 +675,24 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT, 0, val, true);
 	}
 
+	val = 0;
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
-		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, SW_MPIP_DROP_FRM_DIS, true);
-
+		val |= SW_MPIP_DROP_FRM_DIS;
+	if (dev->cap_dev.wrap_line) {
+		if (dev->isp_ver == ISP_V33 || dev->isp_ver == ISP_V35)
+			val |= ISP33_SW_ISP2ENC_PATH_EN;
+		if (IS_HDR_RDBK(dev->hdr.op_mode))
+			val |= ISP33_PP_ENC_PIPE_EN;
+	}
 	if (dev->isp_ver >= ISP_V30)
-		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS, true);
+		val |= ISP3X_SW_ACK_FRM_PRO_DIS;
+	if (val)
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, val, false);
 	/* line counter from isp out, default from mp out */
-	if (dev->isp_ver == ISP_V32_L || dev->isp_ver == ISP_V39)
-		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP32L_ISP2ENC_CNT_MUX, true);
+	if (dev->isp_ver == ISP_V32_L || dev->isp_ver == ISP_V39) {
+		val |= ISP32L_ISP2ENC_CNT_MUX;
+		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, val, true);
+	}
 	dev->rdbk_cnt = -1;
 	dev->rdbk_cnt_x1 = -1;
 	dev->rdbk_cnt_x2 = -1;
@@ -674,7 +726,7 @@ void rkisp_csi_sof(struct rkisp_device *dev, u8 id)
 		return;
 	}
 
-	rkisp_isp_queue_event_sof(&dev->isp_sdev);
+	rkisp_isp_queue_event_sof(dev);
 }
 
 int rkisp_register_csi_subdev(struct rkisp_device *dev,

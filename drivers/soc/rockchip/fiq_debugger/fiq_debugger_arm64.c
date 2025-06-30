@@ -42,7 +42,7 @@ void fiq_debugger_dump_pc(struct fiq_debugger_output *output,
 		regs->pc, regs->pstate, mode_name(regs));
 }
 
-void fiq_debugger_dump_regs_aarch32(struct fiq_debugger_output *output,
+static void fiq_debugger_dump_regs_aarch32(struct fiq_debugger_output *output,
 		const struct pt_regs *regs)
 {
 	output->printf(output, " r0 %08x  r1 %08x  r2 %08x  r3 %08x\n",
@@ -61,7 +61,7 @@ void fiq_debugger_dump_regs_aarch32(struct fiq_debugger_output *output,
 			regs->pstate, mode_name(regs));
 }
 
-void fiq_debugger_dump_regs_aarch64(struct fiq_debugger_output *output,
+static void fiq_debugger_dump_regs_aarch64(struct fiq_debugger_output *output,
 		const struct pt_regs *regs)
 {
 

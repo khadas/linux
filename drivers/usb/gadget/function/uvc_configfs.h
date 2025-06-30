@@ -100,8 +100,7 @@ struct uvcg_frame {
 		u32	dw_max_video_frame_buffer_size;
 		u32	dw_default_frame_interval;
 		u8	b_frame_interval_type;
-		/* dw_bytes_perline is only for framebased format */
-		u32	dw_bytes_perline;
+		u32     dw_bytes_perline;
 	} __attribute__((packed)) frame;
 	u32 *dw_frame_interval;
 };
@@ -137,6 +136,20 @@ struct uvcg_mjpeg {
 static inline struct uvcg_mjpeg *to_uvcg_mjpeg(struct config_item *item)
 {
 	return container_of(to_uvcg_format(item), struct uvcg_mjpeg, fmt);
+}
+
+/* -----------------------------------------------------------------------------
+ * streaming/framebased/<NAME>
+ */
+
+struct uvcg_framebased {
+	struct uvcg_format              fmt;
+	struct uvc_format_framebased    desc;
+};
+
+static inline struct uvcg_framebased *to_uvcg_framebased(struct config_item *item)
+{
+	return container_of(to_uvcg_format(item), struct uvcg_framebased, fmt);
 }
 
 int uvcg_attach_configfs(struct f_uvc_opts *opts);

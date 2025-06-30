@@ -671,10 +671,10 @@ static void gc0329_get_module_inf(struct gc0329 *gc0329,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, DRIVER_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc0329->module_name,
+	strscpy(inf->base.sensor, DRIVER_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc0329->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc0329->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc0329->len_name, sizeof(inf->base.lens));
 }
 
 static long gc0329_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

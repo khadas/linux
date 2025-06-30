@@ -146,6 +146,8 @@
 #define ANALOGIX_DP_CRC_CON			0x890
 #define ANALOGIX_DP_I2S_CTRL			0x9C8
 
+#define ANALOGIX_DP_LINK_POLICY			0x9D8
+
 /* ANALOGIX_DP_TX_SW_RESET */
 #define RESET_DP_TX				(0x1 << 0)
 
@@ -514,5 +516,8 @@
 
 /* ANALOGIX_DP_I2S_CTRL */
 #define I2S_EN					(0x1 << 4)
+
+/* ANALOGIX_DP_LINK_POLICY */
+#define ALTERNATE_SR_ENABLE			(0x1 << 7)
 
 #endif /* _ANALOGIX_DP_REG_H */

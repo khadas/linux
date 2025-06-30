@@ -2,7 +2,7 @@
 /*
  * Driver for aw9110 I2C GPIO expanders
  *
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  */
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>

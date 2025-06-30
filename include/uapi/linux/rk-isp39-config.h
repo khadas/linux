@@ -1662,6 +1662,7 @@ struct isp39_isp_params_cfg {
 	__u32 frame_id;
 	struct isp39_isp_meas_cfg meas;
 	struct isp39_isp_other_cfg others;
+	struct sensor_exposure_cfg exposure;
 } __attribute__ ((packed));
 
 struct isp39_dhaz_stat {
@@ -1793,6 +1794,7 @@ struct isp39_stat {
 	struct isp39_dhaz_stat dhaz;
 	struct isp39_bay3d_stat bay3d;
 	struct isp32_info2ddr_stat info2ddr;
+	int buf_bay3d_iir_index;
 } __attribute__ ((packed));
 
 struct rkisp39_stat_buffer {

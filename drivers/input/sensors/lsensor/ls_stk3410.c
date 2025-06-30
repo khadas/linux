@@ -1,7 +1,7 @@
 /*
  * drivers/input/sensors/lsensor/ls_stk3410.c
  *
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  *
  * Authors: Bin Yang <yangbin@rock-chips.com>
  *

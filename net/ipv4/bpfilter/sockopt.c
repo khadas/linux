@@ -77,4 +77,8 @@ static int __init bpfilter_sockopt_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+rootfs_initcall(bpfilter_sockopt_init);
+#else
 device_initcall(bpfilter_sockopt_init);
+#endif

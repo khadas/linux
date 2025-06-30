@@ -95,7 +95,7 @@ static ssize_t rkcif_store_compact_mode(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(compact_test, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(compact_test, 0600,
 		   rkcif_show_compact_mode, rkcif_store_compact_mode);
 
 static ssize_t rkcif_show_line_int_num(struct device *dev,
@@ -132,7 +132,7 @@ static ssize_t rkcif_store_line_int_num(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(wait_line, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(wait_line, 0600,
 		      rkcif_show_line_int_num, rkcif_store_line_int_num);
 
 static ssize_t rkcif_show_dummybuf_mode(struct device *dev,
@@ -167,7 +167,7 @@ static ssize_t rkcif_store_dummybuf_mode(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(is_use_dummybuf, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(is_use_dummybuf, 0600,
 		      rkcif_show_dummybuf_mode, rkcif_store_dummybuf_mode);
 
 /* show the memory mode of each stream in stream index order,
@@ -228,7 +228,7 @@ static ssize_t rkcif_store_memory_mode(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(is_high_align, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(is_high_align, 0600,
 		   rkcif_show_memory_mode, rkcif_store_memory_mode);
 
 static ssize_t rkcif_show_scale_ch0_blc(struct device *dev,
@@ -298,7 +298,7 @@ static ssize_t rkcif_store_scale_ch0_blc(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(scale_ch0_blc, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(scale_ch0_blc, 0600,
 		   rkcif_show_scale_ch0_blc, rkcif_store_scale_ch0_blc);
 
 static ssize_t rkcif_show_scale_ch1_blc(struct device *dev,
@@ -370,7 +370,7 @@ static ssize_t rkcif_store_scale_ch1_blc(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(scale_ch1_blc, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(scale_ch1_blc, 0600,
 		   rkcif_show_scale_ch1_blc, rkcif_store_scale_ch1_blc);
 
 static ssize_t rkcif_show_scale_ch2_blc(struct device *dev,
@@ -441,7 +441,7 @@ static ssize_t rkcif_store_scale_ch2_blc(struct device *dev,
 
 	return len;
 }
-static DEVICE_ATTR(scale_ch2_blc, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(scale_ch2_blc, 0600,
 		   rkcif_show_scale_ch2_blc, rkcif_store_scale_ch2_blc);
 
 static ssize_t rkcif_show_scale_ch3_blc(struct device *dev,
@@ -513,7 +513,7 @@ static ssize_t rkcif_store_scale_ch3_blc(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(scale_ch3_blc, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(scale_ch3_blc, 0600,
 		   rkcif_show_scale_ch3_blc, rkcif_store_scale_ch3_blc);
 
 static ssize_t rkcif_store_capture_fps(struct device *dev,
@@ -606,7 +606,7 @@ static ssize_t rkcif_show_scl_mode(struct device *dev,
 	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
 	int ret;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d (0 scale, 1 binning, 2 extract)\n",
 		       cif_dev->scale_vdev[0].scl_mode,
 		       cif_dev->scale_vdev[1].scl_mode,
 		       cif_dev->scale_vdev[2].scl_mode,
@@ -671,7 +671,7 @@ static ssize_t rkcif_show_extraction_pattern(struct device *dev,
 	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
 	int ret;
 
-	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d (0 top left, 1 top right, 2 bottom left, 3 bottom right)\n",
 		       cif_dev->scale_vdev[0].extrac_pattern,
 		       cif_dev->scale_vdev[1].extrac_pattern,
 		       cif_dev->scale_vdev[2].extrac_pattern,
@@ -871,7 +871,7 @@ static ssize_t rkcif_store_odd_frame_id(struct device *dev,
 
 	return len;
 }
-static DEVICE_ATTR(odd_frame_id, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(odd_frame_id, 0600,
 		   rkcif_show_odd_frame_id, rkcif_store_odd_frame_id);
 
 static ssize_t rkcif_show_odd_frame_fisrt(struct device *dev,
@@ -920,7 +920,7 @@ static ssize_t rkcif_store_odd_frame_fisrt(struct device *dev,
 
 	return len;
 }
-static DEVICE_ATTR(odd_frame_first, S_IWUSR | S_IRUSR,
+static DEVICE_ATTR(odd_frame_first, 0600,
 		   rkcif_show_odd_frame_fisrt, rkcif_store_odd_frame_fisrt);
 
 static ssize_t rkcif_show_low_latency(struct device *dev,
@@ -973,6 +973,72 @@ static ssize_t rkcif_store_low_latency(struct device *dev,
 static DEVICE_ATTR(low_latency, S_IWUSR | S_IRUSR,
 		   rkcif_show_low_latency, rkcif_store_low_latency);
 
+static ssize_t rkcif_show_reg_dbg(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->reg_dbg);
+	return ret;
+}
+
+static ssize_t rkcif_store_reg_dbg(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret && val >= 0 && val <= 0x3)
+		cif_dev->reg_dbg = val;
+	else
+		dev_info(cif_dev->dev, "set reg_dbg failed\n");
+	return len;
+}
+
+static DEVICE_ATTR(reg_dbg, 0600,
+		   rkcif_show_reg_dbg, rkcif_store_reg_dbg);
+
+static ssize_t rkcif_show_get_exp_mode(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->is_support_get_exp);
+	return ret;
+}
+
+static ssize_t rkcif_store_get_exp_mode(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret) {
+		if (val)
+			cif_dev->is_support_get_exp = true;
+		else
+			cif_dev->is_support_get_exp = false;
+	} else {
+		dev_info(cif_dev->dev, "set get_exp mode failed\n");
+	}
+	return len;
+}
+
+static DEVICE_ATTR(is_support_get_exp, 0600,
+		   rkcif_show_get_exp_mode, rkcif_store_get_exp_mode);
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
@@ -991,6 +1057,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_sw_dbg_en.attr,
 	&dev_attr_use_hw_interlace.attr,
 	&dev_attr_low_latency.attr,
+	&dev_attr_reg_dbg.attr,
+	&dev_attr_is_support_get_exp.attr,
 	NULL,
 };
 
@@ -1014,7 +1082,8 @@ void rkcif_write_register(struct rkcif_device *dev,
 	   index <= CIF_REG_MIPI_ON_PAD) {
 		if (dev->chip_id == CHIP_RK3588_CIF) {
 			csi_offset = dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1106_CIF) {
+		} else if (dev->chip_id == CHIP_RV1106_CIF ||
+			   dev->chip_id == CHIP_RV1103B_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		} else if (dev->chip_id == CHIP_RK3562_CIF) {
 			if (dev->csi_host_idx < 3)
@@ -1026,6 +1095,8 @@ void rkcif_write_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 	if (index < CIF_REG_INDEX_MAX) {
@@ -1055,7 +1126,8 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 	   index <= CIF_REG_MIPI_ON_PAD) {
 		if (dev->chip_id == CHIP_RK3588_CIF) {
 			csi_offset = dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1106_CIF) {
+		} else if (dev->chip_id == CHIP_RV1106_CIF ||
+			   dev->chip_id == CHIP_RV1103B_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		} else if (dev->chip_id == CHIP_RK3562_CIF) {
 			if (dev->csi_host_idx < 3)
@@ -1067,6 +1139,8 @@ void rkcif_write_register_or(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1099,7 +1173,8 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 	   index <= CIF_REG_MIPI_ON_PAD) {
 		if (dev->chip_id == CHIP_RK3588_CIF) {
 			csi_offset = dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1106_CIF) {
+		} else if (dev->chip_id == CHIP_RV1106_CIF ||
+			   dev->chip_id == CHIP_RV1103B_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		} else if (dev->chip_id == CHIP_RK3562_CIF) {
 			if (dev->csi_host_idx < 3)
@@ -1111,6 +1186,8 @@ void rkcif_write_register_and(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1144,7 +1221,8 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 	   index <= CIF_REG_MIPI_ON_PAD) {
 		if (dev->chip_id == CHIP_RK3588_CIF) {
 			csi_offset = dev->csi_host_idx * 0x100;
-		} else if (dev->chip_id == CHIP_RV1106_CIF) {
+		} else if (dev->chip_id == CHIP_RV1106_CIF ||
+			   dev->chip_id == CHIP_RV1103B_CIF) {
 			csi_offset = dev->csi_host_idx * 0x200;
 		} else if (dev->chip_id == CHIP_RK3562_CIF) {
 			if (dev->csi_host_idx < 3)
@@ -1156,6 +1234,8 @@ unsigned int rkcif_read_register(struct rkcif_device *dev,
 				csi_offset = dev->csi_host_idx * 0x200;
 			else
 				csi_offset = 0x100 + dev->csi_host_idx * 0x100;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			csi_offset = dev->csi_host_idx * 0x200;
 		}
 	}
 
@@ -1179,8 +1259,12 @@ void rkcif_write_grf_reg(struct rkcif_device *dev,
 
 	if (index < CIF_REG_INDEX_MAX) {
 		if (index > CIF_REG_DVP_CTRL) {
-			if (!IS_ERR(cif_hw->grf))
+			if (!IS_ERR(cif_hw->grf)) {
 				regmap_write(cif_hw->grf, reg->offset, val);
+				v4l2_dbg(4, rkcif_debug, &dev->v4l2_dev,
+					 "write grf reg[0x%x]:0x%x!!!\n",
+					 reg->offset, val);
+			}
 		} else {
 			v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev,
 				 "write reg[%d]:0x%x failed, maybe useless!!!\n",
@@ -1246,6 +1330,15 @@ void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on)
 			else
 				val = RK3568_CIF_PCLK_SINGLE_EDGE;
 			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			if (on)
+				val = RK3568_CIF_PCLK_DUAL_EDGE;
+			else
+				val = RK3568_CIF_PCLK_SINGLE_EDGE;
+			if (dev->dvp_pin_group == 0)
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+			else
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
 		}
 	}
 
@@ -1294,6 +1387,16 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 				val = RK3576_CIF_PCLK_SAMPLING_EDGE_RISING;
 			else
 				val = RK3576_CIF_PCLK_SAMPLING_EDGE_FALLING;
+		} else if (dev->chip_id == CHIP_RV1126B_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = RV1126B_CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = RV1126B_CIF_PCLK_SAMPLING_EDGE_FALLING;
+			if (dev->dvp_pin_group == 0)
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+			else
+				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON1, val);
+			return;
 		}
 		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 	}
@@ -1386,7 +1489,7 @@ static int rkcif_pipeline_close(struct rkcif_pipeline *p)
 	return 0;
 }
 
-static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
+void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 {
 	struct rkcif_hw *hw = cif_dev->hw_dev;
 	struct rkcif_device *dev = NULL;
@@ -1408,7 +1511,8 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 	}
 
 	if (sync_config->mode == RKCIF_MASTER_MASTER ||
-	    sync_config->mode == RKCIF_MASTER_SLAVE) {
+	    sync_config->mode == RKCIF_MASTER_SLAVE ||
+	    sync_config->mode == RKCIF_SOFT_SYNC) {
 		for (i = 0; i < sync_config->slave.count; i++) {
 			dev = sync_config->slave.cif_dev[i];
 			is_streaming = sync_config->slave.is_streaming[i];
@@ -1488,6 +1592,32 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 				 "quick stream in sync mode, int_master_dev[%d]\n", i);
 		}
+		for (i = 0; i < sync_config->soft_sync.count; i++) {
+			dev = sync_config->soft_sync.cif_dev[i];
+			is_streaming = sync_config->soft_sync.is_streaming[i];
+			if (!is_streaming) {
+				if (dev->sditf_cnt == 1) {
+					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+							       RKMODULE_SET_QUICK_STREAM, &on);
+					if (ret)
+						dev_info(hw->dev,
+							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+				} else {
+					for (j = 0; j < dev->sditf_cnt; j++)
+						ret |= v4l2_subdev_call(dev->sditf[j]->sensor_sd,
+									core,
+									ioctl,
+									RKMODULE_SET_QUICK_STREAM,
+									&on);
+					if (ret)
+						dev_info(dev->dev,
+							 "set RKMODULE_SET_QUICK_STREAM failed\n");
+				}
+				sync_config->soft_sync.is_streaming[i] = true;
+			}
+			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+				 "quick stream in sync mode, soft_sync[%d]\n", i);
+		}
 	}
 	mutex_unlock(&hw->dev_lock);
 }
@@ -1552,9 +1682,12 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->reset_watchdog_timer.is_running = false;
 				cif_dev->err_state_work.last_timestamp = 0;
 				cif_dev->is_toisp_reset = false;
+				atomic_set(&cif_dev->sensor_off, 0);
 				for (i = 0; i < cif_dev->num_channels; i++)
 					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 				cif_dev->reset_watchdog_timer.run_cnt = 0;
+			} else {
+				atomic_set(&cif_dev->sensor_off, 1);
 			}
 
 			/* phy -> sensor */
@@ -1609,6 +1742,9 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			for (i = 0; i < cif_dev->num_channels; i++)
 				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
+			atomic_set(&cif_dev->sensor_off, 0);
+		} else {
+			atomic_set(&cif_dev->sensor_off, 1);
 		}
 
 		/* phy -> sensor */
@@ -1623,6 +1759,8 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			} else {
 				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 			}
+			if (on && i == 0 && cif_dev->is_thunderboot && cif_dev->pre_buf_num)
+				rkcif_set_sof(cif_dev, cif_dev->pre_buf_num);
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
@@ -1694,6 +1832,9 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				for (i = 0; i < cif_dev->num_channels; i++)
 					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 				cif_dev->reset_watchdog_timer.run_cnt = 0;
+				atomic_set(&cif_dev->sensor_off, 0);
+			} else {
+				atomic_set(&cif_dev->sensor_off, 1);
 			}
 
 			/* phy -> sensor */
@@ -1750,12 +1891,14 @@ static int rkcif_create_link(struct rkcif_device *dev,
 	u32 flags, pad, id;
 	int pad_offset = 0;
 
-	if (dev->chip_id >= CHIP_RK3588_CIF)
+	if (dev->chip_id >= CHIP_RK3588_CIF &&
+	    dev->chip_id != CHIP_RV1103B_CIF)
 		pad_offset = 4;
 
 	linked_sensor.lanes = sensor->lanes;
 
-	if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+	if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+	    dev->chip_id < CHIP_RV1106_CIF) {
 		linked_sensor.sd = &dev->lvds_subdev.sd;
 		dev->lvds_subdev.sensor_self.sd = &dev->lvds_subdev.sd;
 		dev->lvds_subdev.sensor_self.lanes = sensor->lanes;
@@ -1835,7 +1978,8 @@ static int rkcif_create_link(struct rkcif_device *dev,
 					break;
 				}
 			}
-			if (dev->chip_id >= CHIP_RK3588_CIF) {
+			if (dev->chip_id >= CHIP_RK3588_CIF &&
+			    dev->chip_id != CHIP_RV1103B_CIF) {
 				for (id = 0; id < stream_num; id++) {
 					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->scale_vdev[id].vnode.vdev.entity;
@@ -1884,7 +2028,8 @@ static int rkcif_create_link(struct rkcif_device *dev,
 		}
 	}
 
-	if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+	if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+	    dev->chip_id < CHIP_RV1106_CIF) {
 		source_entity = &sensor->sd->entity;
 		sink_entity = &linked_sensor.sd->entity;
 		ret = media_create_pad_link(source_entity,
@@ -2000,7 +2145,8 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 			sensor->lanes = sensor->mbus.bus.mipi_csi1.data_lane;
 		}
 
-		if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+		if (sensor->mbus.type == V4L2_MBUS_CCP2 &&
+		    dev->chip_id < CHIP_RV1106_CIF) {
 			ret = rkcif_register_lvds_subdev(dev);
 			if (ret < 0) {
 				v4l2_err(&dev->v4l2_dev,
@@ -2167,7 +2313,8 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 		return -EINVAL;
 	}
 
-	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF &&
+	    cif_dev->chip_id != CHIP_RV1103B_CIF) {
 		ret = rkcif_register_scale_vdevs(cif_dev, RKCIF_MAX_SCALE_CH, true);
 
 		if (ret < 0) {
@@ -2200,7 +2347,8 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 	return 0;
 err_unreg_stream_vdev:
 	rkcif_unregister_stream_vdevs(cif_dev, stream_num);
-	if (cif_dev->chip_id >= CHIP_RK3588_CIF)
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF &&
+	    cif_dev->chip_id != CHIP_RV1103B_CIF)
 		rkcif_unregister_scale_vdevs(cif_dev, RKCIF_MAX_SCALE_CH);
 
 	if (cif_dev->chip_id > CHIP_RK1808_CIF)
@@ -2360,7 +2508,7 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
 }
 
-void rkcif_set_sensor_stream(struct work_struct *work)
+static void rkcif_set_sensor_stream(struct work_struct *work)
 {
 	struct rkcif_sensor_work *sensor_work = container_of(work,
 						struct rkcif_sensor_work,
@@ -2369,10 +2517,16 @@ void rkcif_set_sensor_stream(struct work_struct *work)
 						    struct rkcif_device,
 						    sensor_work);
 
-	v4l2_subdev_call(cif_dev->terminal_sensor.sd,
-			core, ioctl,
-			RKMODULE_SET_QUICK_STREAM,
-			&sensor_work->on);
+	mutex_lock(&cif_dev->stream_lock);
+	if ((atomic_read(&cif_dev->sensor_off) && sensor_work->on == 0) ||
+	    (!atomic_read(&cif_dev->sensor_off) && sensor_work->on == 1)) {
+		v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				core, ioctl,
+				RKMODULE_SET_QUICK_STREAM,
+				&sensor_work->on);
+	}
+	mutex_unlock(&cif_dev->stream_lock);
+
 }
 
 static void rkcif_deal_err_intr(struct work_struct *work)
@@ -2716,16 +2870,19 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	spin_lock_init(&cif_dev->buffree_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.timer_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.csi2_err_lock);
+	spin_lock_init(&cif_dev->stream_spinlock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->power_cnt, 0);
 	atomic_set(&cif_dev->streamoff_cnt, 0);
+	atomic_set(&cif_dev->sensor_off, 1);
+	atomic_set(&cif_dev->sd_power_cnt, 0);
 	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 	cif_dev->isr_hdl = rkcif_irq_handler;
-	cif_dev->id_use_cnt = 0;
+	atomic_set(&cif_dev->id_use_cnt, 0);
 	memset(&cif_dev->sync_cfg, 0, sizeof(cif_dev->sync_cfg));
 	cif_dev->sditf_cnt = 0;
 	cif_dev->is_notifier_isp = false;
@@ -2734,8 +2891,12 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->is_thunderboot = false;
 	cif_dev->rdbk_debug = 0;
 	cif_dev->is_stop_skip = false;
-	cif_dev->is_sensor_off = false;
 	cif_dev->exp_dbg = 0;
+	cif_dev->is_thunderboot_start = false;
+	cif_dev->is_in_flip = false;
+	cif_dev->sw_reg = devm_kzalloc(cif_dev->dev, RKCIF_REG_MAX, GFP_KERNEL);
+	cif_dev->reg_dbg = 0;
+	cif_dev->is_support_get_exp = false;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
@@ -2746,6 +2907,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
 	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
 	INIT_WORK(&cif_dev->exp_work, rkcif_exp_work);
+	INIT_DELAYED_WORK(&cif_dev->work_flip, rkcif_flip_end_wait_work);
 	cif_dev->exp_delay.time_delay = 2;
 	cif_dev->exp_delay.gain_delay = 2;
 	cif_dev->is_alloc_buf_user = false;
@@ -2774,7 +2936,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 		rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID3);
 	}
 
-	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF &&
+	    cif_dev->chip_id != CHIP_RV1103B_CIF) {
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH0);
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH1);
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH2);
@@ -2802,7 +2965,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	if (cif_dev->chip_id == CHIP_RV1106_CIF)
 		cif_dev->is_use_dummybuf = false;
 
-	strlcpy(cif_dev->media_dev.model, dev_name(dev),
+	strscpy(cif_dev->media_dev.model, dev_name(dev),
 		sizeof(cif_dev->media_dev.model));
 	cif_dev->csi_host_idx = of_alias_get_id(node, "rkcif_mipi_lvds");
 	if (cif_dev->csi_host_idx < 0 || cif_dev->csi_host_idx > 5)
@@ -2823,7 +2986,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->media_dev.dev = dev;
 	v4l2_dev = &cif_dev->v4l2_dev;
 	v4l2_dev->mdev = &cif_dev->media_dev;
-	strlcpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
 
 	ret = v4l2_device_register(cif_dev->dev, &cif_dev->v4l2_dev);
 	if (ret < 0)
@@ -2851,6 +3014,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	list_add_tail(&cif_dev->list, &rkcif_device_list);
 	mutex_unlock(&rkcif_dev_mutex);
 
+	cif_dev->pre_buf_num = 0;
 	return 0;
 
 err_unreg_media_dev:
@@ -2884,8 +3048,7 @@ int rkcif_plat_uninit(struct rkcif_device *cif_dev)
 	}
 	rkcif_unregister_stream_vdevs(cif_dev, stream_num);
 
-	if (cif_dev->chip_id == CHIP_RV1106_CIF)
-		rkcif_rockit_dev_deinit();
+	rkcif_rockit_dev_deinit();
 	return 0;
 }
 
@@ -2909,6 +3072,45 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{},
 };
 
+static void rkcif_parse_pins_group(struct rkcif_device *cif_dev)
+{
+	struct device_node *np = cif_dev->dev->of_node;
+	int ret = 0;
+
+	ret = of_property_read_u32(np,
+			     OF_CIF_PINS_GROUP,
+			     &cif_dev->dvp_pin_group);
+	if (ret != 0)
+		cif_dev->dvp_pin_group = 0;
+	if (cif_dev->chip_id == CHIP_RV1126B_CIF &&
+	    cif_dev->dvp_pin_group > 1) {
+		dev_err(cif_dev->dev, "rkcif get pins group failed %d\n", cif_dev->dvp_pin_group);
+		return;
+	}
+	dev_info(cif_dev->dev, "rkcif pins used group %d\n", cif_dev->dvp_pin_group);
+}
+
+static void rkcif_parse_switch_info(struct rkcif_device *cif_dev)
+{
+	int ret = 0;
+	struct device_node *node = cif_dev->dev->of_node;
+
+	memset(&cif_dev->switch_info, 0, sizeof(cif_dev->switch_info));
+	ret = of_property_read_u32(node,
+				   OF_CIF_SWITCH_HOST_IDX,
+				   &cif_dev->switch_info.host_idx);
+	if (ret == 0) {
+		cif_dev->switch_info.is_use_switch = true;
+		cif_dev->switch_info.gpio_pin = devm_gpiod_get(cif_dev->dev, "switch", GPIOD_OUT_LOW);
+		if (IS_ERR(cif_dev->switch_info.gpio_pin))
+			dev_err(cif_dev->dev, "get switch gpio failed\n");
+		ret = of_property_read_u32(node,
+					   OF_CIF_SWITCH_GPIO_VAL,
+					   &cif_dev->switch_info.gpio_val);
+		dev_info(cif_dev->dev, "switch gpio val %d\n", cif_dev->switch_info.gpio_val);
+	}
+}
+
 static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 {
 	int ret = 0;
@@ -2930,6 +3132,13 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 		cif_dev->is_camera_over_bridge = true;
 	else
 		cif_dev->is_camera_over_bridge = false;
+	rkcif_parse_pins_group(cif_dev);
+	rkcif_parse_switch_info(cif_dev);
+	if (device_property_read_bool(cif_dev->dev, "no-detect-group-sync"))
+		cif_dev->is_detect_group_sync = false;
+	else
+		cif_dev->is_detect_group_sync = true;
+	dev_err(cif_dev->dev, "rkcif is_detect_group_sync %d\n", cif_dev->is_detect_group_sync);
 }
 
 static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
@@ -3024,8 +3233,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
 	rkcif_init_reset_monitor(cif_dev);
-	if (cif_dev->chip_id == CHIP_RV1106_CIF)
-		rkcif_rockit_dev_init(cif_dev);
+	rkcif_rockit_dev_init(cif_dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -3085,7 +3293,8 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
-	rkcif_do_soft_reset(cif_dev);
+	if (cif_dev->chip_id >= CHIP_RK3588_CIF)
+		rkcif_do_soft_reset(cif_dev);
 	return (ret > 0) ? 0 : ret;
 }
 

@@ -608,7 +608,7 @@ static int pt_hid_exec_cmd_(struct pt_core_data *cd,
  *	*cd   - pointer to core data
  *	 type - type of err that occured
  ******************************************************************************/
-void pt_toggle_err_gpio(struct pt_core_data *cd, u8 type)
+static void pt_toggle_err_gpio(struct pt_core_data *cd, u8 type)
 {
 	pt_debug(cd->dev, DL_DEBUG, "%s called with type = %d\n",
 		__func__, type);
@@ -631,7 +631,7 @@ void pt_toggle_err_gpio(struct pt_core_data *cd, u8 type)
  *	*cd   - pointer to core data
  *	 type - type of err that occured
  ******************************************************************************/
-void _pt_request_toggle_err_gpio(struct device *dev, u8 type)
+static void _pt_request_toggle_err_gpio(struct device *dev, u8 type)
 {
 	struct pt_core_data *cd = dev_get_drvdata(dev);
 
@@ -6664,7 +6664,7 @@ static int pt_pip2_get_version(struct pt_core_data *cd)
  *	*pip_version_major - pointer to store PIP major version
  *	*pip_version_minor - pointer to store PIP minor version
  ******************************************************************************/
-int _pt_request_active_pip_protocol(struct device *dev, int protect,
+static int _pt_request_active_pip_protocol(struct device *dev, int protect,
 	u8 *pip_version_major, u8 *pip_version_minor)
 {
 	struct pt_core_data *cd = dev_get_drvdata(dev);
@@ -6722,7 +6722,6 @@ skip_pip2_command:
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(_pt_request_active_pip_protocol);
 
 /*******************************************************************************
  * FUNCTION: _pt_detect_dut_generation
@@ -9061,7 +9060,7 @@ exit:
  *	*status_str - pointer to optional status string buffer
  *	 buf_size   - size of status_str buffer
  ******************************************************************************/
-int pt_pip2_exit_bl_(struct pt_core_data *cd, u8 *status_str, int buf_size)
+static int pt_pip2_exit_bl_(struct pt_core_data *cd, u8 *status_str, int buf_size)
 {
 	int rc;
 	int wait_time = 0;
@@ -9183,6 +9182,7 @@ exit:
 	return rc;
 }
 
+#if 0
 /*******************************************************************************
  * FUNCTION: pt_pip2_exit_bl
  *
@@ -9198,7 +9198,7 @@ exit:
  *	*status_str - pointer to optional status string buffer
  *	 buf_size   - size of status_str buffer
  ******************************************************************************/
-int pt_pip2_exit_bl(struct pt_core_data *cd, u8 *status_str, int buf_size)
+static int pt_pip2_exit_bl(struct pt_core_data *cd, u8 *status_str, int buf_size)
 {
 	int rc;
 
@@ -9218,6 +9218,7 @@ int pt_pip2_exit_bl(struct pt_core_data *cd, u8 *status_str, int buf_size)
 
 	return rc;
 }
+#endif
 
 /*******************************************************************************
  * FUNCTION: _fast_startup
@@ -10620,7 +10621,7 @@ EXPORT_SYMBOL_GPL(pt_pm_ops);
  *	              starts
  *	*result     - pointer to store the result when to enter BL
  ******************************************************************************/
-int _pt_request_pip2_enter_bl(struct device *dev, u8 *start_mode, int *result)
+static int _pt_request_pip2_enter_bl(struct device *dev, u8 *start_mode, int *result)
 {
 	int rc = 0;
 	int t;
@@ -10869,7 +10870,7 @@ exit:
  *	*dev     - pointer to device structure
  *	 file_no - PIP2 file number to open
  ******************************************************************************/
-int _pt_pip2_file_open(struct device *dev, u8 file_no)
+static int _pt_pip2_file_open(struct device *dev, u8 file_no)
 {
 	int ret = 0;
 	u16 status;
@@ -10917,7 +10918,7 @@ int _pt_pip2_file_open(struct device *dev, u8 file_no)
  *	*dev         - pointer to device structure
  *	 file_handle - handle to the file to be closed
  ******************************************************************************/
-int _pt_pip2_file_close(struct device *dev, u8 file_handle)
+static int _pt_pip2_file_close(struct device *dev, u8 file_handle)
 {
 	int ret = 0;
 	u16 status;
@@ -10965,7 +10966,7 @@ int _pt_pip2_file_close(struct device *dev, u8 file_handle)
  *	 file_handle - handle to the file to be erased
  *	 *status     - PIP2 erase status code
  ******************************************************************************/
-int _pt_pip2_file_erase(struct device *dev, u8 file_handle, int *status)
+static int _pt_pip2_file_erase(struct device *dev, u8 file_handle, int *status)
 {
 	int ret = 0;
 	int max_retry = PT_PIP2_MAX_FILE_SIZE/PT_PIP2_FILE_SECTOR_SIZE;
@@ -11036,7 +11037,7 @@ int _pt_pip2_file_erase(struct device *dev, u8 file_handle, int *status)
  *	 file_handle - File handle to read from
  *	 num_bytes   - number of bytes to read
  ******************************************************************************/
-int _pt_pip2_file_read(struct device *dev, u8 file_handle, u16 num_bytes,
+static int _pt_pip2_file_read(struct device *dev, u8 file_handle, u16 num_bytes,
 	u8 *read_buf)
 {
 	int ret = 0;
@@ -11078,7 +11079,7 @@ int _pt_pip2_file_read(struct device *dev, u8 file_handle, u16 num_bytes,
  *      *buf       - pointer to the buffer to store the file contents
  *      *size      - pointer to the size of the file
  ******************************************************************************/
-int _pt_read_us_file(struct device *dev, u8 *file_path, u8 *buf, int *size)
+static int _pt_read_us_file(struct device *dev, u8 *file_path, u8 *buf, int *size)
 {
 	struct file *filp = NULL;
 	struct inode *inode = NULL;
@@ -11171,7 +11172,7 @@ err:
  * PARAMETERS:
  *	*dev - pointer to device structure
  ******************************************************************************/
-int _pt_request_pip2_bin_hdr(struct device *dev, struct pt_bin_file_hdr *hdr)
+static int _pt_request_pip2_bin_hdr(struct device *dev, struct pt_bin_file_hdr *hdr)
 {
 	struct pt_core_data *cd = dev_get_drvdata(dev);
 	u8  file_handle;
@@ -11309,7 +11310,7 @@ exit:
  *	*address     - pointer to store address of file
  *	*file_size   _ pointer to store size of file
  ******************************************************************************/
-int _pt_pip2_file_get_stats(struct device *dev, u8 file_handle, u32 *address,
+static int _pt_pip2_file_get_stats(struct device *dev, u8 file_handle, u32 *address,
 	u32 *file_size)
 {
 	int ret = 1;
@@ -11378,7 +11379,7 @@ exit:
  *	 read_offset  - read offset of file
  *	 write_offset - write offset of file
  ******************************************************************************/
-int _pt_pip2_file_seek_offset(struct device *dev, u8 file_handle,
+static int _pt_pip2_file_seek_offset(struct device *dev, u8 file_handle,
 	u32 read_offset, u32 write_offset)
 {
 	int ret = 1;
@@ -11433,7 +11434,7 @@ int _pt_pip2_file_seek_offset(struct device *dev, u8 file_handle,
  *	 length       - number of bytes to calculate CRC over
  *   read_buf     - pointer to the read buffer
  ******************************************************************************/
-int _pt_pip2_file_crc(struct device *dev, u8 file_handle,
+static int _pt_pip2_file_crc(struct device *dev, u8 file_handle,
 	u32 offset, u32 length, u8 *read_buf)
 {
 	int rc = 1;
@@ -11481,7 +11482,7 @@ int _pt_pip2_file_crc(struct device *dev, u8 file_handle,
  *      *attr - pointer to device attributes
  *      *buf  - pointer to output buffer
  ******************************************************************************/
-int pt_pip2_ping_test(struct device *dev, int max_bytes, int *last_packet_size)
+static int pt_pip2_ping_test(struct device *dev, int max_bytes, int *last_packet_size)
 {
 	u16 actual_read_len;
 	u8 *read_buf = NULL;

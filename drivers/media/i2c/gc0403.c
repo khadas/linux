@@ -2,7 +2,7 @@
 /*
  * gc0403 driver
  *
- * Copyright (C) 2019 Fuzhou Rockchip Electronics Co.,Ltd.
+ * Copyright (C) 2019 Rockchip Electronics Co., Ltd.
  * V0.0X01.0X02 add enum_frame_interval function.
  * V0.0X01.0X03 add quick stream on/off
  * V0.0X01.0X04 add function g_mbus_config
@@ -623,10 +623,10 @@ static void gc0403_get_module_inf(struct gc0403 *gc0403,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, GC0403_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc0403->module_name,
+	strscpy(inf->base.sensor, GC0403_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc0403->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc0403->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc0403->len_name, sizeof(inf->base.lens));
 }
 
 static long gc0403_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

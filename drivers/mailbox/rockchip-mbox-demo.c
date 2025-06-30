@@ -2,7 +2,7 @@
 /*
  * Rockchip MBOX Demo.
  *
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Jiahang Zheng <jiahang.zheng@rock-chips.com>
  */
 

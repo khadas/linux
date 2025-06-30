@@ -1163,7 +1163,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	stream->linked = true;
 	switch (id) {
 	case RKISP_STREAM_SP:
-		strlcpy(vdev->name, SP_VDEV_NAME,
+		strscpy(vdev->name, SP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_sp_streams_ops;
 		stream->config = &rkisp_sp_stream_config;
@@ -1171,7 +1171,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
 		break;
 	default:
-		strlcpy(vdev->name, MP_VDEV_NAME,
+		strscpy(vdev->name, MP_VDEV_NAME,
 			sizeof(vdev->name));
 		stream->ops = &rkisp_mp_streams_ops;
 		stream->config = &rkisp_mp_stream_config;

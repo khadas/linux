@@ -2603,6 +2603,9 @@ static const struct panel_desc innolux_g121x1_l03 = {
 		.unprepare = 200,
 		.disable = 400,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode innolux_n156bge_l21_mode = {
@@ -2685,6 +2688,7 @@ static const struct display_timing koe_tx26d202vm0bwa_timing = {
 	.vfront_porch = { 3, 5, 10 },
 	.vback_porch = { 2, 5, 10 },
 	.vsync_len = { 5, 5, 5 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
 static const struct panel_desc koe_tx26d202vm0bwa = {
@@ -4251,6 +4255,7 @@ static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "simple-panel",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "ampire,am-1280800n3tzqw-t00h",
 		.data = &ampire_am_1280800n3tzqw_t00h,
@@ -4641,6 +4646,7 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "yes-optoelectronics,ytc700tlag-05-201c",
 		.data = &yes_optoelectronics_ytc700tlag_05_201c,
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* Must be the last entry */
 		.compatible = "panel-dpi",
@@ -5020,6 +5026,7 @@ static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "simple-panel-dsi",
 		.data = NULL,
+#ifndef CONFIG_DRM_PANEL_SIMPLE_OF_ONLY
 	}, {
 		.compatible = "auo,b080uan01",
 		.data = &auo_b080uan01
@@ -5041,6 +5048,7 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "osddisplays,osd101t2045-53ts",
 		.data = &osd101t2045_53ts
+#endif /* !CONFIG_DRM_PANEL_SIMPLE_OF_ONLY */
 	}, {
 		/* sentinel */
 	}
@@ -5308,7 +5316,11 @@ err_did_platform_register:
 
 	return err;
 }
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+rootfs_initcall(panel_simple_init);
+#else
 module_init(panel_simple_init);
+#endif
 
 static void __exit panel_simple_exit(void)
 {

@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -28,10 +29,23 @@
 #define MCLK_I2S_REFERENCE_DIV		4
 #define I2S_MCLK_FS			64
 
+#define RV1126B_PMU_GRF_SOC_CON0	0x30008
+#define RV1126B_ADC_CLK_IF_SEL		7
+#define RV1126B_SYS_GRF_AUDIO_CON0	0x40
+#define RV1126B_ADC_SDI0_IF_SEL		7
+#define RV1126B_ADC_SDI1_IF_SEL		11
+
+struct rk3506_codec_soc_data {
+	int (*init)(struct device *dev);
+	void (*deinit)(struct device *dev);
+};
+
 struct rk3506_codec_priv {
+	const struct rk3506_codec_soc_data *data;
 	const struct device *plat_dev;
 	struct reset_control *reset;
 	struct regmap *regmap;
+	struct regmap *grf;
 	struct clk *pclk;
 	struct clk *mclk;
 	struct snd_soc_component *component;
@@ -211,6 +225,9 @@ static int rk3506_hw_params(struct snd_pcm_substream *substream,
 	unsigned int width, rate;
 	int ratio;
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
 	if ((params_rate(params) % 12000) == 0) {
 		clk_set_rate(rk3506->mclk, MCLK_REFERENCE_12000);
 		ratio = MCLK_REFERENCE_12000 / MCLK_I2S_REFERENCE_DIV /
@@ -282,6 +299,9 @@ static void rk3506_pcm_shutdown(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct rk3506_codec_priv *rk3506 = snd_soc_component_get_drvdata(component);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return;
 
 	rk3506_codec_capture_off(component);
 	regcache_cache_only(rk3506->regmap, false);
@@ -455,8 +475,47 @@ static const struct regmap_config rk3506_codec_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static int rv1126b_soc_init(struct device *dev)
+{
+	struct rk3506_codec_priv *rc = dev_get_drvdata(dev);
+	struct device_node *node = dev->of_node;
+
+	rc->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	if (IS_ERR(rc->grf))
+		return PTR_ERR(rc->grf);
+
+	/* enable internal codec to sai2 */
+	regmap_write(rc->grf, RV1126B_PMU_GRF_SOC_CON0,
+		     BIT(RV1126B_ADC_CLK_IF_SEL) << 16);
+	regmap_write(rc->grf, RV1126B_SYS_GRF_AUDIO_CON0,
+		     BIT(RV1126B_ADC_SDI0_IF_SEL) << 16 |
+		     BIT(RV1126B_ADC_SDI1_IF_SEL) << 16 |
+		     BIT(RV1126B_ADC_SDI0_IF_SEL) |
+		     BIT(RV1126B_ADC_SDI1_IF_SEL));
+
+	return 0;
+}
+
+static void rv1126b_soc_deinit(struct device *dev)
+{
+	struct rk3506_codec_priv *rc = dev_get_drvdata(dev);
+
+	regmap_write(rc->grf, RV1126B_PMU_GRF_SOC_CON0,
+		     BIT(RV1126B_ADC_CLK_IF_SEL) << 16 |
+		     BIT(RV1126B_ADC_CLK_IF_SEL));
+	regmap_write(rc->grf, RV1126B_SYS_GRF_AUDIO_CON0,
+		     BIT(RV1126B_ADC_SDI0_IF_SEL) << 16 |
+		     BIT(RV1126B_ADC_SDI1_IF_SEL) << 16);
+}
+
+static const struct rk3506_codec_soc_data rv1126b_data = {
+	.init = rv1126b_soc_init,
+	.deinit = rv1126b_soc_deinit,
+};
+
 static const struct of_device_id rk3506_codec_of_match[] = {
 	{ .compatible = "rockchip,rk3506-codec", },
+	{ .compatible = "rockchip,rv1126b-codec", .data = &rv1126b_data},
 	{},
 };
 
@@ -519,15 +578,25 @@ static int rk3506_platform_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, rk3506);
+	rk3506->data = device_get_match_data(&pdev->dev);
+	if (rk3506->data && rk3506->data->init) {
+		ret = rk3506->data->init(&pdev->dev);
+		if (ret)
+			goto failed;
+	}
+
 	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_rk3506,
 					      rk3506_dai, ARRAY_SIZE(rk3506_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		goto failed;
+		goto deinit;
 	}
 
 	return ret;
 
+deinit:
+	if (rk3506->data && rk3506->data->deinit)
+		rk3506->data->deinit(&pdev->dev);
 failed:
 	clk_disable_unprepare(rk3506->mclk);
 failed_1:
@@ -540,6 +609,9 @@ static int rk3506_platform_remove(struct platform_device *pdev)
 {
 	struct rk3506_codec_priv *rk3506 =
 		(struct rk3506_codec_priv *)platform_get_drvdata(pdev);
+
+	if (rk3506->data && rk3506->data->deinit)
+		rk3506->data->deinit(&pdev->dev);
 
 	clk_disable_unprepare(rk3506->mclk);
 	clk_disable_unprepare(rk3506->pclk);

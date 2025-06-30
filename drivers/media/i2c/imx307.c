@@ -1313,10 +1313,10 @@ static void imx307_get_module_inf(struct imx307 *imx307,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX307_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx307->module_name,
+	strscpy(inf->base.sensor, IMX307_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx307->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx307->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx307->len_name, sizeof(inf->base.lens));
 }
 
 static int imx307_set_conversion_gain(struct imx307 *imx307, u32 *cg)

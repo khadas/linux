@@ -1,7 +1,7 @@
 /*
  * rk virtual tsadc driver
  *
- * Copyright (C) 2017 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  * Author: Rocky Hao <rocky.hao@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify it

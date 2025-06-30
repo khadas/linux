@@ -2163,9 +2163,10 @@ static void rkisp1_params_first_cfg_v1x(struct rkisp_isp_params_vdev *params_vde
 		(struct rkisp_isp_params_v1x_ops *)params_vdev->priv_ops;
 	struct cifisp_hst_config hst = hst_params_default_config;
 	struct device *dev = params_vdev->dev->dev;
+	unsigned long flags = 0;
 	int i;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 
 	ops->awb_meas_config(params_vdev, &awb_params_default_config);
 	ops->awb_meas_enable(params_vdev, &awb_params_default_config, true);
@@ -2218,7 +2219,7 @@ static void rkisp1_params_first_cfg_v1x(struct rkisp_isp_params_vdev *params_vde
 	__isp_isr_meas_config(params_vdev, params_vdev->isp1x_params);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp1x_params);
 
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void rkisp1_save_first_param_v1x(struct rkisp_isp_params_vdev *params_vdev, void *param)
@@ -2280,8 +2281,9 @@ static void rkisp1_params_isr_v1x(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_buffer *cur_buf = NULL;
 	unsigned int cur_frame_id =
 		atomic_read(&params_vdev->dev->isp_sdev.frm_sync_seq) - 1;
+	unsigned long flags = 0;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (!params_vdev->streamon)
 		goto unlock;
 
@@ -2313,7 +2315,7 @@ static void rkisp1_params_isr_v1x(struct rkisp_isp_params_vdev *params_vdev,
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 unlock:
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {

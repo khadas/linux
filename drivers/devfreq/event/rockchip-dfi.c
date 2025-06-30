@@ -56,6 +56,9 @@
 #define RK3528_PMUGRF_OS_REG18		0x248
 #define RK3528_PMUGRF_OS_REG19		0x24c
 
+#define RV1126B_PMUGRF_OS_REG2		(0x208 + 0x30000)
+#define RV1126B_PMUGRF_OS_REG3		(0x20c + 0x30000)
+
 #define MAX_DMC_NUM_CH			4
 #define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
 #define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
@@ -78,8 +81,10 @@
 #define TIME_CNT_EN			(0x10001 << 0)
 
 /* DDRMON_CTRL1 */
+#define DDRMON_CTRL1			0x08
 #define LPDDR5_BANK_MODE_CTRL1(m)	((0x30000 | ((m) & 0x3)) << 1)
 #define LPDDR5_EN_CTRL1			(0x10001 << 0)
+#define PART_CLK_GATE_EN		((0x7 << (16 + 4)) | (0x7 << 4))
 
 #define DDRMON_CH0_COUNT_NUM		0x28
 #define DDRMON_CH0_DFI_ACCESS_NUM	0x2c
@@ -121,7 +126,7 @@ struct rockchip_dfi {
 	struct regmap *regmap_pmu;
 	struct regmap *regmap_grf;
 	struct regmap *regmap_pmugrf;
-	struct clk *clk;
+	struct clk *clk[MAX_DMC_NUM_CH];
 	u32 dram_type;
 	u32 mon_version;
 	u32 mon_idx;
@@ -506,34 +511,69 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 	return busier_ch;
 }
 
+static int rockchip_dfi_clk_enable(struct rockchip_dfi *info)
+{
+	u32 i;
+	int ret;
+
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (!(info->ch_msk & BIT(i)))
+			continue;
+		if (info->clk[i]) {
+			ret = clk_prepare_enable(info->clk[i]);
+			if (ret) {
+				dev_err(info->dev, "failed to enable ch%d dfi clk: %d\n",
+					i, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int rockchip_dfi_clk_disable(struct rockchip_dfi *info)
+{
+	u32 i;
+
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (!(info->ch_msk & BIT(i)))
+			continue;
+		if (info->clk[i])
+			clk_disable_unprepare(info->clk[i]);
+	}
+
+	return 0;
+}
 static int rockchip_dfi_disable(struct devfreq_event_dev *edev)
 {
+	int ret;
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 
+	ret = rockchip_dfi_clk_enable(info);
+	if (ret)
+		return ret;
+
 	rockchip_dfi_stop_hardware_counter(edev);
-	if (info->clk)
-		clk_disable_unprepare(info->clk);
+	rockchip_dfi_clk_disable(info);
 
 	return 0;
 }
 
 static int rockchip_dfi_enable(struct devfreq_event_dev *edev)
 {
-	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	int ret;
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 
-	if (info->clk) {
-		ret = clk_prepare_enable(info->clk);
-		if (ret) {
-			dev_err(&edev->dev, "failed to enable dfi clk: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	ret = rockchip_dfi_clk_enable(info);
+	if (ret)
+		return ret;
 
 	rockchip_dfi_get_mon_version(edev);
 
 	rockchip_dfi_start_hardware_counter(edev);
+	rockchip_dfi_clk_disable(info);
+
 	return 0;
 }
 
@@ -548,10 +588,17 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	int busier_ch;
 	unsigned long flags;
+	int ret;
+
+	ret = rockchip_dfi_clk_enable(info);
+	if (ret)
+		return ret;
 
 	local_irq_save(flags);
 	busier_ch = rockchip_dfi_get_busier_ch(edev);
 	local_irq_restore(flags);
+
+	rockchip_dfi_clk_disable(info);
 
 	edata->load_count = info->ch_usage[busier_ch].access;
 	edata->total_count = info->ch_usage[busier_ch].total;
@@ -572,7 +619,8 @@ static __maybe_unused __init int rk3588_dfi_init(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
-	u32 val_2, val_3, val_4;
+	u32 val_2, val_3, val_4, i;
+	char clk_name[20];
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -598,7 +646,17 @@ static __maybe_unused __init int rk3588_dfi_init(struct platform_device *pdev,
 		data->count_rate = 2;
 	data->dram_dynamic_info_reg = RK3588_PMUGRF_OS_REG(6);
 	data->ch_msk = READ_CH_INFO(val_2) | READ_CH_INFO(val_4) << 2;
-	data->clk = NULL;
+
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (data->ch_msk & BIT(i)) {
+			snprintf(clk_name, sizeof(clk_name), "pclk_ddr_mon_ch%d", i);
+			data->clk[i] = devm_clk_get(&pdev->dev, clk_name);
+			if (IS_ERR(data->clk[i])) {
+				dev_err(&pdev->dev, "Failed to get %s\n", clk_name);
+				return PTR_ERR(data->clk[i]);
+			}
+		}
+	}
 
 	desc->ops = &rockchip_dfi_ops;
 
@@ -647,7 +705,40 @@ static __maybe_unused __init int px30_dfi_init(struct platform_device *pdev,
 	else
 		data->dram_type = READ_DRAMTYPE_INFO(val_2);
 	data->ch_msk = 1;
-	data->clk = NULL;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
+static __maybe_unused __init int rv1126b_dfi_init(struct platform_device *pdev,
+						  struct rockchip_dfi *data,
+						  struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+	u32 val_2, val_3;
+
+	data->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	/* enable part pclk gate for power save in software mode */
+	regmap_write(data->regs, DDRMON_CTRL1, PART_CLK_GATE_EN);
+
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
+	if (node) {
+		data->regmap_pmugrf = syscon_node_to_regmap(node);
+		if (IS_ERR(data->regmap_pmugrf))
+			return PTR_ERR(data->regmap_pmugrf);
+	}
+
+	regmap_read(data->regmap_pmugrf, RV1126B_PMUGRF_OS_REG2, &val_2);
+	regmap_read(data->regmap_pmugrf, RV1126B_PMUGRF_OS_REG3, &val_3);
+	if (READ_SYSREG_VERSION(val_3) >= 0x3)
+		data->dram_type = READ_DRAMTYPE_INFO_V3(val_2, val_3);
+	else
+		data->dram_type = READ_DRAMTYPE_INFO(val_2);
+	data->ch_msk = 1;
 
 	desc->ops = &rockchip_dfi_ops;
 
@@ -739,9 +830,9 @@ static __maybe_unused __init int rockchip_dfi_init(struct platform_device *pdev,
 	if (IS_ERR(data->regs))
 		return PTR_ERR(data->regs);
 
-	data->clk = devm_clk_get(dev, "pclk_ddr_mon");
-	if (IS_ERR(data->clk))
-		return dev_err_probe(dev, PTR_ERR(data->clk),
+	data->clk[0] = devm_clk_get(dev, "pclk_ddr_mon");
+	if (IS_ERR(data->clk[0]))
+		return dev_err_probe(dev, PTR_ERR(data->clk[0]),
 				     "Cannot get the clk pclk_ddr_mon\n");
 
 	node = of_parse_phandle(np, "rockchip,pmu", 0);
@@ -785,7 +876,6 @@ static __maybe_unused __init int rk3328_dfi_init(struct platform_device *pdev,
 	regmap_read(data->regmap_grf, RK3328_GRF_OS_REG2, &val);
 	data->dram_type = READ_DRAMTYPE_INFO(val);
 	data->ch_msk = 1;
-	data->clk = NULL;
 
 	desc->ops = &rockchip_dfi_ops;
 
@@ -820,7 +910,6 @@ static __maybe_unused __init int rk3528_dfi_init(struct platform_device *pdev,
 		data->dram_type = READ_DRAMTYPE_INFO(val_18);
 	data->count_rate = 2;
 	data->ch_msk = 1;
-	data->clk = NULL;
 
 	desc->ops = &rockchip_dfi_ops;
 
@@ -866,6 +955,9 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 #endif
 #ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-dfi", .data = px30_dfi_init },
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{ .compatible = "rockchip,rv1126b-dfi", .data = rv1126b_dfi_init },
 #endif
 	{ },
 };

@@ -2,7 +2,7 @@
 /*
  * Rockchip USBDP Combo PHY with Samsung IP block driver
  *
- * Copyright (C) 2021 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/bitfield.h>

@@ -2,7 +2,7 @@
 /*
  * Rockchip Audio Delta-sigma Digital Converter driver
  *
- * Copyright (C) 2023 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2023 Rockchip Electronics Co., Ltd.
  *
  */
 
@@ -156,6 +156,7 @@
 #define DSM_I2S_CKR1_CKP_INVERTED		BIT(2)
 #define DSM_I2S_CKR1_CKP_NORMAL			0
 #define DSM_I2S_CKR1_MSS_MASK			BIT(3)
+#define DSM_I2S_CKR1_MSS_SLAVE			BIT(3)
 #define DSM_I2S_CKR1_MSS_MASTER			0
 /* I2S_XFER */
 #define DSM_I2S_XFER_RXS_MASK			BIT(1)

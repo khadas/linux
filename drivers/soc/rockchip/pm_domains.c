@@ -2,7 +2,7 @@
 /*
  * Rockchip Generic power domain support.
  *
- * Copyright (c) 2015 ROCKCHIP, Co. Ltd.
+ * Copyright (c) 2015 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>
@@ -27,6 +27,7 @@
 #include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/power/rockchip,rv1126-power.h>
+#include <dt-bindings/power/rockchip,rv1126b-power.h>
 #include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3066-power.h>
@@ -282,6 +283,22 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.keepon_startup = keepon,			\
 }
 
+#define DOMAIN_M_G(_name, pwr, status, req, idle, ack, g_mask, wakeup, keepon)	\
+{							\
+	.name = _name,					\
+	.pwr_w_mask = (pwr) << 16,			\
+	.pwr_mask = (pwr),				\
+	.status_mask = (status),			\
+	.req_w_mask = (req) << 16,			\
+	.req_mask = (req),				\
+	.idle_mask = (idle),				\
+	.ack_mask = (ack),				\
+	.clk_ungate_mask = (g_mask),			\
+	.clk_ungate_w_mask = (g_mask) << 16,		\
+	.active_wakeup = wakeup,			\
+	.keepon_startup = keepon,			\
+}
+
 #define DOMAIN_M_G_SD(_name, pwr, status, req, idle, ack, g_mask, mem, wakeup, keepon)	\
 {							\
 	.name = _name,					\
@@ -380,6 +397,9 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 
 #define DOMAIN_RV1126_O(name, pwr, req, idle, r_offset, wakeup)	\
 	DOMAIN_M_O(name, pwr, pwr, 0, req, idle, idle, r_offset, wakeup, false)
+
+#define DOMAIN_RV1126B(name, pwr, req, wakeup)			\
+	DOMAIN_M_G(name, pwr, pwr, req, req, req, req, wakeup, true)
 
 #define DOMAIN_RK3288(name, pwr, status, req, wakeup)		\
 	DOMAIN(name, pwr, status, req, req, (req) << 16, wakeup, false)
@@ -1890,6 +1910,13 @@ static const struct rockchip_domain_info rv1126_pm_domains[] = {
 	[RV1126_PD_NPU]		= DOMAIN_RV1126_O("npu",      BIT(0),  BIT(2),  BIT(18), 0x4, false),
 };
 
+static const struct rockchip_domain_info rv1126b_pm_domains[] = {
+					      /* name    pwr     req      wakeup */
+	[RV1126B_PD_NPU]	= DOMAIN_RV1126B("npu",  BIT(0), BIT(8),  false),
+	[RV1126B_PD_VDO]	= DOMAIN_RV1126B("vdo",  BIT(1), BIT(9),  false),
+	[RV1126B_PD_AISP]	= DOMAIN_RV1126B("aisp", BIT(2), BIT(10), false),
+};
+
 static const struct rockchip_domain_info rk1808_pm_domains[] = {
 	[RK1808_VD_NPU]		= DOMAIN_PX30("npu",         BIT(15), BIT(15), BIT(2), false),
 	[RK1808_PD_PCIE]	= DOMAIN_PX30("pcie",        BIT(9),  BIT(9),  BIT(4), true),
@@ -2327,81 +2354,133 @@ static const struct rockchip_pmu_info rv1126_pmu = {
 	.domain_info = rv1126_pm_domains,
 };
 
+static const struct rockchip_pmu_info rv1126b_pmu = {
+	.pwr_offset = 0x210,
+	.status_offset = 0x230,
+	.req_offset = 0x110,
+	.idle_offset = 0x128,
+	.ack_offset = 0x120,
+	.clk_ungate_offset = 0x140,
+
+	.num_domains = ARRAY_SIZE(rv1126b_pm_domains),
+	.domain_info = rv1126b_pm_domains,
+};
+
 static const struct of_device_id rockchip_pm_domain_dt_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,px30-power-controller",
 		.data = (void *)&px30_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{
 		.compatible = "rockchip,rk1808-power-controller",
 		.data = (void *)&rk1808_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3036
 	{
 		.compatible = "rockchip,rk3036-power-controller",
 		.data = (void *)&rk3036_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK30XX
 	{
 		.compatible = "rockchip,rk3066-power-controller",
 		.data = (void *)&rk3066_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK312X
 	{
 		.compatible = "rockchip,rk3128-power-controller",
 		.data = (void *)&rk3128_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3188
 	{
 		.compatible = "rockchip,rk3188-power-controller",
 		.data = (void *)&rk3188_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK322X
 	{
 		.compatible = "rockchip,rk3228-power-controller",
 		.data = (void *)&rk3228_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{
 		.compatible = "rockchip,rk3288-power-controller",
 		.data = (void *)&rk3288_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3328
 	{
 		.compatible = "rockchip,rk3328-power-controller",
 		.data = (void *)&rk3328_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3366
 	{
 		.compatible = "rockchip,rk3366-power-controller",
 		.data = (void *)&rk3366_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3368
 	{
 		.compatible = "rockchip,rk3368-power-controller",
 		.data = (void *)&rk3368_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{
 		.compatible = "rockchip,rk3399-power-controller",
 		.data = (void *)&rk3399_pmu,
 	},
+#endif
 #ifdef CONFIG_CPU_RK3528
 	{
 		.compatible = "rockchip,rk3528-power-controller",
 		.data = (void *)&rk3528_pmu,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3562
 	{
 		.compatible = "rockchip,rk3562-power-controller",
 		.data = (void *)&rk3562_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rk3568-power-controller",
 		.data = (void *)&rk3568_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3576
 	{
 		.compatible = "rockchip,rk3576-power-controller",
 		.data = (void *)&rk3576_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rk3588-power-controller",
 		.data = (void *)&rk3588_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1126-power-controller",
 		.data = (void *)&rv1126_pmu,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{
+		.compatible = "rockchip,rv1126b-power-controller",
+		.data = (void *)&rv1126b_pmu,
+	},
+#endif
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_pm_domain_dt_match);

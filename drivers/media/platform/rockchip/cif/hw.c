@@ -1062,6 +1062,10 @@ static const struct cif_reg rk3576_cif_regs[] = {
 	[CIF_REG_MIPI_SET_SIZE_ID1] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID1_RK3576),
 	[CIF_REG_MIPI_SET_SIZE_ID2] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID2_RK3576),
 	[CIF_REG_MIPI_SET_SIZE_ID3] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID3_RK3576),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
 
 	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
 	[CIF_REG_GLB_INTEN] = CIF_REG(GLB_INTEN),
@@ -1080,6 +1084,246 @@ static const struct cif_reg rk3576_cif_regs[] = {
 	[CIF_REG_GRF_CIFIO_CON] = CIF_REG(CIF_GRF_IOC_MISC_CON1_RK3576),
 };
 
+static const char * const rv1103b_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+	"dclk_cif",
+	"isp0clk_cif",
+};
+
+static const char * const rv1103b_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_isp0",
+	"rst_cif_h",
+	"rst_cif_d",
+};
+
+static const struct cif_reg rv1103b_cif_regs[] = {
+	[CIF_REG_MIPI_LVDS_ID0_CTRL0] = CIF_REG(CSI_MIPI0_ID0_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID0_CTRL1] = CIF_REG(CSI_MIPI0_ID0_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL0] = CIF_REG(CSI_MIPI0_ID1_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL1] = CIF_REG(CSI_MIPI0_ID1_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL0] = CIF_REG(CSI_MIPI0_ID2_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL1] = CIF_REG(CSI_MIPI0_ID2_CTRL1),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL0] = CIF_REG(CSI_MIPI0_ID3_CTRL0),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL1] = CIF_REG(CSI_MIPI0_ID3_CTRL1),
+	[CIF_REG_MIPI_LVDS_CTRL] = CIF_REG(CSI_MIPI0_CTRL),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0] = CIF_REG(CSI_MIPI0_VLW_ID0),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1] = CIF_REG(CSI_MIPI0_VLW_ID1),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2] = CIF_REG(CSI_MIPI0_VLW_ID2),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID3),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3] = CIF_REG(CSI_MIPI0_VLW_ID3),
+	[CIF_REG_MIPI_LVDS_INTEN] = CIF_REG(CSI_MIPI0_INTEN),
+	[CIF_REG_MIPI_LVDS_INTSTAT] = CIF_REG(CSI_MIPI0_INTSTAT),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1] = CIF_REG(CSI_MIPI0_LINE_INT_NUM_ID0_1_RK3576),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3] = CIF_REG(CSI_MIPI0_LINE_INT_NUM_ID2_3_RK3576),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1] = CIF_REG(CSI_MIPI0_LINE_CNT_ID0_1_RK3576),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID2_3] = CIF_REG(CSI_MIPI0_LINE_CNT_ID2_3_RK3576),
+	[CIF_REG_MIPI_LVDS_ID0_CROP_START] = CIF_REG(CSI_MIPI0_ID0_CROP_START_RK3576),
+	[CIF_REG_MIPI_LVDS_ID1_CROP_START] = CIF_REG(CSI_MIPI0_ID1_CROP_START_RK3576),
+	[CIF_REG_MIPI_LVDS_ID2_CROP_START] = CIF_REG(CSI_MIPI0_ID2_CROP_START_RK3576),
+	[CIF_REG_MIPI_LVDS_ID3_CROP_START] = CIF_REG(CSI_MIPI0_ID3_CROP_START_RK3576),
+	[CIF_REG_MIPI_FRAME_NUM_VC0] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC0_RK3576),
+	[CIF_REG_MIPI_FRAME_NUM_VC1] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC1_RK3576),
+	[CIF_REG_MIPI_FRAME_NUM_VC2] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC2_RK3576),
+	[CIF_REG_MIPI_FRAME_NUM_VC3] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC3_RK3576),
+	[CIF_REG_MIPI_EFFECT_CODE_ID0] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID0_RK3576),
+	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID1_RK3576),
+	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID2_RK3576),
+	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID3_RK3576),
+	[CIF_REG_MIPI_ON_PAD] = CIF_REG(CSI_MIPI0_ON_PAD_RK3576),
+	[CIF_REG_MIPI_SET_SIZE_ID0] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID0_RK3576),
+	[CIF_REG_MIPI_SET_SIZE_ID1] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID1_RK3576),
+	[CIF_REG_MIPI_SET_SIZE_ID2] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID2_RK3576),
+	[CIF_REG_MIPI_SET_SIZE_ID3] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID3_RK3576),
+	[CIF_REG_MIPI_FRAME_SIZE_ID0] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID0),
+	[CIF_REG_MIPI_FRAME_SIZE_ID1] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID1),
+	[CIF_REG_MIPI_FRAME_SIZE_ID2] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID2),
+	[CIF_REG_MIPI_FRAME_SIZE_ID3] = CIF_REG(CSI_MIPI0_FRAME_SIZE_ID3),
+
+	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
+	[CIF_REG_GLB_INTEN] = CIF_REG(GLB_INTEN),
+	[CIF_REG_GLB_INTST] = CIF_REG(GLB_INTST),
+
+	[CIF_REG_TOISP0_CTRL] = CIF_REG(TOISP0_CH_CTRL),
+	[CIF_REG_TOISP0_SIZE] = CIF_REG(TOISP0_CROP_SIZE),
+	[CIF_REG_TOISP0_CROP] = CIF_REG(TOISP0_CROP),
+	[CIF_REG_TOISP0_CH1_CTRL] = CIF_REG(TOISP0_CH1_CTRL),
+	[CIF_REG_TOISP0_CH1_SIZE] = CIF_REG(TOISP0_CH1_CROP_SIZE),
+	[CIF_REG_TOISP0_CH1_CROP] = CIF_REG(TOISP0_CH1_CROP),
+};
+
+static const char * const rv1126b_cif_clks[] = {
+	"aclk_cif",
+	"hclk_cif",
+	"dclk_cif",
+	"isp0clk_cif",
+};
+
+static const char * const rv1126b_cif_rsts[] = {
+	"rst_cif_a",
+	"rst_cif_isp0",
+	"rst_cif_h",
+	"rst_cif_d",
+};
+
+static const struct cif_reg rv1126b_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(DVP_CTRL_RV1126B),
+	[CIF_REG_DVP_INTEN] = CIF_REG(DVP_INTEN_RV1126B),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(DVP_INTSTAT_RV1126B),
+	[CIF_REG_DVP_SAV_EAV] = CIF_REG(DVP_SAV_EAV_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(DVP_FRM0_ADDR_Y_ID0_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(DVP_FRM0_ADDR_UV_ID0_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(DVP_FRM1_ADDR_Y_ID0_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(DVP_FRM1_ADDR_UV_ID0_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_Y_ID1] = CIF_REG(DVP_FRM0_ADDR_Y_ID1_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_UV_ID1] = CIF_REG(DVP_FRM0_ADDR_UV_ID1_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_Y_ID1] = CIF_REG(DVP_FRM1_ADDR_Y_ID1_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_UV_ID1] = CIF_REG(DVP_FRM1_ADDR_UV_ID1_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_Y_ID2] = CIF_REG(DVP_FRM0_ADDR_Y_ID2_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_UV_ID2] = CIF_REG(DVP_FRM0_ADDR_UV_ID2_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_Y_ID2] = CIF_REG(DVP_FRM1_ADDR_Y_ID2_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_UV_ID2] = CIF_REG(DVP_FRM1_ADDR_UV_ID2_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_Y_ID3] = CIF_REG(DVP_FRM0_ADDR_Y_ID3_RV1126B),
+	[CIF_REG_DVP_FRM0_ADDR_UV_ID3] = CIF_REG(DVP_FRM0_ADDR_UV_ID3_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_Y_ID3] = CIF_REG(DVP_FRM1_ADDR_Y_ID3_RV1126B),
+	[CIF_REG_DVP_FRM1_ADDR_UV_ID3] = CIF_REG(DVP_FRM1_ADDR_UV_ID3_RV1126B),
+	[CIF_REG_DVP_ID0_CTRL0] = CIF_REG(DVP_ID0_CTRL0_RV1126B),
+	[CIF_REG_DVP_ID0_CTRL1] = CIF_REG(DVP_ID0_CTRL1_RV1126B),
+	[CIF_REG_DVP_ID1_CTRL0] = CIF_REG(DVP_ID1_CTRL0_RV1126B),
+	[CIF_REG_DVP_ID1_CTRL1] = CIF_REG(DVP_ID1_CTRL1_RV1126B),
+	[CIF_REG_DVP_ID2_CTRL0] = CIF_REG(DVP_ID2_CTRL0_RV1126B),
+	[CIF_REG_DVP_ID2_CTRL1] = CIF_REG(DVP_ID2_CTRL1_RV1126B),
+	[CIF_REG_DVP_ID3_CTRL0] = CIF_REG(DVP_ID3_CTRL0_RV1126B),
+	[CIF_REG_DVP_ID3_CTRL1] = CIF_REG(DVP_ID3_CTRL1_RV1126B),
+	[CIF_REG_DVP_VLW_ID0] = CIF_REG(DVP_VLW_ID0_RV1126B),
+	[CIF_REG_DVP_VLW_ID1] = CIF_REG(DVP_VLW_ID1_RV1126B),
+	[CIF_REG_DVP_VLW_ID2] = CIF_REG(DVP_VLW_ID2_RV1126B),
+	[CIF_REG_DVP_VLW_ID3] = CIF_REG(DVP_VLW_ID3_RV1126B),
+	[CIF_REG_DVP_LINE_INT_NUM_ID0_1] = CIF_REG(DVP_LINE_INT_NUM_ID0_1_RV1126B),
+	[CIF_REG_DVP_LINE_INT_NUM_ID2_3] = CIF_REG(DVP_LINE_INT_NUM_ID2_3_RV1126B),
+	[CIF_REG_DVP_LINE_LINE_CNT_ID0_1] = CIF_REG(DVP_LINE_CNT_ID0_1_RV1126B),
+	[CIF_REG_DVP_LINE_LINE_CNT_ID2_3] = CIF_REG(DVP_LINE_CNT_ID2_3_RV1126B),
+	[CIF_REG_DVP_ID0_CROP_START] = CIF_REG(DVP_ID0_CROP_START_RV1126B),
+	[CIF_REG_DVP_ID1_CROP_START] = CIF_REG(DVP_ID1_CROP_START_RV1126B),
+	[CIF_REG_DVP_ID2_CROP_START] = CIF_REG(DVP_ID2_CROP_START_RV1126B),
+	[CIF_REG_DVP_ID3_CROP_START] = CIF_REG(DVP_ID3_CROP_START_RV1126B),
+	[CIF_REG_DVP_FRAME_NUM_ID0] = CIF_REG(DVP_SET_FRAME_NUM_ID0_RV1126B),
+	[CIF_REG_DVP_FRAME_NUM_ID1] = CIF_REG(DVP_SET_FRAME_NUM_ID1_RV1126B),
+	[CIF_REG_DVP_FRAME_NUM_ID2] = CIF_REG(DVP_SET_FRAME_NUM_ID2_RV1126B),
+	[CIF_REG_DVP_FRAME_NUM_ID3] = CIF_REG(DVP_SET_FRAME_NUM_ID3_RV1126B),
+	[CIF_REG_DVP_SET_SIZE_ID0] = CIF_REG(DVP_SET_FRAME_SIZE_ID0_RV1126B),
+	[CIF_REG_DVP_SET_SIZE_ID1] = CIF_REG(DVP_SET_FRAME_SIZE_ID1_RV1126B),
+	[CIF_REG_DVP_SET_SIZE_ID2] = CIF_REG(DVP_SET_FRAME_SIZE_ID2_RV1126B),
+	[CIF_REG_DVP_SET_SIZE_ID3] = CIF_REG(DVP_SET_FRAME_SIZE_ID3_RV1126B),
+	[CIF_REG_DVP_HIST_START] = CIF_REG(DVP_HIST_START_RV1126B),
+	[CIF_REG_DVP_HIST_SIZE] = CIF_REG(DVP_HIST_SIZE_RV1126B),
+	[CIF_REG_DVP_HIST_SUM] = CIF_REG(DVP_HIST_SUM_RV1126B),
+
+	[CIF_REG_MIPI_LVDS_ID0_CTRL0] = CIF_REG(CSI_MIPI0_ID0_CTRL0_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID0_CTRL1] = CIF_REG(CSI_MIPI0_ID0_CTRL1_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL0] = CIF_REG(CSI_MIPI0_ID1_CTRL0_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID1_CTRL1] = CIF_REG(CSI_MIPI0_ID1_CTRL1_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL0] = CIF_REG(CSI_MIPI0_ID2_CTRL0_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID2_CTRL1] = CIF_REG(CSI_MIPI0_ID2_CTRL1_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL0] = CIF_REG(CSI_MIPI0_ID3_CTRL0_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID3_CTRL1] = CIF_REG(CSI_MIPI0_ID3_CTRL1_RV1126B),
+	[CIF_REG_MIPI_LVDS_CTRL] = CIF_REG(CSI_MIPI0_CTRL_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID0] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID0_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID0] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID0_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID0] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID0_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID0] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID0_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID0] = CIF_REG(CSI_MIPI0_VLW_ID0_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID1] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID1_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID1] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID1_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID1] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID1_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID1] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID1_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID1] = CIF_REG(CSI_MIPI0_VLW_ID1_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID2] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID2_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID2] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID2_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID2] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID2_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID2] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID2_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID2] = CIF_REG(CSI_MIPI0_VLW_ID2_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_Y_ID3] = CIF_REG(CSI_MIPI0_FRM0_ADDR_Y_ID3_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_Y_ID3] = CIF_REG(CSI_MIPI0_FRM1_ADDR_Y_ID3_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_ADDR_UV_ID3] = CIF_REG(CSI_MIPI0_FRM0_ADDR_UV_ID3_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME1_ADDR_UV_ID3] = CIF_REG(CSI_MIPI0_FRM1_ADDR_UV_ID3_RV1126B),
+	[CIF_REG_MIPI_LVDS_FRAME0_VLW_Y_ID3] = CIF_REG(CSI_MIPI0_VLW_ID3_RV1126B),
+	[CIF_REG_MIPI_LVDS_INTEN] = CIF_REG(CSI_MIPI0_INTEN_RV1126B),
+	[CIF_REG_MIPI_LVDS_INTSTAT] = CIF_REG(CSI_MIPI0_INTSTAT_RV1126B),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID0_1] = CIF_REG(CSI_MIPI0_LINE_INT_NUM_ID0_1_RV1126B),
+	[CIF_REG_MIPI_LVDS_LINE_INT_NUM_ID2_3] = CIF_REG(CSI_MIPI0_LINE_INT_NUM_ID2_3_RV1126B),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID0_1] = CIF_REG(CSI_MIPI0_LINE_CNT_ID0_1_RV1126B),
+	[CIF_REG_MIPI_LVDS_LINE_LINE_CNT_ID2_3] = CIF_REG(CSI_MIPI0_LINE_CNT_ID2_3_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID0_CROP_START] = CIF_REG(CSI_MIPI0_ID0_CROP_START_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID1_CROP_START] = CIF_REG(CSI_MIPI0_ID1_CROP_START_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID2_CROP_START] = CIF_REG(CSI_MIPI0_ID2_CROP_START_RV1126B),
+	[CIF_REG_MIPI_LVDS_ID3_CROP_START] = CIF_REG(CSI_MIPI0_ID3_CROP_START_RV1126B),
+	[CIF_REG_MIPI_FRAME_NUM_VC0] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC0_RV1126B),
+	[CIF_REG_MIPI_FRAME_NUM_VC1] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC1_RV1126B),
+	[CIF_REG_MIPI_FRAME_NUM_VC2] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC2_RV1126B),
+	[CIF_REG_MIPI_FRAME_NUM_VC3] = CIF_REG(CSI_MIPI0_FRAME_NUM_VC3_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT0_ID0] = CIF_REG(CIF_LVDS_SAV_EAV_ACT0_ID0_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK0_ID0] = CIF_REG(CIF_LVDS_SAV_EAV_BLK0_ID0_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT1_ID0] = CIF_REG(CIF_LVDS_SAV_EAV_ACT1_ID0_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK1_ID0] = CIF_REG(CIF_LVDS_SAV_EAV_BLK1_ID0_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT0_ID1] = CIF_REG(CIF_LVDS_SAV_EAV_ACT0_ID1_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK0_ID1] = CIF_REG(CIF_LVDS_SAV_EAV_BLK0_ID1_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT1_ID1] = CIF_REG(CIF_LVDS_SAV_EAV_ACT1_ID1_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK1_ID1] = CIF_REG(CIF_LVDS_SAV_EAV_BLK1_ID1_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT0_ID2] = CIF_REG(CIF_LVDS_SAV_EAV_ACT0_ID2_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK0_ID2] = CIF_REG(CIF_LVDS_SAV_EAV_BLK0_ID2_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT1_ID2] = CIF_REG(CIF_LVDS_SAV_EAV_ACT1_ID2_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK1_ID2] = CIF_REG(CIF_LVDS_SAV_EAV_BLK1_ID2_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT0_ID3] = CIF_REG(CIF_LVDS_SAV_EAV_ACT0_ID3_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK0_ID3] = CIF_REG(CIF_LVDS_SAV_EAV_BLK0_ID3_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_ACT1_ID3] = CIF_REG(CIF_LVDS_SAV_EAV_ACT1_ID3_RV1126B),
+	[CIF_REG_LVDS_SAV_EAV_BLK1_ID3] = CIF_REG(CIF_LVDS_SAV_EAV_BLK1_ID3_RV1126B),
+	[CIF_REG_MIPI_EFFECT_CODE_ID0] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID0_RV1126B),
+	[CIF_REG_MIPI_EFFECT_CODE_ID1] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID1_RV1126B),
+	[CIF_REG_MIPI_EFFECT_CODE_ID2] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID2_RV1126B),
+	[CIF_REG_MIPI_EFFECT_CODE_ID3] = CIF_REG(CSI_MIPI0_EFFECT_CODE_ID3_RV1126B),
+	[CIF_REG_MIPI_ON_PAD] = CIF_REG(CSI_MIPI0_ON_PAD_RV1126B),
+	[CIF_REG_MIPI_SET_SIZE_ID0] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID0_RV1126B),
+	[CIF_REG_MIPI_SET_SIZE_ID1] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID1_RV1126B),
+	[CIF_REG_MIPI_SET_SIZE_ID2] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID2_RV1126B),
+	[CIF_REG_MIPI_SET_SIZE_ID3] = CIF_REG(CSI_MIPI0_SET_FRAME_SIZE_ID3_RV1126B),
+
+	[CIF_REG_GLB_CTRL] = CIF_REG(GLB_CTRL),
+	[CIF_REG_GLB_INTEN] = CIF_REG(GLB_INTEN),
+	[CIF_REG_GLB_INTST] = CIF_REG(GLB_INTST),
+
+	[CIF_REG_SCL_CTRL] = CIF_REG(SCL_CTRL_RV1126B),
+	[CIF_REG_SCL_FRM0_ADDR_CH0] = CIF_REG(SCL_FRM0_ADDR_CH0_RV1126B),
+	[CIF_REG_SCL_FRM1_ADDR_CH0] = CIF_REG(SCL_FRM1_ADDR_CH0_RV1126B),
+	[CIF_REG_SCL_VLW_CH0] = CIF_REG(SCL_VLW_CH0_RV1126B),
+	[CIF_REG_SCL_BLC_CH0] = CIF_REG(SCL_BLC_CH0_RV1126B),
+
+	[CIF_REG_TOISP0_CTRL] = CIF_REG(TOISP0_CH_CTRL_RV1126B),
+	[CIF_REG_TOISP0_SIZE] = CIF_REG(TOISP0_CROP_SIZE_RV1126B),
+	[CIF_REG_TOISP0_CROP] = CIF_REG(TOISP0_CROP_RV1126B),
+	[CIF_REG_TOISP0_CH1_CTRL] = CIF_REG(TOISP0_CH1_CTRL_RV1126B),
+	[CIF_REG_TOISP0_CH1_SIZE] = CIF_REG(TOISP0_CH1_CROP_SIZE_RV1126B),
+	[CIF_REG_TOISP0_CH1_CROP] = CIF_REG(TOISP0_CH1_CROP_RV1126B),
+	[CIF_REG_GRF_CIFIO_CON] = CIF_REG(GRF_VICIF_M0_CON_RV1126B),
+	[CIF_REG_GRF_CIFIO_CON1] = CIF_REG(GRF_VICIF_M1_CON_RV1126B),
+};
+
 static const struct rkcif_hw_match_data px30_cif_match_data = {
 	.chip_id = CHIP_PX30_CIF,
 	.clks = px30_cif_clks,
@@ -1087,6 +1331,7 @@ static const struct rkcif_hw_match_data px30_cif_match_data = {
 	.rsts = px30_cif_rsts,
 	.rsts_num = ARRAY_SIZE(px30_cif_rsts),
 	.cif_regs = px30_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk1808_cif_match_data = {
@@ -1096,6 +1341,7 @@ static const struct rkcif_hw_match_data rk1808_cif_match_data = {
 	.rsts = rk1808_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk1808_cif_rsts),
 	.cif_regs = rk1808_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk3128_cif_match_data = {
@@ -1105,6 +1351,7 @@ static const struct rkcif_hw_match_data rk3128_cif_match_data = {
 	.rsts = rk3128_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3128_cif_rsts),
 	.cif_regs = rk3128_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk3288_cif_match_data = {
@@ -1114,6 +1361,7 @@ static const struct rkcif_hw_match_data rk3288_cif_match_data = {
 	.rsts = rk3288_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3288_cif_rsts),
 	.cif_regs = rk3288_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk3328_cif_match_data = {
@@ -1123,6 +1371,7 @@ static const struct rkcif_hw_match_data rk3328_cif_match_data = {
 	.rsts = rk3328_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3328_cif_rsts),
 	.cif_regs = rk3328_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk3368_cif_match_data = {
@@ -1132,6 +1381,7 @@ static const struct rkcif_hw_match_data rk3368_cif_match_data = {
 	.rsts = rk3368_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3368_cif_rsts),
 	.cif_regs = rk3368_cif_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rv1126_cif_match_data = {
@@ -1141,6 +1391,7 @@ static const struct rkcif_hw_match_data rv1126_cif_match_data = {
 	.rsts = rv1126_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rv1126_cif_rsts),
 	.cif_regs = rv1126_cif_regs,
+	.max_hw = 2,
 };
 
 static const struct rkcif_hw_match_data rv1126_cif_lite_match_data = {
@@ -1150,6 +1401,7 @@ static const struct rkcif_hw_match_data rv1126_cif_lite_match_data = {
 	.rsts = rv1126_cif_lite_rsts,
 	.rsts_num = ARRAY_SIZE(rv1126_cif_lite_rsts),
 	.cif_regs = rv1126_cif_lite_regs,
+	.max_hw = 1,
 };
 
 static const struct rkcif_hw_match_data rk3568_cif_match_data = {
@@ -1159,6 +1411,7 @@ static const struct rkcif_hw_match_data rk3568_cif_match_data = {
 	.rsts = rk3568_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3568_cif_rsts),
 	.cif_regs = rk3568_cif_regs,
+	.max_hw = 2,
 };
 
 static const struct rkcif_hw_match_data rk3588_cif_match_data = {
@@ -1168,6 +1421,7 @@ static const struct rkcif_hw_match_data rk3588_cif_match_data = {
 	.rsts = rk3588_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3588_cif_rsts),
 	.cif_regs = rk3588_cif_regs,
+	.max_hw = 7,
 };
 
 static const struct rkcif_hw_match_data rv1106_cif_match_data = {
@@ -1177,6 +1431,7 @@ static const struct rkcif_hw_match_data rv1106_cif_match_data = {
 	.rsts = rv1106_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rv1106_cif_rsts),
 	.cif_regs = rv1106_cif_regs,
+	.max_hw = 3,
 };
 
 static const struct rkcif_hw_match_data rk3562_cif_match_data = {
@@ -1186,6 +1441,7 @@ static const struct rkcif_hw_match_data rk3562_cif_match_data = {
 	.rsts = rk3562_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3562_cif_rsts),
 	.cif_regs = rk3562_cif_regs,
+	.max_hw = 4,
 };
 
 static const struct rkcif_hw_match_data rk3576_cif_match_data = {
@@ -1195,6 +1451,27 @@ static const struct rkcif_hw_match_data rk3576_cif_match_data = {
 	.rsts = rk3576_cif_rsts,
 	.rsts_num = ARRAY_SIZE(rk3576_cif_rsts),
 	.cif_regs = rk3576_cif_regs,
+	.max_hw = 6,
+};
+
+static const struct rkcif_hw_match_data rv1103b_cif_match_data = {
+	.chip_id = CHIP_RV1103B_CIF,
+	.clks = rv1103b_cif_clks,
+	.clks_num = ARRAY_SIZE(rv1103b_cif_clks),
+	.rsts = rv1103b_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rv1103b_cif_rsts),
+	.cif_regs = rv1103b_cif_regs,
+	.max_hw = 2,
+};
+
+static const struct rkcif_hw_match_data rv1126b_cif_match_data = {
+	.chip_id = CHIP_RV1126B_CIF,
+	.clks = rv1126b_cif_clks,
+	.clks_num = ARRAY_SIZE(rv1126b_cif_clks),
+	.rsts = rv1126b_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rv1126b_cif_rsts),
+	.cif_regs = rv1126b_cif_regs,
+	.max_hw = 5,
 };
 
 static const struct of_device_id rkcif_plat_of_match[] = {
@@ -1274,6 +1551,18 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 		.data = &rk3576_cif_match_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RV1103B
+	{
+		.compatible = "rockchip,rv1103b-cif",
+		.data = &rv1103b_cif_match_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{
+		.compatible = "rockchip,rv1126b-cif",
+		.data = &rv1126b_cif_match_data,
+	},
+#endif
 	{},
 };
 
@@ -1293,7 +1582,7 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	}
 
 	for (i = 0; i < cif_hw->dev_num; i++) {
-		if (cif_hw->cif_dev[i]->isr_hdl) {
+		if (cif_hw->cif_dev[i]->isr_hdl && i < cif_hw->match_data->max_hw) {
 			cif_hw->cif_dev[i]->isr_hdl(irq, cif_hw->cif_dev[i]);
 			if (cif_hw->cif_dev[i]->err_state &&
 			    (!work_busy(&cif_hw->cif_dev[i]->err_state_work.work))) {
@@ -1301,10 +1590,10 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 				cif_hw->cif_dev[i]->err_state = 0;
 				schedule_work(&cif_hw->cif_dev[i]->err_state_work.work);
 			}
-			if (cif_hw->chip_id >= CHIP_RK3588_CIF && intstat_glb) {
-				rkcif_irq_handle_toisp(cif_hw->cif_dev[i], intstat_glb);
-				rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
-			}
+		}
+		if (cif_hw->chip_id >= CHIP_RK3588_CIF && intstat_glb) {
+			rkcif_irq_handle_toisp(cif_hw->cif_dev[i], intstat_glb);
+			rkcif_irq_handle_scale(cif_hw->cif_dev[i], intstat_glb);
 		}
 	}
 	irq_stop = ktime_get_ns();
@@ -1473,9 +1762,17 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(dev, irq, rkcif_irq_handler,
-			       IRQF_SHARED,
-			       dev_driver_string(dev), dev);
+	if (data->chip_id == CHIP_RV1106_CIF ||
+	    data->chip_id == CHIP_RV1103B_CIF) {
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
+		ret = devm_request_irq(dev, irq, rkcif_irq_handler,
+				       0,
+				       dev_driver_string(dev), dev);
+	} else {
+		ret = devm_request_irq(dev, irq, rkcif_irq_handler,
+				       IRQF_SHARED,
+				       dev_driver_string(dev), dev);
+	}
 	if (ret < 0) {
 		dev_err(dev, "request irq failed: %d\n", ret);
 		return ret;
@@ -1505,6 +1802,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 		if (IS_ERR(cif_hw->base_addr))
 			return PTR_ERR(cif_hw->base_addr);
 	}
+	cif_hw->res = res;
 
 	if (of_property_read_bool(np, "rockchip,android-usb-camerahal-enable")) {
 		dev_info(dev, "config cif adapt to android usb camera hal!\n");
@@ -1553,7 +1851,13 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	cif_hw->is_dma_contig = true;
 	mutex_init(&cif_hw->dev_lock);
 	spin_lock_init(&cif_hw->group_lock);
+	spin_lock_init(&cif_hw->reset_lock);
 	atomic_set(&cif_hw->power_cnt, 0);
+	for (i = 0; i < RKCIF_MAX_SWITCH_GROUP; i++) {
+		atomic_set(&cif_hw->switch_stream_cnt[i], 0);
+		mutex_init(&cif_hw->switch_mutex_lock[i]);
+	}
+	cif_hw->is_in_reset = false;
 
 	cif_hw->iommu_en = is_iommu_enable(dev);
 	ret = of_reserved_mem_device_init(dev);
@@ -1624,10 +1928,14 @@ static void rkcif_hw_shutdown(struct platform_device *pdev)
 	if (pm_runtime_get_if_in_use(&pdev->dev) <= 0)
 		return;
 
-	if (cif_hw->chip_id == CHIP_RK3588_CIF ||
-	    cif_hw->chip_id == CHIP_RV1106_CIF ||
-	    cif_hw->chip_id == CHIP_RK3562_CIF) {
+	if (cif_hw->chip_id >= CHIP_RK3588_CIF) {
 		write_cif_reg(cif_hw->base_addr, 0, 0);
+		for (i = 0; i < cif_hw->dev_num; i++) {
+			cif_dev = cif_hw->cif_dev[i];
+			if (atomic_read(&cif_dev->pipe.stream_cnt))
+				cif_dev->pipe.set_stream(&cif_dev->pipe, false);
+
+		}
 	} else {
 		for (i = 0; i < cif_hw->dev_num; i++) {
 			cif_dev = cif_hw->cif_dev[i];
@@ -1640,6 +1948,7 @@ static void rkcif_hw_shutdown(struct platform_device *pdev)
 					rkcif_write_register(cif_dev,
 							     CIF_REG_DVP_CTRL,
 							     0);
+				cif_dev->pipe.set_stream(&cif_dev->pipe, false);
 			}
 		}
 	}
@@ -1655,6 +1964,10 @@ static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 	if (atomic_dec_return(&cif_hw->power_cnt))
 		return 0;
 	rkcif_disable_sys_clk(cif_hw);
+
+	if (cif_hw->chip_id == CHIP_RV1106_CIF ||
+	    cif_hw->chip_id == CHIP_RV1103B_CIF)
+		disable_irq(cif_hw->irq);
 
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -1672,17 +1985,41 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	rkcif_enable_sys_clk(cif_hw);
 	rkcif_hw_soft_reset(cif_hw, true);
 
+	if (cif_hw->chip_id == CHIP_RV1106_CIF ||
+	    cif_hw->chip_id == CHIP_RV1103B_CIF)
+		enable_irq(cif_hw->irq);
+
 	return 0;
 }
 
 static int __maybe_unused rkcif_sleep_suspend(struct device *dev)
 {
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
+	struct rkcif_multi_sync_config *sync_config;
+	int i = 0;
+	int j = 0;
 
 	if (atomic_read(&cif_hw->power_cnt) == 0)
 		return 0;
 
 	rkcif_disable_sys_clk(cif_hw);
+	for (i = 0; i < RKCIF_MAX_GROUP; i++) {
+		sync_config = &cif_hw->sync_config[i];
+		if (sync_config->mode != RKCIF_NOSYNC_MODE) {
+			sync_config->streaming_cnt = 0;
+			sync_config->sync_code = 0;
+			sync_config->update_code = 0;
+			sync_config->update_cache = 0;
+			for (j = 0; j < sync_config->slave.count; j++)
+				sync_config->slave.is_streaming[j] = false;
+			for (j = 0; j < sync_config->ext_master.count; j++)
+				sync_config->ext_master.is_streaming[j] = false;
+			for (j = 0; j < sync_config->int_master.count; j++)
+				sync_config->int_master.is_streaming[j] = false;
+			for (j = 0; j < sync_config->soft_sync.count; j++)
+				sync_config->soft_sync.is_streaming[j] = false;
+		}
+	}
 
 	return pinctrl_pm_select_sleep_state(dev);
 }

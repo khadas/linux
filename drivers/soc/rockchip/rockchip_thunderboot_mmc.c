@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/soc/rockchip/rockchip_decompress.h>
 #include <linux/soc/rockchip/rockchip_thunderboot_crypto.h>

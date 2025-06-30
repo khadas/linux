@@ -860,10 +860,10 @@ static void imx334_get_module_inf(struct imx334 *imx334,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX334_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx334->module_name,
+	strscpy(inf->base.sensor, IMX334_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx334->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx334->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx334->len_name, sizeof(inf->base.lens));
 }
 
 static int imx334_set_hdrae(struct imx334 *imx334,

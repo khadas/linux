@@ -2,7 +2,7 @@
 /*
  * Defining registers address and its bit definitions of MAX96745
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _MFD_MAX96745_H_

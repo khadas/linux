@@ -26,6 +26,7 @@
 #define RKCIF_MAX_RESET		15
 
 #define RKCIF_MAX_GROUP		4
+#define RKCIF_MAX_SWITCH_GROUP	2
 
 #define write_cif_reg(base, addr, val) \
 	writel(val, (addr) + (base))
@@ -50,6 +51,7 @@ enum rkcif_sync_mode {
 	RKCIF_MASTER_SLAVE,
 	RKCIF_EXT_MASTER,
 	RKCIF_EXT_SLAVE,
+	RKCIF_SOFT_SYNC,
 };
 
 struct rkcif_sync_dev {
@@ -62,6 +64,7 @@ struct rkcif_multi_sync_config {
 	struct rkcif_sync_dev int_master;
 	struct rkcif_sync_dev ext_master;
 	struct rkcif_sync_dev slave;
+	struct rkcif_sync_dev soft_sync;
 	enum rkcif_sync_mode mode;
 	int dev_cnt;
 	int streaming_cnt;
@@ -78,6 +81,8 @@ struct rkcif_dummy_buffer {
 	struct vb2_queue vb2_queue;
 	struct list_head list;
 	struct dma_buf *dbuf;
+	struct dma_buf_attachment *dba;
+	struct sg_table *sgt;
 	dma_addr_t dma_addr;
 	struct page **pages;
 	void *mem_priv;
@@ -108,6 +113,8 @@ enum rkcif_chip_id {
 	CHIP_RV1106_CIF,
 	CHIP_RK3562_CIF,
 	CHIP_RK3576_CIF,
+	CHIP_RV1103B_CIF,
+	CHIP_RV1126B_CIF,
 };
 
 struct rkcif_hw_match_data {
@@ -117,6 +124,7 @@ struct rkcif_hw_match_data {
 	int clks_num;
 	int rsts_num;
 	const struct cif_reg *cif_regs;
+	int max_hw;
 };
 
 /*
@@ -129,7 +137,7 @@ struct rkcif_hw {
 	struct device			*dev;
 	int				irq;
 	void __iomem			*base_addr;
-	void __iomem			*csi_base;
+	struct resource			*res;
 	struct regmap			*grf;
 	struct clk			*clks[RKCIF_MAX_BUS_CLK];
 	int				clk_size;
@@ -141,10 +149,14 @@ struct rkcif_hw {
 	struct rkcif_device		*cif_dev[RKCIF_DEV_MAX];
 	int				dev_num;
 	atomic_t			power_cnt;
+	atomic_t			switch_stream_cnt[RKCIF_MAX_SWITCH_GROUP];
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
+	struct mutex			switch_mutex_lock[RKCIF_MAX_SWITCH_GROUP];
 	struct rkcif_multi_sync_config	sync_config[RKCIF_MAX_GROUP];
 	spinlock_t			group_lock;
+	spinlock_t			reset_lock;
+	spinlock_t			switch_lock;
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_dummy_buffer	dummy_buf;
 	bool				iommu_en;
@@ -154,6 +166,7 @@ struct rkcif_hw {
 	bool				adapt_to_usbcamerahal;
 	u64				irq_time;
 	bool				is_rk3588s2;
+	bool				is_in_reset;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);

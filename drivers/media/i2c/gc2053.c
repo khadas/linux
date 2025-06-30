@@ -905,10 +905,10 @@ static void gc2053_get_module_inf(struct gc2053 *gc2053,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, GC2053_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc2053->module_name,
+	strscpy(inf->base.sensor, GC2053_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc2053->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc2053->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc2053->len_name, sizeof(inf->base.lens));
 }
 
 static void gc2053_set_awb_cfg(struct gc2053 *gc2053,

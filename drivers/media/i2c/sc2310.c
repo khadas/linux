@@ -884,10 +884,10 @@ static void sc2310_get_module_inf(struct sc2310 *sc2310,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC2310_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc2310->module_name,
+	strscpy(inf->base.sensor, SC2310_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc2310->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc2310->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc2310->len_name, sizeof(inf->base.lens));
 }
 
 static void sc2310_get_gain_reg(u32 val, u32 *again_reg, u32 *again_fine_reg,

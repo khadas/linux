@@ -233,6 +233,16 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 		return NULL;
 	}
+
+	if (!test_bit(RGA_JOB_STATE_FINISH, &job->state) &&
+	    !test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		rga_err("%s(%#x) running job has not yet been completed.",
+			rga_get_core_name(scheduler->core), scheduler->core);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+		return NULL;
+	}
+
 	scheduler->running_job = NULL;
 
 	scheduler->timer.busy_time +=
@@ -261,15 +271,8 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 
 static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
 {
+	int ret = orig_ret;
 	struct rga_scheduler_t *scheduler = job->scheduler;
-
-	if (scheduler->ops->read_status) {
-		scheduler->ops->read_status(job, scheduler);
-		rga_job_err(job, "core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
-			scheduler->core,
-			job->intr_status, job->hw_status, job->cmd_status,
-			job->work_cycle, job->work_cycle);
-	}
 
 	if (test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 	    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
@@ -277,14 +280,24 @@ static int rga_job_timeout_query_state(struct rga_job *job, int orig_ret)
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has finished, but the software has timeout!\n");
-		return -EBUSY;
+
+		ret = -EBUSY;
 	} else if (!test_bit(RGA_JOB_STATE_DONE, &job->state) &&
 		   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
 		rga_job_err(job, "job hardware has timeout.\n");
-		return -EBUSY;
+
+		if (scheduler->ops->read_status)
+			scheduler->ops->read_status(job, scheduler);
+
+		ret = -EBUSY;
 	}
 
-	return orig_ret;
+	rga_job_err(job, "timeout core[%d]: INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x], WORK_CYCLE[0x%x(%d)]\n",
+		    scheduler->core,
+		    job->intr_status, job->hw_status, job->cmd_status,
+		    job->work_cycle, job->work_cycle);
+
+	return ret;
 }
 
 static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
@@ -390,7 +403,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	return scheduler;
 }
 
-struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
+int rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
 {
 	int ret;
 	struct rga_job *job = NULL;
@@ -399,7 +412,7 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 	job = rga_job_alloc(rga_command_base);
 	if (!job) {
 		rga_err("failed to alloc rga job!\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	job->use_batch_mode = request->use_batch_mode;
@@ -445,7 +458,7 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 
 	rga_power_disable(scheduler);
 
-	return job;
+	return 0;
 
 err_unmap_job_info:
 	rga_mm_unmap_job_info(job);
@@ -459,9 +472,9 @@ err_free_cmd_buf:
 
 err_free_job:
 	ret = job->ret;
-	rga_request_release_signal(scheduler, job);
+	rga_job_free(job);
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 static bool rga_is_need_current_mm(struct rga_req *req)
@@ -633,6 +646,56 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *manag
 	return request;
 }
 
+void rga_request_scheduler_shutdown(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job, *job_q;
+	unsigned long flags;
+
+	rga_power_enable(scheduler);
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+	if (job) {
+		if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state) ||
+		    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+			spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+			goto finish;
+		}
+
+		scheduler->running_job = NULL;
+		scheduler->status = RGA_SCHEDULER_ABORT;
+		scheduler->ops->soft_reset(scheduler);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		rga_mm_unmap_job_info(job);
+
+		job->ret = -EBUSY;
+		rga_request_release_signal(scheduler, job);
+
+		/*
+		 *  Since the running job was abort, turn off the power here that
+		 * should have been turned off after job done (corresponds to
+		 * power_enable in rga_job_run()).
+		 */
+		rga_power_disable(scheduler);
+	} else {
+		/* Clean up the jobs in the todo list that need to be free. */
+		list_for_each_entry_safe(job, job_q, &scheduler->todo_list, head) {
+			rga_mm_unmap_job_info(job);
+
+			job->ret = -EBUSY;
+			rga_request_release_signal(scheduler, job);
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+finish:
+	rga_power_disable(scheduler);
+}
+
 void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job;
@@ -797,7 +860,8 @@ void rga_request_session_destroy_abort(struct rga_session *session)
 
 	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
 		if (session == request->session) {
-			rga_req_err(request, "destroy when the user exits");
+			rga_req_err(request, "destroy when the user exits, current refcount = %d\n",
+				kref_read(&request->refcount));
 			rga_request_put(request);
 		}
 	}
@@ -845,19 +909,14 @@ static int rga_request_wait(struct rga_request *request)
 	switch (left_time) {
 	case 0:
 		ret = rga_request_timeout_query_state(request);
-		goto err_request_abort;
+		break;
 	case -ERESTARTSYS:
 		ret = -ERESTARTSYS;
-		goto err_request_abort;
+		break;
 	default:
 		ret = request->ret;
 		break;
 	}
-
-	return ret;
-
-err_request_abort:
-	rga_request_release_abort(request, ret);
 
 	return ret;
 }
@@ -866,7 +925,6 @@ int rga_request_commit(struct rga_request *request)
 {
 	int ret;
 	int i = 0;
-	struct rga_job *job;
 
 	if (DEBUGGER_EN(MSG))
 		rga_req_log(request, "commit process: %s\n", request->session->pname);
@@ -879,12 +937,11 @@ int rga_request_commit(struct rga_request *request)
 			rga_dump_req(request, req);
 		}
 
-		job = rga_job_commit(req, request);
-		if (IS_ERR(job)) {
+		ret = rga_job_commit(req, request);
+		if (ret < 0) {
 			rga_req_err(request, "task[%d] job_commit failed.\n", i);
-			rga_request_release_abort(request, PTR_ERR(job));
 
-			return PTR_ERR(job);
+			return ret;
 		}
 	}
 
@@ -1157,9 +1214,6 @@ int rga_request_submit(struct rga_request *request)
 	int ret = 0;
 	unsigned long flags;
 	struct dma_fence *release_fence;
-	struct mm_struct *current_mm;
-
-	current_mm = rga_request_get_current_mm(request);
 
 	spin_lock_irqsave(&request->lock, flags);
 
@@ -1168,7 +1222,7 @@ int rga_request_submit(struct rga_request *request)
 
 		rga_req_err(request, "can not re-config when request is running\n");
 		ret = -EFAULT;
-		goto err_put_current_mm;
+		goto err_abort_request;
 	}
 
 	if (request->task_list == NULL) {
@@ -1176,7 +1230,7 @@ int rga_request_submit(struct rga_request *request)
 
 		rga_req_err(request, "can not find task list\n");
 		ret = -EINVAL;
-		goto err_put_current_mm;
+		goto err_abort_request;
 	}
 
 	/* Reset */
@@ -1185,18 +1239,19 @@ int rga_request_submit(struct rga_request *request)
 	request->finished_task_count = 0;
 	request->failed_task_count = 0;
 	request->ret = 0;
-	request->current_mm = current_mm;
 
 	/* Unlock after ensuring that the current request will not be resubmitted. */
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		release_fence = rga_dma_fence_alloc();
-		if (IS_ERR(release_fence)) {
+		if (IS_ERR_OR_NULL(release_fence)) {
 			rga_req_err(request, "Can not alloc release fence!\n");
-			ret = IS_ERR(release_fence);
-			goto err_reset_request;
+			ret = IS_ERR(release_fence) ? PTR_ERR(release_fence) : -EINVAL;
+			goto err_abort_request;
 		}
+
+		request->current_mm = rga_request_get_current_mm(request);
 		request->release_fence = release_fence;
 
 		if (request->acquire_fence_fd > 0) {
@@ -1213,16 +1268,22 @@ int rga_request_submit(struct rga_request *request)
 			} else {
 				rga_req_err(request, "Failed to add callback with acquire fence fd[%d]!\n",
 				       request->acquire_fence_fd);
-				goto err_put_release_fence;
+
+				rga_dma_fence_put(request->release_fence);
+				request->release_fence = NULL;
+				goto err_put_current_mm;
 			}
 		}
+	} else {
+		request->current_mm = rga_request_get_current_mm(request);
+		request->release_fence = NULL;
 	}
 
 request_commit:
 	ret = rga_request_commit(request);
 	if (ret < 0) {
 		rga_req_err(request, "request commit failed!\n");
-		goto err_put_release_fence;
+		goto err_put_current_mm;
 	}
 
 export_release_fence_fd:
@@ -1230,8 +1291,7 @@ export_release_fence_fd:
 		ret = rga_dma_fence_get_fd(request->release_fence);
 		if (ret < 0) {
 			rga_req_err(request, "Failed to alloc release fence fd!\n");
-			rga_request_release_abort(request, ret);
-			return ret;
+			goto err_put_current_mm;
 		}
 
 		request->release_fence_fd = ret;
@@ -1239,22 +1299,12 @@ export_release_fence_fd:
 
 	return 0;
 
-err_put_release_fence:
-	if (request->release_fence != NULL) {
-		rga_dma_fence_put(request->release_fence);
-		request->release_fence = NULL;
-	}
-
-err_reset_request:
-	spin_lock_irqsave(&request->lock, flags);
-
-	request->current_mm = NULL;
-	request->is_running = false;
-
-	spin_unlock_irqrestore(&request->lock, flags);
-
 err_put_current_mm:
-	rga_request_put_current_mm(current_mm);
+	rga_request_put_current_mm(request->current_mm);
+	request->current_mm = NULL;
+
+err_abort_request:
+	rga_request_release_abort(request, ret);
 
 	return ret;
 }
@@ -1262,7 +1312,6 @@ err_put_current_mm:
 int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 {
 	int ret = 0;
-	struct rga_job *job = NULL;
 	unsigned long flags;
 	struct rga_pending_request_manager *request_manager;
 
@@ -1270,7 +1319,8 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
 		rga_req_err(request, "mpi unsupported async mode!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_abort_request;
 	}
 
 	spin_lock_irqsave(&request->lock, flags);
@@ -1278,13 +1328,15 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	if (request->is_running) {
 		rga_req_err(request, "can not re-config when request is running");
 		spin_unlock_irqrestore(&request->lock, flags);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err_abort_request;
 	}
 
 	if (request->task_list == NULL) {
 		rga_req_err(request, "can not find task list");
 		spin_unlock_irqrestore(&request->lock, flags);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_abort_request;
 	}
 
 	/* Reset */
@@ -1304,17 +1356,22 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
 
-	job = rga_job_commit(req, request);
-	if (IS_ERR_OR_NULL(job)) {
+	ret = rga_job_commit(req, request);
+	if (ret < 0) {
 		rga_req_err(request, "failed to commit job!\n");
-		return job ? PTR_ERR(job) : -EFAULT;
+		goto err_abort_request;
 	}
 
 	ret = rga_request_wait(request);
 	if (ret < 0)
-		return ret;
+		goto err_abort_request;
 
 	return 0;
+
+err_abort_request:
+	rga_request_release_abort(request, ret);
+
+	return ret;
 }
 
 int rga_request_free(struct rga_request *request)
@@ -1347,6 +1404,8 @@ int rga_request_free(struct rga_request *request)
 
 	if (task_list != NULL)
 		kfree(task_list);
+
+	rga_session_put(request->session);
 
 	kfree(request);
 
@@ -1419,7 +1478,10 @@ int rga_request_alloc(uint32_t flags, struct rga_session *session)
 
 	request->pid = current->pid;
 	request->flags = flags;
+
+	rga_session_get(session);
 	request->session = session;
+
 	kref_init(&request->refcount);
 
 	/*
@@ -1435,6 +1497,7 @@ int rga_request_alloc(uint32_t flags, struct rga_session *session)
 		rga_err("request alloc id failed!\n");
 
 		mutex_unlock(&request_manager->lock);
+		rga_session_put(session);
 		kfree(request);
 		return new_id;
 	}

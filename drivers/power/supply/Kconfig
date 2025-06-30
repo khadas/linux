@@ -490,6 +490,14 @@ config CHARGER_CPCAP
 	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
 	  mobile devices such as Droid 4.
 
+config CHARGER_CPS5601X
+	tristate "CPS5601X charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the CPS5601X battery charger.
+
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
@@ -583,6 +591,14 @@ config CHARGER_SC8551
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for the SC8551 battery pump charger.
+
+config CHARGER_SC89601
+	tristate "SC89601 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC89601 battery charger.
 
 config CHARGER_SC89890
 	tristate "SC89890 battery charger driver"

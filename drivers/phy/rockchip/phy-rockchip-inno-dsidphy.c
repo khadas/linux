@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
@@ -846,6 +846,12 @@ static int inno_dsidphy_power_on(struct phy *phy)
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
 
+	if (inno->pdata->soc_type == RK3506) {
+		/* The internal 1.2V LDO power on */
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x17, BIT(7), 0);
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1d, BIT(7), 0);
+	}
+
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
 		inno_dsidphy_mipi_mode_enable(inno);
@@ -880,6 +886,12 @@ static int inno_dsidphy_power_off(struct phy *phy)
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
 			LVDS_PLL_POWER_MASK | LVDS_BANDGAP_POWER_MASK,
 			LVDS_PLL_POWER_OFF | LVDS_BANDGAP_POWER_DOWN);
+
+	if (inno->pdata->soc_type == RK3506) {
+		/* The internal 1.2V LDO power off */
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x17, BIT(7), BIT(7));
+		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1d, BIT(7), BIT(7));
+	}
 
 	pm_runtime_put(inno->dev);
 	clk_disable_unprepare(inno->ref_clk);
@@ -1139,7 +1151,7 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 		.compatible = "rockchip,rk3568-dsi-dphy",
 		.data = &rk3568_video_phy_plat_data,
 	}, {
-		.compatible = "rockchip,rv1126-mipi-dphy",
+		.compatible = "rockchip,rv1126-dsi-dphy",
 		.data = &rv1126_video_phy_plat_data,
 	},
 	{}
@@ -1154,7 +1166,21 @@ static struct platform_driver inno_dsidphy_driver = {
 	.probe = inno_dsidphy_probe,
 	.remove = inno_dsidphy_remove,
 };
+#ifdef CONFIG_INITCALL_ASYNC
+static int __init inno_dsidphy_driver_init(void)
+{
+	return platform_driver_register(&inno_dsidphy_driver);
+}
+fs_initcall(inno_dsidphy_driver_init);
+
+static void __exit inno_dsidphy_driver_exit(void)
+{
+	platform_driver_unregister(&inno_dsidphy_driver);
+}
+module_exit(inno_dsidphy_driver_exit);
+#else
 module_platform_driver(inno_dsidphy_driver);
+#endif
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
 MODULE_DESCRIPTION("Innosilicon MIPI/LVDS/TTL Video Combo PHY driver");

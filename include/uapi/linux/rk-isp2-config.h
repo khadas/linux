@@ -12,7 +12,7 @@
 #include <linux/v4l2-controls.h>
 #include <linux/rk-camera-module.h>
 
-#define RKISP_API_VERSION		KERNEL_VERSION(2, 6, 1)
+#define RKISP_API_VERSION		KERNEL_VERSION(3, 0, 0)
 
 /****************ISP SUBDEV IOCTL*****************************/
 
@@ -69,7 +69,7 @@
 	_IOR('V', BASE_VIDIOC_PRIVATE + 17, struct rkisp_aiisp_cfg)
 
 #define RKISP_CMD_AIISP_RD_START \
-	_IO('V', BASE_VIDIOC_PRIVATE + 18)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 18, struct rkisp_aiisp_st)
 
 /* BASE_VIDIOC_PRIVATE + 19 for RKISP_CMD_GET_TB_HEAD_V33 */
 /* BASE_VIDIOC_PRIVATE + 20 for RKISP_CMD_SET_TB_HEAD_V33 */
@@ -80,8 +80,25 @@
 #define RKISP_CMD_GET_OFFLINE_RAW_BUFCNT \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 22, int)
 
+#define RKISP_CMD_SET_ONLINE_HDR_WRAP_LINE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 23, int)
+
+#define RKISP_CMD_GET_ONLINE_HDR_WRAP_LINE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 24, int)
+
 #define RKISP_CMD_SET_FPN \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 25, struct rkisp_fpn_cfg)
+
+#define RKISP_CMD_INIT_BNR_BUF \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 26, struct rkisp_bnr_buf_info)
+
+#define RKISP_CMD_GET_TB_HEAD \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 27, struct rkisp_thunderboot_resmem_head)
+#define RKISP_CMD_SET_TB_HEAD \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 28, struct rkisp_thunderboot_resmem_head)
+
+#define RKISP_CMD_AIAWB_BUF \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 29, struct rkisp_aiawb_buffd)
 
 /****************ISP VIDEO IOCTL******************************/
 
@@ -133,6 +150,13 @@
 /* BASE_VIDIOC_PRIVATE + 115 for RKISP_CMD_GET_PARAMS_V39 */
 /* BASE_VIDIOC_PRIVATE + 116 for RKISP_CMD_GET_PARAMS_V33 */
 /* BASE_VIDIOC_PRIVATE + 117 for RKISP_CMD_SET_QUICK_STREAM */
+/* BASE_VIDIOC_PRIVATE + 119 for RKISP_CMD_GET_PARAMS_V35 */
+
+/* frame information attach to image tail, see struct rkisp_frame_info
+ * set this before VIDIOC_REQBUFS then VIDIOC_QUERYBUF to get buf size
+ */
+#define RKISP_CMD_STREAM_ATTACH_INFO \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 118, int)
 
 /**********************EVENT_PRIVATE***************************/
 #define RKISP_V4L2_EVENT_AIISP_LINECNT (V4L2_EVENT_PRIVATE_START + 1)
@@ -309,6 +333,28 @@
 
 #define ISP2X_MESH_BUF_NUM		2
 
+#define RKISP_BUFFER_MAX		8
+struct rkisp_buf_info {
+	int buf_cnt;
+	int buf_size;
+	int buf_fd[RKISP_BUFFER_MAX];
+} __attribute__ ((packed));
+
+enum rkisp_aiawb_ds {
+	RKISP_AIAWB_DS_4X4,
+	RKISP_AIAWB_DS_8X4,
+	RKISP_AIAWB_DS_8X8,
+	RKISP_AIAWB_DS_16X16,
+};
+
+/* struct rkisp_aiawb_buffd
+ * set aiawb buf count and get buf fd result
+ */
+struct rkisp_aiawb_buffd {
+	enum rkisp_aiawb_ds ds;
+	struct rkisp_buf_info info;
+} __attribute__ ((packed));
+
 enum rkisp_isp_mode {
 	/* frame input related */
 	RKISP_ISP_NORMAL = _BITUL(0),
@@ -351,6 +397,7 @@ struct rkisp_meshbuf_size {
 struct isp2x_mesh_head {
 	enum isp2x_mesh_buf_stat stat;
 	__u32 data_oft;
+	__u32 data1_oft;
 } __attribute__ ((packed));
 
 enum {
@@ -360,7 +407,7 @@ enum {
 	RKISP_FPN_DATA_SHIFT_3,
 };
 
-/* struct rkisp_aiisp_cfg
+/* struct rkisp_fpn_cfg
  * en: enable fpn function
  * row_en: row fpn mode other column fpn
  * data_shift: fpn data shift, 4bits of 7bits calculate fpn data
@@ -379,22 +426,72 @@ struct rkisp_fpn_cfg {
 #define RKISP_AIISP_WR_LINECNT_ID	0
 #define RKISP_AIISP_RD_LINECNT_ID	1
 struct rkisp_aiisp_ev_info {
+	unsigned long long timestamp;
 	int sequence;
 	int height;
+
+	int iir_index;
+	int gain_index;
+	int aipre_gain_index;
+	int vpsl_index;
+
+	int aiisp_index;
+} __attribute__ ((packed));
+
+struct rkisp_aiisp_st {
+	unsigned long long timestamp;
+	int sequence;
+
+	int iir_index;
+	int gain_index;
+
+	int aiisp_index;
+
+	int aipre_gain_index;
+	int vpsl_index;
 } __attribute__ ((packed));
 
 /* struct rkisp_aiisp_cfg
- * wr_mode: 0: only one RKISP_AIISP_WR_LINECNT_ID event, else event per wr_linecnt
- * rd_mode: 0: only one RKISP_AIISP_RD_LINECNT_ID event, else event per rd_linecnt
- * wr_linecnt: aiisp write irq line, 0 isn't RKISP_AIISP_WR_LINECNT_ID event, and aiisp no enable
- * rd_linecnt: aiisp read irq line, 0 isn't RKISP_AIISP_RD_LINECNT_ID event
+ * mode: 0: disable aiisp, 1:enable aiisp
+ * wr_linecnt: aiisp write irq line
+ * rd_linecnt: aiisp read irq line
  */
 struct rkisp_aiisp_cfg {
-	char wr_mode;
-	char rd_mode;
-
+	int mode;
 	int wr_linecnt;
 	int rd_linecnt;
+} __attribute__ ((packed));
+
+#define VPSL_YRAW_CHN_MAX	6
+#define VPSL_SIG_CHN_MAX	5
+
+struct rkisp_bnr_buf_info {
+	struct rkisp_buf_info iir;
+	union {
+		struct {
+			struct rkisp_buf_info aiisp;
+			struct rkisp_buf_info gain;
+			__u8 iirsparse_en;
+		} v39;
+		struct {
+			struct rkisp_buf_info ds;
+			struct rkisp_buf_info wgt;
+
+			struct rkisp_buf_info aiisp;
+			struct rkisp_buf_info gain;
+			struct rkisp_buf_info aipre_gain;
+			struct rkisp_buf_info vpsl;
+			__u8 iir_rw_fmt;
+			__u8 gain_mode;
+			__u8 yraw_sel;
+			/* yraw ds_2x2 to ds_64x64 buf offset and stride */
+			__u32 vpsl_yraw_offs[VPSL_YRAW_CHN_MAX];
+			__u32 vpsl_yraw_stride[VPSL_YRAW_CHN_MAX];
+			/* sigma ds_2x2 to ds_32x32 buf offset and stride */
+			__u32 vpsl_sig_offs[VPSL_SIG_CHN_MAX];
+			__u32 vpsl_sig_stride[VPSL_SIG_CHN_MAX];
+		} v35;
+	} u;
 } __attribute__ ((packed));
 
 struct rkisp_bay3dbuf_info {
@@ -412,11 +509,11 @@ struct rkisp_bay3dbuf_info {
 			int ds_size;
 		} v32;
 		struct {
+			int ds_fd;
+			int ds_size;
 			int gain_fd;
 			int gain_size;
-			int aiisp_fd;
-			int aiisp_size;
-		} v39;
+		} v33;
 	} u;
 } __attribute__ ((packed));
 
@@ -430,7 +527,7 @@ struct rkisp_bay3dbuf_info {
  * RKISP_CMSK_WIN_MAX_V30 for rk3588 support 8 windows, and
  * support for mainpath and selfpath output stream channel.
  *
- * RKISP_CMSK_WIN_MAX for rv1106 support 12 windows, and
+ * RKISP_CMSK_WIN_MAX for rv1106/rv1103b support 12 windows, and
  * support for mainpath selfpath and bypasspath output stream channel.
  *
  * mode: 0:mosaic mode, 1:cover mode
@@ -1885,12 +1982,21 @@ struct isp2x_isp_meas_cfg {
 	struct isp2x_sihst_cfg sihst;
 } __attribute__ ((packed));
 
+/* struct sensor_exposure_s
+ * fine_integration_time: sensor fine integration time.
+ * coarse_integration_time: sensor coarse integration time, as exposure time, Units: us
+ * analog_gain_code_global: sensor analog gain, Units: gain * 1000
+ * digital_gain_global: sensor digital gain, Units: gain * 1000
+ * isp_digital_gain: isp digital gain, Units: gain * 1000
+ * rolling_shutter_skew: sensor rolling shutter skew, Units: us
+ */
 struct sensor_exposure_s {
 	__u32 fine_integration_time;
 	__u32 coarse_integration_time;
 	__u32 analog_gain_code_global;
 	__u32 digital_gain_global;
 	__u32 isp_digital_gain;
+	__u32 rolling_shutter_skew;
 } __attribute__ ((packed));
 
 struct sensor_exposure_cfg {
@@ -2077,6 +2183,8 @@ enum {
 	RKISP_RTT_MODE_ONE_FRAME,
 };
 
+#define MAX_PRE_BUF_NUM (4)
+
 /**
  * struct rkisp_thunderboot_resmem_head
  */
@@ -2097,8 +2205,12 @@ struct rkisp_thunderboot_resmem_head {
 	__u32 exp_time_reg[3];
 	__u32 exp_gain_reg[3];
 	__u32 exp_isp_dgain[3];
+	__u32 dcg_mode[3];
 	__u32 nr_buf_size;
 	__u32 share_mem_size;
+	__u32 pre_buf_num;
+	__u32 pre_buf_addr[MAX_PRE_BUF_NUM];
+	__u32 pre_buf_timestamp[MAX_PRE_BUF_NUM];
 } __attribute__ ((packed));
 
 /**
@@ -2116,6 +2228,48 @@ struct rkisp_thunderboot_shmem {
 	__u32 shm_start;
 	__u32 shm_size;
 	__s32 shm_fd;
+} __attribute__ ((packed));
+
+/* struct rkisp_frame_info
+ * timestamp: frame timestamp
+ * seq: frame id
+ * hdr: sensor linear or hdr mode. 0: linear, 1: hdr2(short and long), 2: hdr3
+ * rolling_shutter_skew: sensor rolling shutter skew, Units: us
+ * sensor_exposure_time: sensor exposure time(linear or hdr short frame). Units: us
+ * sensor_analog_gain: sensor analog gain(linear or hdr short frame). Units: gain * 1000
+ * sensor_digital_gain: sensor digital gain(linear or hdr short frame). Units: gain * 1000
+ * isp_digital_gain: isp digital gain(linear or hdr short frame). Units: gain * 1000
+ * sensor_exposure_time_m: sensor exposure time(hdr mid-frame). Units: us
+ * sensor_analog_gain_m: sensor analog gain(hdr mid-frame). Units: gain * 1000
+ * sensor_digital_gain_m: sensor digital gain(hdr mid-frame). Units: gain * 1000
+ * isp_digital_gain_m: isp digital gain(hdr mid-frame). Units: gain * 1000
+ * sensor_exposure_time_l: sensor exposure time(hdr long frame). Units: us
+ * sensor_analog_gain_l: sensor analog gain(hdr long frame). Units: gain * 1000
+ * sensor_digital_gain_l: sensor digital gain(hdr long frame). Units: gain * 1000
+ * isp_digital_gain_l: isp digital gain(hdr long frame). Units: gain * 1000
+ */
+struct rkisp_frame_info {
+	__u64 timestamp;
+	__u32 seq;
+	__u32 hdr;
+	__u32 rolling_shutter_skew;
+	/* linear or hdr short frame */
+	__u32 sensor_exposure_time;
+	__u32 sensor_analog_gain;
+	__u32 sensor_digital_gain;
+	__u32 isp_digital_gain;
+	/* hdr mid-frame */
+	__u32 sensor_exposure_time_m;
+	__u32 sensor_analog_gain_m;
+	__u32 sensor_digital_gain_m;
+	__u32 isp_digital_gain_m;
+	/* hdr long frame */
+	__u32 sensor_exposure_time_l;
+	__u32 sensor_analog_gain_l;
+	__u32 sensor_digital_gain_l;
+	__u32 isp_digital_gain_l;
+	/* isp reg size: 0x6000 / 4 */
+	__u32 isp_reg[6144];
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RK_ISP2_CONFIG_H */

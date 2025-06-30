@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  * Author: Elaine <zhangqing@rock-chips.com>
  */
 
@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3328-cru.h>
 #include "clk.h"

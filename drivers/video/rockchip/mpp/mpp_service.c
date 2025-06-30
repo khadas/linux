@@ -100,6 +100,9 @@ static int mpp_add_driver(struct mpp_service *srv,
 		     &srv->grf_infos[type],
 		     grf_name);
 
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU))
+		driver->driver_managed_dma = (srv->iommu_shared_mask & BIT(type)) ? true : false;
+
 	ret = platform_driver_register(driver);
 	if (ret)
 		return ret;
@@ -443,6 +446,9 @@ static int mpp_service_probe(struct platform_device *pdev)
 			srv->reset_groups[i] = group;
 		}
 	}
+
+	of_property_read_u32(np, "rockchip,iommu-shared-mask",
+			     &srv->iommu_shared_mask);
 
 	ret = mpp_register_service(srv, MPP_SERVICE_NAME);
 	if (ret) {

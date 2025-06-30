@@ -243,6 +243,7 @@ struct streams_ops {
 	int (*frame_start)(struct rkisp_stream *stream, u32 mis);
 	int (*set_wrap)(struct rkisp_stream *stream, int line);
 	int (*isp_end)(struct rkisp_stream *stream, u32 irq);
+	int (*switch_grey)(struct rkisp_stream *stream);
 };
 
 struct rockit_isp_ops {
@@ -303,6 +304,7 @@ struct rkisp_stream {
 	bool is_using_resmem;
 	bool frame_early;
 	bool need_scl_upd;
+	bool is_attach_info;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
@@ -310,6 +312,8 @@ struct rkisp_stream {
 	int conn_id;
 	u32 memory;
 	u32 skip_frame;
+	u32 buf_cnt;
+	u32 switch_grey_wait_frame;
 	union {
 		struct rkisp_stream_sp sp;
 		struct rkisp_stream_mp mp;

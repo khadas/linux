@@ -659,10 +659,10 @@ static void sc132gs_get_module_inf(struct sc132gs *sc132gs,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC132GS_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc132gs->module_name,
+	strscpy(inf->base.sensor, SC132GS_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc132gs->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc132gs->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc132gs->len_name, sizeof(inf->base.lens));
 }
 
 static long sc132gs_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

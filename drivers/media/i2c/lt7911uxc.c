@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  *
  * lt7911uxc type-c/DP to MIPI CSI-2 bridge driver.
  *

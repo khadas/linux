@@ -245,6 +245,9 @@ static void __init free_highpages(void)
 	phys_addr_t range_start, range_end;
 	u64 i;
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK))
+		return;
+
 	/* set highmem page free */
 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
 				&range_start, &range_end, NULL) {

@@ -1035,13 +1035,13 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	rkisp1_stream_init(isp_dev, RKISP1_STREAM_MP);
 	rkisp1_stream_init(isp_dev, RKISP1_STREAM_RAW);
 
-	strlcpy(isp_dev->media_dev.model, "rkisp1",
+	strscpy(isp_dev->media_dev.model, "rkisp1",
 		sizeof(isp_dev->media_dev.model));
 	isp_dev->media_dev.dev = &pdev->dev;
 	isp_dev->media_dev.ops = &rkisp1_media_ops;
 	v4l2_dev = &isp_dev->v4l2_dev;
 	v4l2_dev->mdev = &isp_dev->media_dev;
-	strlcpy(v4l2_dev->name, "rkisp1", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "rkisp1", sizeof(v4l2_dev->name));
 	v4l2_ctrl_handler_init(&isp_dev->ctrl_handler, 5);
 	v4l2_dev->ctrl_handler = &isp_dev->ctrl_handler;
 

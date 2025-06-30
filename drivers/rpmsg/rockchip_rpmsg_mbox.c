@@ -2,7 +2,7 @@
 /*
  * Rockchip Remote Processors Messaging Platform Support.
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  * Author: Steven Liu <steven.liu@rock-chips.com>
  */
 

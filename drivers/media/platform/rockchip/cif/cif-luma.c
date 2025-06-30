@@ -58,8 +58,8 @@ static int rkcif_luma_querycap(struct file *file,
 	struct rkcif_luma_vdev *luma_vdev = video_get_drvdata(vdev);
 	struct device *dev = luma_vdev->cifdev->dev;
 
-	strlcpy(cap->driver, dev->driver->name, sizeof(cap->driver));
-	strlcpy(cap->card, dev->driver->name, sizeof(cap->card));
+	strscpy(cap->driver, dev->driver->name, sizeof(cap->driver));
+	strscpy(cap->card, dev->driver->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", dev_name(dev));
 
@@ -454,7 +454,7 @@ int rkcif_register_luma_vdev(struct rkcif_luma_vdev *luma_vdev,
 	spin_lock_init(&luma_vdev->irq_lock);
 	spin_lock_init(&luma_vdev->rd_lock);
 
-	strlcpy(vdev->name, "rkcif-mipi-luma", sizeof(vdev->name));
+	strscpy(vdev->name, "rkcif-mipi-luma", sizeof(vdev->name));
 	mutex_init(&node->vlock);
 
 	vdev->ioctl_ops = &rkcif_luma_ioctl;

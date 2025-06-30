@@ -50,7 +50,7 @@
 		simple-audio-card,frame-master = <&dummy_clk1>;
 		simple-audio-card,cpu {
 			sound-dai = <&sai4>;
-			dai-tdm-slot-num = <2>;
+			dai-tdm-slot-num = <8>;
 			dai-tdm-slot-width = <32>;
 		};
 		dummy_clk1: simple-audio-card,codec {

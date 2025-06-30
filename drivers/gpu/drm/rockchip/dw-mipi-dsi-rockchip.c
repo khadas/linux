@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:
  *      Chris Zhong <zyw@rock-chips.com>
  *      Nickey Yang <nickey.yang@rock-chips.com>
@@ -215,6 +215,7 @@
 #define RK3568_DSI1_FORCERXMODE		BIT(0)
 
 #define RV1126_GRF_DSIPHY_CON		0x10220
+#define RV1126B_GRF_DSIPHY_CON		0x80010
 #define RV1126_DSI_FORCETXSTOPMODE	(0xf << 4)
 #define RV1126_DSI_TURNDISABLE		(0x1 << 2)
 #define RV1126_DSI_FORCERXMODE		(0x1 << 0)
@@ -258,6 +259,7 @@ enum soc_type {
 	RK3562,
 	RK3568,
 	RV1126,
+	RV1126B,
 };
 
 struct cmd_header {
@@ -1857,32 +1859,77 @@ static const struct rockchip_dw_dsi_chip_data rv1126_chip_data[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dw_dsi_chip_data rv1126b_chip_data[] = {
+	{
+		.reg = 0x22120000,
+
+		.lanecfg1_grf_reg = RV1126B_GRF_DSIPHY_CON,
+		.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
+					     RV1126_DSI_FORCERXMODE |
+					     RV1126_DSI_FORCETXSTOPMODE),
+		.flags = 0,
+		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
+		.soc_type = RV1126B,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
+#if IS_ENABLED(CONFIG_CPU_PX30)
 	{
 	 .compatible = "rockchip,px30-mipi-dsi",
 	 .data = &px30_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK312X)
+	{
 	 .compatible = "rockchip,rk3128-mipi-dsi",
 	 .data = &rk3128_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3288)
+	{
 	 .compatible = "rockchip,rk3288-mipi-dsi",
 	 .data = &rk3288_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3399)
+	{
 	 .compatible = "rockchip,rk3399-mipi-dsi",
 	 .data = &rk3399_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3506)
+	{
 	 .compatible = "rockchip,rk3506-mipi-dsi",
 	 .data = &rk3506_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3562)
+	{
 	 .compatible = "rockchip,rk3562-mipi-dsi",
 	 .data = &rk3562_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3568)
+	{
 	 .compatible = "rockchip,rk3568-mipi-dsi",
 	 .data = &rk3568_chip_data,
-	}, {
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126)
+	{
 	 .compatible = "rockchip,rv1126-mipi-dsi",
 	 .data = &rv1126_chip_data,
 	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126B)
+	{
+	 .compatible = "rockchip,rv1126b-mipi-dsi",
+	 .data = &rv1126b_chip_data,
+	},
+#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dw_mipi_dsi_rockchip_dt_ids);

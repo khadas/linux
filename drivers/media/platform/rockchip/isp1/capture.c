@@ -1832,7 +1832,7 @@ static int rkisp1_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(input->name, "Camera", sizeof(input->name));
+	strscpy(input->name, "Camera", sizeof(input->name));
 
 	return 0;
 }
@@ -2053,7 +2053,7 @@ static int rkisp1_querycap(struct file *file, void *priv,
 	struct device *dev = stream->ispdev->dev;
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->card, vdev->name, sizeof(cap->card));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->driver, sizeof(cap->driver),
 		 "%s_v%d", dev->driver->name,
 		 stream->ispdev->isp_ver >> 4);
@@ -2143,7 +2143,7 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 		v4l2_err(v4l2_dev, "Invalid stream\n");
 		return -EINVAL;
 	}
-	strlcpy(vdev->name, vdev_name, sizeof(vdev->name));
+	strscpy(vdev->name, vdev_name, sizeof(vdev->name));
 	node = vdev_to_node(vdev);
 
 	vdev->ioctl_ops = &rkisp1_v4l2_ioctl_ops;

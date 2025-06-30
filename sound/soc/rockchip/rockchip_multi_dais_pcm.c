@@ -2,7 +2,7 @@
 /*
  * ALSA SoC Audio Layer - Rockchip Multi-DAIS-PCM driver
  *
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  * Author: Sugar Zhang <sugar.zhang@rock-chips.com>
  *
  */
@@ -17,6 +17,8 @@
 
 #include "rockchip_multi_dais.h"
 #include "rockchip_dlp.h"
+
+#define DMA_GUARD_BUFFER_SIZE		64
 
 #define I2S_TXFIFOLR			0xc
 #define I2S_RXFIFOLR			0x2c
@@ -43,11 +45,19 @@ static unsigned int prealloc_buffer_size_kbytes = 512;
 module_param(prealloc_buffer_size_kbytes, uint, 0444);
 MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
 
+struct trcm_dma_guard {
+	dma_addr_t dma_addr;
+	unsigned char *dma_area;
+};
+
 struct dmaengine_mpcm {
 	struct dlp dlp;
 	struct rk_mdais_dev *mdais;
 	struct dma_chan *tx_chans[MAX_DAIS];
 	struct dma_chan *rx_chans[MAX_DAIS];
+	struct trcm_dma_guard tx_guards[MAX_DAIS];
+	struct trcm_dma_guard rx_guards[MAX_DAIS];
+	bool guard;
 };
 
 struct dmaengine_mpcm_runtime_data {
@@ -484,6 +494,73 @@ static void dmaengine_mpcm_dlp_stop(struct snd_soc_component *component,
 	dlp_stop(component, substream, dmaengine_mpcm_raw_pointer);
 }
 
+static int dmaengine_mpcm_trcm_dma_guard_ctrl(struct snd_soc_component *component,
+					      int stream, bool en)
+{
+	struct dmaengine_mpcm *pcm = soc_component_to_mpcm(component);
+	struct dma_chan **chans;
+	struct trcm_dma_guard *guards;
+	struct rk_dai *dais;
+	struct dma_async_tx_descriptor *desc;
+	enum dma_transfer_direction direction;
+	unsigned int *maps, buf_sz;
+	int i, ret, num;
+
+	if (!pcm->guard)
+		return 0;
+
+	dais = pcm->mdais->dais;
+	num = pcm->mdais->num_dais;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		chans = pcm->tx_chans;
+		guards = pcm->tx_guards;
+		direction = DMA_MEM_TO_DEV;
+		maps = pcm->mdais->playback_channel_maps;
+	} else {
+		chans = pcm->rx_chans;
+		guards = pcm->rx_guards;
+		direction = DMA_DEV_TO_MEM;
+		maps = pcm->mdais->capture_channel_maps;
+	}
+
+	if (!en) {
+		for (i = 0; i < num; i++) {
+			if (!chans[i] || !dais[i].trcm || !maps[i])
+				continue;
+
+			ret = dmaengine_terminate_all(chans[i]);
+			if (ret)
+				return ret;
+		}
+
+		return 0;
+	}
+
+	for (i = 0; i < num; i++) {
+		if (!chans[i] || !dais[i].trcm || !maps[i])
+			continue;
+
+		buf_sz = DMA_GUARD_BUFFER_SIZE / (maps[i] * 4);
+		buf_sz = buf_sz * maps[i] * 4;
+		if (!buf_sz)
+			return -EINVAL;
+
+		desc = dmaengine_prep_dma_cyclic(chans[i], guards[i].dma_addr,
+						 buf_sz, buf_sz, direction,
+						 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc)
+			return -ENOMEM;
+
+		desc->callback = NULL;
+		desc->callback_param = NULL;
+		dmaengine_submit(desc);
+		dma_async_issue_pending(chans[i]);
+	}
+
+	return 0;
+}
+
 static int dmaengine_mpcm_trigger(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream, int cmd)
 {
@@ -504,6 +581,7 @@ static int dmaengine_mpcm_trigger(struct snd_soc_component *component,
 			mpcm_dma_async_issue_pending(prtd);
 		}
 #endif
+		mpcm_dmaengine_terminate_all(prtd);
 		ret = dmaengine_mpcm_prepare_and_submit(substream);
 		if (ret)
 			return ret;
@@ -530,6 +608,7 @@ static int dmaengine_mpcm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_STOP:
 		dmaengine_mpcm_dlp_stop(component, substream);
 		mpcm_dmaengine_terminate_all(prtd);
+		dmaengine_mpcm_trcm_dma_guard_ctrl(component, substream->stream, 1);
 		prtd->start_flag = false;
 		break;
 	default:
@@ -725,6 +804,82 @@ static int dmaengine_mpcm_open(struct snd_soc_component *component,
 	return 0;
 }
 
+static int dmaengine_mpcm_trcm_dma_guard_new(struct snd_soc_component *component,
+					     struct snd_soc_pcm_runtime *rtd)
+{
+	struct dmaengine_mpcm *pcm = soc_component_to_mpcm(component);
+	struct dma_chan **chans;
+	struct trcm_dma_guard *guards;
+	struct rk_dai *dais;
+	struct snd_dmaengine_dai_dma_data *dma_data;
+	struct snd_pcm_substream *substream;
+	struct dma_slave_config slave_config;
+	struct device *dev;
+	dma_addr_t dma_addr;
+	unsigned char *dma_area;
+	int i, j, ret, num;
+
+	dais = pcm->mdais->dais;
+	num = pcm->mdais->num_dais;
+
+	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
+		substream = rtd->pcm->streams[i].substream;
+		if (!substream)
+			continue;
+
+		dev = dmaengine_dma_dev(pcm, substream);
+
+		chans  = substream->stream ? pcm->rx_chans : pcm->tx_chans;
+		guards = substream->stream ? pcm->rx_guards : pcm->tx_guards;
+
+		for (j = 0; j < num; j++) {
+			if (!chans[j] || !dais[j].trcm)
+				continue;
+
+			pcm->guard = true;
+
+			dma_area = dma_alloc_coherent(dev, DMA_GUARD_BUFFER_SIZE,
+						      &dma_addr, GFP_KERNEL);
+			if (!dma_area)
+				return -ENOMEM;
+
+			memset(dma_area, 0x0, DMA_GUARD_BUFFER_SIZE);
+
+			guards[j].dma_addr = dma_addr;
+			guards[j].dma_area = dma_area;
+
+			memset(&slave_config, 0, sizeof(slave_config));
+
+			dma_data = snd_soc_dai_get_dma_data(dais[j].dai, substream);
+			if (!dma_data)
+				continue;
+
+			snd_dmaengine_mpcm_set_config_from_dai_data(substream,
+								    dma_data,
+								    &slave_config);
+
+			/*
+			 * Use the max-16w to cover all 2^n cases, maybe better
+			 * per channels and fmt, at the moment, we use the simple
+			 * way.
+			 */
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+				slave_config.direction = DMA_MEM_TO_DEV;
+				slave_config.dst_maxburst = 16;
+			} else {
+				slave_config.direction = DMA_DEV_TO_MEM;
+				slave_config.src_maxburst = 16;
+			}
+
+			ret = dmaengine_slave_config(chans[j], &slave_config);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int dmaengine_mpcm_new(struct snd_soc_component *component, struct snd_soc_pcm_runtime *rtd)
 {
 	struct dmaengine_mpcm *pcm = soc_component_to_mpcm(component);
@@ -733,9 +888,14 @@ static int dmaengine_mpcm_new(struct snd_soc_component *component, struct snd_so
 	size_t prealloc_buffer_size;
 	size_t max_buffer_size;
 	unsigned int i;
+	int ret;
 
 	prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
 	max_buffer_size = SIZE_MAX;
+
+	ret = dmaengine_mpcm_trcm_dma_guard_new(component, rtd);
+	if (ret)
+		return ret;
 
 	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
 		substream = rtd->pcm->streams[i].substream;

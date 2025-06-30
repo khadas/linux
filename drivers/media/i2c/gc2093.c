@@ -976,9 +976,9 @@ static void gc2093_get_module_inf(struct gc2093 *gc2093,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.lens, gc2093->len_name, sizeof(inf->base.lens));
-	strlcpy(inf->base.sensor, GC2093_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc2093->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, gc2093->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.sensor, GC2093_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc2093->module_name, sizeof(inf->base.module));
 }
 
 static int gc2093_get_channel_info(struct gc2093 *gc2093,

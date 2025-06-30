@@ -2,7 +2,7 @@
 /*
  * core.h -- core define for mfd display arch
  *
- * Copyright (c) 2023-2028 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023-2028 Rockchip Electronics Co., Ltd.
  *
  * Author: luowei <lw@rock-chips.com>
  *
@@ -78,42 +78,53 @@
 #include "../../../../drivers/extcon/extcon.h"
 #include "../../../../drivers/base/regmap/internal.h"
 
-/*
-* if enable all the debug information,
-* there will be much log.
-*
-* so suggest set CONFIG_LOG_BUF_SHIFT to 18
-*/
-//#define SERDES_DEBUG_MFD
-//#define SERDES_DEBUG_I2C
-//#define SERDES_DEBUG_CHIP
+/**
+ * Enabling verbose debug messages is done through the serdes_log_level parameter, each
+ * category being enabled by a bit:
+ *
+ *  - serdes_log_level=0x1 will enable MFD messages
+ *  - serdes_log_level=0x2 will enable I2C messages
+ *  - serdes_log_level=0x4 will enable CHIP messages
+ *  - serdes_log_level=0x7 will enable all messages
+ *
+ * An interesting feature is that it's possible to enable verbose logging at
+ * run-time by echoing the debug value in its sysfs node::
+ *
+ *   # echo 0x7 > /sys/kernel/debug/log_level
+ **/
 
-#ifdef SERDES_DEBUG_MFD
-#define SERDES_DBG_MFD(x...) pr_info(x)
-#else
-#define SERDES_DBG_MFD(x...) no_printk(x)
-#endif
+enum serdes_log_category {
+	SERDES_MFD,
+	SERDES_I2C,
+	SERDES_CHIP,
+};
 
-#ifdef SERDES_DEBUG_I2C
-#define SERDES_DBG_I2C(x...) pr_info(x)
-#else
-#define SERDES_DBG_I2C(x...) no_printk(x)
-#endif
+#define SERDES_DBG_MFD(fmt, ...)		serdes_dev_dbg(SERDES_MFD, fmt, ##__VA_ARGS__)
+#define SERDES_DBG_I2C(fmt, ...)		serdes_dev_dbg(SERDES_I2C, fmt, ##__VA_ARGS__)
+#define SERDES_DBG_CHIP(fmt, ...)		serdes_dev_dbg(SERDES_CHIP, fmt, ##__VA_ARGS__)
 
-#ifdef SERDES_DEBUG_CHIP
-#define SERDES_DBG_CHIP(x...) pr_info(x)
-#else
-#define SERDES_DBG_CHIP(x...) no_printk(x)
-#endif
+enum serdes_debug_mode {
+	SERDES_OPEN_I2C_WRITE,
+	SERDES_CLOSE_I2C_WRITE,
+	SERDES_SET_SEQUENCE,
+	SERDES_SET_PINCTRL_SLEEP,
+	SERDES_SET_PINCTRL_DEFAULT,
+};
 
-#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-240815"
+#define MFD_SERDES_DISPLAY_VERSION "serdes-mfd-displaly-v11-241025"
 #define MAX_NUM_SERDES_SPLIT 8
+
 struct serdes;
 enum ser_link_mode {
 	SER_DUAL_LINK,
 	SER_LINKA,
 	SER_LINKB,
 	SER_SPLITTER_MODE,
+};
+
+struct check_reg_data {
+	char name[30];
+	struct reg_sequence seq;
 };
 
 struct serdes_chip_pinctrl_info {
@@ -181,6 +192,10 @@ struct serdes_chip_split_ops {
 	int (*set_i2c_addr)(struct serdes *serdes, int address, int link);
 };
 
+struct serdes_check_reg_ops {
+	int (*check_reg)(struct serdes *serdes);
+};
+
 struct serdes_chip_pm_ops {
 	/* serdes chip function for suspend and resume */
 	int (*suspend)(struct serdes *serdes);
@@ -217,6 +232,7 @@ struct serdes_chip_data {
 	struct serdes_chip_pinctrl_ops *pinctrl_ops;
 	struct serdes_chip_gpio_ops *gpio_ops;
 	struct serdes_chip_split_ops *split_ops;
+	struct serdes_check_reg_ops *check_ops;
 	struct serdes_chip_pm_ops *pm_ops;
 	struct serdes_chip_irq_ops *irq_ops;
 };
@@ -373,11 +389,16 @@ struct serdes {
 	int lock_irq_trig;
 	int err_irq_trig;
 	atomic_t flag_ser_init;
+	atomic_t flag_early_suspend;
 
 	struct workqueue_struct *mfd_wq;
 	struct delayed_work mfd_delay_work;
+
 	bool route_enable;
 	bool use_delay_work;
+	char dir_name[25];
+	struct dentry *debugfs_dentry;
+	enum serdes_debug_mode debug;
 
 	struct kthread_worker *kworker;
 	struct kthread_delayed_work reg_check_work;
@@ -409,8 +430,6 @@ struct serdes {
 /* Device I/O API */
 int serdes_reg_read(struct serdes *serdes, unsigned int reg, unsigned int *val);
 int serdes_reg_write(struct serdes *serdes, unsigned int reg, unsigned int val);
-void serdes_reg_lock(struct serdes *serdes);
-int serdes_reg_unlock(struct serdes *serdes);
 int serdes_set_bits(struct serdes *serdes, unsigned int reg,
 		    unsigned int mask, unsigned int val);
 int serdes_bulk_read(struct serdes *serdes, unsigned int reg,
@@ -430,7 +449,12 @@ void serdes_device_poweroff(struct serdes *serdes);
 int serdes_device_shutdown(struct serdes *serdes);
 int serdes_irq_init(struct serdes *serdes);
 void serdes_irq_exit(struct serdes *serdes);
-void serdes_auxadc_init(struct serdes *serdes);
+
+void serdes_dev_dbg(enum serdes_log_category category, const char *format, ...);
+void serdes_debugfs_init(void);
+void serdes_debugfs_exit(void);
+void serdes_create_debugfs(struct serdes *serdes);
+void serdes_destroy_debugfs(struct serdes *serdes);
 
 extern struct serdes_chip_data serdes_bu18tl82_data;
 extern struct serdes_chip_data serdes_bu18rl82_data;
