@@ -221,6 +221,7 @@ struct imx585 {
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	struct cam_sw_info *cam_sw_inf;
+	enum rkmodule_sync_mode sync_mode;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -2984,6 +2985,7 @@ static long imx585_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u64 pixel_rate = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	u8 lanes = imx585->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	u32 *sync_mode = NULL;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -3076,6 +3078,10 @@ static long imx585_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		} else
 			ret = -EINVAL;
 		break;
+   case RKMODULE_GET_SYNC_MODE:
+        sync_mode = (u32 *)arg;
+        *sync_mode = imx585->sync_mode;
+        break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3926,6 +3932,9 @@ static int imx585_probe(struct i2c_client *client,
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
 	}
+
+    // Add sync mode
+    imx585->sync_mode = SOFT_SYNC_MODE;
 
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	if (ret) {

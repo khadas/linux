@@ -138,7 +138,7 @@
 			mipidphy0_in_ucam3: endpoint@4 {
 				reg = <4>;
 				remote-endpoint = <&imx585c_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -497,7 +497,7 @@
 		port {
 			imx585c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam3>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
