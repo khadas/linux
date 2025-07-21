@@ -715,6 +715,10 @@
 	};
 };
 
+&i2c7 {
+	status = "okay";
+};
+
 &i2c8 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <475>;
