@@ -1251,7 +1251,7 @@ static void __exit serial8250_exit(void)
 #endif
 }
 
-#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+#ifdef CONFIG_INITCALL_ASYNC
 rootfs_initcall(serial8250_init);
 #else
 module_init(serial8250_init);

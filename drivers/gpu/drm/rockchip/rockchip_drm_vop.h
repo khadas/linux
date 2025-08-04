@@ -31,6 +31,7 @@
 #define VOP_VERSION_RV1106		VOP_VERSION(2, 0xc)
 #define VOP_VERSION_RK3576_LITE		VOP_VERSION(2, 0xd)
 #define VOP_VERSION_RK3506		VOP_VERSION(2, 0xe)
+#define VOP_VERSION_RV1126B		VOP_VERSION(2, 0xf)
 #define VOP_VERSION_RK3288		VOP_VERSION(3, 0)
 #define VOP_VERSION_RK3288W		VOP_VERSION(3, 1)
 #define VOP_VERSION_RK3368		VOP_VERSION(3, 2)
@@ -70,7 +71,7 @@
 #define VOP_FEATURE_INTERNAL_RGB	BIT(1)
 #define VOP_FEATURE_ALPHA_SCALE		BIT(2)
 #define VOP_FEATURE_HDR10		BIT(3)
-#define VOP_FEATURE_NEXT_HDR		BIT(4)
+#define VOP_FEATURE_DOVI		BIT(4)
 /* a feature to splice two windows and two vps to support resolution > 4096 */
 #define VOP_FEATURE_SPLICE		BIT(5)
 #define VOP_FEATURE_OVERSCAN		BIT(6)
@@ -108,13 +109,6 @@
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
 
-enum vop_vp_id {
-	ROCKCHIP_VOP_VP0 = 0,
-	ROCKCHIP_VOP_VP1,
-	ROCKCHIP_VOP_VP2,
-	ROCKCHIP_VOP_VP3,
-};
-
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
 	BCSH_OUT_MODE_BLUE,
@@ -140,6 +134,10 @@ enum vop2_win_dly_mode {
 	VOP2_DLY_MODE_DEFAULT,   /**< default mode */
 	VOP2_DLY_MODE_HISO_S,    /** HDR in SDR out mode, as a SDR window */
 	VOP2_DLY_MODE_HIHO_H,    /** HDR in HDR out mode, as a HDR window */
+	VOP2_DLY_MODE_DOVI_IN_CORE1,	/*  dovi video input, as dovi core1 */
+	VOP2_DLY_MODE_DOVI_IN_CORE2,	/*  dovi video input, as dovi core2 */
+	VOP2_DLY_MODE_NONDOVI_IN_CORE1,	/*  ndovi video input, as dovi core1 */
+	VOP2_DLY_MODE_NONDOVI_IN_CORE2,	/*  ndovi video input, as dovi core2 */
 	VOP2_DLY_MODE_MAX,
 };
 
@@ -255,11 +253,10 @@ struct vop_reg_data {
 
 struct vop_reg {
 	uint32_t mask;
-	uint32_t offset:17;
+	uint32_t offset:19;
 	uint32_t shift:5;
 	uint32_t begin_minor:4;
 	uint32_t end_minor:4;
-	uint32_t reserved:2;
 	uint32_t major:3;
 	uint32_t write_mask:1;
 };
@@ -453,22 +450,38 @@ struct vop_ctrl {
 	struct vop_reg mcu_bypass;
 	struct vop_reg mcu_type;
 	struct vop_reg mcu_rw_bypass_port;
+	struct vop_reg mcu_force_rdn;
+	struct vop_reg mcu_data_map_mode;
 
 	/* bt1120 */
 	struct vop_reg bt1120_uv_swap;
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt1120_en;
+	struct vop_reg bt1120_data_map_mode;
 
 	/* bt656 */
 	struct vop_reg bt656_en;
+	struct vop_reg bt656_data_map_mode;
 
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
+
+	struct vop_reg edpi_wms_fs;
+	struct vop_reg edpi_ctrl_mode;
+	struct vop_reg edpi_te_en;
 
 	/* ebc vop */
 	struct vop_reg enable;
 	struct vop_reg inf_out_en;
 	struct vop_reg out_dresetn;
+
+	/* color bar */
+	struct vop_reg color_bar_en;
+	struct vop_reg color_bar_mode;
+
+	/* clk cnt */
+	struct vop_reg calc_clk_en;
+	struct vop_reg calc_dclk_cnt;
 };
 
 struct vop_intr {
@@ -614,11 +627,40 @@ struct hdrvivid_regs {
 #define RK_HDR_TYPE_MASK 0xff
 #define RK_HDR_PLAT_MASK (0xff << 8)
 
+/* byte unit */
+#define VOP2_DOVI_CORE1_LUT_SIZE		5120
+#define VOP2_DOVI_TONE_SCA_AXI_TAB_SIZE		(2560 * 4)
+
+/* word unit */
+#define DOVI_LUT_SIZE				1280
+#define DOVI_CORE1_SIZE				242
+#define DOVI_CORE2_SIZE				43
+#define DOVI_CORE3_SIZE				256
+
+enum vop_dovi_input_type {
+	COMMON_LAYER = 0,
+	DOVI_BASE_LAYER = 1,
+	DOVI_ENHANCE_LAYER = 2,
+};
+
+struct dovi_regs {
+	uint32_t version;
+	uint32_t valid;
+	uint32_t input_mode;
+	uint32_t output_mode;
+	uint32_t core1_lut[DOVI_LUT_SIZE];
+	uint32_t core2_lut[DOVI_LUT_SIZE];
+	uint32_t core1[DOVI_CORE1_SIZE];
+	uint32_t core2[DOVI_CORE2_SIZE];
+	uint32_t core3[DOVI_CORE3_SIZE];
+};
+
 struct hdr_extend {
 	uint32_t hdr_type;
 	uint32_t length;
 	union {
 		struct hdrvivid_regs hdrvivid_data;
+		struct dovi_regs dovi_data;
 	};
 };
 
@@ -649,14 +691,15 @@ enum vop_hdr_format {
 	HDR_HDR10PLUS = 8,
 	RESERVED9 = 9,		/* reserved for hdr hdr10+ */
 	RESERVED10 = 10,	/* reserved for hdr hdr10+ */
-	HDR_NEXT = 11,
+	HDR_DOVI = 11,
 	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
 	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
 	HDR_FORMAT_MAX,
 };
 
 struct post_csc_convert_mode {
-	enum drm_color_encoding color_encoding;
+	enum drm_color_encoding intput_color_encoding;
+	enum drm_color_encoding output_color_encoding;
 	bool is_input_yuv;
 	bool is_output_yuv;
 	bool is_input_full_range;
@@ -861,6 +904,7 @@ struct vop2_win_regs {
 	struct vop_reg global_alpha_val;
 	struct vop_reg color_key;
 	struct vop_reg color_key_en;
+	struct vop_reg background;
 	struct vop_reg dither_up;
 	struct vop_reg axi_id;
 	struct vop_reg axi_yrgb_id;
@@ -870,6 +914,7 @@ struct vop2_win_regs {
 
 struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
+	struct vop_reg sys_cfg_done;
 	struct vop_reg overlay_mode;
 	struct vop_reg dsp_background;
 	struct vop_reg port_mux;
@@ -881,6 +926,10 @@ struct vop2_video_port_regs {
 	struct vop_reg dsp_x_mir_en;
 	struct vop_reg post_dsp_out_r2y;
 	struct vop_reg pre_scan_htiming;
+	struct vop_reg dovi_pre_scan_en;
+	struct vop_reg pre_scan_htiming1;
+	struct vop_reg pre_scan_htiming2;
+	struct vop_reg pre_scan_htiming3;
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
 	struct vop_reg dsp_vtotal;
@@ -903,6 +952,8 @@ struct vop2_video_port_regs {
 	struct vop_reg dither_frc_2;
 	struct vop_reg dither_up_en;
 	struct vop_reg bg_dly;
+	struct vop_reg dp_line_end_mode;
+	struct vop_reg dp_bg_bottom_disable;
 
 	struct vop_reg p2i_en;
 	struct vop_reg dual_channel_en;
@@ -1038,6 +1089,10 @@ struct vop2_video_port_regs {
 	struct vop_reg crc_val;
 	struct vop_reg crc_check_en;
 	struct vop_reg crc_check_val;
+
+	/* clk calc*/
+	struct vop_reg calc_clk_en;
+	struct vop_reg calc_dclk_cnt;
 };
 
 struct vop2_power_domain_regs {
@@ -1046,6 +1101,37 @@ struct vop2_power_domain_regs {
 	struct vop_reg bisr_en_status;
 	struct vop_reg otp_bisr_en_status;
 	struct vop_reg pmu_status;
+};
+
+struct vop2_dovi_regs {
+	/* common */
+	struct vop_reg enable;
+	struct vop_reg interrupt_enable;
+	struct vop_reg interrupt_raw;
+	struct vop_reg metadata_program_st;
+	struct vop_reg metadata_program_end;
+	struct vop_reg metadata_copy_finish;
+
+	/* core1 */
+	struct vop_reg bypass_composer;
+	struct vop_reg bypass_csc;
+	struct vop_reg bypass_cvm;
+	struct vop_reg operating_mode;
+	struct vop_reg pixel_rate;
+
+	/* core2 */
+	struct vop_reg yuv2rgb_en;
+	struct vop_reg yuv422to444_en;
+	struct vop_reg yuv_swap;
+	struct vop_reg yuv422_en;
+	struct vop_reg dly_en;
+
+	/* core1 and core2 */
+	struct vop_reg lut_mst;
+	struct vop_reg lut_update;
+
+	/* core3 */
+	struct vop_reg output_mode;
 };
 
 struct vop2_dsc_regs {
@@ -1149,6 +1235,7 @@ struct vop2_win_data {
 	uint8_t axi_uv_id;
 	uint8_t possible_vp_mask;
 	uint8_t dci_rid_id;
+	uint8_t reg_done_bit;
 
 	uint32_t base;
 	enum drm_plane_type type;
@@ -1180,6 +1267,21 @@ struct vop2_win_data {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
+};
+
+struct vop2_dovi_core_data {
+	const uint8_t id;
+	const uint32_t ctrl_offset;
+	const uint32_t srange_offset;
+	const uint32_t srange_offset_from_core;
+	const struct vop2_dovi_regs *regs;
+};
+
+struct vop2_dovi_data {
+	const uint8_t nr_dovi_cores;
+	const uint8_t dovi_max_delay[2];
+	const uint32_t enhance_layer_phy_id;
+	const struct vop2_dovi_core_data *dovi_core_data;
 };
 
 struct dsc_error_info {
@@ -1225,6 +1327,7 @@ struct vop2_video_port_data {
 	char id;
 	uint8_t splice_vp_id;
 	uint16_t lut_dma_rid;
+	uint32_t dclk_switch_id;
 	uint32_t feature;
 	uint64_t soc_id[VOP2_SOC_VARIANT];
 	uint16_t gamma_lut_len;
@@ -1306,11 +1409,45 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_mipi_1to4_en;
 };
 
+struct vop_wb_regs {
+	struct vop_reg cfg_done;
+	struct vop_reg enable;
+	struct vop_reg format;
+	struct vop_reg dither_en;
+	struct vop_reg r2y_en;
+	struct vop_reg yrgb_mst;
+	struct vop_reg uv_mst;
+	struct vop_reg fifo_throd;
+	struct vop_reg scale_x_factor;
+	struct vop_reg scale_x_en;
+	struct vop_reg scale_y_en;
+	struct vop_reg axi_yrgb_id;
+	struct vop_reg axi_uv_id;
+	struct vop_reg vir_stride;
+	struct vop_reg vir_stride_en;
+	struct vop_reg act_width;
+	struct vop_reg post_empty_stop_en;
+	struct vop_reg one_frame_mode;
+	struct vop_reg xgt2_en;
+};
+
+struct vop_wb_data {
+	uint32_t nformats;
+	const uint32_t *formats;
+	struct vop_rect max_output;
+	const struct vop_wb_regs *regs;
+	uint32_t fifo_depth;
+	uint16_t axi_yrgb_id;
+	uint16_t axi_uv_id;
+};
+
 struct vop_data {
 	const struct vop_reg_data *init_table;
 	unsigned int table_size;
 	const struct vop_ctrl *ctrl;
 	const struct vop_intr *intr;
+	const struct vop_intr *wb_intr;
+	const struct vop_wb_data *wb;
 	const struct vop_win_data *win;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
@@ -1329,6 +1466,7 @@ struct vop_data {
 struct vop2_ctrl {
 	struct vop_reg cfg_done_en;
 	struct vop_reg wb_cfg_done;
+	struct vop_reg win_cfg_done;
 	struct vop_reg auto_gating_en;
 	struct vop_reg aclk_pre_auto_gating_en;
 	struct vop_reg dma_finish_mode;
@@ -1479,6 +1617,10 @@ struct vop2_ctrl {
 	struct vop_reg vp_intr_merge_en;
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
+
+	struct vop_reg dovi_core1_en;
+	struct vop_reg dovi_core2_en;
+	struct vop_reg dovi_core3_en;
 };
 
 struct vop_dump_regs {
@@ -1527,6 +1669,7 @@ struct vop2_data {
 	const struct vop2_esmart_lb_map *esmart_lb_mode_map;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
+	const struct vop2_dovi_data *dovi;
 	const struct vop2_dsc_data *dsc;
 	const struct dsc_error_info *dsc_error_ecw;
 	const struct dsc_error_info *dsc_error_buffer_flow;
@@ -1579,6 +1722,9 @@ struct vop2_data {
 #define WB_YRGB_FIFO_FULL_INTR		BIT(18)
 #define WB_COMPLETE_INTR		BIT(19)
 #define MMU_EN_INTR			BIT(20)
+#define DOLBY_CORE1_INTR		BIT(21)
+#define DOLBY_CORE2_INTR		BIT(22)
+#define DOLBY_CORE3_INTR		BIT(23)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -1588,7 +1734,8 @@ struct vop2_data {
 					 HWC_EMPTY_INTR | \
 					 POST_BUF_EMPTY_INTR | \
 					 DMA_FINISH_INTR | FS_FIELD_INTR | \
-					 FE_INTR | WB_COMPLETE_INTR | MMU_EN_INTR)
+					 FE_INTR | WB_COMPLETE_INTR | MMU_EN_INTR | \
+					 DOLBY_CORE1_INTR | DOLBY_CORE2_INTR | DOLBY_CORE3_INTR)
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
 #define LINE_FLAG_INTR_EN(x)		((x) << 6)
@@ -1603,6 +1750,11 @@ struct vop2_data {
 #define FS_INTR_CLR			(1 << (INTR_CLR_SHIFT + 1))
 #define LINE_FLAG_INTR_CLR		(1 << (INTR_CLR_SHIFT + 2))
 #define BUS_ERROR_INTR_CLR		(1 << (INTR_CLR_SHIFT + 3))
+
+/* RV1126 VOP Lite WB intr define */
+#define VOPL_WB_YRGB_FIFO_FULL_INTR	BIT(0)
+#define VOPL_WB_UV_FIFO_FULL_INTR	BIT(1)
+#define VOPL_WB_COMPLETE_INTR		BIT(4)
 
 #define DSP_LINE_NUM(x)			(((x) & 0x1fff) << 12)
 #define DSP_LINE_NUM_MASK		(0x1fff << 12)

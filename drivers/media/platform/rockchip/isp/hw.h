@@ -55,6 +55,7 @@ struct rkisp_hw_dev {
 	void *sw_reg;
 	void __iomem *base_addr;
 	void __iomem *base_next_addr;
+	void __iomem *vpsl_base_addr;
 	struct clk *clks[RKISP_MAX_BUS_CLK];
 	int num_clks;
 	const struct isp_clk_info *clk_rate_tbl;
@@ -67,6 +68,7 @@ struct rkisp_hw_dev {
 	int dev_num;
 	int dev_link_num;
 	int cur_dev_id;
+	int cur_be_dev_id;
 	int pre_dev_id;
 	int mipi_dev_id;
 	struct max_input max_in;
@@ -76,7 +78,8 @@ struct rkisp_hw_dev {
 	atomic_t refcnt;
 
 	struct rkisp_sram sram;
-
+	/* lock for reg */
+	spinlock_t reg_lock;
 	/* share buf for multi dev */
 	spinlock_t buf_lock;
 	struct rkisp_bridge_buf bufs[BRIDGE_BUF_MAX];
@@ -90,11 +93,13 @@ struct rkisp_hw_dev {
 	u64 iq_feature;
 	int buf_init_cnt;
 	u32 unite;
+	u32 unite_extend_pixel;
 	bool is_feature_on;
 	bool is_dma_contig;
 	bool is_dma_sg_ops;
 	bool is_mmu;
 	bool is_idle;
+	bool is_be_idle;
 	bool is_single;
 	bool is_mi_update;
 	bool is_thunderboot;

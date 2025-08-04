@@ -1402,7 +1402,7 @@ static struct rockchip_clk_branch rv1126_clk_branches[] __initdata = {
 static void __iomem *rv1126_cru_base;
 static void __iomem *rv1126_pmucru_base;
 
-void rv1126_dump_cru(void)
+static void rv1126_dump_cru(void)
 {
 	if (rv1126_pmucru_base) {
 		pr_warn("PMU CRU:\n");
@@ -1417,18 +1417,6 @@ void rv1126_dump_cru(void)
 			       0x588, false);
 	}
 }
-EXPORT_SYMBOL_GPL(rv1126_dump_cru);
-
-static int rv1126_clk_panic(struct notifier_block *this,
-			  unsigned long ev, void *ptr)
-{
-	rv1126_dump_cru();
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rv1126_clk_panic_block = {
-	.notifier_call = rv1126_clk_panic,
-};
 
 static struct rockchip_clk_provider *pmucru_ctx;
 static void __init rv1126_pmu_clk_init(struct device_node *np)
@@ -1509,8 +1497,8 @@ static void __init rv1126_clk_init(struct device_node *np)
 
 	rockchip_clk_of_add_provider(np, ctx);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &rv1126_clk_panic_block);
+	if (!rk_dump_cru)
+		rk_dump_cru = rv1126_dump_cru;
 }
 
 CLK_OF_DECLARE(rv1126_cru, "rockchip,rv1126-cru", rv1126_clk_init);

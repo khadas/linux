@@ -1085,9 +1085,9 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct isp2x_window win_ae;
 
 	if (dev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + dev->hw_dev->unite_extend_pixel;
 	if (dev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + dev->hw_dev->unite_extend_pixel;
 
 	for (i = 0; i < num_of_win; i++) {
 		h_size = arg->win[i].h_size;
@@ -1347,9 +1347,9 @@ isp_rawaelite_config(struct rkisp_isp_params_vdev *params_vdev,
 			 ISP3X_RAWAE_LITE_OFFSET, id);
 
 	if (ispdev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + ispdev->hw_dev->unite_extend_pixel;
 	if (ispdev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + ispdev->hw_dev->unite_extend_pixel;
 
 	h_size = arg->win.h_size;
 	v_size = arg->win.v_size;
@@ -1445,9 +1445,9 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 			 addr + ISP3X_RAWAE_BIG_OFFSET, id);
 
 	if (ispdev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + ispdev->hw_dev->unite_extend_pixel;
 	if (ispdev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + ispdev->hw_dev->unite_extend_pixel;
 	h_size = arg->win.h_size;
 	v_size = arg->win.v_size;
 	if (!h_size || h_size + h_offs + 1 > width)
@@ -1595,36 +1595,16 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 width = out_crop->width, height = out_crop->height;
 	u32 value, val, mask, i, h_size, v_size, h_offs, v_offs;
 
+	/* bug no base on bayer pattern */
+	isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED, id);
+	isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED, id);
+	isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED, id);
+	isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED, id);
+
 	value = isp3_param_read(params_vdev, ISP3X_BLS_CTRL, id);
 	value &= ~ISP32_BLS_BLS2_EN;
 	if (arg->bls2_en)
 		value |= ISP32_BLS_BLS2_EN;
-	switch (params_vdev->raw_type) {
-	case RAW_BGGR:
-		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_D_FIXED, id);
-		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_C_FIXED, id);
-		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_B_FIXED, id);
-		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_A_FIXED, id);
-		break;
-	case RAW_GBRG:
-		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_C_FIXED, id);
-		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_D_FIXED, id);
-		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_A_FIXED, id);
-		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_B_FIXED, id);
-		break;
-	case RAW_GRBG:
-		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_B_FIXED, id);
-		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_A_FIXED, id);
-		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_D_FIXED, id);
-		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_C_FIXED, id);
-		break;
-	case RAW_RGGB:
-	default:
-		isp3_param_write(params_vdev, pval->r, ISP32_BLS2_A_FIXED, id);
-		isp3_param_write(params_vdev, pval->gr, ISP32_BLS2_B_FIXED, id);
-		isp3_param_write(params_vdev, pval->gb, ISP32_BLS2_C_FIXED, id);
-		isp3_param_write(params_vdev, pval->b, ISP32_BLS2_D_FIXED, id);
-	}
 	isp3_param_write(params_vdev, value, ISP3X_BLS_CTRL, id);
 
 	value = arg->in_overexposure_threshold << 16 |
@@ -1645,9 +1625,9 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 			 ISP3X_RAWAWB_WIN_OFFS, id);
 
 	if (dev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + dev->hw_dev->unite_extend_pixel;
 	if (dev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + dev->hw_dev->unite_extend_pixel;
 
 	h_size = arg->h_size;
 	v_size = arg->v_size;
@@ -2330,9 +2310,9 @@ isp_rawhstlite_config(struct rkisp_isp_params_vdev *params_vdev,
 			 ISP3X_RAWHIST_LITE_OFFS, id);
 
 	if (ispdev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + ispdev->hw_dev->unite_extend_pixel;
 	if (ispdev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + ispdev->hw_dev->unite_extend_pixel;
 
 	h_size = arg->win.h_size;
 	v_size = arg->win.v_size;
@@ -2488,9 +2468,9 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 			 addr + ISP3X_RAWHIST_BIG_OFFS, id);
 
 	if (dev->unite_div > ISP_UNITE_DIV1)
-		width = width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		width = width / 2 + dev->hw_dev->unite_extend_pixel;
 	if (dev->unite_div == ISP_UNITE_DIV4)
-		height = height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		height = height / 2 + dev->hw_dev->unite_extend_pixel;
 
 	h_size = arg->win.h_size;
 	v_size = arg->win.v_size;
@@ -4433,9 +4413,9 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		bool is_alloc;
 
 		if (dev->unite_div > ISP_UNITE_DIV1)
-			w = ALIGN(isp_sdev->in_crop.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL, 16);
+			w = ALIGN(isp_sdev->in_crop.width / 2 + dev->hw_dev->unite_extend_pixel, 16);
 		if (dev->unite_div == ISP_UNITE_DIV4)
-			h = ALIGN(isp_sdev->in_crop.height / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL, 16);
+			h = ALIGN(isp_sdev->in_crop.height / 2 + dev->hw_dev->unite_extend_pixel, 16);
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
 				      !new_params->others.bay3d_cfg.lo4x4_en);
@@ -4940,10 +4920,11 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_isp_params_val_v32 *priv_val = params_vdev->priv_val;
 	struct isp32_isp_params_cfg *params = params_vdev->isp32_params;
+	unsigned long flags = 0;
 	int i;
 
 	rkisp_params_check_bigmode_v32(params_vdev);
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	/* override the default things */
 	if (!params->module_cfg_update && !params->module_en_update)
 		dev_warn(dev->dev, "can not get first iq setting in stream on\n");
@@ -4963,7 +4944,7 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 		__isp_isr_other_en(params_vdev, params + i, RKISP_PARAMS_ALL, i);
 		__isp_isr_meas_en(params_vdev, params + i, RKISP_PARAMS_ALL, i);
 	}
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	if (dev->hw_dev->is_frm_buf && priv_val->buf_frm.mem_priv) {
 		u32 size = priv_val->buf_frm.size;
@@ -5085,9 +5066,9 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 				rkisp_free_buffer(params_vdev->dev, buf);
 			} else {
 				is_alloc = false;
-				buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
-				if (buf->dma_fd < 0)
+				if (rkisp_buf_get_fd(ispdev, buf, false) < 0)
 					goto err;
+				mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
 			}
 		}
 		if (is_alloc) {
@@ -5098,9 +5079,9 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 				goto err;
 			}
 			mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
-			mesh_head->stat = MESH_BUF_INIT;
-			mesh_head->data_oft = ALIGN(sizeof(struct isp2x_mesh_head), 16);
 		}
+		mesh_head->stat = MESH_BUF_INIT;
+		mesh_head->data_oft = ALIGN(sizeof(struct isp2x_mesh_head), 16);
 		buf++;
 	}
 
@@ -5410,9 +5391,10 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *dev = params_vdev->dev;
 	struct isp32_isp_params_cfg *new_params = NULL;
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
+	unsigned long flags = 0;
 	int i;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (!params_vdev->streamon)
 		goto unlock;
 
@@ -5476,7 +5458,7 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 
 unlock:
 	params_vdev->cur_buf = cur_buf;
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void

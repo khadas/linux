@@ -10,6 +10,7 @@
 
 /delete-node/ &leds;
 /delete-node/ &gt1x;
+/delete-node/ &hynitron;
 
 / {
 	es8388_sound: es8388-sound {
@@ -162,15 +163,6 @@
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		vin-supply = <&vcc_sys>;
-	};
-
-	vcc3v3_lcd_n: vcc3v3-lcd0-n {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_lcd0_n";
-		regulator-boot-on;
-		enable-active-high;
-		gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc_3v3_s0>;
 	};
 
 	vcc3v3_image_pwren: image-pwren {
@@ -579,4 +571,3 @@
 	wifi_chip_type = "ap6398s";
 	status = "okay";
 };
-

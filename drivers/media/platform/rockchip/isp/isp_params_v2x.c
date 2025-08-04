@@ -4076,10 +4076,10 @@ static void
 rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct device *dev = params_vdev->dev->dev;
-	struct rkisp_isp_params_val_v2x *priv_val =
-		(struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
+	struct rkisp_isp_params_val_v2x *priv_val = params_vdev->priv_val;
+	unsigned long flags = 0;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	/* override the default things */
 	if (!params_vdev->isp2x_params->module_cfg_update &&
 	    !params_vdev->isp2x_params->module_en_update)
@@ -4102,7 +4102,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->cur_hdrmge = params_vdev->isp2x_params->others.hdrmge_cfg;
 	priv_val->last_hdrtmo = priv_val->cur_hdrtmo;
 	priv_val->last_hdrmge = priv_val->cur_hdrmge;
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void rkisp_save_first_param_v2x(struct rkisp_isp_params_vdev *params_vdev, void *param)
@@ -4306,8 +4306,9 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
+	unsigned long flags = 0;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (!params_vdev->streamon)
 		goto unlock;
 
@@ -4365,7 +4366,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 	params_vdev->exposure = new_params->exposure;
 unlock:
 	params_vdev->cur_buf = cur_buf;
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void

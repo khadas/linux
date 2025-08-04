@@ -4,7 +4,6 @@
 #ifndef _RKVPSS_VERSION_H
 #define _RKVPSS_VERSION_H
 #include <linux/version.h>
-#include <linux/rk-vpss-config.h>
 
 /*
  * RKVPSS DRIVER VERSION NOTE

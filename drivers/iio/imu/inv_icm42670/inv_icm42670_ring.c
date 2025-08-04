@@ -287,8 +287,7 @@ reset_fail:
 
 irqreturn_t icm42670_read_data(int irq, void *p)
 {
-	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->indio_dev;
+	struct iio_dev *indio_dev = p;
 	struct icm42670_data *st = iio_priv(indio_dev);
 	const struct device *dev = regmap_get_device(st->regmap);
 	int ret, int_drdy;
@@ -319,7 +318,7 @@ irqreturn_t icm42670_read_data(int irq, void *p)
 		goto read_fail;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &(data[0]), pf->timestamp);
+	iio_push_to_buffers_with_timestamp(indio_dev, &(data[0]), st->data_timestamp);
 
 	mutex_unlock(&st->lock);
 	iio_trigger_notify_done(indio_dev->trig);

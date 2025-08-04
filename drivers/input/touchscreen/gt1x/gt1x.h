@@ -20,9 +20,8 @@
 #ifndef _GOODIX_GT1X_H_
 #define _GOODIX_GT1X_H_
 #include "gt1x_generic.h"
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #ifdef GTP_CONFIG_OF
-#include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #endif
 #ifdef CONFIG_FB
@@ -38,8 +37,8 @@
 /* Customize your I/O ports & I/O operations */
 #ifdef GTP_CONFIG_OF
 extern bool gt1x_gt5688;
-extern int gt1x_rst_gpio;
-extern int gt1x_int_gpio;
+extern struct gpio_desc *gt1x_int_gpio;
+extern struct gpio_desc *gt1x_rst_gpio;
 extern struct regulator *gt1x_supply;
 #define GTP_RST_PORT gt1x_rst_gpio
 #define GTP_INT_PORT gt1x_int_gpio
@@ -48,17 +47,17 @@ extern struct regulator *gt1x_supply;
 #define GTP_INT_PORT    52
 #endif
 
-#define GTP_INT_IRQ     gpio_to_irq(GTP_INT_PORT)
+#define GTP_INT_IRQ     gpiod_to_irq(GTP_INT_PORT)
 /*#define GTP_INT_CFG     S3C_GPIO_SFN(0xF)*/
 
 #define GTP_GPIO_AS_INPUT(pin)          do {\
-	gpio_direction_input(pin);\
+	gpiod_direction_input(pin);\
 } while (0)
 #define GTP_GPIO_AS_INT(pin)            do {\
 	GTP_GPIO_AS_INPUT(pin);\
 } while (0)
-#define GTP_GPIO_GET_VALUE(pin)         gpio_get_value(pin)
-#define GTP_GPIO_OUTPUT(pin, level)      gpio_direction_output(pin, level)
+#define GTP_GPIO_GET_VALUE(pin)         gpiod_get_raw_value(pin)
+#define GTP_GPIO_OUTPUT(pin, level)     gpiod_direction_output_raw(pin, level)
 #define GTP_IRQ_TAB                     {IRQ_TYPE_EDGE_RISING, IRQ_TYPE_EDGE_FALLING, IRQ_TYPE_LEVEL_LOW, IRQ_TYPE_LEVEL_HIGH}
 
 #endif /* _GOODIX_GT1X_H_ */

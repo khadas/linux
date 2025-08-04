@@ -573,7 +573,7 @@
 				};
 				lcd-bl-pwm-split {
 					pins = "MAX96789_MFP16";
-					function = "SER_TXID4_TO_DES";
+					function = "SER_TXID9_TO_DES";
 				};
 				tp-int-split {
 					pins = "MAX96789_MFP14";
@@ -833,7 +833,7 @@
 				};
 				lcd-bl-pwm {
 					pins = "MAX96752_GPIO4";
-					function = "SER_TO_DES_RXID4";
+					function = "SER_TO_DES_RXID9";
 				};
 			};
 
@@ -1363,7 +1363,7 @@
 				};
 				lcd-bl-pwm {
 					pins = "MAX96752_GPIO4";
-					function = "SER_TO_DES_RXID4";
+					function = "SER_TO_DES_RXID0";
 				};
 				lcd_bias_en {
 					pins = "MAX96752_GPIO7";

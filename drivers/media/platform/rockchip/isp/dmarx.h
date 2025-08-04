@@ -50,15 +50,17 @@ struct rkisp_rx_buf_pool {
 /*
  * struct rkisp_dmarx_device
  * trigger: read back mode
- * cur_frame: current frame id and timestamp in ns
  * pre_frame: previous frame id and timestamp in ns
+ * cur_frame: current frame (front end BNR) id and timestamp in ns
+ * cur_be_frame: current back end BNR frame id and timestamp in ns
  */
 struct rkisp_dmarx_device {
 	struct rkisp_device *ispdev;
 	struct rkisp_stream stream[RKISP_MAX_DMARX_STREAM];
 	enum rkisp_dmarx_trigger trigger;
-	struct rkisp_dmarx_frame cur_frame;
 	struct rkisp_dmarx_frame pre_frame;
+	struct rkisp_dmarx_frame cur_frame;
+	struct rkisp_dmarx_frame cur_be_frame;
 };
 
 void rkisp_dmarx_isr(u32 mis_val, struct rkisp_device *dev);

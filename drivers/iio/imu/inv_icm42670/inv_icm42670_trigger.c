@@ -102,6 +102,18 @@ static const struct iio_trigger_ops inv_mpu_trigger_ops = {
 	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 
+static irqreturn_t iio_ext_irq(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct icm42670_data *data = iio_priv(indio_dev);
+	ktime_t irq_pts = ktime_get();
+
+	data->data_timestamp = ktime_to_ns(irq_pts);
+	iio_trigger_generic_data_rdy_poll(irq, data->trig);
+
+	return IRQ_WAKE_THREAD;
+}
+
 int icm42670_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 {
 	int ret;
@@ -114,11 +126,20 @@ int icm42670_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 	if (!data->trig)
 		return -ENOMEM;
 
-	ret = devm_request_irq(&indio_dev->dev, data->irq,
+	if (data->enable_fifo) {
+		ret = devm_request_irq(&indio_dev->dev, data->irq,
 			&iio_trigger_generic_data_rdy_poll,
 			irq_type,
 			"inv_mpu",
 			data->trig);
+	} else {
+		ret = devm_request_threaded_irq(&indio_dev->dev, data->irq,
+			&iio_ext_irq,
+			&icm42670_read_data,
+			IRQF_SHARED,
+			"inv_mpu",
+			indio_dev);
+	}
 	if (ret)
 		return ret;
 

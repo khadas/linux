@@ -6,7 +6,7 @@
  * Author: Heiko Stuebner <heiko@sntech.de>
  *
  * based on rtc-HYM8563
- * Copyright (C) 2010 ROCKCHIP, Inc.
+ * Copyright (C) 2010 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>

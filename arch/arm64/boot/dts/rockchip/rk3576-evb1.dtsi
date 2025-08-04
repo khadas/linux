@@ -141,6 +141,17 @@
 		vin-supply = <&vcc_3v3_s0>;
 	};
 
+	vcc3v3_pcie1: vcc3v3-pcie1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
 	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
@@ -301,6 +312,11 @@
 	status = "okay";
 };
 
+&hynitron {
+	status = "okay";
+	power-supply = <&vcc3v3_lcd_n>;
+};
+
 &i2c2 {
 	status = "okay";
 
@@ -435,6 +451,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_poweren_gpio>;
 	status = "okay";
+};
+
+&pcie1 {
+	reset-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie1>;
+	status = "disabled";
 };
 
 &pdm1 {

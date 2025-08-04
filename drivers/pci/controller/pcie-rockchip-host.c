@@ -2,7 +2,7 @@
 /*
  * Rockchip AXI PCIe host controller driver
  *
- * Copyright (c) 2016 Rockchip, Inc.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  *
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  *         Wenrui Li <wenrui.li@rock-chips.com>

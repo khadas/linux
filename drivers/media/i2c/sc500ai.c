@@ -688,10 +688,10 @@ static void sc500ai_get_module_inf(struct sc500ai *sc500ai,
                                    struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC500AI_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc500ai->module_name,
+	strscpy(inf->base.sensor, SC500AI_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc500ai->module_name,
 	        sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc500ai->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc500ai->len_name, sizeof(inf->base.lens));
 }
 
 static int sc500ai_set_hightemp_dpc(struct sc500ai *sc500ai, u32 total_gain)

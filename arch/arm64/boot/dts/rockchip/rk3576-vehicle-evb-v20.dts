@@ -18,6 +18,10 @@
 	model = "Rockchip RK3576 VEHICLE EVB V20 Board";
 	compatible = "rockchip,rk3576-vehicle-evb-v20", "rockchip,rk3576";
 
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0x2ad40000 console=ttyFIQ0 rcupdate.rcu_expedited=1 rcu_nocbs=all spidev.bufsiz=131072";
+	};
+
 	vehicle_dummy: vehicle-dummy {
 		status = "okay";
 		compatible = "rockchip,vehicle-dummy-adc";
@@ -412,6 +416,14 @@
 	};
 };
 
+&dfi {
+	status = "disabled";
+};
+
+&dmc {
+	status = "disabled";
+};
+
 &gmac1 {
 	status = "disabled";
 };
@@ -445,6 +457,10 @@
 &i2c5_max96752 {
 	use-reg-check-work;
 	vpower-supply = <&lcd2_vcc12v_buck>;
+};
+
+&i2c8_max96789 {
+	route-enable;
 };
 
 /*dsi*/

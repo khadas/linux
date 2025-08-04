@@ -77,12 +77,10 @@
 
 		csi2_dcphy0 {
 			status = "disabled";
-			clocks = <&cru CLK_MIPI_CAMARAOUT_M1>,
-				<&cru PCLK_MIPI_DCPHY0>,
+			clocks = <&cru PCLK_MIPI_DCPHY0>,
 				<&cru PCLK_CSI_HOST_0>,
 				<&cru ICLK_CSIHOST0>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host",
 				      "iclk_csi2host";
 			resets = <&cru SRST_P_CSI_HOST_0>,
@@ -96,12 +94,10 @@
 		};
 		csi2_dcphy1 {
 			status = "disabled";
-			clocks = <&cru CLK_MIPI_CAMARAOUT_M2>,
-				<&cru PCLK_MIPI_DCPHY1>,
+			clocks = <&cru PCLK_MIPI_DCPHY1>,
 				<&cru PCLK_CSI_HOST_1>,
 				<&cru ICLK_CSIHOST1>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host",
 				      "iclk_csi2host";
 			resets = <&cru SRST_P_CSI_HOST_1>,
@@ -115,11 +111,9 @@
 		};
 		csi2_dphy0 {
 			status = "okay";
-			clocks = <&cru CLK_MIPI_CAMARAOUT_M2>,
-				 <&cru PCLK_CSIPHY0>,
+			clocks = <&cru PCLK_CSIPHY0>,
 				 <&cru PCLK_CSI_HOST_2>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host";
 			resets = <&cru SRST_CSIPHY0>,
 				 <&cru SRST_P_CSIPHY0>,
@@ -137,11 +131,9 @@
 		/* only rk3588 */
 		csi2_dphy3 {
 			status = "disabled";
-			clocks = <&cru CLK_MIPI_CAMARAOUT_M4>,
-				<&cru PCLK_CSIPHY1>,
+			clocks = <&cru PCLK_CSIPHY1>,
 				<&cru PCLK_CSI_HOST_4>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host";
 			resets = <&cru SRST_CSIPHY1>,
 				 <&cru SRST_P_CSIPHY1>,
@@ -158,8 +150,6 @@
 		};
 		rkcif_dvp {
 			status = "disabled";
-			clocks = <&cru CLK_CIFOUT_OUT>;
-			clock-names = "xvclk";
 		};
 	};
 
@@ -170,7 +160,8 @@
 		nvp6188 {
 			is_front = <0>;
 			status = "okay";
-
+			clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+			clock-names = "xvclk";
 			/*dphy0*/
 			powerdown-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <1>;

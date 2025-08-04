@@ -1,7 +1,7 @@
 /*
  * Driver for Rockchip Smart Card Reader Controller
  *
- * Copyright (C) 2012-2016 ROCKCHIP, Inc.
+ * Copyright (C) 2012-2016 Rockchip Electronics Co., Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and

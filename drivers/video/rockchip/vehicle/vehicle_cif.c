@@ -1769,6 +1769,44 @@ static int rkcif_dvp_get_input_yuv_order(struct vehicle_cfg *cfg)
 	return mask;
 }
 
+static int rkcif_dvp_get_input_yuv_order_rk3576(struct vehicle_cfg *cfg)
+{
+	unsigned int mask;
+
+	switch (cfg->mbus_code) {
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		mask = CSI_YUV_INPUT_ORDER_UYVY;
+		break;
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+		mask = CSI_YUV_INPUT_ORDER_VYUY;
+		break;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+		mask = CSI_YUV_INPUT_ORDER_YUYV;
+		break;
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		mask = CSI_YUV_INPUT_ORDER_YVYU;
+		break;
+	default:
+		mask = CSI_YUV_INPUT_ORDER_UYVY;
+		break;
+	}
+	return mask;
+}
+
+static u32 rkcif_determine_input_mode(struct vehicle_cif *cif)
+{
+	struct vehicle_cfg *cfg = &cif->cif_cfg;
+	u32 mode = cfg->input_mode << 2;
+
+	if (cif->chip_id == CHIP_RK3568_VEHICLE_CIF &&
+	   cfg->input_mode == CIF_INPUT_MODE_BT1120_YUV)
+		mode = INPUT_MODE_BT1120;
+	if (cif->chip_id == CHIP_RK3576_VEHICLE_CIF)
+		mode = mode << 2;
+
+	return mode;
+}
+
 static int cif_stream_setup(struct vehicle_cif *cif)
 {
 	struct vehicle_cfg *cfg = &cif->cif_cfg;
@@ -1791,27 +1829,56 @@ static int cif_stream_setup(struct vehicle_cif *cif)
 	else
 		rkvehicle_cif_cfg_dvp_clk_sampling_edge(cif, RKCIF_CLK_FALLING);
 
-	inputmode = cfg->input_format<<2; //INPUT_MODE_YUV or INPUT_MODE_BT656_YUV422
+	inputmode = rkcif_determine_input_mode(cif); //INPUT_MODE_YUV or INPUT_MODE_BT656_YUV422
 	//YUV_INPUT_ORDER_UYVY, MEDIA_BUS_FMT_UYVY8_2X8, CCIR_INPUT_ORDER_ODD
-	input_format = (cfg->yuv_order<<5) | YUV_INPUT_422 | (cfg->field_order<<9);
+
+	input_format = (cfg->yuv_order << 5) | YUV_INPUT_422 | (cfg->field_order << 9);
 	if (cfg->output_format == CIF_OUTPUT_FORMAT_420)
 		output_format = YUV_OUTPUT_420 | UV_STORAGE_ORDER_UVUV;
 	else
 		output_format = YUV_OUTPUT_422 | UV_STORAGE_ORDER_UVUV;
 
 	if (cif->chip_id == CHIP_RK3568_VEHICLE_CIF) {
-		val = cfg->vsync | (cfg->href<<1) | inputmode | mipimode
+		if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
+		   cfg->input_format == CIF_INPUT_FORMAT_NTSC)
+			xfer_mode = BT1120_TRANSMIT_INTERFACE;
+		else
+			xfer_mode = BT1120_TRANSMIT_PROGRESS;
+	} else if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
+		if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
+		   cfg->input_format == CIF_INPUT_FORMAT_NTSC)
+			xfer_mode = BT1120_TRANSMIT_INTERFACE_RK3588;
+		else
+			xfer_mode = BT1120_TRANSMIT_PROGRESS_RK3588;
+	} else {
+		if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
+		   cfg->input_format == CIF_INPUT_FORMAT_NTSC)
+			xfer_mode = BT1120_TRANSMIT_INTERFACE_RK3576;
+		else
+			xfer_mode = BT1120_TRANSMIT_PROGRESS_RK3576;
+	}
+
+	if (cif->chip_id == CHIP_RK3568_VEHICLE_CIF) {
+		val = cfg->vsync | (cfg->href << 1) | inputmode | mipimode
 		   | input_format | output_format
 		   | xfer_mode | yc_swap | multi_id_en
 		   | multi_id_sel | multi_id_mode | bt1120_edge_mode;
-	} else {
+	} else if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF) {
 		out_fmt_mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << 11) |
 				(CSI_YUV_OUTPUT_ORDER_UYVY << 1);
 		in_fmt_yuv_order = rkcif_dvp_get_input_yuv_order(cfg);
-		val = cfg->vsync | (cfg->href<<1) | inputmode
-		   | in_fmt_yuv_order | out_fmt_mask
+		val = cfg->vsync | (cfg->href << 1) | inputmode
+		   | in_fmt_yuv_order | out_fmt_mask | xfer_mode
 		   | yc_swap | multi_id_en | multi_id_sel
 		   | sav_detect | multi_id_mode | bt1120_edge_mode;
+	} else {
+		out_fmt_mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << 15) |
+				CSI_YUV_OUTPUT_ORDER_UYVY;
+		in_fmt_yuv_order = rkcif_dvp_get_input_yuv_order_rk3576(cfg);
+		val = cfg->vsync | (cfg->href << 1) | inputmode
+		   | in_fmt_yuv_order | out_fmt_mask | xfer_mode
+		   | yc_swap | multi_id_en | multi_id_sel
+		   | multi_id_mode | (bt1120_edge_mode >> 8);
 	}
 
 	if (cif->chip_id >= CHIP_RK3576_VEHICLE_CIF)
@@ -3221,7 +3288,10 @@ static int vehicle_cif_stream_start(struct vehicle_cif *cif)
 
 	/* just need init virtual channel 0 */
 	channel = &cif->channels[0];
-	channel->id = 0;
+	channel->id = cif->vc;
+
+	VEHICLE_INFO("@%s channel->id: %d.\n", __func__, channel->id);
+
 	vehicle_cif_csi_channel_init(cif, channel);
 	if (cif->chip_id < CHIP_RK3588_VEHICLE_CIF)
 		vehicle_cif_csi_channel_set(cif, channel, V4L2_MBUS_CSI2_DPHY);
@@ -3313,33 +3383,7 @@ err:
 	return ret;
 }
 
-/* sensor mclk set */
-static void rkcif_s_mclk(struct vehicle_cif *cif, int on, int clk_rate)
-{
-	int err = 0;
-	struct device *dev = cif->dev;
-	struct rk_cif_clk *clk = &cif->clk;
-
-	//return ;
-	if (on && !clk->on) {
-		if (!IS_ERR(clk->xvclk)) {
-			err = clk_set_rate(clk->xvclk, clk_rate);
-			if (err < 0)
-				dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
-		}
-		if (!IS_ERR(clk->xvclk)) {
-			err = clk_prepare_enable(clk->xvclk);
-			if (err < 0)
-				dev_err(dev, "Failed to enable xvclk\n");
-		}
-	} else {
-		if (!IS_ERR(clk->xvclk))
-			clk_disable_unprepare(clk->xvclk);
-	}
-	usleep_range(2000, 5000);
-}
-
-static int rk_cif_mclk_ctrl(struct vehicle_cif *cif, int on, int clk_rate)
+static int rk_cif_mclk_ctrl(struct vehicle_cif *cif, int on)
 {
 	int err = 0;
 
@@ -3596,7 +3640,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 				val |= CSI_UVDS_EN;
 			rkcif_write_reg(cif, get_reg_index_of_id_ctrl0(channel->id), val);
 
-			val = channel->data_type << 2;
+			val = channel->id | channel->data_type << 2;
 			rkcif_write_reg(cif, get_reg_index_of_id_ctrl1(channel->id), val);
 
 		}
@@ -5130,47 +5174,33 @@ int vehicle_cif_reverse_close(void)
 	return 0;
 }
 
-static void vehicle_cif_dphy_get_node(struct vehicle_cif *cif)
-{
-	struct device_node *node = NULL;
-	struct device_node *cp = NULL;
-	struct device *dev = cif->dev;
-	const char *status = NULL;
-
-	node = of_parse_phandle(dev->of_node, "rockchip,cif-phy", 0);
-	if (!node) {
-		VEHICLE_DGERR("get cif-phy dts failed\n");
-		return;
-	}
-
-	for_each_child_of_node(node, cp) {
-		of_property_read_string(cp, "status", &status);
-		if (status && !strcmp(status, "disabled"))
-			continue;
-		else
-			cif->phy_node = cp;
-		VEHICLE_INFO("status: %s %s\n", cp->name, status);
-	}
-}
-
 static int cif_parse_dt(struct vehicle_cif *cif)
 {
 	struct device *dev = cif->dev;
 	struct device_node *node;
-	struct device_node *phy_node = cif->phy_node;
+	struct device_node *phy_node;
 	struct device_node *cif_node;
 	struct device_node *cis2_node;
+	const char *status = NULL;
 
 	if (of_property_read_u32(dev->of_node, "cif,drop-frames",
 				 &cif->drop_frames)) {
 		VEHICLE_INFO("%s:Get cif, drop-frames failed!\n", __func__);
 		cif->drop_frames = 0; //default drop frames;
 	}
-
 	if (of_property_read_u32(dev->of_node, "cif,chip-id",
 				 &cif->chip_id)) {
 		VEHICLE_INFO("%s:Get cif, chip_id failed!\n", __func__);
 		cif->chip_id = CHIP_RK3588_VEHICLE_CIF; //default rk3588;
+	}
+	if (of_property_read_u32(dev->of_node, "cif,virtual-channel",
+				 &cif->vc)) {
+		VEHICLE_INFO("%s:Get cif, virtual-channel failed!\n", __func__);
+		cif->vc = 0; //default virtual channel;
+	}
+	if ((cif->vc < 0) || (cif->vc > 3)) {
+		VEHICLE_DGERR("virtual-channel over range, use default 0!\n");
+		cif->vc = 0;
 	}
 
 	cif_node = of_parse_phandle(dev->of_node, "rockchip,cif", 0);
@@ -5178,127 +5208,112 @@ static int cif_parse_dt(struct vehicle_cif *cif)
 
 	node = of_parse_phandle(dev->of_node, "rockchip,cru", 0);
 	cif->cru_base = of_iomap(node, 0);
+	of_node_put(node);
 
 	node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
 	cif->grf_base = of_iomap(node, 0);
+	of_node_put(node);
 
 	cif->regmap_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	if (IS_ERR(cif->regmap_grf))
 		VEHICLE_DGERR("unable to get rockchip,grf\n");
 
 	cif->irq = irq_of_parse_and_map(cif_node, 0);
+	of_node_put(cif_node);
 	if (cif->irq < 0) {
 		VEHICLE_DGERR("%s: request cif irq failed\n", __func__);
-		iounmap(cif->base);
-		iounmap(cif->cru_base);
-		iounmap(cif->grf_base);
-		return -ENODEV;
+		goto unmap_cif;
 	}
 
-	if (of_property_read_u32(phy_node, "csihost-idx", &cif->csi_host_idx)) {
+	node = of_parse_phandle(dev->of_node, "rockchip,cif-phy", 0);
+	if (!node) {
+		VEHICLE_DGERR("get cif-phy dts failed\n");
+		goto unmap_cif;
+	}
+
+	for_each_child_of_node(node, phy_node) {
+		of_property_read_string(phy_node, "status", &status);
+		if (status && !strcmp(status, "disabled"))
+			continue;
+		else
+			cif->phy_node = phy_node;
+		VEHICLE_INFO("status: %s %s\n", cif->phy_node->name, status);
+	}
+	of_node_put(node);
+	if (of_property_read_u32(cif->phy_node, "csihost-idx", &cif->csi_host_idx)) {
 		VEHICLE_INFO("Get %s csihost-idx failed! sensor link to dvp!!\n",
-				phy_node->name);
+				cif->phy_node->name);
 		cif->inf_id = RKCIF_DVP;
 	} else {
 		cif->inf_id = RKCIF_MIPI_LVDS;
-		VEHICLE_INFO("sensor link to %s!!\n", phy_node->name);
+		VEHICLE_INFO("sensor link to %s!!\n", cif->phy_node->name);
 	}
 
 	if (cif->inf_id == RKCIF_MIPI_LVDS) {
 		if (cif->chip_id == CHIP_RK3588_VEHICLE_CIF &&
 		    !(cif->csi_host_idx == RKCIF_MIPI0_CSI2 ||
 		      cif->csi_host_idx == RKCIF_MIPI1_CSI2)) {
-			node = of_parse_phandle(phy_node, "rockchip,csi2-dphy", 0);
+			node = of_parse_phandle(cif->phy_node, "rockchip,csi2-dphy", 0);
 			cif->csi2_dphy_base = of_iomap(node, 0);
+			of_node_put(node);
 
 			cif->regmap_dphy_grf =
-				syscon_regmap_lookup_by_phandle(phy_node, "rockchip,dphy-grf");
+				syscon_regmap_lookup_by_phandle(cif->phy_node, "rockchip,dphy-grf");
 			if (IS_ERR(cif->regmap_dphy_grf))
 				VEHICLE_INFO("unable to get rockchip,dphy-grf\n");
 		} else if (cif->chip_id == CHIP_RK3576_VEHICLE_CIF &&
 			cif->csi_host_idx != RKCIF_MIPI0_CSI2) {
-			node = of_parse_phandle(phy_node, "rockchip,csi2-dphy", 0);
+			node = of_parse_phandle(cif->phy_node, "rockchip,csi2-dphy", 0);
 			cif->csi2_dphy_base = of_iomap(node, 0);
+			of_node_put(node);
 
 			cif->regmap_dphy_grf =
-				syscon_regmap_lookup_by_phandle(phy_node, "rockchip,dphy-grf");
+				syscon_regmap_lookup_by_phandle(cif->phy_node, "rockchip,dphy-grf");
 			if (IS_ERR(cif->regmap_dphy_grf))
 				VEHICLE_INFO("unable to get rockchip,dphy-grf\n");
 
 			cif->dphy_sys_grf =
-				syscon_regmap_lookup_by_phandle(phy_node, "rockchip,sys-grf");
+				syscon_regmap_lookup_by_phandle(cif->phy_node, "rockchip,sys-grf");
 			if (IS_ERR(cif->dphy_sys_grf))
 				VEHICLE_INFO("unable to get rockchip,sys-grf\n");
 		} else if (cif->chip_id != CHIP_RK3588_VEHICLE_CIF &&
 				cif->chip_id != CHIP_RK3576_VEHICLE_CIF) {
-			node = of_parse_phandle(phy_node, "rockchip,csi2-dphy", 0);
+			node = of_parse_phandle(cif->phy_node, "rockchip,csi2-dphy", 0);
 			cif->csi2_dphy_base = of_iomap(node, 0);
+			of_node_put(node);
 		}
 
-		cis2_node = of_parse_phandle(phy_node, "rockchip,csi2", 0);
+		cis2_node = of_parse_phandle(cif->phy_node, "rockchip,csi2", 0);
 		cif->csi2_base = of_iomap(cis2_node, 0);
 
 		cif->csi2_irq1 = irq_of_parse_and_map(cis2_node, 0);
 		if (cif->csi2_irq1 < 0) {
 			VEHICLE_DGERR("%s: request csi-intr1 failed\n", __func__);
-			iounmap(cif->base);
-			iounmap(cif->cru_base);
-			iounmap(cif->grf_base);
-			iounmap(cif->csi2_dphy_base);
-			iounmap(cif->csi2_base);
-			return -ENODEV;
+			of_node_put(cis2_node);
+			goto unmap_csi;
 		}
 
 		cif->csi2_irq2 = irq_of_parse_and_map(cis2_node, 1);
+		of_node_put(cis2_node);
 		if (cif->csi2_irq2 < 0) {
 			VEHICLE_DGERR("%s: request csi-intr2 failed\n", __func__);
-			iounmap(cif->base);
-			iounmap(cif->cru_base);
-			iounmap(cif->grf_base);
-			iounmap(cif->csi2_dphy_base);
-			iounmap(cif->csi2_base);
-			return -ENODEV;
+			goto unmap_csi;
 		}
 	}
 
 	VEHICLE_DG("%s, drop_frames = %d\n", __func__, cif->drop_frames);
 
 	return 0;
-}
 
-int vehicle_cif_init_mclk(struct vehicle_cif *cif)
-{
-	struct device *dev = cif->dev;
-	struct rk_cif_clk *clk = &cif->clk;
+unmap_csi:
+	iounmap(cif->csi2_dphy_base);
+	iounmap(cif->csi2_base);
+unmap_cif:
+	iounmap(cif->base);
+	iounmap(cif->cru_base);
+	iounmap(cif->grf_base);
 
-	/* sensor MCLK:
-	 * current use CLK_CIF_OUT
-	 */
-	vehicle_cif_dphy_get_node(cif);
-	clk->xvclk = of_clk_get_by_name(cif->phy_node, "xvclk");
-	if (IS_ERR(clk->xvclk)) {
-		dev_err(dev, "Failed to get sensor xvclk\n");
-		return -EINVAL;
-	}
-
-	rkcif_s_mclk(cif, 1, 24000000);
-	VEHICLE_INFO("%s(%d): set sensor MCLK rate 24MHZ OK!\n", __func__, __LINE__);
-
-	return 0;
-}
-
-static int vehicle_cif_deinit_mclk(struct vehicle_cif *cif)
-{
-	struct rk_cif_clk *clk = &cif->clk;
-
-	/* release sensor MCLK:
-	 * current use CLK_CIF_OUT
-	 */
-	if (!IS_ERR(clk->xvclk))
-		clk_disable_unprepare(clk->xvclk);
-	clk_put(clk->xvclk);
-
-	return 0;
+	return -ENODEV;
 }
 
 int vehicle_cif_init(struct vehicle_cif *cif)
@@ -5553,7 +5568,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	}
 
 	/*  2. set cif clk & sensor mclk */
-	rk_cif_mclk_ctrl(cif, 1, 24000000);
+	rk_cif_mclk_ctrl(cif, 1);
 	INIT_DELAYED_WORK(&cif->work, vehicle_cif_reset_work_func);
 
 	if (inf_id == RKCIF_MIPI_LVDS)
@@ -5665,14 +5680,11 @@ int vehicle_cif_deinit(struct vehicle_cif *cif)
 	// vehicle_cif_s_stream(cif, 0);
 	// vehicle_cif_do_stop_stream(cif);
 
-	/* set csi2-dphy csi cif clk & sensor mclk */
-	rk_cif_mclk_ctrl(cif, 0, 0);
+	/* set csi2-dphy csi cif clk */
+	rk_cif_mclk_ctrl(cif, 0);
 	if (inf_id == RKCIF_MIPI_LVDS)
 		if (cif->dphy_hw->on)
 			vehicle_csi2_clk_ctrl(cif, 0);
-
-	/* release sensor MCLK */
-	vehicle_cif_deinit_mclk(cif);
 
 	/* vicap rsts release */
 	for (i = 0; i < clk->rsts_num; i++)

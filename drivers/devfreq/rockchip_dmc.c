@@ -1849,7 +1849,7 @@ static __maybe_unused int rk3528_dmc_init(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	ret = rockchip_get_freq_info(dmcfreq);
+	ret = rockchip_dmcfreq_adjust_opp_table(dmcfreq);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot get frequency info\n");
 		return ret;
@@ -2151,6 +2151,9 @@ static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 #endif
 #if IS_ENABLED(CONFIG_CPU_RV1126)
 	{ .compatible = "rockchip,rv1126-dmc", .data = rv1126_dmc_init },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126B)
+	{ .compatible = "rockchip,rv1126b-dmc", .data = rk3568_dmc_init },
 #endif
 	{ },
 };

@@ -2,7 +2,7 @@
 /*
  * Rockchip UFS Host Controller driver
  *
- * Copyright (C) 2024 Rockchip Electronics Co.Ltd.
+ * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _UFS_ROCKCHIP_H_

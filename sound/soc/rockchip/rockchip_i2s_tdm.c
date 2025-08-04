@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // ALSA SoC Audio Layer - Rockchip I2S/TDM Controller driver
 
-// Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+// Copyright (c) 2018 Rockchip Electronics Co., Ltd.
 // Author: Sugar Zhang <sugar.zhang@rock-chips.com>
 // Author: Nicolas Frattaroli <frattaroli.nicolas@gmail.com>
 
@@ -2807,7 +2807,7 @@ static int rockchip_i2s_tdm_init_dai(struct rk_i2s_tdm_dev *i2s_tdm)
 		dai->playback.stream_name  = "Playback";
 		dai->playback.channels_min = 2;
 		dai->playback.channels_max = 64;
-		dai->playback.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->playback.rates = SNDRV_PCM_RATE_CONTINUOUS;
 		dai->playback.formats = formats;
 	}
 
@@ -2815,7 +2815,7 @@ static int rockchip_i2s_tdm_init_dai(struct rk_i2s_tdm_dev *i2s_tdm)
 		dai->capture.stream_name  = "Capture";
 		dai->capture.channels_min = 2;
 		dai->capture.channels_max = 64;
-		dai->capture.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->capture.rates = SNDRV_PCM_RATE_CONTINUOUS;
 		dai->capture.formats = formats;
 	}
 

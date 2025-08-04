@@ -2,7 +2,7 @@
 /*
  * Rockchip OTP Driver
  *
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  * Author: Finley Xiao <finley.xiao@rock-chips.com>
  */
 
@@ -845,6 +845,13 @@ static const struct rockchip_data rv1126_data = {
 	.reg_write = rv1126_otp_oem_write,
 };
 
+static const struct rockchip_data rv1126b_data = {
+	.size = 0x90,
+	.clocks = rk3568_otp_clocks,
+	.num_clks = ARRAY_SIZE(rk3568_otp_clocks),
+	.reg_read = rk3568_otp_read,
+};
+
 static const struct of_device_id rockchip_otp_match[] = {
 #ifdef CONFIG_CPU_PX30
 	{
@@ -912,6 +919,12 @@ static const struct of_device_id rockchip_otp_match[] = {
 	{
 		.compatible = "rockchip,rv1126-otp",
 		.data = (void *)&rv1126_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{
+		.compatible = "rockchip,rv1126b-otp",
+		.data = (void *)&rv1126b_data,
 	},
 #endif
 	{ /* sentinel */ },

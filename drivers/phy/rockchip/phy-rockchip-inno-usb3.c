@@ -29,6 +29,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/usb/phy.h>
@@ -827,12 +828,11 @@ static int rockchip_u3phy_probe(struct platform_device *pdev)
 	struct phy_provider *provider;
 	struct rockchip_u3phy *u3phy;
 	const struct rockchip_u3phy_cfg *phy_cfgs;
-	const struct of_device_id *match;
 	unsigned int reg[2];
 	int index, ret;
 
-	match = of_match_device(dev->driver->of_match_table, dev);
-	if (!match || !match->data) {
+	phy_cfgs = device_get_match_data(dev);
+	if (!phy_cfgs) {
 		dev_err(dev, "phy-cfgs are not assigned!\n");
 		return -EINVAL;
 	}
@@ -861,7 +861,6 @@ static int rockchip_u3phy_probe(struct platform_device *pdev)
 
 	u3phy->dev = dev;
 	u3phy->vbus_enabled = false;
-	phy_cfgs = match->data;
 	platform_set_drvdata(pdev, u3phy);
 
 	/* find out a proper config which can be matched with dt. */

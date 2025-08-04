@@ -80,6 +80,7 @@ struct platform_device;
  */
 
 #define SUPPORT_HDMI_ALLM	BIT(1)
+#define DOVI_VSIF_LEN		8
 
 enum {
 	DW_HDMI_RES_8,
@@ -138,8 +139,19 @@ struct dw_hdmi_link_config {
 	int frl_lanes;
 	int rate_per_lane;
 	int hcactive;
-	u8 add_func;
+	bool allm_supported;
 	u8 pps_payload[128];
+};
+
+struct dovi_vsif_data {
+	u8 header[3];
+	u8 pb[28];
+};
+
+struct hdr10_plus_vsdb {
+	u8 application_version;
+	u8 full_frame_peak_luminance_index;
+	u8 peak_luminance_index;
 };
 
 struct dw_hdmi_phy_ops {
@@ -251,14 +263,16 @@ struct dw_hdmi_plat_data {
 	bool (*get_color_changed)(void *data);
 	int (*get_yuv422_format)(struct drm_connector *connector,
 				 const struct edid *edid);
-	int (*get_edid_dsc_info)(void *data, const struct edid *edid);
+	int (*get_edid_hdmi21_info)(void *data, const struct edid *edid);
 	int (*get_next_hdr_data)(void *data, struct edid *edid,
 				 struct drm_connector *connector);
+	int (*get_dovi_data)(void *data, const struct edid *edid,
+			     struct drm_connector *connector);
+	void (*get_dovi_vsif)(void *data, u32 *buf);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
 	void (*set_hdcp_status)(void *data, u8 status);
 	void (*set_hdcp2_enable)(void *data, bool enable);
 	void (*set_grf_cfg)(void *data);
-	u64 (*get_grf_color_fmt)(void *data);
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 	int (*dclk_set)(void *data, bool enable, int vp_id);
@@ -273,6 +287,12 @@ struct dw_hdmi_plat_data {
 	struct drm_display_mode *(*get_force_timing)(void *data);
 	u32 (*get_refclk_rate)(void *data);
 	void (*force_frl_rate)(void *data, u8 rate);
+	void (*get_mode_color_caps)(struct drm_connector *connector, struct drm_display_info *info,
+				    void *data);
+	void (*crtc_pre_disable)(void *data, struct drm_crtc *crtc);
+	void (*crtc_post_enable)(void *data, struct drm_crtc *crtc);
+	int (*get_hdr10_plus_vsdb)(void *data, const struct edid *edid,
+				   struct drm_connector *connector);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
@@ -332,6 +352,7 @@ bool dw_hdmi_get_output_whether_hdmi(struct dw_hdmi *hdmi);
 int dw_hdmi_get_output_type_cap(struct dw_hdmi *hdmi);
 void dw_hdmi_set_cec_adap(struct dw_hdmi *hdmi, struct cec_adapter *adap);
 void dw_hdmi_qp_set_allm_enable(struct dw_hdmi_qp *hdmi_qp, bool enable);
+void dw_hdmi_qp_handle_hpd(struct dw_hdmi_qp *hdmi, bool enable);
 
 void dw_hdmi_qp_unbind(struct dw_hdmi_qp *hdmi);
 struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
@@ -356,6 +377,7 @@ void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,
 			      struct device *codec_dev);
+void dw_hdmi_qp_set_quant_range(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_set_output_type(struct dw_hdmi_qp *hdmi, u64 val);
 bool dw_hdmi_qp_get_output_whether_hdmi(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_get_output_type_cap(struct dw_hdmi_qp *hdmi);

@@ -971,6 +971,10 @@ static int __init param_sysfs_init(void)
 
 	return 0;
 }
+#ifdef CONFIG_INITCALL_ASYNC
+arch_initcall_sync(param_sysfs_init);
+#else
 subsys_initcall(param_sysfs_init);
+#endif
 
 #endif /* CONFIG_SYSFS */

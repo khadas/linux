@@ -56,6 +56,9 @@
 #define RK3528_PMUGRF_OS_REG18		0x248
 #define RK3528_PMUGRF_OS_REG19		0x24c
 
+#define RV1126B_PMUGRF_OS_REG2		(0x208 + 0x30000)
+#define RV1126B_PMUGRF_OS_REG3		(0x20c + 0x30000)
+
 #define MAX_DMC_NUM_CH			4
 #define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
 #define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
@@ -78,8 +81,10 @@
 #define TIME_CNT_EN			(0x10001 << 0)
 
 /* DDRMON_CTRL1 */
+#define DDRMON_CTRL1			0x08
 #define LPDDR5_BANK_MODE_CTRL1(m)	((0x30000 | ((m) & 0x3)) << 1)
 #define LPDDR5_EN_CTRL1			(0x10001 << 0)
+#define PART_CLK_GATE_EN		((0x7 << (16 + 4)) | (0x7 << 4))
 
 #define DDRMON_CH0_COUNT_NUM		0x28
 #define DDRMON_CH0_DFI_ACCESS_NUM	0x2c
@@ -706,6 +711,40 @@ static __maybe_unused __init int px30_dfi_init(struct platform_device *pdev,
 	return 0;
 }
 
+static __maybe_unused __init int rv1126b_dfi_init(struct platform_device *pdev,
+						  struct rockchip_dfi *data,
+						  struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+	u32 val_2, val_3;
+
+	data->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	/* enable part pclk gate for power save in software mode */
+	regmap_write(data->regs, DDRMON_CTRL1, PART_CLK_GATE_EN);
+
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
+	if (node) {
+		data->regmap_pmugrf = syscon_node_to_regmap(node);
+		if (IS_ERR(data->regmap_pmugrf))
+			return PTR_ERR(data->regmap_pmugrf);
+	}
+
+	regmap_read(data->regmap_pmugrf, RV1126B_PMUGRF_OS_REG2, &val_2);
+	regmap_read(data->regmap_pmugrf, RV1126B_PMUGRF_OS_REG3, &val_3);
+	if (READ_SYSREG_VERSION(val_3) >= 0x3)
+		data->dram_type = READ_DRAMTYPE_INFO_V3(val_2, val_3);
+	else
+		data->dram_type = READ_DRAMTYPE_INFO(val_2);
+	data->ch_msk = 1;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
 static __maybe_unused __init int rk3128_dfi_init(struct platform_device *pdev,
 						 struct rockchip_dfi *data,
 						 struct devfreq_event_desc *desc)
@@ -916,6 +955,9 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 #endif
 #ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-dfi", .data = px30_dfi_init },
+#endif
+#ifdef CONFIG_CPU_RV1126B
+	{ .compatible = "rockchip,rv1126b-dfi", .data = rv1126b_dfi_init },
 #endif
 	{ },
 };

@@ -18,6 +18,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pwm.h>
 
 #define DRIVER_VERSION				"0.1.0"
 #define UPDATE(x, h, l)		(((x) << (l)) & GENMASK((h), (l)))
@@ -223,6 +224,11 @@
 #define GRF_OS_REG1			0x0144
 #define GRF_OS_REG2			0x0148
 #define GRF_OS_REG3			0x014c
+#define GRF_PWM_PERIOD			0x0150
+#define GRF_PWM_DUTY			0x0154
+#define GRF_PWM_CTRL			0x0158
+#define GRF_PWM_CH_CNT			0x015c
+#define GRF_PWM_STATUS			0x0160
 #define GRF_RGB_RX_DBG_MEAS0		0x0170
 #define RGB_RX_EVAL_TIME_MASK		GENMASK(27, 16)
 #define RGB_RX_MODET_EN			BIT(1)
@@ -547,6 +553,15 @@ struct rk628_rgb {
 	bool bt1120_uv_swap;
 };
 
+struct rk628_pwm {
+	struct pwm_chip chip;
+	unsigned long clk_rate;
+	bool center_aligned;
+	bool oneshot_en;
+	bool is_output_m1;
+	int irq;
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
@@ -578,12 +593,16 @@ struct rk628 {
 	struct rk628_lvds lvds;
 	struct rk628_gvi gvi;
 	struct rk628_combtxphy combtxphy;
+	struct rk628_pwm pwm;
 	int sync_pol;
 	void *csi;
 	struct notifier_block fb_nb;
 	u32 version;
 	struct rk628_rgb rgb;
 	int old_blank;
+	struct workqueue_struct *pwm_wq;
+	struct delayed_work pwm_delay_work;
+	bool pwm_bl_en;
 };
 
 static inline bool rk628_input_is_hdmi(struct rk628 *rk628)

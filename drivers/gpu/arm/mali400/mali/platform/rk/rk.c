@@ -465,7 +465,7 @@ static int rk_platform_power_on_gpu(struct device *dev)
 			goto fail_to_enable_regulator;
 		}
 
-		if (cpu_is_rk3528()) {
+		if (cpu_is_rk3528() || cpu_is_rk3518()) {
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
 			struct mali_device *mdev = dev_get_drvdata(dev);
 
@@ -489,7 +489,7 @@ static void rk_platform_power_off_gpu(struct device *dev)
 	struct rk_context *platform = s_rk_context;
 
 	if (platform->is_powered) {
-		if (cpu_is_rk3528()) {
+		if (cpu_is_rk3528() || cpu_is_rk3518()) {
 #if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_HAVE_CLK)
 			struct mali_device *mdev = dev_get_drvdata(dev);
 

@@ -2101,10 +2101,10 @@ static void imx378_get_module_inf(struct imx378 *imx378,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX378_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx378->module_name,
+	strscpy(inf->base.sensor, IMX378_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx378->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx378->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx378->len_name, sizeof(inf->base.lens));
 }
 
 static long imx378_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

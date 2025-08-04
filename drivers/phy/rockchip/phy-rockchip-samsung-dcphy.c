@@ -2273,8 +2273,12 @@ static int samsung_dcphy_rx_stream_on(struct csi2_dphy *dphy,
 		return -ENODEV;
 
 	mutex_lock(&samsung->mutex);
-	if (sensor->mbus.type == V4L2_MBUS_CSI2_CPHY)
+	if (sensor->mbus.type == V4L2_MBUS_CSI2_CPHY) {
 		regmap_write(samsung->grf_regmap, MIPI_DCPHY_GRF_CON0, S_CPHY_MODE);
+		samsung->c_option = true;
+	} else {
+		samsung->c_option = false;
+	}
 
 	if (samsung->s_phy_rst)
 		reset_control_assert(samsung->s_phy_rst);
@@ -2516,8 +2520,8 @@ static const struct dev_pm_ops samsung_mipi_dcphy_pm_ops = {
 static const struct hs_drv_res_cfg rk3576_dphy_hs_drv_res_cfg = {
 	.clk_hs_drv_up_ohm = _52_OHM,
 	.clk_hs_drv_down_ohm = _52_OHM,
-	.data_hs_drv_up_ohm = _39_OHM,
-	.data_hs_drv_down_ohm = _39_OHM,
+	.data_hs_drv_up_ohm = _43_OHM,
+	.data_hs_drv_down_ohm = _43_OHM,
 };
 
 static const struct hs_drv_res_cfg rk3588_dphy_hs_drv_res_cfg = {

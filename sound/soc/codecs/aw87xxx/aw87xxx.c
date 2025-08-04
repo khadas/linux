@@ -41,6 +41,7 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/kthread.h>
+#include <linux/vmalloc.h>
 #include <uapi/sound/asound.h>
 #include <sound/control.h>
 #include <sound/soc.h>
@@ -395,12 +396,12 @@ static int aw87xxx_profile_switch_info(struct snd_kcontrol *kcontrol,
 	profile_name = aw_acf_get_prof_name_form_index(aw87xxx->dev,
 		&aw87xxx->acf_info, count);
 	if (profile_name == NULL) {
-		strlcpy(uinfo->value.enumerated.name, "NULL",
+		strscpy(uinfo->value.enumerated.name, "NULL",
 			strlen("NULL") + 1);
 		return 0;
 	}
 
-	strlcpy(name, profile_name, sizeof(uinfo->value.enumerated.name));
+	strscpy(name, profile_name, sizeof(uinfo->value.enumerated.name));
 
 	return 0;
 }

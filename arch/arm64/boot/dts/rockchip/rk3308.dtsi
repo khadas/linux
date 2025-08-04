@@ -355,20 +355,6 @@
 		method = "smc";
 	};
 
-	ramoops_mem: ramoops_mem {
-		reg = <0x0 0x110000 0x0 0xf0000>;
-		reg-names = "ramoops_mem";
-	};
-
-	ramoops: ramoops {
-		compatible = "ramoops";
-		record-size = <0x0 0x30000>;
-		console-size = <0x0 0xc0000>;
-		ftrace-size = <0x0 0x00000>;
-		pmsg-size = <0x0 0x00000>;
-		memory-region = <&ramoops_mem>;
-	};
-
 	rgb: rgb {
 		compatible = "rockchip,rk3308-rgb";
 		status = "disabled";
@@ -402,6 +388,15 @@
 		drm_logo: drm-logo@0 {
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		ramoops: ramoops@110000 {
+			compatible = "ramoops";
+			reg = <0x0 0x110000 0x0 0xf0000>;
+			record-size = <0x30000>;
+			console-size = <0xc0000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x00000>;
 		};
 	};
 
@@ -446,8 +441,14 @@
 
 		pmu_pvtm: pmu-pvtm {
 			compatible = "rockchip,rk3308-pmu-pvtm";
-			clocks = <&cru SCLK_PVTM_PMU>;
-			clock-names = "pmu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pvtm@1 {
+				reg = <1>;
+				clocks = <&cru SCLK_PVTM_PMU>;
+				clock-names = "clk";
+			};
 		};
 
 		reboot-mode {
@@ -514,8 +515,14 @@
 
 		pvtm: pvtm {
 			compatible = "rockchip,rk3308-pvtm";
-			clocks = <&cru SCLK_PVTM_CORE>;
-			clock-names = "core";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pvtm@0 {
+				reg = <0>;
+				clocks = <&cru SCLK_PVTM_CORE>;
+				clock-names = "clk";
+			};
 		};
 	};
 

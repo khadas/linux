@@ -2,7 +2,7 @@
 /*
  * Rockchip HDCP Host Library driver
  *
- * Copyright (C) 2022 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #ifndef _DW_HDCP_HOST_LIB_DRIVER_LINUX_IF_H_

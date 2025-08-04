@@ -607,9 +607,9 @@ static void sc210iot_get_module_inf(struct sc210iot *sc210iot,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.lens, sc210iot->len_name, sizeof(inf->base.lens));
-	strlcpy(inf->base.sensor, SC210IOT_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc210iot->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, sc210iot->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.sensor, SC210IOT_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc210iot->module_name, sizeof(inf->base.module));
 }
 
 static long sc210iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2022 Rockchip Co.,Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  * Author: Wang Jie <dave.wang@rock-chips.com>
  *
  * Etek ET7303 Type-C Chip Driver

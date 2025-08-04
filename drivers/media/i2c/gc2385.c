@@ -452,10 +452,10 @@ static void gc2385_get_module_inf(struct gc2385 *gc2385,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, GC2385_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc2385->module_name,
+	strscpy(inf->base.sensor, GC2385_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc2385->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc2385->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc2385->len_name, sizeof(inf->base.lens));
 }
 
 static long gc2385_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

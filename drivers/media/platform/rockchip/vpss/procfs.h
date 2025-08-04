@@ -4,6 +4,12 @@
 #ifndef _RKVPSS_PROCFS_H
 #define _RKVPSS_PROCFS_H
 
+#include <linux/clk.h>
+#include <linux/proc_fs.h>
+#include <linux/sem.h>
+#include <linux/seq_file.h>
+#include <media/v4l2-common.h>
+
 #ifdef CONFIG_PROC_FS
 int rkvpss_proc_init(struct rkvpss_device *dev);
 void rkvpss_proc_cleanup(struct rkvpss_device *dev);

@@ -12,6 +12,9 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-v4l2.h>
+#include <linux/delay.h>
+#include <linux/of_platform.h>
+#include <linux/slab.h>
 
 #include "../isp/isp_vpss.h"
 #include <linux/rk-camera-module.h>
@@ -23,6 +26,8 @@
 #define RKVPSS_DEFAULT_HEIGHT	1080
 #define RKVPSS_MAX_WIDTH	4672
 #define RKVPSS_MAX_HEIGHT	3504
+#define RKVPSS_MAX_WIDTH_V20	4096
+#define RKVPSS_MAX_HEIGHT_V20	3072
 #define RKVPSS_MIN_WIDTH	32
 #define RKVPSS_MIN_HEIGHT	32
 #define RKVPSS_UNITE_MAX_WIDTH        8192
@@ -31,18 +36,32 @@
 
 #define RKVPSS_REG_CACHE_SYNC	0xeeeeeeee
 #define RKVPSS_REG_CACHE	0xffffffff
-#define RKVPSS_SW_REG_SIZE	0x35c0
+#define RKVPSS_SW_REG_SIZE	0x37c0
 #define RKVPSS_SW_REG_SIZE_MAX	(RKVPSS_SW_REG_SIZE * 2)
 
 struct rkvpss_device;
 
 enum rkvpss_ver {
 	VPSS_V10 = 0x00,
+	VPSS_V20 = 0x20,
+};
+
+enum {
+	ROCKIT_DVBM_END,
+	ROCKIT_DVBM_START,
+};
+
+enum {
+	DVBM_DEINIT = 0,
+	DVBM_ONLINE = 1,
+	DVBM_OFFLINE = 2,
 };
 
 enum rkvpss_fmt_pix_type {
 	FMT_YUV,
 	FMT_RGB,
+	FMT_TILE,
+	FMT_FBC,
 };
 
 enum rkvpss_rotate {
@@ -88,7 +107,18 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 	return &vnode->buf_queue;
 }
 
+static inline int vpss_outchn_max(int version)
+{
+	if (version == VPSS_V10)
+		return 4;
+	else if (version == VPSS_V20)
+		return 6;
+
+	return 0;
+}
+
 extern int rkvpss_debug;
+extern int rkvpss_buf_dbg;
 extern struct platform_driver rkvpss_plat_drv;
 extern int rkvpss_cfginfo_num;
 
@@ -102,5 +132,6 @@ void rkvpss_unite_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask);
 void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end);
 
 int rkvpss_attach_hw(struct rkvpss_device *vpss);
+void rkvpss_detach_hw(struct rkvpss_device *vpss);
 void rkvpss_set_clk_rate(struct clk *clk, unsigned long rate);
 #endif

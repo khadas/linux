@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ROCKCHIP, Inc.
+ * Copyright (C) 2012 Rockchip Electronics Co., Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -830,11 +830,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 
 	LOG("Enter %s\n", __func__);
 
-	class_register(&rkwifi_power);
-
 	if (!pdata) {
 #ifdef CONFIG_OF
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
 
@@ -848,9 +846,9 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 #endif
 	}
 
-	rfkill = kzalloc(sizeof(*rfkill), GFP_KERNEL);
+	rfkill = devm_kzalloc(&pdev->dev, sizeof(*rfkill), GFP_KERNEL);
 	if (!rfkill)
-		goto rfkill_alloc_fail;
+		return -ENOMEM;
 
 	rfkill->pdata = pdata;
 	g_rfkill = rfkill;
@@ -861,12 +859,12 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 		ret = rfkill_rk_setup_gpio(&pdata->vbat_n, wlan_name,
 					   "wlan_vbat");
 		if (ret)
-			goto fail_alloc;
+			goto fail_gpio;
 
 		ret = rfkill_rk_setup_gpio(&pdata->reset_n, wlan_name,
 					   "wlan_reset");
 		if (ret)
-			goto fail_alloc;
+			goto fail_gpio;
 	}
 
 	wake_lock_init(&rfkill->wlan_irq_wl, WAKE_LOCK_SUSPEND,
@@ -897,11 +895,7 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail_alloc:
-	kfree(rfkill);
-rfkill_alloc_fail:
-	kfree(pdata);
-
+fail_gpio:
 	g_rfkill = NULL;
 
 	return ret;
@@ -909,7 +903,7 @@ rfkill_alloc_fail:
 
 static int rfkill_wlan_remove(struct platform_device *pdev)
 {
-	struct rfkill_wlan_data *rfkill = platform_get_drvdata(pdev);
+	struct rfkill_wlan_data *rfkill = g_rfkill;
 
 	LOG("Enter %s\n", __func__);
 
@@ -927,7 +921,6 @@ static int rfkill_wlan_remove(struct platform_device *pdev)
 	if (gpio_is_valid(rfkill->pdata->reset_n.io))
 		gpio_free(rfkill->pdata->reset_n.io);
 
-	kfree(rfkill);
 	g_rfkill = NULL;
 
 	return 0;
@@ -965,24 +958,28 @@ static struct platform_driver rfkill_wlan_driver = {
 	.probe = rfkill_wlan_probe,
 	.remove = rfkill_wlan_remove,
 	.shutdown = rfkill_wlan_shutdown,
-    .suspend = rfkill_wlan_suspend,
-    .resume = rfkill_wlan_resume,
+	.suspend = rfkill_wlan_suspend,
+	.resume = rfkill_wlan_resume,
 	.driver = {
 		.name = "wlan-platdata",
 		.owner = THIS_MODULE,
-        .of_match_table = of_match_ptr(wlan_platdata_of_match),
+		.of_match_table = of_match_ptr(wlan_platdata_of_match),
 	},
 };
 
 int __init rfkill_wlan_init(void)
 {
 	LOG("Enter %s\n", __func__);
+
+	class_register(&rkwifi_power);
 	return platform_driver_register(&rfkill_wlan_driver);
 }
 
 void __exit rfkill_wlan_exit(void)
 {
 	LOG("Enter %s\n", __func__);
+
+	class_unregister(&rkwifi_power);
 	platform_driver_unregister(&rfkill_wlan_driver);
 }
 

@@ -617,13 +617,13 @@ static int gc5035_g_frame_interval(struct v4l2_subdev *sd,
 static void gc5035_get_module_inf(struct gc5035 *gc5035,
 				  struct rkmodule_inf *inf)
 {
-	strlcpy(inf->base.sensor,
+	strscpy(inf->base.sensor,
 		GC5035_NAME,
 		sizeof(inf->base.sensor));
-	strlcpy(inf->base.module,
+	strscpy(inf->base.module,
 		gc5035->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens,
+	strscpy(inf->base.lens,
 		gc5035->len_name,
 		sizeof(inf->base.lens));
 }

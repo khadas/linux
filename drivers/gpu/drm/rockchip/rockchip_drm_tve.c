@@ -8,6 +8,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
@@ -503,6 +504,8 @@ static void rockchip_tve_encoder_mode_set(struct drm_encoder *encoder,
 		tve_set_mode(tve);
 		dac_enable(tve, true);
 	}
+
+	tve->tv_format = tv_format;
 }
 
 static bool
@@ -543,9 +546,9 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static int rockchip_tve_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+static int rockchip_tve_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev, bool on)
 {
-	struct rockchip_tve *tve = encoder_to_tve(encoder);
+	struct rockchip_tve *tve = container_of(sub_dev, struct rockchip_tve, sub_dev);
 	int ret;
 
 	if (on) {

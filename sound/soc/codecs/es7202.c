@@ -902,28 +902,28 @@ static int es7202_i2c_detect(struct i2c_client *client,
 
 	if (adapter->nr == ES7202_I2C_BUS_NUM) {
 		if (client->addr == 0x30) {
-			strlcpy(info->type, "ES7202_PDM_ADC_1", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_1", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x31) {
-			strlcpy(info->type, "ES7202_PDM_ADC_2", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_2", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x32) {
-			strlcpy(info->type, "ES7202_PDM_ADC_3", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_3", I2C_NAME_SIZE);
 			return 0;
 		} else if (client->addr == 0x33) {
-			strlcpy(info->type, "ES7202_PDM_ADC_4", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_4", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x34) {
-			strlcpy(info->type, "ES7202_PDM_ADC_5", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_5", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x35) {
-			strlcpy(info->type, "ES7202_PDM_ADC_6", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_6", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x36) {
-			strlcpy(info->type, "ES7202_PDM_ADC_7", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_7", I2C_NAME_SIZE);
 			return 0;
 		}else if (client->addr == 0x37) {
-			strlcpy(info->type, "ES7202_PDM_ADC_8", I2C_NAME_SIZE);
+			strscpy(info->type, "ES7202_PDM_ADC_8", I2C_NAME_SIZE);
 			return 0;
 		}
 	}

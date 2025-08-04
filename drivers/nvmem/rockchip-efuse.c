@@ -2,7 +2,7 @@
 /*
  * Rockchip eFuse Driver
  *
- * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2015 Rockchip Electronics Co., Ltd.
  * Author: Caesar Wang <wxt@rock-chips.com>
  */
 

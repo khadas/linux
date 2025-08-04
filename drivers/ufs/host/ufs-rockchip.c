@@ -2,7 +2,7 @@
 /*
  * Rockchip UFS Host Controller driver
  *
- * Copyright (C) 2024 Rockchip Electronics Co.Ltd.
+ * Copyright (C) 2024 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk.h>

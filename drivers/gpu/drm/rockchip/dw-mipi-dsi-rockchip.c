@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/gpio.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/mfd/syscon.h>
@@ -215,6 +216,7 @@
 #define RK3568_DSI1_FORCERXMODE		BIT(0)
 
 #define RV1126_GRF_DSIPHY_CON		0x10220
+#define RV1126B_GRF_DSIPHY_CON		0x80010
 #define RV1126_DSI_FORCETXSTOPMODE	(0xf << 4)
 #define RV1126_DSI_TURNDISABLE		(0x1 << 2)
 #define RV1126_DSI_FORCERXMODE		(0x1 << 0)
@@ -258,6 +260,7 @@ enum soc_type {
 	RK3562,
 	RK3568,
 	RV1126,
+	RV1126B,
 };
 
 struct cmd_header {
@@ -335,6 +338,7 @@ struct dw_mipi_dsi_rockchip {
 	u16 input_div;
 	u16 feedback_div;
 	u32 format;
+	u32 mode_flags;
 
 	struct dw_mipi_dsi *dmd;
 	const struct rockchip_dw_dsi_chip_data *cdata;
@@ -343,6 +347,9 @@ struct dw_mipi_dsi_rockchip {
 	struct rockchip_drm_sub_dev sub_dev;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
+
+	struct gpio_desc *te_gpio;
+	bool disable_hold_mode;
 };
 
 static struct dw_mipi_dsi_rockchip *to_dsi(struct drm_encoder *encoder)
@@ -853,6 +860,12 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	if (dsi->id && dsi->cdata->soc_type == RK3399)
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
+	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
+		s->soft_te = dsi->te_gpio ? true : false;
+		s->hold_mode = dsi->disable_hold_mode ? false : true;
+	}
+
 	if (dsi->dsc_enable) {
 		s->dsc_enable = 1;
 		s->dsc_sink_cap.version_major = dsi->version_major;
@@ -901,10 +914,11 @@ static void dw_mipi_dsi_rockchip_loader_protect(struct dw_mipi_dsi_rockchip *dsi
 		dw_mipi_dsi_rockchip_loader_protect(dsi->slave, on);
 }
 
-static int dw_mipi_dsi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
-					      bool on)
+static int dw_mipi_dsi_rockchip_encoder_loader_protect(struct rockchip_drm_sub_dev *sub_dev,
+						       bool on)
 {
-	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
+	struct dw_mipi_dsi_rockchip *dsi = container_of(sub_dev, struct dw_mipi_dsi_rockchip,
+							sub_dev);
 
 	if (dsi->panel)
 		panel_simple_loader_protect(dsi->panel);
@@ -986,6 +1000,17 @@ static struct device
 	return NULL;
 }
 
+static irqreturn_t dw_mipi_dsi_te_irq_handler(int irq, void *dev_id)
+{
+	struct dw_mipi_dsi_rockchip *dsi = (struct dw_mipi_dsi_rockchip *)dev_id;
+	struct drm_encoder *encoder = &dsi->encoder;
+
+	if (encoder->crtc)
+		rockchip_drm_te_handle(encoder->crtc);
+
+	return IRQ_HANDLED;
+}
+
 static int dw_mipi_dsi_get_dsc_info_from_sink(struct dw_mipi_dsi_rockchip *dsi,
 					      struct drm_panel *panel,
 					      struct drm_bridge *bridge)
@@ -1010,6 +1035,7 @@ static int dw_mipi_dsi_get_dsc_info_from_sink(struct dw_mipi_dsi_rockchip *dsi,
 	dsi->scrambling_en = of_property_read_bool(np, "scrambling-enable");
 	dsi->dsc_enable = of_property_read_bool(np, "compressed-data");
 	dsi->block_pred_enable = of_property_read_bool(np, "blk-pred-enable");
+	of_property_read_u32(np, "dsi,flags", &dsi->mode_flags);
 	of_property_read_u32(np, "slice-width", &dsi->slice_width);
 	of_property_read_u32(np, "slice-height", &dsi->slice_height);
 	of_property_read_u32(np, "slice-per-pkt", &dsi->slice_per_pkt);
@@ -1509,6 +1535,23 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 		return PTR_ERR(dsi->grf_regmap);
 	}
 
+	if (device_property_read_bool(dev, "disable-hold-mode"))
+		dsi->disable_hold_mode = true;
+
+	dsi->te_gpio = devm_gpiod_get_optional(dev, "te", GPIOD_IN);
+	if (IS_ERR(dsi->te_gpio))
+		dsi->te_gpio = NULL;
+
+	if (dsi->te_gpio) {
+		ret = devm_request_irq(dev, gpiod_to_irq(dsi->te_gpio),
+				       dw_mipi_dsi_te_irq_handler,
+				       IRQF_TRIGGER_RISING, "PANEL-TE", dsi);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "failed to request TE IRQ: %d\n", ret);
+			return ret;
+		}
+	}
+
 	dsi->dev = dev;
 	dsi->pdata.base = dsi->base;
 	dsi->pdata.max_data_lanes = dsi->cdata->max_data_lanes;
@@ -1857,6 +1900,22 @@ static const struct rockchip_dw_dsi_chip_data rv1126_chip_data[] = {
 	{ /* sentinel */ }
 };
 
+static const struct rockchip_dw_dsi_chip_data rv1126b_chip_data[] = {
+	{
+		.reg = 0x22120000,
+
+		.lanecfg1_grf_reg = RV1126B_GRF_DSIPHY_CON,
+		.lanecfg1 = HIWORD_UPDATE(0, RV1126_DSI_TURNDISABLE |
+					     RV1126_DSI_FORCERXMODE |
+					     RV1126_DSI_FORCETXSTOPMODE),
+		.flags = 0,
+		.max_data_lanes = 4,
+		.max_bit_rate_per_lane = 1500000000UL,
+		.soc_type = RV1126B,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 #if IS_ENABLED(CONFIG_CPU_PX30)
 	{
@@ -1904,6 +1963,12 @@ static const struct of_device_id dw_mipi_dsi_rockchip_dt_ids[] = {
 	{
 	 .compatible = "rockchip,rv1126-mipi-dsi",
 	 .data = &rv1126_chip_data,
+	},
+#endif
+#if IS_ENABLED(CONFIG_CPU_RV1126B)
+	{
+	 .compatible = "rockchip,rv1126b-mipi-dsi",
+	 .data = &rv1126b_chip_data,
 	},
 #endif
 	{ /* sentinel */ }

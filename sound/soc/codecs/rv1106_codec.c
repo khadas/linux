@@ -13,6 +13,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -2131,7 +2132,6 @@ MODULE_DEVICE_TABLE(of, rv1106_codec_of_match);
 
 static int rv1106_platform_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device_node *np = pdev->dev.of_node;
 	struct rv1106_codec_priv *rv1106;
 	struct resource *res;
@@ -2142,9 +2142,7 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 	if (!rv1106)
 		return -ENOMEM;
 
-	of_id = of_match_device(rv1106_codec_of_match, &pdev->dev);
-	if (of_id)
-		rv1106->soc_id = (enum soc_id_e)of_id->data;
+	rv1106->soc_id = (enum soc_id_e)device_get_match_data(&pdev->dev);
 	dev_info(&pdev->dev, "current soc_id: rv%x\n", rv1106->soc_id);
 
 	rv1106->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ROCKCHIP, Inc.
+ * Copyright (C) 2012 Rockchip Electronics Co., Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -1688,7 +1688,7 @@ long rga_ioctl_kernel(struct rga_req *req)
 }
 
 
-long rga_ioctl_kernel_imp(struct rga_req *req)
+static long rga_ioctl_kernel_imp(struct rga_req *req)
 {
 	int ret = 0;
     rga_session *session;

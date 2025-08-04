@@ -849,6 +849,7 @@ static void gc2145_reinit_parameter(struct vehicle_ad_dev *ad, unsigned char cvs
 		ad->cfg.mbus_flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 					V4L2_MBUS_VSYNC_ACTIVE_LOW |
 					V4L2_MBUS_PCLK_SAMPLE_RISING;
+		ad->cfg.input_mode = CIF_INPUT_MODE_BT601_YUV;
 		break;
 	}
 
@@ -1004,27 +1005,28 @@ int gc2145_stream(struct vehicle_ad_dev *ad, int enable)
 
 static void power_on(struct vehicle_ad_dev *ad)
 {
-	/* gpio_direction_output(ad->power, ad->pwr_active); */
-	SENSOR_DG("gpio: power(%d), powerdown(%d)", ad->power, ad->powerdown);
-	if (gpio_is_valid(ad->power)) {
-		gpio_request(ad->power, "ad_power");
-		gpio_direction_output(ad->power, ad->pwr_active);
-		/* gpio_set_value(ad->power, ad->pwr_active); */
-	}
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 1);
 
-	if (gpio_is_valid(ad->powerdown)) {
-		gpio_request(ad->powerdown, "ad_powerdown");
-		gpio_direction_output(ad->powerdown, !ad->pwdn_active);
-		/* gpio_set_value(ad->powerdown, !ad->pwdn_active); */
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 1);
+
+	if (!IS_ERR(ad->reset_gpio)) {
+		gpiod_direction_output(ad->reset_gpio, 0);
+		usleep_range(10000, 12000);
+		gpiod_direction_output(ad->reset_gpio, 1);
+		usleep_range(10000, 12000);
 	}
 }
 
 static void power_off(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->power))
-		gpio_free(ad->power);
-	if (gpio_is_valid(ad->powerdown))
-		gpio_free(ad->powerdown);
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 0);
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 0);
+	if (!IS_ERR(ad->reset_gpio))
+		gpiod_direction_output(ad->reset_gpio, 0);
 }
 
 static void gc2145_check_state_work(struct work_struct *work)

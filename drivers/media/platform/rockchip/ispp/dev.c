@@ -294,7 +294,7 @@ static int rkispp_plat_probe(struct platform_device *pdev)
 	ispp_dev->media_dev.dev = &pdev->dev;
 	v4l2_dev = &ispp_dev->v4l2_dev;
 	v4l2_dev->mdev = &ispp_dev->media_dev;
-	strlcpy(v4l2_dev->name, ispp_dev->name, sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, ispp_dev->name, sizeof(v4l2_dev->name));
 	v4l2_ctrl_handler_init(&ispp_dev->ctrl_handler, 5);
 	v4l2_dev->ctrl_handler = &ispp_dev->ctrl_handler;
 

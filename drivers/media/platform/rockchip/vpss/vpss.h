@@ -4,7 +4,31 @@
 #ifndef _RKVPSS_VPSS_H
 #define _RKVPSS_VPSS_H
 
-#include "common.h"
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/iommu.h>
+#include <linux/pm_runtime.h>
+#include <linux/videodev2.h>
+#include <media/media-entity.h>
+#include <media/v4l2-event.h>
+#include <linux/version.h>
+
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-mc.h>
+#include <media/v4l2-subdev.h>
+#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
+#include <uapi/linux/rk-video-format.h>
+
+#include <linux/rk-vpss-config.h>
+
 
 #define GRP_ID_VPSS		BIT(0)
 
@@ -23,9 +47,11 @@ enum rkvpss_state {
 	VPSS_FRAME_SCL1 = BIT(4),
 	VPSS_FRAME_SCL2 = BIT(5),
 	VPSS_FRAME_SCL3 = BIT(6),
+	VPSS_FRAME_SCL4 = BIT(7),
+	VPSS_FRAME_SCL5 = BIT(8),
 
-	VPSS_START = BIT(8),
-	VPSS_RX_START = BIT(9),
+	VPSS_START = BIT(9),
+	VPSS_RX_START = BIT(10),
 };
 
 struct vpsssd_fmt {

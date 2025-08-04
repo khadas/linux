@@ -2,7 +2,7 @@
 /*
  * Maxim MAX96745 pin control driver
  *
- * Copyright (c) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/module.h>

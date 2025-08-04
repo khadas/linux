@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Rockchip Electronics Co., Ltd. */
-#include <linux/clk.h>
-#include <linux/proc_fs.h>
-#include <linux/sem.h>
-#include <linux/seq_file.h>
-#include <media/v4l2-common.h>
 
+#include "vpss.h"
+#include "common.h"
+#include "stream.h"
 #include "dev.h"
+#include "vpss_offline.h"
+#include "hw.h"
 #include "procfs.h"
 #include "regs.h"
+
 #include "version.h"
 
 #ifdef CONFIG_PROC_FS
@@ -24,14 +25,17 @@ static void show_hw(struct seq_file *p, struct rkvpss_hw_dev *hw)
 	}
 
 	seq_printf(p, "\n%s\n", "HW INFO");
-	val = rkvpss_hw_read(hw, RKVPSS_VPSS_CTRL);
-	seq_printf(p, "\tmirror:%s(0x%x)\n", (val & 0x10) ? "ON" : "OFF", val);
 
-	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+	val = rkvpss_hw_read(hw, RKVPSS_VPSS_CTRL);
+	seq_printf(p, "\tmirror:%s(0x%x)\n", (val & RKVPSS_MIR_EN) ? "ON" : "OFF", val);
+	val = rkvpss_hw_read(hw, RKVPSS_VPSS_ONLINE);
+	seq_printf(p, "\tcmsc:%s(0x%x)\n", (val & RKVPSS_ISP2VPSS_ONLINE2_CMSC_EN) ? "ON" : "OFF", val);
+
+	for (i = 0; i < vpss_outchn_max(hw->vpss_ver); i++) {
 		seq_printf(p, "\toutput[%d]", i);
-		val = rkvpss_hw_read(hw, RKVPSS_CMSC_CTRL);
-		mask = RKVPSS_CMSC_CHN_EN(i);
-		seq_printf(p, "\tcmsc:%s(0x%x)", (val & mask & 1) ? "ON" : "OFF", val);
+		val = rkvpss_hw_read(hw, RKVPSS_VPSS_ONLINE);
+		mask = (RKVPSS_ISP2VPSS_CHN0_SEL(3) << i * 2);
+		seq_printf(p, "\tchn_sel:%s(0x%x)", (val & mask) ? "ON" : "OFF", val);
 		if (hw->is_ofl_ch[i]) {
 			val = rkvpss_hw_read(hw, RKVPSS_CROP0_CTRL);
 			mask = RKVPSS_CROP_CHN_EN(i);
@@ -90,7 +94,7 @@ static int vpss_show(struct seq_file *p, void *v)
 		   vpss_sdev->in_fmt.width, vpss_sdev->in_fmt.height);
 	seq_printf(p, "is_ofl_cmsc:%d\n", hw->is_ofl_cmsc);
 
-	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+	for (i = 0; i < vpss_outchn_max(hw->vpss_ver); i++) {
 		stream = &dev->stream_vdev.stream[i];
 		if (hw->is_ofl_ch[i] || !stream->streaming) {
 			seq_printf(p, "is_ofl_ch[%d]:%d OFF\n", i, hw->is_ofl_ch[i]);
@@ -109,7 +113,7 @@ static int vpss_show(struct seq_file *p, void *v)
 				   stream->crop.height,
 				   stream->out_fmt.width,
 				   stream->out_fmt.height);
-			seq_printf(p, "\tframe_cnt:%d rate:%dms delay:%dms frameloss:%d buf_cnt:%d\n",
+			seq_printf(p, "\tsequence:%d rate:%dms delay:%dms frameloss:%d buf_cnt:%d\n",
 				   stream->dbg.id,
 				   stream->dbg.interval / 1000 / 1000,
 				   stream->dbg.delay / 1000 / 1000,
@@ -194,7 +198,7 @@ static int offline_vpss_show(struct seq_file *p, void *v)
 			   cfginfo->input.height);
 
 		seq_printf(p, "%-10s\n", "Output");
-		for (i = 0; i < RKVPSS_OUTPUT_MAX; i++) {
+		for (i = 0; i < vpss_outchn_max(hw->vpss_ver); i++) {
 			if (!ofl->hw->is_ofl_ch[i] || !cfginfo->output[i].enable) {
 				seq_printf(p, "\tch[%d] OFF is_ofl_ch[%d]:%d output[%d].enable:%d\n",
 					   i, i, ofl->hw->is_ofl_ch[i], i,

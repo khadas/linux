@@ -939,10 +939,10 @@ static void nvp6158_get_module_inf(struct nvp6158 *nvp6158,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, NVP6158_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, nvp6158->module_name,
+	strscpy(inf->base.sensor, NVP6158_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, nvp6158->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, nvp6158->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, nvp6158->len_name, sizeof(inf->base.lens));
 }
 
 static __maybe_unused void

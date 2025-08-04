@@ -544,10 +544,10 @@ static void ov02b10_get_module_inf(struct ov02b10 *ov02b10,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, OV02B10_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, ov02b10->module_name,
+	strscpy(inf->base.sensor, OV02B10_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, ov02b10->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, ov02b10->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, ov02b10->len_name, sizeof(inf->base.lens));
 }
 
 static long ov02b10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

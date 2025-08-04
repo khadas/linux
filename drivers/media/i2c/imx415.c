@@ -1860,10 +1860,10 @@ static void imx415_get_module_inf(struct imx415 *imx415,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX415_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx415->module_name,
+	strscpy(inf->base.sensor, IMX415_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx415->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx415->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx415->len_name, sizeof(inf->base.lens));
 }
 
 static void imx415_get_pclk_and_tline(struct imx415 *imx415)

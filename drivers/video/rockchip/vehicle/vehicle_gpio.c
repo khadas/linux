@@ -20,7 +20,7 @@
 #include <linux/clkdev.h>
 #include <linux/completion.h>
 #include <linux/wakelock.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 
@@ -31,7 +31,7 @@ static void gpio_det_work_func(struct work_struct *work)
 {
 	struct gpio_detect *gpiod = container_of(work, struct gpio_detect,
 			work.work);
-	int val = gpio_get_value(gpiod->gpio);
+	int val = gpiod_get_value(gpiod->gpio);
 
 	VEHICLE_DG("%s: gpiod->old val(%d), new val(%d)\n",
 			__func__, gpiod->val, val);
@@ -45,7 +45,7 @@ static void gpio_det_work_func(struct work_struct *work)
 static irqreturn_t gpio_det_interrupt(int irq, void *dev_id)
 {
 	struct gpio_detect *gpiod = dev_id;
-	int val = gpio_get_value(gpiod->gpio);
+	int val = gpiod_get_value(gpiod->gpio);
 	unsigned int irqflags = IRQF_ONESHOT;
 
 	if (val)
@@ -62,7 +62,7 @@ static irqreturn_t gpio_det_interrupt(int irq, void *dev_id)
 
 static int vehicle_gpio_init_check(struct gpio_detect *gpiod)
 {
-	gpiod->val = gpio_get_value(gpiod->gpio);
+	gpiod->val = gpiod_get_value(gpiod->gpio);
 
 	dev_info(gpiod->dev, "%s: gpiod->atv_val(%d), gpiod->val(%d)\n",
 			__func__, gpiod->atv_val, gpiod->val);
@@ -92,6 +92,7 @@ static int gpio_parse_dt(struct gpio_detect *gpiod, const char *ad_name)
 	struct device_node *node;
 	const char *name;
 	int ret = 0;
+	struct fwnode_handle *fwnode = NULL;
 
 	gpiod_node = of_parse_phandle(dev->of_node, "rockchip,gpio-det", 0);
 	if (!gpiod_node) {
@@ -106,61 +107,54 @@ static int gpio_parse_dt(struct gpio_detect *gpiod, const char *ad_name)
 	}
 
 	for_each_child_of_node(gpiod_node, node) {
-		enum of_gpio_flags flags;
-
 		name = of_get_property(node, "label", NULL);
 		if (!strcmp(name, "car-reverse")) {
-			gpiod->gpio = of_get_named_gpio_flags(node, "car-reverse-gpios", 0, &flags);
-			if (!gpio_is_valid(gpiod->gpio)) {
-				dev_err(dev, "failed to get car reverse gpio\n");
-				ret = -ENOMEM;
+			fwnode = of_fwnode_handle(node);
+			gpiod->gpio = devm_fwnode_gpiod_get(dev, fwnode, "car-reverse",
+								GPIOD_IN, "car-reverse");
+			if (IS_ERR(gpiod->gpio)) {
+				ret = PTR_ERR(gpiod->gpio);
+				dev_err(dev, "failed to request car reverse GPIO: %d\n", ret);
+				return ret;
 			}
-			gpiod->atv_val = !(flags & OF_GPIO_ACTIVE_LOW);
+			gpiod->atv_val = 0x01;
 			of_property_read_u32(node, "linux,debounce-ms",
 						  &gpiod->debounce_ms);
 			break;
 		}
 	}
 
-	VEHICLE_DG("%s:gpio %d, act_val %d, mirror %d, debounce_ms %d\n",
-		__func__, gpiod->gpio, gpiod->atv_val, gpiod->mirror, gpiod->debounce_ms);
+	VEHICLE_DG("%s:gpio %d, act_val %d, mirror %d, debounce_ms %d\n", __func__,
+		desc_to_gpio(gpiod->gpio), gpiod->atv_val, gpiod->mirror, gpiod->debounce_ms);
 	return ret;
 }
 
 int vehicle_gpio_init(struct gpio_detect *gpiod, const char *ad_name)
 {
-	int gpio;
 	int ret;
 	unsigned long irqflags = IRQF_ONESHOT;
 
 	if (gpio_parse_dt(gpiod, ad_name) < 0) {
 		VEHICLE_INFO("%s, gpio parse dt failed, maybe unuse gpio-det\n", __func__);
 	} else {
-		gpio = gpiod->gpio;
+		if (gpiod->gpio) {
+			gpiod->irq = gpiod_to_irq(gpiod->gpio);
+			if (gpiod->irq < 0)
+				VEHICLE_DGERR("failed to get irq, GPIO %d, maybe no use\n",
+					desc_to_gpio(gpiod->gpio));
 
-		ret = gpio_request(gpio, "vehicle");
-		if (ret < 0)
-			VEHICLE_DGERR("%s:failed to request gpio %d, maybe no use\n",
-					__func__, ret);
-
-		dev_info(gpiod->dev, "%s: request irq gpio(%d)\n", __func__, gpio);
-		gpio_direction_input(gpio);
-
-		gpiod->irq = gpio_to_irq(gpio);
-		if (gpiod->irq < 0)
-			VEHICLE_DGERR("failed to get irq, GPIO %d, maybe no use\n", gpio);
-
-		gpiod->val = gpio_get_value(gpio);
-		if (gpiod->val)
-			irqflags |= IRQ_TYPE_EDGE_FALLING;
-		else
-			irqflags |= IRQ_TYPE_EDGE_RISING;
-		ret = devm_request_threaded_irq(gpiod->dev, gpiod->irq,
+			gpiod->val = gpiod_get_value(gpiod->gpio);
+			if (gpiod->val)
+				irqflags |= IRQ_TYPE_EDGE_FALLING;
+			else
+				irqflags |= IRQ_TYPE_EDGE_RISING;
+			ret = devm_request_threaded_irq(gpiod->dev, gpiod->irq,
 					NULL, gpio_det_interrupt,
 					irqflags, "vehicle gpio", gpiod);
-		if (ret < 0)
-			VEHICLE_DGERR("request irq(%s) failed:%d\n",
-				"vehicle", ret);
+			if (ret < 0)
+				VEHICLE_DGERR("request irq(%s) failed:%d\n",
+					"vehicle", ret);
+		}
 	}
 
 	//if not add in create_workqueue only execute once;
@@ -173,6 +167,5 @@ int vehicle_gpio_init(struct gpio_detect *gpiod, const char *ad_name)
 
 int vehicle_gpio_deinit(struct gpio_detect *gpiod)
 {
-	gpio_free(gpiod->gpio);
 	return 0;
 }

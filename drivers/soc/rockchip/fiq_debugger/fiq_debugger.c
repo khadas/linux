@@ -420,7 +420,7 @@ static void fiq_debugger_schedule_work(struct fiq_debugger_state *state,
 		return;
 	}
 
-	strlcpy(state->work_cmd, cmd, sizeof(state->work_cmd));
+	strscpy(state->work_cmd, cmd, sizeof(state->work_cmd));
 	spin_unlock_irqrestore(&state->work_lock, flags);
 
 	schedule_work(&state->work);
@@ -437,7 +437,7 @@ static void fiq_debugger_work(struct work_struct *work)
 
 	spin_lock_irqsave(&state->work_lock, flags);
 
-	strlcpy(work_cmd, state->work_cmd, sizeof(work_cmd));
+	strscpy(work_cmd, state->work_cmd, sizeof(work_cmd));
 	state->work_cmd[0] = '\0';
 
 	spin_unlock_irqrestore(&state->work_lock, flags);
@@ -651,7 +651,7 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 			cmd++;
 		if (*cmd) {
 			char tmp_cmd[32];
-			strlcpy(tmp_cmd, cmd, sizeof(tmp_cmd));
+			strscpy(tmp_cmd, cmd, sizeof(tmp_cmd));
 			machine_restart(tmp_cmd);
 		} else {
 			machine_restart(NULL);

@@ -1928,10 +1928,10 @@ static void tc35874x_get_module_inf(struct tc35874x_state *tc35874x,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, TC35874X_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, tc35874x->module_name,
+	strscpy(inf->base.sensor, TC35874X_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, tc35874x->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, tc35874x->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, tc35874x->len_name, sizeof(inf->base.lens));
 }
 
 static long tc35874x_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

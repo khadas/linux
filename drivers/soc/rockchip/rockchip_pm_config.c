@@ -116,19 +116,38 @@ static inline suspend_state_t get_mem_sleep_current(void)
 	return __is_defined(MODULE) ? PM_SUSPEND_MEM : mem_sleep_current;
 }
 
+static void cpus_offline(void)
+{
+	struct device *dev;
+	int ret, cpu = 0, primary = 0;
+
+	if (!cpu_online(primary))
+		primary = cpumask_first(cpu_online_mask);
+
+	for_each_online_cpu(cpu) {
+		if (cpu == primary)
+			continue;
+		dev = get_cpu_device(cpu);
+		if (dev && dev->bus && dev->bus->offline) {
+			ret = dev->bus->offline(dev);
+			if (ret) {
+				pr_err("Failed to offline CPU%d - error=%d",
+					cpu, ret);
+				BUG();
+			}
+		}
+	}
+
+	cpu_hotplug_disable();
+}
+
 static int rockchip_pm_virt_pwroff_prepare(struct sys_off_data *data)
 {
 	int error, i;
 
-	pm_wakeup_clear(0);
-
 	regulator_suspend_prepare(PM_SUSPEND_MEM);
 
-	error = suspend_disable_secondary_cpus();
-	if (error) {
-		pr_err("Disable nonboot cpus failed!\n");
-		return NOTIFY_DONE;
-	}
+	cpus_offline();
 
 	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, RK_PM_VIRT_PWROFF_EN, 1);
 
@@ -646,10 +665,10 @@ static int pm_config_probe(struct platform_device *pdev)
 	}
 	pm_runtime_enable(&pdev->dev);
 
+	parse_virtual_pwroff_config(pdev, node);
+
 	if (__is_defined(MODULE))
 		return 0;
-
-	parse_virtual_pwroff_config(pdev, node);
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);

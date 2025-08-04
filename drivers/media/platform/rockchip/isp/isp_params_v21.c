@@ -3991,11 +3991,11 @@ static void
 rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_isp_params_val_v21 *priv_val =
-		(struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+	struct rkisp_isp_params_val_v21 *priv_val = params_vdev->priv_val;
+	unsigned long flags = 0;
 
 	dev->is_bigmode = rkisp_params_check_bigmode_v21(params_vdev);
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	/* override the default things */
 	if (!params_vdev->isp21_params->module_cfg_update &&
 	    !params_vdev->isp21_params->module_en_update)
@@ -4014,7 +4014,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN,
 			       ISP2X_SYS_BIGMODE_MANUAL | ISP2X_SYS_BIGMODE_FORCEEN, false);
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void rkisp_save_first_param_v2x(struct rkisp_isp_params_vdev *params_vdev, void *param)
@@ -4222,8 +4222,9 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct isp21_isp_params_cfg *new_params = NULL;
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
+	unsigned long flags = 0;
 
-	spin_lock(&params_vdev->config_lock);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (!params_vdev->streamon)
 		goto unlock;
 
@@ -4276,7 +4277,7 @@ rkisp_params_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev,
 
 unlock:
 	params_vdev->cur_buf = cur_buf;
-	spin_unlock(&params_vdev->config_lock);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static void

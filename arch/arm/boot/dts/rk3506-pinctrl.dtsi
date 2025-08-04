@@ -1408,6 +1408,32 @@
 		};
 	};
 
+	sai3_idle {
+		sai3_sclk_idle_pins: sai3-sclk-idle-pins {
+			rockchip,pins =
+				/* sai3_sclk */
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+
+		sai3_lrck_idle_pins: sai3-lrck-idle-pins {
+			rockchip,pins =
+				/* sai3_lrck */
+				<2 RK_PB5 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+
+		sai3_sdi_idle_pins: sai3-sdi-idle-pins {
+			rockchip,pins =
+				/* sai3_sdi */
+				<2 RK_PB6 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+
+		sai3_sdo_idle_pins: sai3-sdo-idle-pins {
+			rockchip,pins =
+				/* sai3_sdo */
+				<2 RK_PB7 RK_FUNC_GPIO &pcfg_input_enable_pull_down>;
+		};
+	};
+
 	vo_lcdc {
 		/omit-if-no-ref/
 		bt1120_pins: bt1120-pins {

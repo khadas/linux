@@ -853,6 +853,7 @@
 			interrupt-names = "otg-bvalid",
 					  "otg-id",
 					  "linestate";
+			rockchip,low-power-mode;
 			status = "disabled";
 		};
 
@@ -1452,9 +1453,11 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
+			<&cru CLK_32K_FRAC>,
 			<&cru CLK_FRAC_UART_MATRIX0>,
 			<&cru CLK_FRAC_UART_MATRIX1>;
 		assigned-clock-rates =
+			<32768>,
 			<96000000>,
 			<128000000>;
 	};
@@ -1472,7 +1475,10 @@
 		gpio0: gpio@ff940000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff940000 0x200>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
 
 			gpio-controller;
@@ -1485,7 +1491,11 @@
 		gpio1: gpio@ff870000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff870000 0x200>;
-			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+
 			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
 
 			gpio-controller;
@@ -1498,7 +1508,10 @@
 		gpio2: gpio@ff1c0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff1c0000 0x200>;
-			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
 
 			gpio-controller;
@@ -1511,7 +1524,10 @@
 		gpio3: gpio@ff1d0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff1d0000 0x200>;
-			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
 
 			gpio-controller;
@@ -1524,7 +1540,10 @@
 		gpio4: gpio@ff1e0000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0xff1e0000 0x200>;
-			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
 
 			gpio-controller;

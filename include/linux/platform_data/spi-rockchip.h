@@ -1,6 +1,6 @@
 /* include/linux/platform_data/spi-rockchip.h
  *
- * Copyright (C) 2014 Rockchip Electronics Ltd.
+ * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
  *	luowei <lw@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify

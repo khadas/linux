@@ -27,6 +27,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -178,7 +179,7 @@ static int analogix_dp_detect_hpd(struct analogix_dp_device *dp)
 		analogix_dp_force_hpd(dp);
 
 	if (analogix_dp_get_plug_in_status(dp) != 0) {
-		dev_err(dp->dev, "failed to get hpd plug in status\n");
+		dev_dbg(dp->dev, "hpd status is detected as disconnected\n");
 		return -EINVAL;
 	}
 
@@ -271,37 +272,19 @@ analogix_dp_enable_rx_to_enhanced_mode(struct analogix_dp_device *dp,
 	return ret < 0 ? ret : 0;
 }
 
-static int analogix_dp_is_enhanced_mode_available(struct analogix_dp_device *dp,
-						  u8 *enhanced_mode_support)
-{
-	u8 data;
-	int ret;
-
-	ret = drm_dp_dpcd_readb(&dp->aux, DP_MAX_LANE_COUNT, &data);
-	if (ret != 1) {
-		*enhanced_mode_support = 0;
-		return ret;
-	}
-
-	*enhanced_mode_support = DPCD_ENHANCED_FRAME_CAP(data);
-
-	return 0;
-}
-
 static int analogix_dp_set_enhanced_mode(struct analogix_dp_device *dp)
 {
+	bool enhanced_frame_en;
 	u8 data;
 	int ret;
 
-	ret = analogix_dp_is_enhanced_mode_available(dp, &data);
+	enhanced_frame_en = drm_dp_enhanced_frame_cap(dp->dpcd);
+
+	ret = analogix_dp_enable_rx_to_enhanced_mode(dp, enhanced_frame_en);
 	if (ret < 0)
 		return ret;
 
-	ret = analogix_dp_enable_rx_to_enhanced_mode(dp, data);
-	if (ret < 0)
-		return ret;
-
-	if (!data) {
+	if (!enhanced_frame_en) {
 		/*
 		 * As the Table 3-4 in eDP v1.2 spec:
 		 * DPCD 0000Dh:
@@ -320,12 +303,12 @@ static int analogix_dp_set_enhanced_mode(struct analogix_dp_device *dp)
 		if (ret < 0)
 			return ret;
 
-		data = !!(data & DP_FRAMING_CHANGE_CAP);
+		enhanced_frame_en = !!(data & DP_FRAMING_CHANGE_CAP);
 	}
 
-	analogix_dp_enable_enhanced_mode(dp, data);
+	analogix_dp_enable_enhanced_mode(dp, enhanced_frame_en);
 
-	dp->link_train.enhanced_framing = data;
+	dp->link_train.enhanced_framing = enhanced_frame_en;
 
 	return 0;
 }
@@ -357,6 +340,43 @@ static bool analogix_dp_get_vrr_capable(struct analogix_dp_device *dp)
 		return false;
 
 	return true;
+}
+
+static int analogix_dp_enable_sink_to_assr_mode(struct analogix_dp_device *dp, bool enable)
+{
+	u8 data;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(&dp->aux, DP_EDP_CONFIGURATION_SET, &data);
+	if (ret != 1)
+		return ret;
+
+	if (enable)
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_EDP_CONFIGURATION_SET,
+					 data | DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
+	else
+		ret = drm_dp_dpcd_writeb(&dp->aux, DP_EDP_CONFIGURATION_SET,
+					 data & ~DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int analogix_dp_set_assr_mode(struct analogix_dp_device *dp)
+{
+	bool assr_en;
+	int ret;
+
+	assr_en = drm_dp_alternate_scrambler_reset_cap(dp->dpcd);
+
+	ret = analogix_dp_enable_sink_to_assr_mode(dp, assr_en);
+	if (ret < 0)
+		return ret;
+
+	analogix_dp_enable_assr_mode(dp, assr_en);
+
+	dp->link_train.assr = assr_en;
+
+	return 0;
 }
 
 static int analogix_dp_link_start(struct analogix_dp_device *dp)
@@ -397,6 +417,13 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 	retval = drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, buf, 2);
 	if (retval < 0)
 		return retval;
+
+	/* set ASSR if available */
+	retval = analogix_dp_set_assr_mode(dp);
+	if (retval < 0) {
+		dev_err(dp->dev, "failed to set assr mode\n");
+		return retval;
+	}
 
 	/* set enhanced mode if available */
 	retval = analogix_dp_set_enhanced_mode(dp);
@@ -756,7 +783,7 @@ static int analogix_dp_select_rx_bandwidth(struct analogix_dp_device *dp)
 		 * Select the smaller one between rx DP_MAX_LINK_RATE
 		 * and the max link rate supported by the platform.
 		 */
-		dp->link_train.link_rate = min_t(u32, dp->link_train.link_rate,
+		dp->link_train.link_rate = min_t(u32, dp->link_train.max_link_rate,
 						 dp->video_info.max_link_rate);
 	if (!dp->link_train.link_rate)
 		return -EINVAL;
@@ -862,7 +889,7 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 	analogix_dp_reset_macro(dp);
 
 	/* Setup TX lane count */
-	dp->link_train.lane_count = min_t(u32, dp->link_train.lane_count, max_lanes);
+	dp->link_train.lane_count = min_t(u32, dp->link_train.max_lane_count, max_lanes);
 
 	/* Setup TX lane rate */
 	if (analogix_dp_select_rx_bandwidth(dp)) {
@@ -926,6 +953,7 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
 	analogix_dp_set_lane_link_training(dp);
+	analogix_dp_enable_assr_mode(dp, dp->link_train.assr);
 	analogix_dp_enable_enhanced_mode(dp, dp->link_train.enhanced_framing);
 
 	/* source Set training pattern 1 */
@@ -1326,9 +1354,11 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 		return ret;
 	}
 
-	if (device_property_read_bool(dp->dev, "panel-self-test"))
+	if (device_property_read_bool(dp->dev, "panel-self-test")) {
+		dev_info(dp->dev, "Enter panel self test mode\n");
 		return drm_dp_dpcd_writeb(&dp->aux, DP_EDP_CONFIGURATION_SET,
 					  DP_PANEL_SELF_TEST_ENABLE);
+	}
 
 	ret = analogix_dp_train_link(dp);
 	if (ret) {
@@ -1561,13 +1591,13 @@ analogix_dp_detect(struct analogix_dp_device *dp)
 
 	if (!analogix_dp_detect_hpd(dp)) {
 		/* Initialize by reading RX's DPCD */
-		ret = analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.link_rate);
+		ret = analogix_dp_get_max_rx_bandwidth(dp, &dp->link_train.max_link_rate);
 		if (ret) {
 			dev_err(dp->dev, "failed to read max link rate\n");
 			goto out;
 		}
 
-		ret = analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.lane_count);
+		ret = analogix_dp_get_max_rx_lane_count(dp, &dp->link_train.max_lane_count);
 		if (ret) {
 			dev_err(dp->dev, "failed to read max lane count\n");
 			goto out;
@@ -1658,12 +1688,17 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_encoder *encoder = dp->encoder;
 	struct drm_connector *connector = NULL;
+	struct drm_bridge *last_bridge;
+	struct drm_panel *panel = NULL;
 	int ret = 0;
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
 		return -ENODEV;
 	}
+
+	if (!dp->plat_data->panel)
+		dp->dp_mode = true;
 
 	if (dp->plat_data->bridge) {
 		ret = drm_bridge_attach(bridge->encoder, dp->plat_data->bridge, bridge,
@@ -1673,7 +1708,18 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 			DRM_ERROR("Failed to attach external bridge: %d\n", ret);
 			return ret;
 		}
+
+		last_bridge = list_last_entry(&bridge->encoder->bridge_chain,
+					      struct drm_bridge, chain_node);
+		ret = drm_of_find_panel_or_bridge(last_bridge->of_node, 1, -1, &panel, NULL);
+		if (!ret && panel)
+			dp->dp_mode = false;
 	}
+
+	if (of_property_read_bool(dp->dev->of_node, "dp-mode"))
+		dp->dp_mode = true;
+	else if (of_property_read_bool(dp->dev->of_node, "edp-mode"))
+		dp->dp_mode = false;
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
@@ -2115,9 +2161,9 @@ analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
 		min_bpp = 24;
 
 	max_link_rate = min_t(u32, dp->video_info.max_link_rate,
-			      dp->link_train.link_rate);
+			      dp->link_train.max_link_rate);
 	max_lane_count = min_t(u32, dp->video_info.max_lane_count,
-			       dp->link_train.lane_count);
+			       dp->link_train.max_lane_count);
 	if (analogix_dp_link_config_validate(max_link_rate, max_lane_count) &&
 	    !analogix_dp_bandwidth_ok(dp, &m, min_bpp,
 				      drm_dp_bw_code_to_link_rate(max_link_rate),
@@ -2170,8 +2216,8 @@ static u32 *analogix_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bri
 
 		if (!analogix_dp_bandwidth_ok(dp, &crtc_state->mode,
 					      analogix_dp_get_output_bpp(fmt),
-					      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
-					      dp->link_train.lane_count))
+					      drm_dp_bw_code_to_link_rate(dp->link_train.max_link_rate),
+					      dp->link_train.max_lane_count))
 			continue;
 
 		output_fmts[j++] = fmt->bus_format;
@@ -2410,6 +2456,7 @@ static void analogix_dp_link_train_restore(struct analogix_dp_device *dp)
 
 	dp->link_train.link_rate = link_rate;
 	dp->link_train.lane_count = lane_count;
+	dp->link_train.assr = analogix_dp_get_assr_mode(dp);
 	dp->link_train.enhanced_framing = analogix_dp_get_enhanced_mode(dp);
 	dp->link_train.ssc = !!(spread & DP_MAX_DOWNSPREAD_0_5);
 

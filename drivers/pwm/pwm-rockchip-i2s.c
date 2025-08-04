@@ -3,7 +3,7 @@
 /*
  * PWM-I2S driver for Rockchip SoCs
  *
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk.h>

@@ -701,10 +701,10 @@ static void jx_f37_get_module_inf(struct jx_f37 *jx_f37,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, JX_F37_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, jx_f37->module_name,
+	strscpy(inf->base.sensor, JX_F37_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, jx_f37->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, jx_f37->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, jx_f37->len_name, sizeof(inf->base.lens));
 }
 
 static int jx_f37_set_hdrae(struct jx_f37 *jx_f37,

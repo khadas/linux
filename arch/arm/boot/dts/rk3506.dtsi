@@ -286,7 +286,7 @@
 	//	dmas = <&dmac0 8  0xff288078 0x80008000 0xff2880ac 0x00030000>,
 	//	       <&dmac0 10 0xff288078 0x40004000 0xff2880ac 0x00300000>;
 		dma-names = "req0", "req1";
-		pinctrl-names = "default", "active" ,"lb-slave";
+		pinctrl-names = "default", "active", "lb-slave";
 		pinctrl-0 = <&dsmc_csn_pull_pins
 			     &dsmc_bus16_pins
 			     &dsmc_clk_pins>;

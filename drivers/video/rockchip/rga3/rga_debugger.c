@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 
 #include "rga.h"
 #include "rga_debugger.h"
@@ -286,7 +287,7 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 				   (unsigned long)dump_buffer->dma_buffer->iova,
 				   dump_buffer->dma_buffer->sgt,
 				   dump_buffer->dma_buffer->size,
-				   dump_buffer->dma_buffer->scheduler->core);
+				   dump_buffer->scheduler->core);
 
 			if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 				seq_printf(m, "\t is contiguous, pa = 0x%lx\n",
@@ -310,7 +311,7 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 				   (unsigned long)dump_buffer->dma_buffer->offset,
 				   dump_buffer->dma_buffer->sgt,
 				   dump_buffer->dma_buffer->size,
-				   dump_buffer->dma_buffer->scheduler->core);
+				   dump_buffer->scheduler->core);
 
 			if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 				seq_printf(m, "\t is contiguous, pa = 0x%lx\n",

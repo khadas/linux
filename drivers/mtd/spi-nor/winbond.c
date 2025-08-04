@@ -120,9 +120,10 @@ static const struct flash_info winbond_nor_parts[] = {
 		NO_SFDP_FLAGS(SECT_4K) },
 	{ "w25q80bl", INFO(0xef4014, 0, 64 * 1024,  16)
 		NO_SFDP_FLAGS(SECT_4K) },
-	{ "w25q128", INFO(0xef4018, 0, 0, 0)
-		PARSE_SFDP
-		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
+	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256)
+		FLAGS(SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
+			      SPI_NOR_QUAD_READ) },
 	{ "w25q256", INFO(0xef4019, 0, 64 * 1024, 512)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ)
 		.fixups = &w25q256_fixups },
@@ -225,9 +226,19 @@ static void winbond_nor_late_init(struct spi_nor *nor)
 		nor->params->otp.ops = &winbond_nor_otp_ops;
 }
 
+static void winbond_nor_post_sfdp(struct spi_nor *nor)
+{
+	/*
+	 * All winbond flash support 35H command, but some flash do
+	 * not accurately feedback information after SDFP param parsing.
+	 */
+	nor->flags &= ~SNOR_F_NO_READ_CR;
+}
+
 static const struct spi_nor_fixups winbond_nor_fixups = {
 	.default_init = winbond_nor_default_init,
 	.late_init = winbond_nor_late_init,
+	.post_sfdp = winbond_nor_post_sfdp,
 };
 
 const struct spi_nor_manufacturer spi_nor_winbond = {

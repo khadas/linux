@@ -938,10 +938,10 @@ static void os05a20_get_module_inf(struct os05a20 *os05a20,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, OS05A20_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, os05a20->module_name,
+	strscpy(inf->base.sensor, OS05A20_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, os05a20->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, os05a20->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, os05a20->len_name, sizeof(inf->base.lens));
 }
 
 static int os05a20_set_hdrae(struct os05a20 *os05a20,

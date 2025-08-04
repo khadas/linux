@@ -402,35 +402,28 @@ int max96714_stream(struct vehicle_ad_dev *ad, int enable)
 
 static void max96714_power_on(struct vehicle_ad_dev *ad)
 {
-	/* gpio_direction_output(ad->power, ad->pwr_active); */
-	if (gpio_is_valid(ad->power)) {
-		gpio_request(ad->power, "max96714_power");
-		gpio_direction_output(ad->power, ad->pwr_active);
-		/* gpio_set_value(ad->power, ad->pwr_active); */
-	}
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 1);
 
-	if (gpio_is_valid(ad->powerdown)) {
-		gpio_request(ad->powerdown, "max96714_pwd");
-		gpio_direction_output(ad->powerdown, 1);
-		/* gpio_set_value(ad->powerdown, !ad->pwdn_active); */
-	}
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 1);
 
-	if (gpio_is_valid(ad->reset)) {
-		gpio_request(ad->reset, "max96714_rst");
-		gpio_direction_output(ad->reset, 0);
-		usleep_range(1500, 2000);
-		gpio_direction_output(ad->reset, 1);
+	if (!IS_ERR(ad->reset_gpio)) {
+		gpiod_direction_output(ad->reset_gpio, 0);
+		usleep_range(10000, 12000);
+		gpiod_direction_output(ad->reset_gpio, 1);
+		usleep_range(10000, 12000);
 	}
 }
 
 static void max96714_power_deinit(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->reset))
-		gpio_free(ad->reset);
-	if (gpio_is_valid(ad->power))
-		gpio_free(ad->power);
-	if (gpio_is_valid(ad->powerdown))
-		gpio_free(ad->powerdown);
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 0);
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 0);
+	if (!IS_ERR(ad->reset_gpio))
+		gpiod_direction_output(ad->reset_gpio, 0);
 }
 
 static void max96714_check_state_work(struct work_struct *work)

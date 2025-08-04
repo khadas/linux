@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2015 Sasha Levin <sasha.levin@oracle.com>
  *
- * Copyright (C) 2022 Rockchip Electronics Co. Ltd.
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  */
 

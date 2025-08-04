@@ -629,6 +629,7 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size,
 	struct address_space *mapping;
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
+	int ret;
 
 #ifdef CONFIG_ARM_LPAE
 	gfp_t gfp_mask = GFP_HIGHUSER | __GFP_RECLAIMABLE | __GFP_DMA32;
@@ -649,7 +650,12 @@ rockchip_gem_alloc_object(struct drm_device *drm, unsigned int size,
 
 	obj->funcs = &rockchip_gem_object_funcs;
 
-	drm_gem_object_init(drm, obj, size);
+	ret = drm_gem_object_init(drm, obj, size);
+	if (ret < 0) {
+		DRM_DEV_ERROR(drm->dev, "failed to initialize gem object, ret:%d\n", ret);
+		kfree(rk_obj);
+		return ERR_PTR(ret);
+	}
 
 	mapping = file_inode(obj->filp)->i_mapping;
 	mapping_set_gfp_mask(mapping, gfp_mask);
@@ -757,7 +763,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 
 	is_framebuffer = drm->fb_helper && file_priv == drm->fb_helper->client.file;
 
-	rk_obj = rockchip_gem_create_object(drm, size, is_framebuffer | alloc_kmap, flags);
+	rk_obj = rockchip_gem_create_object(drm, size, is_framebuffer || alloc_kmap, flags);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 
@@ -900,18 +906,23 @@ rockchip_gem_prime_import_sg_table(struct drm_device *drm,
 	if (!rk_obj->pages) {
 		DRM_ERROR("failed to allocate pages.\n");
 		ret = -ENOMEM;
-		goto err_free_rk_obj;
+		goto err_unmap;
 	}
 
 	ret = drm_prime_sg_to_page_array(sg, rk_obj->pages, rk_obj->num_pages);
 	if (ret < 0) {
 		DRM_ERROR("invalid sgtable.\n");
 		drm_free_large(rk_obj->pages);
-		goto err_free_rk_obj;
+		goto err_unmap;
 	}
 
 	return &rk_obj->base;
 
+err_unmap:
+	if (private->domain)
+		rockchip_gem_iommu_unmap(rk_obj);
+	else
+		dma_unmap_sgtable(drm->dev, rk_obj->sgt, DMA_BIDIRECTIONAL, 0);
 err_free_rk_obj:
 	rockchip_gem_release_object(rk_obj);
 	return ERR_PTR(ret);

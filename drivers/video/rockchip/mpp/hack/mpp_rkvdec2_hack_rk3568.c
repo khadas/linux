@@ -674,7 +674,7 @@ static struct hack_info rkvdec2_3568_hack[] = {
 	{0x00000000, 0x0380},
 };
 
-void rkvdec2_3568_hack_data_setup(struct mpp_dma_buffer *fix)
+static void rkvdec2_3568_hack_data_setup(struct mpp_dma_buffer *fix)
 {
 	u32 iova = fix->iova;
 	u32 i;
@@ -700,7 +700,7 @@ void rkvdec2_3568_hack_data_setup(struct mpp_dma_buffer *fix)
 	rkvdec2_3568_hack[123].data = iova + PAGE_SIZE;
 }
 
-void rkvdec2_3568_hack_fix(struct mpp_dev *mpp)
+static void rkvdec2_3568_hack_fix(struct mpp_dev *mpp)
 {
 	void __iomem *reg_base = mpp->reg_base;
 	unsigned long flags;

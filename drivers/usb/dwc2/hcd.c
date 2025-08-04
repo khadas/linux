@@ -4493,9 +4493,11 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 		 * Initialize the Core for Host mode, as after system resume
 		 * the global interrupts are disabled.
 		 */
+#ifndef CONFIG_ARCH_ROCKCHIP
 		dwc2_core_init(hsotg, false);
 		dwc2_enable_global_interrupts(hsotg);
 		dwc2_hcd_reinit(hsotg);
+#endif
 		spin_lock_irqsave(&hsotg->lock, flags);
 
 		/*

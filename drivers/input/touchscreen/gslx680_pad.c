@@ -32,6 +32,7 @@
 #include "tp_suspend.h"
 
 #include "gslx680_pad.h"
+#include "gsl_point_id.h"
 #include <linux/wakelock.h>
 //#define GSL_DEBUG
 #define REPORT_DATA_ANDROID_4_0

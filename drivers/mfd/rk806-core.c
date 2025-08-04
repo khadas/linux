@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/spi/spi.h>
 
 #define TSD_TEMP_140	0x00
@@ -964,6 +965,28 @@ int rk806_device_init(struct rk806 *rk806)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rk806_device_init);
+
+int rk806_core_suspend(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	disable_irq(rk806->irq);
+	enable_irq_wake(rk806->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rk806_core_suspend);
+
+int rk806_core_resume(struct device *dev)
+{
+	struct rk806 *rk806 = dev_get_drvdata(dev);
+
+	enable_irq(rk806->irq);
+	disable_irq_wake(rk806->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rk806_core_resume);
 
 int rk806_device_exit(struct rk806 *rk806)
 {

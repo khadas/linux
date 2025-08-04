@@ -3,7 +3,7 @@
  *
  * Driver for ROCKCHIP RK630 Ethernet PHYs
  *
- * Copyright (c) 2020, Rockchip Electronics Co., Ltd
+ * Copyright (c) 2020, Rockchip Electronics Co., Ltd.
  *
  * David Wu <david.wu@rock-chips.com>
  *

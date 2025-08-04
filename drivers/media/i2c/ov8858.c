@@ -2153,14 +2153,14 @@ static void ov8858_get_r1a_otp(struct ov8858_otp_info_r1a *otp_r1a,
 			if (ov8858_module_info[i].id == otp_r1a->module_id)
 				break;
 		}
-		strlcpy(inf->fac.module, ov8858_module_info[i].name,
+		strscpy(inf->fac.module, ov8858_module_info[i].name,
 			sizeof(inf->fac.module));
 
 		for (i = 0; i < ARRAY_SIZE(ov8858_lens_info) - 1; i++) {
 			if (ov8858_lens_info[i].id == otp_r1a->lens_id)
 				break;
 		}
-		strlcpy(inf->fac.lens, ov8858_lens_info[i].name,
+		strscpy(inf->fac.lens, ov8858_lens_info[i].name,
 			sizeof(inf->fac.lens));
 	}
 
@@ -2235,14 +2235,14 @@ static void ov8858_get_r2a_otp(struct ov8858_otp_info_r2a *otp_r2a,
 			if (ov8858_module_info[i].id == otp_r2a->module_id)
 				break;
 		}
-		strlcpy(inf->fac.module, ov8858_module_info[i].name,
+		strscpy(inf->fac.module, ov8858_module_info[i].name,
 			sizeof(inf->fac.module));
 
 		for (i = 0; i < ARRAY_SIZE(ov8858_lens_info) - 1; i++) {
 			if (ov8858_lens_info[i].id == otp_r2a->lens_id)
 				break;
 		}
-		strlcpy(inf->fac.lens, ov8858_lens_info[i].name,
+		strscpy(inf->fac.lens, ov8858_lens_info[i].name,
 			sizeof(inf->fac.lens));
 
 		rg = otp_r2a->rg_ratio;
@@ -2294,9 +2294,9 @@ static void ov8858_get_module_inf(struct ov8858 *ov8858,
 	struct ov8858_otp_info_r1a *otp_r1a = ov8858->otp_r1a;
 	struct ov8858_otp_info_r2a *otp_r2a = ov8858->otp_r2a;
 
-	strlcpy(inf->base.sensor, OV8858_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, ov8858->module_name, sizeof(inf->base.module));
-	strlcpy(inf->base.lens, ov8858->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.sensor, OV8858_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, ov8858->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, ov8858->len_name, sizeof(inf->base.lens));
 
 	if (ov8858->is_r2a) {
 		if (otp_r2a)

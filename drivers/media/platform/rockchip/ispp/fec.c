@@ -18,6 +18,10 @@
 #include "stream.h"
 #include "common.h"
 
+static int rkfec_user_debug;
+module_param_named(user_debug, rkfec_user_debug, int, 0644);
+MODULE_PARM_DESC(user_debug, "Debug level (0-6)");
+
 struct rkispp_fec_buf {
 	struct list_head list;
 	struct file *file;
@@ -423,7 +427,7 @@ int rkispp_register_fec(struct rkispp_hw_dev *hw)
 	fec->hw = hw;
 	hw->is_fec_ext = true;
 	v4l2_dev = &fec->v4l2_dev;
-	strlcpy(v4l2_dev->name, fec_videodev.name, sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, fec_videodev.name, sizeof(v4l2_dev->name));
 	ret = v4l2_device_register(hw->dev, v4l2_dev);
 	if (ret)
 		return ret;

@@ -12,6 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/mfd/rk808.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -80,7 +81,7 @@ struct runtime_device {
 struct rk801_regulator_data {
 	struct gpio_desc *pwrctrl_gpio;
 	struct suspend_device sdev[RK801_ID_MAX];
-	bool pwrctrl_dvs;
+	bool req_pwrctrl_dvs;
 };
 
 static const struct linear_range rk801_buck1_voltage_ranges[] = {
@@ -131,7 +132,7 @@ static unsigned int rk801_get_mode(struct regulator_dev *rdev)
 	if (err)
 		return err;
 
-	if ((val & pmw_mode_msk) == RK801_FPWM_MODE)
+	if (val & pmw_mode_msk)
 		return REGULATOR_MODE_FAST;
 	else
 		return REGULATOR_MODE_NORMAL;
@@ -162,7 +163,7 @@ static int rk801_set_suspend_voltage(struct regulator_dev *rdev, int uv)
 	unsigned int reg;
 	int sel;
 
-	if (pdata->pwrctrl_dvs) {
+	if (pdata->req_pwrctrl_dvs) {
 		pdata->sdev[rdev->desc->id].rdev = rdev;
 		pdata->sdev[rdev->desc->id].uv = uv;
 	} else {
@@ -186,7 +187,7 @@ static int rk801_set_suspend_enable(struct regulator_dev *rdev)
 {
 	struct rk801_regulator_data *pdata = rdev_get_drvdata(rdev);
 
-	if (pdata->pwrctrl_dvs) {
+	if (pdata->req_pwrctrl_dvs) {
 		pdata->sdev[rdev->desc->id].rdev = rdev;
 		pdata->sdev[rdev->desc->id].enable = 1;
 	} else {
@@ -201,7 +202,7 @@ static int rk801_set_suspend_disable(struct regulator_dev *rdev)
 {
 	struct rk801_regulator_data *pdata = rdev_get_drvdata(rdev);
 
-	if (pdata->pwrctrl_dvs) {
+	if (pdata->req_pwrctrl_dvs) {
 		pdata->sdev[rdev->desc->id].rdev = rdev;
 		pdata->sdev[rdev->desc->id].enable = 0;
 	} else {
@@ -221,7 +222,7 @@ static int rk801_set_enable(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	if (pdata->pwrctrl_dvs)
+	if (pdata->req_pwrctrl_dvs)
 		return regmap_update_bits(rdev->regmap, RK801_POWER_SLP_EN_REG,
 					  BIT(rdev->desc->id), BIT(rdev->desc->id));
 
@@ -237,7 +238,7 @@ static int rk801_set_disable(struct regulator_dev *rdev)
 	if (ret)
 		return ret;
 
-	if (pdata->pwrctrl_dvs)
+	if (pdata->req_pwrctrl_dvs)
 		return regmap_update_bits(rdev->regmap, RK801_POWER_SLP_EN_REG,
 					  BIT(rdev->desc->id), 0);
 
@@ -255,29 +256,34 @@ static int rk801_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
 {
 	struct rk801_regulator_data *pdata = rdev_get_drvdata(rdev);
 	struct gpio_desc *gpio = pdata->pwrctrl_gpio;
-	unsigned int reg0 = rdev->desc->vsel_reg;
-	unsigned int reg1 = rdev->desc->vsel_reg + RK801_SLP_REG_OFFSET;
-	unsigned int reg;
-	int ret, gpio_level;
+	unsigned int reg_normal = rdev->desc->vsel_reg;
+	unsigned int reg_sleep = rdev->desc->vsel_reg + RK801_SLP_REG_OFFSET;
+	unsigned int reg_target;
+	int act_level; /* logic value */
+	int ret;
 
-	if (pdata->pwrctrl_dvs) {
-		gpio_level = gpiod_get_value(gpio);
-		reg = (gpio_level == 1) ? reg0 : reg1;
+	if (pdata->req_pwrctrl_dvs) {
+		/*
+		 * act_level=1: active on reg_sleep now -> target: reg_normal
+		 * act_level=0: inactive on reg_normal now -> target: reg_sleep
+		 */
+		act_level = gpiod_get_value(gpio);
+		reg_target = act_level ? reg_normal : reg_sleep;
 
 		sel <<= ffs(rdev->desc->vsel_mask) - 1;
-		ret = regmap_update_bits(rdev->regmap, reg, rdev->desc->vsel_mask, sel);
+		ret = regmap_update_bits(rdev->regmap, reg_target, rdev->desc->vsel_mask, sel);
 		if (ret)
 			return ret;
 
 		udelay(40); /* hw sync */
 
-		gpiod_set_value(gpio, !gpio_level);
+		gpiod_set_value(gpio, !act_level);
 
-		if (reg == reg0)
-			ret = regmap_update_bits(rdev->regmap, reg1,
+		if (reg_target == reg_normal)
+			ret = regmap_update_bits(rdev->regmap, reg_sleep,
 						 rdev->desc->vsel_mask, sel);
 		else
-			ret = regmap_update_bits(rdev->regmap, reg0,
+			ret = regmap_update_bits(rdev->regmap, reg_normal,
 						 rdev->desc->vsel_mask, sel);
 	} else {
 		ret = regulator_set_voltage_sel_regmap(rdev, sel);
@@ -341,7 +347,7 @@ static const struct regulator_desc rk801_reg[] = {
 		.enable_mask = ENABLE_MASK(RK801_ID_DCDC1),
 		.enable_val = ENABLE_VAL(RK801_ID_DCDC1),
 		.disable_val = DISABLE_VAL(RK801_ID_DCDC1),
-		.ramp_delay = 1,
+		.ramp_delay = 1000,
 		.of_map_mode = rk801_regulator_of_map_mode,
 		.enable_time = 400,
 		.owner = THIS_MODULE,
@@ -362,7 +368,7 @@ static const struct regulator_desc rk801_reg[] = {
 		.enable_mask = ENABLE_MASK(RK801_ID_DCDC2),
 		.enable_val = ENABLE_VAL(RK801_ID_DCDC2),
 		.disable_val = DISABLE_VAL(RK801_ID_DCDC2),
-		.ramp_delay = 1,
+		.ramp_delay = 1000,
 		.of_map_mode = rk801_regulator_of_map_mode,
 		.enable_time = 400,
 		.owner = THIS_MODULE,
@@ -399,7 +405,7 @@ static const struct regulator_desc rk801_reg[] = {
 		.enable_mask = ENABLE_MASK(RK801_ID_DCDC4),
 		.enable_val = ENABLE_VAL(RK801_ID_DCDC4),
 		.disable_val = DISABLE_VAL(RK801_ID_DCDC4),
-		.ramp_delay = 1,
+		.ramp_delay = 1000,
 		.of_map_mode = rk801_regulator_of_map_mode,
 		.enable_time = 400,
 		.owner = THIS_MODULE,
@@ -415,38 +421,6 @@ static const struct regulator_desc rk801_reg[] = {
 		ENABLE_MASK(2), ENABLE_VAL(2), DISABLE_VAL(2), 400),
 };
 
-static int rk801_regulator_dt_parse_pdata(struct device *dev,
-					  struct device *client_dev,
-					  struct regmap *map,
-					  struct rk801_regulator_data *pdata)
-{
-	struct device_node *np;
-	int ret = 0;
-
-	np = of_get_child_by_name(client_dev->of_node, "regulators");
-	if (!np)
-		return -ENXIO;
-
-	if (pdata->pwrctrl_dvs) {
-		pdata->pwrctrl_gpio = devm_gpiod_get_optional(client_dev,
-						"pwrctrl", GPIOD_OUT_LOW);
-		if (IS_ERR(pdata->pwrctrl_gpio)) {
-			ret = PTR_ERR(pdata->pwrctrl_gpio);
-			dev_err(dev, "failed to get pwrctrl gpio! ret=%d\n", ret);
-			goto dt_parse_end;
-		}
-
-		if (!pdata->pwrctrl_gpio) {
-			dev_err(dev, "there is no pwrctrl gpio!\n");
-			ret = -EINVAL;
-		}
-	}
-dt_parse_end:
-	of_node_put(np);
-
-	return ret;
-}
-
 static int rk801_regulator_init(struct device *dev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(dev->parent);
@@ -458,12 +432,18 @@ static int rk801_regulator_init(struct device *dev)
 		{ RK801_LDO1_ON_VSEL_REG,  RK801_LDO1_SLP_VSEL_REG },
 		{ RK801_LDO2_ON_VSEL_REG,  RK801_LDO2_SLP_VSEL_REG },
 	};
-	uint val, en0, en1;
-	int i, ret;
+	uint act_pol, en0, en1;
+	int i, ret, val;
 
-	/* pwrctrl gpio active high and use sleep function */
+	if (!pdata->req_pwrctrl_dvs)
+		return 0;
+
+	/* set pmic-pwrctrl active pol and use sleep function */
+	act_pol = rk808->pwrctrl.act_low ?
+			RK801_SLEEP_ACT_L : RK801_SLEEP_ACT_H;
+
 	ret = regmap_update_bits(rk808->regmap, RK801_SYS_CFG2_REG,
-				 RK801_SLEEP_POL_MSK, RK801_SLEEP_ACT_H);
+				 RK801_SLEEP_POL_MSK, act_pol);
 	if (ret)
 		return ret;
 
@@ -558,10 +538,10 @@ static int rk801_regulator_suspend_late(struct device *dev)
 	struct gpio_desc *gpio = pdata->pwrctrl_gpio;
 	int i, ret;
 
-	if (!pdata->pwrctrl_dvs)
+	if (!pdata->req_pwrctrl_dvs)
 		return 0;
 
-	/* set pwrctrl pin low */
+	/* set soc-pwrctrl inactive (0:inactive) */
 	gpiod_set_value(gpio, 0);
 	udelay(40);
 
@@ -581,7 +561,7 @@ static int rk801_regulator_resume_early(struct device *dev)
 {
 	struct rk801_regulator_data *pdata = dev_get_drvdata(dev);
 
-	if (!pdata->pwrctrl_dvs)
+	if (!pdata->req_pwrctrl_dvs)
 		return 0;
 
 	return rk801_regulator_init(dev);
@@ -594,26 +574,18 @@ static int rk801_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = {};
 	struct regulator_dev *rk801_rdev;
 	struct rk801_regulator_data *pdata;
-	int id_lsb, i, ret;
+	int i, ret;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = regmap_read(rk808->regmap, RK801_ID_LSB, &id_lsb);
-	if (ret)
-		return ret;
-
-	pdata->pwrctrl_dvs = (id_lsb & 0x0f) < 4;
-	dev_info(&pdev->dev, "pwrctrl dvs: %d\n", pdata->pwrctrl_dvs);
-
-	ret = rk801_regulator_dt_parse_pdata(&pdev->dev, &client->dev,
-					     rk808->regmap, pdata);
-	if (ret < 0)
-		return ret;
+	pdata->req_pwrctrl_dvs = rk808->pwrctrl.req_pwrctrl_dvs;
+	pdata->pwrctrl_gpio = rk808->pwrctrl.gpio;
+	dev_info(&pdev->dev, "req pwrctrl dvs: %d, act: %s\n",
+		 pdata->req_pwrctrl_dvs, rk808->pwrctrl.act_low ? "low" : "high");
 
 	platform_set_drvdata(pdev, pdata);
-
 	config.dev = &client->dev;
 	config.driver_data = pdata;
 	config.regmap = rk808->regmap;

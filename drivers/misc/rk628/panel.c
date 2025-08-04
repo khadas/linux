@@ -164,14 +164,15 @@ int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 
 	backlight = of_parse_phandle(dev->of_node, "panel-backlight", 0);
 	if (backlight) {
-		panel->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		if (!rk628->pwm_bl_en) {
+			panel->backlight = of_find_backlight_by_node(backlight);
+			of_node_put(backlight);
 
-		if (!panel->backlight) {
-			dev_err(dev, "failed to find backlight\n");
-			return -EPROBE_DEFER;
+			if (!panel->backlight) {
+				dev_err(dev, "%s: failed to find backlight\n", __func__);
+				return -EPROBE_DEFER;
+			}
 		}
-
 	}
 
 	device_property_read_u32(dev, "panel-prepare-delay-ms", &panel->delay.prepare);

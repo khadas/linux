@@ -2,7 +2,7 @@
 /*
  * Rockchip Secure OTP Driver
  *
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Hisping <hisping.lin@rock-chips.com>
  */
 

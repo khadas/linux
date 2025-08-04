@@ -488,12 +488,13 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 				    struct rockchip_clk_branch *list,
 				    unsigned int nr_clk)
 {
-	struct clk *clk = NULL;
+	struct clk *clk;
 	unsigned int idx;
 	unsigned long flags;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
 		flags = list->flags;
+		clk = NULL;
 
 		/* catch simple muxes */
 		switch (list->branch_type) {
@@ -835,4 +836,6 @@ void rockchip_clk_disable_unused(void)
 	}
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_disable_unused);
+
+MODULE_LICENSE("GPL");
 #endif /* MODULE */

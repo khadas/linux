@@ -627,7 +627,7 @@ static int aw_spin_info(struct snd_kcontrol *kcontrol,
 		if (uinfo->value.enumerated.item >= count)
 			uinfo->value.enumerated.item = count - 1;
 
-	strlcpy(uinfo->value.enumerated.name,
+	strscpy(uinfo->value.enumerated.name,
 			aw_spin[uinfo->value.enumerated.item],
 			strlen(aw_spin[uinfo->value.enumerated.item]) + 1);
 

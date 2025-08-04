@@ -493,10 +493,10 @@ static void sc2239_get_module_inf(struct sc2239 *sc2239,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC2239_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc2239->module_name,
+	strscpy(inf->base.sensor, SC2239_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc2239->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc2239->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc2239->len_name, sizeof(inf->base.lens));
 }
 
 static long sc2239_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

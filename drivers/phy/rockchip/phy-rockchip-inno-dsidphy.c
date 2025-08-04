@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2018 Rockchip Electronics Co., Ltd.
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
@@ -1151,7 +1151,7 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 		.compatible = "rockchip,rk3568-dsi-dphy",
 		.data = &rk3568_video_phy_plat_data,
 	}, {
-		.compatible = "rockchip,rv1126-mipi-dphy",
+		.compatible = "rockchip,rv1126-dsi-dphy",
 		.data = &rv1126_video_phy_plat_data,
 	},
 	{}
@@ -1166,7 +1166,21 @@ static struct platform_driver inno_dsidphy_driver = {
 	.probe = inno_dsidphy_probe,
 	.remove = inno_dsidphy_remove,
 };
+#ifdef CONFIG_INITCALL_ASYNC
+static int __init inno_dsidphy_driver_init(void)
+{
+	return platform_driver_register(&inno_dsidphy_driver);
+}
+fs_initcall(inno_dsidphy_driver_init);
+
+static void __exit inno_dsidphy_driver_exit(void)
+{
+	platform_driver_unregister(&inno_dsidphy_driver);
+}
+module_exit(inno_dsidphy_driver_exit);
+#else
 module_platform_driver(inno_dsidphy_driver);
+#endif
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
 MODULE_DESCRIPTION("Innosilicon MIPI/LVDS/TTL Video Combo PHY driver");

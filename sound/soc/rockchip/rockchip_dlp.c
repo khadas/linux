@@ -681,7 +681,7 @@ static int process_capture(struct snd_soc_component *component,
 	snd_pcm_sframes_t frames = 0;
 	snd_pcm_sframes_t frames_consumed = 0, frames_residue = 0, frames_tmp = 0;
 	snd_pcm_sframes_t ofs = 0;
-	snd_pcm_uframes_t appl_ptr;
+	uint64_t appl_ptr;
 	int ofs_cap, ofs_play, size_cap, size_play;
 	int i = 0, j = 0, ret = 0;
 	bool free_ref = false, mix = false;
@@ -695,7 +695,9 @@ static int process_capture(struct snd_soc_component *component,
 	dma_ptr = runtime->dma_area + hwoff;
 	cbuf = drd->buf;
 
-	appl_ptr = READ_ONCE(runtime->control->appl_ptr);
+	appl_ptr = atomic64_read(&drd->period_elapsed) * drd->period_sz;
+	appl_ptr = div64_u64(appl_ptr, runtime->boundary) * runtime->boundary;
+	appl_ptr += READ_ONCE(runtime->control->appl_ptr);
 
 	memcpy(cbuf, dma_ptr, bytes);
 #ifdef DLP_DBG
@@ -736,7 +738,7 @@ start:
 			drd_put(drd_ref_list_del(dlp, drd_ref));
 			goto _drd_put;
 		} else if ((ofs + frames) > drd_ref->hw_ptr) {
-			dev_dbg(dlp->dev, "applptr: %8lu, ofs': %7ld, refhwptr: %lld, frames: %ld (*)\n",
+			dev_dbg(dlp->dev, "applptr: %8llu, ofs': %7ld, refhwptr: %lld, frames: %ld (*)\n",
 				appl_ptr, ofs, drd_ref->hw_ptr, frames);
 			/*
 			 * should ignore the data that after play stop
@@ -765,7 +767,7 @@ start:
 	/* skip if ofs < 0 and fixup ofs */
 	j = 0;
 	if (ofs < 0) {
-		dev_dbg(dlp->dev, "applptr: %8lu, ofs: %8ld, frames: %ld (*)\n",
+		dev_dbg(dlp->dev, "applptr: %8llu, ofs: %8ld, frames: %ld (*)\n",
 			appl_ptr, ofs, frames);
 		j = -ofs;
 		frames += ofs;
@@ -775,7 +777,7 @@ start:
 
 	ofs %= drd_ref->buf_sz;
 
-	dev_dbg(dlp->dev, "applptr: %8lu, ofs: %8ld, frames: %5ld, refc: %u\n",
+	dev_dbg(dlp->dev, "applptr: %8llu, ofs: %8ld, frames: %5ld, refc: %u\n",
 		appl_ptr, ofs, frames, kref_read(&drd_ref->refcount));
 
 	for (i = 0; i < frames; i++, j++) {

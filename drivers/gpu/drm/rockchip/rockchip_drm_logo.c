@@ -730,11 +730,34 @@ static void rockchip_drm_mode_fixup(struct drm_crtc_state *crtc_state,
 	const struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_encoder *encoder = conn_state->best_encoder;
 	struct drm_crtc *crtc = crtc_state->crtc;
+	struct drm_bridge *bridge;
+	struct drm_bridge_state *bridge_state;
 	int ret;
 
 	ret = drm_atomic_set_mode_for_crtc(crtc_state, adj_mode);
 	if (ret)
 		return;
+
+	bridge = drm_bridge_chain_get_first_bridge(encoder);
+	/*
+	 * Check whether the bridge supports atomic mode or not.
+	 * According to the include/drm/drm_bridge.h, the following functions
+	 * are mandatory in atomic mode:
+	 * &drm_bridge_funcs.atomic_reset()
+	 * &drm_bridge_funcs.atomic_duplicate_state()
+	 * &drm_bridge_funcs.atomic_destroy_state()
+	 *
+	 * For some bridge drivers that have not supported atomic mode yet:
+	 * drivers/gpu/drm/bridge/sii902x.c
+	 * drivers/gpu/drm/bridge/rk630-tve.c
+	 */
+	if (bridge && bridge->funcs->atomic_duplicate_state) {
+		bridge_state = drm_atomic_get_bridge_state(crtc_state->state, bridge);
+		if (IS_ERR(bridge_state))
+			return;
+
+		drm_atomic_bridge_chain_check(bridge, crtc_state, conn_state);
+	}
 
 	encoder_funcs = encoder->helper_private;
 	if (encoder_funcs && encoder_funcs->atomic_check)
@@ -749,7 +772,8 @@ static void rockchip_drm_mode_fixup(struct drm_crtc_state *crtc_state,
 
 static int setup_initial_state(struct drm_device *drm_dev,
 			       struct drm_atomic_state *state,
-			       struct rockchip_drm_mode_set *set)
+			       struct rockchip_drm_mode_set *set,
+			       struct device_node *route)
 {
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	struct drm_connector *connector = set->sub_dev->connector;
@@ -762,8 +786,11 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	const struct drm_connector_helper_funcs *funcs;
 	int pipe = drm_crtc_index(crtc);
 	bool is_crtc_enabled = true;
+	u32 overscan_by_win_scale = 0;
 	int hdisplay, vdisplay;
 	int fb_width, fb_height;
+	int overscan_w, overscan_h;
+	int crtc_x, crtc_y, crtc_w, crtc_h;
 	int found = 0, match = 0;
 	int num_modes;
 	int ret = 0;
@@ -786,7 +813,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		conn_state->best_encoder = rockchip_drm_connector_get_single_encoder(connector);
 
 	if (set->sub_dev->loader_protect) {
-		ret = set->sub_dev->loader_protect(conn_state->best_encoder, true);
+		ret = set->sub_dev->loader_protect(set->sub_dev, true);
 		if (ret) {
 			dev_err(drm_dev->dev,
 				"connector[%s] loader protect failed\n",
@@ -915,6 +942,33 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		primary_state->crtc_w = hdisplay;
 		primary_state->crtc_h = vdisplay;
 	}
+
+	/*
+	 * For some platforms, such as RK3576, use the win scale instead
+	 * of the post scale to configure overscan parameters, because the
+	 * sharp/post scale/split functions are mutually exclusice.
+	 */
+	of_property_read_u32(route, "overscan,win_scale", &overscan_by_win_scale);
+	if (overscan_by_win_scale) {
+		overscan_w = primary_state->crtc_w * (200 - set->left_margin * 2) / 200;
+		overscan_h = primary_state->crtc_h * (200 - set->top_margin * 2) / 200;
+
+		crtc_x = primary_state->crtc_x + overscan_w / 2;
+		crtc_y = primary_state->crtc_y + overscan_h / 2;
+		crtc_w = primary_state->crtc_w - overscan_w;
+		crtc_h = primary_state->crtc_h - overscan_h;
+
+		primary_state->crtc_x = crtc_x;
+		primary_state->crtc_y = crtc_y;
+		primary_state->crtc_w = crtc_w;
+		primary_state->crtc_h = crtc_h;
+
+		set->left_margin = 100;
+		set->right_margin = 100;
+		set->top_margin = 100;
+		set->bottom_margin = 100;
+	}
+
 	s = to_rockchip_crtc_state(crtc->state);
 	s->output_type = connector->connector_type;
 
@@ -925,7 +979,7 @@ error_crtc:
 		priv->crtc_funcs[pipe]->loader_protect(crtc, false, NULL);
 error_conn:
 	if (set->sub_dev->loader_protect)
-		set->sub_dev->loader_protect(conn_state->best_encoder, false);
+		set->sub_dev->loader_protect(set->sub_dev, false);
 
 	return ret;
 }
@@ -1077,7 +1131,7 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 		if (!set)
 			continue;
 
-		if (setup_initial_state(drm_dev, state, set)) {
+		if (setup_initial_state(drm_dev, state, set, route)) {
 			drm_framebuffer_put(set->fb);
 			INIT_LIST_HEAD(&set->head);
 			list_add_tail(&set->head, &mode_unset_list);
@@ -1262,16 +1316,39 @@ static const char *const loader_protect_clocks[] __initconst = {
 	"dclk_vp3",
 };
 
-static struct clk **loader_clocks __initdata;
+static struct clk **loader_clocks;
 static int __init rockchip_clocks_loader_protect(void)
 {
+	struct device_node *np, *route_np, *route_child_np;
 	int nclocks = ARRAY_SIZE(loader_protect_clocks);
 	struct clk *clk;
 	int i;
+	int ret = 0;
+
+	/* Check for available route nodes and enable protect only when node is available. */
+	np = of_find_compatible_node(NULL, NULL, "rockchip,display-subsystem");
+	if (!np || !of_device_is_available(np)) {
+		ret = -ENODEV;
+		goto err_np;
+	}
+
+	route_np = of_get_child_by_name(np, "route");
+	if (!route_np) {
+		ret = -ENODEV;
+		goto err_route_np;
+	}
+
+	route_child_np = of_get_next_available_child(route_np, NULL);
+	if (!route_child_np) {
+		ret = -ENODEV;
+		goto err_route_child_np;
+	}
 
 	loader_clocks = kcalloc(nclocks, sizeof(void *), GFP_KERNEL);
-	if (!loader_clocks)
-		return -ENOMEM;
+	if (!loader_clocks) {
+		ret = -ENOMEM;
+		goto err_route_child_np;
+	}
 
 	for (i = 0; i < nclocks; i++) {
 		clk = __clk_lookup(loader_protect_clocks[i]);
@@ -1282,11 +1359,18 @@ static int __init rockchip_clocks_loader_protect(void)
 		}
 	}
 
-	return 0;
+err_route_child_np:
+	of_node_put(route_child_np);
+err_route_np:
+	of_node_put(route_np);
+err_np:
+	of_node_put(np);
+
+	return ret;
 }
 arch_initcall_sync(rockchip_clocks_loader_protect);
 
-static int __init rockchip_clocks_loader_unprotect(void)
+int rockchip_clocks_loader_unprotect(void)
 {
 	int i;
 
@@ -1300,8 +1384,8 @@ static int __init rockchip_clocks_loader_unprotect(void)
 			clk_disable_unprepare(clk);
 	}
 	kfree(loader_clocks);
+	loader_clocks = NULL;
 
 	return 0;
 }
-late_initcall_sync(rockchip_clocks_loader_unprotect);
 #endif

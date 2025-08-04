@@ -2447,7 +2447,7 @@ static int tcpm_register_source_caps(struct tcpm_port *port)
 {
 	struct usb_power_delivery_desc desc = { port->negotiated_rev };
 	struct usb_power_delivery_capabilities_desc caps = { };
-	struct usb_power_delivery_capabilities *cap;
+	struct usb_power_delivery_capabilities *cap = port->partner_source_caps;
 
 	if (!port->partner_pd)
 		port->partner_pd = usb_power_delivery_register(NULL, &desc);
@@ -2456,6 +2456,11 @@ static int tcpm_register_source_caps(struct tcpm_port *port)
 
 	memcpy(caps.pdo, port->source_caps, sizeof(u32) * port->nr_source_caps);
 	caps.role = TYPEC_SOURCE;
+
+	if (cap) {
+		usb_power_delivery_unregister_capabilities(cap);
+		port->partner_source_caps = NULL;
+	}
 
 	cap = usb_power_delivery_register_capabilities(port->partner_pd, &caps);
 	if (IS_ERR(cap))
@@ -2470,7 +2475,7 @@ static int tcpm_register_sink_caps(struct tcpm_port *port)
 {
 	struct usb_power_delivery_desc desc = { port->negotiated_rev };
 	struct usb_power_delivery_capabilities_desc caps = { };
-	struct usb_power_delivery_capabilities *cap = port->partner_source_caps;
+	struct usb_power_delivery_capabilities *cap;
 
 	if (!port->partner_pd)
 		port->partner_pd = usb_power_delivery_register(NULL, &desc);
@@ -2479,11 +2484,6 @@ static int tcpm_register_sink_caps(struct tcpm_port *port)
 
 	memcpy(caps.pdo, port->sink_caps, sizeof(u32) * port->nr_sink_caps);
 	caps.role = TYPEC_SINK;
-
-	if (cap) {
-		usb_power_delivery_unregister_capabilities(cap);
-		port->partner_source_caps = NULL;
-	}
 
 	cap = usb_power_delivery_register_capabilities(port->partner_pd, &caps);
 	if (IS_ERR(cap))
@@ -6249,10 +6249,8 @@ static int tcpm_fw_get_caps(struct tcpm_port *port,
 	port->port_type = port->typec_caps.type;
 	port->pd_supported = !fwnode_property_read_bool(fwnode, "pd-disable");
 
-	if (port->pd_supported) {
-		ret = fwnode_property_read_u32(fwnode, "pd-revision", &pd_revision);
-		port->typec_caps.pd_revision = !ret ? pd_revision & 0xffff : 0x0300;
-	}
+	ret = fwnode_property_read_u32(fwnode, "pd-revision", &pd_revision);
+	port->typec_caps.pd_revision = !ret ? pd_revision & 0xffff : 0x0300;
 
 	port->slow_charger_loop = fwnode_property_read_bool(fwnode, "slow-charger-loop");
 	if (port->port_type == TYPEC_PORT_SNK)

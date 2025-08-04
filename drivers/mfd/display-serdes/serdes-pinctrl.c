@@ -30,6 +30,13 @@ static const struct mfd_cell serdes_gpio_max96745_devs[] = {
 	},
 };
 
+static const struct mfd_cell serdes_gpio_max96749_devs[] = {
+	{
+		.name = "serdes-gpio",
+		.of_compatible = "maxim,max96749-gpio",
+	},
+};
+
 static const struct mfd_cell serdes_gpio_max96755_devs[] = {
 	{
 		.name = "serdes-gpio",
@@ -173,6 +180,10 @@ static int serdes_pinctrl_gpio_init(struct serdes *serdes)
 		serdes_devs = serdes_gpio_max96745_devs;
 		mfd_num = ARRAY_SIZE(serdes_gpio_max96745_devs);
 		break;
+	case MAXIM_ID_MAX96749:
+		serdes_devs = serdes_gpio_max96749_devs;
+		mfd_num = ARRAY_SIZE(serdes_gpio_max96749_devs);
+		break;
 	case MAXIM_ID_MAX96752:
 		serdes_devs = serdes_gpio_max96752_devs;
 		mfd_num = ARRAY_SIZE(serdes_gpio_max96752_devs);
@@ -282,7 +293,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	if (pin_base) {
 		for (i = 0; i < pinctrl_info->num_pins; i++) {
 			serdes_pinctrl->pdesc[i].number = pinctrl_info->pins[i].number + pin_base;
-			serdes_pinctrl->pdesc[i].name = kasprintf(GFP_KERNEL, "%s-gpio%d",
+			serdes_pinctrl->pdesc[i].name = devm_kasprintf(dev, GFP_KERNEL, "%s-gpio%d",
 								  pinctrl_info->pins[i].name,
 								  serdes_pinctrl->pdesc[i].number);
 			SERDES_DBG_MFD("%s:pdesc number=%d, name=%s\n", __func__,
@@ -336,7 +347,7 @@ static int serdes_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	if (!serdes->route_enable)
-		ret = pinctrl_enable(serdes_pinctrl->pctl);
+		pinctrl_enable(serdes_pinctrl->pctl);
 
 	ret = serdes_pinctrl_gpio_init(serdes);
 

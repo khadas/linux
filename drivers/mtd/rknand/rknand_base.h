@@ -2,7 +2,7 @@
 /*
  *  linux/drivers/mtd/rknand/rknand_base.c
  *
- *  Copyright (C) 2005-2009 Fuzhou Rockchip Electronics
+ *  Copyright (C) 2005-2009 Rockchip Electronics Co., Ltd.
  *  ZYF <zyf@rock-chips.com>
  *
  *   

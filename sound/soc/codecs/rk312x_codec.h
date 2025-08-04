@@ -563,4 +563,6 @@ struct rk312x_codec_pdata {
 	int delay_time;
 };
 
+int rk312x_codec_mute_dac(int mute);
+
 #endif /* __RK312x_CODEC_H__ */

@@ -2234,10 +2234,10 @@ static void ov12d2q_get_module_inf(struct ov12d2q *ov12d2q,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, OV12D2Q_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, ov12d2q->module_name,
+	strscpy(inf->base.sensor, OV12D2Q_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, ov12d2q->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, ov12d2q->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, ov12d2q->len_name, sizeof(inf->base.lens));
 }
 
 static long ov12d2q_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

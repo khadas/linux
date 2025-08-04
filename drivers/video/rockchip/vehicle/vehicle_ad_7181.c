@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/uaccess.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
 #include <linux/videodev2.h>
 #include "vehicle_cfg.h"
@@ -482,39 +482,28 @@ int adv7181_stream(struct vehicle_ad_dev *ad, int value)
 
 static void power_on(struct vehicle_ad_dev *ad)
 {
-	/* gpio_direction_output(ad->power, ad->pwr_active); */
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 1);
 
-	if (gpio_is_valid(ad->powerdown)) {
-		gpio_request(ad->powerdown, "ad_powerdown");
-		gpio_direction_output(ad->powerdown, !ad->pwdn_active);
-		/* gpio_set_value(ad->powerdown, !ad->pwdn_active); */
-	}
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 1);
 
-	if (gpio_is_valid(ad->power)) {
-		gpio_request(ad->power, "ad_power");
-		gpio_direction_output(ad->power, ad->pwr_active);
-		/* gpio_set_value(ad->power, ad->pwr_active); */
-	}
-
-	if (gpio_is_valid(ad->reset)) {
-		gpio_request(ad->reset, "ad_reset");
-		gpio_direction_output(ad->reset, 0);
+	if (!IS_ERR(ad->reset_gpio)) {
+		gpiod_direction_output(ad->reset_gpio, 0);
 		usleep_range(10000, 12000);
-		gpio_set_value(ad->reset, 1);
+		gpiod_direction_output(ad->reset_gpio, 1);
 		usleep_range(10000, 12000);
 	}
 }
 
 static void power_off(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->powerdown))
-		gpio_free(ad->powerdown);
-
-	if (gpio_is_valid(ad->power))
-		gpio_free(ad->power);
-
-	if (gpio_is_valid(ad->reset))
-		gpio_free(ad->reset);
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 0);
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 0);
+	if (!IS_ERR(ad->reset_gpio))
+		gpiod_direction_output(ad->reset_gpio, 0);
 }
 
 static void adv7181_check_state_work(struct work_struct *work)

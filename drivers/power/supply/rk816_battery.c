@@ -4247,6 +4247,13 @@ static enum charger_t rk816_bat_init_dc_det(struct rk816_battery *di)
 	return type;
 }
 
+static int rk816_get_edev(struct rk816_battery *di, struct device *dev)
+{
+	di->cable_edev = extcon_get_edev_by_phandle(dev, 0);
+
+	return IS_ERR(di->cable_edev) ? PTR_ERR(di->cable_edev) : 0;
+}
+
 static int rk816_bat_init_charger(struct rk816_battery *di)
 {
 	enum charger_t dc_charger;
@@ -4260,12 +4267,15 @@ static int rk816_bat_init_charger(struct rk816_battery *di)
 	INIT_DELAYED_WORK(&di->dc_delay_work, rk816_bat_dc_delay_work);
 
 	/* Find extcon phandle */
-	edev = extcon_get_edev_by_phandle(dev->parent, 0);
-	if (IS_ERR(edev)) {
-		if (PTR_ERR(edev) != -EPROBE_DEFER)
-			dev_err(dev, "Invalid or missing extcon\n");
-		return PTR_ERR(edev);
+	ret = rk816_get_edev(di, dev);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		ret = rk816_get_edev(di, dev->parent);
+		if (ret)
+			return dev_err_probe(dev, ret, "Can't find extcon\n");
 	}
+	edev = di->cable_edev;
 
 	/* Register chargers */
 	INIT_DELAYED_WORK(&di->usb_work, rk816_bat_charger_evt_worker);
@@ -4331,8 +4341,6 @@ static int rk816_bat_init_charger(struct rk816_battery *di)
 					   &di->cable_host_nb);
 		return ret;
 	}
-
-	di->cable_edev = edev;
 
 	/* Check usb and otg state */
 	schedule_delayed_work(&di->host_work, 0);
@@ -4737,11 +4745,14 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 	else
 		pdata->zero_algorithm_vol = DEFAULT_ALGR_VOL_THRESD1;
 
-	pdata->extcon = device_property_read_bool(dev->parent, "extcon");
-	if (!pdata->extcon) {
+	if (!device_property_read_bool(dev, "extcon") &&
+	    !device_property_read_bool(dev->parent, "extcon")) {
 		dev_err(dev, "Can't find extcon node under rk816 node\n");
 		return -EINVAL;
 	}
+
+	/* FIXME: extcon false case ?? */
+	pdata->extcon = true;
 
 	/* parse unnecessary param */
 	of_property_read_u32(np, "sample_res", &pdata->sample_res);
@@ -4952,7 +4963,10 @@ static int rk816_battery_probe(struct platform_device *pdev)
 	rk816_bat_init_info(di);
 	rk816_bat_init_fg(di);
 	rk816_bat_init_leds(di);
-	rk816_bat_init_charger(di);
+	ret = rk816_bat_init_charger(di);
+	if (ret)
+		goto bat_fail;
+
 	rk816_bat_init_sysfs(di);
 	rk816_bat_register_fb_notify(di);
 	wake_lock_init(&di->wake_lock, WAKE_LOCK_SUSPEND, "rk816_bat_lock");
@@ -4974,12 +4988,13 @@ static int rk816_battery_probe(struct platform_device *pdev)
 	return 0;
 
 irq_fail:
+	destroy_workqueue(di->bat_monitor_wq);
 	cancel_delayed_work(&di->dc_delay_work);
 	cancel_delayed_work(&di->bat_delay_work);
-	cancel_delayed_work(&di->calib_delay_work);
-	destroy_workqueue(di->bat_monitor_wq);
-	destroy_workqueue(di->usb_charger_wq);
 	rk816_bat_unregister_fb_notify(di);
+bat_fail:
+	cancel_delayed_work(&di->calib_delay_work);
+	destroy_workqueue(di->usb_charger_wq);
 	del_timer(&di->caltimer);
 	wake_lock_destroy(&di->wake_lock);
 

@@ -43,6 +43,7 @@ struct analogix_dp_plat_data {
 	struct drm_connector *connector;
 	bool skip_connector;
 	bool ssc;
+	bool support_dp_mode;
 
 	bool split_mode;
 	bool dual_channel_mode;

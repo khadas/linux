@@ -638,9 +638,9 @@ static void gc1084_get_module_inf(struct gc1084 *gc1084,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.lens, gc1084->len_name, sizeof(inf->base.lens));
-	strlcpy(inf->base.sensor, GC1084_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc1084->module_name, sizeof(inf->base.module));
+	strscpy(inf->base.lens, gc1084->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.sensor, GC1084_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc1084->module_name, sizeof(inf->base.module));
 }
 
 static long gc1084_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

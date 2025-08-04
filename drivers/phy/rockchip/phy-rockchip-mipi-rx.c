@@ -41,6 +41,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <media/media-entity.h>
@@ -1801,7 +1802,6 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	struct mipidphy_priv *priv;
 	struct regmap *grf;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	const struct dphy_drv_data *drv_data;
 	int i, ret;
 
@@ -1809,10 +1809,6 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;
-
-	of_id = of_match_device(rockchip_mipidphy_match_id, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	grf = syscon_node_to_regmap(dev->parent->of_node);
 	if (IS_ERR(grf)) {
@@ -1829,9 +1825,11 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	if (priv->phy_index < 0)
 		priv->phy_index = 0;
 
-	drv_data = of_id->data;
+	drv_data = device_get_match_data(dev);
 	if (soc_is_px30s())
 		drv_data = &rk3326s_mipidphy_drv_data;
+	if (!drv_data)
+		return -EINVAL;
 
 	for (i = 0; i < drv_data->num_clks; i++) {
 		priv->clks[i] = devm_clk_get(dev, drv_data->clks[i]);

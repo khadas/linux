@@ -1528,10 +1528,10 @@ static void gc4c33_get_module_inf(struct gc4c33 *gc4c33,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, GC4C33_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc4c33->module_name,
+	strscpy(inf->base.sensor, GC4C33_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc4c33->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc4c33->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc4c33->len_name, sizeof(inf->base.lens));
 }
 
 static int gc4c33_get_channel_info(struct gc4c33 *gc4c33, struct rkmodule_channel_info *ch_info)

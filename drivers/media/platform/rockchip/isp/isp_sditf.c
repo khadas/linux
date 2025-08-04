@@ -11,6 +11,7 @@
 #include <media/v4l2-subdev.h>
 #include "dev.h"
 #include "isp_vpss.h"
+#include "regs.h"
 
 static int rkisp_sditf_get_set_fmt(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
@@ -34,18 +35,27 @@ static int rkisp_sditf_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkisp_device *dev = sditf->isp;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
-	struct rkisp_stream *stream = &dev->cap_dev.stream[RKISP_STREAM_LDC];
+	struct rkisp_stream *stream;
 	int ret = 0;
 
-	if (stream->linked) {
-		v4l2_err(sd, "isp to vpss online no support for ldcpath link\n");
-		return -EINVAL;
+	if (dev->isp_ver == ISP_V39) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_LDC];
+		if (stream->linked) {
+			v4l2_err(sd, "isp to vpss online no support for ldcpath link\n");
+			return -EINVAL;
+		}
 	}
 
 	v4l2_dbg(1, rkisp_debug, sd, "%s %d\n", __func__, on);
 
 	mutex_lock(&hw->dev_lock);
 	if (on) {
+		if (dev->is_pre_on &&
+		    !dev->hw_dev->is_single &&
+		    !atomic_read(&dev->hw_dev->refcnt) &&
+		    !atomic_read(&dev->cap_dev.refcnt))
+			rkisp_hw_enum_isp_size(dev->hw_dev);
+
 		atomic_inc(&dev->cap_dev.refcnt);
 		ret = dev->pipe.open(&dev->pipe, &isp_sdev->sd.entity, true);
 		if (ret < 0)
@@ -65,6 +75,12 @@ pipe_close:
 refcnt_dec:
 	atomic_dec(&dev->cap_dev.refcnt);
 unlock:
+	if (dev->is_pre_on && !atomic_read(&dev->cap_dev.refcnt)) {
+		dev->is_pre_on = false;
+		dev->params_vdev.first_cfg_params = false;
+		stream = &dev->cap_dev.stream[0];
+		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
+	}
 	mutex_unlock(&hw->dev_lock);
 	return ret;
 }
@@ -91,21 +107,67 @@ void rkisp_sditf_reset_notify_vpss(struct rkisp_device *dev)
 {
 	struct rkisp_sditf_device *sditf = dev->sditf_dev;
 
+	if (!sditf || !sditf->is_on || !sditf->remote_sd)
+		return;
 	v4l2_info(&dev->v4l2_dev, "%s\n", __func__);
 	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_RESET_NOTIFY_VPSS, NULL);
+}
+
+static void rkisp_config_frame_info(struct rkisp_device *dev, struct rkisp_vpss_frame_info *info)
+{
+	struct sensor_exposure_cfg *exp = &dev->params_vdev.exposure;
+	u32 seq = 0;
+	u64 ns = 0;
+
+	rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
+
+	if (!ns)
+		ns = ktime_get_ns();
+
+	info->seq = seq;
+	info->hdr = 0;
+	info->timestamp = IS_HDR_RDBK(dev->rd_mode) ? ns : dev->vicap_sof.timestamp;
+	info->rolling_shutter_skew = exp->linear_exp.rolling_shutter_skew;
+	info->sensor_exposure_time = exp->linear_exp.coarse_integration_time;
+	info->sensor_analog_gain = exp->linear_exp.analog_gain_code_global;
+	info->sensor_digital_gain = exp->linear_exp.digital_gain_global;
+	info->isp_digital_gain = exp->linear_exp.isp_digital_gain;
+	if (dev->rd_mode == HDR_RDBK_FRAME2 ||
+		dev->rd_mode == HDR_FRAMEX2_DDR ||
+		dev->rd_mode == HDR_LINEX2_DDR) {
+		info->hdr = 1;
+		info->rolling_shutter_skew = exp->hdr_exp[0].rolling_shutter_skew;
+
+		info->sensor_exposure_time = exp->hdr_exp[0].coarse_integration_time;
+		info->sensor_analog_gain = exp->hdr_exp[0].analog_gain_code_global;
+		info->sensor_digital_gain = exp->hdr_exp[0].digital_gain_global;
+		info->isp_digital_gain = exp->hdr_exp[0].isp_digital_gain;
+
+		info->sensor_exposure_time_l = exp->hdr_exp[1].coarse_integration_time;
+		info->sensor_analog_gain_l = exp->hdr_exp[1].analog_gain_code_global;
+		info->sensor_digital_gain_l = exp->hdr_exp[1].digital_gain_global;
+		info->isp_digital_gain_l = exp->hdr_exp[1].isp_digital_gain;
+	}
 }
 
 void rkisp_sditf_sof(struct rkisp_device *dev, u32 irq)
 {
 	struct rkisp_sditf_device *sditf = dev->sditf_dev;
 	struct rkisp_vpss_sof info;
+	struct rkisp_vpss_frame_info frame_info;
 
 	if (!sditf || !sditf->is_on || !sditf->remote_sd)
 		return;
 	info.irq = irq;
 	rkisp_dmarx_get_frame(dev, &info.seq, NULL, &info.timestamp, true);
 	info.unite_index = dev->unite_index;
+	if (dev->isp_ver == ISP_V35)
+		info.grey = !!(rkisp_read(dev, ISP3X_CNR_CTRL, false) & ISP35_CNR_UV_DIS);
 	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_CMD_SOF, &info);
+
+	rkisp_config_frame_info(dev, &frame_info);
+
+	v4l2_subdev_call(sditf->remote_sd, core, ioctl, RKISP_VPSS_CMD_FRAME_INFO, &frame_info);
 }
 
 static long rkisp_sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -122,10 +184,13 @@ static long rkisp_sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *ar
 		rkisp_check_idle(sditf->isp, ISP_FRAME_VPSS);
 		break;
 	case RKISP_VPSS_GET_UNITE_MODE:
-		if (sditf->isp->unite_div == ISP_UNITE_DIV2)
-			*(unsigned int *)arg = sditf->isp->unite_div;
-		else
-			*(unsigned int *)arg = 0;
+		*(unsigned int *)arg = sditf->isp->unite_div - 1;
+		break;
+	case RKISP_VPSS_GET_ISP_WORKING:
+		*(int *)arg = sditf->isp->hw_dev->is_runing;
+		break;
+	case RKISP_VPSS_GET_UNITE_EXTEND_PIXEL:
+		*(int *)arg = sditf->isp->hw_dev->unite_extend_pixel;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
