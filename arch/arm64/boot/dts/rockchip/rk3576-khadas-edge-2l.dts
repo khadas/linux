@@ -18,7 +18,7 @@
 	compatible = "khadas,edge2l", "rockchip,rk3576";
 
 	es8388_sound: es8388-sound {
-		status = "okay";
+		status = "disabled";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip-es8388";
 		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
@@ -378,9 +378,9 @@
 };
 
 &i2c3 {
-	status = "okay";
+	status = "disabled";
 	es8388: es8388@10 {
-		status = "okay";
+		status = "disabled";
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8388", "everest,es8323";
 		reg = <0x10>;
