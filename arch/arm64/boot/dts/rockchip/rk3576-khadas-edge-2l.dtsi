@@ -207,12 +207,12 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		uart_rts_gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+		uart_rts_gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart4m1_rtsn>;
-		pinctrl-1 = <&uart4_gpios>;
-		BT,reset_gpio    = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&uart5m1_rtsn>, <&bt_gpio>;
+		pinctrl-1 = <&uart5_gpios>;
+		BT,reset_gpio    = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
@@ -221,9 +221,9 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>;
+		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
 		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		WIFI,poweren_gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren_gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -686,8 +686,15 @@
 	};
 
 	wireless-bluetooth {
-		uart4_gpios: uart4-gpios {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		uart5_gpios: uart5-gpios {
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_gpio: bt-gpio {
+			rockchip,pins =
+				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
@@ -697,7 +704,11 @@
 		};
 
 		wifi_poweren_gpio: wifi-poweren-gpio {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		pcie0_poweren_gpio: pcie0-poweren-gpio {
+			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
@@ -832,10 +843,10 @@
 	status = "okay";
 };
 
-&uart4 {
+&uart5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart4m1_xfer &uart4m1_ctsn>;
+	pinctrl-0 = <&uart5m1_xfer &uart5m1_ctsn>;
 };
 
 &ufs {

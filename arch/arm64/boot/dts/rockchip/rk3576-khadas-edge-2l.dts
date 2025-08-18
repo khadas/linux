@@ -441,10 +441,10 @@
 };
 
 &pcie0 {
-	reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 	rockchip,skip-scan-in-resume;
 	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_poweren_gpio>;
+	pinctrl-0 = <&pcie0_poweren_gpio>;
 	status = "okay";
 };
 
@@ -499,22 +499,6 @@
 
 		usbc0_int: usbc0-int {
 			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart4_gpios: uart4-gpios {
-			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wireless-wlan {
-		wifi_host_wake_irq: wifi-host-wake-irq {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
-		wifi_poweren_gpio: wifi-poweren-gpio {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
