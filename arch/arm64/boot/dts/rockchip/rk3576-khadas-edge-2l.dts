@@ -296,11 +296,6 @@
 	status = "disabled";
 };
 
-&gt1x {
-	status = "okay";
-	power-supply = <&vcc3v3_lcd_n>;
-};
-
 &hdmi {
 	status = "okay";
 	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -474,6 +469,12 @@
 		};
 		lcd0_en: lcd0-en {
 			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	tp {
+		tp_rst_gpio: tp-rst-gpio {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
