@@ -146,6 +146,8 @@
 		regulator-boot-on;
 		enable-active-high;
 		gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd0_en>;
 		vin-supply = <&vcc_3v3_s0>;
 	};
 
@@ -234,6 +236,10 @@
  */
 &dsi {
 	status = "okay";
+	reset-delay-ms = <20>;
+	reset-gpios = <&gpio4 RK_PC7 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_rst0_gpio>;
 };
 
 &dsi_panel {
@@ -462,6 +468,15 @@
 };
 
 &pinctrl {
+	lcd {
+		lcd_rst0_gpio: lcd-rst0-gpio {
+			rockchip,pins = <4 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		lcd0_en: lcd0-en {
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	cam {
 		mipicsi0_pwr: mipicsi0-pwr {
 			rockchip,pins =
