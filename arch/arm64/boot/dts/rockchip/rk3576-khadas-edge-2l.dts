@@ -525,7 +525,7 @@
 };
 
 &sai1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sai1m0_lrck
 		     &sai1m0_sclk
