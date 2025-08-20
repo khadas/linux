@@ -507,6 +507,12 @@
 	status = "okay";
 };
 
+&sfc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi1m1_pins>;
+	status = "okay";
+};
+
 &spdif_tx3 {
 	status = "okay";
 };
