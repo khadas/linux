@@ -116,11 +116,29 @@
 		rockchip,jack-det;
 	};
 
-	leds: leds {
+	leds {
 		compatible = "gpio-leds";
-		work_led: work {
-			//gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
+		pinctrl-names = "default";
+
+		red_led {
+			gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+			label = "red_led";
+			linux,default-trigger = "off";
+			default-state = "on";
+		};
+
+		green_led {
+			gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
+			label = "green_led";
+			linux,default-trigger = "off";
+			default-state = "on";
+		};
+
+		blue_led {
+			gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_HIGH>;
+			label = "blue_led";
+			linux,default-trigger = "default-on";
+			default-state = "on";
 		};
 	};
 
