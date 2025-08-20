@@ -35,6 +35,18 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 	return rtc_tm_to_time64(lhs) - rtc_tm_to_time64(rhs);
 }
 
+static inline void rtc_hym8563_time_to_tm(unsigned long time, struct rtc_time *tm)
+{
+	rtc_time64_to_tm(time, tm);
+}
+
+static inline int rtc_tm_to_time(struct rtc_time *tm, unsigned long *time)
+{
+	*time = rtc_tm_to_time64(tm);
+
+	return 0;
+}
+
 #include <linux/device.h>
 #include <linux/seq_file.h>
 #include <linux/cdev.h>
@@ -113,6 +125,8 @@ struct rtc_device {
 	struct hrtimer pie_timer; /* sub second exp, so needs hrtimer */
 	int pie_enabled;
 	struct work_struct irqwork;
+	/* Some hardware can't support UIE mode */
+	int uie_unsupported;
 
 	/*
 	 * This offset specifies the update timing of the RTC.
