@@ -9,7 +9,7 @@
 &pwm0_2ch_0 {
 	compatible = "rockchip,remotectl-pwm-v4";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0m0_ch0>;
+	pinctrl-0 = <&pwm0m2_ch1>;
 	remote_pwm_id = <0>;
 	handle_cpu_id = <1>;
 	remote_support_psci = <0>;
