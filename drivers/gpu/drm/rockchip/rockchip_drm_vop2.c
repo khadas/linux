@@ -10492,6 +10492,7 @@ static bool vop2_is_left_right_or_odd_even_mode(struct rockchip_crtc_state *vcst
 	return true;
 }
 
+char dp_out_mode[32];
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -10550,6 +10551,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		     (unsigned long long)adjusted_mode->crtc_clock * 1000);
 	kfree(output_if_string);
 
+	snprintf(dp_out_mode, 32, "dpmode=%dx%d", hdisplay, adjusted_mode->vdisplay);
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 		vcstate->splice_mode = true;
 		splice_vp = &vop2->vps[vp_data->splice_vp_id];

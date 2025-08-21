@@ -287,6 +287,20 @@
 &i2c2 {
 	status = "okay";
 
+	mcu: mcu@18 {
+		compatible = "khadas-mcu";
+		status = "okay";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <65>;
+		fan,trig_temp_level3 = <70>;
+		fan,trig_temp_level4 = <75>;
+		fan,trig_temp_level5 = <80>;
+		hwver = "EDGE2L.V11";
+
+	};
+
 	usbc0: fusb302@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
