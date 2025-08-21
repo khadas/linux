@@ -142,6 +142,15 @@
 		};
 	};
 
+	khadas_wdt {
+		compatible = "linux,wdt-khadas";
+		status = "okay";
+		hw_margin_ms = <500>;
+		hw-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wdt_gpio>;
+	};
+
 	test-power {
 		status = "okay";
 	};
@@ -1038,6 +1047,12 @@
 
 		pcie0_poweren_gpio: pcie0-poweren-gpio {
 			rockchip,pins = <4 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	wdt {
+		wdt_gpio: wdt-gpio {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
