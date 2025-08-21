@@ -278,6 +278,8 @@ struct dw_mipi_dsi2 {
 	u32 format;
 	unsigned long mode_flags;
 	u64 mipi_pixel_rate;
+	struct gpio_desc *reset_gpio;
+	unsigned int reset_ms;
 	const struct dw_mipi_dsi2_plat_data *pdata;
 	struct rockchip_drm_sub_dev sub_dev;
 
@@ -297,6 +299,8 @@ struct dw_mipi_dsi2 {
 	unsigned int min_refresh_rate;
 	unsigned int max_refresh_rate;
 };
+
+struct dw_mipi_dsi2 *mdsi1 = NULL;
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
 {
@@ -1748,6 +1752,27 @@ encoder_cleanup:
 	return ret;
 }
 
+void lcd_reset_pin_reset(void){
+	static bool first_num = 0;
+	if(mdsi1 == NULL) {
+		printk("%s: mdsi1 == NULL\n", __func__);
+		first_num = 1;
+	} else if(!first_num) {
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 0);
+		mdelay(mdsi1->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 1);
+		mdelay(mdsi1->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 0);
+		mdelay(mdsi1->reset_ms);
+
+		gpiod_set_value_cansleep(mdsi1->reset_gpio, 1);
+		mdelay(mdsi1->reset_ms);
+	}
+	first_num = !first_num;
+};
+
 static void dw_mipi_dsi2_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
@@ -1994,16 +2019,19 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi2 *dsi2;
+	struct device_node *np = NULL;
 	struct resource *res;
 	void __iomem *regs;
 	int id;
 	int ret;
+	static bool first_flag = 0;
 
 	dsi2 = devm_kzalloc(dev, sizeof(*dsi2), GFP_KERNEL);
 	if (!dsi2)
 		return -ENOMEM;
 
 	id = of_alias_get_id(dev->of_node, "dsi");
+	np = dev->of_node;
 	if (id < 0)
 		id = 0;
 
@@ -2097,6 +2125,14 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	of_property_read_u32(np, "reset-delay-ms", &dsi2->reset_ms);
+
+	dsi2->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(dsi2->reset_gpio)){
+		dsi2->reset_gpio = NULL;
+		printk("%s: Cannot get reset GPIO: %d\n", __func__, __LINE__);
+	}
+
 	dsi2->te_gpio = devm_gpiod_get_optional(dsi2->dev, "te", GPIOD_IN);
 	if (IS_ERR(dsi2->te_gpio))
 		dsi2->te_gpio = NULL;
@@ -2126,7 +2162,10 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		DRM_DEV_ERROR(dev, "Failed to register MIPI host: %d\n", ret);
 		return ret;
 	}
-
+	if(!first_flag){
+		first_flag = 1;
+		mdsi1 = dsi2;
+	}
 	return 0;
 }
 
