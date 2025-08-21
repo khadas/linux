@@ -34,6 +34,8 @@
  *          2. flashless update no pid vid compare
  *                          By Meta, 2014/01/14
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include <linux/kthread.h>
 #include "gt9xx.h"
 
@@ -2706,8 +2708,7 @@ s32 gtp_i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len)
     return 2;
 }
 
-
-
+#if 0
 // main clock calibration
 // bit: 0~7, val: 0/1
 static void gup_bit_write(s32 addr, s32 bit, s32 val)
@@ -2952,7 +2953,7 @@ s32 gtp_gup_clk_calibration(void)
 		GTP_GPIO_OUTPUT(ts->irq_pin, 0);
         
         //local_irq_save(flags);
-        do_gettimeofday(&start);
+        do_gettimeofday64(&start);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -2961,7 +2962,7 @@ s32 gtp_gup_clk_calibration(void)
         msleep(1);
         
         //local_irq_save(flags);
-        do_gettimeofday(&end);
+        do_gettimeofday64(&end);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -3011,7 +3012,7 @@ s32 gtp_gup_clk_calibration(void)
     return i;
 }
 
-
+#endif
 
 static s32 gup_hold_ss51_dsp(struct i2c_client *client)
 {
@@ -3650,5 +3651,5 @@ file_fail:
 }
 
 #endif
-
+#pragma GCC diagnostic pop
 //**************** For GT9XXF End ********************//

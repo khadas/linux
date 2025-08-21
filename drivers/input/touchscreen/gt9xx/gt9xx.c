@@ -46,7 +46,8 @@
  *          4. coordinates & keys optimization
  *                  By Meta, 2014/01/14
  */
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 #include <linux/irq.h>
 #include "gt9xx.h"
 #include "gt9xx_cfg.h"
@@ -65,6 +66,10 @@ static u8 bgt910 = FALSE;
 static u8 gtp_change_x2y = TRUE;
 static u8 gtp_x_reverse = FALSE;
 static u8 gtp_y_reverse = TRUE;
+
+
+static struct input_dev *wake_key_dev = NULL;
+static bool is_sleeped;
 
 static const char *goodix_ts_name = "goodix-ts";
 static struct workqueue_struct *goodix_wq;
@@ -91,11 +96,11 @@ static void gtp_int_sync(s32 ms, struct goodix_ts_data *ts);
 static ssize_t gt91xx_config_read_proc(struct file *, char __user *, size_t, loff_t *);
 static ssize_t gt91xx_config_write_proc(struct file *, const char __user *, size_t, loff_t *);
 
-//static struct proc_dir_entry *gt91xx_config_proc = NULL;
-static const struct file_operations config_proc_ops = {
-    .owner = THIS_MODULE,
-    .read = gt91xx_config_read_proc,
-    .write = gt91xx_config_write_proc,
+static struct proc_dir_entry *gt91xx_config_proc = NULL;
+static const struct proc_ops config_proc_ops = {
+    //.owner = THIS_MODULE,
+    .proc_read = gt91xx_config_read_proc,
+    .proc_write = gt91xx_config_write_proc,
 };
 
 #if GTP_CREATE_WR_NODE
@@ -145,6 +150,28 @@ static s8 gtp_enter_doze(struct goodix_ts_data *ts);
 
 static u8 grp_cfg_version = 0;
 
+static void wake_system(void)
+{
+   if(wake_key_dev!=NULL)
+   {
+       input_event(wake_key_dev, EV_KEY, 116, 1);
+       input_sync(wake_key_dev);
+       input_event(wake_key_dev, EV_KEY, 116, 0);
+       input_sync(wake_key_dev);
+       //printk("hlm wake system...\n");
+   }
+}
+
+void tp101_into_suspend(void)
+{
+	struct goodix_ts_data *ts = NULL;
+    ts = i2c_get_clientdata(gtp_i2c_connect_client);
+	if(NULL != ts){
+		ts->gtp_is_suspend = 1;
+		is_sleeped = true;
+		//printk("hlm gtp_is_suspend=1\n");
+	}
+}
 /*******************************************************
 Function:
     Read data from the i2c slave device.
@@ -1015,6 +1042,17 @@ static void goodix_ts_work_func(struct work_struct *work)
         input_sync(ts->input_dev);
     }
 
+	if(is_sleeped){
+		if(ts->gtp_is_suspend == 1){
+			//printk("hlm wake dev\n");
+			ts->gtp_is_suspend = 0;
+			wake_system();
+		   is_sleeped=false;
+		}
+	}else{
+		is_sleeped=false;
+	}
+
 exit_work_func:
     if(!ts->gtp_rawdiff_mode)
     {
@@ -1069,7 +1107,7 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
     struct goodix_ts_data *ts = dev_id;
 
     GTP_DEBUG_FUNC();
- 
+
     gtp_irq_disable(ts);
 
     if (device_can_wakeup(&ts->client->dev))
@@ -1442,8 +1480,8 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 		    send_cfg_buf[0] = gtp_dat_8_9_1;
 		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9_1);
 	    } else {
-		    send_cfg_buf[0] = gtp_dat_8_9;
-		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
+            send_cfg_buf[0] = gtp_dat_8_9;//old TS101 0x41
+            cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
 	    }
     }
     
@@ -1887,7 +1925,6 @@ static s8 gtp_request_irq(struct goodix_ts_data *ts)
 
     GTP_DEBUG_FUNC();
     GTP_DEBUG("INT trigger type:%x", ts->int_trigger_type);
-    
     ts->irq=gpio_to_irq(ts->irq_pin);       //If not defined in client
     if (ts->irq)
     {
@@ -1953,6 +1990,11 @@ static int goodix_ts_early_suspend(struct tp_device *tp_d)
 
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
+	if (device_may_wakeup(&ts->client->dev)){
+		GTP_INFO("hlm System suspend.");
+		enable_irq_wake(ts->irq);
+	}
+return 0;
 
     GTP_INFO("System suspend.");
 
@@ -2004,6 +2046,12 @@ static int goodix_ts_early_resume(struct tp_device *tp_d)
     int reg = 0;
     ts = container_of(tp_d, struct goodix_ts_data, tp);
     GTP_DEBUG_FUNC();
+	ts->gtp_is_suspend = 0;
+	if (device_may_wakeup(&ts->client->dev)){
+		GTP_INFO("hlm System resume.");
+		disable_irq_wake(ts->irq);
+	}
+return 0;
 
     GTP_INFO("System resume.");
 
@@ -2611,15 +2659,16 @@ Output:
 static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
     s32 ret = -1;
+    s32 dev = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
-    
+    int reg = 0;
+
     struct device_node *np = client->dev.of_node;
     enum of_gpio_flags rst_flags, pwr_flags;
     u32 val;
-	printk("%s() start\n", __func__);
+	  printk("%s() start\n", __func__);
 
-    
     GTP_DEBUG_FUNC();
     
     //do NOT remove these logs
@@ -2653,8 +2702,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	if (val == 89) {
 		m89or101 = TRUE;
-		gtp_change_x2y = TRUE;
-		gtp_x_reverse = FALSE;
+		gtp_change_x2y = FALSE;
+		gtp_x_reverse = TRUE;
 		gtp_y_reverse = TRUE;
 	} else if (val == 101) {
 		m89or101 = FALSE;
@@ -2670,8 +2719,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	} else if (val == 9110) {
 		m89or101 = FALSE;
 		bgt9110 = TRUE;
-		gtp_change_x2y = FALSE;
-		gtp_x_reverse = FALSE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = TRUE;
 		gtp_y_reverse = FALSE;
 	} else if (val == 9111) {
 		m89or101 = FALSE;
@@ -2729,8 +2778,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     }
     ts->pendown =PEN_RELEASE;
     ts->client = client;
-    
-    
+
+
     INIT_WORK(&ts->work, goodix_ts_work_func);
     ts->client = client;
     spin_lock_init(&ts->irq_lock);          // 2.6.39 later
@@ -2784,7 +2833,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     if (ret < 0)
     {
         printk("<%s>_%d    I2C communication ERROR!\n", __func__, __LINE__);
-        goto probe_init_error;
+		goto probe_init_error;
     }
 
     ret = gtp_read_version(client, &version_info);
@@ -2804,7 +2853,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     
     ts->irq_flags = ts->int_trigger_type ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
     // Create proc file system
-#if 0
 	gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0664, NULL, &config_proc_ops);
     if (gt91xx_config_proc == NULL)
     {
@@ -2814,7 +2862,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     {
         GTP_INFO("create proc entry %s success", GT91XX_CONFIG_PROC_FILE);
     }
-#endif
     
 #if GTP_AUTO_UPDATE
     ret = gup_init_update_proc(ts);
@@ -2846,8 +2893,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
     if (of_property_read_bool(np, "wakeup-source"))
     {
+        wake_key_dev = input_allocate_device();
+        wake_key_dev->name = "touch101_key";
+        wake_key_dev->evbit[0] = BIT(EV_KEY);
+        set_bit(116,  wake_key_dev->keybit);
+        dev = input_register_device(wake_key_dev);
+        if (dev)
+        {
+            return -ENODEV;
+        }
         device_init_wakeup(&client->dev, 1);
         enable_irq_wake(ts->irq);
+		//printk("hlm ts101 wakeup-source");
     }
 
 #if GTP_CREATE_WR_NODE
@@ -2860,12 +2917,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     return 0;
 
 probe_init_error:
-    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
-    GTP_GPIO_FREE(ts->rst_pin);
-    GTP_GPIO_FREE(ts->irq_pin);
+    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);
+	if(!gpio_is_valid(ts->rst_pin))
+    gpio_free(ts->rst_pin);
+    if(!gpio_is_valid(ts->irq_pin))
+    gpio_free(ts->irq_pin);
 probe_init_error_requireio:
     tp_unregister_fb(&ts->tp); 
     kfree(ts);
+    reg = regulator_disable(ts->tp_regulator);
+	if (reg < 0)
+		GTP_ERROR("failed to disable tp regulator\n");
+	msleep(20);
     return ret;
 }
 
@@ -3234,3 +3297,4 @@ module_exit(goodix_ts_exit);
 MODULE_DESCRIPTION("GTP Series Driver");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#pragma GCC diagnostic pop
