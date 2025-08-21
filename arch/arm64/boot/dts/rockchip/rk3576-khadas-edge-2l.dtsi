@@ -933,11 +933,11 @@
 };
 
 &dsi_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi_in_vp2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi_in_vopl {
@@ -1131,6 +1131,7 @@
 
 &route_dsi {
 	status = "okay";
+	connect = <&vp2_out_dsi>;
 };
 
 &sai6 {
