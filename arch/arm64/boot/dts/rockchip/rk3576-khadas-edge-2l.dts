@@ -56,6 +56,27 @@
 		};
 	};
 
+	bt_sco: bt-sco {
+		status = "okay";
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+	};
+
+	bt_sound: bt-sound {
+		status = "okay";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,cpu {
+			sound-dai = <&sai4>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_sco 1>;
+		};
+	};
+
 	pdmics: dummy-codec {
 		status = "disabled";
 		compatible = "rockchip,dummy-codec";
@@ -499,6 +520,15 @@
 		     &sai1m0_sclk
 		     &sai1m0_sdi0
 		     &sai1m0_sdo0>;
+};
+
+&sai4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sai4m0_lrck
+		&sai4m0_sclk
+		&sai4m0_sdi
+		&sai4m0_sdo>;
 };
 
 &sdio {
