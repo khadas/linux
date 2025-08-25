@@ -54,7 +54,7 @@
 #define IMX585_XVCLK_FREQ_27M		27000000
 
 /* TODO: Get the real chip id from reg */
-#define CHIP_ID				0x32
+#define CHIP_ID				0x0032
 #define IMX585_REG_CHIP_ID		0x30DC
 
 #define IMX585_REG_CTRL_MODE		0x3000
@@ -3861,7 +3861,7 @@ static int imx585_check_sensor_id(struct imx585 *imx585,
 				  struct i2c_client *client)
 {
 	struct device *dev = &imx585->client->dev;
-	u32 id = 0;
+	u32 reg = 0, pid =0, vid =0;
 	int ret;
 
 	if (imx585->is_thunderboot) {
@@ -3869,14 +3869,16 @@ static int imx585_check_sensor_id(struct imx585 *imx585,
 		return 0;
 	}
 
-	ret = imx585_read_reg(client, IMX585_REG_CHIP_ID,
-			      IMX585_REG_VALUE_08BIT, &id);
-	if (id != CHIP_ID) {
-		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
+	ret = imx585_read_reg(client, IMX585_REG_CHIP_ID, IMX585_REG_VALUE_08BIT, &pid);
+	ret |= imx585_read_reg(client, IMX585_REG_CHIP_ID + 1, IMX585_REG_VALUE_08BIT, &vid);
+	reg = (vid << 8) | pid;
+
+	if (reg != CHIP_ID) {
+		dev_err(dev, "Unexpected sensor id(%04x), ret(%d)\n", reg, ret);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected imx585 id %06x\n", CHIP_ID);
+	dev_info(dev, "Detected imx585 id %06x\n", reg);
 
 	return 0;
 }
