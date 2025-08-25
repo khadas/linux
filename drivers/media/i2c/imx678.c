@@ -58,7 +58,7 @@
 /**************config************error eport start**/
 #if (!((IMX678_NORMAL_3840_2160_4LANE_25FPS_30FPS_30CP >= 0) && (IMX678_NORMAL_3840_2160_4LANE_25FPS_30FPS_30CP <= 2)    \
 	&& (IMX678_NORMAL_2688_1512_4LANE_30FPS_60FPS >= 0) && (IMX678_NORMAL_2688_1512_4LANE_30FPS_60FPS <= 1)              \
-	&& (IMX678_DOL_HDR_3840_2160_4LANE_15FPS_16_7FPS >= 0) && (IMX678_DOL_HDR_3840_2160_4LANE_15FPS_16_7FPS <= 1))) 
+	&& (IMX678_DOL_HDR_3840_2160_4LANE_15FPS_16_7FPS >= 0) && (IMX678_DOL_HDR_3840_2160_4LANE_15FPS_16_7FPS <= 1)))
 #---------------config error---------------#
 #endif
 /**************config************error eport end**/
@@ -200,7 +200,7 @@ struct imx678_mode {
 	u32 width;
 	u32 height;
 	u32 real_width;
-	u32 real_height;	
+	u32 real_height;
 	struct v4l2_fract max_fps;
 	u32 hts_def;
 	u32 vts_def;
@@ -262,8 +262,8 @@ static const struct regval imx678_global_4lane_setting_regs[] = {
 	{0x3001, 0x01},  //REGHOLD
 	{0x3002, 0x00},  //XMSTA
 
-	{0x3014, 0x04},    //INCK_SEL[3:0]		
-	{0x3015, 0x03},    //DATARATE_SEL[3:0]		
+	{0x3014, 0x04},    //INCK_SEL[3:0]
+	{0x3015, 0x03},    //DATARATE_SEL[3:0]
 
 	{0x3050, 0x03},  //SHR0[19:0]
 	{0x3051, 0x00},  //SHR0[19:0]
@@ -712,7 +712,7 @@ static const struct regval imx678_dol_hdr_3frame_3840_2160_4lane_setting_regs[] 
 #elif (IMX678_DOL_HDR_3840_2160_4LANE_15FPS_16_7FPS == 1)   //16.7fps
 	{0x3050, 0x56},  //SHR0[19:0]
 	{0x3051, 0x13},  //SHR0[19:0]
-#endif	
+#endif
 	{0x3052, 0x00},  //SHR0[19:0]
 	{0x3054, 0x07},  //SHR1[19:0]
 	{0x3055, 0x00},  //SHR1[19:0]
@@ -772,7 +772,7 @@ static const struct regval imx678_dol_hdr_2frame_3840_2160_4lane_setting_regs[] 
 	{0x3058, 0x8A},  //SHR2[19:0]
 	{0x3059, 0x01},  //SHR2[19:0]
 	{0x305A, 0x00},  //SHR2[19:0]
-	
+
 	{0x3060, 0xD7},  //RHS1[19:0]
 	{0x3061, 0x01},  //RHS1[19:0]
 	{0x3062, 0x00},  //RHS1[19:0]
@@ -832,7 +832,7 @@ static const struct regval imx678_clear_hdr_3840_2160_4lane_setting_regs[] = {
 	{0x3066, 0x00},  //RHS2[19:0]
 
 	{0x306B, 0x04},  //Sensor_register
-	{0x3081, 0x02},  //EXP_GAIN 
+	{0x3081, 0x02},  //EXP_GAIN
 	{0x355A, 0x00},  //Sensor_register
 	{0x3A64, 0x01},  //Sensor_register
 	{0x3C37, 0x30},  //Sensor_register
@@ -876,7 +876,7 @@ static const struct regval imx678_clear_hdr_3840_2160_4lane_setting_regs[] = {
 	{0x454E, 0x04},  //Sensor_register
 	{0x454F, 0x04},  //Sensor_register
 	{0x4550, 0x04},  //Sensor_register
-	
+
 	{0x3001, 0x00},    //REGHOLD
 
 	{REG_NULL, 0x00},
@@ -884,7 +884,7 @@ static const struct regval imx678_clear_hdr_3840_2160_4lane_setting_regs[] = {
 
 static const struct regval imx678_normal_3840_2160_60fps_4lane_global_setting_regs[] = {
 	{0x3000, 0x01},		//standby
-	{0x3001, 0x00},		//hold on 
+	{0x3001, 0x00},		//hold on
 	{0x3002, 0x00},		//master start
 	{REG_NULL, 0x00},
 };
@@ -1278,7 +1278,7 @@ static const struct regval imx678_normal_3840_2160_60fps_4lane_setting_regs[] = 
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx678_normal_3840_2160_4lane_setting_regs[] = {		
+static const struct regval imx678_normal_3840_2160_4lane_setting_regs[] = {
 	{0x301A, 0x00},    //WDMODE
 	{0x301B, 0x00},    //ADDMODE[1:0]
 	{0x301C, 0x00},    //THIN_V_EN
@@ -1323,14 +1323,14 @@ static const struct regval imx678_normal_3840_2160_4lane_setting_regs[] = {
 	{0x3045, 0x00},    //PIX_VST[11:0]
 	{0x3046, 0x74},    //PIX_VWIDTH[11:0]
 	{0x3047, 0x08},    //PIX_VWIDTH[11:0]
-#endif	
+#endif
 	{0x302A, 0x00},    //VMAX[19:0]
 	{0x302C, 0x94},    //HMAX[15:0]
 	{0x302D, 0x02},    //HMAX[15:0]
 	{0x3030, 0x00},    //FDG_SEL0[1:0]
 	{0x3031, 0x00},    //FDG_SEL1[1:0]
 	{0x3032, 0x00},    //FDG_SEL2[1:0]
-	
+
 	{0x3040, 0x03},    //LANEMODE[2:0]
 	{0x3042, 0x00},    //XSIZE_OVERLAP[10:0]
 	{0x3043, 0x00},    //XSIZE_OVERLAP[10:0]
@@ -1352,7 +1352,7 @@ static const struct regval imx678_normal_2688_1512_4lane_setting_regs[] = {
 	{0x3021, 0x00},    //VREVERSE
 	{0x3022, 0x00},    //ADBIT[1:0]
 	{0x3023, 0x00},    //MDBIT
-	
+
 #if (IMX678_NORMAL_2688_1512_4LANE_30FPS_60FPS == 0)   //30fps
 	{0x3028, 0xA6},    //VMAX[19:0]
 	{0x3029, 0x0E},    //VMAX[19:0]
@@ -1366,7 +1366,7 @@ static const struct regval imx678_normal_2688_1512_4lane_setting_regs[] = {
 	{0x302C, 0x26},    //HMAX[15:0]
 	{0x302D, 0x02},    //HMAX[15:0]
 #endif
-		
+
 	{0x3030, 0x00},    //FDG_SEL0[1:0]
 	{0x3031, 0x00},    //FDG_SEL1[1:0]
 	{0x3032, 0x00},    //FDG_SEL2[1:0]
@@ -1417,7 +1417,7 @@ static const struct regval imx678_normal_1920_1080_4lane_setting_regs[] = {
 	{0x303F, 0x07},  //PIX_HWIDTH[12:0]
 	{0x3040, 0x03},  //LANEMODE[2:0]
 	{0x3042, 0x00},  //XSIZE_OVERLAP[10:0]
-	{0x3043, 0x00},  //XSIZE_OVERLAP[10:0] 
+	{0x3043, 0x00},  //XSIZE_OVERLAP[10:0]
 	{0x3044, 0x24},  //PIX_VST[11:0]
 	{0x3045, 0x02},  //PIX_VST[11:0]
 	{0x3046, 0x3C},  //PIX_VWIDTH[11:0]
@@ -1438,26 +1438,26 @@ static const struct regval imx678_normal_1216_2160_4lane_setting_regs[] = {
 	{0x3021, 0x00},    //VREVERSE
 	{0x3022, 0x00},    //ADBIT[1:0]
 	{0x3023, 0x00},    //MDBIT
-	
+
 	{0x3028, 0xA6},    //VMAX[19:0]
 	{0x3029, 0x0E},    //VMAX[19:0]
 	{0x302A, 0x00},    //VMAX[19:0]
 	{0x302C, 0x94},    //HMAX[15:0]
 	{0x302D, 0x02},    //HMAX[15:0]
-		
+
 	{0x3030, 0x00},    //FDG_SEL0[1:0]
 	{0x3031, 0x00},    //FDG_SEL1[1:0]
 	{0x3032, 0x00},    //FDG_SEL2[1:0]
-	
+
 	{0x303C, 0x28},    //PIX_HST[12:0]
 	{0x303D, 0x05},    //PIX_HST[12:0]
 	{0x303E, 0xC0},    //PIX_HWIDTH[12:0]
 	{0x303F, 0x04},    //PIX_HWIDTH[12:0]
-	
+
 	{0x3040, 0x03},    //LANEMODE[2:0]
 	{0x3042, 0x00},    //XSIZE_OVERLAP[10:0]
 	{0x3043, 0x00},    //XSIZE_OVERLAP[10:0]
-	
+
 	{0x3044, 0x00},    //PIX_VST[11:0]
 	{0x3045, 0x00},    //PIX_VST[11:0]
 	{0x3046, 0x84},    //PIX_VWIDTH[11:0]
@@ -1473,17 +1473,17 @@ static const struct regval imx678_normal_1216_2160_4lane_setting_regs[] = {
 /************************************************************************分割线_2lane**************************************************************************/
 static const struct regval imx678_global_2lane_setting_regs[] = {
 	{0x3000, 0x01},    //standby
-	{0x3001, 0x00},    //hold on 
+	{0x3001, 0x00},    //hold on
 	{0x3002, 0x00},		//master start
 
 	{0x3018, 0x04},     //WINMODE:crop mode
-	
+
 	{0x3460, 0x22},
 	{0x355A, 0x64},
 	{0x3A02, 0x7A},
 	{0x3A10, 0xEC},
 	{0x3A12, 0x71},
-	
+
 	{0x3A14, 0xDE},
 	{0x3A20, 0x2B},
 	{0x3A24, 0x22},
@@ -1853,7 +1853,7 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x3015, 0x03},     //DATARATE_SEL:1440Mbps
 	{0x301A, 0x00},     //HDRMODE
 	{0x301B, 0x00},     //BINING
-	{0x301C, 0x00},     //DOL MODE 
+	{0x301C, 0x00},     //DOL MODE
 	{0x301E, 0x01},
 	{0x3020, 0x00},     //H DIRE
 	{0x3021, 0x00},     //V DIRE
@@ -1862,7 +1862,7 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x3028, 0xCA},     //VMAX
 	{0x3029, 0x08},
 	{0x302A, 0x00},
-	{0x302C, 0x28},     //HMAX 
+	{0x302C, 0x28},     //HMAX
 	{0x302D, 0x05},
 	{0x3030, 0x00},    //GAIN MODE
 	{0x3031, 0x00},
@@ -1872,9 +1872,9 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x303E, 0x00},   //PIX_HWIDTH
 	{0x303F, 0x0F},
 	{0x3040, 0x01},   //lane mode
-	{0x3042, 0x00},   //xsize_overlap 
+	{0x3042, 0x00},   //xsize_overlap
 	{0x3043, 0x00},
-	{0x3044, 0x00},   //CROP Vert Start 
+	{0x3044, 0x00},   //CROP Vert Start
 	{0x3045, 0x00},
 	{0x3046, 0x70},   //PIX_VWIDTH
 	{0x3047, 0x08},
@@ -1895,18 +1895,18 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x3066, 0x00},
 	{0x3069, 0x00},   //HDR_GAIN_EN
 	{0x306B, 0x00},   //CLEAR_HDR_MODE
-	{0x3070, 0x00},  //gain  
+	{0x3070, 0x00},  //gain
 	{0x3071, 0x00},
 	{0x3072, 0x00},  //sef1 gain
 	{0x3073, 0x00},
 	{0x3074, 0x00},  //sef2 gain
 	{0x3075, 0x00},
-	{0x3081, 0x00},  //add HG when clear HDR MODER 
-	{0x308C, 0x00},  //add digital HG when clear HDR MODER    
+	{0x3081, 0x00},  //add HG when clear HDR MODER
+	{0x308C, 0x00},  //add digital HG when clear HDR MODER
 	{0x308D, 0x01},
 	{0x3094, 0x00},   //add analog LG when clear HDR MODER
 	{0x3095, 0x00},
-	{0x309C, 0x00},  //add analog HG when clear HDR MODER 
+	{0x309C, 0x00},  //add analog HG when clear HDR MODER
 	{0x309D, 0x00},
 	{0x30A4, 0xAA},   //xvs_drv
 	{0x30A6, 0x00},   //xhs_drv
@@ -2080,7 +2080,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 		.exp_def = 0x0EA6 - 0x40,
 		.hts_def = 0x0294 * 8,
 		.vts_def = 0x0EA6,
-#endif		
+#endif
 		.link_freq_def = (1440*1000*1000/2),
 		.global_reg_list = imx678_global_4lane_setting_regs,
 		.reg_list = imx678_normal_3840_2160_4lane_setting_regs,
@@ -2088,11 +2088,11 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 		.clear_hdr_mode = NO_CLEAR_HDR,
 		.bpp = 10,
-	},	
+	},
 
 	/*2688*1512*/
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10, 
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 0xa80,
 		.height = 0x5f4,
 		.real_width = 2688,
@@ -2105,7 +2105,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 		.exp_def = 0x0EA6 - 0x40,
 		.hts_def = 0x0294 * 8,
 		.vts_def = 0x0EA6,
-#elif (IMX678_NORMAL_2688_1512_4LANE_30FPS_60FPS == 1)  //60fps	
+#elif (IMX678_NORMAL_2688_1512_4LANE_30FPS_60FPS == 1)  //60fps
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 600000,
@@ -2113,7 +2113,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 		.exp_def = 0x08CA - 0x40,
 		.hts_def = 0x0226 * 8,
 		.vts_def = 0x08CA,
-#endif		
+#endif
 		.link_freq_def = (1440*1000*1000/2),
 		.global_reg_list = imx678_global_4lane_setting_regs,
 		.reg_list = imx678_normal_2688_1512_4lane_setting_regs,
@@ -2125,7 +2125,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 
 	/*1920*1080*/
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10, 
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 0x0780,
 		.height = 0x043c,
 		.real_width = 1920,
@@ -2148,7 +2148,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 
 	/*1216*2160*/
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10, 
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 0x4C0,
 		.height = 0x0884,
 		.real_width = 1216,
@@ -2159,9 +2159,9 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 			.denominator = 300000,
 		},
 		.exp_def = 0x0EA6 - 0x40,
-		.hts_def = 0x0294 * 8, 
+		.hts_def = 0x0294 * 8,
 		.vts_def = 0x0EA6,
-		
+
 		.link_freq_def = (1440*1000*1000/2),
 		.global_reg_list = imx678_global_4lane_setting_regs,
 		.reg_list = imx678_normal_1216_2160_4lane_setting_regs,
@@ -2170,11 +2170,11 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 		.clear_hdr_mode = NO_CLEAR_HDR,
 		.bpp = 10,
 	},
-	
+
 /******************************************dol_hdr*************************************************************/
 	/*dol_hdr_2frame 3840*2160*/
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10, 
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 0xf10,
 		.height = 0x884,
 		.real_width = 3840,
@@ -2236,7 +2236,7 @@ static const struct imx678_mode imx678_supported_modes_4lane[] = {
 /******************************************clear_hdr**********************************************************/
 	/*clear_hdr 3840*2160*/
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10, 
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.width = 0xf10,
 		.height = 0x884,
 		.real_width = 3840,
@@ -2415,7 +2415,7 @@ imx678_find_best_fit(struct imx678 *imx678, struct v4l2_subdev_format *fmt)
 				cur_best_fit = i;
 			}
 		}
-		
+
 		return &imx678_supported_modes_4lane[cur_best_fit];
 	}
 	else {
@@ -2426,7 +2426,7 @@ imx678_find_best_fit(struct imx678 *imx678, struct v4l2_subdev_format *fmt)
 				cur_best_fit = i;
 			}
 		}
-		
+
 		return &imx678_supported_modes_2lane[cur_best_fit];
 	}
 }
@@ -2441,8 +2441,8 @@ static void imx678_change_mode(struct imx678 *imx678, const struct imx678_mode *
 }
 
 static int imx678_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_format *fmt)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 	const struct imx678_mode *mode;
@@ -2458,7 +2458,7 @@ static int imx678_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -2487,8 +2487,8 @@ static int imx678_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx678_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_format *fmt)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 	const struct imx678_mode *mode = imx678->cur_mode;
@@ -2496,7 +2496,7 @@ static int imx678_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx678->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -2517,8 +2517,8 @@ static int imx678_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx678_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				 struct v4l2_subdev_mbus_code_enum *code)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -2530,8 +2530,8 @@ static int imx678_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx678_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_frame_size_enum *fse)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -2578,7 +2578,7 @@ static int imx678_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct imx678 *imx678 = to_imx678(sd);
-	u8 lanes = imx678->lane_num;	
+	u8 lanes = imx678->lane_num;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->bus.mipi_csi2.num_data_lanes = lanes;
@@ -2651,7 +2651,7 @@ static int imx678_set_hdrae(struct imx678 *imx678,
 	if(imx678->cur_mode->clear_hdr_mode == CLEAR_HDR) {    /*clear hdr*/
 
 		return 0;    /*************测试************/
-		
+
 		ret = imx678_write_reg(client,
 			IMX678_GROUP_HOLD_REG,
 			IMX678_REG_VALUE_08BIT,
@@ -2910,7 +2910,7 @@ static int imx678_set_hdrae_3frame(struct imx678 *imx678,
 	 *   SHR0 should be 3n;
 	 *
 	 *   exp_m = RHS1 - SHR1;
-	 *   7 <= SHR1 <= RHS1 - 3;	 
+	 *   7 <= SHR1 <= RHS1 - 3;
 	 *   RHS1 < BRL * 3;
 	 *   SHR1 + 3 <= RHS1 <= SHR2 - 7;
 	 *   RHS1(n+1) >= RHS1(n) + BRL * 3 -FSC + 3;
@@ -3650,8 +3650,8 @@ static int imx678_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 static int imx678_enum_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_pad_config *cfg,
-	struct v4l2_subdev_frame_interval_enum *fie)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -3672,7 +3672,7 @@ static int imx678_enum_frame_interval(struct v4l2_subdev *sd,
 		fie->interval = imx678_supported_modes_2lane[fie->index].max_fps;
 		fie->reserved[0] = imx678_supported_modes_2lane[fie->index].hdr_mode;
 	}
-	
+
 	return 0;
 }
 
@@ -3687,8 +3687,8 @@ static int imx678_enum_frame_interval(struct v4l2_subdev *sd,
  * to the alignment rules.
  */
 static int imx678_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_selection *sel)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_selection *sel)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -3697,7 +3697,6 @@ static int imx678_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = imx678->cur_mode->real_width;
 		sel->r.top = CROP_START(imx678->cur_mode->height, imx678->cur_mode->real_height);
 		sel->r.height = imx678->cur_mode->real_height;
-		
 		return 0;
 	}
 	return -EINVAL;
@@ -3725,7 +3724,7 @@ static const struct v4l2_subdev_core_ops imx678_core_ops = {
 static const struct v4l2_subdev_video_ops imx678_video_ops = {
 	.s_stream = imx678_s_stream,
 	.g_frame_interval = imx678_g_frame_interval,
-	
+
 };
 
 static const struct v4l2_subdev_pad_ops imx678_pad_ops = {
@@ -3896,7 +3895,7 @@ static int imx678_initialize_controls(struct imx678 *imx678)
 				V4L2_CID_LINK_FREQ,
 				ARRAY_SIZE(link_freq_items) - 1, 0,
 				link_freq_items);
-	__v4l2_ctrl_s_ctrl(imx678->link_freq, mode->mipi_freq_idx); 
+	__v4l2_ctrl_s_ctrl(imx678->link_freq, mode->mipi_freq_idx);
 
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * imx678->lane_num;
@@ -3961,12 +3960,12 @@ static int imx678_check_sensor_id(struct imx678 *imx678,
 	ret = imx678_read_reg(client,  IMX678_REG_CHIP_ID, IMX678_REG_VALUE_08BIT, &pid);
 	ret |= imx678_read_reg(client, IMX678_REG_CHIP_ID + 1, IMX678_REG_VALUE_08BIT, &vid);
 	reg = (vid << 8) | pid;
-	
+
 	if (reg != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", reg, ret);
 		return -ENODEV;
 	}
-	dev_info(dev, "detected imx678 %04x sensor\n", reg);
+	dev_info(dev, "khadas camera detected imx678 id %06x\n", reg);
 
 	return 0;
 }
@@ -4011,7 +4010,7 @@ static int imx678_parse_of(struct imx678 *imx678,u32 hdr_mode)
 				break;
 			}
 		}
-		
+
 		if (i == imx678->cfg_num)
 			imx678->cur_mode = &imx678_supported_modes_4lane[0];
 
@@ -4023,14 +4022,14 @@ static int imx678_parse_of(struct imx678 *imx678,u32 hdr_mode)
 				break;
 			}
 		}
-		
+
 		if (i == imx678->cfg_num)
 			imx678->cur_mode = &imx678_supported_modes_2lane[0];
 	}
 
-	dev_info(dev, "imx678 current lane_num is(%d)\n",imx678->lane_num);	
-	dev_err(dev, "====imx678 current lane_num is(%d)\n",imx678->lane_num);	
-	
+	dev_info(dev, "imx678 current lane_num is(%d)\n",imx678->lane_num);
+	dev_err(dev, "====imx678 current lane_num is(%d)\n",imx678->lane_num);
+
 	return 0;
 }
 
@@ -4128,8 +4127,8 @@ static int imx678_probe(struct i2c_client *client,
 		goto err_free_handler;
 
 	ret = imx678_check_sensor_id(imx678, client);
-//	if (ret)
-//		goto err_power_off;
+	if (ret)
+		goto err_power_off;
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &imx678_internal_ops;
@@ -4186,7 +4185,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int imx678_remove(struct i2c_client *client)
+static void imx678_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx678 *imx678 = to_imx678(sd);
@@ -4206,8 +4205,6 @@ static int imx678_remove(struct i2c_client *client)
 #ifdef USED_SYS_DEBUG
 	remove_sysfs_interfaces(&client->dev);
 #endif
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
