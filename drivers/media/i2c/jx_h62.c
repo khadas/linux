@@ -488,10 +488,10 @@ static void jx_h62_get_module_inf(struct jx_h62 *jx_h62,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, JX_H62_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, jx_h62->module_name,
+	strscpy(inf->base.sensor, JX_H62_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, jx_h62->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, jx_h62->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, jx_h62->len_name, sizeof(inf->base.lens));
 }
 
 static long jx_h62_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

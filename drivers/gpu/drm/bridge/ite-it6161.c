@@ -2287,12 +2287,12 @@ static void it6161_bridge_mode_set(struct drm_bridge *bridge,
 	}
 
 	//it6161->hdmi_tx_display_mode.base.id = adjusted_mode->base.id;
-	strlcpy(it6161->hdmi_tx_display_mode.name, adjusted_mode->name,
+	strscpy(it6161->hdmi_tx_display_mode.name, adjusted_mode->name,
 		DRM_DISPLAY_MODE_LEN);
 	it6161->hdmi_tx_display_mode.type = adjusted_mode->type;
 	it6161->hdmi_tx_display_mode.flags = adjusted_mode->flags;
 	//err = it6161_send_video_infoframe(it6161, &frame);
-	strlcpy(display_mode->name, adjusted_mode->name,
+	strscpy(display_mode->name, adjusted_mode->name,
 		DRM_DISPLAY_MODE_LEN);
 	display_mode->clock = mode->clock;
 	display_mode->hdisplay = mode->hdisplay;

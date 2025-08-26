@@ -1017,10 +1017,10 @@ static void gc4663_get_module_inf(struct gc4663 *gc4663,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, GC4663_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc4663->module_name,
+	strscpy(inf->base.sensor, GC4663_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc4663->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc4663->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc4663->len_name, sizeof(inf->base.lens));
 }
 
 static int gc4663_get_channel_info(struct gc4663 *gc4663, struct rkmodule_channel_info *ch_info)

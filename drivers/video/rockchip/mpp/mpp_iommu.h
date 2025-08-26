@@ -102,6 +102,9 @@ struct mpp_iommu_info {
 
 	int irq;
 	int got_irq;
+	/* flag for mark iommu whether shared */
+	bool shared;
+	struct mpp_taskqueue *queue;
 };
 
 struct mpp_dma_session *

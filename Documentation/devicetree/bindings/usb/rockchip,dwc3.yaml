@@ -41,6 +41,7 @@ properties:
           - rockchip,rk3328-dwc3
           - rockchip,rk3399-dwc3
           - rockchip,rk3568-dwc3
+          - rockchip,rv1126b-dwc3
       - const: snps,dwc3
 
   reg:

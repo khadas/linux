@@ -1081,7 +1081,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 			goto end;
 		}
 
-		rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, true);
+		rkisp_dmarx_get_frame(dev, &seq, NULL, &ns, !dev->is_aiisp_en);
 		if (!ns)
 			ns = ktime_get_ns();
 
@@ -1120,10 +1120,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 			}
 		}
 		buf->vb.sequence = seq;
-		buf->vb.vb2_buf.timestamp = ns;
+		vb2_buf->timestamp = ns;
 		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
-		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
+		stream->dbg.delay = ns - vb2_buf->timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = seq;
 
@@ -1176,7 +1176,9 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		stream->ops->disable_mi(stream);
 	if (IS_HDR_RDBK(dev->rd_mode)) {
 		spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
-		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle) {
+		if (dev->hw_dev->cur_dev_id != dev->dev_id ||
+		    (!dev->is_aiisp_en && dev->hw_dev->is_idle) ||
+		    (dev->is_aiisp_en && dev->hw_dev->is_be_idle)) {
 			is_wait = false;
 			if (stream->ops->disable_mi)
 				stream->ops->disable_mi(stream);

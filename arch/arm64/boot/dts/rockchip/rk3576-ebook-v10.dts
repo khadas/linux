@@ -510,7 +510,7 @@
 			compatible = "fp9931-regulator";
 			fp9931_vcom: vcom {
 				regulator-name = "vcom";
-				regulator-min-microvolt = <0>;
+				regulator-min-microvolt = <19608>; /* (1/255)V */
 				regulator-max-microvolt = <5000000>;
 				regulator-boot-on;
 				regulator-state-mem {
@@ -528,7 +528,7 @@
 			};
 		};
 
-		fp9931_thermal: fp9931-thermal {
+		fp9931_thermal: fp9931_thermal {
 			compatible = "fp9931-thermal";
 		};
 	};

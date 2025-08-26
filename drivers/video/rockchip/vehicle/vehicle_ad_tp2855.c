@@ -693,35 +693,28 @@ int tp2855_stream(struct vehicle_ad_dev *ad, int enable)
 
 static void tp2855_power_on(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->power)) {
-		gpio_request(ad->power, "tp2855_power");
-		gpio_direction_output(ad->power, ad->pwr_active);
-		/* gpio_set_value(ad->power, ad->pwr_active); */
-	}
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 1);
 
-	if (gpio_is_valid(ad->powerdown)) {
-		gpio_request(ad->powerdown, "tp2855_pwd");
-		gpio_direction_output(ad->powerdown, 1);
-		/* gpio_set_value(ad->powerdown, !ad->pwdn_active); */
-	}
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 1);
 
-	if (gpio_is_valid(ad->reset)) {
-		gpio_request(ad->reset, "tp2855_rst");
-		gpio_direction_output(ad->reset, 0);
+	if (!IS_ERR(ad->reset_gpio)) {
+		gpiod_direction_output(ad->reset_gpio, 0);
 		usleep_range(1500, 2000);
-		gpio_direction_output(ad->reset, 1);
+		gpiod_direction_output(ad->reset_gpio, 1);
 	}
 	mdelay(100);
 }
 
 static void tp2855_power_off(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->reset))
-		gpio_free(ad->reset);
-	if (gpio_is_valid(ad->power))
-		gpio_free(ad->power);
-	if (gpio_is_valid(ad->powerdown))
-		gpio_free(ad->powerdown);
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 0);
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 0);
+	if (!IS_ERR(ad->reset_gpio))
+		gpiod_direction_output(ad->reset_gpio, 0);
 }
 
 static __maybe_unused int tp2855_auto_detect_hotplug(struct vehicle_ad_dev *ad)

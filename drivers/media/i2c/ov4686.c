@@ -736,10 +736,10 @@ static void OV4686_get_module_inf(struct OV4686 *OV4686,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, OV4686_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, OV4686->module_name,
+	strscpy(inf->base.sensor, OV4686_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, OV4686->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, OV4686->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, OV4686->len_name, sizeof(inf->base.lens));
 }
 
 static int OV4686_set_hdrae(struct OV4686 *OV4686,

@@ -10,6 +10,7 @@
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/dma-resv.h>
 
 #define K(size) ((unsigned long)((size) >> 10))
 static struct device *dmabuf_dev;
@@ -59,6 +60,8 @@ static void rk_dmabuf_dump_sgt(const struct dma_buf *dmabuf, void *private)
 	phys_addr_t end, len;
 	int i;
 
+	dma_resv_lock(dmabuf->resv, NULL);
+
 	list_for_each_entry_safe(a, t, &dmabuf->attachments, node) {
 		if (!a->sgt)
 			continue;
@@ -76,8 +79,12 @@ static void rk_dmabuf_dump_sgt(const struct dma_buf *dmabuf, void *private)
 				   (len >> 10) ? (K(len)) : (unsigned long)len,
 				   (len >> 10) ? "KiB" : "Bytes");
 		}
+		dma_resv_unlock(dmabuf->resv);
 		return;
 	}
+
+	dma_resv_unlock(dmabuf->resv);
+
 	/* Try to attach and map the dmabufs without sgt. */
 	if (IS_ENABLED(CONFIG_RK_DMABUF_DEBUG_ADVANCED)) {
 		struct dma_buf *dbuf = (struct dma_buf *)dmabuf;
@@ -105,9 +112,11 @@ static int rk_dmabuf_cb3(const struct dma_buf *dmabuf, void *private)
 	seq_printf(s, "%px %-16.16s %-16.16s %10lu KiB",
 		   dmabuf, dmabuf->name,
 		   dmabuf->exp_name, K(dmabuf->size));
+	dma_resv_lock(dmabuf->resv, NULL);
 	list_for_each_entry_safe(a, t, &dmabuf->attachments, node) {
 		seq_printf(s, " %s", dev_name(a->dev));
 	}
+	dma_resv_unlock(dmabuf->resv);
 	seq_puts(s, "\n");
 
 	return 0;

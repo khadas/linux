@@ -216,4 +216,6 @@ struct pt_platform_data {
 	struct pt_loader_platform_data *loader_pdata;
 };
 
+irqreturn_t pt_irq(int irq, void *handle);
+
 #endif /* _LINUX_PT_CORE_H */

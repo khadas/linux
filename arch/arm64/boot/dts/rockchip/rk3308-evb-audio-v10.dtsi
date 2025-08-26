@@ -10,6 +10,7 @@
 	/delete-node/ wireless-wlan;
 	/delete-node/ wireless-bluetooth;
 	/delete-node/ gpio-keys;
+	/delete-node/ tas5731_sound;
 
 	wireless-wlan {
 		compatible = "wlan-platdata";

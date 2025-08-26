@@ -20,6 +20,8 @@
 #define USRID_INTER_PHASE	0x20230001
 #define SDMMC_TIMING_CON0	0x130
 #define SDMMC_TIMING_CON1	0x134
+#define SDMMC_MISC_CON		0x138
+#define MEM_CLK_AUTOGATE_ENABLE BIT(5)
 #define ROCKCHIP_MMC_DELAY_SEL BIT(10)
 #define ROCKCHIP_MMC_DEGREE_MASK 0x3
 #define ROCKCHIP_MMC_DELAYNUM_OFFSET 2
@@ -573,6 +575,7 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 	if (priv->usrid == USRID_INTER_PHASE) {
 		priv->sample_clk = NULL;
 		priv->drv_clk = NULL;
+		mci_writel(host, MISC_CON, MEM_CLK_AUTOGATE_ENABLE);
 	}
 
 	host->need_xfer_timer = true;

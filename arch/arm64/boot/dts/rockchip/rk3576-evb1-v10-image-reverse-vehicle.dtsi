@@ -76,6 +76,7 @@
 		power-domains = <&power RK3576_PD_VI>;
 		cif,drop-frames = <4>; //frames to drop
 		cif,chip-id = <3>; /*0:rk3568 1:rk3588 2:rk3562 3:rk3576*/
+		cif,virtual-channel = <0>; /* select virtual-channel: 0/1/2/3*/
 		rockchip,grf = <&ioc_grf>;
 		rockchip,cru = <&cru>;
 		rockchip,cif = <&rkcif>;
@@ -94,12 +95,10 @@
 
 		csi2_dcphy0 {
 			status = "disabled";
-			clocks = <&cru CLK_MIPI_CAMERAOUT_M0>,
-				<&cru PCLK_MIPI_DCPHY>,
+			clocks = <&cru PCLK_MIPI_DCPHY>,
 				<&cru PCLK_CSI_HOST_0>,
 				<&cru ICLK_CSIHOST0>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host",
 				      "iclk_csi2host";
 			resets = <&cru SRST_P_CSI_HOST_0>;
@@ -111,11 +110,9 @@
 		};
 		csi2_dphy0 {
 			status = "disabled";
-			clocks = <&cru CLK_MIPI_CAMERAOUT_M1>,
-				 <&cru PCLK_CSIDPHY>,
+			clocks = <&cru PCLK_CSIDPHY>,
 				 <&cru PCLK_CSI_HOST_1>;
-			clock-names = "xvclk",
-				      "pclk",
+			clock-names = "pclk",
 				      "pclk_csi2host";
 			resets = <&cru SRST_P_CSIPHY>,
 				<&cru SRST_P_CSI_HOST_1>;
@@ -129,14 +126,12 @@
 		};
 		csi2_dphy3 {
 			status = "okay";
-			clocks = <&cru CLK_MIPI_CAMERAOUT_M2>,
-				<&cru PCLK_CSIDPHY1>,
-				<&cru PCLK_CSI_HOST_3>;
-			clock-names = "xvclk",
-				      "pclk",
+			clocks = <&cru PCLK_CSIDPHY1>,
+				 <&cru PCLK_CSI_HOST_3>;
+			clock-names = "pclk",
 				      "pclk_csi2host";
 			resets = <&cru SRST_P_CSIDPHY1>,
-				<&cru SRST_P_CSI_HOST_3>;
+				 <&cru SRST_P_CSI_HOST_3>;
 			reset-names = "srst_p_csiphy",
 					"srst_csihost_p";
 			csihost-idx = <3>;
@@ -153,6 +148,8 @@
 
 		nvp6324 {
 			status = "okay";
+			clocks = <&cru CLK_MIPI_CAMERAOUT_M1>;
+			clock-names = "xvclk";
 			//dphy3
 			powerdown-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <1>;

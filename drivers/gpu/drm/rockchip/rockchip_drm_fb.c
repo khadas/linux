@@ -199,9 +199,13 @@ static int rockchip_drm_aclk_adjust(struct drm_device *dev,
 
 		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];
 		if (funcs && funcs->set_aclk) {
+			struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+			int linedur_ns = div_u64((u64) mode->crtc_htotal * 1000000, mode->crtc_clock);
+
 			if (vop_bw_info->plane_num_4k || crtc_num > 1 ||
 			    crtc->state->adjusted_mode.crtc_hdisplay > 2560 ||
-			    crtc->state->adjusted_mode.crtc_vdisplay > 2560) {
+			    crtc->state->adjusted_mode.crtc_vdisplay > 2560 ||
+			    linedur_ns < 7500) {/* 4kp60 linedur_ns roughly equal to 7500 ns */
 				funcs->set_aclk(crtc, ROCKCHIP_VOP_ACLK_ADVANCED_MODE, vop_bw_info);
 				priv->aclk_adjust_frame_num = 2;
 			} else {
@@ -286,9 +290,11 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 
 	rockchip_dmcfreq_vop_bandwidth_update(&vop_bw_info);
 
-	mutex_lock(&prv->ovl_lock);
+	if (prv->need_ovl_lock)
+		mutex_lock(&prv->ovl_lock);
 	drm_atomic_helper_commit_planes(dev, old_state, DRM_PLANE_COMMIT_ACTIVE_ONLY);
-	mutex_unlock(&prv->ovl_lock);
+	if (prv->need_ovl_lock)
+		mutex_unlock(&prv->ovl_lock);
 
 	drm_atomic_helper_fake_vblank(old_state);
 
@@ -344,12 +350,7 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	if (drm_is_afbc(mode_cmd->modifier[0])) {
 		ret = drm_gem_fb_afbc_init(dev, mode_cmd, afbc_fb);
 		if (ret) {
-			struct drm_gem_object **obj = afbc_fb->base.obj;
-
-			for (i = 0; i < info->num_planes; ++i)
-				drm_gem_object_put(obj[i]);
-
-			kfree(afbc_fb);
+			drm_framebuffer_put(&afbc_fb->base);
 			return ERR_PTR(ret);
 		}
 	}

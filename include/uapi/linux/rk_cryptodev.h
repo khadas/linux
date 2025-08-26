@@ -51,11 +51,18 @@ struct crypt_fd_map_op {
 	__u32	phys_addr;	/* physics addr */
 };
 
+#define RK_EC_BER_KEY_MAX	1024
+
 #define AOP_ENCRYPT	0
 #define AOP_DECRYPT	1
+#define AOP_SIGN	2
+#define AOP_VERIFY	3
 
 #define COP_FLAG_RSA_PUB	(0 << 8) /* decode as rsa pub key */
 #define COP_FLAG_RSA_PRIV	(1 << 8) /* decode as rsa priv key */
+
+#define COP_FLAG_ASYM_PUB	COP_FLAG_RSA_PUB
+#define COP_FLAG_ASYM_PRIV	COP_FLAG_RSA_PRIV
 
 #define RK_RSA_BER_KEY_MAX	8192	/* The key encoded by ber does not exceed 8K Byte */
 #define RK_RSA_KEY_MAX_BITS	4096
@@ -74,6 +81,19 @@ struct crypt_rsa_op {
 	__u32		out_len;	/* length of output data */
 };
 
+struct crypt_ec_op {
+	__u16		op;		/* AOP_ENCRYPT/AOP_DECRYPT */
+	__u16		flags;		/* see COP_FLAG_* */
+	__u8		curve;		/* ECC curve */
+	__u8		reserve[3];
+	__u64		key;		/* BER coding EC key */
+	__u64		in;		/* pointer to input data */
+	__u64		out;		/* pointer to output data */
+	__u32		key_len;	/* length of key data */
+	__u32		in_len;		/* length of input data */
+	__u32		out_len;	/* length of output data */
+};
+
 #define RIOCCRYPT_FD		_IOWR('r', 104, struct crypt_fd_op)
 #define RIOCCRYPT_FD_MAP	_IOWR('r', 105, struct crypt_fd_map_op)
 #define RIOCCRYPT_FD_UNMAP	_IOW('r',  106, struct crypt_fd_map_op)
@@ -81,5 +101,6 @@ struct crypt_rsa_op {
 #define RIOCCRYPT_DEV_ACCESS	_IOW('r',  108, struct crypt_fd_map_op)
 #define RIOCCRYPT_RSA_CRYPT	_IOWR('r', 109, struct crypt_rsa_op)
 #define RIOCAUTHCRYPT_FD	_IOWR('r', 110, struct crypt_auth_fd_op)
+#define RIOCCRYPT_EC_CRYPT	_IOWR('r', 111, struct crypt_ec_op)
 
 #endif

@@ -899,10 +899,10 @@ static void jaguar1_get_module_inf(struct jaguar1 *jaguar1,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, JAGUAR1_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, jaguar1->module_name,
+	strscpy(inf->base.sensor, JAGUAR1_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, jaguar1->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, jaguar1->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, jaguar1->len_name, sizeof(inf->base.lens));
 }
 
 static void jaguar1_get_vicap_rst_inf(struct jaguar1 *jaguar1,

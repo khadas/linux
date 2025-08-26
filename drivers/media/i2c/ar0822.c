@@ -4372,10 +4372,10 @@ static void ar0822_get_module_inf(struct ar0822 *ar0822,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, AR0822_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, ar0822->module_name,
+	strscpy(inf->base.sensor, AR0822_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, ar0822->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, ar0822->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, ar0822->len_name, sizeof(inf->base.lens));
 }
 
 static int ar0822_set_hdrae(struct ar0822 *ar0822,

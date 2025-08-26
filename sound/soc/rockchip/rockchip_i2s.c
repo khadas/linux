@@ -3,7 +3,7 @@
  *
  * ALSA SoC Audio Layer - Rockchip I2S Controller driver
  *
- * Copyright (c) 2014 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2014 Rockchip Electronics Co., Ltd.
  * Author: Jianqun <jay.xu@rock-chips.com>
  */
 
@@ -1054,7 +1054,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		dai->playback.stream_name = "Playback";
 		dai->playback.channels_min = 2;
 		dai->playback.channels_max = 8;
-		dai->playback.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->playback.rates = SNDRV_PCM_RATE_CONTINUOUS;
 		dai->playback.formats = SNDRV_PCM_FMTBIT_S8 |
 					SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S20_3LE |
@@ -1076,7 +1076,7 @@ static int rockchip_i2s_init_dai(struct rk_i2s_dev *i2s, struct resource *res,
 		dai->capture.stream_name = "Capture";
 		dai->capture.channels_min = 2;
 		dai->capture.channels_max = 8;
-		dai->capture.rates = SNDRV_PCM_RATE_8000_192000;
+		dai->capture.rates = SNDRV_PCM_RATE_CONTINUOUS;
 		dai->capture.formats = SNDRV_PCM_FMTBIT_S8 |
 				       SNDRV_PCM_FMTBIT_S16_LE |
 				       SNDRV_PCM_FMTBIT_S20_3LE |

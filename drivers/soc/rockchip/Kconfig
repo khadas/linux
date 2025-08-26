@@ -58,6 +58,12 @@ config ROCKCHIP_CSU
 	help
 	  This adds the clock subunit driver for Rockchip SoCs.
 
+config ROCKCHIP_DMC_DEBUG
+	tristate "ROCKCHIP DMC DEBUG Driver"
+	depends on ARCH_ROCKCHIP && HAVE_ARM_SMCCC
+	help
+	  This adds the dmc debug driver for the ROCKCHIP DMC.
+
 config ROCKCHIP_GRF
 	tristate "Rockchip General Register Files support"
 	help
@@ -71,6 +77,12 @@ config ROCKCHIP_HW_DECOMPRESS
 	help
 	  This driver support Decompress IP built-in Rockchip SoC, support
 	  LZ4, GZIP, ZLIB.
+
+config ROCKCHIP_HW_DECOMPRESS_TEST
+	bool "Rockchip Hw-Decompress test"
+	depends on ROCKCHIP_HW_DECOMPRESS
+	help
+	  Say yes here to enable decompress test
 
 config ROCKCHIP_HW_DECOMPRESS_USER
 	tristate "Rockchip HardWare Decompress User Interface Support"
@@ -189,6 +201,12 @@ config ROCKCHIP_SUSPEND_MODE
 	depends on SUSPEND
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.
+
+config ROCKCHIP_SUSPEND_DEBUG
+	bool "Rockchip suspend debug"
+	depends on ROCKCHIP_SUSPEND_MODE
+	help
+	  Say y here to enable rockchip suspend debug support.
 
 config ROCKCHIP_SYSTEM_MONITOR
 	tristate "Rockchip system monitor support"
@@ -347,6 +365,12 @@ config RK_MEMBLOCK_PROCFS
 	help
 	  Extend memblock procfs to show size of each memblock, and shows the
 	  result of total size by KiB format.
+
+config RK_ZONEINFO_PROCFS
+	bool "Zoneinfo procfs support"
+	depends on PROC_FS
+	help
+	  Dump all zone information.
 
 source "drivers/soc/rockchip/minidump/Kconfig"
 

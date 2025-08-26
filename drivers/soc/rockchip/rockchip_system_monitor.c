@@ -19,6 +19,7 @@
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/coupler.h>
 #include <linux/regulator/driver.h>
@@ -830,6 +831,8 @@ static int monitor_device_parse_status_config(struct device_node *np,
 
 	ret = of_property_read_u32(np, "rockchip,early-suspend-freq",
 				   &info->early_suspend_freq);
+	ret &= of_property_read_u32(np, "rockchip,video-1080p-freq",
+				   &info->video_1080p_freq);
 	ret &= of_property_read_u32(np, "rockchip,video-4k-freq",
 				   &info->video_4k_freq);
 	ret &= of_property_read_u32(np, "rockchip,reboot-freq",
@@ -1127,6 +1130,44 @@ int rockchip_monitor_suspend_low_temp_adjust(int cpu)
 	return rockchip_monitor_low_temp_adjust(info);
 }
 EXPORT_SYMBOL(rockchip_monitor_suspend_low_temp_adjust);
+
+void rockchip_monitor_remove_cpu_limit(int cpu)
+{
+	struct monitor_dev_info *info;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		if (cpumask_test_cpu(cpu, &info->devp->allowed_cpus)) {
+			if (info->status_max_limit)
+				freq_qos_update_request(&info->max_sta_freq_req,
+							FREQ_QOS_MAX_DEFAULT_VALUE);
+			break;
+		}
+	}
+	up_read(&mdev_list_sem);
+}
+EXPORT_SYMBOL(rockchip_monitor_remove_cpu_limit);
+
+void rockchip_monitor_restore_cpu_limit(int cpu)
+{
+	struct monitor_dev_info *info;
+
+	down_read(&mdev_list_sem);
+	list_for_each_entry(info, &monitor_dev_list, node) {
+		if (info->devp->type != MONITOR_TYPE_CPU)
+			continue;
+		if (cpumask_test_cpu(cpu, &info->devp->allowed_cpus)) {
+			if (info->status_max_limit)
+				freq_qos_update_request(&info->max_sta_freq_req,
+							info->status_max_limit);
+			break;
+		}
+	}
+	up_read(&mdev_list_sem);
+}
+EXPORT_SYMBOL(rockchip_monitor_restore_cpu_limit);
 
 static int
 rockchip_system_monitor_wide_temp_adjust(struct monitor_dev_info *info,
@@ -1674,9 +1715,14 @@ static void rockchip_system_status_cpu_limit_freq(struct monitor_dev_info *info,
 
 	if (info->early_suspend_freq && (status & SYS_STATUS_SUSPEND))
 		target_freq = info->early_suspend_freq;
-
-	if (info->video_4k_freq && (status & SYS_STATUS_VIDEO_4K))
-		target_freq = info->video_4k_freq;
+	if (info->video_1080p_freq && (status & SYS_STATUS_VIDEO_1080P)) {
+		if (!target_freq || target_freq > info->video_1080p_freq)
+			target_freq = info->video_1080p_freq;
+	}
+	if (info->video_4k_freq && (status & SYS_STATUS_VIDEO_4K)) {
+		if (!target_freq || target_freq > info->video_4k_freq)
+			target_freq = info->video_4k_freq;
+	}
 
 	if (target_freq == info->status_max_limit)
 		return;
@@ -1909,7 +1955,6 @@ MODULE_DEVICE_TABLE(of, rockchip_system_monitor_of_match);
 static int rockchip_system_monitor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	int (*init)(struct platform_device *pdev);
 
 	system_monitor = devm_kzalloc(dev, sizeof(struct system_monitor),
@@ -1933,11 +1978,9 @@ static int rockchip_system_monitor_probe(struct platform_device *pdev)
 
 	rockchip_system_monitor_parse_dt(system_monitor);
 
-	match = of_match_device(rockchip_system_monitor_of_match, &pdev->dev);
-	if (match && match->data) {
-		init = match->data;
+	init = device_get_match_data(dev);
+	if (init)
 		init(pdev);
-	}
 
 	if (system_monitor->tz) {
 		system_monitor->last_temp = INT_MAX;

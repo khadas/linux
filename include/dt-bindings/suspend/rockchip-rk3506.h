@@ -55,7 +55,8 @@
 #define RKPM_V0PLL_ALIVE                 BIT(14)
 #define RKPM_V1PLL_ALIVE                 BIT(15)
 #define RKPM_GPIO4_IE_DIS                BIT(16)
-
+#define RKPM_PMU_BUS_CLK_HS              BIT(17)
+#define RKPM_PWM0_CH0_CORE_PWREN         BIT(18)
 /*
  * Wakeup source:
  *	rockchip,wakeup-config = <...>;
@@ -177,5 +178,9 @@
 #define RKPM_DBG_DEEP_JTAG               BIT(5)
 #define RKPM_DBG_JTAG                    BIT(6)
 #define RKPM_DBG_TIMEOUT_S(i)            (((i) & 0xf) << 7)
+#define RKPM_DBG_DUMMY_WFI               BIT(11)
+#define RKPM_DBG_DUMMY_DELAY1            BIT(12)
+#define RKPM_DBG_DUMMY_DELAY2            BIT(13)
+#define RKPM_DBG_PERI_REG                BIT(14)
 
 #endif

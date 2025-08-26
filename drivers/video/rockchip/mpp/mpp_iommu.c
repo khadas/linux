@@ -17,6 +17,7 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 
 #ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
@@ -451,8 +452,18 @@ int mpp_iommu_detach(struct mpp_iommu_info *info)
 
 int mpp_iommu_attach(struct mpp_iommu_info *info)
 {
+	struct mpp_iommu_info *last_info;
+
 	if (!info)
 		return 0;
+
+	/* if device changed, detach last first */
+	last_info = info->queue->last_iommu_info;
+	if (info->shared && last_info && last_info->shared
+	    && (info->dev != last_info->dev)) {
+		iommu_detach_group(last_info->domain, last_info->group);
+	}
+	info->queue->last_iommu_info = info;
 
 	if (info->domain == iommu_get_domain_for_dev(info->dev))
 		return 0;
@@ -561,6 +572,15 @@ mpp_iommu_probe(struct device *dev)
 	info->irq = platform_get_irq(pdev, 0);
 	info->got_irq = (info->irq < 0) ? false : true;
 
+	/* get shared flag, if true detach */
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)) {
+		struct platform_driver *drv = to_platform_driver(dev->driver);
+
+		info->shared = drv->driver_managed_dma;
+		if (info->shared)
+			iommu_detach_group(info->domain, info->group);
+	}
+
 	return info;
 
 err_put_group:
@@ -577,6 +597,10 @@ int mpp_iommu_remove(struct mpp_iommu_info *info)
 {
 	if (!info)
 		return 0;
+
+	/* if iommu shared, ensure current device's domain, then remove correctly */
+	if (info->shared)
+		mpp_iommu_attach(info);
 
 	iommu_group_put(info->group);
 	platform_device_put(info->pdev);

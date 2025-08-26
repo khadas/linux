@@ -4,6 +4,7 @@
  * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -20,6 +21,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/dma-mapping.h>
 
 #define SARADC_DATA			0x00
 
@@ -42,6 +44,7 @@
 #define SARADC2_CONV_CON		0x0
 #define SARADC_T_PD_SOC			0x4
 #define SARADC_T_DAS_SOC		0xc
+#define SARADC_T_SEL_SOC                0x10
 #define SARADC2_END_INT_EN		0x104
 #define SARADC2_ST_CON			0x108
 #define SARADC2_STATUS			0x10c
@@ -52,6 +55,21 @@
 #define SARADC2_START			BIT(4)
 #define SARADC2_SINGLE_MODE		BIT(5)
 
+#define SARADC2_CONV_CHANNELS GENMASK(3, 0)
+
+#define SARADC3_AUTO_CH_EN		0x160
+#define SARADC3_FIFO_CON		0x18c
+#define SARADC3_PADDR_BASE_H		0x190
+#define SARADC3_PADDR_BASE_L		0x194
+#define SARADC3_PADDR_OFF_MAX		0x198
+#define SARADC3_PADDR_OFF_WK		0x200
+
+#define SARADC3_EN_END_MAX_INT		BIT(3)
+#define SARADC3_AUTO_MODE		BIT(6)
+
+#define SARADC3_PMASTER_EN		BIT(3)
+#define SARADC3_PADDR_MAX_INT_ST	BIT(3)
+
 struct rockchip_saradc;
 
 struct rockchip_saradc_data {
@@ -61,6 +79,7 @@ struct rockchip_saradc_data {
 	void (*start)(struct rockchip_saradc *info, int chn);
 	int (*read)(struct rockchip_saradc *info);
 	void (*power_down)(struct rockchip_saradc *info);
+	unsigned int			das_soc_data;
 };
 
 struct rockchip_saradc {
@@ -78,14 +97,19 @@ struct rockchip_saradc {
 	const struct iio_chan_spec *last_chan;
 	struct notifier_block nb;
 	bool			suspended;
+	bool			dma_mode;
+	void			*dma_base;
+	dma_addr_t		dma_phys;
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
 	bool			test;
-	u32			chn;
-	spinlock_t		lock;
-	struct workqueue_struct *wq;
-	struct delayed_work	work;
+	u32			test_chn;
+	spinlock_t		test_lock;
+	struct workqueue_struct *test_wq;
+	struct delayed_work	test_work;
 #endif
 };
+
+#define SARADC3_DMA_SIZE	SZ_4K
 
 static void rockchip_saradc_reset_controller(struct reset_control *reset);
 
@@ -110,12 +134,68 @@ static void rockchip_saradc_start_v2(struct rockchip_saradc *info,
 	if (info->reset)
 		rockchip_saradc_reset_controller(info->reset);
 
-	writel_relaxed(0xc, info->regs + SARADC_T_DAS_SOC);
+	if (info->data->das_soc_data)
+		writel_relaxed(info->data->das_soc_data,
+			       info->regs + SARADC_T_DAS_SOC);
+	else
+		writel_relaxed(0xc, info->regs + SARADC_T_DAS_SOC);
+
 	writel_relaxed(0x20, info->regs + SARADC_T_PD_SOC);
-	val = SARADC2_EN_END_INT << 16 | SARADC2_EN_END_INT;
+	val = FIELD_PREP(SARADC2_EN_END_INT, 1);
+	val |= SARADC2_EN_END_INT << 16;
 	writel_relaxed(val, info->regs + SARADC2_END_INT_EN);
-	val = SARADC2_START | SARADC2_SINGLE_MODE | chn;
-	writel(val << 16 | val, info->regs + SARADC2_CONV_CON);
+	val = FIELD_PREP(SARADC2_START, 1) |
+	      FIELD_PREP(SARADC2_SINGLE_MODE, 1) |
+	      FIELD_PREP(SARADC2_CONV_CHANNELS, chn);
+	val |= (SARADC2_START | SARADC2_SINGLE_MODE | SARADC2_CONV_CHANNELS) << 16;
+	writel(val, info->regs + SARADC2_CONV_CON);
+}
+
+static void rockchip_saradc_start_v3_dma(struct rockchip_saradc *info,
+						    int chn)
+{
+	int val;
+
+	if (info->reset)
+		rockchip_saradc_reset_controller(info->reset);
+
+	writel_relaxed(0x20, info->regs + SARADC_T_PD_SOC);
+	writel_relaxed(0x11, info->regs + SARADC_T_DAS_SOC);
+	writel_relaxed(0x0, info->regs + SARADC_T_SEL_SOC);
+
+	val = FIELD_PREP(SARADC3_PMASTER_EN, 1);
+	val |= SARADC3_PMASTER_EN << 16;
+	writel_relaxed(val, info->regs + SARADC3_FIFO_CON);
+
+	writel_relaxed((u64)info->dma_phys >> 32,
+		       info->regs + SARADC3_PADDR_BASE_H);
+	writel_relaxed(((u32)info->dma_phys) >> 2,
+		       info->regs + SARADC3_PADDR_BASE_L);
+	writel_relaxed((SARADC3_DMA_SIZE >> 2) - 1,
+		       info->regs + SARADC3_PADDR_OFF_MAX);
+
+	val = FIELD_PREP(SARADC3_EN_END_MAX_INT, 1);
+	val |= SARADC3_EN_END_MAX_INT << 16;
+	writel_relaxed(val, info->regs + SARADC2_END_INT_EN);
+
+	val = BIT(chn) << 16 | BIT(chn);
+	writel_relaxed(val, info->regs + SARADC3_AUTO_CH_EN);
+
+	val = FIELD_PREP(SARADC2_START, 1) |
+	      FIELD_PREP(SARADC3_AUTO_MODE, 1) |
+	      FIELD_PREP(SARADC2_CONV_CHANNELS, chn);
+	val |= (SARADC2_START | SARADC3_AUTO_MODE | SARADC2_CONV_CHANNELS) << 16;
+	writel(val, info->regs + SARADC2_CONV_CON);
+}
+
+/* V3 is compatible with V2 */
+static void rockchip_saradc_start_v3(struct rockchip_saradc *info,
+					int chn)
+{
+	if (info->dma_mode)
+		rockchip_saradc_start_v3_dma(info, chn);
+	else
+		rockchip_saradc_start_v2(info, chn);
 }
 
 static void rockchip_saradc_start(struct rockchip_saradc *info,
@@ -138,7 +218,10 @@ static int rockchip_saradc_read_v2(struct rockchip_saradc *info)
 	writel_relaxed(0x1, info->regs + SARADC2_END_INT_ST);
 
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
-	channel = info->chn;
+	if (info->test)
+		channel = info->test_chn;
+	else
+		channel = info->last_chan->channel;
 #else
 	channel = info->last_chan->channel;
 #endif
@@ -146,6 +229,22 @@ static int rockchip_saradc_read_v2(struct rockchip_saradc *info)
 	offset = SARADC2_DATA_BASE + channel * 0x4;
 
 	return readl_relaxed(info->regs + offset);
+}
+
+static int rockchip_saradc_read_v3(struct rockchip_saradc *info)
+{
+	int val;
+
+	/* Clear max int and disable dma write function */
+	if (info->dma_mode) {
+		writel_relaxed(SARADC3_PADDR_MAX_INT_ST,
+			       info->regs + SARADC2_END_INT_ST);
+		val = FIELD_PREP(SARADC3_PMASTER_EN, 0);
+		val |= SARADC3_PMASTER_EN << 16;
+		writel_relaxed(val, info->regs + SARADC3_FIFO_CON);
+	}
+
+	return rockchip_saradc_read_v2(info);
 }
 
 static int rockchip_saradc_read(struct rockchip_saradc *info)
@@ -229,6 +328,11 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 	unsigned long flags;
 #endif
 
+#ifndef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	/* Nothing need to do if info->last_chan not ready */
+	if (!info->last_chan)
+		return IRQ_HANDLED;
+#endif
 	/* Read value */
 	info->last_val = rockchip_saradc_read(info);
 #ifndef CONFIG_ROCKCHIP_SARADC_TEST_CHN
@@ -239,12 +343,13 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 
 	complete(&info->completion);
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
-	spin_lock_irqsave(&info->lock, flags);
+	spin_lock_irqsave(&info->test_lock, flags);
 	if (info->test) {
-		pr_info("chn[%d] val = %d\n", info->chn, info->last_val);
-		mod_delayed_work(info->wq, &info->work, msecs_to_jiffies(100));
+		pr_info("chn[%d] val = %d\n", info->test_chn, info->last_val);
+		mod_delayed_work(info->test_wq, &info->test_work,
+				 msecs_to_jiffies(100));
 	}
-	spin_unlock_irqrestore(&info->lock, flags);
+	spin_unlock_irqrestore(&info->test_lock, flags);
 #endif
 	return IRQ_HANDLED;
 }
@@ -402,6 +507,26 @@ static const struct rockchip_saradc_data rv1106_saradc_data = {
 	.read = rockchip_saradc_read_v2,
 };
 
+static const struct iio_chan_spec rockchip_rv1126b_saradc_iio_channels[] = {
+	SARADC_CHANNEL(0, "adc0", 13),
+	SARADC_CHANNEL(1, "adc1", 13),
+	SARADC_CHANNEL(2, "adc2", 13),
+	SARADC_CHANNEL(3, "adc3", 13),
+	SARADC_CHANNEL(4, "adc4", 13),
+	SARADC_CHANNEL(5, "adc5", 13),
+	SARADC_CHANNEL(6, "adc6", 13),
+	SARADC_CHANNEL(7, "adc7", 13),
+};
+
+static const struct rockchip_saradc_data rv1126b_saradc_data = {
+	.channels = rockchip_rv1126b_saradc_iio_channels,
+	.num_channels = ARRAY_SIZE(rockchip_rv1126b_saradc_iio_channels),
+	.clk_rate = 24000000,
+	.start = rockchip_saradc_start_v3,
+	.read = rockchip_saradc_read_v3,
+	.das_soc_data = 0x14,
+};
+
 static const struct of_device_id rockchip_saradc_match[] = {
 	{
 		.compatible = "rockchip,saradc",
@@ -427,6 +552,9 @@ static const struct of_device_id rockchip_saradc_match[] = {
 	}, {
 		.compatible = "rockchip,rv1106-saradc",
 		.data = &rv1106_saradc_data,
+	}, {
+		.compatible = "rockchip,rv1126b-saradc",
+		.data = &rv1126b_saradc_data,
 	},
 	{},
 };
@@ -538,22 +666,23 @@ static ssize_t saradc_test_chn_store(struct device *dev,
 	if (err)
 		return err;
 
-	spin_lock_irqsave(&info->lock, flags);
+	spin_lock_irqsave(&info->test_lock, flags);
 
 	if (val > SARADC_CTRL_CHN_MASK && info->test) {
 		info->test = false;
-		spin_unlock_irqrestore(&info->lock, flags);
-		cancel_delayed_work_sync(&info->work);
+		spin_unlock_irqrestore(&info->test_lock, flags);
+		cancel_delayed_work_sync(&info->test_work);
 		return size;
 	}
 
 	if (!info->test && val <= SARADC_CTRL_CHN_MASK) {
 		info->test = true;
-		info->chn = val;
-		mod_delayed_work(info->wq, &info->work, msecs_to_jiffies(100));
+		info->test_chn = val;
+		mod_delayed_work(info->test_wq, &info->test_work,
+				 msecs_to_jiffies(100));
 	}
 
-	spin_unlock_irqrestore(&info->lock, flags);
+	spin_unlock_irqrestore(&info->test_lock, flags);
 
 	return size;
 }
@@ -580,15 +709,15 @@ static void rockchip_saradc_destroy_wq(void *data)
 {
 	struct rockchip_saradc *info = data;
 
-	destroy_workqueue(info->wq);
+	destroy_workqueue(info->test_wq);
 }
 
 static void rockchip_saradc_test_work(struct work_struct *work)
 {
 	struct rockchip_saradc *info = container_of(work,
-					struct rockchip_saradc, work.work);
+					struct rockchip_saradc, test_work.work);
 
-	rockchip_saradc_start(info, info->chn);
+	rockchip_saradc_start(info, info->test_chn);
 }
 #endif
 
@@ -646,17 +775,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&info->completion);
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq, "failed to get irq\n");
-
-	ret = devm_request_irq(&pdev->dev, irq, rockchip_saradc_isr,
-			       0, dev_name(&pdev->dev), info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed requesting irq %d\n", irq);
-		return ret;
-	}
 
 	info->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(info->pclk))
@@ -759,9 +877,9 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		return ret;
 
 #ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
-	info->wq = create_singlethread_workqueue("adc_wq");
-	INIT_DELAYED_WORK(&info->work, rockchip_saradc_test_work);
-	spin_lock_init(&info->lock);
+	info->test_wq = create_singlethread_workqueue("adc_wq");
+	INIT_DELAYED_WORK(&info->test_work, rockchip_saradc_test_work);
+	spin_lock_init(&info->test_lock);
 	ret = sysfs_create_group(&pdev->dev.kobj, &rockchip_saradc_attr_group);
 	if (ret)
 		return ret;
@@ -783,6 +901,28 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	}
 #endif
 	mutex_init(&info->lock);
+
+	info->dma_mode = device_property_read_bool(&pdev->dev, "rockchip,dma");
+	if (info->dma_mode) {
+		dma_set_mask_and_coherent(&pdev->dev, 40);
+		info->dma_base = dmam_alloc_coherent(&pdev->dev, SARADC3_DMA_SIZE,
+						     &info->dma_phys, GFP_KERNEL);
+		if (!info->dma_base) {
+			dev_err(&pdev->dev, "failed to alloc memory for dma\n");
+			return -ENOMEM;
+		}
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return dev_err_probe(&pdev->dev, irq, "failed to get irq\n");
+
+	ret = devm_request_irq(&pdev->dev, irq, rockchip_saradc_isr,
+			       0, dev_name(&pdev->dev), info);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed requesting irq %d\n", irq);
+		return ret;
+	}
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
@@ -841,7 +981,21 @@ static struct platform_driver rockchip_saradc_driver = {
 	},
 };
 
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
+static int __init rockchip_saradc_driver_init(void)
+{
+	return platform_driver_register(&rockchip_saradc_driver);
+}
+fs_initcall(rockchip_saradc_driver_init);
+
+static void __exit rockchip_saradc_driver_exit(void)
+{
+	platform_driver_unregister(&rockchip_saradc_driver);
+}
+module_exit(rockchip_saradc_driver_exit);
+#else
 module_platform_driver(rockchip_saradc_driver);
+#endif
 
 MODULE_AUTHOR("Heiko Stuebner <heiko@sntech.de>");
 MODULE_DESCRIPTION("Rockchip SARADC driver");

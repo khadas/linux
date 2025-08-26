@@ -744,11 +744,12 @@ struct capture_fmt *find_fmt(struct rkisp_stream *stream, const u32 pixelfmt)
 }
 
 static void restrict_rsz_resolution(struct rkisp_stream *stream,
-				    const struct stream_config *cfg,
+				    u32 dest_w, u32 dest_h,
 				    struct v4l2_rect *max_rsz)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_rect *input_win = rkisp_get_isp_sd_win(&dev->isp_sdev);
+	const struct stream_config *cfg = stream->config;
 
 	if (stream->id == RKISP_STREAM_VIR ||
 	    stream->id == RKISP_STREAM_LDC ||
@@ -769,14 +770,24 @@ static void restrict_rsz_resolution(struct rkisp_stream *stream,
 
 		max_rsz->width = ALIGN(DIV_ROUND_UP(input_win->width, div), 4);
 		max_rsz->height = DIV_ROUND_UP(input_win->height, div);
-	} else if (dev->hw_dev->unite) {
+	} else if (dev->unite_div > ISP_UNITE_DIV1) {
 		/* scale down only for unite mode */
-		max_rsz->width = min_t(int, input_win->width, cfg->max_rsz_width);
-		max_rsz->height = min_t(int, input_win->height, cfg->max_rsz_height);
+		if (dest_w == input_win->width && dest_h == input_win->height) {
+			max_rsz->width = dest_w;
+			max_rsz->height = dest_h;
+		} else {
+			max_rsz->width = min_t(int, input_win->width, cfg->max_rsz_width);
+			max_rsz->height = min_t(int, input_win->height, cfg->max_rsz_height);
+		}
 	} else {
 		/* scale up/down */
-		max_rsz->width = cfg->max_rsz_width;
-		max_rsz->height = cfg->max_rsz_height;
+		if (dest_w == input_win->width && dest_h == input_win->height) {
+			max_rsz->width = dest_w;
+			max_rsz->height = dest_h;
+		} else {
+			max_rsz->width = cfg->max_rsz_width;
+			max_rsz->height = cfg->max_rsz_height;
+		}
 	}
 }
 
@@ -817,7 +828,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	}
 
 	/* do checks on resolution */
-	restrict_rsz_resolution(stream, config, &max_rsz);
+	restrict_rsz_resolution(stream, pixm->width, pixm->height, &max_rsz);
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP ||
 	    (stream->id == RKISP_STREAM_BP && dev->isp_ver != ISP_V30)) {
@@ -863,10 +874,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 				t = &dev->cap_dev.stream[i];
 				if (t->out_isp_fmt.fmt_type != FMT_YUV || !t->streaming)
 					continue;
-				/* isp v32 v33 mp wrap can't use for iqtool */
-				if (i == RKISP_STREAM_MP &&
-				    (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33) &&
-				    dev->cap_dev.wrap_line)
+				/* mp wrap can't use for iqtool */
+				if (i == RKISP_STREAM_MP && dev->cap_dev.wrap_line)
 					continue;
 				if (t->out_fmt.plane_fmt[0].sizeimage > imagsize) {
 					imagsize = t->out_fmt.plane_fmt[0].sizeimage;
@@ -896,10 +905,20 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		plane_fmt = pixm->plane_fmt + i;
 
-		w = (fmt->fmt_type == FMT_FBC) ?
-			ALIGN(pixm->width, 16) : pixm->width;
-		h = (fmt->fmt_type == FMT_FBC) ?
-			ALIGN(pixm->height, 16) : pixm->height;
+		switch (fmt->fmt_type) {
+		case FMT_FBC:
+			w = ALIGN(pixm->width, 16);
+			h = ALIGN(pixm->height, 16);
+			break;
+		case FMT_TILE:
+			w = (pixm->width + 3) / 4;
+			h = pixm->height / 4;
+			break;
+		default:
+			w = pixm->width;
+			h = pixm->height;
+			break;
+		}
 		if (stream->id == RKISP_STREAM_LDC)
 			w = ALIGN(pixm->width, 32);
 		/* mainpath for warp default */
@@ -921,6 +940,8 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		    stream->id != RKISP_STREAM_SP)
 			/* compact mode need bytesperline 4byte align */
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
+		else if (fmt->fmt_type == FMT_TILE)
+			bytesperline = width * fmt->bpp[i];
 		else
 			bytesperline = width * DIV_ROUND_UP(fmt->bpp[i], 8);
 
@@ -1060,7 +1081,7 @@ static int rkisp_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(input->name, "Camera", sizeof(input->name));
+	strscpy(input->name, "Camera", sizeof(input->name));
 
 	return 0;
 }
@@ -1077,7 +1098,6 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 				 struct v4l2_frmsizeenum *fsize)
 {
 	struct rkisp_stream *stream = video_drvdata(file);
-	const struct stream_config *config = stream->config;
 	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
 	struct v4l2_frmsize_discrete *d = &fsize->discrete;
 	struct rkisp_device *dev = stream->ispdev;
@@ -1090,7 +1110,7 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 	if (!find_fmt(stream, fsize->pixel_format))
 		return -EINVAL;
 
-	restrict_rsz_resolution(stream, config, &max_rsz);
+	restrict_rsz_resolution(stream, 0, 0, &max_rsz);
 
 	if (stream->out_isp_fmt.fmt_type == FMT_BAYER ||
 	    stream->id == RKISP_STREAM_FBC ||
@@ -1297,8 +1317,7 @@ static int rkisp_get_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_in
 {
 	struct rkisp_device *dev = stream->ispdev;
 
-	if (stream->id != RKISP_STREAM_MP &&
-	    dev->isp_ver != ISP_V32 && dev->isp_ver != ISP_V33)
+	if (!stream->ops->set_wrap)
 		return -EINVAL;
 
 	arg->width = dev->cap_dev.wrap_width;
@@ -1382,10 +1401,8 @@ static int rkisp_set_iqtool_connect_id(struct rkisp_stream *stream, int stream_i
 		goto err;
 	}
 
-	if ((dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V33) &&
-	    (stream_id == RKISP_STREAM_MP) &&
-	    dev->cap_dev.wrap_line) {
-		v4l2_err(&dev->v4l2_dev, "isp v32 v33 mp wrap can't use for iqtool");
+	if (stream_id == RKISP_STREAM_MP && dev->cap_dev.wrap_line) {
+		v4l2_err(&dev->v4l2_dev, "mp wrap can't use for iqtool");
 		goto err;
 	}
 
@@ -1579,6 +1596,16 @@ static int rkisp_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 			"Shield pix data 16-bit",
 			sizeof(f->description));
 		break;
+	case V4L2_PIX_FMT_TILE420:
+		strscpy(f->description,
+			"Rockchip yuv420 tile",
+			sizeof(f->description));
+		break;
+	case V4L2_PIX_FMT_TILE422:
+		strscpy(f->description,
+			"Rockchip yuv422 tile",
+			sizeof(f->description));
+		break;
 	default:
 		break;
 	}
@@ -1722,7 +1749,7 @@ static int rkisp_querycap(struct file *file, void *priv,
 	struct device *dev = stream->ispdev->dev;
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(cap->card, vdev->name, sizeof(cap->card));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	snprintf(cap->driver, sizeof(cap->driver),
 		 "%s_v%d", dev->driver->name,
 		 stream->ispdev->isp_ver >> 4);
@@ -1806,9 +1833,6 @@ static void rkisp_stream_fast(struct work_struct *work)
 	struct rkisp_device *ispdev = cap_dev->ispdev;
 	struct v4l2_subdev *sd = ispdev->active_sensor->sd;
 	int ret;
-
-	if (ispdev->isp_ver != ISP_V32 && ispdev->isp_ver != ISP_V33)
-		return;
 
 	mutex_lock(&ispdev->hw_dev->dev_lock);
 	rkisp_chk_tb_over(ispdev);
@@ -1954,6 +1978,8 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 		ret = rkisp_register_stream_v39(dev);
 	} else if (dev->isp_ver == ISP_V33) {
 		ret = rkisp_register_stream_v33(dev);
+	} else if (dev->isp_ver == ISP_V35) {
+		ret = rkisp_register_stream_v35(dev);
 	}
 
 	INIT_WORK(&cap_dev->fast_work, rkisp_stream_fast);
@@ -1976,6 +2002,8 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v39(dev);
 	else if (dev->isp_ver == ISP_V33)
 		rkisp_unregister_stream_v33(dev);
+	else if (dev->isp_ver == ISP_V35)
+		rkisp_unregister_stream_v35(dev);
 }
 
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
@@ -1994,6 +2022,8 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v39_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V33)
 		rkisp_mi_v33_isr(mis_val, dev);
+	else if (dev->isp_ver == ISP_V35)
+		rkisp_mi_v35_isr(mis_val, dev);
 }
 
 void rkisp_mipi_v3x_isr(unsigned int phy, unsigned int packet,

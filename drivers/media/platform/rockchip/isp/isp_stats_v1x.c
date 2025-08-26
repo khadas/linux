@@ -261,8 +261,8 @@ rkisp1_stats_send_meas_v1x(struct rkisp_isp_stats_vdev *stats_vdev,
 	unsigned int cur_frame_id = -1;
 	struct rkisp1_stat_buffer *cur_stat_buf;
 	struct rkisp_buffer *cur_buf = NULL;
-	struct rkisp_stats_v1x_ops *ops =
-		(struct rkisp_stats_v1x_ops *)stats_vdev->priv_ops;
+	struct rkisp_stats_v1x_ops *ops = stats_vdev->priv_ops;
+	unsigned long flags = 0;
 
 	cur_frame_id = atomic_read(&stats_vdev->dev->isp_sdev.frm_sync_seq) - 1;
 	if (cur_frame_id != meas_work->frame_id) {
@@ -272,14 +272,14 @@ rkisp1_stats_send_meas_v1x(struct rkisp_isp_stats_vdev *stats_vdev,
 		cur_frame_id = meas_work->frame_id;
 	}
 
-	spin_lock(&stats_vdev->rd_lock);
+	spin_lock_irqsave(&stats_vdev->rd_lock, flags);
 	/* get one empty buffer */
 	if (!list_empty(&stats_vdev->stat)) {
 		cur_buf = list_first_entry(&stats_vdev->stat,
 					   struct rkisp_buffer, queue);
 		list_del(&cur_buf->queue);
 	}
-	spin_unlock(&stats_vdev->rd_lock);
+	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 
 	if (!cur_buf)
 		return;
@@ -328,11 +328,12 @@ rkisp1_stats_isr_v1x(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_isp_readout_work work;
 	unsigned int cur_frame_id =
 		atomic_read(&stats_vdev->dev->isp_sdev.frm_sync_seq) - 1;
+	unsigned long flags = 0;
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif
 
-	spin_lock(&stats_vdev->irq_lock);
+	spin_lock_irqsave(&stats_vdev->irq_lock, flags);
 
 	isp_mis_tmp = isp_ris & (CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN |
 			CIF_ISP_EXP_END | CIF_ISP_HIST_MEASURE_RDY);
@@ -382,7 +383,7 @@ rkisp1_stats_isr_v1x(struct rkisp_isp_stats_vdev *stats_vdev,
 #endif
 
 unlock:
-	spin_unlock(&stats_vdev->irq_lock);
+	spin_unlock_irqrestore(&stats_vdev->irq_lock, flags);
 }
 
 static void

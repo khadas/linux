@@ -1583,7 +1583,7 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 static void __iomem *rk3399_cru_base;
 static void __iomem *rk3399_pmucru_base;
 
-void rk3399_dump_cru(void)
+static void rk3399_dump_cru(void)
 {
 	if (rk3399_cru_base) {
 		pr_warn("CRU:\n");
@@ -1598,18 +1598,6 @@ void rk3399_dump_cru(void)
 			       0x134, false);
 	}
 }
-EXPORT_SYMBOL_GPL(rk3399_dump_cru);
-
-static int rk3399_clk_panic(struct notifier_block *this,
-			    unsigned long ev, void *ptr)
-{
-	rk3399_dump_cru();
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rk3399_clk_panic_block = {
-	.notifier_call = rk3399_clk_panic,
-};
 
 static int protect_clocks[] = {
 	SCLK_VOP0_PWM,
@@ -1702,8 +1690,8 @@ static void __init rk3399_pmu_clk_init(struct device_node *np)
 
 	rockchip_clk_of_add_provider(np, ctx);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &rk3399_clk_panic_block);
+	if (!rk_dump_cru)
+		rk_dump_cru = rk3399_dump_cru;
 }
 CLK_OF_DECLARE(rk3399_cru_pmu, "rockchip,rk3399-pmucru", rk3399_pmu_clk_init);
 

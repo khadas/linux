@@ -294,7 +294,7 @@ static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 	} else {
 		if (rk628->version == RK628F_VERSION) {
 			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
-					0x08000000);
+					0x1);
 			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
 		}
 	}

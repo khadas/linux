@@ -10,6 +10,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3328-cru.h>
 #include "clk.h"

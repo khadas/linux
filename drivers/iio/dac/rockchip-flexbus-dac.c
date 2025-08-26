@@ -229,6 +229,7 @@ static int rockchip_flexbus_dac_write_raw(struct iio_dev *indio_dev,
 			buf[0] = val & 0xffff;
 			break;
 		}
+		dma_wmb();
 
 		ret = rkfb_dac->ops->write_block(rkfb_dac, rkfb_dac->src_buf,
 						 rkfb_dac->src_buf_phys, rkfb_dac->src_buf_len, 1);
@@ -358,11 +359,10 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 	rkfb_dac->dev = &pdev->dev;
 	rkfb_dac->rkfb = rkfb;
-	rockchip_flexbus_set_fb0(rkfb, rkfb_dac, rockchip_flexbus_dac_isr);
 
 	ret = rockchip_flexbus_dac_parse_dt(rkfb_dac);
 	if (ret)
-		goto err_fb0;
+		return ret;
 
 	mutex_init(&rkfb_dac->lock);
 	init_completion(&rkfb_dac->completion);
@@ -405,12 +405,12 @@ static int rockchip_flexbus_dac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mutex_destroy;
 
+	rockchip_flexbus_set_fb0(rkfb, rkfb_dac, rockchip_flexbus_dac_isr);
+
 	return ret;
 
 err_mutex_destroy:
 	mutex_destroy(&rkfb_dac->lock);
-err_fb0:
-	rockchip_flexbus_set_fb0(rkfb, NULL, NULL);
 
 	return ret;
 }
@@ -421,11 +421,21 @@ static int rockchip_flexbus_dac_remove(struct platform_device *pdev)
 	struct rockchip_flexbus_dac *rkfb_dac = iio_priv(indio_dev);
 	struct rockchip_flexbus *rkfb = rkfb_dac->rkfb;
 
-	mutex_destroy(&rkfb_dac->lock);
 	rockchip_flexbus_set_fb0(rkfb, NULL, NULL);
+	mutex_destroy(&rkfb_dac->lock);
 
 	return 0;
 }
+
+static int rockchip_flexbus_dac_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rockchip_flexbus_dac *rkfb_dac = iio_priv(indio_dev);
+
+	return rockchip_flexbus_dac_init(rkfb_dac);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_flexbus_dac_pm_ops, NULL, rockchip_flexbus_dac_resume);
 
 static struct platform_driver rockchip_flexbus_dac_driver = {
 	.probe	= rockchip_flexbus_dac_probe,
@@ -433,6 +443,7 @@ static struct platform_driver rockchip_flexbus_dac_driver = {
 	.driver	= {
 		.name		= "rockchip_flexbus_dac",
 		.of_match_table = rockchip_flexbus_dac_of_match,
+		.pm		= pm_sleep_ptr(&rockchip_flexbus_dac_pm_ops),
 	},
 };
 

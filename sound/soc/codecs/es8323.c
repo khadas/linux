@@ -755,6 +755,9 @@ static int es8323_resume(struct snd_soc_component *component)
 	snd_soc_component_write(component, 0x31, es8323_DEF_VOL);
 	snd_soc_component_write(component, 0x30, es8323_DEF_VOL);
 	snd_soc_component_write(component, 0x19, 0x02);
+
+	es8323_set_bias_level(component, SND_SOC_BIAS_OFF);
+
 	return 0;
 }
 
@@ -818,7 +821,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	usleep_range(18000, 20000);
 	snd_soc_component_write(component, 0x04, 0x3C);
 
-	es8323_set_bias_level(component, SND_SOC_BIAS_STANDBY);
+	es8323_set_bias_level(component, SND_SOC_BIAS_OFF);
 	return 0;
 }
 

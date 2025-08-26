@@ -158,8 +158,11 @@ struct link_train {
 	u8 link_rate;
 	u8 lane_count;
 	u8 training_lane[4];
+	u8 max_link_rate;
+	u8 max_lane_count;
 	bool ssc;
 	bool enhanced_framing;
+	bool assr;
 
 	enum link_training_state lt_state;
 };
@@ -208,6 +211,8 @@ struct analogix_dp_device {
 	u32 split_area;
 
 	const struct analogix_dp_output_format *output_fmt;
+
+	bool dp_mode;
 };
 
 /* analogix_dp_reg.c */
@@ -279,5 +284,7 @@ void analogix_dp_init(struct analogix_dp_device *dp);
 void analogix_dp_irq_handler(struct analogix_dp_device *dp);
 void analogix_dp_phy_test(struct analogix_dp_device *dp);
 void analogix_dp_check_device_service_irq(struct analogix_dp_device *dp);
+void analogix_dp_enable_assr_mode(struct analogix_dp_device *dp, bool enable);
+bool analogix_dp_get_assr_mode(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */

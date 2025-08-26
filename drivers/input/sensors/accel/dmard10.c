@@ -178,7 +178,7 @@ struct sensor_axis_average {
 };
 
 static struct sensor_axis_average axis_average;
-int gsensor_reset(struct i2c_client *client){
+static int gsensor_reset(struct i2c_client *client){
 	char buffer[7], buffer2[2];
 	/* 1. check D10 , VALUE_STADR = 0x55 , VALUE_STAINT = 0xAA */
 	buffer[0] = REG_STADR;

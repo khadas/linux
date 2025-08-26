@@ -88,6 +88,7 @@
 	};
 
 	acodec_sound: acodec-sound {
+		status = "disabled";
 		compatible = "rockchip,multicodecs-card";
 		rockchip,card-name = "rockchip,rk3308-acodec";
 		rockchip,codec-hp-det;
@@ -108,29 +109,27 @@
 		rockchip,wait-card-locked = <0>;
 	};
 
+	spdif_dummy_codec: spdif-dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
 	spdif_rx_sound: spdif-rx-sound {
 		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,spdif-rx-sound";
-		simple-audio-card,mclk-fs = <128>;
-		simple-audio-card,cpu {
-			sound-dai = <&spdif_rx>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
-		};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,spdif-rx";
+		rockchip,mclk-fs = <128>;
+		rockchip,cpu = <&spdif_rx>;
+		rockchip,codec = <&dummy_codec>;
 	};
 
 	spdif_tx_sound: spdif-tx-sound {
 		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,spdif-tx-sound";
-		simple-audio-card,cpu {
-			sound-dai = <&spdif_tx>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
-		};
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,spdif-tx";
+		rockchip,mclk-fs = <128>;
+		rockchip,cpu = <&spdif_tx>;
+		rockchip,codec = <&spdif_dummy_codec>;
 	};
 
 	tas5731_sound: tas5731-sound {
@@ -310,11 +309,6 @@
 	opp-1104000000 {
 		status = "okay";
 	};
-};
-
-&dmc {
-	center-supply = <&vdd_log>;
-	status = "okay";
 };
 
 &emmc {
@@ -770,6 +764,16 @@
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "disabled";
+};
+
+&spdif_rx {
+	status = "disabled";
+	#sound-dai-cells = <0>;
+};
+
+&spdif_tx {
+	status = "disabled";
+	#sound-dai-cells = <0>;
 };
 
 &tsadc {

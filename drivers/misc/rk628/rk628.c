@@ -31,6 +31,7 @@
 #include "rk628_hdmitx.h"
 #include "rk628_efuse.h"
 #include "rk628_config.h"
+#include "rk628_pwm.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
@@ -586,6 +587,27 @@ static int rk628_fb_notifier_callback(struct notifier_block *nb,
 }
 #endif
 
+static int rk628_get_pwm_bl(struct rk628 *rk628)
+{
+	struct device_node *backlight;
+
+	backlight = of_parse_phandle(rk628->dev->of_node, "panel-backlight", 0);
+	if (backlight) {
+		rk628->panel->backlight = of_find_backlight_by_node(backlight);
+		of_node_put(backlight);
+
+		if (!rk628->panel->backlight) {
+			dev_err(rk628->dev, "%s: failed to find backlight\n", __func__);
+			return -EAGAIN;
+		}
+	} else {
+		dev_err(rk628->dev, "%s: failed to find panel-backlight\n", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static void rk628_display_work(struct work_struct *work)
 {
 	u8 ret = 0;
@@ -609,7 +631,22 @@ static void rk628_display_work(struct work_struct *work)
 	if (ret & HDMIRX_PLUGIN) {
 		/* if resolution or input format change, disable first */
 		rk628_display_disable(rk628);
-		rk628_display_enable(rk628);
+		if (rk628->pwm_bl_en && !rk628->panel->backlight) {
+			int bl_ret = 0;
+
+			bl_ret = rk628_get_pwm_bl(rk628);
+			if (!bl_ret) {
+				rk628_display_enable(rk628);
+			} else if (bl_ret == -EAGAIN) {
+				queue_delayed_work(rk628->monitor_wq,
+						   &rk628->delay_work, msecs_to_jiffies(50));
+				return;
+			} else {
+				return;
+			}
+		} else {
+			rk628_display_enable(rk628);
+		}
 	} else if (ret & HDMIRX_PLUGOUT) {
 		rk628_display_disable(rk628);
 	}
@@ -912,6 +949,19 @@ static int rk628_display_timings_get(struct rk628 *rk628)
 
 	return ret;
 
+}
+
+static void rk628_pwm_work(struct work_struct *work)
+{
+	struct rk628 *rk628 = container_of(work, struct rk628, pwm_delay_work.work);
+	int ret;
+
+	ret = rk628_get_pwm_bl(rk628);
+	if (!ret)
+		rk628_display_enable(rk628);
+	else if (ret == -EAGAIN)
+		queue_delayed_work(rk628->pwm_wq, &rk628->pwm_delay_work,
+				   msecs_to_jiffies(50));
 }
 
 #define DEBUG_PRINT(args...) \
@@ -1377,6 +1427,7 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 	rk628_mipi_dsi_create_debugfs_file(rk628);
 	rk628_gvi_create_debugfs_file(rk628);
 	rk628_hdmitx_create_debugfs_file(rk628);
+	rk628_pwm_create_debugfs_file(rk628);
 }
 
 static void rk628_loader_protect(struct rk628 *rk628)
@@ -1412,6 +1463,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct rk628 *rk628;
 	int i, ret;
 	unsigned long irq_flags;
+	struct device_node *np;
 
 	rk628 = devm_kzalloc(dev, sizeof(*rk628), GFP_KERNEL);
 	if (!rk628)
@@ -1422,17 +1474,38 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, rk628);
 	rk628->hdmirx_irq = client->irq;
 
+	np = of_find_node_by_name(rk628->dev->of_node, "rk628-pwm");
+	if (of_device_is_available(np)) {
+		ret = rk628_pwm_probe(rk628, np);
+		if (ret) {
+			of_node_put(np);
+			dev_err(dev, "failed to probe pwm\n");
+			return ret;
+		}
+	}
+	of_node_put(np);
+
+	if (rk628->pwm_bl_en) {
+		rk628->pwm_wq = alloc_ordered_workqueue("%s",
+			WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk628-pwm-wq");
+		if (!rk628->pwm_wq)
+			return -ENOMEM;
+
+		INIT_DELAYED_WORK(&rk628->pwm_delay_work, rk628_pwm_work);
+	}
+
 	ret = rk628_display_route_info_parse(rk628);
 	if (ret) {
-		dev_err(dev, "display route parse err\n");
-		return ret;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "display route err\n");
+		goto destroy_pwm_wq;
 	}
 
 	if (!rk628_output_is_csi(rk628)) {
 		ret = rk628_display_timings_get(rk628);
 		if (ret && !rk628_output_is_hdmi(rk628)) {
 			dev_info(dev, "display timings err\n");
-			return ret;
+			goto destroy_pwm_wq;
 		}
 	}
 
@@ -1443,7 +1516,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (IS_ERR(rk628->soc_24M)) {
 		ret = PTR_ERR(rk628->soc_24M);
 		dev_err(dev, "Unable to get soc_24M: %d\n", ret);
-		return ret;
+		goto destroy_pwm_wq;
 	}
 
 	clk_prepare_enable(rk628->soc_24M);
@@ -1518,6 +1591,8 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		INIT_DELAYED_WORK(&rk628->dsi_delay_work, rk628_dsi_work);
 	}
 
+	rk628_pwm_init(rk628);
+
 	rk628_cru_init(rk628);
 
 	if (rk628_output_is_csi(rk628))
@@ -1566,7 +1641,11 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 					    msecs_to_jiffies(50));
 		}
 	} else {
-		rk628_display_enable(rk628);
+		if (rk628->pwm_bl_en)
+			queue_delayed_work(rk628->pwm_wq, &rk628->pwm_delay_work,
+					   msecs_to_jiffies(50));
+		else
+			rk628_display_enable(rk628);
 	}
 
 	pm_runtime_enable(dev);
@@ -1576,6 +1655,11 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 err_clk:
 	clk_disable_unprepare(rk628->soc_24M);
+
+destroy_pwm_wq:
+	if (rk628->pwm_wq)
+		destroy_workqueue(rk628->pwm_wq);
+
 	return ret;
 }
 
@@ -1601,6 +1685,9 @@ static int rk628_i2c_remove(struct i2c_client *client)
 	rk628_set_hdmirx_irq(rk628, GRF_INTR0_EN, false);
 	cancel_delayed_work_sync(&rk628->delay_work);
 	destroy_workqueue(rk628->monitor_wq);
+	cancel_delayed_work_sync(&rk628->pwm_delay_work);
+	destroy_workqueue(rk628->pwm_wq);
+	put_device(&rk628->panel->backlight->dev);
 	pm_runtime_disable(dev);
 	clk_disable_unprepare(rk628->soc_24M);
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE

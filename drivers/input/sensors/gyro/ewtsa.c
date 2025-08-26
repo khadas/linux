@@ -278,7 +278,7 @@ static int ewtsa_enable(struct i2c_client *client)
 	return 0;
 }
 
-void gyro_dev_reset(struct i2c_client *client)
+static void gyro_dev_reset(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);

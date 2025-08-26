@@ -35,7 +35,6 @@
 #if defined(CONFIG_TOUCHSCREEN_PARADE) \
 	|| defined(CONFIG_TOUCHSCREEN_PARADE_MODULE)
 extern struct pt_loader_platform_data _pt_loader_platform_data;
-extern irqreturn_t pt_irq(int irq, void *handle);
 
 int pt_xres(struct pt_core_platform_data *pdata, struct device *dev);
 int pt_init(struct pt_core_platform_data *pdata, int on,

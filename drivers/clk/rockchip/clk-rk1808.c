@@ -8,6 +8,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk1808-cru.h>
 #include "clk.h"
@@ -1149,7 +1150,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 
 static void __iomem *rk1808_cru_base;
 
-void rk1808_dump_cru(void)
+static void rk1808_dump_cru(void)
 {
 	if (rk1808_cru_base) {
 		pr_warn("CRU:\n");
@@ -1161,18 +1162,6 @@ void rk1808_dump_cru(void)
 			       0x100, false);
 	}
 }
-EXPORT_SYMBOL_GPL(rk1808_dump_cru);
-
-static int rk1808_clk_panic(struct notifier_block *this,
-			    unsigned long ev, void *ptr)
-{
-	rk1808_dump_cru();
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rk1808_clk_panic_block = {
-	.notifier_call = rk1808_clk_panic,
-};
 
 static void __init rk1808_clk_init(struct device_node *np)
 {
@@ -1214,8 +1203,8 @@ static void __init rk1808_clk_init(struct device_node *np)
 
 	rockchip_clk_of_add_provider(np, ctx);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &rk1808_clk_panic_block);
+	if (!rk_dump_cru)
+		rk_dump_cru = rk1808_dump_cru;
 }
 
 CLK_OF_DECLARE(rk1808_cru, "rockchip,rk1808-cru", rk1808_clk_init);

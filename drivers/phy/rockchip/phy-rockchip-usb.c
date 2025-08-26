@@ -3,7 +3,7 @@
  * Rockchip usb PHY driver
  *
  * Copyright (C) 2014 Yunzhi Li <lyz@rock-chips.com>
- * Copyright (C) 2014 ROCKCHIP, Inc.
+ * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk.h>

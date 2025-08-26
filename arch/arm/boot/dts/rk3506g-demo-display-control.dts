@@ -578,6 +578,15 @@
 };
 
 &rockchip_suspend {
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_ARMOFF_DDRPD
+		| RKPM_24M_OSC_DIS
+		| RKPM_32K_CLK
+		| RKPM_32K_SRC_RC
+		)
+	>;
+
 	rockchip,apios-suspend = <
 		(0
 		| RKPM_PWREN_SLEEP_GPIO0C1 | RKPM_PWREN_SLEEP_ACT_HIGH
@@ -591,6 +600,7 @@
 
 &sai1 {
 	status = "okay";
+	rockchip,mclk-no-set;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rm_io9_sai1_sclk
 		     &rm_io10_sai1_lrck
@@ -600,6 +610,7 @@
 
 &sai4 {
 	status = "okay";
+	rockchip,mclk-no-set;
 };
 
 &saradc {

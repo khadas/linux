@@ -30,6 +30,12 @@
 #define RKISP_VICAP_CMD_SOF \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 7, struct rkisp_vicap_sof)
 
+#define RKISP_VICAP_CMD_MULTI_ONLINE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 8, int)
+
+#define RKISP_VICAP_CMD_GET_UNITE_EXTEND_PIXEL \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, int)
+
 #define RKISP_VICAP_BUF_CNT 3
 #define RKISP_VICAP_BUF_CNT_MAX 8
 #define RKISP_RX_BUF_POOL_MAX (RKISP_VICAP_BUF_CNT_MAX * 3)
@@ -57,7 +63,8 @@ enum rkisp_vicap_link {
 };
 
 struct rkisp_vicap_mode {
-	char *name;
+	/* copy rkisp_device name */
+	char name[128];
 	enum rkisp_vicap_link rdbk_mode;
 
 	struct rkisp_vicap_input input;

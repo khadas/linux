@@ -1690,10 +1690,10 @@ static void sc4238_get_module_inf(struct sc4238 *sc4238,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC4238_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc4238->module_name,
+	strscpy(inf->base.sensor, SC4238_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc4238->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc4238->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc4238->len_name, sizeof(inf->base.lens));
 }
 
 static int sc4238_get_gain_reg(struct sc4238 *sc4238, u32 total_gain,

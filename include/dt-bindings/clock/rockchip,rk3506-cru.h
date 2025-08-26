@@ -280,8 +280,9 @@
 #define CLK_WIFI_OUT			281
 #define CLK_V0PLL_REF			282
 #define CLK_V1PLL_REF			283
+#define CLK_32K_FRAC_MUX		284
 
-#define CLK_NR_CLKS			(CLK_V1PLL_REF + 1)
+#define CLK_NR_CLKS			(CLK_32K_FRAC_MUX + 1)
 
 /* soft-reset indices */
 

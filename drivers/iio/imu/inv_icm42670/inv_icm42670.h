@@ -166,6 +166,28 @@
 #define BIT_ACCEL_UI_FS_SEL_MASK	GENMASK(6, 5)
 #define BIT_ACCEL_ODR_MASK			GENMASK(3, 0)
 
+/*
+ * GYRO_CONFIG1
+ * Register Name : GYRO_CONFIG1
+ */
+
+/*
+ * gyro_ui_filt_bw
+ * Selects GYRO UI low pass filter bandwidth
+ *
+ * 000: Low pass filter bypassed
+ * 001: 180 Hz
+ * 010: 121 Hz
+ * 011: 73 Hz
+ * 100: 53 Hz
+ * 101: 34 Hz
+ * 110: 25 Hz
+ * 111: 16 Hz
+ *
+ * This field can be changed on-the-fly even if gyro sensor is on
+ */
+#define GYRO_CONFIG1_GYRO_UI_FILT_BW_MASK	0x07
+
 /* Bank0 REG_GYRO_CONFIG1 */
 #define BIT_GYR_UI_FLT_BW_BYPASS		0x00
 #define BIT_GYR_UI_FLT_BW_180HZ			0x01
@@ -181,6 +203,23 @@
 #define BIT_GYR_UI_AVG_IND_16X			0x30
 #define BIT_GYR_UI_AVG_IND_32X			0x40
 #define BIT_GYR_UI_AVG_IND_64X			0x50
+
+/*
+ * accel_ui_filt_bw
+ * Selects ACCEL UI low pass filter bandwidth
+ *
+ * 000: Low pass filter bypassed
+ * 001: 180 Hz
+ * 010: 121 Hz
+ * 011: 73 Hz
+ * 100: 53 Hz
+ * 101: 34 Hz
+ * 110: 25 Hz
+ * 111: 16 Hz
+ *
+ * This field can be changed on-the-fly even if accel sensor is on
+ */
+#define ACCEL_CONFIG1_ACCEL_UI_FILT_BW_MASK	0x07
 
 /* Bank0 REG_ACCEL_CONFIG1 */
 #define BIT_ACC_FILT_BW_IND_BYPASS		0x00
@@ -204,12 +243,12 @@
 #define SHIFT_INT1_POLARITY			0x00
 #define BIT_ONLY_INT1_ACTIVE_HIGH   \
 		((1 << SHIFT_INT1_POLARITY) | \
-		(1 << SHIFT_INT1_DRIVE_CIRCUIT) | \
 		(0 << SHIFT_INT1_MODE))
 #define BIT_ONLY_INT1_ACTIVE_LOW	\
 		((0 << SHIFT_INT1_POLARITY) | \
-		(1 << SHIFT_INT1_DRIVE_CIRCUIT) | \
 		(0 << SHIFT_INT1_MODE))
+#define BIT_ONLY_INT1_OPEN_DRAIN (0 << SHIFT_INT1_DRIVE_CIRCUIT)
+#define BIT_ONLY_INT1_PUSH_PULL  (1 << SHIFT_INT1_DRIVE_CIRCUIT)
 
 /* Bank0 REG_PWR_MGMT_0 */
 #define BIT_PWR_MGMTO_ACCEL_LP_CLK_SEL  BIT(7)
@@ -481,13 +520,17 @@ struct icm42670_data {
 	struct regmap *regmap;
 	struct iio_trigger  *trig;
 	struct device_node	*node;
-	int int1_gpio;
+	struct gpio_desc *int1_gpiod;
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
 	u16  accel_frequency;
 	u16  gyro_frequency;
 	u16  accel_frequency_buff;
 	u16  gyro_frequency_buff;
+	u16  accel_lpf_bw;
+	u16  gyro_lpf_bw;
+	u16  accel_lpf_bw_buff;
+	u16  gyro_lpf_bw_buff;
 	int irq;
 	u8 irq_mask;
 	int chip_type; // not used

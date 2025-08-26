@@ -336,7 +336,7 @@ static int rk618_cru_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	strlcpy(clkin_name, __clk_get_name(clk), sizeof(clkin_name));
+	strscpy(clkin_name, __clk_get_name(clk), sizeof(clkin_name));
 
 	clk = devm_clk_get(dev, "lcdc0_dclkp");
 	if (IS_ERR(clk)) {
@@ -351,7 +351,7 @@ static int rk618_cru_probe(struct platform_device *pdev)
 
 	parent_name = __clk_get_name(clk);
 	if (parent_name)
-		strlcpy(lcdc0_dclkp_name, parent_name,
+		strscpy(lcdc0_dclkp_name, parent_name,
 			sizeof(lcdc0_dclkp_name));
 
 	clk = devm_clk_get(dev, "lcdc1_dclkp");
@@ -367,7 +367,7 @@ static int rk618_cru_probe(struct platform_device *pdev)
 
 	parent_name = __clk_get_name(clk);
 	if (parent_name)
-		strlcpy(lcdc1_dclkp_name, parent_name,
+		strscpy(lcdc1_dclkp_name, parent_name,
 			sizeof(lcdc1_dclkp_name));
 
 	rk618_clk_register_plls(cru);

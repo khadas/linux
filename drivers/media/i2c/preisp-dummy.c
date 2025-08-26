@@ -245,10 +245,10 @@ static void pisp_dmy_get_module_inf(struct pisp_dmy *pisp_dmy,
 				    struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, PISP_DMY_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, pisp_dmy->module_name,
+	strscpy(inf->base.sensor, PISP_DMY_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, pisp_dmy->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, pisp_dmy->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, pisp_dmy->len_name, sizeof(inf->base.lens));
 }
 
 static long pisp_dmy_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

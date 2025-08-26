@@ -550,7 +550,9 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	}
 	disable_irq(mpp->irq);
 	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
-		mpp_err("task has been handled\n");
+		mpp_err("session %d:%d task %d has been handled\n",
+			session->device_type, session->index, task->task_index);
+		enable_irq(mpp->irq);
 		return;
 	}
 	mpp_err("session %d:%d task %d processing time out!\n",
@@ -2237,7 +2239,10 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 	if (IS_ERR(mpp->iommu_info)) {
 		dev_err(dev, "failed to attach iommu\n");
 		mpp->iommu_info = NULL;
+	} else {
+		mpp->iommu_info->queue = mpp->queue;
 	}
+
 	if (mpp->hw_ops->init) {
 		ret = mpp->hw_ops->init(mpp);
 		if (ret)

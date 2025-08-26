@@ -511,9 +511,9 @@ static int rk628_hdmi_config_video_timing(struct rk628_hdmi *hdmi,
 	value = mode->vsync_end - mode->vsync_start;
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VDURATION, value & 0xFF);
 
-	hdmi_writeb(hdmi, HDMI_PHY_PRE_DIV_RATIO, 0x1e);
-	hdmi_writeb(hdmi, PHY_FEEDBACK_DIV_RATIO_LOW, 0x2c);
-	hdmi_writeb(hdmi, PHY_FEEDBACK_DIV_RATIO_HIGH, 0x01);
+	hdmi_writeb(hdmi, HDMI_PHY_PRE_DIV_RATIO, 0x02);
+	hdmi_writeb(hdmi, PHY_FEEDBACK_DIV_RATIO_LOW, 0x14);
+	hdmi_writeb(hdmi, PHY_FEEDBACK_DIV_RATIO_HIGH, 0x00);
 
 	return 0;
 }

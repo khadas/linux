@@ -24,26 +24,85 @@
 unsigned long rockchip_soc_id;
 EXPORT_SYMBOL(rockchip_soc_id);
 
+static int rk3566_soc_init(struct device *dev)
+{
+	struct nvmem_cell *cell;
+	unsigned char *val;
+
+	cell = nvmem_cell_get(dev, "remark_spec_serial_number");
+	if (!IS_ERR(cell)) {
+		val = nvmem_cell_read(cell, NULL);
+		nvmem_cell_put(cell);
+		if (IS_ERR(val))
+			return PTR_ERR(val);
+
+		if (*val) {
+			if (*val == 0x1b)
+				rockchip_soc_id = ROCKCHIP_SOC_RK3566PRO;
+			kfree(val);
+			return 0;
+		}
+
+		kfree(val);
+	}
+
+	cell = nvmem_cell_get(dev, "specification_serial_number");
+	if (!IS_ERR(cell)) {
+		val = nvmem_cell_read(cell, NULL);
+		nvmem_cell_put(cell);
+		if (IS_ERR(val))
+			return PTR_ERR(val);
+
+		if (*val == 0x1b)
+			rockchip_soc_id = ROCKCHIP_SOC_RK3566PRO;
+
+		kfree(val);
+	}
+
+	return 0;
+}
+
 static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct nvmem_cell *cell;
 	unsigned char *efuse_buf, buf[16];
+	bool is_cpu_code1_valid = false;
 	size_t len = 0;
 	int i;
 
-	cell = nvmem_cell_get(dev, "cpu-code");
+	if (cpu_is_rk3566()) {
+		rk3566_soc_init(dev);
+		if (soc_is_rk3566pro())
+			goto skip_cpu_code;
+	}
+
+	cell = nvmem_cell_get(dev, "cpu-code1");
 	if (!IS_ERR(cell)) {
 		efuse_buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
 		if (IS_ERR(efuse_buf))
 			return PTR_ERR(efuse_buf);
-
-		if (len == 2)
+		if (len == 2 && efuse_buf[0] && efuse_buf[1]) {
 			rockchip_set_cpu((efuse_buf[0] << 8 | efuse_buf[1]));
+			is_cpu_code1_valid = true;
+		}
 		kfree(efuse_buf);
 	}
+	if (!is_cpu_code1_valid) {
+		cell = nvmem_cell_get(dev, "cpu-code");
+		if (!IS_ERR(cell)) {
+			efuse_buf = nvmem_cell_read(cell, &len);
+			nvmem_cell_put(cell);
+			if (IS_ERR(efuse_buf))
+				return PTR_ERR(efuse_buf);
+			if (len == 2)
+				rockchip_set_cpu((efuse_buf[0] << 8 | efuse_buf[1]));
+			kfree(efuse_buf);
+		}
+	}
 
+skip_cpu_code:
 	cell = nvmem_cell_get(dev, "cpu-version");
 	if (!IS_ERR(cell)) {
 		efuse_buf = nvmem_cell_read(cell, &len);
@@ -153,6 +212,19 @@ static void rv1109_init(void)
 static void rv1126_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RV1126;
+}
+
+#define RV1126B_OS_REG1	0x20130204
+static void rv1109b_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RV1109B;
+	rockchip_set_cpu_version_from_os_reg(RV1126B_OS_REG1);
+}
+
+static void rv1126b_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RV1126B;
+	rockchip_set_cpu_version_from_os_reg(RV1126B_OS_REG1);
 }
 
 static void rk3288_init(void)
@@ -270,8 +342,12 @@ int rockchip_soc_id_init(void)
 		rv1106_init();
 	} else if (cpu_is_rv1109()) {
 		rv1109_init();
+	} else if (cpu_is_rv1109b()) {
+		rv1109b_init();
 	} else if (cpu_is_rv1126()) {
 		rv1126_init();
+	} else if (cpu_is_rv1126b()) {
+		rv1126b_init();
 	} else if (cpu_is_rk3528()) {
 		rk3528_init();
 	}  else if (cpu_is_rk3566()) {

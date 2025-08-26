@@ -965,12 +965,12 @@ static int aw883xx_profile_info(struct snd_kcontrol *kcontrol,
 
 	prof_name = aw_dev_get_prof_name(aw883xx->aw_pa, count);
 	if (prof_name == NULL) {
-		strlcpy(uinfo->value.enumerated.name, "null",
+		strscpy(uinfo->value.enumerated.name, "null",
 						strlen("null") + 1);
 		return 0;
 	}
 
-	strlcpy(name, prof_name, sizeof(uinfo->value.enumerated.name));
+	strscpy(name, prof_name, sizeof(uinfo->value.enumerated.name));
 
 	return 0;
 }
@@ -1049,7 +1049,7 @@ static int aw883xx_switch_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= count)
 		uinfo->value.enumerated.item = count - 1;
 
-	strlcpy(uinfo->value.enumerated.name,
+	strscpy(uinfo->value.enumerated.name,
 		aw883xx_switch[uinfo->value.enumerated.item],
 		strlen(aw883xx_switch[uinfo->value.enumerated.item]) + 1);
 
@@ -1124,7 +1124,7 @@ static int aw883xx_monitor_switch_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= count)
 		uinfo->value.enumerated.item = count - 1;
 
-	strlcpy(uinfo->value.enumerated.name,
+	strscpy(uinfo->value.enumerated.name,
 		aw883xx_switch[uinfo->value.enumerated.item],
 		strlen(aw883xx_switch[uinfo->value.enumerated.item]) + 1);
 

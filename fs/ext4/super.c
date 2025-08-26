@@ -692,11 +692,12 @@ static void ext4_handle_error(struct super_block *sb, bool force_ro, int error,
 
 	ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 	/*
-	 * Make sure updated value of ->s_mount_flags will be visible before
-	 * ->s_flags update
+	 * EXT4_FLAGS_SHUTDOWN was set which stops all filesystem
+	 * modifications. We don't set SB_RDONLY because that requires
+	 * sb->s_umount semaphore and setting it without proper remount
+	 * procedure is confusing code such as freeze_super() leading to
+	 * deadlocks and other problems.
 	 */
-	smp_wmb();
-	sb->s_flags |= SB_RDONLY;
 }
 
 static void flush_stashed_error_work(struct work_struct *work)
@@ -5618,8 +5619,8 @@ failed_mount3a:
 failed_mount3:
 	/* flush s_error_work before sbi destroy */
 	flush_work(&sbi->s_error_work);
-	del_timer_sync(&sbi->s_err_report);
 	ext4_stop_mmpd(sbi);
+	del_timer_sync(&sbi->s_err_report);
 	ext4_group_desc_free(sbi);
 failed_mount:
 	if (sbi->s_chksum_driver)
@@ -5754,6 +5755,28 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
 	return journal_inode;
 }
 
+static int ext4_journal_bmap(journal_t *journal, sector_t *block)
+{
+	struct ext4_map_blocks map;
+	int ret;
+
+	if (journal->j_inode == NULL)
+		return 0;
+
+	map.m_lblk = *block;
+	map.m_len = 1;
+	ret = ext4_map_blocks(NULL, journal->j_inode, &map, 0);
+	if (ret <= 0) {
+		ext4_msg(journal->j_inode->i_sb, KERN_CRIT,
+			 "journal bmap failed: block %llu ret %d\n",
+			 *block, ret);
+		jbd2_journal_abort(journal, ret ? ret : -EIO);
+		return ret;
+	}
+	*block = map.m_pblk;
+	return 0;
+}
+
 static journal_t *ext4_get_journal(struct super_block *sb,
 				   unsigned int journal_inum)
 {
@@ -5774,6 +5797,7 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 		return NULL;
 	}
 	journal->j_private = sb;
+	journal->j_bmap = ext4_journal_bmap;
 	ext4_init_journal_params(sb, journal);
 	return journal;
 }

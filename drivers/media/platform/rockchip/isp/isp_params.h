@@ -10,6 +10,7 @@
 #include <linux/rk-isp32-config.h>
 #include <linux/rk-isp39-config.h>
 #include <linux/rk-isp33-config.h>
+#include <linux/rk-isp35-config.h>
 #include <linux/rk-preisp.h>
 #include "common.h"
 
@@ -20,10 +21,16 @@
 #define ISP_PACK_2SHORT(a, b)	\
 	(((a) & 0xFFFF) << 0 | ((b) & 0xFFFF) << 16)
 
+/* RKISP_PARAMS_ALL: config all params
+ * RKISP_PARAMS_IMD: frame start to config params immediately
+ * RKISP_PARAMS_SHD: vs irq to config hdrmge and drc shadow reg
+ * RKISP_PARAMS_LAT: config bay3d latter params, using in aiisp case
+ */
 enum rkisp_params_type {
 	RKISP_PARAMS_ALL,
 	RKISP_PARAMS_IMD,
 	RKISP_PARAMS_SHD,
+	RKISP_PARAMS_LAT,
 };
 
 struct rkisp_isp_params_vdev;
@@ -46,6 +53,12 @@ struct rkisp_isp_params_ops {
 	int (*info2ddr_cfg)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 	void (*get_bay3d_buffd)(struct rkisp_isp_params_vdev *params_vdev,
 				struct rkisp_bay3dbuf_info *bay3dbuf);
+	int (*init_bnr_buf)(struct rkisp_isp_params_vdev *params_vdev,
+			    struct rkisp_bnr_buf_info *bnrbuf);
+	void (*aiisp_event)(struct rkisp_isp_params_vdev *params_vdev, u32 irq);
+	int (*aiisp_start)(struct rkisp_isp_params_vdev *params_vdev, struct rkisp_aiisp_st *st);
+	int (*get_aiawb_buffd)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
+	void (*vpsl_update_regs)(struct rkisp_isp_params_vdev *params_vdev);
 };
 
 /*
@@ -60,6 +73,7 @@ struct rkisp_isp_params_vdev {
 
 	spinlock_t config_lock;
 	struct list_head params;
+	struct list_head params_be;
 	union {
 		struct rkisp1_isp_params_cfg *isp1x_params;
 		struct isp2x_isp_params_cfg *isp2x_params;
@@ -68,6 +82,7 @@ struct rkisp_isp_params_vdev {
 		struct isp32_isp_params_cfg *isp32_params;
 		struct isp39_isp_params_cfg *isp39_params;
 		struct isp33_isp_params_cfg *isp33_params;
+		struct isp35_isp_params_cfg *isp35_params;
 	};
 	struct v4l2_format vdev_fmt;
 	bool streamon;
@@ -80,6 +95,7 @@ struct rkisp_isp_params_vdev {
 	enum rkisp_fmt_raw_pat_type raw_type;
 	u32 in_mbus_code;
 	u32 cur_frame_id;
+	u32 cur_fe_frame_id;
 	struct preisp_hdrae_para_s hdrae_para;
 
 	struct rkisp_isp_params_ops *ops;
@@ -96,6 +112,7 @@ struct rkisp_isp_params_vdev {
 
 	bool is_subs_evt;
 	bool is_first_cfg;
+	bool is_hdr;
 };
 
 static inline void
@@ -146,7 +163,7 @@ void rkisp_unregister_params_vdev(struct rkisp_isp_params_vdev *params_vdev);
 
 void rkisp_params_isr(struct rkisp_isp_params_vdev *params_vdev, u32 isp_mis);
 
-void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id);
+void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id, enum rkisp_params_type type);
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev, bool is_check, bool is_reset);
 void rkisp_params_get_meshbuf_inf(struct rkisp_isp_params_vdev *params_vdev, void *meshbuf);
@@ -157,4 +174,9 @@ bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev);
 int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 void rkisp_params_get_bay3d_buffd(struct rkisp_isp_params_vdev *params_vdev,
 				  struct rkisp_bay3dbuf_info *bay3dbuf);
+int rkisp_params_init_bnr_buf(struct rkisp_isp_params_vdev *params_vdev,
+			      struct rkisp_bnr_buf_info *bnrbuf);
+void rkisp_params_aiisp_event(struct rkisp_isp_params_vdev *params_vdev, u32 irq);
+int rkisp_params_aiisp_start(struct rkisp_isp_params_vdev *params_vdev, struct rkisp_aiisp_st *st);
+int rkisp_params_get_aiawb_buffd(struct rkisp_isp_params_vdev *params_vdev, void *arg);
 #endif /* _RKISP_ISP_PARAM_H */

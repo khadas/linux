@@ -94,10 +94,6 @@ struct rk312x_codec_priv {
 	struct gpio_desc	*hp_ctl_gpio;
 	int spk_mute_delay;
 	int hp_mute_delay;
-	int spk_hp_switch_gpio;
-	/* 1 spk; */
-	/* 0 hp; */
-	enum of_gpio_flags spk_io;
 
 	/* 0 for box; */
 	/* 1 default for mid; */
@@ -274,30 +270,6 @@ static int rk312x_codec_ctl_gpio(int gpio, int level)
 
 	return 0;
 }
-
-#if 0
-static int switch_to_spk(int enable)
-{
-	if (!rk312x_priv) {
-		DBG(KERN_ERR"%s : rk312x is NULL\n", __func__);
-		return -EINVAL;
-	}
-	if (enable) {
-		if (rk312x_priv->spk_hp_switch_gpio != INVALID_GPIO) {
-			gpio_set_value(rk312x_priv->spk_hp_switch_gpio, rk312x_priv->spk_io);
-			DBG(KERN_INFO"%s switch to spk\n", __func__);
-			msleep(rk312x_priv->spk_mute_delay);
-		}
-	} else {
-		if (rk312x_priv->spk_hp_switch_gpio != INVALID_GPIO) {
-			gpio_set_value(rk312x_priv->spk_hp_switch_gpio, !rk312x_priv->spk_io);
-			DBG(KERN_INFO"%s switch to hp\n", __func__);
-			msleep(rk312x_priv->hp_mute_delay);
-		}
-	}
-	return 0;
-}
-#endif
 
 static int rk312x_reset(struct snd_soc_component *component)
 {
@@ -2292,29 +2264,6 @@ static int rk312x_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rk312x);
 	rk312x->dev = &pdev->dev;
 
-#if 0
-	rk312x->spk_hp_switch_gpio = of_get_named_gpio_flags(rk312x_np,
-						 "spk_hp_switch_gpio", 0, &rk312x->spk_io);
-	rk312x->spk_io = !rk312x->spk_io;
-	if (!gpio_is_valid(rk312x->spk_hp_switch_gpio)) {
-		dbg_codec(2, "invalid spk hp switch_gpio : %d\n",
-			  rk312x->spk_hp_switch_gpio);
-		rk312x->spk_hp_switch_gpio = INVALID_GPIO;
-		/* ret = -ENOENT; */
-		/* goto err__; */
-	}
-	DBG("%s : spk_hp_switch_gpio %d spk  active_level %d \n", __func__,
-		rk312x->spk_hp_switch_gpio, rk312x->spk_io);
-
-	if(rk312x->spk_hp_switch_gpio != INVALID_GPIO) {
-		ret = devm_gpio_request(&pdev->dev, rk312x->spk_hp_switch_gpio, "spk_hp_switch");
-		if (ret < 0) {
-			dbg_codec(2, "rk312x_platform_probe spk_hp_switch_gpio fail\n");
-			/* goto err__; */
-			rk312x->spk_hp_switch_gpio = INVALID_GPIO;
-		}
-	}
-#endif
 	rk312x->edev = devm_extcon_dev_allocate(&pdev->dev, headset_extcon_cable);
 	if (IS_ERR(rk312x->edev)) {
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
@@ -2460,7 +2409,7 @@ static int rk312x_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-void rk312x_platform_shutdown(struct platform_device *pdev)
+static void rk312x_platform_shutdown(struct platform_device *pdev)
 {
 	unsigned int val = 0;
 	DBG("%s\n", __func__);

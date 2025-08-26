@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2023 Rockchip Electronics Co., Ltd. */
 
-#include <linux/delay.h>
-#include <linux/of_platform.h>
-#include <linux/slab.h>
-
+#include "vpss.h"
 #include "common.h"
+#include "stream.h"
 #include "dev.h"
+#include "vpss_offline.h"
+#include "hw.h"
+#include "procfs.h"
 #include "regs.h"
 
 
@@ -75,6 +76,7 @@ void rkvpss_unite_clear_bits(struct rkvpss_device *dev, u32 reg, u32 mask)
 		rkvpss_idx_clear_bits(dev, reg, mask, VPSS_UNITE_RIGHT);
 }
 
+// 1126b unite or multi sensor todo
 void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 {
 	struct rkvpss_hw_dev *hw = dev->hw_dev;
@@ -105,7 +107,7 @@ void rkvpss_update_regs(struct rkvpss_device *dev, u32 start, u32 end)
 			if (i == RKVPSS_VPSS_ONLINE) {
 				u32 mask = 0;
 
-				for (j = 0; j < RKVPSS_OUTPUT_MAX; j++) {
+				for (j = 0; j < vpss_outchn_max(hw->vpss_ver); j++) {
 					if (!hw->is_ofl_ch[j])
 						continue;
 					mask |= (RKVPSS_ISP2VPSS_CHN0_SEL(3) << j * 2);
@@ -162,4 +164,14 @@ int rkvpss_attach_hw(struct rkvpss_device *vpss)
 	vpss->vpss_ver = hw->vpss_ver;
 
 	return 0;
+}
+
+void rkvpss_detach_hw(struct rkvpss_device *vpss)
+{
+	struct rkvpss_hw_dev *hw = vpss->hw_dev;
+
+	if (hw) {
+		hw->vpss[vpss->dev_id] = NULL;
+		vpss->hw_dev = NULL;
+	}
 }

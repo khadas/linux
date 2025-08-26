@@ -2,7 +2,7 @@
 /*
  * Rockchip AXI PCIe host controller driver
  *
- * Copyright (c) 2016 Rockchip, Inc.
+ * Copyright (c) 2016 Rockchip Electronics Co., Ltd.
  *
  * Author: Shawn Lin <shawn.lin@rock-chips.com>
  *         Wenrui Li <wenrui.li@rock-chips.com>
@@ -121,7 +121,7 @@ int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 
 	if (rockchip->is_rc) {
 		rockchip->ep_gpio = devm_gpiod_get_optional(dev, "ep",
-							    GPIOD_OUT_HIGH);
+							    GPIOD_OUT_LOW);
 		if (IS_ERR(rockchip->ep_gpio))
 			return dev_err_probe(dev, PTR_ERR(rockchip->ep_gpio),
 					     "failed to get ep GPIO\n");

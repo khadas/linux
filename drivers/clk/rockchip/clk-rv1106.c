@@ -972,7 +972,7 @@ static struct rockchip_clk_branch rv1106_grf_clk_branches[] __initdata = {
 static void __iomem *rv1106_cru_base;
 static struct rockchip_clk_provider *grf_ctx, *cru_ctx;
 
-void rv1106_dump_cru(void)
+static void rv1106_dump_cru(void)
 {
 	if (rv1106_cru_base) {
 		pr_warn("CRU:\n");
@@ -981,7 +981,6 @@ void rv1106_dump_cru(void)
 			       0x588, false);
 	}
 }
-EXPORT_SYMBOL_GPL(rv1106_dump_cru);
 
 static void _cru_pvtpll_calibrate(int count_offset, int length_offset, int target_rate)
 {
@@ -1136,17 +1135,6 @@ static void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
 	queue_delayed_work(system_freezable_wq, &pvtpll_calibrate_work, msecs_to_jiffies(300));
 }
 
-static int rv1106_clk_panic(struct notifier_block *this,
-			    unsigned long ev, void *ptr)
-{
-	rv1106_dump_cru();
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rv1106_clk_panic_block = {
-	.notifier_call = rv1106_clk_panic,
-};
-
 static void __init rv1106_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1195,8 +1183,8 @@ static void __init rv1106_clk_init(struct device_node *np)
 
 	rockchip_clk_of_add_provider(np, ctx);
 
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &rv1106_clk_panic_block);
+	if (!rk_dump_cru)
+		rk_dump_cru = rv1106_dump_cru;
 }
 
 CLK_OF_DECLARE(rv1106_cru, "rockchip,rv1106-cru", rv1106_clk_init);

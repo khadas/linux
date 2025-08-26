@@ -677,10 +677,10 @@ static void sc430cs_get_module_inf(struct sc430cs *sc430cs,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC430CS_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc430cs->module_name,
+	strscpy(inf->base.sensor, SC430CS_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc430cs->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc430cs->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc430cs->len_name, sizeof(inf->base.lens));
 }
 
 static long sc430cs_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

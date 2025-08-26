@@ -440,6 +440,9 @@ struct rk618_hdmi {
 	struct switch_dev switchdev;
 #endif
 	struct rockchip_drm_sub_dev sub_dev;
+	hdmi_codec_plugged_cb plugged_cb;
+	struct device *codec_dev;
+	enum drm_connector_status last_connector_result;
 };
 
 enum {
@@ -543,6 +546,26 @@ static inline u8 hdmi_readb(struct rk618_hdmi *hdmi, u16 offset)
 static inline void hdmi_writeb(struct rk618_hdmi *hdmi, u16 offset, u32 val)
 {
 	regmap_write(hdmi->regmap, (RK618_HDMI_BASE + ((offset) << 2)), val);
+}
+
+static void handle_plugged_change(struct rk618_hdmi *hdmi, bool plugged)
+{
+	if (hdmi->plugged_cb && hdmi->codec_dev)
+		hdmi->plugged_cb(hdmi->codec_dev, plugged);
+}
+
+static int rk618_hdmi_set_plugged_cb(struct rk618_hdmi *hdmi,
+				     hdmi_codec_plugged_cb fn,
+				     struct device *codec_dev)
+{
+	bool plugged;
+
+	hdmi->plugged_cb = fn;
+	hdmi->codec_dev = codec_dev;
+	plugged = hdmi->last_connector_result == connector_status_connected;
+	handle_plugged_change(hdmi, plugged);
+
+	return 0;
 }
 
 static void rk618_hdmi_set_polarity(struct rk618_hdmi *hdmi, int vic)
@@ -946,14 +969,23 @@ rk618_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct rk618_hdmi *hdmi = connector_to_hdmi(connector);
 	bool status;
+	enum drm_connector_status result;
 
 	status = rk618_hdmi_hpd_detect(hdmi);
 #ifdef CONFIG_SWITCH
 	switch_set_state(&hdmi->switchdev, status);
 #endif
 
-	return status ? connector_status_connected :
+	result = status ? connector_status_connected :
 			connector_status_disconnected;
+	if (result != hdmi->last_connector_result) {
+		dev_dbg(hdmi->dev, "rk618_hdmi read_hpd result: %d", result);
+		handle_plugged_change(hdmi,
+				result == connector_status_connected);
+		hdmi->last_connector_result = result;
+	}
+
+	return result;
 }
 
 static int rk618_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -1133,8 +1165,9 @@ static const struct drm_bridge_funcs rk618_hdmi_bridge_funcs = {
 	.disable = rk618_hdmi_bridge_disable,
 };
 
-static int
-rk618_hdmi_audio_config_set(struct rk618_hdmi *hdmi, struct audio_info *audio)
+static int rk618_hdmi_audio_config_set(struct rk618_hdmi *hdmi,
+				       struct hdmi_codec_daifmt *daifmt,
+				       struct audio_info *audio)
 {
 	int rate, N, channel;
 
@@ -1182,14 +1215,19 @@ rk618_hdmi_audio_config_set(struct rk618_hdmi *hdmi, struct audio_info *audio)
 		return -ENOENT;
 	}
 
-	/* set_audio source I2S */
-	hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x01);
+	if (daifmt->fmt == HDMI_SPDIF) {
+		/* set_audio source SPDIF */
+		hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x09);
+	} else {
+		/* set_audio source I2S */
+		hdmi_writeb(hdmi, HDMI_AUDIO_CTRL1, 0x01);
+	}
 	hdmi_writeb(hdmi, AUDIO_SAMPLE_RATE, rate);
 	hdmi_writeb(hdmi, AUDIO_I2S_MODE, v_I2S_MODE(I2S_STANDARD) |
 		    v_I2S_CHANNEL(channel));
 
 	hdmi_writeb(hdmi, AUDIO_I2S_MAP, 0x00);
-	hdmi_writeb(hdmi, AUDIO_I2S_SWAPS_SPDIF, 0);
+	hdmi_writeb(hdmi, AUDIO_I2S_SWAPS_SPDIF, rate);
 
 	/* Set N value */
 	hdmi_writeb(hdmi, AUDIO_N_H, (N >> 16) & 0x0F);
@@ -1224,12 +1262,14 @@ static int rk618_hdmi_audio_hw_params(struct device *dev, void *d,
 	switch (daifmt->fmt) {
 	case HDMI_I2S:
 		break;
+	case HDMI_SPDIF:
+		break;
 	default:
 		dev_err(dev, "%s: Invalid format %d\n", __func__, daifmt->fmt);
 		return -EINVAL;
 	}
 
-	return rk618_hdmi_audio_config_set(hdmi, &audio);
+	return rk618_hdmi_audio_config_set(hdmi, daifmt, &audio);
 }
 
 static void rk618_hdmi_audio_shutdown(struct device *dev, void *d)
@@ -1279,21 +1319,42 @@ static int rk618_hdmi_audio_get_eld(struct device *dev, void *d,
 	return ret;
 }
 
+static int rk618_hdmi_hook_plugged_cb(struct device *dev, void *data,
+				      hdmi_codec_plugged_cb fn,
+				      struct device *codec_dev)
+{
+	struct rk618_hdmi *hdmi = dev_get_drvdata(dev);
+
+	return rk618_hdmi_set_plugged_cb(hdmi, fn, codec_dev);
+}
+
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = rk618_hdmi_audio_hw_params,
 	.audio_shutdown = rk618_hdmi_audio_shutdown,
 	.mute_stream = rk618_hdmi_audio_mute_stream,
 	.get_eld = rk618_hdmi_audio_get_eld,
+	.hook_plugged_cb = rk618_hdmi_hook_plugged_cb,
 };
 
 static int rk618_hdmi_audio_codec_init(struct rk618_hdmi *hdmi,
 				       struct device *dev)
 {
+	const char *str = "i2s";
+	struct device_node *np = dev->of_node;
 	struct hdmi_codec_pdata codec_data = {
 		.i2s = 1,
+		.spdif = 0,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 8,
 	};
+
+	if (of_property_read_string(np, "rockchip,format", &str))
+		dev_warn(dev, "can not get rockchip,format\n");
+
+	if (strstr(str, "spdif")) {
+		codec_data.i2s = 0;
+		codec_data.spdif = 1;
+	}
 
 	hdmi->audio_enable = false;
 	hdmi->audio_pdev = platform_device_register_data(dev,
@@ -1439,7 +1500,7 @@ static struct i2c_adapter *rk618_hdmi_i2c_adapter(struct rk618_hdmi *hdmi)
 	adap->dev.parent = hdmi->dev;
 	adap->dev.of_node = hdmi->dev->of_node;
 	adap->algo = &rk618_hdmi_algorithm;
-	strlcpy(adap->name, "RK618 HDMI", sizeof(adap->name));
+	strscpy(adap->name, "RK618 HDMI", sizeof(adap->name));
 	i2c_set_adapdata(adap, hdmi);
 
 	ret = i2c_add_adapter(adap);

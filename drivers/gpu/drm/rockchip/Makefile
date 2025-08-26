@@ -27,7 +27,7 @@ rockchipdrm-$(CONFIG_ROCKCHIP_LVDS) += rockchip_lvds.o
 rockchipdrm-$(CONFIG_ROCKCHIP_RGB) += rockchip_rgb.o
 rockchipdrm-$(CONFIG_ROCKCHIP_RK3066_HDMI) += rk3066_hdmi.o
 rockchipdrm-$(CONFIG_ROCKCHIP_VCONN) += rockchip_drm_vconn.o
-rockchipdrm-$(CONFIG_DRM_ROCKCHIP_VVOP) += rockchip_drm_vvop.o
+rockchipdrm-$(CONFIG_DRM_ROCKCHIP_VKMS) += rockchip_drm_vkms.o
 
 obj-$(CONFIG_ROCKCHIP_PANEL_NOTIFIER) += rockchip_panel_notifier.o
 obj-$(CONFIG_ROCKCHIP_DW_HDCP2) += dw_hdcp2.o

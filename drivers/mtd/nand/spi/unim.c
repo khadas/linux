@@ -183,6 +183,31 @@ static int um19a9xisw_ecc_get_status(struct spinand_device *spinand,
 	}
 }
 
+/*
+ * ecc bits: 0xC0[4,6]
+ * [0b000], No bit errors were detected;
+ * [0b001], Bit errors were detected and corrected;
+ * [0b010], Bit errors greater than ECC capability(8 bits) and not corrected;
+ * [0b011], Bit error count equals the bit flip detection threshold
+ * [0b100], Reserved;
+ * [0b101], Bit error count equals the bit flip detection threshold
+ * [0b110], Reserved;
+ * [0b111], Invalid;
+ */
+static int um19a0xisw_ecc_ecc_get_status(struct spinand_device *spinand,
+					u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr = (status & GENMASK(6, 4)) >> 4;
+
+	if (eccsr <= 1)
+		return eccsr;
+	else if (eccsr == 3 || eccsr == 5)
+		return nanddev_get_ecc_requirements(nand)->strength;
+	else
+		return -EBADMSG;
+}
+
 static const struct spinand_info unim_zl_spinand_table[] = {
 	SPINAND_INFO("TX25G01",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xF1),
@@ -250,6 +275,24 @@ static const struct spinand_info unim_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&um19a1xisw_ooblayout, um19a9xisw_ecc_get_status)),
+	SPINAND_INFO("UM19A0HISW",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x14),
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&um19a0xisw_ooblayout, um19a0xisw_ecc_ecc_get_status)),
+	SPINAND_INFO("UM19A0LISW",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x15),
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&um19a0xisw_ooblayout, um19a0xisw_ecc_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops unim_spinand_manuf_ops = {

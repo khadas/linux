@@ -872,27 +872,19 @@ int tp2825_stream(struct vehicle_ad_dev *ad, int enable)
 }
 static void power_on(struct vehicle_ad_dev *ad)
 {
-	/* gpio_direction_output(ad->power, ad->pwr_active); */
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 1);
 
-	if (gpio_is_valid(ad->powerdown)) {
-		gpio_request(ad->powerdown, "ad_powerdown");
-		gpio_direction_output(ad->powerdown, !ad->pwdn_active);
-		/* gpio_set_value(ad->powerdown, !ad->pwdn_active); */
-	}
-
-	if (gpio_is_valid(ad->power)) {
-		gpio_request(ad->power, "ad_power");
-		gpio_direction_output(ad->power, ad->pwr_active);
-		/* gpio_set_value(ad->power, ad->pwr_active); */
-	}
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 1);
 }
 
 static void power_off(struct vehicle_ad_dev *ad)
 {
-	if (gpio_is_valid(ad->power))
-		gpio_free(ad->power);
-	if (gpio_is_valid(ad->powerdown))
-		gpio_free(ad->powerdown);
+	if (!IS_ERR(ad->powerdown_gpio))
+		gpiod_direction_output(ad->powerdown_gpio, 0);
+	if (!IS_ERR(ad->power_gpio))
+		gpiod_direction_output(ad->power_gpio, 0);
 }
 
 static void tp2825_check_state_work(struct work_struct *work)

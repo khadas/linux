@@ -50,7 +50,7 @@ config TOUCHSCREEN_CYPRESS_CYTTSP5_SPI
 	  module will be called cyttsp5_spi.
 
 choice
-	bool "Parade TrueTouch Gen5 MultiTouch Protocol"
+	prompt "Parade TrueTouch Gen5 MultiTouch Protocol"
 	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
 	default TOUCHSCREEN_CYPRESS_CYTTSP5_MT_B
 	help

@@ -68,7 +68,7 @@ config TOUCHSCREEN_PARADE_SPI
 	  module will be called pt_spi.
 
 choice
-	bool "Parade TrueTouch Gen5 MultiTouch Protocol"
+	prompt "Parade TrueTouch Gen5 MultiTouch Protocol"
 	depends on TOUCHSCREEN_PARADE
 	default TOUCHSCREEN_PARADE_MT_B
 	help

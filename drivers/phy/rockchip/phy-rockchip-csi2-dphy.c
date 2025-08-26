@@ -14,6 +14,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <media/media-entity.h>
@@ -207,7 +208,8 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			dphy->csi_info.dphy_vendor[index] = PHY_VENDOR_INNO;
 			mutex_unlock(&dphy_hw->mutex);
 		}
-	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562) {
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562 ||
+		   dphy->drv_data->chip_id == CHIP_ID_RV1126B) {
 		dphy_hw = dphy->dphy_hw_group[csi_idx / 2];
 		mutex_lock(&dphy_hw->mutex);
 		if (csi_idx == 0 || csi_idx == 2) {
@@ -392,7 +394,8 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 			mutex_unlock(&dphy_hw->mutex);
 		}
-	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562) {
+	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3562 ||
+		   dphy->drv_data->chip_id == CHIP_ID_RV1126B) {
 		dphy_hw = (struct csi2_dphy_hw *)dphy->phy_hw[index];
 		if (!dphy_hw) {
 			dev_err(dphy->dev, "%s csi_idx %d detach hw failed\n",
@@ -1069,6 +1072,13 @@ static struct dphy_drv_data rk3576_dphy_drv_data = {
 	.num_samsung_phy = 1,
 };
 
+static struct dphy_drv_data rv1126b_dphy_drv_data = {
+	.dev_name = "csi2dphy",
+	.chip_id = CHIP_ID_RV1126B,
+	.num_inno_phy = 2,
+	.num_samsung_phy = 0,
+};
+
 static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3568-csi2-dphy",
@@ -1089,6 +1099,10 @@ static const struct of_device_id rockchip_csi2_dphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3576-csi2-dphy",
 		.data = &rk3576_dphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rv1126b-csi2-dphy",
+		.data = &rv1126b_dphy_drv_data,
 	},
 	{}
 };
@@ -1171,7 +1185,6 @@ static int rockchip_csi2_dphy_get_hw(struct csi2_dphy *dphy)
 static int rockchip_csi2_dphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct csi2_dphy *csi2dphy;
 	struct v4l2_subdev *sd;
 	const struct dphy_drv_data *drv_data;
@@ -1182,10 +1195,9 @@ static int rockchip_csi2_dphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	csi2dphy->dev = dev;
 
-	of_id = of_match_device(rockchip_csi2_dphy_match_id, dev);
-	if (!of_id)
+	drv_data = device_get_match_data(dev);
+	if (!drv_data)
 		return -EINVAL;
-	drv_data = of_id->data;
 	csi2dphy->drv_data = drv_data;
 
 	csi2dphy->phy_index = of_alias_get_id(dev->of_node, drv_data->dev_name);
@@ -1264,8 +1276,8 @@ int rockchip_csi2_dphy_init(void)
 	return platform_driver_register(&rockchip_csi2_dphy_driver);
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
-subsys_initcall(rockchip_csi2_dphy_init);
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
+subsys_initcall_sync(rockchip_csi2_dphy_init);
 #else
 #if !defined(CONFIG_VIDEO_REVERSE_IMAGE)
 module_platform_driver(rockchip_csi2_dphy_driver);

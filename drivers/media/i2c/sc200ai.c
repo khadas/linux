@@ -1146,10 +1146,10 @@ static void sc200ai_get_module_inf(struct sc200ai *sc200ai,
 				   struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, SC200AI_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, sc200ai->module_name,
+	strscpy(inf->base.sensor, SC200AI_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, sc200ai->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, sc200ai->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, sc200ai->len_name, sizeof(inf->base.lens));
 }
 
 static int sc200ai_get_channel_info(struct sc200ai *sc200ai, struct rkmodule_channel_info *ch_info)
@@ -2185,7 +2185,7 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&sc200ai_i2c_driver);
 }
 
-#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)
 subsys_initcall(sensor_mod_init);
 #else
 device_initcall_sync(sensor_mod_init);

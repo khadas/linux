@@ -2468,7 +2468,9 @@ static int gc2145_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 		config->bus.mipi_csi2 = gc2145->bus_cfg.bus.mipi_csi2;
 	} else {
 		config->type = V4L2_MBUS_PARALLEL;
-		config->bus.parallel = gc2145->bus_cfg.bus.parallel;
+		config->bus.parallel.flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+					     V4L2_MBUS_VSYNC_ACTIVE_LOW |
+					     V4L2_MBUS_PCLK_SAMPLE_RISING;
 	}
 
 	return 0;
@@ -2528,10 +2530,10 @@ static void gc2145_get_module_inf(struct gc2145 *gc2145,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, DRIVER_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, gc2145->module_name,
+	strscpy(inf->base.sensor, DRIVER_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, gc2145->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, gc2145->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, gc2145->len_name, sizeof(inf->base.lens));
 }
 
 static long gc2145_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

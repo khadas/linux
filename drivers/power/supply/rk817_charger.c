@@ -1,7 +1,7 @@
 /*
  * rk817 charger driver
  *
- * Copyright (C) 2018 Rockchip Electronics Co., Ltd
+ * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  * xsf <xsf@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify it

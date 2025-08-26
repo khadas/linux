@@ -25,11 +25,6 @@ struct gsl_touch_info {
 	int finger_num;
 };
 
-unsigned int gsl_mask_tiaoping(void);
-unsigned int gsl_version_id(void);
-void gsl_alg_id_main(struct gsl_touch_info *cinfo);
-void gsl_DataInit(int *ret);
-
 unsigned int gsl_config_data_id_3680B[] = {
 	0x72d266,
 	0x200,

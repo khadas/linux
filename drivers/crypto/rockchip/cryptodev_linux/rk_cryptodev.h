@@ -41,6 +41,15 @@ struct compat_crypt_fd_map_op {
 
 #endif /* CONFIG_COMPAT */
 
+enum ecc_curve {
+	RK_EC_CURVE_SM2 = 0,
+	RK_EC_CURVE_P192,
+	RK_EC_CURVE_P224,
+	RK_EC_CURVE_P256,
+	RK_EC_CURVE_P384,
+	RK_EC_CURVE_P521,
+};
+
 /* kernel-internal extension to struct crypt_op */
 struct kernel_crypt_fd_op {
 	struct crypt_fd_op cop;
@@ -79,6 +88,14 @@ struct kernel_crypt_rsa_op {
 	struct mm_struct *mm;
 };
 
+/* kernel-internal extension to struct crypt_op */
+struct kernel_crypt_ec_op {
+	struct crypt_ec_op eop;
+
+	struct task_struct *task;
+	struct mm_struct *mm;
+};
+
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_DEV)
 int rk_cryptodev_register_dev(struct device *dev, const char *name);
 int rk_cryptodev_unregister_dev(struct device *dev);
@@ -103,6 +120,8 @@ rk_compat_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long ar
 const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead);
 
 const char *rk_get_hash_name(uint32_t id, int *is_hmac);
+
+const char *rk_get_ec_name(uint8_t curve);
 
 bool rk_cryptodev_multi_thread(const char *name);
 

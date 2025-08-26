@@ -296,6 +296,13 @@
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -307,6 +314,13 @@
 			clocks = <&scmi_clk ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -318,6 +332,13 @@
 			clocks = <&scmi_clk ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -329,6 +350,13 @@
 			clocks = <&scmi_clk ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <128>;
+			next-level-cache = <&l2_cache_l>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -342,6 +370,13 @@
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <320>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_cache_b>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -353,6 +388,13 @@
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_cache_b>;
 		};
 
 		cpu_b2: cpu@102 {
@@ -364,6 +406,13 @@
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_cache_b>;
 		};
 
 		cpu_b3: cpu@103 {
@@ -375,6 +424,31 @@
 			clocks = <&scmi_clk ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			i-cache-size = <0xC000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2_cache_b>;
+		};
+
+		l2_cache_l: l2-cache-cluster0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x80000>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+		};
+
+		l2_cache_b: l2-cache-cluster1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x100000>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
 		};
 
 		idle-states {
@@ -396,8 +470,10 @@
 		opp-shared;
 		rockchip,opp-shared-cci;
 
-		nvmem-cells = <&cpul_leakage>, <&cpul_opp_info>, <&specification_serial_number>;
-		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		nvmem-cells = <&cpul_leakage>, <&cpul_opp_info>,
+			      <&specification_serial_number>, <&test_version>;
+		nvmem-cell-names = "leakage", "opp-info",
+				   "specification_serial_number", "test_version";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
@@ -660,8 +736,10 @@
 		opp-shared;
 		rockchip,cpu-freq-percent = <90>;
 
-		nvmem-cells = <&cpub_leakage>, <&cpub_opp_info>, <&specification_serial_number>;
-		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		nvmem-cells = <&cpub_leakage>, <&cpub_opp_info>,
+			      <&specification_serial_number>, <&test_version>;
+		nvmem-cell-names = "leakage", "opp-info",
+				   "specification_serial_number", "test_version";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
@@ -1268,6 +1346,11 @@
 		};
 	};
 
+	dmcdbg: dmcdbg {
+		compatible = "rockchip,rk3576-dmcdbg";
+		status = "disabled";
+	};
+
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
@@ -1361,7 +1444,6 @@
 	rkcif_dvp: rkcif-dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1374,7 +1456,6 @@
 	rkcif_mipi_lvds: rkcif-mipi-lvds {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1405,7 +1486,6 @@
 	rkcif_mipi_lvds1: rkcif-mipi-lvds1 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1436,7 +1516,6 @@
 	rkcif_mipi_lvds2: rkcif-mipi-lvds2 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1467,7 +1546,6 @@
 	rkcif_mipi_lvds3: rkcif-mipi-lvds3 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1498,7 +1576,6 @@
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -2410,6 +2487,28 @@
 		status = "disabled";
 	};
 
+	cci: cci@27500000 {
+		compatible = "arm,cci-500";
+		reg = <0x0 0x27500000 0x0 0x100000>;
+		ranges = <0x0 0x0 0x27500000 0x100000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pmu@10000 {
+			compatible = "arm,cci-500-pmu,r0";
+			reg = <0x10000 0x80000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
 	rknpu: npu@27700000 {
 		compatible = "rockchip,rk3576-rknpu";
 		reg = <0x0 0x27700000 0x0 0x8000>,
@@ -2439,8 +2538,10 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&npu_leakage>, <&npu_opp_info>, <&specification_serial_number>;
-		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		nvmem-cells = <&npu_leakage>, <&npu_opp_info>,
+			      <&specification_serial_number>, <&test_version>;
+		nvmem-cell-names = "leakage", "opp-info",
+				   "specification_serial_number", "test_version";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
@@ -2685,8 +2786,10 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
-		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>, <&specification_serial_number>;
-		nvmem-cell-names = "leakage", "opp-info", "specification_serial_number";
+		nvmem-cells = <&gpu_leakage>, <&gpu_opp_info>,
+			      <&specification_serial_number>, <&test_version>;
+		nvmem-cell-names = "leakage", "opp-info",
+				   "specification_serial_number", "test_version";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-hw = <0x06>;
@@ -3400,6 +3503,12 @@
 			      "dclk_src_vp0",
 			      "dclk_src_vp1",
 			      "dclk_src_vp2";
+		resets = <&cru SRST_D_VP0>,
+			 <&cru SRST_D_VP1>,
+			 <&cru SRST_D_VP2>;
+		reset-names = "dclk_vp0",
+			      "dclk_vp1",
+			      "dclk_vp2";
 		rockchip,aclk-normal-mode-rates = <500000000>;
 		rockchip,aclk-reset-mode-rates = <594000000>;
 		rockchip,aclk-advanced-mode-rates = <702000000>;
@@ -4970,6 +5079,10 @@
 			reg = <0x05 0x1>;
 			bits = <3 3>;
 		};
+		test_version: test-version@7 {
+			reg = <0x7 0x1>;
+			bits = <0 4>;
+		};
 		specification_serial_number: specification-serial-number@8 {
 			reg = <0x08 0x1>;
 			bits = <0 5>;
@@ -5441,8 +5554,6 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN0>, <&cru SRST_H_CAN0>;
 		reset-names = "can", "can-apb";
-		dmas = <&dmac0 20>;
-		dma-names = "rx";
 		status = "disabled";
 	};
 
@@ -5454,8 +5565,6 @@
 		clock-names = "baudclk", "apb_pclk";
 		resets = <&cru SRST_CAN1>, <&cru SRST_H_CAN1>;
 		reset-names = "can", "can-apb";
-		dmas = <&dmac1 21>;
-		dma-names = "rx";
 		status = "disabled";
 	};
 
@@ -6391,7 +6500,10 @@
 		gpio0: gpio@27320000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0x27320000 0x0 0x200>;
-			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO0>, <&cru DBCLK_GPIO0>;
 
 			gpio-controller;
@@ -6404,7 +6516,10 @@
 		gpio1: gpio@2ae10000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0x2ae10000 0x0 0x200>;
-			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO1>, <&cru DBCLK_GPIO1>;
 
 			gpio-controller;
@@ -6417,7 +6532,10 @@
 		gpio2: gpio@2ae20000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0x2ae20000 0x0 0x200>;
-			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO2>, <&cru DBCLK_GPIO2>;
 
 			gpio-controller;
@@ -6430,7 +6548,10 @@
 		gpio3: gpio@2ae30000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0x2ae30000 0x0 0x200>;
-			interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO3>, <&cru DBCLK_GPIO3>;
 
 			gpio-controller;
@@ -6443,7 +6564,10 @@
 		gpio4: gpio@2ae40000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0x2ae40000 0x0 0x200>;
-			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cru PCLK_GPIO4>, <&cru DBCLK_GPIO4>;
 
 			gpio-controller;

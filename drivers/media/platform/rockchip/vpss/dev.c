@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2023 Rockchip Electronics Co., Ltd. */
 
-#include <linux/clk.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
-#include <linux/of_reserved_mem.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/pm_runtime.h>
-#include <linux/reset.h>
-#include <linux/regmap.h>
-#include <media/v4l2-fwnode.h>
-
+#include "vpss.h"
+#include "common.h"
+#include "stream.h"
 #include "dev.h"
+#include "vpss_offline.h"
+#include "hw.h"
+#include "procfs.h"
 #include "regs.h"
+
 #include "version.h"
 
 #define RKVPSS_VERNO_LEN 10
@@ -26,6 +18,10 @@ int rkvpss_debug;
 module_param_named(debug, rkvpss_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-6)");
 
+int rkvpss_buf_dbg;
+module_param_named(buf_dbg, rkvpss_buf_dbg, int, 0644);
+MODULE_PARM_DESC(buf_dbg, "rkvpss buf dbg");
+
 static bool rkvpss_clk_dbg;
 module_param_named(clk_dbg, rkvpss_clk_dbg, bool, 0644);
 MODULE_PARM_DESC(clk_dbg, "rkvpss clk set by user");
@@ -33,6 +29,14 @@ MODULE_PARM_DESC(clk_dbg, "rkvpss clk set by user");
 static char rkvpss_version[RKVPSS_VERNO_LEN];
 module_param_string(version, rkvpss_version, RKVPSS_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
+
+static unsigned int rkvpss_wrap_line;
+module_param_named(wrap_line, rkvpss_wrap_line, uint, 0644);
+MODULE_PARM_DESC(wrap_line, "rkvpss wrap line");
+
+char rkvpss_regfile[RKVPSS_REGFILE_LEN];
+module_param_string(reg_file, rkvpss_regfile, RKVPSS_REGFILE_LEN, 0644);
+MODULE_PARM_DESC(reg_file, "dump reg file");
 
 int rkvpss_cfginfo_num = 5;
 
@@ -72,15 +76,26 @@ void rkvpss_pipeline_default_fmt(struct rkvpss_device *dev)
 
 	w = dev->vpss_sdev.out_fmt.width;
 	h = dev->vpss_sdev.out_fmt.height;
-	for (i = 0; i < RKVPSS_OUTPUT_MAX; i++)
+	for (i = 0; i < vpss_outchn_max(dev->hw_dev->vpss_ver); i++)
 		rkvpss_stream_default_fmt(dev, i, w, h, V4L2_PIX_FMT_NV12);
 }
 
 int rkvpss_pipeline_open(struct rkvpss_device *dev)
 {
+	int isp_working = 0;
+
 	if (atomic_inc_return(&dev->pipe_power_cnt) > 1)
 		return 0;
-
+	if (!atomic_read(&dev->hw_dev->refcnt)) {
+		v4l2_subdev_call(dev->remote_sd, core, ioctl,
+				 RKISP_VPSS_GET_ISP_WORKING, &isp_working);
+		if (isp_working) {
+			atomic_dec(&dev->pipe_power_cnt);
+			v4l2_err(&dev->v4l2_dev,
+				 "no support isp working then vpss start, make sure vpss stream on first\n");
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
@@ -134,7 +149,7 @@ static int rkvpss_create_links(struct rkvpss_device *dev)
 	struct media_entity *source, *sink;
 	struct rkvpss_stream *stream;
 	unsigned int flags = 0;
-	int ret;
+	int ret, i;
 
 	if (!dev->remote_sd)
 		return -EINVAL;
@@ -152,33 +167,14 @@ static int rkvpss_create_links(struct rkvpss_device *dev)
 	flags = MEDIA_LNK_FL_ENABLED;
 	source = &dev->vpss_sdev.sd.entity;
 
-	stream = &stream_vdev->stream[RKVPSS_OUTPUT_CH0];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKVPSS_PAD_SOURCE, sink, 0, flags);
-	if (ret < 0)
-		goto end;
-
-	stream = &stream_vdev->stream[RKVPSS_OUTPUT_CH1];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKVPSS_PAD_SOURCE, sink, 0, flags);
-	if (ret < 0)
-		goto end;
-
-	stream = &stream_vdev->stream[RKVPSS_OUTPUT_CH2];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKVPSS_PAD_SOURCE, sink, 0, flags);
-	if (ret < 0)
-		goto end;
-
-	stream = &stream_vdev->stream[RKVPSS_OUTPUT_CH3];
-	stream->linked = flags;
-	sink = &stream->vnode.vdev.entity;
-	ret = media_create_pad_link(source, RKVPSS_PAD_SOURCE, sink, 0, flags);
-	if (ret < 0)
-		goto end;
+	for (i = 0; i < vpss_outchn_max(dev->hw_dev->vpss_ver); i++) {
+		stream = &stream_vdev->stream[i];
+		stream->linked = flags;
+		sink = &stream->vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKVPSS_PAD_SOURCE, sink, 0, flags);
+		if (ret < 0)
+			goto end;
+	}
 
 end:
 	return ret;
@@ -304,6 +300,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, vpss_dev);
 	vpss_dev->dev = dev;
+	vpss_dev->unite_extend_pixel = 128;
 
 	ret = rkvpss_attach_hw(vpss_dev);
 	if (ret)
@@ -326,7 +323,7 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(vpss_dev->dev, v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "register v4l2 device failed:%d\n", ret);
-		return ret;
+		goto err_detach;
 	}
 	media_device_init(&vpss_dev->media_dev);
 	ret = media_device_register(&vpss_dev->media_dev);
@@ -343,16 +340,18 @@ static int rkvpss_plat_probe(struct platform_device *pdev)
 	atomic_set(&vpss_dev->pipe_stream_cnt, 0);
 	rkvpss_proc_init(vpss_dev);
 	pm_runtime_enable(&pdev->dev);
-	vpss_dev->is_probe_end = true;
 	init_waitqueue_head(&vpss_dev->stop_done);
 	vpss_dev->is_suspend = false;
 	vpss_dev->is_idle = true;
+	vpss_dev->is_probe_end = true;
 	return 0;
 
 err_unreg_media_dev:
 	media_device_unregister(&vpss_dev->media_dev);
 err_unreg_v4l2_dev:
 	v4l2_device_unregister(&vpss_dev->v4l2_dev);
+err_detach:
+	rkvpss_detach_hw(vpss_dev);
 	return ret;
 }
 
@@ -372,6 +371,7 @@ static int rkvpss_plat_remove(struct platform_device *pdev)
 	media_device_unregister(&vpss_dev->media_dev);
 	v4l2_device_unregister(&vpss_dev->v4l2_dev);
 	mutex_destroy(&vpss_dev->apilock);
+	rkvpss_detach_hw(vpss_dev);
 	return 0;
 }
 
@@ -391,6 +391,7 @@ static int __maybe_unused rkvpss_dev_runtime_resume(struct device *dev)
 	struct rkvpss_device *vpss_dev = dev_get_drvdata(dev);
 	int ret;
 
+	vpss_dev->stream_vdev.wrap_line = rkvpss_wrap_line;
 	mutex_lock(&vpss_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(vpss_dev->hw_dev->dev);
 	mutex_unlock(&vpss_dev->hw_dev->dev_lock);

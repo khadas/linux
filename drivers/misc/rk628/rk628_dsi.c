@@ -950,6 +950,17 @@ static void testif_write(struct rk628 *rk628, const struct rk628_dsi *dsi,
 	dev_info(rk628->dev, "monitor_data: 0x%x\n", monitor_data);
 }
 
+static u8 testif_read(struct rk628 *rk628, const struct rk628_dsi *dsi, u8 reg)
+{
+	u8 value = 0;
+
+	testif_test_code_write(rk628, dsi, reg);
+	value = testif_get_data(rk628, dsi);
+	testif_test_data_write(rk628, dsi, value);
+
+	return value;
+}
+
 static void testif_set_timing(const struct rk628_dsi *dsi, u8 addr,
 			      u8 max, u8 val)
 {
@@ -960,6 +971,126 @@ static void testif_set_timing(const struct rk628_dsi *dsi, u8 addr,
 
 	testif_write(rk628, dsi, addr, (max + 1) | val);
 }
+
+static const struct {
+	char *name;
+	u8 reg;
+	u8 max;
+} dphy_timing_table[] = {
+	{ "clk_lp",          0x60, 0x3f },
+	{ "clk_hs_prepare",  0x61, 0x7f },
+	{ "clk_hs_zero",     0x62, 0x3f },
+	{ "clk_hs_trail",    0x63, 0x7f },
+	{ "clk_post",        0x65, 0x0f },
+	{ "data_lp",         0x70, 0x3f },
+	{ "data_hs_prepare", 0x71, 0x7f },
+	{ "data_hs_zero",    0x72, 0x3f },
+	{ "data_hs_trail",   0x73, 0x7f },
+};
+
+static int rk628_dphy_timing_show(struct seq_file *s, void *v)
+{
+	struct rk628 *rk628 = s->private;
+	u8 val;
+
+	seq_printf(s, "%-29sdphy0 dphy1\n", "");
+	for (int i = 0; i < ARRAY_SIZE(dphy_timing_table); i++) {
+		seq_printf(s, "%-15s(0x%02x ~ 0x%02x): ", dphy_timing_table[i].name, 0,
+			   dphy_timing_table[i].max);
+
+		val = testif_read(rk628, &rk628->dsi0, dphy_timing_table[i].reg);
+		if (val & (dphy_timing_table[i].max + 1))
+			seq_printf(s, "0x%02x  ", val & dphy_timing_table[i].max);
+		else
+			seq_puts(s, "auto  ");
+
+		val = testif_read(rk628, &rk628->dsi1, dphy_timing_table[i].reg);
+		if (val & (dphy_timing_table[i].max + 1))
+			seq_printf(s, "0x%02x  ", val & dphy_timing_table[i].max);
+		else
+			seq_puts(s, "auto  ");
+
+		seq_puts(s, "\n");
+	}
+
+	seq_puts(s, "\n");
+	seq_puts(s, "example of modify single configuration:\n");
+	seq_puts(s, "    echo dphy0.data_hs_prepare 0x40 > dphy_timing\n");
+	seq_puts(s, "example of modify multiple configurations:\n");
+	seq_puts(s, "    echo dphy0 0x7 0x30 0x25 0x3c 0xf 0x7 0x40 0x9 0x40 > dphy_timing\n");
+
+	return 0;
+}
+
+static ssize_t rk628_dphy_timing_write(struct file *file, const char __user *buf, size_t count,
+				       loff_t *ppos)
+{
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	struct rk628_dsi *dsi;
+	char kbuf[51], *p;
+	u32 val;
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	if (strstr(kbuf, "dphy0") == kbuf)
+		dsi = &rk628->dsi0;
+	else if (strstr(kbuf, "dphy1") == kbuf)
+		dsi = &rk628->dsi1;
+	else
+		return -EINVAL;
+
+	p = kbuf + 5;
+	if (*(p++) == '.') {
+		char name[51];
+
+		ret = sscanf(p, "%s %x", name, &val);
+		if (ret != 2)
+			return -EINVAL;
+
+		for (int i = 0; i < ARRAY_SIZE(dphy_timing_table); i++) {
+			if (strcmp(name, dphy_timing_table[i].name) == 0) {
+				testif_set_timing(dsi, dphy_timing_table[i].reg,
+						  dphy_timing_table[i].max, val);
+				return count;
+			}
+		}
+	} else {
+		int i = 0;
+
+		while (i < ARRAY_SIZE(dphy_timing_table) && sscanf(p, "%x%n", &val, &ret) == 1) {
+			testif_set_timing(dsi, dphy_timing_table[i].reg,
+					  dphy_timing_table[i].max, val);
+			i++;
+			p += ret;
+		}
+		return count;
+	}
+
+	return -EINVAL;
+}
+
+static int rk628_dphy_timing_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_dphy_timing_show, rk628);
+}
+
+static const struct file_operations rk628_dphy_timing_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_dphy_timing_open,
+	.read           = seq_read,
+	.write          = rk628_dphy_timing_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
 
 static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
 {
@@ -984,6 +1115,10 @@ static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
 	};
 	unsigned int index;
 
+	// These ranges use the controller's internal automatically calculated timing.
+	if (dsi->lane_mbps < 800 || (dsi->lane_mbps >= 900 && dsi->lane_mbps < 1100))
+		return;
+
 	if (dsi->lane_mbps < timing_table[0].min_lane_mbps)
 		return;
 
@@ -994,9 +1129,6 @@ static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
 
 	if (index == ARRAY_SIZE(timing_table))
 		--index;
-
-	if (dsi->lane_mbps < timing_table[index].max_lane_mbps)
-		return;
 
 	testif_set_timing(dsi, 0x60, 0x3f, timing_table[index].clk_lp);
 	testif_set_timing(dsi, 0x61, 0x7f, timing_table[index].clk_hs_prepare);
@@ -1362,9 +1494,12 @@ static const struct file_operations rk628_dsi_color_bar_fops = {
 
 void rk628_mipi_dsi_create_debugfs_file(struct rk628 *rk628)
 {
-	if (rk628_output_is_dsi(rk628))
+	if (rk628_output_is_dsi(rk628)) {
 		debugfs_create_file("dsi_color_bar", 0600, rk628->debug_dir,
 				    rk628, &rk628_dsi_color_bar_fops);
+		debugfs_create_file("dphy_timing", 0600, rk628->debug_dir,
+				    rk628, &rk628_dphy_timing_fops);
+	}
 }
 
 void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)

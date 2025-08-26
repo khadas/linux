@@ -169,6 +169,33 @@ static struct icm42670_regs icm42670_regs[] = {
 	},
 };
 
+struct icm42670_filter_freq {
+	u8 reg_val;
+	u16 freq;
+};
+
+static const struct icm42670_filter_freq accel_filter_freq_table[] = {
+	{BIT_ACC_FILT_BW_IND_BYPASS, 0},      /* BYPASS */
+	{BIT_ACC_FILT_BW_IND_180HZ, 180},     /* 180Hz */
+	{BIT_ACC_FILT_BW_IND_121HZ, 121},     /* 121Hz */
+	{BIT_ACC_FILT_BW_IND_73HZ, 73},       /* 73Hz */
+	{BIT_ACC_FILT_BW_IND_53HZ, 53},       /* 53Hz */
+	{BIT_ACC_FILT_BW_IND_34HZ, 34},       /* 34Hz */
+	{BIT_ACC_FILT_BW_IND_25HZ, 25},       /* 25Hz */
+	{BIT_ACC_FILT_BW_IND_16HZ, 16},       /* 16Hz */
+};
+
+static const struct icm42670_filter_freq gyro_filter_freq_table[] = {
+	{BIT_GYR_UI_FLT_BW_BYPASS, 0},      /* BYPASS */
+	{BIT_GYR_UI_FLT_BW_180HZ, 180},     /* 180Hz */
+	{BIT_GYR_UI_FLT_BW_121HZ, 121},     /* 121Hz */
+	{BIT_GYR_UI_FLT_BW_73HZ, 73},       /* 73Hz */
+	{BIT_GYR_UI_FLT_BW_53HZ, 53},       /* 53Hz */
+	{BIT_GYR_UI_FLT_BW_34HZ, 34},       /* 34Hz */
+	{BIT_GYR_UI_FLT_BW_25HZ, 25},       /* 25Hz */
+	{BIT_GYR_UI_FLT_BW_16HZ, 16},       /* 16Hz */
+};
+
 static IIO_CONST_ATTR(in_accel_sampling_frequency_available,
 			"1 3 6 12 25 50 100 200 400 800 1600");
 static IIO_CONST_ATTR(in_anglvel_sampling_frequency_available,
@@ -177,12 +204,167 @@ static IIO_CONST_ATTR(in_accel_scale_available,
 			"0.000598 0.001196 0.002393 0.004785");
 static IIO_CONST_ATTR(in_anglvel_scale_available,
 			"0.000133231 0.000266462 0.000532113 0.001064225");
+static IIO_CONST_ATTR(in_accel_lpf_bw_available,
+			"0 16 25 34 53 73 121 180");
+static IIO_CONST_ATTR(in_anglvel_lpf_bw_available,
+			"0 16 25 34 53 73 121 180");
+
+static u8 freq_to_reg_val(u16 freq, bool is_accel)
+{
+	const struct icm42670_filter_freq *table;
+	int size, i;
+
+	if (is_accel) {
+		table = accel_filter_freq_table;
+		size = ARRAY_SIZE(accel_filter_freq_table);
+	} else {
+		table = gyro_filter_freq_table;
+		size = ARRAY_SIZE(gyro_filter_freq_table);
+	}
+
+	for (i = 0; i < size; i++) {
+		if (table[i].freq == freq)
+			return table[i].reg_val;
+	}
+
+	return 0;
+}
+
+static u16 reg_val_to_freq(u8 reg_val, bool is_accel)
+{
+	const struct icm42670_filter_freq *table;
+	int size, i;
+
+	if (is_accel) {
+		table = accel_filter_freq_table;
+		size = ARRAY_SIZE(accel_filter_freq_table);
+	} else {
+		table = gyro_filter_freq_table;
+		size = ARRAY_SIZE(gyro_filter_freq_table);
+	}
+
+	for (i = 0; i < size; i++) {
+		if (table[i].reg_val == reg_val)
+			return table[i].freq;
+	}
+
+	return 0;
+}
+
+static int icm42670_set_lpf_bw(struct icm42670_data *data,
+			      enum icm42670_sensor_type t,
+			      u16 freq)
+{
+	int ret;
+	unsigned int reg;
+	u8 filter_val;
+	u8 reg_addr;
+	u32 mask;
+
+	mutex_lock(&data->lock);
+
+	if (t == ICM42670_ACCEL) {
+		reg_addr = REG_ACCEL_CONFIG1;
+		mask = ACCEL_CONFIG1_ACCEL_UI_FILT_BW_MASK;
+		filter_val = freq_to_reg_val(freq, true);
+		data->accel_lpf_bw = freq;
+	} else {
+		reg_addr = REG_GYRO_CONFIG1;
+		mask = GYRO_CONFIG1_GYRO_UI_FILT_BW_MASK;
+		filter_val = freq_to_reg_val(freq, false);
+		data->gyro_lpf_bw = freq;
+	}
+
+	ret = regmap_read(data->regmap, reg_addr, &reg);
+	if (ret)
+		goto unlock;
+
+	reg &= ~mask;
+	reg |= filter_val;
+
+	ret = regmap_write(data->regmap, reg_addr, reg);
+
+unlock:
+	mutex_unlock(&data->lock);
+	return ret;
+}
+
+static ssize_t in_accel_lpf_bw_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct icm42670_data *data = iio_priv(indio_dev);
+	u16 freq = reg_val_to_freq(data->accel_lpf_bw, true);
+
+	return sprintf(buf, "%u\n", freq);
+}
+
+static ssize_t in_accel_lpf_bw_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct icm42670_data *data = iio_priv(indio_dev);
+	unsigned long freq;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &freq);
+	if (ret)
+		return ret;
+
+	ret = icm42670_set_lpf_bw(data, ICM42670_ACCEL, freq);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static ssize_t in_anglvel_lpf_bw_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct icm42670_data *data = iio_priv(indio_dev);
+	u16 freq = reg_val_to_freq(data->gyro_lpf_bw, false);
+
+	return sprintf(buf, "%u\n", freq);
+}
+
+static ssize_t in_anglvel_lpf_bw_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct icm42670_data *data = iio_priv(indio_dev);
+	unsigned long freq;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &freq);
+	if (ret)
+		return ret;
+
+	ret = icm42670_set_lpf_bw(data, ICM42670_GYRO, freq);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static IIO_DEVICE_ATTR(in_accel_lpf_bw, 0644,
+		      in_accel_lpf_bw_show, in_accel_lpf_bw_store, 0);
+static IIO_DEVICE_ATTR(in_anglvel_lpf_bw, 0644,
+		      in_anglvel_lpf_bw_show, in_anglvel_lpf_bw_store, 0);
 
 static struct attribute *icm42670_attrs[] = {
 	&iio_const_attr_in_accel_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_anglvel_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
 	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
+	&iio_const_attr_in_accel_lpf_bw_available.dev_attr.attr,
+	&iio_const_attr_in_anglvel_lpf_bw_available.dev_attr.attr,
+	&iio_dev_attr_in_accel_lpf_bw.dev_attr.attr,
+	&iio_dev_attr_in_anglvel_lpf_bw.dev_attr.attr,
 	NULL,
 };
 
@@ -346,11 +528,10 @@ static int icm42670_gyro_off(struct icm42670_data *data)
 		return ret;
 
 	cmd &= (~(BIT_PWR_MGMT0_GYRO(INV_ICM42670_SENSOR_MODE_LOW_NOISE)));	 // Gyro off
-	msleep(80);
 	ret = regmap_write(data->regmap, REG_PWR_MGMT_0, cmd);
 	if (ret < 0)
 		return ret;
-	msleep(200);
+	usleep_range(200, 201);
 	return ret;
 }
 
@@ -910,10 +1091,6 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 		dev_err(dev, "reset done status bit missing (%0x)\n", regval);
 		return -ENODEV;
 	}
-	// Configure the INT1 GPIO as input
-	ret = gpio_direction_input(data->int1_gpio);
-	if (ret < 0)
-		dev_err(dev, "gpio_direction_input  failed!\r\n");
 
 	/* set chip bus configuration */
 	ret = bus_setup(data);
@@ -988,6 +1165,18 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 		return ret;
 	}
 
+	ret = icm42670_set_lpf_bw(data, ICM42670_ACCEL, 0);
+	if (ret < 0) {
+		dev_err(dev, "icm42670 set accel lpf bandwidth failed!\n");
+		return ret;
+	}
+
+	ret = icm42670_set_lpf_bw(data, ICM42670_GYRO, 0);
+	if (ret < 0) {
+		dev_err(dev, "icm42670 set gyro lpf bandwidth failed!\n");
+		return ret;
+	}
+
 	ret = regmap_write(data->regmap, REG_INT_CONFIG_REG, data->irq_mask);
 	if (ret < 0)
 		return ret;
@@ -995,6 +1184,11 @@ static int icm42670_chip_init(struct icm42670_data *data, icm42670_bus_setup bus
 	dev_info(dev, "icm42670_init success!\r\n");
 
 	return ret;
+}
+
+static irqreturn_t icm42670_do_nothing(int irq, void *private)
+{
+	return IRQ_HANDLED;
 }
 
 int icm42670_core_probe(struct regmap *regmap,
@@ -1025,11 +1219,16 @@ int icm42670_core_probe(struct regmap *regmap,
 	if (data->node == NULL)
 		dev_err(dev, "ic2 node not find!\n");
 
-	data->int1_gpio = of_get_named_gpio(data->node, "int1-gpio", 0);
-	if (data->int1_gpio < 0) {
-		dev_err(dev, "Could not get int1_gpio!\n");
-		return -EINVAL;
-	}
+	data->int1_gpiod = devm_gpiod_get(dev, "int1", GPIOD_IN);
+	if (IS_ERR(data->int1_gpiod))
+		return dev_err_probe(dev, PTR_ERR(data->int1_gpiod), "Could not get int1 gpio\n");
+
+	/* Get the same result through gpiod_to_irq to ensure that
+	 * the affinity can be restored after CPU off/on
+	 */
+	irq = gpiod_to_irq(data->int1_gpiod);
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "Could not get IRQ from GPIO\n");
 
 	data->enable_fifo = of_property_read_bool(data->node, "enable-fifo");
 	if (true != data->enable_fifo)
@@ -1054,6 +1253,11 @@ int icm42670_core_probe(struct regmap *regmap,
 			irq_type);
 		return -EINVAL;
 	}
+
+	if (device_property_read_bool(dev, "drive-open-drain"))
+		data->irq_mask |= BIT_ONLY_INT1_OPEN_DRAIN;
+	else
+		data->irq_mask |= BIT_ONLY_INT1_PUSH_PULL;
 
 	data->vdd_supply = devm_regulator_get(dev, "vcc_3v3_s0");
 	if (IS_ERR(data->vdd_supply)) {
@@ -1094,9 +1298,13 @@ int icm42670_core_probe(struct regmap *regmap,
 	indio_dev->info = &icm42670_info;
 	indio_dev->modes = INDIO_BUFFER_TRIGGERED;
 
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
-		iio_pollfunc_store_time,
-		data->enable_fifo ? icm42670_read_fifo : icm42670_read_data, NULL);
+	if (data->enable_fifo) {
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+				iio_pollfunc_store_time, icm42670_read_fifo, NULL);
+	} else {
+		ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+				icm42670_do_nothing, NULL, NULL);
+	}
 	if (ret < 0)
 		goto uninit;
 
@@ -1130,32 +1338,19 @@ EXPORT_SYMBOL_GPL(icm42670_core_probe);
  */
 static int __maybe_unused sleep_icm42670_resume(struct device *dev)
 {
-	int ret;
-	struct icm42670_data *st =  iio_priv(dev_get_drvdata(dev));
+	int ret = 0;
+	struct icm42670_data *st = iio_priv(dev_get_drvdata(dev));
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	mutex_lock(&st->lock);
-
-	ret = regulator_enable(st->vdd_supply);
-	if (ret)
-		goto out_unlock;
 
 	usleep_range(3000, 4000);
 
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
 	icm42670_set_odr(st, ICM42670_GYRO, st->gyro_frequency_buff);
 	icm42670_set_odr(st, ICM42670_ACCEL, st->accel_frequency_buff);
+	icm42670_set_lpf_bw(st, ICM42670_ACCEL, st->accel_lpf_bw_buff);
+	icm42670_set_lpf_bw(st, ICM42670_GYRO, st->gyro_lpf_bw_buff);
 
 	ret = icm42670_set_enable(indio_dev, 1);
-	if (ret)
-		goto out_unlock;
 
-	devm_regulator_put(st->vdd_supply);
-out_unlock:
-	mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -1165,29 +1360,17 @@ out_unlock:
  */
 static int __maybe_unused sleep_icm42670_suspend(struct device *dev)
 {
-	struct icm42670_data *st =  iio_priv(dev_get_drvdata(dev));
+	struct icm42670_data *st = iio_priv(dev_get_drvdata(dev));
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	int ret;
-
-	mutex_lock(&st->lock);
+	int ret = 0;
 
 	st->gyro_frequency_buff = st->gyro_frequency;
 	st->accel_frequency_buff = st->accel_frequency;
-
-	if (pm_runtime_suspended(dev)) {
-		ret = 0;
-		goto out_unlock;
-	}
+	st->accel_lpf_bw_buff = st->accel_lpf_bw;
+	st->gyro_lpf_bw_buff = st->gyro_lpf_bw;
 
 	ret = icm42670_set_enable(indio_dev, 0);
-	if (ret)
-		goto out_unlock;
 
-	regulator_disable(st->vdd_supply);
-	devm_regulator_put(st->vdd_supply);
-
-out_unlock:
-	mutex_unlock(&st->lock);
 	return ret;
 }
 

@@ -4,18 +4,30 @@
 #ifndef _RKVPSS_DEV_H
 #define _RKVPSS_DEV_H
 
-#include <linux/rk-vpss-config.h>
-
-#include "hw.h"
-#include "procfs.h"
-#include "stream.h"
-#include "vpss.h"
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
+#include <linux/regmap.h>
+#include <media/v4l2-fwnode.h>
 
 #define DRIVER_NAME			"rkvpss"
 #define S0_VDEV_NAME DRIVER_NAME	"_scale0"
 #define S1_VDEV_NAME DRIVER_NAME	"_scale1"
 #define S2_VDEV_NAME DRIVER_NAME	"_scale2"
 #define S3_VDEV_NAME DRIVER_NAME	"_scale3"
+#define S4_VDEV_NAME DRIVER_NAME	"_scale4"
+#define S5_VDEV_NAME DRIVER_NAME	"_scale5"
+
+#define RKVPSS_REGFILE_LEN 50
 
 enum rkvpss_input {
 	INP_INVAL = 0,
@@ -40,6 +52,11 @@ struct rkvpss_rdbk_info {
 	u64 seq;
 };
 
+struct rkvpss_wrap_buf {
+	struct dma_buf *dbuf;
+	dma_addr_t dma_addr;
+};
+
 struct rkvpss_device {
 	char name[128];
 	struct device *dev;
@@ -54,11 +71,13 @@ struct rkvpss_device {
 	struct rkvpss_subdev vpss_sdev;
 	struct rkvpss_stream_vdev stream_vdev;
 	struct proc_dir_entry *procfs;
+	struct rkvpss_wrap_buf wrap_buf;
 
 	atomic_t pipe_power_cnt;
 	atomic_t pipe_stream_cnt;
 
 	spinlock_t cmsc_lock;
+	spinlock_t idle_lock;
 	struct rkvpss_cmsc_cfg cmsc_cfg;
 
 	enum rkvpss_ver	vpss_ver;
@@ -72,6 +91,7 @@ struct rkvpss_device {
 	bool mir_en;
 	bool cmsc_upd;
 	u32 unite_mode;
+	u32 unite_extend_pixel;
 	u8 unite_index;
 	bool stopping;
 	wait_queue_head_t stop_done;
@@ -82,6 +102,7 @@ struct rkvpss_device {
 	bool is_suspend;
 	bool is_idle;
 	struct completion pm_suspend_wait_fe;
+	struct rkisp_vpss_frame_info frame_info;
 };
 
 void rkvpss_pipeline_default_fmt(struct rkvpss_device *dev);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ROCKCHIP, Inc.
+ * Copyright (C) 2012 Rockchip Electronics Co., Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -40,6 +40,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #endif
+#include <linux/pinctrl/consumer.h>
 
 #if 0
 #define DBG(x...) pr_info("[BT_RFKILL]: " x)
@@ -918,6 +919,7 @@ static int rfkill_rk_remove(struct platform_device *pdev)
 	rfkill_unregister(rfkill->rfkill_dev);
 	rfkill_destroy(rfkill->rfkill_dev);
 	remove_proc_subtree("bluetooth/sleep", NULL);
+	remove_proc_entry("bluetooth", NULL);
 
 	cancel_delayed_work_sync(&rfkill->bt_sleep_delay_work);
 

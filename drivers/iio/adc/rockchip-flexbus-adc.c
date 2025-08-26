@@ -175,6 +175,7 @@ static int rockchip_flexbus_adc_read_raw(struct iio_dev *indio_dev,
 			val_mask = 0xffff;
 			break;
 		}
+		dma_rmb();
 		*val = readw(rkfb_adc->dst_buf) & val_mask;
 		return IIO_VAL_INT;
 
@@ -340,11 +341,10 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 	rkfb_adc->dev = &pdev->dev;
 	rkfb_adc->rkfb = rkfb;
-	rockchip_flexbus_set_fb1(rkfb, rkfb_adc, rockchip_flexbus_adc_isr);
 
 	ret = rockchip_flexbus_adc_parse_dt(rkfb_adc);
 	if (ret)
-		goto err_fb1;
+		return ret;
 
 	if (rkfb_adc->slave_mode) {
 		rkfb_adc->ref_clk = devm_clk_get(&pdev->dev, "ref_clk");
@@ -356,7 +356,7 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 			ret = clk_prepare_enable(rkfb_adc->ref_clk);
 			if (ret) {
 				dev_err(rkfb_adc->dev, "failed to enable ref_clk.\n");
-				goto err_fb1;
+				return ret;
 			}
 		}
 	}
@@ -400,14 +400,14 @@ static int rockchip_flexbus_adc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mutex_destroy;
 
+	rockchip_flexbus_set_fb1(rkfb, rkfb_adc, rockchip_flexbus_adc_isr);
+
 	return ret;
 
 err_mutex_destroy:
 	mutex_destroy(&rkfb_adc->lock);
 	if (rkfb_adc->ref_clk)
 		clk_disable_unprepare(rkfb_adc->ref_clk);
-err_fb1:
-	rockchip_flexbus_set_fb1(rkfb, NULL, NULL);
 
 	return ret;
 }
@@ -418,13 +418,23 @@ static int rockchip_flexbus_adc_remove(struct platform_device *pdev)
 	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
 	struct rockchip_flexbus *rkfb = rkfb_adc->rkfb;
 
+	rockchip_flexbus_set_fb1(rkfb, NULL, NULL);
 	mutex_destroy(&rkfb_adc->lock);
 	if (rkfb_adc->ref_clk)
 		clk_disable_unprepare(rkfb_adc->ref_clk);
-	rockchip_flexbus_set_fb1(rkfb, NULL, NULL);
 
 	return 0;
 }
+
+static int rockchip_flexbus_adc_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rockchip_flexbus_adc *rkfb_adc = iio_priv(indio_dev);
+
+	return rockchip_flexbus_adc_init(rkfb_adc);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rockchip_flexbus_adc_pm_ops, NULL, rockchip_flexbus_adc_resume);
 
 static struct platform_driver rockchip_flexbus_adc_driver = {
 	.probe	= rockchip_flexbus_adc_probe,
@@ -432,6 +442,7 @@ static struct platform_driver rockchip_flexbus_adc_driver = {
 	.driver	= {
 		.name		= "rockchip_flexbus_adc",
 		.of_match_table = rockchip_flexbus_adc_of_match,
+		.pm		= pm_sleep_ptr(&rockchip_flexbus_adc_pm_ops),
 	},
 };
 

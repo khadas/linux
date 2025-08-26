@@ -913,14 +913,14 @@ static void gc5025_get_otp(struct gc5025_otp_info *otp,
 			if (gc5025_module_info[i].id == otp->module_id)
 				break;
 		}
-		strlcpy(inf->fac.module, gc5025_module_info[i].name,
+		strscpy(inf->fac.module, gc5025_module_info[i].name,
 			sizeof(inf->fac.module));
 
 		for (i = 0; i < ARRAY_SIZE(gc5025_lens_info) - 1; i++) {
 			if (gc5025_lens_info[i].id == otp->lens_id)
 				break;
 		}
-		strlcpy(inf->fac.lens, gc5025_lens_info[i].name,
+		strscpy(inf->fac.lens, gc5025_lens_info[i].name,
 			sizeof(inf->fac.lens));
 	}
 	/* awb */
@@ -943,13 +943,13 @@ static void gc5025_get_module_inf(struct gc5025 *gc5025,
 {
 	struct gc5025_otp_info *otp = gc5025->otp;
 
-	strlcpy(inf->base.sensor,
+	strscpy(inf->base.sensor,
 		GC5025_NAME,
 		sizeof(inf->base.sensor));
-	strlcpy(inf->base.module,
+	strscpy(inf->base.module,
 		gc5025->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens,
+	strscpy(inf->base.lens,
 		gc5025->len_name,
 		sizeof(inf->base.lens));
 	if (otp)

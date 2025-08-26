@@ -1981,14 +1981,14 @@ static void gc8034_get_otp(struct gc8034_otp_info *otp,
 			if (gc8034_module_info[i].id == otp->module_id)
 				break;
 		}
-		strlcpy(inf->fac.module, gc8034_module_info[i].name,
+		strscpy(inf->fac.module, gc8034_module_info[i].name,
 			sizeof(inf->fac.module));
 
 		for (i = 0; i < ARRAY_SIZE(gc8034_lens_info) - 1; i++) {
 			if (gc8034_lens_info[i].id == otp->lens_id)
 				break;
 		}
-		strlcpy(inf->fac.lens, gc8034_lens_info[i].name,
+		strscpy(inf->fac.lens, gc8034_lens_info[i].name,
 			sizeof(inf->fac.lens));
 	}
 	/* awb */
@@ -2024,13 +2024,13 @@ static void gc8034_get_module_inf(struct gc8034 *gc8034,
 	struct gc8034_otp_info *otp = gc8034->otp;
 #endif
 
-	strlcpy(inf->base.sensor,
+	strscpy(inf->base.sensor,
 		GC8034_NAME,
 		sizeof(inf->base.sensor));
-	strlcpy(inf->base.module,
+	strscpy(inf->base.module,
 		gc8034->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens,
+	strscpy(inf->base.lens,
 		gc8034->len_name,
 		sizeof(inf->base.lens));
 	if (otp)

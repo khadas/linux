@@ -1794,6 +1794,7 @@ struct isp39_stat {
 	struct isp39_dhaz_stat dhaz;
 	struct isp39_bay3d_stat bay3d;
 	struct isp32_info2ddr_stat info2ddr;
+	int buf_bay3d_iir_index;
 } __attribute__ ((packed));
 
 struct rkisp39_stat_buffer {

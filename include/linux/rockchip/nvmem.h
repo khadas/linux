@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  * Author: Hisping <hisping.lin@rock-chips.com>
  */
 #ifndef __ROCKCHIP_NVMEM_H

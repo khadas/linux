@@ -3,7 +3,7 @@
  * PWM driver for Rockchip SoCs
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
- * Copyright (C) 2014 ROCKCHIP, Inc.
+ * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
  */
 
 #include <linux/clk.h>
@@ -73,7 +73,7 @@
 /*
  * regs for pwm v4
  */
-#define HIWORD_UPDATE(v, l, h)	(((v) << (l)) | (GENMASK(h, l) << 16))
+#define HIWORD_UPDATE(v, l, h)	((((v) << (l)) & GENMASK((h), (l))) | (GENMASK(h, l) << 16))
 
 /* VERSION_ID */
 #define VERSION_ID			0x0
@@ -88,6 +88,7 @@
 #define WAVE_SUPPORT			BIT(12)
 #define FILTER_SUPPORT			BIT(13)
 #define BIPHASIC_SUPPORT		BIT(14)
+#define LEDC_SUPPORT			BIT(15)
 #define MINOR_VERSION_SHIFT		16
 #define MINOR_VERSION_MASK		(0xff << MINOR_VERSION_SHIFT)
 #define MAIN_VERSION_SHIFT		24
@@ -183,6 +184,8 @@
 #define WAVE_MAX_INT_EN(v)		HIWORD_UPDATE(v, 7, 7)
 #define WAVE_MIDDLE_INT_EN(v)		HIWORD_UPDATE(v, 8, 8)
 #define BIPHASIC_INT_EN(v)		HIWORD_UPDATE(v, 9, 9)
+/* FEATURE */
+#define FEATURE				0x7c
 /* WAVE_MEM_ARBITER */
 #define WAVE_MEM_ARBITER		0x80
 #define WAVE_MEM_GRANT_SHIFT		0
@@ -311,11 +314,14 @@ struct rockchip_pwm_chip {
 	struct resource *res;
 	struct dentry *debugfs;
 	struct completion ir_trans_completion;
+	struct completion freq_meter_completion;
+	struct completion biphasic_completion;
 	void __iomem *base;
 	unsigned long clk_rate;
 	unsigned long is_clk_enabled;
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
 	bool center_aligned;
+	bool oneshot_valid;
 	bool oneshot_en;
 	bool capture_en;
 	bool wave_en;
@@ -325,12 +331,12 @@ struct rockchip_pwm_chip {
 	bool counter_support;
 	bool wave_support;
 	bool biphasic_support;
-	bool freq_res_valid;
-	bool biphasic_res_valid;
+	bool ledc_support;
 	int channel_id;
 	int irq;
 	u32 scaler;
 	u8 main_version;
+	u8 minor_version;
 	u8 capture_cnt;
 };
 
@@ -556,7 +562,7 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 		ctrl &= ~PWM_CLK_SEL_MASK;
 		ctrl |= PWM_SEL_SCALED_CLOCK;
 
-		pc->oneshot_en = true;
+		pc->oneshot_valid = true;
 		ctrl &= ~PWM_MODE_MASK;
 		ctrl |= PWM_ONESHOT;
 
@@ -579,7 +585,7 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 			dev_err(chip->dev, "Oneshot_count must be between 1 and %d.\n",
 				pc->data->oneshot_cnt_max);
 
-		pc->oneshot_en = false;
+		pc->oneshot_valid = false;
 		ctrl &= ~PWM_MODE_MASK;
 		ctrl |= PWM_CONTINUOUS;
 
@@ -646,7 +652,7 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 			val |= PWM_OUTPUT_CENTER;
 	}
 
-	if (pc->oneshot_en) {
+	if (pc->oneshot_valid) {
 		enable_conf &= ~PWM_MODE_MASK;
 		enable_conf |= PWM_ONESHOT;
 	} else if (pc->capture_en) {
@@ -673,6 +679,8 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (!enable)
 		clk_disable(pc->clk);
+
+	pc->oneshot_en = pc->oneshot_valid ? enable : false;
 
 	return 0;
 }
@@ -735,14 +743,15 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 
 	if (val & FREQ_INT) {
 		writel_relaxed(FREQ_INT, pc->base + INTSTS);
-		pc->freq_res_valid = true;
+		complete(&pc->freq_meter_completion);
 
 		ret = IRQ_HANDLED;
 	}
 
 	if (val & BIPHASIC_INT) {
 		writel_relaxed(BIPHASIC_INT, pc->base + INTSTS);
-		pc->biphasic_res_valid = true;
+		complete(&pc->biphasic_completion);
+
 		ret = IRQ_HANDLED;
 	}
 
@@ -824,17 +833,17 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 				state->duty_cycle, state->period);
 		}
 
-		pc->oneshot_en = true;
+		pc->oneshot_valid = true;
 	} else {
 		if (state->oneshot_count)
 			dev_err(chip->dev, "Oneshot_count must be between 1 and %d.\n",
 				pc->data->oneshot_cnt_max);
 
-		pc->oneshot_en = false;
+		pc->oneshot_valid = false;
 	}
 #endif
 
-	if (pc->oneshot_en) {
+	if (pc->oneshot_valid) {
 		writel_relaxed(PWM_MODE(ONESHOT_MODE) | PWM_ALIGNED_INVALID(true),
 			       pc->base + CTRL_V4);
 		writel_relaxed(offset, pc->base + OFFSET);
@@ -867,12 +876,19 @@ static int rockchip_pwm_enable_v4(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	writel_relaxed(PWM_EN(enable) | PWM_CLK_EN(enable), pc->base + ENABLE);
 
-	if (!enable) {
+	/*
+	 * For pwm v4, the disable operation of continuous mode, which sets polarity
+	 * to inactive state, will not take effect until the end of current period.
+	 * Therefore, it makes sense to delay one period before disabling the dclk.
+	 */
+	if (!enable && !pc->oneshot_en) {
 		pwm_get_state(pwm, &curstate);
 		delay_us = DIV_ROUND_UP_ULL(curstate.period, NSEC_PER_USEC);
 		fsleep(delay_us);
 		clk_disable(pc->clk);
 	}
+
+	pc->oneshot_en = pc->oneshot_valid ? enable : false;
 
 	return 0;
 }
@@ -1236,7 +1252,7 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 	int ret;
 
 	if (enable) {
-		pc->freq_res_valid = false;
+		reinit_completion(&pc->freq_meter_completion);
 
 		arbiter = BIT(pc->channel_id) << FREQ_READ_LOCK_SHIFT |
 			  BIT(pc->channel_id) << FREQ_GRANT_SHIFT;
@@ -1276,21 +1292,21 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 freq_res;
 	u32 freq_timer;
+	int ret = 0;
 
-	usleep_range(delay_ms * USEC_PER_MSEC, delay_ms * USEC_PER_MSEC);
-
-	if (pc->freq_res_valid) {
-		freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
-		freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
-		*freq_hz = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * freq_res, freq_timer);
-		if (!*freq_hz)
-			return -EINVAL;
-
-		pc->freq_res_valid = false;
-	} else {
-		dev_err(chip->dev, "failed to wait for freq_meter interrupt\n");
+	ret = wait_for_completion_timeout(&pc->freq_meter_completion,
+					  msecs_to_jiffies(delay_ms * 3 / 2));
+	if (!ret) {
+		dev_err(chip->dev, "Failed to wait for PWM%d frequency meter result to be valid\n",
+			pc->channel_id);
 		return -ETIMEDOUT;
 	}
+
+	freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
+	freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
+	*freq_hz = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * freq_res, freq_timer);
+	if (!*freq_hz)
+		return -EINVAL;
 
 	return 0;
 }
@@ -1599,7 +1615,8 @@ static int rockchip_pwm_set_wave_v4(struct pwm_chip *chip, struct pwm_device *pw
 		ctrl = WAVE_DUTY_EN(config->duty_en) |
 		       WAVE_PERIOD_EN(config->period_en) |
 		       WAVE_WIDTH_MODE(config->width_mode) |
-		       WAVE_UPDATE_MODE(config->update_mode);
+		       WAVE_UPDATE_MODE(config->update_mode) |
+		       WAVE_MEM_CLK_SEL(config->mem_clk_src);
 		max_val = config->duty_max * factor << WAVE_DUTY_MAX_SHIFT |
 			  config->period_max * factor << WAVE_PERIOD_MAX_SHIFT;
 		min_val = config->duty_min * factor << WAVE_DUTY_MIN_SHIFT |
@@ -1613,7 +1630,7 @@ static int rockchip_pwm_set_wave_v4(struct pwm_chip *chip, struct pwm_device *pw
 		ctrl = WAVE_DUTY_EN(false) | WAVE_PERIOD_EN(false);
 	}
 
-	writel_relaxed(CLK_SCALE(pc->scaler), pc->base + CLK_CTRL);
+	writel_relaxed(CLK_SCALE(pc->scaler) | CLK_SRC_SEL(config->clk_src), pc->base + CLK_CTRL);
 	writel_relaxed(ctrl, pc->base + WAVE_CTRL);
 	writel_relaxed(max_val, pc->base + WAVE_MAX);
 	writel_relaxed(min_val, pc->base + WAVE_MIN);
@@ -1621,8 +1638,6 @@ static int rockchip_pwm_set_wave_v4(struct pwm_chip *chip, struct pwm_device *pw
 	writel_relaxed(middle, pc->base + WAVE_MIDDLE);
 
 	writel_relaxed(rpt, pc->base + RPT);
-	writel_relaxed(WAVE_MAX_INT_EN(config->enable) | WAVE_MIDDLE_INT_EN(config->enable),
-		       pc->base + INT_EN);
 
 	pc->wave_en = config->enable;
 
@@ -1652,7 +1667,7 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 		return -EINVAL;
 	}
 
-	pc->scaler = DIV_ROUND_CLOSEST_ULL(pc->clk_rate, config->clk_rate * 2);
+	pc->scaler = DIV_ROUND_CLOSEST_ULL(pc->clk_rate, config->clk_rate) / 2;
 	if (pc->scaler > 256) {
 		dev_err(chip->dev, "Unsupported scale factor %d(max: 512) for PWM%d\n",
 			pc->scaler * 2, pc->channel_id);
@@ -1671,18 +1686,8 @@ int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_confi
 		}
 	}
 
-	if (config->duty_table) {
-		ret = pc->data->funcs.set_wave_table(chip, pwm, config->duty_table,
-						     config->width_mode);
-		if (ret) {
-			dev_err(chip->dev, "Failed to set wave duty table for PWM%d\n",
-				pc->channel_id);
-			goto err_disable_clk_osc;
-		}
-	}
-
-	if (config->period_table) {
-		ret = pc->data->funcs.set_wave_table(chip, pwm, config->period_table,
+	if (config->wave_table) {
+		ret = pc->data->funcs.set_wave_table(chip, pwm, config->wave_table,
 						     config->width_mode);
 		if (ret) {
 			dev_err(chip->dev, "Failed to set wave period table for PWM%d\n",
@@ -1733,7 +1738,9 @@ static int rockchip_pwm_set_biphasic_v4(struct pwm_chip *chip, struct pwm_device
 		ret = clk_enable(pc->clk);
 		if (ret)
 			return ret;
-		pc->biphasic_res_valid = false;
+
+		if (!config->is_continuous)
+			reinit_completion(&pc->biphasic_completion);
 
 		ctrl = BIPHASIC_EN(true) |
 		       BIPHASIC_CONTINOUS_MODE_EN(config->is_continuous) |
@@ -1803,7 +1810,7 @@ int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphas
 		dev_err(chip->dev, "Failed to setup biphasic counter mode for PWM%d\n",
 			pc->channel_id);
 	} else {
-		if (pc->biphasic_config->enable && !config->is_continuous) {
+		if (pc->biphasic_config && pc->biphasic_config->enable && !config->is_continuous) {
 			ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
 			if (ret) {
 				dev_err(chip->dev,
@@ -1829,26 +1836,27 @@ static int rockchip_pwm_get_biphasic_result_v4(struct pwm_chip *chip, struct pwm
 	const struct rockchip_pwm_biphasic_config *config = pc->biphasic_config;
 	u32 val;
 	u32 biphasic_timer;
+	int ret = 0;
 
 	if (!config->is_continuous) {
-		usleep_range(config->delay_ms * USEC_PER_MSEC, config->delay_ms * USEC_PER_MSEC);
-
-		if (pc->biphasic_res_valid) {
-			*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE);
-			if (!*biphasic_res)
-				return -EINVAL;
-
-			if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
-				val = *biphasic_res;
-				biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
-				*biphasic_res = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * val,
-								      biphasic_timer);
-			}
-
-			pc->biphasic_res_valid = false;
-		} else {
-			dev_err(chip->dev, "failed to wait for biphasic counter interrupt\n");
+		ret = wait_for_completion_timeout(&pc->biphasic_completion,
+						  msecs_to_jiffies(config->delay_ms * 3 / 2));
+		if (!ret) {
+			dev_err(chip->dev,
+				"Failed to wait for PWM%d biphasic counter result to be valid\n",
+				pc->channel_id);
 			return -ETIMEDOUT;
+		}
+
+		*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE);
+		if (!*biphasic_res)
+			return -EINVAL;
+
+		if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
+			val = *biphasic_res;
+			biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
+			*biphasic_res = DIV_ROUND_CLOSEST_ULL((u64)pc->clk_rate * val,
+							      biphasic_timer);
 		}
 	} else {
 		*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE_SYNC);
@@ -2254,12 +2262,19 @@ static int rockchip_pwm_get_channel_id(const char *name)
 	return name[len - 2] - '0';
 }
 
+static u32 rockchip_pwm_get_minor_version(struct rockchip_pwm_chip *pc)
+{
+	return (readl_relaxed(pc->base + pc->data->regs.version) & MINOR_VERSION_MASK) >>
+	       MINOR_VERSION_SHIFT;
+}
+
 static int rockchip_pwm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 	struct rockchip_pwm_chip *pc;
 	struct resource *r;
-	u32 enable_conf, ctrl, version;
+	unsigned long irq_flags;
+	u32 enable_conf, ctrl, feature;
 	bool enabled;
 	int ret, count;
 
@@ -2336,16 +2351,25 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = 1;
 	pc->clk_rate = clk_get_rate(pc->clk);
 	pc->main_version = pc->data->main_version;
-	if (pc->main_version >= 4) {
-		version = readl_relaxed(pc->base + pc->data->regs.version);
-		pc->channel_id = (version & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
-		pc->ir_trans_support = !!(version & IR_TRANS_SUPPORT);
-		pc->freq_meter_support = !!(version & FREQ_METER_SUPPORT);
-		pc->counter_support = !!(version & COUNTER_SUPPORT);
-		pc->wave_support = !!(version & WAVE_SUPPORT);
-		pc->biphasic_support = !!(version & BIPHASIC_SUPPORT);
-	} else {
+	if (pc->main_version < 4) {
 		pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
+	} else if (pc->main_version == 4 && rockchip_pwm_get_minor_version(pc) < 1) {
+		feature = readl_relaxed(pc->base + pc->data->regs.version);
+		pc->channel_id = (feature & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+		pc->ir_trans_support = !!(feature & IR_TRANS_SUPPORT);
+		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
+		pc->counter_support = !!(feature & COUNTER_SUPPORT);
+		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
+	} else {
+		feature = readl_relaxed(pc->base + FEATURE);
+		pc->channel_id = (feature & CHANNLE_INDEX_MASK) >> CHANNLE_INDEX_SHIFT;
+		pc->ir_trans_support = !!(feature & IR_TRANS_SUPPORT);
+		pc->freq_meter_support = !!(feature & FREQ_METER_SUPPORT);
+		pc->counter_support = !!(feature & COUNTER_SUPPORT);
+		pc->wave_support = !!(feature & WAVE_SUPPORT);
+		pc->biphasic_support = !!(feature & BIPHASIC_SUPPORT);
+		pc->ledc_support = !!(feature & LEDC_SUPPORT);
 	}
 	if (pc->channel_id < 0 || pc->channel_id >= PWM_MAX_CHANNEL_NUM) {
 		dev_err(&pdev->dev, "Channel id is out of range: %d\n", pc->channel_id);
@@ -2353,37 +2377,31 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		goto err_pclk;
 	}
 
+	if (pc->freq_meter_support)
+		init_completion(&pc->freq_meter_completion);
+
+	if (pc->biphasic_support)
+		init_completion(&pc->biphasic_completion);
+
 	if (pc->data->funcs.irq_handler) {
-		if (pc->main_version >= 4) {
-			pc->irq = platform_get_irq(pdev, 0);
-			if (pc->irq < 0) {
-				dev_err(&pdev->dev, "Get irq failed\n");
-				ret = pc->irq;
-				goto err_pclk;
-			}
+		/*
+		 * For pwm v1-v3, the older platform may not support interrupt, and
+		 * common continuous mode can still work well without irq.
+		 *
+		 * For pwm v4, each channel of every controller supports independent
+		 * interrupt and the 'interrupts' property is confirmed to be set
+		 * for each pwm node.
+		 */
+		pc->irq = platform_get_irq(pdev, 0);
+		if (pc->irq > 0) {
+			irq_flags = pc->main_version >= 4 ? IRQF_NO_SUSPEND :
+							    IRQF_NO_SUSPEND | IRQF_SHARED;
 
 			ret = devm_request_irq(&pdev->dev, pc->irq, pc->data->funcs.irq_handler,
-					       IRQF_NO_SUSPEND, "rk_pwm_irq", pc);
+					       irq_flags, "rk_pwm_irq", pc);
 			if (ret) {
 				dev_err(&pdev->dev, "Claim IRQ failed\n");
 				goto err_pclk;
-			}
-		} else {
-			if (IS_ENABLED(CONFIG_PWM_ROCKCHIP_ONESHOT)) {
-				pc->irq = platform_get_irq_optional(pdev, 0);
-				if (pc->irq < 0) {
-					dev_warn(&pdev->dev,
-						 "Can't get oneshot mode irq and oneshot interrupt is unsupported\n");
-				} else {
-					ret = devm_request_irq(&pdev->dev, pc->irq,
-							       pc->data->funcs.irq_handler,
-							       IRQF_NO_SUSPEND | IRQF_SHARED,
-							       "rk_pwm_oneshot_irq", pc);
-					if (ret) {
-						dev_err(&pdev->dev, "Claim oneshot IRQ failed\n");
-						goto err_pclk;
-					}
-				}
 			}
 		}
 	}

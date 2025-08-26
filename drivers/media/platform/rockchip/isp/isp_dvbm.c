@@ -17,8 +17,6 @@ int rkisp_dvbm_get(struct rkisp_device *dev)
 	int ret = -EINVAL;
 
 	g_dvbm = NULL;
-	if (dev->isp_ver != ISP_V32 && dev->isp_ver != ISP_V33)
-		goto end;
 
 	if (!np_dvbm || !of_device_is_available(np_dvbm)) {
 		dev_warn(dev->dev, "failed to get dvbm node\n");
@@ -29,7 +27,6 @@ int rkisp_dvbm_get(struct rkisp_device *dev)
 		of_node_put(np_dvbm);
 	}
 
-end:
 	return ret;
 }
 
@@ -47,6 +44,7 @@ int rkisp_dvbm_init(struct rkisp_stream *stream)
 	height = stream->out_fmt.height;
 	wrap_line = dev->cap_dev.wrap_line;
 	dvbm_cfg.dma_addr = buf->dma_addr;
+	dvbm_cfg.buf = buf->dbuf;
 	dvbm_cfg.ybuf_bot = 0;
 	dvbm_cfg.ybuf_top = width * wrap_line;
 	dvbm_cfg.ybuf_lstd = width;
@@ -55,9 +53,10 @@ int rkisp_dvbm_init(struct rkisp_stream *stream)
 	dvbm_cfg.cbuf_top = dvbm_cfg.cbuf_bot + (width * wrap_line / 2);
 	dvbm_cfg.cbuf_lstd = width;
 	dvbm_cfg.cbuf_fstd = dvbm_cfg.ybuf_fstd / 2;
+	dvbm_cfg.chan_id = dev->dev_id;
 
 	rk_dvbm_ctrl(g_dvbm, DVBM_ISP_SET_CFG, &dvbm_cfg);
-	rk_dvbm_link(g_dvbm);
+	rk_dvbm_link(g_dvbm, dev->dev_id);
 	return 0;
 }
 
@@ -67,7 +66,7 @@ void rkisp_dvbm_deinit(struct rkisp_device *dev)
 		pr_err("g_dvbm %p or devv %p is NULL\n", g_dvbm, dev);
 		return;
 	}
-	rk_dvbm_unlink(g_dvbm);
+	rk_dvbm_unlink(g_dvbm, dev->dev_id);
 }
 
 int rkisp_dvbm_event(struct rkisp_device *dev, u32 event)
@@ -75,8 +74,7 @@ int rkisp_dvbm_event(struct rkisp_device *dev, u32 event)
 	enum dvbm_cmd cmd;
 	u32 seq;
 
-	if (!g_dvbm || !dev->cap_dev.wrap_line ||
-	    (dev->isp_ver != ISP_V32 && dev->isp_ver != ISP_V33))
+	if (!g_dvbm || !dev->cap_dev.wrap_line)
 		return -EINVAL;
 
 	rkisp_dmarx_get_frame(dev, &seq, NULL, NULL, true);

@@ -854,10 +854,10 @@ static void imx317_get_module_inf(struct imx317 *imx317,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strlcpy(inf->base.sensor, IMX317_NAME, sizeof(inf->base.sensor));
-	strlcpy(inf->base.module, imx317->module_name,
+	strscpy(inf->base.sensor, IMX317_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, imx317->module_name,
 		sizeof(inf->base.module));
-	strlcpy(inf->base.lens, imx317->len_name, sizeof(inf->base.lens));
+	strscpy(inf->base.lens, imx317->len_name, sizeof(inf->base.lens));
 }
 
 static long imx317_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

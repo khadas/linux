@@ -532,25 +532,25 @@ static void analogix_dp_ssc_enable(struct analogix_dp_device *dp)
 	u32 reg;
 
 	/* 4500ppm */
-	writel(0x19, dp->reg_base + ANALOIGX_DP_SSC_REG);
+	analogix_dp_write(dp, ANALOIGX_DP_SSC_REG, 0x19);
 	/*
 	 * To apply updated SSC parameters into SSC operation,
 	 * firmware must disable and enable this bit.
 	 */
-	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
 	reg |= SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 	reg &= ~SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 }
 
 static void analogix_dp_ssc_disable(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	reg = readl(dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
 	reg |= SSC_FUNC_EN_N;
-	writel(reg, dp->reg_base + ANALOGIX_DP_FUNC_EN_2);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_2, reg);
 }
 
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp)
@@ -1103,9 +1103,13 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 
 int analogix_dp_phy_power_on(struct analogix_dp_device *dp)
 {
+	int submode = PHY_SUBMODE_EDP;
 	int ret;
 
-	ret = phy_set_mode(dp->phy, PHY_MODE_DP);
+	if (dp->plat_data->support_dp_mode && dp->dp_mode)
+		submode = PHY_SUBMODE_DP;
+
+	ret = phy_set_mode_ext(dp->phy, PHY_MODE_DP, submode);
 	if (ret) {
 		dev_err(dp->dev, "phy_set_mode failed: %d\n", ret);
 		return ret;
@@ -1143,7 +1147,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 	u32 reg;
 	u8 *buffer = msg->buffer;
 	unsigned int i;
-	int num_transferred = 0;
 	int ret;
 
 	/* Buffer size of AUX CH is 16 bytes */
@@ -1195,7 +1198,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			reg = buffer[i];
 			analogix_dp_write(dp, ANALOGIX_DP_BUF_DATA_0 + 4 * i,
 					  reg);
-			num_transferred++;
 		}
 	}
 
@@ -1244,7 +1246,6 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			reg = analogix_dp_read(dp, ANALOGIX_DP_BUF_DATA_0 +
 					       4 * i);
 			buffer[i] = (unsigned char)reg;
-			num_transferred++;
 		}
 	}
 
@@ -1261,7 +1262,7 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 		 (msg->request & ~DP_AUX_I2C_MOT) == DP_AUX_NATIVE_READ)
 		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
 
-	return (num_transferred == msg->size) ? num_transferred : -EBUSY;
+	return msg->size;
 
 aux_error:
 	/* if aux err happen, reset aux */
@@ -1392,4 +1393,28 @@ void analogix_dp_init(struct analogix_dp_device *dp)
 	analogix_dp_config_interrupt(dp);
 	analogix_dp_init_hpd(dp);
 	analogix_dp_init_aux(dp);
+}
+
+void analogix_dp_enable_assr_mode(struct analogix_dp_device *dp, bool enable)
+{
+	u32 reg;
+
+	if (enable) {
+		reg = analogix_dp_read(dp, ANALOGIX_DP_LINK_POLICY);
+		reg |= ALTERNATE_SR_ENABLE;
+		analogix_dp_write(dp, ANALOGIX_DP_LINK_POLICY, reg);
+	} else {
+		reg = analogix_dp_read(dp, ANALOGIX_DP_LINK_POLICY);
+		reg &= ~ALTERNATE_SR_ENABLE;
+		analogix_dp_write(dp, ANALOGIX_DP_LINK_POLICY, reg);
+	}
+}
+
+bool analogix_dp_get_assr_mode(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_LINK_POLICY);
+
+	return !!(reg & ALTERNATE_SR_ENABLE);
 }

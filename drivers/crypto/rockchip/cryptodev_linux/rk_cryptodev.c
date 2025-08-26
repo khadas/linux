@@ -629,6 +629,26 @@ static int kcop_rsa_to_user(struct kernel_crypt_rsa_op *kcop,
 	return 0;
 }
 
+static int kcop_ec_from_user(struct kernel_crypt_ec_op *kcop,
+			struct fcrypt *fcr, void __user *arg)
+{
+	if (unlikely(copy_from_user(&kcop->eop, arg, sizeof(kcop->eop))))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int kcop_ec_to_user(struct kernel_crypt_ec_op *kcop,
+			   struct fcrypt *fcr, void __user *arg)
+{
+	if (unlikely(copy_to_user(arg, &kcop->eop, sizeof(kcop->eop)))) {
+		derr(1, "Cannot copy to userspace");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int crypto_rsa_run(struct fcrypt *fcr, struct kernel_crypt_rsa_op *krop)
 {
 	int ret;
@@ -738,6 +758,120 @@ static int crypto_rsa_run(struct fcrypt *fcr, struct kernel_crypt_rsa_op *krop)
 	}
 
 	rop->out_len = req->dst_len;
+exit:
+	kfree(out);
+	kfree(in);
+	kfree(key);
+	akcipher_request_free(req);
+	crypto_free_akcipher(tfm);
+
+	return ret;
+}
+
+static int crypto_ec_run(struct fcrypt *fcr, struct kernel_crypt_ec_op *keop)
+{
+	int ret;
+	u8 *key = NULL, *in = NULL, *out = NULL;
+	u32 out_len_max;
+	struct scatterlist src_tab[2];
+	struct crypt_ec_op *eop = &keop->eop;
+	const char *driver = rk_get_ec_name(eop->curve);
+	struct crypto_akcipher *tfm = NULL;
+	struct akcipher_request *req = NULL;
+	DECLARE_CRYPTO_WAIT(wait);
+	bool is_priv_key = (eop->flags & COP_FLAG_ASYM_PRIV) == COP_FLAG_ASYM_PRIV;
+
+	/* The key size cannot exceed RK_RSA_BER_KEY_MAX Byte */
+	if (eop->key_len > RK_EC_BER_KEY_MAX)
+		return -ENOKEY;
+
+	if (eop->in_len  > RK_EC_BER_KEY_MAX ||
+	    eop->out_len > RK_EC_BER_KEY_MAX)
+		return -EINVAL;
+
+	tfm = crypto_alloc_akcipher(driver, 0, 0);
+	if (IS_ERR(tfm)) {
+		ddebug(2, "alg: akcipher: Failed to load tfm for %s: %ld\n",
+			   driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		ddebug(2, "akcipher_request_alloc failed\n");
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	key = kzalloc(eop->key_len, GFP_KERNEL);
+	if (!key) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (unlikely(copy_from_user(key, u64_to_user_ptr(eop->key), eop->key_len))) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	in = kzalloc(eop->in_len, GFP_KERNEL);
+	if (!in) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	if (unlikely(copy_from_user(in, u64_to_user_ptr(eop->in), eop->in_len))) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	if (is_priv_key)
+		ret = crypto_akcipher_set_priv_key(tfm, key, eop->key_len);
+	else
+		ret = crypto_akcipher_set_pub_key(tfm, key, eop->key_len);
+	if (ret) {
+		derr(1, "crypto_akcipher_set_%s_key error[%d]",
+			 is_priv_key ? "priv" : "pub", ret);
+		ret = -ENOKEY;
+		goto exit;
+	}
+
+	out_len_max = max(crypto_akcipher_maxsize(tfm), eop->out_len);
+
+	out = kzalloc(out_len_max, GFP_KERNEL);
+	if (!out) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	crypto_init_wait(&wait);
+	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					  crypto_req_done, &wait);
+
+	switch (eop->op) {
+	case AOP_VERIFY:
+		if (unlikely(copy_from_user(out, u64_to_user_ptr(eop->out), eop->out_len))) {
+			ret = -EFAULT;
+			goto exit;
+		}
+		sg_init_table(src_tab, 2);
+		sg_set_buf(&src_tab[0], out, out_len_max);	/* signature */
+		sg_set_buf(&src_tab[1], in, eop->in_len);	/* digest */
+		akcipher_request_set_crypt(req, src_tab, NULL, out_len_max, eop->in_len);
+		ret = crypto_wait_req(crypto_akcipher_verify(req), &wait);
+		break;
+	default:
+		derr(1, "unknown ops %x", eop->op);
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret) {
+		derr(1, "alg: akcipher: failed %d\n", ret);
+		goto exit;
+	}
+
+	eop->out_len = req->dst_len;
 exit:
 	kfree(out);
 	kfree(in);
@@ -1131,6 +1265,7 @@ rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_)
 	struct kernel_crypt_fd_op kcop;
 	struct kernel_crypt_fd_map_op kmop;
 	struct kernel_crypt_rsa_op krop;
+	struct kernel_crypt_ec_op keop;
 	struct kernel_crypt_auth_fd_op kcaop;
 	void __user *arg = (void __user *)arg_;
 	int ret;
@@ -1228,6 +1363,20 @@ rk_cryptodev_ioctl(struct fcrypt *fcr, unsigned int cmd, unsigned long arg_)
 		}
 
 		return kcop_rsa_to_user(&krop, fcr, arg);
+	case RIOCCRYPT_EC_CRYPT:
+		ret = kcop_ec_from_user(&keop, fcr, arg);
+		if (unlikely(ret)) {
+			dwarning(1, "Error copying from user");
+			return ret;
+		}
+
+		ret = crypto_ec_run(fcr, &keop);
+		if (unlikely(ret)) {
+			dwarning(1, "Error in ec_run");
+			return ret;
+		}
+
+		return kcop_ec_to_user(&keop, fcr, arg);
 	default:
 		return -EINVAL;
 	}
@@ -1432,6 +1581,11 @@ struct hash_algo_name_map {
 	int		is_hmac;
 };
 
+struct ec_algo_name_map {
+	uint8_t		curve;
+	const char	*name;
+};
+
 static const struct cipher_algo_name_map c_algo_map_tbl[] = {
 	{CRYPTO_RK_DES_ECB,     "ecb-des-rk",      0, 0},
 	{CRYPTO_RK_DES_CBC,     "cbc-des-rk",      0, 0},
@@ -1483,6 +1637,15 @@ static const struct hash_algo_name_map h_algo_map_tbl[] = {
 	{CRYPTO_RK_AES_CBC_MAC, "cbcmac-aes-rk",  1},
 };
 
+static const struct ec_algo_name_map ec_map_tbl[] = {
+	{RK_EC_CURVE_SM2,  "sm2-rk"},
+	{RK_EC_CURVE_P192, "ecdsa-nist-p192-rk"},
+	{RK_EC_CURVE_P224, "ecdsa-nist-p224-rk"},
+	{RK_EC_CURVE_P256, "ecdsa-nist-p256-rk"},
+	{RK_EC_CURVE_P384, "ecdsa-nist-p384-rk"},
+	{RK_EC_CURVE_P521, "ecdsa-nist-p521-rk"},
+};
+
 const char *rk_get_cipher_name(uint32_t id, int *is_stream, int *is_aead)
 {
 	uint32_t i;
@@ -1512,6 +1675,18 @@ const char *rk_get_hash_name(uint32_t id, int *is_hmac)
 			*is_hmac = h_algo_map_tbl[i].is_hmac;
 			return h_algo_map_tbl[i].name;
 		}
+	}
+
+	return NULL;
+}
+
+const char *rk_get_ec_name(uint8_t curve)
+{
+	uint32_t i;
+
+	for (i = 0; i < ARRAY_SIZE(ec_map_tbl); i++) {
+		if (curve == ec_map_tbl[i].curve)
+			return ec_map_tbl[i].name;
 	}
 
 	return NULL;

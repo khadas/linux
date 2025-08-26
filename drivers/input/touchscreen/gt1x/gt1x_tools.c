@@ -23,6 +23,7 @@
 #include <generated/utsrelease.h>
 #include "gt1x_generic.h"
 
+#if GTP_CREATE_WR_NODE
 static ssize_t gt1x_tool_read(struct file *filp, char __user *buffer, size_t count, loff_t *ppos);
 static ssize_t gt1x_tool_write(struct file *filp, const char *buffer, size_t count, loff_t *ppos);
 
@@ -431,3 +432,4 @@ static ssize_t gt1x_tool_read(struct file *filp, char __user *buffer, size_t cou
 	*ppos += cmd_head.data_len;
 	return cmd_head.data_len;
 }
+#endif
