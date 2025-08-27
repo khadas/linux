@@ -228,15 +228,15 @@
 
 	imx678b: imx678b@1a {
 		compatible = "sony,imx678";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
 		pinctrl-names = "default", "camb_gpios";
 		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
-		reset-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "FH34SRJ-30S";
@@ -251,7 +251,7 @@
 
 	imx585b: imx585b@1a {
 		compatible = "sony,imx585";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
 		clock-names = "xvclk";
@@ -343,15 +343,15 @@
 
 	imx678f: imx678f@1a {
 		compatible = "sony,imx678";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3588_PD_VI>;
 		pinctrl-names = "default", "camf_gpios";
 		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
-		reset-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "FH34SRJ-30S";
@@ -366,7 +366,7 @@
 
 	imx585f: imx585f@1a {
 		compatible = "sony,imx585";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
 		clock-names = "xvclk";
@@ -458,7 +458,7 @@
 
 	imx678: imx678@1a {
 		compatible = "sony,imx678";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
@@ -481,7 +481,7 @@
 
 	imx585: imx585@1a {
 		compatible = "sony,imx585";
-		status = "disabled";
+		status = "okay";
 		reg = <0x1a>;
 		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
 		clock-names = "xvclk";
