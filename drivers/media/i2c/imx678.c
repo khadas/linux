@@ -1871,7 +1871,8 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x303D, 0x00},
 	{0x303E, 0x00},   //PIX_HWIDTH
 	{0x303F, 0x0F},
-	{0x3040, 0x01},   //lane mode {0x3042, 0x00},   //xsize_overlap
+	{0x3040, 0x01},   //lane mode
+	{0x3042, 0x00},   //xsize_overlap
 	{0x3043, 0x00},
 	{0x3044, 0x00},   //CROP Vert Start
 	{0x3045, 0x00},
@@ -1894,14 +1895,14 @@ static const struct regval imx678_normal_3840_2160_2lane_setting_regs[] = {
 	{0x3066, 0x00},
 	{0x3069, 0x00},   //HDR_GAIN_EN
 	{0x306B, 0x00},   //CLEAR_HDR_MODE
-	{0x3070, 0x00},  //gain 
+	{0x3070, 0x00},  //gain
 	{0x3071, 0x00},
 	{0x3072, 0x00},  //sef1 gain
 	{0x3073, 0x00},
 	{0x3074, 0x00},  //sef2 gain
 	{0x3075, 0x00},
 	{0x3081, 0x00},  //add HG when clear HDR MODER
-	{0x308C, 0x00},  //add digital HG when clear HDR MODER   
+	{0x308C, 0x00},  //add digital HG when clear HDR MODER
 	{0x308D, 0x01},
 	{0x3094, 0x00},   //add analog LG when clear HDR MODER
 	{0x3095, 0x00},
@@ -2440,8 +2441,8 @@ static void imx678_change_mode(struct imx678 *imx678, const struct imx678_mode *
 }
 
 static int imx678_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_format *fmt)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 	const struct imx678_mode *mode;
@@ -2457,7 +2458,7 @@ static int imx678_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -2486,8 +2487,8 @@ static int imx678_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx678_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_format *fmt)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 	const struct imx678_mode *mode = imx678->cur_mode;
@@ -2495,7 +2496,7 @@ static int imx678_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&imx678->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
 #else
 		mutex_unlock(&imx678->mutex);
 		return -ENOTTY;
@@ -2516,8 +2517,8 @@ static int imx678_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int imx678_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				 struct v4l2_subdev_mbus_code_enum *code)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -2529,8 +2530,8 @@ static int imx678_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx678_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_frame_size_enum *fse)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -3649,8 +3650,8 @@ static int imx678_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 #endif
 
 static int imx678_enum_frame_interval(struct v4l2_subdev *sd,
-	struct v4l2_subdev_pad_config *cfg,
-	struct v4l2_subdev_frame_interval_enum *fie)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -3686,8 +3687,8 @@ static int imx678_enum_frame_interval(struct v4l2_subdev *sd,
  * to the alignment rules.
  */
 static int imx678_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_selection *sel)
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_selection *sel)
 {
 	struct imx678 *imx678 = to_imx678(sd);
 
@@ -3696,7 +3697,6 @@ static int imx678_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = imx678->cur_mode->real_width;
 		sel->r.top = CROP_START(imx678->cur_mode->height, imx678->cur_mode->real_height);
 		sel->r.height = imx678->cur_mode->real_height;
-
 		return 0;
 	}
 	return -EINVAL;
@@ -3965,7 +3965,7 @@ static int imx678_check_sensor_id(struct imx678 *imx678,
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", reg, ret);
 		return -ENODEV;
 	}
-	dev_info(dev, "detected imx678 %04x sensor\n", reg);
+	dev_info(dev, "khadas camera detected imx678 id %06x\n", reg);
 
 	return 0;
 }
@@ -4127,8 +4127,8 @@ static int imx678_probe(struct i2c_client *client,
 		goto err_free_handler;
 
 	ret = imx678_check_sensor_id(imx678, client);
-//	if (ret)
-//		goto err_power_off;
+	if (ret)
+		goto err_power_off;
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &imx678_internal_ops;
@@ -4185,7 +4185,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int imx678_remove(struct i2c_client *client)
+static void imx678_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx678 *imx678 = to_imx678(sd);
@@ -4205,8 +4205,6 @@ static int imx678_remove(struct i2c_client *client)
 #ifdef USED_SYS_DEBUG
 	remove_sysfs_interfaces(&client->dev);
 #endif
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
