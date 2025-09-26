@@ -4305,6 +4305,17 @@ err_free_handler:
 err_destroy_mutex:
 	mutex_destroy(&imx585->mutex);
 
+	if (!IS_ERR(imx585->reset_gpio)){
+		devm_gpiod_put(dev, imx585->reset_gpio);
+		imx585->reset_gpio = NULL;
+		//pr_err("====free imx585->reset_gpio====\n");
+	}
+
+	if (!IS_ERR(imx585->power_gpio)){
+		devm_gpiod_put(dev, imx585->power_gpio);
+		imx585->power_gpio = NULL;
+		//pr_err("====free imx585->power_gpio====\n");
+	}
 	return ret;
 }
 

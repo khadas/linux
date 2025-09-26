@@ -3339,6 +3339,17 @@ err_free_handler:
 err_destroy_mutex:
 	mutex_destroy(&imx415->mutex);
 
+	if (!IS_ERR(imx415->reset_gpio)){
+		devm_gpiod_put(dev, imx415->reset_gpio);
+		imx415->reset_gpio = NULL;
+		//pr_err("====free imx415->reset_gpio====\n");
+	}
+
+	if (!IS_ERR(imx415->power_gpio)){
+		devm_gpiod_put(dev, imx415->power_gpio);
+		imx415->power_gpio = NULL;
+		//pr_err("====free imx415->power_gpio====\n");
+	}
 	return ret;
 }
 

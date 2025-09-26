@@ -1460,6 +1460,17 @@ err_free_handler:
 err_destroy_mutex:
 	mutex_destroy(&os08a10->mutex);
 
+	if (!IS_ERR(os08a10->reset_gpio)){
+		devm_gpiod_put(dev, os08a10->reset_gpio);
+		os08a10->reset_gpio = NULL;
+		//pr_err("====free os08a10->reset_gpio====\n");
+	}
+
+	if (!IS_ERR(os08a10->power_gpio)){
+		devm_gpiod_put(dev, os08a10->power_gpio);
+		os08a10->power_gpio = NULL;
+		//pr_err("====free os08a10->power_gpio====\n");
+	}
 	return ret;
 }
 

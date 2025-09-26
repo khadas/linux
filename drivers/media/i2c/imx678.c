@@ -3241,6 +3241,17 @@ err_free_handler:
 err_destroy_mutex:
 	mutex_destroy(&imx678->mutex);
 
+	if (!IS_ERR(imx678->reset_gpio)){
+		devm_gpiod_put(dev, imx678->reset_gpio);
+		imx678->reset_gpio = NULL;
+		//pr_err("====free imx678->reset_gpio====\n");
+	}
+
+	if (!IS_ERR(imx678->power_gpio)){
+		devm_gpiod_put(dev, imx678->power_gpio);
+		imx678->power_gpio = NULL;
+		//pr_err("====free imx678->power_gpio====\n");
+	}
 	return ret;
 }
 

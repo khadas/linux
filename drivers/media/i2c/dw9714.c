@@ -1374,6 +1374,12 @@ err_power_off:
 err_cleanup:
 	dw9714_subdev_cleanup(dw9714_dev);
 	dev_err(&client->dev, "Probe failed: %d\n", ret);
+
+	if (!IS_ERR(dw9714_dev->focus_gpio)){
+		devm_gpiod_put(&client->dev, dw9714_dev->focus_gpio);
+		dw9714_dev->focus_gpio = NULL;
+		//pr_err("====free dw9714_dev->focus_gpio====\n");
+	}
 	return ret;
 }
 
