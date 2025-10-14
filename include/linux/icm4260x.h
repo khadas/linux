@@ -425,7 +425,9 @@
 #define INT_DRIVE_CIRCUIT		1
 #define INT_MODE			0
 
-#define ICM42607_DEVICE_ID		0x61
+
+#define ICM42607_DEVICE_ID              0x61
+#define ICM42607_DEVICE_ID2		0x67
 #define ICM4260X_PRECISION		16
 #define ICM42607_ADDR			0x68
 
