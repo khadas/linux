@@ -134,14 +134,6 @@
 		rockchip,jack-det;
 	};
 
-	leds: leds {
-		compatible = "gpio-leds";
-		work_led: work {
-	//		gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
-	};
-
 	test-power {
 		status = "okay";
 	};
