@@ -2,7 +2,26 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -19,9 +38,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #include <linux/kobject.h>
 #include <linux/proc_fs.h>
@@ -31,41 +48,85 @@
 #include <dhd_dbg.h>
 #include <dhd_linux_priv.h>
 #include <dhd_proto.h>
-#if defined(WL_BAM)
-#include <wl_bam.h>
-#endif	/* WL_BAM */
+#include <bcmstdlib_s.h>
 #ifdef PWRSTATS_SYSFS
 #include <wldev_common.h>
 #endif /* PWRSTATS_SYSFS */
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
 #endif /* WL_CFG80211 */
-#ifdef CSI_SUPPORT
-#include <dhd_csi.h>
-#endif /* CSI_SUPPORT */
+
+#ifdef DHD_SSSR_DUMP
+#include <dhd_pcie_sssr_dump.h>
+#endif /* DHD_SSSR_DUMP */
 
 #ifdef SHOW_LOGTRACE
-extern dhd_pub_t* g_dhd_pub;
-#if defined(DEBUGABILITY) || defined(EWP_ECNTRS_LOGGING) || defined(EWP_RTT_LOGGING)
-static int dhd_ring_proc_open(struct inode *inode, struct file *file);
-ssize_t dhd_ring_proc_read(struct file *file, char *buffer, size_t tt, loff_t *loff);
+extern dhd_pub_t *g_dhd_pub;
 
+#if defined(DEBUGABILITY) || defined(EWP_EVENTTS_LOG) || defined(DHD_PCIE_WRAPPER_DUMP) \
+	|| defined(EWP_ECNTRS_LOGGING) || defined(EWP_RTT_LOGGING)
+static int dhd_proc_open(struct inode *inode, struct file *file);
+#endif /* DEBUGABILITY || EWP_EVENTTS_LOG || DHD_PCIE_WRAPPER_DUMP */
+
+ssize_t dhd_ring_proc_read(struct file *file, char *buffer, size_t tt, loff_t *loff);
+#ifdef EWP_EVENTTS_LOG
+ssize_t dhd_ring_eventts_proc_read(struct file *file, char *buffer, size_t tt, loff_t *loff);
+#endif
+ssize_t dhd_buffer_proc_read(struct file *file, char __user *usrbuf, size_t usrsz, loff_t *loff);
+
+#if defined(DEBUGABILITY) || defined(EWP_EVENTTS_LOG) || defined(EWP_ECNTRS_LOGGING) || \
+	defined(EWP_RTT_LOGGING)
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
 static const struct file_operations dhd_ring_proc_ops = {
-	.open = dhd_ring_proc_open,
+	.open = dhd_proc_open,
 	.read = dhd_ring_proc_read,
 	.release = single_release,
 };
 #else
 static const struct proc_ops dhd_ring_proc_ops = {
-	.proc_open = dhd_ring_proc_open,
+	.proc_open = dhd_proc_open,
 	.proc_read = dhd_ring_proc_read,
 	.proc_release = single_release,
 };
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0) */
+#endif /* DEBUGABILITY || EWP_EVENTTS_LOG || EWP_ECNTRS_LOGGING || EWP_RTT_LOGGING */
 
+#ifdef EWP_EVENTTS_LOG
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+static const struct file_operations dhd_ring_eventts_proc_ops = {
+	.open = dhd_proc_open,
+	.read = dhd_ring_eventts_proc_read,
+	.release = single_release,
+};
+#else
+static const struct proc_ops dhd_ring_eventts_proc_ops = {
+	.proc_open = dhd_proc_open,
+	.proc_read = dhd_ring_eventts_proc_read,
+	.proc_release = single_release,
+};
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0) */
+#endif /* EWP_EVENTTS_LOG */
+
+#ifdef DHD_PCIE_WRAPPER_DUMP
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+static const struct file_operations dhd_buffer_proc_ops = {
+	.open = dhd_proc_open,
+	.read = dhd_buffer_proc_read,
+	.release = single_release,
+};
+#else
+static const struct proc_ops dhd_buffer_proc_ops = {
+	.proc_open = dhd_proc_open,
+	.proc_read = dhd_buffer_proc_read,
+	.proc_release = single_release,
+};
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0) */
+#endif /* DHD_PCIE_WRAPPER_DUMP */
+
+#if defined(DEBUGABILITY) || defined(EWP_EVENTTS_LOG) || defined(DHD_PCIE_WRAPPER_DUMP) \
+	|| defined(EWP_ECNTRS_LOGGING) || defined(EWP_RTT_LOGGING)
 static int
-dhd_ring_proc_open(struct inode *inode, struct file *file)
+dhd_proc_open(struct inode *inode, struct file *file)
 {
 	int ret = BCME_ERROR;
 	if (inode) {
@@ -82,6 +143,7 @@ dhd_ring_proc_open(struct inode *inode, struct file *file)
 	}
 	return ret;
 }
+#endif /* DEBUGABILITY || EWP_EVENTTS_LOG || DHD_PCIE_WRAPPER_DUMP */
 
 ssize_t
 dhd_ring_proc_read(struct file *file, char __user *buffer, size_t tt, loff_t *loff)
@@ -106,7 +168,7 @@ dhd_ring_proc_read(struct file *file, char __user *buffer, size_t tt, loff_t *lo
 			ret = -ENOMEM;
 			goto exit;
 		}
-		if (copy_to_user(buffer, (void*)trace_buf_info->buf,
+		if (copy_to_user(buffer, (void *)trace_buf_info->buf,
 				MIN(trace_buf_info->size, tt))) {
 			ret = -EFAULT;
 			goto exit;
@@ -124,18 +186,101 @@ exit:
 	}
 	return ret;
 }
-#endif /* DEBUGABILITY || EWP_ECNTRS_LOGGING || EWP_RTT_LOGGING */
+
+#ifdef EWP_EVENTTS_LOG
+ssize_t
+dhd_ring_eventts_proc_read(struct file *file, char __user *usrbuf, size_t usrsz, loff_t *loff)
+{
+	char *tmpbuf = NULL;
+	int ret = 0;
+	int rlen = 0;
+	dhd_dbg_ring_t *ring = NULL;
+	int buflen = TRACE_LOG_BUF_MAX_SIZE;
+
+	ring = (dhd_dbg_ring_t *)((struct seq_file *)(file->private_data))->private;
+	if (ring == NULL) {
+		DHD_ERROR(("%s: ring is NULL!\n", __FUNCTION__));
+		return -EFAULT;
+	}
+
+	tmpbuf = MALLOCZ(g_dhd_pub->osh, buflen);
+	if (!tmpbuf) {
+		DHD_ERROR(("Failed to alloc tmpbuf\n"));
+		return -ENOMEM;
+	}
+
+	rlen = dhd_dbg_ring_pull_single(ring, tmpbuf, buflen, TRUE);
+	if (!rlen) {
+		/* rlen can also be zero when there is no data in the ring */
+		DHD_INFO(("%s: dhd_dbg_ring_pull_single, rlen=%d, tmpbuf size=%lu\n",
+			__FUNCTION__, rlen, sizeof(tmpbuf)));
+		ret = -EAGAIN;
+		goto fail;
+	}
+
+	DHD_INFO(("%s: dhd_dbg_ring_pull_single rlen=%d , usrsz=%lu\n", __FUNCTION__, rlen, usrsz));
+	if (rlen > usrsz) {
+		DHD_ERROR(("%s: usr buf insufficient! rlen=%d, usrsz=%ld \n",
+			__FUNCTION__, rlen, usrsz));
+		ret = -EFAULT;
+		goto fail;
+	}
+
+	ret = copy_to_user(usrbuf, (void *)tmpbuf, rlen);
+	if (ret) {
+		DHD_ERROR(("%s: copy_to_usr fails! rlen=%d, usrsz=%ld \n",
+			__FUNCTION__, rlen, usrsz));
+		ret = -EFAULT;
+		goto fail;
+	}
+
+	*loff += rlen;
+
+fail:
+	MFREE(g_dhd_pub->osh, tmpbuf, buflen);
+
+	if (ret) {
+		return ret;
+	} else {
+		return rlen;
+	}
+}
+#endif /* EWP_EVENTTS_LOG */
+
+#ifdef DHD_PCIE_WRAPPER_DUMP
+/* Generic buffer read from proc */
+ssize_t
+dhd_buffer_proc_read(struct file *file, char __user *usrbuf, size_t usrsz, loff_t *loff)
+{
+	dhd_dbg_buf_t *dbg_buf;
+
+	dbg_buf  = (dhd_dbg_buf_t *)((struct seq_file *)(file->private_data))->private;
+	if (dbg_buf->buf == NULL) {
+		DHD_ERROR(("%s: ring is NULL!\n", __FUNCTION__));
+		return -EFAULT;
+	}
+
+	if (*loff) {
+		return 0;
+	}
+
+	return simple_read_from_buffer(usrbuf, usrsz, loff, dbg_buf->buf, dbg_buf->len);
+}
+#endif /* DHD_PCIE_WRAPPER_DUMP */
 
 void
 dhd_dbg_ring_proc_create(dhd_pub_t *dhdp)
 {
+	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
+
 #ifdef DEBUGABILITY
 	dhd_dbg_ring_t *dbg_verbose_ring = NULL;
 
 	dbg_verbose_ring = dhd_dbg_get_ring_from_ring_id(dhdp, FW_VERBOSE_RING_ID);
 	if (dbg_verbose_ring) {
-		if (!proc_create_data("dhd_trace", S_IRUSR, NULL, &dhd_ring_proc_ops,
-			dbg_verbose_ring)) {
+		dhd->dhd_trace_proc = proc_create_data("dhd_trace", S_IRUSR, NULL,
+			&dhd_ring_proc_ops, dbg_verbose_ring);
+		if (!dhd->dhd_trace_proc) {
 			DHD_ERROR(("Failed to create /proc/dhd_trace procfs interface\n"));
 		} else {
 			DHD_INFO(("Created /proc/dhd_trace procfs interface\n"));
@@ -146,8 +291,9 @@ dhd_dbg_ring_proc_create(dhd_pub_t *dhdp)
 #endif /* DEBUGABILITY */
 
 #ifdef EWP_ECNTRS_LOGGING
-	if (!proc_create_data("dhd_ecounters", S_IRUSR, NULL, &dhd_ring_proc_ops,
-		dhdp->ecntr_dbg_ring)) {
+	dhd->dhd_ecounters_proc = proc_create_data("dhd_ecounters", S_IRUSR, NULL,
+		&dhd_ring_proc_ops, dhdp->ecntr_dbg_ring);
+	if (!dhd->dhd_ecounters_proc) {
 		DHD_ERROR(("Failed to create /proc/dhd_ecounters procfs interface\n"));
 	} else {
 		DHD_INFO(("Created /proc/dhd_ecounters procfs interface\n"));
@@ -155,30 +301,72 @@ dhd_dbg_ring_proc_create(dhd_pub_t *dhdp)
 #endif /* EWP_ECNTRS_LOGGING */
 
 #ifdef EWP_RTT_LOGGING
-	if (!proc_create_data("dhd_rtt", S_IRUSR, NULL, &dhd_ring_proc_ops,
-		dhdp->rtt_dbg_ring)) {
+	dhd->dhd_rtt_proc = proc_create_data("dhd_rtt", S_IRUSR, NULL, &dhd_ring_proc_ops,
+		dhdp->rtt_dbg_ring);
+	if (!dhd->dhd_rtt_proc) {
 		DHD_ERROR(("Failed to create /proc/dhd_rtt procfs interface\n"));
 	} else {
 		DHD_INFO(("Created /proc/dhd_rtt procfs interface\n"));
 	}
 #endif /* EWP_RTT_LOGGING */
+
+#ifdef EWP_EVENTTS_LOG
+	dhd->dhd_eventts_proc = proc_create_data("dhd_eventts", S_IRUSR, NULL,
+		&dhd_ring_eventts_proc_ops, dhdp->eventts_dbg_ring);
+	if (!dhd->dhd_eventts_proc) {
+		DHD_ERROR(("%s: Failed to create /proc/dhd_eventts interface\n", __FUNCTION__));
+	} else {
+		DHD_INFO(("%s: Created /proc/dhd_eventts interface\n", __FUNCTION__));
+	}
+#endif /* EWP_EVENTTS_LOG */
+
+#ifdef DHD_PCIE_WRAPPER_DUMP
+	dhd->dhd_wrapper_dump_proc = proc_create_data("dhd_wrapper_dump", S_IRUSR, NULL,
+		&dhd_buffer_proc_ops, (void *)(&dhdp->dbg->wrapper_buf));
+	if (!dhd->dhd_wrapper_dump_proc) {
+		DHD_ERROR(("%s: Failed to create /proc/dhd_wrapper_dump interface\n",
+			__FUNCTION__));
+	} else {
+		DHD_INFO(("%s: Created /proc/dhd_wrapper_dump interface\n", __FUNCTION__));
+	}
+#endif /* DHD_PCIE_WRAPPER_DUMP */
+	BCM_REFERENCE(dhd);
 }
 
 void
 dhd_dbg_ring_proc_destroy(dhd_pub_t *dhdp)
 {
+	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
 #ifdef DEBUGABILITY
-	remove_proc_entry("dhd_trace", NULL);
+	if (dhd->dhd_trace_proc) {
+		remove_proc_entry("dhd_trace", NULL);
+	}
 #endif /* DEBUGABILITY */
 
 #ifdef EWP_ECNTRS_LOGGING
-	remove_proc_entry("dhd_ecounters", NULL);
+	if (dhd->dhd_ecounters_proc) {
+		remove_proc_entry("dhd_ecounters", NULL);
+	}
 #endif /* EWP_ECNTRS_LOGGING */
 
 #ifdef EWP_RTT_LOGGING
-	remove_proc_entry("dhd_rtt", NULL);
+	if (dhd->dhd_rtt_proc) {
+		remove_proc_entry("dhd_rtt", NULL);
+	}
 #endif /* EWP_RTT_LOGGING */
 
+#ifdef EWP_EVENTTS_LOG
+	if (dhd->dhd_eventts_proc) {
+		remove_proc_entry("dhd_eventts", NULL);
+	}
+#endif /* EWP_EVENTTS_LOG */
+
+#ifdef DHD_PCIE_WRAPPER_DUMP
+	if (dhd->dhd_wrapper_dump_proc) {
+		remove_proc_entry("dhd_wrapper_dump", NULL);
+	}
+#endif /* DHD_PCIE_WRAPPER_DUMP */
+	BCM_REFERENCE(dhd);
 }
 #endif /* SHOW_LOGTRACE */
 
@@ -228,9 +416,9 @@ wklock_trace_onoff(struct dhd_info *dev, const char *buf, size_t count)
 
 	atomic_set(&trace_wklock_onoff, onoff);
 	if (atomic_read(&trace_wklock_onoff)) {
-		DHD_ERROR(("ENABLE WAKLOCK TRACE\n"));
+		DHD_PRINT(("ENABLE WAKLOCK TRACE\n"));
 	} else {
-		DHD_ERROR(("DISABLE WAKELOCK TRACE\n"));
+		DHD_PRINT(("DISABLE WAKELOCK TRACE\n"));
 	}
 
 	return (ssize_t)(onoff+1);
@@ -238,34 +426,7 @@ wklock_trace_onoff(struct dhd_info *dev, const char *buf, size_t count)
 #endif /* DHD_TRACE_WAKE_LOCK */
 
 #ifdef DHD_LOG_DUMP
-extern int logdump_periodic_flush;
 extern int logdump_ecntr_enable;
-static ssize_t
-show_logdump_periodic_flush(struct dhd_info *dev, char *buf)
-{
-	ssize_t ret = 0;
-	unsigned long val;
-
-	val = logdump_periodic_flush;
-	ret = scnprintf(buf, PAGE_SIZE - 1, "%lu \n", val);
-	return ret;
-}
-
-static ssize_t
-logdump_periodic_flush_onoff(struct dhd_info *dev, const char *buf, size_t count)
-{
-	unsigned long val;
-
-	val = bcm_strtoul(buf, NULL, 10);
-
-	sscanf(buf, "%lu", &val);
-	if (val != 0 && val != 1) {
-		 return -EINVAL;
-	}
-	logdump_periodic_flush = val;
-	return count;
-}
-
 static ssize_t
 show_logdump_ecntr(struct dhd_info *dev, char *buf)
 {
@@ -332,7 +493,7 @@ ecounter_onoff(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	if (enable_ecounter == onoff) {
-		DHD_ERROR(("%s: ecounters already %d\n", __FUNCTION__, enable_ecounter));
+		DHD_PRINT(("%s: ecounters already %d\n", __FUNCTION__, enable_ecounter));
 		return count;
 	}
 
@@ -397,6 +558,33 @@ set_fis_enab(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	fis_enab = (uint)onoff;
+
+	return count;
+}
+
+static ssize_t
+set_fis_recover(struct dhd_info *dev, const char *buf, size_t count)
+{
+	unsigned long onoff;
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return count;
+	}
+	dhdp = &dhd->pub;
+
+	onoff = bcm_strtoul(buf, NULL, 10);
+
+	sscanf(buf, "%lu", &onoff);
+	if (onoff != 0 && onoff != 1) {
+		return -EINVAL;
+	}
+
+	dhdp->iovar_timeout_occured = TRUE;
+	dhdpcie_fis_recover(dhdp);
+	dhd_bus_fis_dump(dhdp);
 
 	return count;
 }
@@ -500,16 +688,19 @@ typedef struct wl_pwrstats_sysfs {
 	uint64	l1_2_dur_us;
 	uint64	l2_cnt;
 	uint64	l2_dur_us;
+	uint64	shallow_dur_ms;
 } wl_pwrstats_sysfs_t;
 
-uint64 last_delta = 0;
+uint64 last_delta;
 wl_pwrstats_sysfs_t accumstats = {0, };
 wl_pwrstats_sysfs_t laststats = {0, };
 static const char pwrstr_cnt[] = "count:";
 static const char pwrstr_dur[] = "duration_usec:";
+static const char pwrstr_dur_ms[] = "duration_msec:";
 static const char pwrstr_ts[] = "last_entry_timestamp_usec:";
 
-ssize_t print_pwrstats_cum(char *buf)
+static ssize_t
+print_pwrstats_cum(char *buf)
 {
 	ssize_t ret = 0;
 
@@ -555,11 +746,15 @@ ssize_t print_pwrstats_cum(char *buf)
 		accumstats.l2_cnt);
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s 0x%0llx\n", pwrstr_dur,
 		accumstats.l2_dur_us);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "shallow_state:\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s 0x%0llx\n", pwrstr_dur_ms,
+		accumstats.shallow_dur_ms);
 
 	return ret;
 }
 
-void update_pwrstats_cum(uint64 *accum, uint64 *last, uint64 *now, bool force)
+static void
+update_pwrstats_cum(uint64 *accum, uint64 *last, uint64 *now, bool force)
 {
 	if (accum) { /* accumulation case, ex; counts, duration */
 		if (*now < *last) {
@@ -588,25 +783,7 @@ static const uint16 pwrstats_req_type[] = {
 	+ sizeof(wl_pwr_pm_accum_stats_v1_t) \
 	+ (uint)strlen("pwrstats") + 1
 
-#ifdef BCMPCIE
 extern uint64 dhdpcie_get_last_suspend_time(dhd_pub_t *dhdp);
-#endif /* BCMPCIE */
-
-#ifdef BCMSDIO
-extern uint64 dhdsdio_get_last_suspend_time(dhd_pub_t *dhdp);
-#endif /* BCMSDIO */
-
-uint64
-dhd_get_last_suspend_time(dhd_pub_t *dhdp)
-{
-#if defined(BCMPCIE)
-	return dhdpcie_get_last_suspend_time(dhdp);
-#elif defined(BCMSDIO)
-	return dhdsdio_get_last_suspend_time(dhdp);
-#else
-	return 0;
-#endif
-}
 
 static ssize_t
 show_pwrstats_path(struct dhd_info *dev, char *buf)
@@ -631,14 +808,16 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 	 */
 	if (!dhd_os_check_if_up(&dhd->pub)) {
 		if (dhd->pub.busstate == DHD_BUS_SUSPEND) {
-			static uint64 last_suspend_end_time = 0;
+			static uint64 last_suspend_end_time;
 			uint64 curr_time = 0, estimated_pm_dur = 0;
 
+#if defined(BCMPCIE)
+			/* XXX FIXME SDIO? */
 			if (last_suspend_end_time <
-					dhd_get_last_suspend_time(&dhd->pub)) {
-				last_suspend_end_time = dhd_get_last_suspend_time(&dhd->pub);
+					dhdpcie_get_last_suspend_time(&dhd->pub)) {
+				last_suspend_end_time = dhdpcie_get_last_suspend_time(&dhd->pub);
 			}
-
+#endif /* BCMPCIE */
 			curr_time = OSL_LOCALTIME_NS();
 			if (curr_time >= last_suspend_end_time) {
 				estimated_pm_dur = DIV_U64_BY_U32(
@@ -680,15 +859,15 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 	err = wldev_iovar_getbuf(ndev, "pwrstats", p_query, len,
 		iovar_buf, PWRSTATS_IOV_BUF_LEN, NULL);
 	if (err != BCME_OK) {
-		DHD_ERROR(("error (%d) - size = %zu\n", err, sizeof(wl_pwrstats_t)));
+		DHD_PRINT(("error (%d) - size = %zu\n", err, sizeof(wl_pwrstats_t)));
 		ret = print_pwrstats_cum(buf);
 		goto done;
 	}
 
 	/* Check version */
 	pwrstats = (wl_pwrstats_t *) iovar_buf;
-	if (dtoh16(pwrstats->version) != WL_PWRSTATS_VERSION) {
-		DHD_ERROR(("PWRSTATS Version mismatch\n"));
+	if (dtoh16(pwrstats->version) > WL_PWRSTATS_VERSION_4) {
+		DHD_PRINT(("PWRSTATS Version mismatch\n"));
 		goto done;
 	}
 
@@ -696,8 +875,8 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 	len = dtoh16(pwrstats->length) - WL_PWR_STATS_HDRLEN;
 	p_data = pwrstats->data;
 	do {
-		type = dtoh16(((uint16*)p_data)[0]);
-		taglen = dtoh16(((uint16*)p_data)[1]);
+		type = dtoh16(((uint16 *)p_data)[0]);
+		taglen = dtoh16(((uint16 *)p_data)[1]);
 
 		if ((taglen < BCM_XTLV_HDR_SIZE) || (taglen > len)) {
 			DHD_ERROR(("Bad len %d for tag %d, remaining len %d\n",
@@ -714,12 +893,13 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 		switch (type) {
 		case WL_PWRSTATS_TYPE_PCIE:
 		{
-			wl_pwr_pcie_stats_t *stats =
-				(wl_pwr_pcie_stats_t *)p_data;
+			wl_pwr_pcie_stats_t *stats = (wl_pwr_pcie_stats_t *)p_data;
+			u32 pcie_stats_len = sizeof(wl_pwr_pcie_stats_t);
+			u32 pcie_stat_v3_len = sizeof(wl_pwr_pcie_stats_v3_t);
 
-			if (taglen < sizeof(wl_pwr_pcie_stats_t)) {
+			if (taglen < pcie_stats_len) {
 				DHD_ERROR(("Short len for %d: %d < %d\n",
-					type, taglen, (int)sizeof(wl_pwr_pcie_stats_t)));
+					type, taglen, (int)pcie_stats_len));
 				goto done;
 			}
 
@@ -737,6 +917,11 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 			pwrstats_sysfs.l1_2_dur_us = dtoh32(stats->pcie.l1_2_usecs);
 			pwrstats_sysfs.l2_cnt = dtoh32(stats->pcie.l2_cnt);
 			pwrstats_sysfs.l2_dur_us = dtoh32(stats->pcie.l2_usecs);
+			if (stats->len == pcie_stat_v3_len) {
+				wl_pwr_pcie_stats_v3_t *stats_v3 =
+					(wl_pwr_pcie_stats_v3_t *)p_data;
+				pwrstats_sysfs.shallow_dur_ms = dtoh32(stats_v3->pcie.shallow_dur);
+			}
 		}
 		break;
 
@@ -776,7 +961,7 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 		/* Adjust length to account for padding, but don't exceed total len */
 		taglen = (ROUNDUP(taglen, 4) > len) ? len : ROUNDUP(taglen, 4);
 		len -= taglen;
-		*(uint8**)&p_data += taglen;
+		*(uint8 **)&p_data += taglen;
 	} while (len >= BCM_XTLV_HDR_SIZE);
 
 	/* [awake|pm]_last_entry_us are provided based on host timestamp.
@@ -824,6 +1009,8 @@ show_pwrstats_path(struct dhd_info *dev, char *buf)
 			TRUE);
 	update_pwrstats_cum(&accumstats.l2_dur_us, &laststats.l2_dur_us,
 			&pwrstats_sysfs.l2_dur_us, TRUE);
+	update_pwrstats_cum(&accumstats.shallow_dur_ms, &laststats.shallow_dur_ms,
+			&pwrstats_sysfs.shallow_dur_ms, TRUE);
 
 	ret = print_pwrstats_cum(buf);
 done:
@@ -876,7 +1063,7 @@ set_tcm_test_mode(struct dhd_info *dev, const char *buf, size_t count)
  * Generic Attribute Structure for DHD.
  * If we have to add a new sysfs entry under /sys/bcm-dhd/, we have
  * to instantiate an object of type dhd_attr,  populate it with
- * the required show/store functions (ex:- dhd_attr_cpumask_primary)
+ * the required show/store functions (ex:- dhd_attr_cpumask_set4)
  * and add the object to default_attrs[] array, that gets registered
  * to the kobject of dhd (named bcm-dhd).
  */
@@ -893,9 +1080,6 @@ static struct dhd_attr dhd_attr_wklock =
 #endif /* defined(DHD_TRACE_WAKE_LOCK */
 
 #ifdef DHD_LOG_DUMP
-static struct dhd_attr dhd_attr_logdump_periodic_flush =
-     __ATTR(logdump_periodic_flush, 0660, show_logdump_periodic_flush,
-		logdump_periodic_flush_onoff);
 static struct dhd_attr dhd_attr_logdump_ecntr =
 	__ATTR(logdump_ecntr_enable, 0660, show_logdump_ecntr,
 		logdump_ecntr_onoff);
@@ -909,6 +1093,8 @@ static struct dhd_attr dhd_attr_sssr_enab =
 	__ATTR(sssr_enab, 0660, show_sssr_enab, set_sssr_enab);
 static struct dhd_attr dhd_attr_fis_enab =
 	__ATTR(fis_enab, 0660, show_fis_enab, set_fis_enab);
+static struct dhd_attr dhd_attr_fis_recover =
+	__ATTR(fis_recover, 0660, NULL, set_fis_recover);
 #endif /* DHD_SSSR_DUMP */
 
 static struct dhd_attr dhd_attr_firmware_path =
@@ -931,7 +1117,7 @@ static struct dhd_attr dhd_attr_tcm_test_mode =
 #define to_dhd(k) container_of(k, struct dhd_info, dhd_kobj)
 #define to_attr(a) container_of(a, struct dhd_attr, attr)
 
-#ifdef DHD_MAC_ADDR_EXPORT
+#if defined(DHD_MAC_ADDR_EXPORT) || defined(DHD_MAC_ADDR_EXPORT_RO)
 struct ether_addr sysfs_mac_addr;
 static ssize_t
 show_mac_addr(struct dhd_info *dev, char *buf)
@@ -954,36 +1140,33 @@ set_mac_addr(struct dhd_info *dev, const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	DHD_ERROR(("Mac Address set with "MACDBG"\n", MAC2STRDBG(&sysfs_mac_addr)));
+	DHD_PRINT(("Mac Address set with "MACDBG"\n", MAC2STRDBG(&sysfs_mac_addr)));
 
 	return count;
 }
 
 static struct dhd_attr dhd_attr_macaddr =
 	__ATTR(mac_addr, 0660, show_mac_addr, set_mac_addr);
-#endif /* DHD_MAC_ADDR_EXPORT */
+#endif /* DHD_MAC_ADDR_EXPORT || DHD_MAC_ADDR_EXPORT_RO */
 
 #ifdef DHD_FW_COREDUMP
 /*
- * XXX The filename to store memdump is defined for each platform.
+ * The filename to store memdump is defined for each platform.
  * - The default path of CUSTOMER_HW4 device is "PLATFORM_PATH/.memdump.info"
  * - Brix platform will take default path "/installmedia/.memdump.info"
  * New platforms can add their ifdefs accordingly below.
  */
 
 #ifdef CONFIG_X86
-#if defined(OEM_ANDROID)
 #define MEMDUMPINFO_LIVE PLATFORM_PATH".memdump.info"
 #define MEMDUMPINFO_INST "/data/.memdump.info"
 #define MEMDUMPINFO MEMDUMPINFO_LIVE
-#else /* FC19 and Others */
-#define MEMDUMPINFO PLATFORM_PATH".memdump.info"
-#endif /* OEM_ANDROID */
 #else /* For non x86 platforms */
 #define MEMDUMPINFO PLATFORM_PATH".memdump.info"
 #endif /* CONFIG_X86 */
 
-uint32
+#ifndef DHD_EXPORT_CNTL_FILE
+static uint32
 get_mem_val_from_file(void)
 {
 	struct file *fp = NULL;
@@ -996,7 +1179,8 @@ get_mem_val_from_file(void)
 	fp = dhd_filp_open(filepath, O_RDONLY, 0);
 	if (IS_ERR(fp) || (fp == NULL)) {
 		DHD_ERROR(("%s: File [%s] doesn't exist\n", __FUNCTION__, filepath));
-#if defined(CONFIG_X86) && defined(OEM_ANDROID)
+
+#if defined(CONFIG_X86)
 		/* Check if it is Live Brix Image */
 		if (strcmp(filepath, MEMDUMPINFO_LIVE) != 0) {
 			goto done;
@@ -1009,7 +1193,9 @@ get_mem_val_from_file(void)
 			DHD_ERROR(("%s: File [%s] doesn't exist\n", __FUNCTION__, filepath));
 			goto done;
 		}
-#else /* Non Brix Android platform */
+#endif
+
+#if !defined(CONFIG_X86) /* Non Brix Android platform */
 		goto done;
 #endif /* CONFIG_X86 && OEM_ANDROID */
 	}
@@ -1022,7 +1208,7 @@ get_mem_val_from_file(void)
 		goto done;
 	}
 
-	p_mem_val = (char*)&mem_val;
+	p_mem_val = (char *)&mem_val;
 	p_mem_val[sizeof(uint32) - 1] = '\0';
 	mem_val = bcm_atoi(p_mem_val);
 
@@ -1031,6 +1217,7 @@ get_mem_val_from_file(void)
 done:
 	return mem_val;
 }
+#endif /* DHD_EXPORT_CNTL_FILE */
 
 void dhd_get_memdump_info(dhd_pub_t *dhd)
 {
@@ -1050,7 +1237,7 @@ void dhd_get_memdump_info(dhd_pub_t *dhd)
 		dhd->memdump_enabled = DUMP_MEMFILE;
 #endif /* DHD_INIT_DEFAULT_MEMDUMP */
 #endif /* !DHD_EXPORT_CNTL_FILE */
-#ifdef BCMQT
+#ifdef BCMQT_HW
 	/* In QT environment collecting memdump on FW TRAP, IOVAR timeouts,
 	 * is taking more time and makes system unresponsive so disabling it.
 	 * if needed memdump can be collected through 'dhd upload' command.
@@ -1063,14 +1250,13 @@ void dhd_get_memdump_info(dhd_pub_t *dhd)
 			(dhd->memdump_enabled == DUMP_MEMONLY ||
 			dhd->memdump_enabled == DUMP_MEMFILE_BUGON)) {
 		dhd->memdump_enabled = DUMP_MEMFILE;
-		DHD_ERROR(("%s : Override memdump_value to %d\n",
+		DHD_PRINT(("%s : Override memdump_value to %d\n",
 				__FUNCTION__, dhd->memdump_enabled));
 	}
 #endif /* DHD_DETECT_CONSECUTIVE_MFG_HANG */
-	DHD_ERROR(("%s: MEMDUMP ENABLED = %u\n", __FUNCTION__, dhd->memdump_enabled));
+	DHD_PRINT(("%s: MEMDUMP ENABLED = %u\n", __FUNCTION__, dhd->memdump_enabled));
 }
 
-#ifdef DHD_EXPORT_CNTL_FILE
 static ssize_t
 show_memdump_info(struct dhd_info *dev, char *buf)
 {
@@ -1083,7 +1269,7 @@ show_memdump_info(struct dhd_info *dev, char *buf)
 	}
 
 	dhdp = &dev->pub;
-	ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", dhdp->memdump_enabled);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", dhdp->memdump_enabled);
 	return ret;
 }
 
@@ -1104,23 +1290,22 @@ set_memdump_info(struct dhd_info *dev, const char *buf, size_t count)
 
 	dhdp->memdump_enabled = (uint32)memval;
 
-	DHD_ERROR(("%s: MEMDUMP ENABLED = %u\n", __FUNCTION__, dhdp->memdump_enabled));
+	DHD_PRINT(("%s: MEMDUMP ENABLED = %u\n", __FUNCTION__, dhdp->memdump_enabled));
 	return count;
 }
 
 static struct dhd_attr dhd_attr_memdump =
 	__ATTR(memdump, 0660, show_memdump_info, set_memdump_info);
-#endif /* DHD_EXPORT_CNTL_FILE */
 #endif /* DHD_FW_COREDUMP */
 
 #ifdef BCMASSERT_LOG
 /*
- * XXX The filename to store assert type is defined for each platform.
+ * The filename to store assert type is defined for each platform.
  * New platforms can add their ifdefs accordingly below.
  */
 #define ASSERTINFO PLATFORM_PATH".assert.info"
 
-int
+static int
 get_assert_val_from_file(void)
 {
 	struct file *fp = NULL;
@@ -1146,12 +1331,16 @@ get_assert_val_from_file(void)
 			p_mem_val = (char *)&mem_val;
 			p_mem_val[sizeof(uint32) - 1] = '\0';
 			mem_val = bcm_atoi(p_mem_val);
-			DHD_ERROR(("%s: ASSERT ENABLED = %d\n", __FUNCTION__, mem_val));
+			DHD_PRINT(("%s: ASSERT ENABLED = %d\n", __FUNCTION__, mem_val));
 		}
 		dhd_filp_close(fp, NULL);
 	}
 
+#ifdef CUSTOMER_HW4_DEBUG
+	mem_val = (mem_val >= 0) ? mem_val : 1;
+#else
 	mem_val = (mem_val >= 0) ? mem_val : 0;
+#endif /* CUSTOMER_HW4_DEBUG */
 	return mem_val;
 }
 
@@ -1177,7 +1366,7 @@ show_assert_info(struct dhd_info *dev, char *buf)
 		return ret;
 	}
 
-	ret = scnprintf(buf, PAGE_SIZE -1, "%d\n", g_assert_type);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", g_assert_type);
 	return ret;
 
 }
@@ -1192,7 +1381,7 @@ set_assert_info(struct dhd_info *dev, const char *buf, size_t count)
 
 	g_assert_type = (uint32)assert_val;
 
-	DHD_ERROR(("%s: ASSERT ENABLED = %lu\n", __FUNCTION__, assert_val));
+	DHD_PRINT(("%s: ASSERT ENABLED = %lu\n", __FUNCTION__, assert_val));
 	return count;
 
 }
@@ -1209,14 +1398,14 @@ show_wifiver_info(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
-	ret = scnprintf(buf, PAGE_SIZE -1, "%s", version_info);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%s", version_info);
 	return ret;
 }
 
 static ssize_t
 set_wifiver_info(struct dhd_info *dev, const char *buf, size_t count)
 {
-	DHD_ERROR(("Do not set version info\n"));
+	DHD_PRINT(("Do not set version info\n"));
 	return -EINVAL;
 }
 
@@ -1233,10 +1422,10 @@ show_cid_info(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 #ifdef USE_DIRECT_VID_TAG
-	ret = scnprintf(buf, PAGE_SIZE -1, "%x%x", cidinfostr[VENDOR_OFF], cidinfostr[MD_REV_OFF]);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%x%x", cidinfostr[VENDOR_OFF], cidinfostr[MD_REV_OFF]);
 #endif /* USE_DIRECT_VID_TAG */
 #ifdef USE_CID_CHECK
-	ret = scnprintf(buf, PAGE_SIZE -1, "%s", cidinfostr);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%s", cidinfostr);
 #endif /* USE_CID_CHECK */
 	return ret;
 }
@@ -1250,11 +1439,11 @@ set_cid_info(struct dhd_info *dev, const char *buf, size_t count)
 
 	stored_vid = bcm_strtoul(buf, NULL, 16);
 
-	DHD_ERROR(("%s : stored_vid : 0x%x\n", __FUNCTION__, stored_vid));
+	DHD_PRINT(("%s : stored_vid : 0x%x\n", __FUNCTION__, stored_vid));
 	md_rev = stored_vid & vendor_mask;
 	vendor = stored_vid >> 8;
 
-	memset(cidinfostr, 0, sizeof(cidinfostr));
+	bzero(cidinfostr, sizeof(cidinfostr));
 
 	cidinfostr[MD_REV_OFF] = (char)md_rev;
 	cidinfostr[VENDOR_OFF] = (char)vendor;
@@ -1282,7 +1471,7 @@ show_softap_info(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
-	ret = scnprintf(buf, PAGE_SIZE -1, "%s", softapinfostr);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%s", softapinfostr);
 	return ret;
 }
 
@@ -1305,7 +1494,7 @@ show_ant_info(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
-	ret = scnprintf(buf, PAGE_SIZE -1, "%lu\n", antsel);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%lu\n", antsel);
 	return ret;
 }
 
@@ -1328,7 +1517,7 @@ set_ant_info(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	antsel = ant_val;
-	DHD_ERROR(("[WIFI_SEC] %s: Set Antinfo val = %lu \n", __FUNCTION__, antsel));
+	DHD_PRINT(("[WIFI_SEC] %s: Set Antinfo val = %lu \n", __FUNCTION__, antsel));
 	return count;
 }
 
@@ -1344,9 +1533,9 @@ show_pm_info(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 	if (pmmode_val == 0xFF) {
-		ret = scnprintf(buf, PAGE_SIZE -1, "PM mode is not set\n");
+		ret = scnprintf(buf, PAGE_SIZE - 1, "PM mode is not set\n");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", pmmode_val);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", pmmode_val);
 	}
 	return ret;
 }
@@ -1366,7 +1555,7 @@ set_pm_info(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	pmmode_val = (uint32)pm_val;
-	DHD_ERROR(("[WIFI_SEC] %s: Set pminfo val = %u\n", __FUNCTION__, pmmode_val));
+	DHD_PRINT(("[WIFI_SEC] %s: Set pminfo val = %u\n", __FUNCTION__, pmmode_val));
 	return count;
 }
 
@@ -1382,7 +1571,7 @@ show_logtrace_info(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
-	ret = scnprintf(buf, PAGE_SIZE -1, "%lu\n", logtrace_val);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%lu\n", logtrace_val);
 	return ret;
 }
 
@@ -1401,7 +1590,7 @@ set_logtrace_info(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	logtrace_val = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: LOGTRACE On/Off from sysfs = %lu\n",
+	DHD_PRINT(("[WIFI_SEC] %s: LOGTRACE On/Off from sysfs = %lu\n",
 		__FUNCTION__, logtrace_val));
 	return count;
 }
@@ -1410,7 +1599,7 @@ static struct dhd_attr dhd_attr_logtraceinfo =
 	__ATTR(logtrace, 0660, show_logtrace_info, set_logtrace_info);
 #endif /* LOGTRACE_FROM_FILE */
 
-#ifdef  USE_WFA_CERT_CONF
+#ifdef USE_WFA_CERT_CONF
 #ifdef BCMSDIO
 uint32 bus_txglom = VALUENOTSET;
 
@@ -1422,7 +1611,7 @@ show_bustxglom(struct dhd_info *dev, char *buf)
 	if (bus_txglom == VALUENOTSET) {
 		ret = scnprintf(buf, PAGE_SIZE - 1, "%s\n", "bustxglom not set from sysfs");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", bus_txglom);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", bus_txglom);
 	}
 	return ret;
 }
@@ -1442,7 +1631,7 @@ set_bustxglom(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	bus_txglom = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: BUS TXGLOM On/Off from sysfs = %u\n",
+	DHD_PRINT(("[WIFI_SEC] %s: BUS TXGLOM On/Off from sysfs = %u\n",
 			__FUNCTION__, bus_txglom));
 	return count;
 }
@@ -1460,9 +1649,9 @@ show_roamoff(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 	if (roam_off == VALUENOTSET) {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%s\n", "roam_off not set from sysfs");
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%s\n", "roam_off not set from sysfs");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", roam_off);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", roam_off);
 	}
 	return ret;
 }
@@ -1482,7 +1671,7 @@ set_roamoff(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	roam_off = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: ROAM On/Off from sysfs = %u\n",
+	DHD_PRINT(("[WIFI_SEC] %s: ROAM On/Off from sysfs = %u\n",
 		__FUNCTION__, roam_off));
 	return count;
 }
@@ -1500,9 +1689,9 @@ show_frameburst(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 	if (frameburst == VALUENOTSET) {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%s\n", "frameburst not set from sysfs");
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%s\n", "frameburst not set from sysfs");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", frameburst);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", frameburst);
 	}
 	return ret;
 }
@@ -1522,7 +1711,7 @@ set_frameburst(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	frameburst = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
+	DHD_PRINT(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
 		__FUNCTION__, frameburst));
 	return count;
 }
@@ -1540,9 +1729,9 @@ show_txbf(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 	if (txbf == VALUENOTSET) {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%s\n", "txbf not set from sysfs");
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%s\n", "txbf not set from sysfs");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", txbf);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", txbf);
 	}
 	return ret;
 }
@@ -1562,7 +1751,7 @@ set_txbf(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	txbf = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
+	DHD_PRINT(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
 		__FUNCTION__, txbf));
 	return count;
 }
@@ -1580,9 +1769,9 @@ show_proptx(struct dhd_info *dev, char *buf)
 	ssize_t ret = 0;
 
 	if (proptx == VALUENOTSET) {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%s\n", "proptx not set from sysfs");
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%s\n", "proptx not set from sysfs");
 	} else {
-		ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", proptx);
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", proptx);
 	}
 	return ret;
 }
@@ -1602,8 +1791,8 @@ set_proptx(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	proptx = onoff;
-	DHD_ERROR(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
-		__FUNCTION__, txbf));
+	DHD_PRINT(("[WIFI_SEC] %s: FRAMEBURST On/Off from sysfs = %u\n",
+		__FUNCTION__, proptx));
 	return count;
 }
 
@@ -1614,90 +1803,9 @@ static struct dhd_attr dhd_attr_proptx =
 #endif /* USE_WFA_CERT_CONF */
 #endif /* DHD_EXPORT_CNTL_FILE */
 
-#if defined(WL_BAM)
-#define BAD_AP_MAC_ADDR_ELEMENT_NUM	6
-#define MACF_READ	"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx"
-wl_bad_ap_mngr_t *g_bad_ap_mngr = NULL;
-
-static ssize_t
-show_adps_bam_list(struct dhd_info *dev, char *buf)
-{
-	int offset = 0;
-	ssize_t ret = 0;
-
-	wl_bad_ap_info_t *bad_ap;
-	wl_bad_ap_info_entry_t *entry;
-
-	if (g_bad_ap_mngr == NULL)
-		return ret;
-
-	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
-	list_for_each_entry(entry, &g_bad_ap_mngr->list, list) {
-		bad_ap = &entry->bad_ap;
-
-		ret = scnprintf(buf + offset, PAGE_SIZE - 1, MACF"\n",
-			bad_ap->bssid.octet[0], bad_ap->bssid.octet[1],
-			bad_ap->bssid.octet[2], bad_ap->bssid.octet[3],
-			bad_ap->bssid.octet[4], bad_ap->bssid.octet[5]);
-
-		offset += ret;
-	}
-	GCC_DIAGNOSTIC_POP();
-
-	return offset;
-}
-
-static ssize_t
-store_adps_bam_list(struct dhd_info *dev, const char *buf, size_t count)
-{
-	int ret;
-	size_t len;
-	int offset;
-	char tmp[128];
-	wl_bad_ap_info_t bad_ap;
-
-	if (g_bad_ap_mngr == NULL)
-		return count;
-
-	len = count;
-	offset = 0;
-	do {
-		ret = sscanf(buf + offset, MACF_READ"\n",
-			&bad_ap.bssid.octet[0], &bad_ap.bssid.octet[1],
-			&bad_ap.bssid.octet[2], &bad_ap.bssid.octet[3],
-			&bad_ap.bssid.octet[4], &bad_ap.bssid.octet[5]);
-		if (ret != BAD_AP_MAC_ADDR_ELEMENT_NUM) {
-			DHD_ERROR(("%s - fail to parse bad ap data\n", __FUNCTION__));
-			return -EINVAL;
-		}
-
-		ret = wl_bad_ap_mngr_add(g_bad_ap_mngr, &bad_ap);
-		if (ret < 0)
-			return ret;
-
-		ret = snprintf(tmp, ARRAYSIZE(tmp), MACF"\n",
-			bad_ap.bssid.octet[0], bad_ap.bssid.octet[1],
-			bad_ap.bssid.octet[2], bad_ap.bssid.octet[3],
-			bad_ap.bssid.octet[4], bad_ap.bssid.octet[5]);
-		if (ret < 0) {
-			DHD_ERROR(("%s - fail to get bad ap data length(%d)\n", __FUNCTION__, ret));
-			return ret;
-		}
-
-		len -= ret;
-		offset += ret;
-	} while (len > 0);
-
-	return count;
-}
-
-static struct dhd_attr dhd_attr_adps_bam =
-	__ATTR(bad_ap_list, 0660, show_adps_bam_list, store_adps_bam_list);
-#endif	/* WL_BAM */
-
+#ifdef DHD_SEND_HANG_PRIVCMD_ERRORS
 uint32 report_hang_privcmd_err = 1;
 
-#ifdef DHD_SEND_HANG_PRIVCMD_ERRORS
 static ssize_t
 show_hang_privcmd_err(struct dhd_info *dev, char *buf)
 {
@@ -1743,7 +1851,7 @@ set_control_logtrace(struct dhd_info *dev, const char *buf, size_t count)
 	val = bcm_atoi(buf);
 
 	control_logtrace = val;
-	DHD_ERROR(("%s: Set control logtrace: %d\n", __FUNCTION__, control_logtrace));
+	DHD_PRINT(("%s: Set control logtrace: %d\n", __FUNCTION__, control_logtrace));
 	return count;
 }
 
@@ -1783,11 +1891,11 @@ set_max_rx_pkt_pool(struct dhd_info *dhd, const char *buf, size_t count)
 
 	dhd->rx_pkt_pool.max_size = ((val > MAX_RX_PKT_POOL) &&
 		(val <= (MAX_RX_PKT_POOL * 8))) ? val : MAX_RX_PKT_POOL;
-	DHD_ERROR(("%s: MAX_RX_PKT_POOL: %d\n", __FUNCTION__, dhd->rx_pkt_pool.max_size));
+	DHD_PRINT(("%s: MAX_RX_PKT_POOL: %d\n", __FUNCTION__, dhd->rx_pkt_pool.max_size));
 	return count;
 }
 
-static struct dhd_attr dhd_attr_max_rx_pkt_pool=
+static struct dhd_attr dhd_attr_max_rx_pkt_pool =
 __ATTR(dhd_max_rx_pkt_pool, 0660, show_max_rx_pkt_pool, set_max_rx_pkt_pool);
 #endif /* RX_PKT_POOL */
 
@@ -1804,6 +1912,14 @@ dhd_set_aspm_enab(struct dhd_info *dhd, const char *buf, size_t count)
 	if (aspm_enab != 0 && aspm_enab != 1) {
 		return -EINVAL;
 	}
+#ifdef DHD_PCIE_RUNTIMEPM
+	dhdpcie_runtime_bus_wake(dhdp, TRUE, __builtin_return_address(0));
+#endif /* DHD_PCIE_RUNTIMEPM */
+	if (aspm_enab) {
+		DHD_ENABLE_RUNTIME_PM(dhdp);
+	} else {
+		DHD_DISABLE_RUNTIME_PM(dhdp);
+	}
 	dhd_bus_aspm_enable_rc_ep(dhdp->bus, aspm_enab);
 
 	return count;
@@ -1819,6 +1935,10 @@ show_aspm_enab(struct dhd_info *dhd, char *buf)
 		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
 		return ret;
 	}
+
+#ifdef DHD_PCIE_RUNTIMEPM
+	dhdpcie_runtime_bus_wake(dhdp, TRUE, __builtin_return_address(0));
+#endif /* DHD_PCIE_RUNTIMEPM */
 
 	aspm_enab = dhd_bus_is_aspm_enab_rc_ep(dhdp->bus);
 	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", aspm_enab);
@@ -1841,6 +1961,14 @@ dhd_set_l1ss_enab(struct dhd_info *dhd, const char *buf, size_t count)
 	if (l1ss_enab != 0 && l1ss_enab != 1) {
 		return -EINVAL;
 	}
+#ifdef DHD_PCIE_RUNTIMEPM
+	dhdpcie_runtime_bus_wake(dhdp, TRUE, __builtin_return_address(0));
+#endif /* DHD_PCIE_RUNTIMEPM */
+	if (l1ss_enab) {
+		DHD_ENABLE_RUNTIME_PM(dhdp);
+	} else {
+		DHD_DISABLE_RUNTIME_PM(dhdp);
+	}
 	dhd_bus_l1ss_enable_rc_ep(dhdp->bus, l1ss_enab);
 	return count;
 }
@@ -1855,6 +1983,10 @@ show_l1ss_enab(struct dhd_info *dhd, char *buf)
 		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
 		return ret;
 	}
+
+#ifdef DHD_PCIE_RUNTIMEPM
+	dhdpcie_runtime_bus_wake(dhdp, TRUE, __builtin_return_address(0));
+#endif /* DHD_PCIE_RUNTIMEPM */
 
 	l1ss_enab = dhd_bus_is_l1ss_enab_rc_ep(dhdp->bus);
 	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", l1ss_enab);
@@ -1893,6 +2025,7 @@ dhd_set_fast_rpm_thresh(struct dhd_info *dev, const char *buf, size_t count)
 	dhd_fast_runtimepm_ms = val;
 	return count;
 }
+
 static struct dhd_attr dhd_attr_fast_rpm_thresh =
 __ATTR(fast_rpm_thresh, 0660, dhd_show_fast_rpm_thresh, dhd_set_fast_rpm_thresh);
 #endif /* RPM_FAST_TRIGGER */
@@ -1915,13 +2048,80 @@ set_control_he_enab(struct dhd_info *dev, const char *buf, size_t count)
 	val = bcm_atoi(buf);
 
 	control_he_enab = val ? 1 : 0;
-	DHD_ERROR(("%s: Set control he enab: %d\n", __FUNCTION__, control_he_enab));
+	DHD_PRINT(("%s: Set control he enab: %d\n", __FUNCTION__, control_he_enab));
 	return count;
 }
 
-static struct dhd_attr dhd_attr_control_he_enab=
+static struct dhd_attr dhd_attr_control_he_enab =
 __ATTR(control_he_enab, 0660, show_control_he_enab, set_control_he_enab);
 #endif /* CUSTOM_CONTROL_HE_ENAB */
+
+#ifdef DHD_FORCE_WLREGON_CTRL
+static ssize_t
+show_force_wl_reg_on(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+	uint32 val;
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return ret;
+	}
+	val = dhd_plat_get_wlan_reg_on_gpio();
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", val);
+	DHD_PRINT(("%s: show_force_wl_reg_on: %d\n", __FUNCTION__, val));
+	return ret;
+}
+
+static ssize_t
+set_force_wl_reg_on(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	uint32 val;
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return count;
+	}
+	val = bcm_atoi(buf);
+	if (val == 0) {
+		dhd->pub.force_wl_reg_off = TRUE;
+	}
+	dhd_wifi_platform_set_power(&dhd->pub, val);
+	DHD_PRINT(("%s: ### set_force_wl_reg_on: %d ###\n", __FUNCTION__, val));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_force_wl_reg_on =
+__ATTR(force_wl_reg_on, 0660, show_force_wl_reg_on, set_force_wl_reg_on);
+#endif /* DHD_FORCE_WLREGON_CTRL */
+
+#ifdef DHD_DUMP_RXPKTIDMAP
+static ssize_t
+show_dump_rxpktidmap(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return ret;
+	}
+
+	DHD_PRINT(("%s: read not implemented for dump_rxpktidmap\n", __FUNCTION__));
+	return ret;
+}
+
+static ssize_t
+set_dump_rxpktidmap(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return count;
+	}
+
+	dhd_dump_rxpktidmap(&dhd->pub);
+	DHD_PRINT(("%s: dump_rxpktidmap done\n", __FUNCTION__));
+	return count;
+}
+static struct dhd_attr dhd_attr_dump_rxpktidmap =
+__ATTR(dump_rxpktidmap, 0660, show_dump_rxpktidmap, set_dump_rxpktidmap);
+#endif /* DHD_DUMP_RXPKTIDMAP */
 
 #if defined(WLAN_ACCEL_BOOT)
 static ssize_t
@@ -1950,13 +2150,58 @@ set_wl_accel_force_reg_on(struct dhd_info *dhd, const char *buf, size_t count)
 	val = bcm_atoi(buf);
 
 	dhd->wl_accel_force_reg_on = val ? 1 : 0;
-	DHD_ERROR(("%s: wl_accel_force_reg_on: %d\n", __FUNCTION__, dhd->wl_accel_force_reg_on));
+	DHD_PRINT(("%s: wl_accel_force_reg_on: %d\n", __FUNCTION__, dhd->wl_accel_force_reg_on));
 	return count;
 }
 
-static struct dhd_attr dhd_attr_wl_accel_force_reg_on=
+static struct dhd_attr dhd_attr_wl_accel_force_reg_on =
 __ATTR(wl_accel_force_reg_on, 0660, show_wl_accel_force_reg_on, set_wl_accel_force_reg_on);
 #endif /* WLAN_ACCEL_BOOT */
+
+#ifdef DHD_AGGR_WI
+#define DHD_SYSFS_AGGR_WI_ENAB_FILE_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
+extern uint aggr_wi_enab;
+static ssize_t
+show_aggr_wi_enab(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return ret;
+	}
+
+	aggr_wi_enab = dhdpcie_get_aggr_wi_enable(&dhd->pub);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", aggr_wi_enab);
+	return ret;
+}
+
+static ssize_t
+set_aggr_wi_enab(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	uint32 val;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return count;
+	}
+
+	val = bcm_atoi(buf);
+
+	aggr_wi_enab = (val > DHD_AGGR_WI_ENAB_MASK) ? 0 : val;
+	DHD_PRINT(("%s: dhd_agg_wi_enab: %d\n", __FUNCTION__, aggr_wi_enab));
+
+	if (dhdpcie_set_aggr_wi_enable(&dhd->pub, aggr_wi_enab) != BCME_OK) {
+		/* Update the global variable from actual bus variable in case set failed */
+		aggr_wi_enab = dhdpcie_get_aggr_wi_enable(&dhd->pub);
+	}
+
+	return count;
+}
+
+static struct dhd_attr dhd_attr_wl_aggr_wi_enab =
+__ATTR(aggr_wi_enab, DHD_SYSFS_AGGR_WI_ENAB_FILE_MODE, show_aggr_wi_enab,
+	set_aggr_wi_enab);
+#endif /* DHD_AGGR_WI */
 
 #if defined(AGG_H2D_DB)
 extern bool agg_h2d_db_enab;
@@ -1989,7 +2234,7 @@ set_agg_h2d_db_enab(struct dhd_info *dhd, const char *buf, size_t count)
 	val = bcm_atoi(buf);
 
 	agg_h2d_db_enab = val ? TRUE : FALSE;
-	DHD_ERROR(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_enab));
+	DHD_PRINT(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_enab));
 	return count;
 }
 
@@ -2022,7 +2267,7 @@ set_agg_h2d_db_inflight_thresh(struct dhd_info *dhd, const char *buf, size_t cou
 	val = bcm_atoi(buf);
 
 	agg_h2d_db_inflight_thresh = val;
-	DHD_ERROR(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_inflight_thresh));
+	DHD_PRINT(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_inflight_thresh));
 	return count;
 }
 
@@ -2056,7 +2301,7 @@ set_agg_h2d_db_timeout(struct dhd_info *dhd, const char *buf, size_t count)
 	val = bcm_atoi(buf);
 
 	agg_h2d_db_timeout = val;
-	DHD_ERROR(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_timeout));
+	DHD_PRINT(("%s: agg_h2d_db_timeout: %d\n", __FUNCTION__, agg_h2d_db_timeout));
 	return count;
 }
 
@@ -2089,115 +2334,222 @@ dhd_debug_dump_stateinfo(struct dhd_info *dhd, char *buf)
 	buf[len] = '\0';
 	return len + 1;
 }
+
 static struct dhd_attr dhd_attr_dhd_debug_data =
 __ATTR(dump_stateinfo, 0660, dhd_debug_dump_stateinfo, NULL);
 
 #ifdef WL_CFG80211
-#define SUBLOGLEVEL 20
-#define SUBLOGLEVELZ ((SUBLOGLEVEL) + (1))
-
-static const struct {
-	u32 log_level;
-	char *sublogname;
-} sublogname_map[] = {
-	{WL_DBG_ERR, "ERR"},
-	{WL_DBG_INFO, "INFO"},
-	{WL_DBG_DBG, "DBG"},
-	{WL_DBG_SCAN, "SCAN"},
-	{WL_DBG_TRACE, "TRACE"},
-	{WL_DBG_P2P_ACTION, "P2PACTION"},
-	{WL_DBG_PNO, "PNO"}
-};
-
 /**
-* Format : echo "SCAN:1 DBG:1" > /sys/wifi/wl_dbg_level
-* to turn on SCAN and DBG log.
-* To turn off SCAN partially, echo "SCAN:0" > /sys/wifi/wl_dbg_level
+* Format : echo "0x9" > /sys/wifi/wl_dbg_level
 * To see current setting of debug level,
 * cat /sys/wifi/wl_dbg_level
 */
 static ssize_t
 show_wl_debug_level(struct dhd_info *dhd, char *buf)
 {
-	char *param;
-	char tbuf[SUBLOGLEVELZ * ARRAYSIZE(sublogname_map)];
-	uint i;
 	ssize_t ret = 0;
 
-	bzero(tbuf, sizeof(tbuf));
-	param = &tbuf[0];
-	for (i = 0; i < ARRAYSIZE(sublogname_map); i++) {
-		param += snprintf(param, sizeof(tbuf) - 1, "%s:%d ",
-			sublogname_map[i].sublogname,
-			(wl_dbg_level & sublogname_map[i].log_level) ? 1 : 0);
-	}
-	ret = scnprintf(buf, PAGE_SIZE - 1, "%s \n", tbuf);
+	ret = scnprintf(buf, PAGE_SIZE -1, "0x%x\n", wl_dbg_level);
+
 	return ret;
 }
 
 static ssize_t
 set_wl_debug_level(struct dhd_info *dhd, const char *buf, size_t count)
 {
-	char tbuf[SUBLOGLEVELZ * ARRAYSIZE(sublogname_map)], sublog[SUBLOGLEVELZ];
-	char *params, *token, *colon;
-	uint i, tokens, log_on = 0;
-	size_t minsize = min_t(size_t, (sizeof(tbuf) - 1), count);
+	wl_dbg_level = bcm_strtoul(buf, NULL, 0);
 
-	bzero(tbuf, sizeof(tbuf));
-	bzero(sublog, sizeof(sublog));
-	strlcpy(tbuf, buf, minsize);
-
-	DHD_INFO(("current wl_dbg_level %d \n", wl_dbg_level));
-
-	tbuf[minsize] = '\0';
-	params = &tbuf[0];
-	colon = strchr(params, '\n');
-	if (colon != NULL)
-		*colon = '\0';
-	while ((token = strsep(&params, " ")) != NULL) {
-		bzero(sublog, sizeof(sublog));
-		if (token == NULL || !*token)
-			break;
-		if (*token == '\0')
-			continue;
-		colon = strchr(token, ':');
-		if (colon != NULL) {
-			*colon = ' ';
-		}
-		tokens = sscanf(token, "%"SIZE_CONST_STRING(SUBLOGLEVEL)"s %u", sublog, &log_on);
-		if (colon != NULL)
-			*colon = ':';
-
-		if (tokens == 2) {
-				for (i = 0; i < ARRAYSIZE(sublogname_map); i++) {
-					if (!strncmp(sublog, sublogname_map[i].sublogname,
-						strlen(sublogname_map[i].sublogname))) {
-						if (log_on) {
-							wl_dbg_level |=
-							(sublogname_map[i].log_level);
-							wl_log_level |=
-							(sublogname_map[i].log_level);
-						} else {
-							wl_dbg_level &=
-							~(sublogname_map[i].log_level);
-							wl_log_level &=
-							~(sublogname_map[i].log_level);
-						}
-					}
-				}
-		} else
-			WL_ERR(("%s: can't parse '%s' as a "
-			       "SUBMODULE:LEVEL (%d tokens)\n",
-			       tbuf, token, tokens));
-
-	}
-	DHD_INFO(("changed wl_dbg_level %d \n", wl_dbg_level));
+	DHD_ERROR(("%s: wl_dbg_level: 0x%x\n", __FUNCTION__, wl_dbg_level));
 	return count;
 }
 
 static struct dhd_attr dhd_attr_wl_dbg_level =
 __ATTR(wl_dbg_level, 0660, show_wl_debug_level, set_wl_debug_level);
 #endif /* WL_CFG80211 */
+
+static ssize_t
+show_dhd_console_ms(struct dhd_info *dhd, char *buf)
+{
+	dhd_pub_t *dhdp;
+	ssize_t ret = 0;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", dhdp->dhd_console_ms);
+
+	return ret;
+}
+
+static ssize_t
+set_dhd_console_ms(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	dhd_pub_t *dhdp;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+
+	dhdp->dhd_console_ms = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: dhd_console_ms: %d\n", __FUNCTION__, dhdp->dhd_console_ms));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_dhd_console_ms =
+	__ATTR(dhd_console_ms, 0660, show_dhd_console_ms, set_dhd_console_ms);
+
+static ssize_t
+show_dhd_watchdog_ms(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", dhd_watchdog_ms);
+
+	return ret;
+}
+
+static ssize_t
+set_dhd_watchdog_ms(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	dhd_watchdog_ms = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: dhd_console_ms: %d\n", __FUNCTION__, dhd_watchdog_ms));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_dhd_watchdog_ms =
+	__ATTR(dhd_watchdog_ms, 0660, show_dhd_watchdog_ms, set_dhd_watchdog_ms);
+
+static ssize_t
+show_tput_monitor_ms(struct dhd_info *dhd, char *buf)
+{
+	dhd_pub_t *dhdp;
+	ssize_t ret = 0;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "%u\n", dhdp->conf->tput_monitor_ms);
+
+	return ret;
+}
+
+static ssize_t
+set_tput_monitor_ms(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	dhd_pub_t *dhdp;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+
+	dhdp->conf->tput_monitor_ms = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: tput_monitor_ms: %d\n", __FUNCTION__, dhdp->conf->tput_monitor_ms));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_tput_monitor_ms =
+	__ATTR(tput_monitor_ms, 0660, show_tput_monitor_ms, set_tput_monitor_ms);
+
+static ssize_t
+show_config_msg_level(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "0x%x\n", config_msg_level);
+
+	return ret;
+}
+
+static ssize_t
+set_config_msg_level(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	config_msg_level = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: config_msg_level: 0x%x\n", __FUNCTION__, config_msg_level));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_config_msg_level =
+__ATTR(config_msg_level, 0660, show_config_msg_level, set_config_msg_level);
+
+static ssize_t
+show_dhd_msg_level(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "0x%x\n", dhd_msg_level);
+
+	return ret;
+}
+
+static ssize_t
+set_dhd_msg_level(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	dhd_msg_level = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: dhd_msg_level: 0x%x\n", __FUNCTION__, dhd_msg_level));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_dhd_msg_level =
+__ATTR(dhd_msg_level, 0660, show_dhd_msg_level, set_dhd_msg_level);
+
+static ssize_t
+show_dump_msg_level(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "0x%x\n", dump_msg_level);
+
+	return ret;
+}
+
+static ssize_t
+set_dump_msg_level(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	dump_msg_level = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: dump_msg_level: 0x%x\n", __FUNCTION__, dump_msg_level));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_dump_msg_level =
+__ATTR(dump_msg_level, 0660, show_dump_msg_level, set_dump_msg_level);
+
+static ssize_t
+show_android_msg_level(struct dhd_info *dhd, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE -1, "0x%x\n", android_msg_level);
+
+	return ret;
+}
+
+static ssize_t
+set_android_msg_level(struct dhd_info *dhd, const char *buf, size_t count)
+{
+	android_msg_level = bcm_strtoul(buf, NULL, 0);
+
+	DHD_ERROR(("%s: android_msg_level: 0x%x\n", __FUNCTION__, android_msg_level));
+	return count;
+}
+
+static struct dhd_attr dhd_attr_android_msg_level =
+__ATTR(android_msg_level, 0660, show_android_msg_level, set_android_msg_level);
 
 #if defined(DHD_FILE_DUMP_EVENT) && defined(DHD_FW_COREDUMP)
 #define DUMP_TRIGGER	1
@@ -2230,6 +2582,11 @@ set_dhd_dump_in_progress(struct dhd_info *dhd, const char *buf, size_t count)
 		return count;
 	}
 
+	if (dhd->pub.up == 0) {
+		DHD_ERROR(("%s: Not up\n", __FUNCTION__));
+		return -EINVAL;
+	}
+
 	dump_status = dhd_get_dump_status(&dhd->pub);
 	if (dump_status == DUMP_NOT_READY || dump_status == DUMP_IN_PROGRESS) {
 		DHD_ERROR(("%s: Could not start dongle dump: %d\n",
@@ -2242,8 +2599,7 @@ set_dhd_dump_in_progress(struct dhd_info *dhd, const char *buf, size_t count)
 		DHD_INFO(("%s: Trigger dongle dump\n", __FUNCTION__));
 		dhd_set_dump_status(&dhd->pub, DUMP_IN_PROGRESS);
 		schedule_work(&dhd->dhd_dump_proc_work);
-	}
-	else {
+	} else {
 		DHD_ERROR(("%s: Invalid value %d\n", __FUNCTION__, input));
 	}
 
@@ -2268,15 +2624,72 @@ static struct dhd_attr dhd_attr_dump_start_command =
 	__ATTR(dump_start, 0664, trigger_dhd_dump_start_command, NULL);
 #endif /* DHD_DUMP_START_COMMAND */
 
+#ifdef PCIE_FULL_DONGLE
+static ssize_t
+show_ptm_sync_periodic(struct dhd_info *dev, char *buf)
+{
+	ssize_t ret = 0;
+	unsigned long val;
+
+	val = ptm_sync_periodic;
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%lu \n", val);
+	return ret;
+}
+
+static ssize_t
+set_ptm_sync_periodic(struct dhd_info *dev, const char *buf, size_t count)
+{
+	unsigned long val;
+
+	val = bcm_strtoul(buf, NULL, 10);
+
+	sscanf(buf, "%lu", &val);
+	if (val != 0 && val != 1) {
+		return -EINVAL;
+	}
+	ptm_sync_periodic = val;
+	return count;
+}
+
+static struct dhd_attr dhd_att_ptm_sync_periodic =
+__ATTR(ptm_sync_periodic, 0660, show_ptm_sync_periodic,
+		set_ptm_sync_periodic);
+#endif /* PCIE_FULL_DONGLE */
+
+extern bool arp_print_enabled;
+static ssize_t
+show_arp_print(struct dhd_info *dev, char *buf)
+{
+	ssize_t ret = 0;
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%u\n", arp_print_enabled);
+	return ret;
+}
+
+static ssize_t
+set_arp_print(struct dhd_info *dev, const char *buf, size_t count)
+{
+	uint val;
+
+	sscanf(buf, "%u", &val);
+	if (val != 0 && val != 1) {
+		return -EINVAL;
+	}
+	arp_print_enabled = val;
+	return count;
+}
+
+static struct dhd_attr dhd_attr_arp_print =
+__ATTR(arp_print, 0660, show_arp_print, set_arp_print);
+
 /* Attribute object that gets registered with "wifi" kobject tree */
 static struct attribute *default_file_attrs[] = {
-#ifdef DHD_MAC_ADDR_EXPORT
+#if defined(DHD_MAC_ADDR_EXPORT) || defined(DHD_MAC_ADDR_EXPORT_RO)
 	&dhd_attr_macaddr.attr,
-#endif /* DHD_MAC_ADDR_EXPORT */
-#ifdef DHD_EXPORT_CNTL_FILE
+#endif /* DHD_MAC_ADDR_EXPORT || DHD_MAC_ADDR_EXPORT_RO */
 #ifdef DHD_FW_COREDUMP
 	&dhd_attr_memdump.attr,
 #endif /* DHD_FW_COREDUMP */
+#ifdef DHD_EXPORT_CNTL_FILE
 #ifdef BCMASSERT_LOG
 	&dhd_attr_assert.attr,
 #endif /* BCMASSERT_LOG */
@@ -2314,9 +2727,6 @@ static struct attribute *default_file_attrs[] = {
 #endif /* PROP_TXSTATUS */
 #endif /* USE_WFA_CERT_CONF */
 #endif /* DHD_EXPORT_CNTL_FILE */
-#if defined(WL_BAM)
-	&dhd_attr_adps_bam.attr,
-#endif	/* WL_BAM */
 #ifdef DHD_SEND_HANG_PRIVCMD_ERRORS
 	&dhd_attr_hang_privcmd_err.attr,
 #endif /* DHD_SEND_HANG_PRIVCMD_ERRORS */
@@ -2327,13 +2737,13 @@ static struct attribute *default_file_attrs[] = {
 	&dhd_attr_wklock.attr,
 #endif
 #ifdef DHD_LOG_DUMP
-	&dhd_attr_logdump_periodic_flush.attr,
 	&dhd_attr_logdump_ecntr.attr,
 #endif
 	&dhd_attr_ecounters.attr,
 #ifdef DHD_SSSR_DUMP
 	&dhd_attr_sssr_enab.attr,
 	&dhd_attr_fis_enab.attr,
+	&dhd_attr_fis_recover.attr,
 #endif /* DHD_SSSR_DUMP */
 	&dhd_attr_firmware_path.attr,
 	&dhd_attr_nvram_path.attr,
@@ -2343,12 +2753,25 @@ static struct attribute *default_file_attrs[] = {
 #if defined(WLAN_ACCEL_BOOT)
 	&dhd_attr_wl_accel_force_reg_on.attr,
 #endif /* WLAN_ACCEL_BOOT */
+#ifdef DHD_FORCE_WLREGON_CTRL
+	&dhd_attr_force_wl_reg_on.attr,
+#endif /* DHD_FORCE_WLREGON_CTRL */
+#ifdef DHD_DUMP_RXPKTIDMAP
+	&dhd_attr_dump_rxpktidmap.attr,
+#endif /* DHD_DUMP_RXPKTIDMAP */
 #ifdef PWRSTATS_SYSFS
 	&dhd_attr_pwrstats_path.attr,
 #endif /* PWRSTATS_SYSFS */
 #if defined(WL_CFG80211)
 	&dhd_attr_wl_dbg_level.attr,
 #endif /* WL_CFG80211 */
+	&dhd_attr_dhd_console_ms.attr,
+	&dhd_attr_dhd_watchdog_ms.attr,
+	&dhd_attr_tput_monitor_ms.attr,
+	&dhd_attr_config_msg_level.attr,
+	&dhd_attr_dhd_msg_level.attr,
+	&dhd_attr_dump_msg_level.attr,
+	&dhd_attr_android_msg_level.attr,
 #if defined(DHD_FILE_DUMP_EVENT) && defined(DHD_FW_COREDUMP)
 	&dhd_attr_dump_in_progress.attr,
 #endif /* DHD_FILE_DUMP_EVENT && DHD_FW_COREDUMP */
@@ -2364,6 +2787,9 @@ static struct attribute *default_file_attrs[] = {
 #if defined(RX_PKT_POOL)
 	&dhd_attr_max_rx_pkt_pool.attr,
 #endif /* RX_PKT_POOL */
+#ifdef DHD_AGGR_WI
+	&dhd_attr_wl_aggr_wi_enab.attr,
+#endif /* DHD_AGGR_WI */
 #ifdef PCIE_FULL_DONGLE
 	&dhd_attr_aspm_enab.attr,
 	&dhd_attr_l1ss_enab.attr,
@@ -2372,19 +2798,17 @@ static struct attribute *default_file_attrs[] = {
 	&dhd_attr_fast_rpm_thresh.attr,
 #endif /* RPM_FAST_TRIGGER */
 	&dhd_attr_sig_path.attr,
+#ifdef PCIE_FULL_DONGLE
+	&dhd_att_ptm_sync_periodic.attr,
+#endif /* PCIE_FULL_DONGLE */
 	&dhd_attr_tcm_test_mode.attr,
+	&dhd_attr_arp_print.attr,
 	NULL
 };
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+ATTRIBUTE_GROUPS(default_file);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
-static const struct attribute_group default_group = {
-	.attrs = default_file_attrs
-};
-static const struct attribute_group *default_groups[] = {
-	&default_group,
-	NULL
-};
-#endif /* LINUX_VER >= 5.18 */
 /*
  * wifi kobject show function, the "attr" attribute specifices to which
  * node under "sys/wifi" the show function is called.
@@ -2433,18 +2857,18 @@ static ssize_t dhd_store(struct kobject *kobj, struct attribute *attr,
 
 }
 
-static const struct sysfs_ops dhd_sysfs_ops = {
+static struct sysfs_ops dhd_sysfs_ops = {
 	.show = dhd_show,
 	.store = dhd_store,
 };
 
 static struct kobj_type dhd_ktype = {
 	.sysfs_ops = &dhd_sysfs_ops,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
-	.default_groups = default_groups,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+	.default_groups = default_file_groups,
 #else
 	.default_attrs = default_file_attrs,
-#endif /* LINUX_VER >= 5.18 */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 };
 
 /*
@@ -2523,6 +2947,7 @@ lbrxp_onoff(struct dhd_info *dev, const char *buf, size_t count)
 
 	return count;
 }
+
 static struct dhd_attr dhd_attr_lbrxp =
 	__ATTR(lbrxp, 0660, show_lbrxp, lbrxp_onoff);
 
@@ -2566,7 +2991,6 @@ set_lb_rxp_stop_thr(struct dhd_info *dev, const char *buf, size_t count)
 	if (lb_rxp_stop_thr == 0) {
 		dhdp->lb_rxp_stop_thr = 0;
 		dhdp->lb_rxp_strt_thr = 0;
-		atomic_set(&dhd->pub.lb_rxp_flow_ctrl, FALSE);
 		return count;
 	}
 	/* 1. by the time lb_rxp_stop_thr gets into picture,
@@ -2625,7 +3049,6 @@ set_lb_rxp_strt_thr(struct dhd_info *dev, const char *buf, size_t count)
 	if (lb_rxp_strt_thr == 0) {
 		dhdp->lb_rxp_strt_thr = 0;
 		dhdp->lb_rxp_stop_thr = 0;
-		atomic_set(&dhd->pub.lb_rxp_flow_ctrl, FALSE);
 		return count;
 	}
 	/* should be less than dhdp->lb_rxp_stop_thr */
@@ -2636,6 +3059,7 @@ set_lb_rxp_strt_thr(struct dhd_info *dev, const char *buf, size_t count)
 	dhdp->lb_rxp_strt_thr = (D2HRING_RXCMPLT_MAX_ITEM * lb_rxp_strt_thr);
 	return count;
 }
+
 static struct dhd_attr dhd_attr_lb_rxp_strt_thr =
 	__ATTR(lbrxp_strt_thr, 0660, get_lb_rxp_strt_thr, set_lb_rxp_strt_thr);
 
@@ -2664,99 +3088,118 @@ set_candidacy_override(struct dhd_info *dev, const char *buf, size_t count)
 		dev->dhd_lb_candidacy_override = FALSE;
 	}
 
-	DHD_ERROR(("set dhd_lb_candidacy_override %d\n", dev->dhd_lb_candidacy_override));
+	DHD_PRINT(("set dhd_lb_candidacy_override %d\n", dev->dhd_lb_candidacy_override));
 	return count;
 }
 
 static struct dhd_attr dhd_candidacy_override =
 __ATTR(candidacy_override, 0660, show_candidacy_override, set_candidacy_override);
 
+static int
+write_cpumask(struct dhd_info *dev, const char *buf, cpumask_var_t dhd_cpumask)
+{
+	int ret;
+
+	cpumask_var_t mask;
+
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL)) {
+		DHD_ERROR(("%s:Can't allocate cpu mask vars\n", __FUNCTION__));
+		return -1;
+	}
+
+	cpumask_clear(mask);
+	ret = cpumask_parse(buf, mask);
+	if (ret < 0) {
+		DHD_ERROR(("%s: parsing input mask failed ret = %d\n",
+			__FUNCTION__, ret));
+		return ret;
+	}
+
+	cpumask_clear(dhd_cpumask);
+	cpumask_or(dhd_cpumask, dhd_cpumask, mask);
+
+	dhd_select_cpu_candidacy(dev);
+	free_cpumask_var(mask);
+	return 0;
+}
+
 static ssize_t
-show_primary_mask(struct dhd_info *dev, char *buf)
+read_cpumask_set8(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
 	ret = scnprintf(buf, PAGE_SIZE - 1,
-			"%02lx\n", *cpumask_bits(dev->cpumask_primary));
+			"%04lx\n", *cpumask_bits(dev->cpumask_set8));
 	return ret;
 }
 
 static ssize_t
-set_primary_mask(struct dhd_info *dev, const char *buf, size_t count)
+write_cpumask_set8(struct dhd_info *dev, const char *buf, size_t count)
 {
-	int ret;
-
-	cpumask_var_t primary_mask;
-
-	if (!alloc_cpumask_var(&primary_mask, GFP_KERNEL)) {
-		DHD_ERROR(("Can't allocate cpumask vars\n"));
+	if (write_cpumask(dev, buf, dev->cpumask_set8) < 0) {
 		return count;
 	}
 
-	cpumask_clear(primary_mask);
-	ret = cpumask_parse(buf, primary_mask);
-	if (ret < 0) {
-		DHD_ERROR(("Setting cpumask failed ret = %d\n", ret));
-		return count;
-	}
+	DHD_PRINT(("cpumask_set8 is now: 0x%4lx\n",
+		*cpumask_bits(dev->cpumask_set8)));
 
-	cpumask_clear(dev->cpumask_primary);
-	cpumask_or(dev->cpumask_primary, dev->cpumask_primary, primary_mask);
-
-	DHD_ERROR(("set cpumask results cpumask_primary 0x%2lx\n",
-		*cpumask_bits(dev->cpumask_primary)));
-
-	dhd_select_cpu_candidacy(dev);
 	return count;
 }
 
-static struct dhd_attr dhd_primary_mask =
-__ATTR(primary_mask, 0660, show_primary_mask, set_primary_mask);
+static struct dhd_attr dhd_cpumask_set8 =
+__ATTR(cpumask_set8, 0660, read_cpumask_set8, write_cpumask_set8);
 
 static ssize_t
-show_secondary_mask(struct dhd_info *dev, char *buf)
+read_cpumask_set4(struct dhd_info *dev, char *buf)
 {
 	ssize_t ret = 0;
 
 	ret = scnprintf(buf, PAGE_SIZE - 1,
-			"%02lx\n", *cpumask_bits(dev->cpumask_secondary));
+			"%04lx\n", *cpumask_bits(dev->cpumask_set4));
 	return ret;
 }
 
 static ssize_t
-set_secondary_mask(struct dhd_info *dev, const char *buf, size_t count)
+write_cpumask_set4(struct dhd_info *dev, const char *buf, size_t count)
 {
-	int ret;
-
-	cpumask_var_t secondary_mask;
-
-	if (!alloc_cpumask_var(&secondary_mask, GFP_KERNEL)) {
-		DHD_ERROR(("Can't allocate cpumask vars\n"));
+	if (write_cpumask(dev, buf, dev->cpumask_set4) < 0) {
 		return count;
 	}
 
-	cpumask_clear(secondary_mask);
-
-	ret = cpumask_parse(buf, secondary_mask);
-
-	if (ret < 0) {
-		DHD_ERROR(("Setting cpumask failed ret = %d\n", ret));
-		return count;
-	}
-
-	cpumask_clear(dev->cpumask_secondary);
-	cpumask_or(dev->cpumask_secondary, dev->cpumask_secondary, secondary_mask);
-
-	DHD_ERROR(("set cpumask results cpumask_secondary 0x%2lx\n",
-		*cpumask_bits(dev->cpumask_secondary)));
-
-	dhd_select_cpu_candidacy(dev);
+	DHD_PRINT(("cpumask_set4 is now: 0x%4lx\n",
+		*cpumask_bits(dev->cpumask_set4)));
 
 	return count;
 }
 
-static struct dhd_attr dhd_secondary_mask =
-__ATTR(secondary_mask, 0660, show_secondary_mask, set_secondary_mask);
+static struct dhd_attr dhd_cpumask_set4 =
+__ATTR(cpumask_set4, 0660, read_cpumask_set4, write_cpumask_set4);
+
+static ssize_t
+read_cpumask_set0(struct dhd_info *dev, char *buf)
+{
+	ssize_t ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE - 1,
+			"%04lx\n", *cpumask_bits(dev->cpumask_set0));
+	return ret;
+}
+
+static ssize_t
+write_cpumask_set0(struct dhd_info *dev, const char *buf, size_t count)
+{
+	if (write_cpumask(dev, buf, dev->cpumask_set0) < 0) {
+		return count;
+	}
+
+	DHD_PRINT(("cpumask_set0 is now: 0x%4lx\n",
+		*cpumask_bits(dev->cpumask_set0)));
+
+	return count;
+}
+
+static struct dhd_attr dhd_cpumask_set0 =
+__ATTR(cpumask_set0, 0660, read_cpumask_set0, write_cpumask_set0);
 
 static ssize_t
 show_rx_cpu(struct dhd_info *dev, char *buf)
@@ -2779,14 +3222,13 @@ set_rx_cpu(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	val = (uint32)bcm_atoi(buf);
-	if (val >= nr_cpu_ids)
-	{
+	if (val >= nr_cpu_ids) {
 		DHD_ERROR(("%s : can't set the value out of number of cpus, val = %u\n",
 			__FUNCTION__, val));
 	}
 
 	atomic_set(&dev->rx_napi_cpu, val);
-	DHD_ERROR(("%s: rx_napi_cpu = %d\n", __FUNCTION__, atomic_read(&dev->rx_napi_cpu)));
+	DHD_PRINT(("%s: rx_napi_cpu = %d\n", __FUNCTION__, atomic_read(&dev->rx_napi_cpu)));
 	return count;
 }
 
@@ -2814,15 +3256,14 @@ set_tx_cpu(struct dhd_info *dev, const char *buf, size_t count)
 	}
 
 	val = (uint32)bcm_atoi(buf);
-	if (val >= nr_cpu_ids)
-	{
+	if (val >= nr_cpu_ids) {
 		DHD_ERROR(("%s : can't set the value out of number of cpus, val = %u\n",
 			__FUNCTION__, val));
 		return count;
 	}
 
 	atomic_set(&dev->tx_cpu, val);
-	DHD_ERROR(("%s: tx_cpu = %d\n", __FUNCTION__, atomic_read(&dev->tx_cpu)));
+	DHD_PRINT(("%s: tx_cpu = %d\n", __FUNCTION__, atomic_read(&dev->tx_cpu)));
 	return count;
 }
 
@@ -2839,22 +3280,17 @@ static struct attribute *debug_lb_attrs[] = {
 	&dhd_attr_lb_rxp_strt_thr.attr,
 #endif /* DHD_LB_RXP */
 	&dhd_candidacy_override.attr,
-	&dhd_primary_mask.attr,
-	&dhd_secondary_mask.attr,
+	&dhd_cpumask_set8.attr,
+	&dhd_cpumask_set4.attr,
+	&dhd_cpumask_set0.attr,
 	&dhd_rx_cpu.attr,
 	&dhd_tx_cpu.attr,
 	NULL
 };
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+ATTRIBUTE_GROUPS(debug_lb);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
-static const struct attribute_group debug_lb_group = {
-	.attrs = debug_lb_attrs
-};
-static const struct attribute_group *debug_lb_groups[] = {
-	&debug_lb_group,
-	NULL
-};
-#endif /* LINUX_VER >= 5.18 */
 #define to_dhd_lb(k) container_of(k, struct dhd_info, dhd_lb_kobj)
 
 /*
@@ -2905,18 +3341,18 @@ static ssize_t dhd_lb_store(struct kobject *kobj, struct attribute *attr,
 
 }
 
-static const struct sysfs_ops dhd_sysfs_lb_ops = {
+static struct sysfs_ops dhd_sysfs_lb_ops = {
 	.show = dhd_lb_show,
 	.store = dhd_lb_store,
 };
 
 static struct kobj_type dhd_lb_ktype = {
 	.sysfs_ops = &dhd_sysfs_lb_ops,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
 	.default_groups = debug_lb_groups,
 #else
 	.default_attrs = debug_lb_attrs,
-#endif /* LINUX_VER >= 5.18 */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 };
 #endif /* DHD_LB */
 
@@ -2950,8 +3386,7 @@ set_ctrl_cpl_post_bound(struct dhd_info *dev, const char *buf, size_t count)
 	int val;
 
 	val = (uint32)bcm_atoi(buf);
-	if (val <= 0)
-	{
+	if (val <= 0) {
 		DHD_ERROR(("%s : invalid ctrl_cpl_post_bound %u\n",
 			__FUNCTION__, val));
 		return count;
@@ -2976,8 +3411,7 @@ set_tx_post_bound(struct dhd_info *dev, const char *buf, size_t count)
 	int val;
 
 	val = (uint32)bcm_atoi(buf);
-	if (val <= 0)
-	{
+	if (val <= 0) {
 		DHD_ERROR(("%s : invalid tx_post_bound %u\n",
 			__FUNCTION__, val));
 		return count;
@@ -3003,8 +3437,7 @@ set_rx_cpl_post_bound(struct dhd_info *dev, const char *buf, size_t count)
 	int val;
 
 	val = (uint32)bcm_atoi(buf);
-	if (val <= 0)
-	{
+	if (val <= 0) {
 		DHD_ERROR(("%s : invalid rx_cpl_post_bound %u\n",
 			__FUNCTION__, val));
 		return count;
@@ -3029,8 +3462,7 @@ set_tx_cpl_bound(struct dhd_info *dev, const char *buf, size_t count)
 	int val;
 
 	val = (uint32)bcm_atoi(buf);
-	if (val <= 0)
-	{
+	if (val <= 0) {
 		DHD_ERROR(("%s : invalid tx_cpl_bound %u\n",
 			__FUNCTION__, val));
 		return count;
@@ -3056,6 +3488,9 @@ static struct attribute *debug_dpc_bounds_attrs[] = {
 	&dhd_attr_ctrl_cpl_post_bound.attr,
 	NULL
 };
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+ATTRIBUTE_GROUPS(debug_dpc_bounds);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 
 #define to_dhd_dpc_bounds(k) container_of(k, struct dhd_info, dhd_dpc_bounds_kobj)
 
@@ -3112,59 +3547,230 @@ static struct sysfs_ops dhd_sysfs_dpc_bounds_ops = {
 	.store = dhd_dpc_bounds_store,
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
-static const struct attribute_group debug_dpc_bounds_group = {
-	.attrs = debug_dpc_bounds_attrs
-};
-static const struct attribute_group *debug_dpc_bounds_groups[] = {
-	&debug_dpc_bounds_group,
-	NULL
-};
-#endif /* LINUX_VER >= 5.18 */
-
 static struct kobj_type dhd_dpc_bounds_ktype = {
 	.sysfs_ops = &dhd_sysfs_dpc_bounds_ops,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
 	.default_groups = debug_dpc_bounds_groups,
 #else
 	.default_attrs = debug_dpc_bounds_attrs,
-#endif /* LINUX_VER >= 5.18 */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 };
 
 /*
  * *************************************
  */
 
-#ifdef CSI_SUPPORT
-/* Function to show current ccode */
-static ssize_t read_csi_data(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
+/*
+ * ************ DHD LOGGER *************
+ */
+/* show the DHD logger qdump debug level */
+static ssize_t
+dhd_logger_show_qdump(struct dhd_info *dev, char *buf)
 {
-	dhd_info_t *dhd = to_dhd(kobj);
-	int n = 0;
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	ssize_t ret = 0;
+	uint32 val;
 
-	n = dhd_csi_retrieve_queue_data(&dhd->pub, buf, (uint)count);
-	DHD_TRACE(("Dump data to file, size %d\n", n));
-
-	return n;
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+	val = dhd_log_get_qdump(dhdp->logger);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%u \n", val);
+	return ret;
 }
 
-static struct bin_attribute dhd_attr_csi = {
-	.attr = {
-		.name = CONST_SYNA_DHD_CSI_OBJ_NAME,
-		.mode = 0660
-	},
-	.size = MAX_CSI_FILESZ,
-	.read = read_csi_data,
+/* set the DHD logger qdump debug level */
+static ssize_t
+dhd_logger_set_qdump(struct dhd_info *dev, const char *buf, size_t count)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	uint32 val;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+
+	dhdp = &dhd->pub;
+	val = (uint32)bcm_strtoul(buf, NULL, 16);
+	dhd_log_set_qdump(dhdp->logger, val);
+	return count;
+}
+
+static struct dhd_attr dhd_logger_attr_qdump =
+__ATTR(qdump, 0660, dhd_logger_show_qdump, dhd_logger_set_qdump);
+
+/* show the DHD logger route_events value. */
+static ssize_t
+dhd_logger_show_route_events(struct dhd_info *dev, char *buf)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	ssize_t ret = 0;
+	bool route_events;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+	route_events = dhd_log_show_route_events(dhdp->logger);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%d\n", route_events);
+	return ret;
+}
+
+/* set the DHD logger route_events level */
+static ssize_t
+dhd_logger_set_route_events(struct dhd_info *dev, const char *buf, size_t count)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	unsigned long route_events;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+
+	dhdp = &dhd->pub;
+	route_events = bcm_strtoul(buf, NULL, 10);
+	if (route_events != 0 && route_events != 1) {
+		return -EINVAL;
+	}
+	dhd_log_set_route_events(dhdp->logger, route_events);
+	return count;
+}
+
+static struct dhd_attr dhd_logger_attr_route_events =
+__ATTR(route_events, 0660, dhd_logger_show_route_events, dhd_logger_set_route_events);
+
+/* show the DHD logger filter value. */
+static ssize_t
+dhd_logger_show_filter(struct dhd_info *dev, char *buf)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	ssize_t ret = 0;
+	uint32 filter;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+	dhdp = &dhd->pub;
+	filter = dhd_log_show_filter(dhdp->logger);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "0x%x \n", filter);
+	return ret;
+}
+
+/* set the DHD logger filter level */
+static ssize_t
+dhd_logger_set_filter(struct dhd_info *dev, const char *buf, size_t count)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dev;
+	dhd_pub_t *dhdp;
+	uint32 filter;
+
+	if (!dhd) {
+		DHD_ERROR(("%s: dhd is NULL\n", __FUNCTION__));
+		return -EINVAL;
+	}
+
+	dhdp = &dhd->pub;
+	filter = (uint32)bcm_strtoul(buf, NULL, 16);
+	dhd_log_set_filter(dhdp->logger, filter);
+	return count;
+}
+
+static struct dhd_attr dhd_logger_attr_filter =
+__ATTR(filter, 0660, dhd_logger_show_filter, dhd_logger_set_filter);
+
+static struct attribute *debug_logger_attrs[] = {
+	&dhd_logger_attr_qdump.attr,
+	&dhd_logger_attr_filter.attr,
+	&dhd_logger_attr_route_events.attr,
+	NULL
 };
-#endif /* CSI_SUPPORT */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+ATTRIBUTE_GROUPS(debug_logger);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
+
+#define to_dhd_logger(k) container_of(k, struct dhd_info, dhd_logger_kobj)
+
+/*
+ * wifi/logger kobject show function, the "attr" attribute specifices to which
+ * node under "sys/wifi/logger" the show function is called.
+ */
+static ssize_t dhd_logger_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	dhd_info_t *dhd;
+	struct dhd_attr *d_attr;
+	int ret;
+
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+	dhd = to_dhd_logger(kobj);
+	d_attr = to_attr(attr);
+	GCC_DIAGNOSTIC_POP();
+
+	if (d_attr->show)
+		ret = d_attr->show(dhd, buf);
+	else
+		ret = -EIO;
+
+	return ret;
+}
+
+/*
+ * wifi/logger kobject store function, the "attr" attribute specifices to which
+ * node under "sys/wifi/logger" the store function is called.
+ */
+static ssize_t dhd_logger_store(struct kobject *kobj, struct attribute *attr,
+		const char *buf, size_t count)
+{
+	dhd_info_t *dhd;
+	struct dhd_attr *d_attr;
+	int ret;
+
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+	dhd = to_dhd_logger(kobj);
+	d_attr = to_attr(attr);
+	GCC_DIAGNOSTIC_POP();
+
+	if (d_attr->store)
+		ret = d_attr->store(dhd, buf, count);
+	else
+		ret = -EIO;
+
+	return ret;
+
+}
+
+static struct sysfs_ops dhd_sysfs_logger_ops = {
+	.show = dhd_logger_show,
+	.store = dhd_logger_store,
+};
+
+static struct kobj_type dhd_logger_ktype = {
+	.sysfs_ops = &dhd_sysfs_logger_ops,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+	.default_groups = debug_logger_groups,
+#else
+	.default_attrs = debug_logger_attrs,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
+};
+
+/*
+ * *************************************
+ */
 
 /* Create a kobject and attach to sysfs interface */
 int dhd_sysfs_init(dhd_info_t *dhd)
 {
 	int ret = -1;
-
-	dhd->flag_kobj = 0x0;
 
 	if (dhd == NULL) {
 		DHD_ERROR(("%s(): dhd is NULL \r\n", __FUNCTION__));
@@ -3172,13 +3778,11 @@ int dhd_sysfs_init(dhd_info_t *dhd)
 	}
 
 	/* Initialize the kobject */
-	ret = kobject_init_and_add(&dhd->dhd_kobj, &dhd_ktype, NULL, "wifi" BUS_TYPE);
+	ret = kobject_init_and_add(&dhd->dhd_kobj, &dhd_ktype, NULL, "wifi");
 	if (ret) {
 		kobject_put(&dhd->dhd_kobj);
 		DHD_ERROR(("%s(): Unable to allocate kobject \r\n", __FUNCTION__));
 		return ret;
-	} else {
-		dhd->flag_kobj |= 0x01;
 	}
 
 	/*
@@ -3186,19 +3790,20 @@ int dhd_sysfs_init(dhd_info_t *dhd)
 	 * was added to the system.
 	 */
 	kobject_uevent(&dhd->dhd_kobj, KOBJ_ADD);
+	dhd->dhd_kobj_inited = TRUE;
 
 #ifdef DHD_LB
 	ret  = kobject_init_and_add(&dhd->dhd_lb_kobj,
 			&dhd_lb_ktype, &dhd->dhd_kobj, "lb");
 	if (ret) {
 		kobject_put(&dhd->dhd_lb_kobj);
-		DHD_ERROR(("%s(): Unable to allocate kobject for 'lb'\r\n", __FUNCTION__));
+		DHD_ERROR(("%s(): Unable to allocate kobject for 'lb' ret=%d\n",
+			__FUNCTION__, ret));
 		return ret;
-	} else {
-		dhd->flag_kobj |= 0x02;
 	}
 
 	kobject_uevent(&dhd->dhd_lb_kobj, KOBJ_ADD);
+	dhd->dhd_lb_kobj_inited = TRUE;
 #endif /* DHD_LB */
 
 	/* DPC bounds */
@@ -3206,20 +3811,24 @@ int dhd_sysfs_init(dhd_info_t *dhd)
 			&dhd_dpc_bounds_ktype, &dhd->dhd_kobj, "dpc_bounds");
 	if (ret) {
 		kobject_put(&dhd->dhd_dpc_bounds_kobj);
-		DHD_ERROR(("%s(): Unable to allocate kobject for 'dpc_bounds'\r\n", __FUNCTION__));
+		DHD_ERROR(("%s(): Unable to allocate kobject for 'dpc_bounds' ret=%d\n",
+			__FUNCTION__, ret));
 		return ret;
 	}
 	kobject_uevent(&dhd->dhd_dpc_bounds_kobj, KOBJ_ADD);
+	dhd->dhd_dpc_bounds_kobj_inited = TRUE;
 
-#ifdef CSI_SUPPORT
-	ret = sysfs_create_bin_file(&dhd->dhd_kobj, &dhd_attr_csi);
+	/* DHD Logger */
+	ret  = kobject_init_and_add(&dhd->dhd_logger_kobj,
+			&dhd_logger_ktype, &dhd->dhd_kobj, "logger");
 	if (ret) {
-		DHD_ERROR(("%s: can't create %s\n", __func__, dhd_attr_csi.attr.name));
+		kobject_put(&dhd->dhd_logger_kobj);
+		DHD_ERROR(("%s(): Unable to allocate kobject for 'logger' ret=%d\n",
+			__FUNCTION__, ret));
 		return ret;
-	} else {
-		dhd->flag_kobj |= 0x04;
 	}
-#endif /* CSI_SUPPORT */
+	kobject_uevent(&dhd->dhd_logger_kobj, KOBJ_ADD);
+	dhd->dhd_logger_kobj_inited = TRUE;
 
 	return ret;
 }
@@ -3232,27 +3841,30 @@ void dhd_sysfs_exit(dhd_info_t *dhd)
 		return;
 	}
 
-#ifdef CSI_SUPPORT
-	if (0x04 & dhd->flag_kobj) {
-		sysfs_remove_bin_file(&dhd->dhd_kobj, &dhd_attr_csi);
-	}
-#endif /* CSI_SUPPORT */
-
 #ifdef DHD_LB
-	if (0X02 & dhd->flag_kobj) {
+	if (dhd->dhd_lb_kobj_inited) {
 		kobject_put(&dhd->dhd_lb_kobj);
+		dhd->dhd_lb_kobj_inited = FALSE;
 	}
 #endif /* DHD_LB */
 
 	/* DPC bounds */
-	kobject_put(&dhd->dhd_dpc_bounds_kobj);
-
-	/* Release the kobject */
-	if (0X01 & dhd->flag_kobj) {
-		kobject_put(&dhd->dhd_kobj);
+	if (dhd->dhd_dpc_bounds_kobj_inited) {
+		kobject_put(&dhd->dhd_dpc_bounds_kobj);
+		dhd->dhd_dpc_bounds_kobj_inited = FALSE;
 	}
 
-	dhd->flag_kobj = 0X0;
+	/* DHD Logger */
+	if (dhd->dhd_logger_kobj_inited) {
+		kobject_put(&dhd->dhd_logger_kobj);
+		dhd->dhd_logger_kobj_inited = FALSE;
+	}
+
+	/* Release the kobject */
+	if (dhd->dhd_kobj_inited) {
+		kobject_put(&dhd->dhd_kobj);
+		dhd->dhd_kobj_inited = FALSE;
+	}
 }
 
 #ifdef DHD_SUPPORT_HDM
@@ -3262,7 +3874,7 @@ hdm_load_module(struct kobject *kobj, struct kobj_attribute *attr, const char *b
 	int val = bcm_atoi(buf);
 
 	if (val == 1) {
-		DHD_ERROR(("%s : Load module from the hdm %d\n", __FUNCTION__, val));
+		DHD_PRINT(("%s : Load module from the hdm %d\n", __FUNCTION__, val));
 		dhd_module_init_hdm();
 	} else {
 		DHD_ERROR(("Module load triggered with invalid value : %d\n", val));
@@ -3277,7 +3889,7 @@ static struct kobj_attribute hdm_wlan_attr =
 void
 dhd_hdm_wlan_sysfs_init()
 {
-	DHD_ERROR(("export hdm_wlan_loader\n"));
+	DHD_PRINT(("export hdm_wlan_loader\n"));
 	if (sysfs_create_file(kernel_kobj, &hdm_wlan_attr.attr)) {
 		DHD_ERROR(("export hdm_load failed\n"));
 	}

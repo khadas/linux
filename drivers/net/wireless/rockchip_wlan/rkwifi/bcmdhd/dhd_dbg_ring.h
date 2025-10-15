@@ -1,7 +1,26 @@
 /*
  * DHD debug ring header file - interface
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,9 +37,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef __DHD_DBG_RING_H__
@@ -28,7 +45,7 @@
 
 #include <bcmutils.h>
 
-#if defined(LINUX)
+#if defined(__linux__)
 #define PACKED_STRUCT __attribute__ ((packed))
 #else
 #define PACKED_STRUCT
@@ -90,8 +107,8 @@ typedef struct dhd_dbg_ring {
 	uint32  rp_tmp;		/* tmp read pointer */
 	uint32  log_level;	/* log_level */
 	uint32  threshold;	/* threshold bytes */
-	void *  ring_buf;	/* pointer of actually ring buffer */
-	void *  lock;		/* lock for ring access */
+	void *ring_buf;	/* pointer of actually ring buffer */
+	void *lock;		/* lock for ring access */
 	struct ring_statistics stat;	/* statistics */
 	enum dbg_ring_state state;	/* ring state enum */
 	bool tail_padded;	/* writer does not have enough space */
@@ -120,8 +137,6 @@ typedef struct dhd_dbg_ring {
 #define DBG_RING_ENTRY_SIZE (sizeof(dhd_dbg_ring_entry_t))
 #define ENTRY_LENGTH(hdr) ((hdr)->len + DBG_RING_ENTRY_SIZE)
 #define PAYLOAD_MAX_LEN 65535
-#define PAYLOAD_RTT_MAX_LEN 1648u
-#define PAYLOAD_BCM_TRACE_MAX_LEN 1648u
 #define PENDING_LEN_MAX 0xFFFFFFFF
 #define DBG_RING_STATUS_SIZE (sizeof(dhd_dbg_ring_status_t))
 
@@ -147,7 +162,7 @@ int dhd_dbg_ring_update(void *dbg_ring, uint32 w_len);
 #endif /* DHD_PKT_LOGGING_DBGRING */
 int dhd_dbg_ring_push(dhd_dbg_ring_t *ring, dhd_dbg_ring_entry_t *hdr, void *data);
 int dhd_dbg_ring_pull(dhd_dbg_ring_t *ring, void *data, uint32 buf_len,
-		bool strip_hdr, int* num_entries);
+		bool strip_hdr, int *num_entries);
 int dhd_dbg_ring_pull_single(dhd_dbg_ring_t *ring, void *data, uint32 buf_len,
 	bool strip_header);
 uint32 dhd_dbg_ring_get_pending_len(dhd_dbg_ring_t *ring);

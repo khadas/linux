@@ -1,7 +1,26 @@
 /*
  * HND Run Time Environment debug info area
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -95,9 +114,9 @@ typedef struct hnd_debug_reloc {
 #define HND_DEBUG_VERSION_2	2u	/* Version 2 contains the MMU information
 					 * used for stack virtualization, etc.
 					 */
-
-/* Legacy debug version for older branches. */
-#define HND_DEBUG_VERSION	HND_DEBUG_VERSION_1
+#define HND_DEBUG_VERSION_3	3u	/* Version 3 contains the MMU information &
+					 * SMB memory information if present.
+					 */
 
 /* This struct is placed at a well-defined location, and contains a pointer to hnd_debug. */
 typedef struct hnd_debug_ptr {
@@ -127,10 +146,6 @@ extern hnd_debug_ptr_t debug_info_ptr;
 typedef struct hnd_debug {
 	uint32	magic;
 #define HND_DEBUG_MAGIC 0x47424544u	/* 'DEBG' */
-
-#ifndef HND_DEBUG_USE_V2
-	uint32	version;		/* Legacy, debug struct version */
-#else
 	/* Note: The original uint32 version is split into two fields:
 	 * uint16 version and uint16 length to accomidate future expansion
 	 * of the structure.
@@ -139,7 +154,6 @@ typedef struct hnd_debug {
 	 */
 	uint16	version;		/* Debug struct version */
 	uint16	length;			/* Size of the whole structure in bytes */
-#endif /* HND_DEBUG_USE_V2 */
 
 	uint32	fwid;			/* 4 bytes of fw info */
 	char	epivers[HND_DEBUG_EPIVERS_MAX_STR_LEN];
@@ -163,20 +177,22 @@ typedef struct hnd_debug {
 	char ver_signature[HND_DEBUG_BUILD_SIGNATURE_VER_LEN];
 	char chipid_signature[HND_DEBUG_BUILD_SIGNATURE_CHIPID_LEN]; /* chip=12345a3 */
 
-#ifdef HND_DEBUG_USE_V2
 	/* Version 2 fields */
 	/* Specifies the hnd debug MMU info */
 	_HD_DEBUG_RELOC_P	hnd_debug_reloc_ptr;
-#endif /* HND_DEBUG_USE_V2 */
+
+	uint32	smb_base;		/* SMB physical address. */
+	uint32	smb_size;		/* SMB size. */
 } hnd_debug_t;
 
-#ifdef HND_DEBUG_USE_V2
 #define HND_DEBUG_V1_SIZE       (OFFSETOF(hnd_debug_t, chipid_signature) + \
-				 sizeof(((hnd_debug_t *)0)->chipid_signature))
+					sizeof(((hnd_debug_t *)0)->chipid_signature))
 
 #define HND_DEBUG_V2_BASE_SIZE  (OFFSETOF(hnd_debug_t, hnd_debug_reloc_ptr) + \
-				 sizeof(((hnd_debug_t *)0)->hnd_debug_reloc_ptr))
-#endif /* HND_DEBUG_USE_V2 */
+					sizeof(((hnd_debug_t *)0)->hnd_debug_reloc_ptr))
+
+#define HND_DEBUG_V3_SIZE	(OFFSETOF(hnd_debug_t, smb_size) + \
+					sizeof(((hnd_debug_t *)0)->smb_size))
 
 /* The following structure is used in populating build information */
 typedef struct hnd_build_info {
@@ -204,10 +220,10 @@ typedef struct             {    /* Time value with microsecond resolution    */
 
 /* Linux/ARM 32 prstatus for notes section */
 typedef struct prstatus {
-	  int32 si_signo; 	/* Signal number */
-	  int32 si_code; 	/* Extra code */
-	  int32 si_errno; 	/* Errno */
-	  uint16 pr_cursig; 	/* Current signal.  */
+	  int32 si_signo;	/* Signal number */
+	  int32 si_code;	/* Extra code */
+	  int32 si_errno;	/* Errno */
+	  uint16 pr_cursig;	/* Current signal.  */
 	  uint16 unused;
 	  uint32 pr_sigpend;	/* Set of pending signals.  */
 	  uint32 pr_sighold;	/* Set of held signals.  */

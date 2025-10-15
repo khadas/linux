@@ -1,7 +1,26 @@
 /*
  * Broadcom SiliconBackplane ARM definitions
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -30,20 +49,20 @@
 #include <sbconfig.h>
 
 /* register offsets */
-#define	ARM7_CORECTL		0
+#define	ARM7_CORECTL			0u
 
 /* bits in corecontrol */
-#define	ACC_FORCED_RST		0x1
-#define	ACC_SERRINT		0x2
-#define	ACC_WFICLKSTOP		0x4
+#define	ACC_FORCED_RST			0x1u
+#define	ACC_SERRINT			0x2u
+#define	ACC_WFICLKSTOP			0x4u
 
 #if !defined(__ARM_ARCH_7A__)
-#define ACC_NOTSLEEPINGCLKREQ_SHIFT	24
+#define ACC_NOTSLEEPINGCLKREQ_SHIFT	24u
 #endif /* !__ARM_ARCH_7A__ */
 
 #if defined(__ARM_ARCH_7A__)
 
-#define ACC_FORCECLOCKRATIO		(0x1u << 8)
+#define ACC_FORCECLOCKRATIO		(0x1u << 8u)
 #define ACC_CLOCKRATIO_SHIFT		(9u)
 #define ACC_CLOCKRATIO_MASK		(0xFu << ACC_CLOCKRATIO_SHIFT)
 
@@ -64,75 +83,83 @@
 #define ACC_NOTSLEEPING_ALP_HT_AVAIL	(2u)
 #define ACC_NOTSLEEPING_HT_AVAIL	(3u)
 
+#define ACS_CURRENTCLOCKRATIO		(0xFu)
+
 #elif defined(__ARM_ARCH_7R__) /* CR4 */
 
-#define ACC_FORCECLOCKRATIO	(1u << 7u)
-#define ACC_CLOCKRATIO_SHIFT	8u
-#define ACC_CLOCKRATIO_MASK	(0xFu << ACC_CLOCKRATIO_SHIFT)
-#define ACC_CLOCKMODE_SHIFT	12u
-#define ACC_CLOCKMODE_MASK	(7u << ACC_CLOCKMODE_SHIFT)
-#define ACC_NOTSLEEPCLKREQ0	3u
-#define ACC_NOTSLEEPCLKREQ1	18u
-#define ACC_FLOPSPROTECT	(1u << 20u)
+#define ACC_FORCECLOCKRATIO		(1u << 7u)
+#define ACC_CLOCKRATIO_SHIFT		8u
+#define ACC_CLOCKRATIO_MASK		(0xFu << ACC_CLOCKRATIO_SHIFT)
+#define ACC_CLOCKMODE_SHIFT		12u
+#define ACC_CLOCKMODE_MASK		(7u << ACC_CLOCKMODE_SHIFT)
+#define ACC_NOTSLEEPCLKREQ0		3u
+#define ACC_NOTSLEEPCLKREQ1		18u
+#define ACC_FLOPSPROTECT		(1u << 20u)
 
-#define ACC_CLOCKRATIO_1_TO_1	(0u)
-#define ACC_CLOCKRATIO_2_TO_1	(4u)
+#define ACC_CLOCKRATIO_1_TO_1		(0u)
+#define ACC_CLOCKRATIO_2_TO_1		(4u)
 
 #endif /* __ARM_ARCH_7A__ */
 
-#define ACC_CLOCKMODE_SAME	(0)	/**< BP and CPU clock are the same */
-#define ACC_CLOCKMODE_ASYNC	(1)	/**< BP and CPU clock are asynchronous */
-#define ACC_CLOCKMODE_SYNCH	(2)	/**< BP and CPU clock are synch, ratio 1:1 or 1:2 */
+#define ACC_CLOCKMODE_SAME		(0u)	/**< BP and CPU clock are the same */
+#define ACC_CLOCKMODE_ASYNC		(1u)	/**< BP and CPU clock are asynchronous */
+#define ACC_CLOCKMODE_SYNCH		(2u)	/**< BP and CPU clock are synch, ratio 1:1 or 1:2 */
 
 /* Request ALP on backplane bit 3 and 18 */
-#define ACC_REQALP			((1<<ACC_NOTSLEEPCLKREQ0) | (1<<ACC_NOTSLEEPCLKREQ1))
+#define ACC_REQALP			((1u << ACC_NOTSLEEPCLKREQ0) | (1u << ACC_NOTSLEEPCLKREQ1))
 
-#define ACC_MPU_SHIFT		25u
-#define ACC_MPU_MASK		(0x1u << ACC_MPU_SHIFT)
+#define ACC_MPU_SHIFT			25u
+#define ACC_MPU_MASK			(0x1u << ACC_MPU_SHIFT)
 
 #define ACC_MPU_REGION_CNT_MASK		0x7u
 #define ACC_MPU_REGION_CNT_SHIFT	3u
+#define ACC_MPU_MASK_CNT_MASK		0x38u
+#define ACC_MPU_MASK_CNT_SHIFT		3u
+#define BUS_MPU_CNT_MLTIPLIER		8u
 
-#define ACC_MPU_SECURE_SHIFT	27u
-#define ACC_MPU_SECURE_MASK	(0x1u << ACC_MPU_SECURE_SHIFT)
-#define ACC_MPU_READ_SHIFT	30u
-#define ACC_MPU_READ_MASK	(0x1u << ACC_MPU_READ_SHIFT)
-#define ACC_MPU_WRITE_SHIFT	29u
-#define ACC_MPU_WRITE_MASK	(0x1u << ACC_MPU_WRITE_SHIFT)
-#define ACC_MPU_VALID_SHIFT	31u
-#define ACC_MPU_VALID_MASK	(0x1u << ACC_MPU_VALID_SHIFT)
+#define ACC_MPU_SECURE_SHIFT		27u
+#define ACC_MPU_SECURE_MASK		(0x1u << ACC_MPU_SECURE_SHIFT)
+#define ACC_MPU_PRIV_SHIFT		28u
+#define ACC_MPU_PRIV_MASK		(0x1u << ACC_MPU_PRIV_SHIFT)
+#define ACC_MPU_WRITE_SHIFT		29u
+#define ACC_MPU_WRITE_MASK		(0x1u << ACC_MPU_WRITE_SHIFT)
+#define ACC_MPU_READ_SHIFT		30u
+#define ACC_MPU_READ_MASK		(0x1u << ACC_MPU_READ_SHIFT)
+#define ACC_MPU_VALID_SHIFT		31u
+#define ACC_MPU_VALID_MASK		(0x1u << ACC_MPU_VALID_SHIFT)
 
 /* arm resetlog */
-#define SBRESETLOG		0x1
-#define SERRORLOG		0x2
+#define SBRESETLOG			0x1u
+#define SERRORLOG			0x2u
 
 /* arm core-specific control flags */
-#define	SICF_REMAP_MSK		0x001c
-#define	SICF_REMAP_NONE		0
-#define	SICF_REMAP_ROM		0x0004
-#define	SIFC_REMAP_FLASH	0x0008
+#define	SICF_REMAP_MSK			0x001cu
+#define	SICF_REMAP_NONE			0
+#define	SICF_REMAP_ROM			0x0004u
+#define	SIFC_REMAP_FLASH		0x0008u
 
 /* misc core-specific defines */
 #if defined(__ARM_ARCH_7M__)
 /* cortex-m3 */
 /* backplane related stuff */
-#define ARM_CORE_ID		ARMCM3_CORE_ID	/**< arm coreid */
-#define SI_ARM_ROM		SI_ARMCM3_ROM	/**< ROM backplane/system address */
-#define SI_ARM_SRAM2		SI_ARMCM3_SRAM2	/**< RAM backplane address when remap is 1 or 2 */
+#define ARM_CORE_ID			ARMCM3_CORE_ID	/**< arm coreid */
+#define SI_ARM_ROM			SI_ARMCM3_ROM	/**< ROM backplane/system address */
+/**< RAM backplane address when remap is 1 or 2 */
+#define SI_ARM_SRAM2			SI_ARMCM3_SRAM2
 /* core registers offsets */
-#define ARMCM3_CYCLECNT		0x90		/**< Cortex-M3 core registers offsets */
-#define ARMCM3_INTTIMER		0x94
-#define ARMCM3_INTMASK		0x98
-#define ARMCM3_INTSTATUS	0x9c
+#define ARMCM3_CYCLECNT			0x90u		/**< Cortex-M3 core registers offsets */
+#define ARMCM3_INTTIMER			0x94u
+#define ARMCM3_INTMASK			0x98u
+#define ARMCM3_INTSTATUS		0x9cu
 /* interrupt/exception */
-#define ARMCM3_NUMINTS		16		/**< # of external interrupts */
-#define ARMCM3_INTALL		((1 << ARMCM3_NUMINTS) - 1)	/**< Interrupt mask */
-#define ARMCM3_SHARED_INT	0		/**< Interrupt shared by multiple cores */
-#define ARMCM3_INT(i)		(1 << (i))	/**< Individual interrupt enable/disable */
+#define ARMCM3_NUMINTS			16u		/**< # of external interrupts */
+#define ARMCM3_INTALL			((1u << ARMCM3_NUMINTS) - 1u)	/**< Interrupt mask */
+#define ARMCM3_SHARED_INT		0		/**< Interrupt shared by multiple cores */
+#define ARMCM3_INT(i)			(1u << (i))	/**< Individual interrupt enable/disable */
 /* intmask/intstatus bits */
-#define ARMCM3_INTMASK_TIMER	0x1
-#define ARMCM3_INTMASK_SYSRESET	0x4
-#define ARMCM3_INTMASK_LOCKUP	0x8
+#define ARMCM3_INTMASK_TIMER		0x1u
+#define ARMCM3_INTMASK_SYSRESET		0x4u
+#define ARMCM3_INTMASK_LOCKUP		0x8u
 
 /*
  * Overlay Support in Rev 5
@@ -205,7 +232,7 @@
 #define	ARMCR4_MT_ROM		0x100
 #define	ARMCR4_MT_RAM		0
 
-#define	ARMCR4_BSZ_MASK		0x7f
+#define	ARMCR4_BSZ_MASK		0xff
 #define	ARMCR4_BUNITSZ_MASK	0x200
 #define	ARMCR4_BSZ_8K		8192
 #define	ARMCR4_BSZ_1K		1024
@@ -246,12 +273,6 @@
 /* Power Control */
 #define ARM_ENAB_MEM_CLK_GATE_SHIFT	5
 
-#define ROM_STBY_TIMER_4378	0xb0
-#define RAM_STBY_TIMER_4378	0x64
-
-#define ROM_STBY_TIMER_4387	0x10
-#define RAM_STBY_TIMER_4387	0x100
-
 #define RAM_STBY_DEFAULT_WAIT_TIME	(3u)
 #define ROM_STBY_DEFAULT_WAIT_TIME	(4u)
 #define DEFAULT_FORCE_STBY_IN_WFI	(1u)
@@ -266,8 +287,10 @@
 		ARMCR4_DYN_STBY_CTRL_FORCE_STBY_IN_WFI_SHIFT)
 
 /* using CHIPID because no capabilities bit */
-#define ARM_CLKGATING_CAP(sih)		((void)(sih), (BCM4378_CHIP(sih->chip) ||\
-					 BCM4387_CHIP(sih->chip)))
+#define ARM_CLKGATING_CAP(sih)		((void)(sih), \
+					 (BCM4383_CHIP(sih->chip) || BCM4387_CHIP(sih->chip)))
+
+// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
 
 #define ARM_CLKGATING_ENAB(sih)	(ARM_CLKGATING_CAP(sih) && 1)
 
@@ -289,13 +312,6 @@
 #endif /* DONGLEBUILD */
 
 #ifndef _LANGUAGE_ASSEMBLY
-
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif	/* PAD */
 
 /* cortex-m3 */
 typedef volatile struct {
@@ -378,37 +394,102 @@ typedef volatile struct {
 
 #define SBRESETLOG_CR4		0x4
 
+#ifdef DONGLEBUILD
 /* cortex-A7 */
-typedef volatile struct {
-	uint32	corecontrol;		/* 0x0 */
-	uint32	corecapabilities;	/* 0x4 */
-	uint32	corestatus;		/* 0x8 */
-	uint32	tracecontrol;		/* 0xc */
-	uint32	gpioselect;		/* 0x10 */
-	uint32	gpioenable;		/* 0x14 */
-	uint32	PAD[114];
-	uint32	clk_ctl_st;		/* 0x1e0 */
-	uint32	workaround;		/* 0x1e4 */
-	uint32  powerctl;		/* 0x1e8 */
-	uint32  powerctl2;		/* 0x1ec */
-} ca7regs_t;
-#define ARM_CA7_REG(regs, reg)	(&((ca7regs_t *)regs)->reg)
+#include <vlsi_armca7_all_regs.h>
+#if defined(PGT_ARM_CR4)
+/* cortex-A4 */
+#include <vlsi_armcr4_all_regs.h>
+#endif /* PGT_ARM_CR4 */
+#endif /* DONGLEBUILD */
+
+#if defined(PGT_ARM_CR4)
+
+#define ARMCR4_REG_OFF(regname) \
+	armcr4_##regname##_ADDR
+
+#define ARMCR4_REG_ADDR(regname) \
+	(volatile uint32 *)((uintptr)(EROM_WL_armcr4_SLAVE_PORT_2_ADDR) + ARMCR4_REG_OFF(regname))
+
+#endif /* PGT_ARM_CR4 */
+
+typedef volatile struct ca7regs ca7regs_t;
+#define CA7_REG_OFF(regname) \
+	armca7_##regname##_ADDR
+
+/* Force a compile error if any register is referenced that does not exist in the built armca7's
+ * register set.
+ */
+#undef INVALID_ADDRESS_armca7
+#define INVALID_ADDRESS_armca7 hnd_invalid_reg_armca7()
+#undef INVALID_SHIFT_armca7
+#define INVALID_SHIFT_armca7 hnd_invalid_reg_armca7()
+
+#define CA7_REG_FIELD_MASK(regname, regfield) \
+	armca7_##regname##__##regfield##_MASK
+#define CA7_REG_FIELD_SHIFT(regname, regfield) \
+	armca7_##regname##__##regfield##_SHIFT
+
+#define CA7_REG_ADDR(regbase, regname) \
+	(volatile uint32 *)((uintptr)(regbase) + CA7_REG_OFF(regname))
+
+/* TODO: Remove these definitions when possible.
+ * FIXME: new reg. name e.g. PowerControl2 will be prefixed with arm_
+ * to remove ambiguity...
+ *
+ * The proposal is to keep using ARMREG() but to change registers names to the ones exported
+ * in vlsi_armca7_all_regs.h. This introduces a compatibility issue where these registers are not
+ * defined for old chip using e.g. cm3 and cr4, in this case the solution is to map these
+ * registers back to the ones used in the structure e.g. cr4regs_t or cm3regs_t.
+ */
+#define arm_ClkControl		clk_ctl_st
+#define arm_CoreControl		corecontrol
+#define arm_CoreCapabilities	corecapabilities
+#define arm_CoreStatus		corestatus
+#define arm_TraceControl	tracecontrol
+#define arm_GpioSelect		gpioselect
+#define arm_GpioEnable		gpioenable
+#define arm_WorkAroundReg	workaround
+#define arm_PowerControl	powerctl
+#define arm_PowerControl2	powerctl2
 
 #if defined(__ARM_ARCH_7M__)
 #define ARMREG(regs, reg)	ARM_CM3_REG(regs, reg)
+#define ARMREGOFF(reg)		OFFSETOF(cm3regs_t, reg)
+/* Use ARMREGX/ARMREGOFFX for new reg. name e.g. PowerControl2 */
+#define ARMREGX(regs, reg)	ARMREG(regs, arm_##reg)
+#define ARMREGOFFX(reg)		ARMREGOFF(arm_##reg)
 #endif	/* __ARM_ARCH_7M__ */
 
 #if defined(__ARM_ARCH_7R__)
 #define ARMREG(regs, reg)	ARM_CR4_REG(regs, reg)
+#define ARMREGOFF(reg)		OFFSETOF(cr4regs_t, reg)
+/* Use ARMREGX/ARMREGOFFX for new reg. name e.g. PowerControl2 */
+#define ARMREGX(regs, reg)	ARMREG(regs, arm_##reg)
+#define ARMREGOFFX(reg)		ARMREGOFF(arm_##reg)
 #endif	/* __ARM_ARCH_7R__ */
 
 #if defined(__ARM_ARCH_7A__)
-#define ARMREG(regs, reg)	ARM_CA7_REG(regs, reg)
+#define ARMREG(regs, reg)	CA7_REG_ADDR(regs, reg)
+#define ARMREGOFF(reg)		CA7_REG_OFF(reg)
+/* Use ARMREGX/ARMREGOFFX for new reg. name e.g. PowerControl2 */
+#define ARMREGX(regs, reg)	ARMREG(regs, reg)
+#define ARMREGOFFX(reg)		ARMREGOFF(reg)
 #endif	/* __ARM_ARCH_7A__ */
 
 /* MPU is present mask of ca7regs_t->corecapabilities */
 #define CAP_MPU_MASK		2000000u
 
 #endif	/* _LANGUAGE_ASSEMBLY */
+
+/* For DHD builds define only those registers that needs to be accessed from Host */
+#if !defined(DONGLEBUILD) && !defined(COEX_CPU_BUILD)
+#define ARMCA7_DEBUG_REGBASE	0x30000u
+#define ARMCA7_OS_UNLOCK_VAL	0xACCE55u
+#define ARMCA7_OS_LOCK_VAL	0xC5ACCE55u
+
+#define armca7_OsLockCtrl_ADDR			0x300u
+#define armca7_ProgramCounterSampling_ADDR	0xa0u
+#endif /* !DONGLEBUILD && !COEX_CPU_BUILD */
 
 #endif	/* _sbhndarm_h_ */

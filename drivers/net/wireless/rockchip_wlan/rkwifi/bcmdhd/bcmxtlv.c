@@ -1,7 +1,26 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,6 +43,16 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 
+#if defined(__linux__)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#include <linux/stdarg.h>
+#else
+#include <stdarg.h>
+#endif /* LINUX_VERSION_CODE */
+#else
+#include <stdarg.h>
+#endif /* CONFIG_BCMDHD && __linux__ */
+
 #ifdef BCMDRIVER
 #include <osl.h>
 #else /* !BCMDRIVER */
@@ -38,6 +67,7 @@
 #include <bcmtlv.h>
 #include <bcmendian.h>
 #include <bcmutils.h>
+#include <bcmstdlib_s.h>
 
 int
 BCMPOSTTRAPFN(bcm_xtlv_hdr_size)(bcm_xtlv_opts_t opts)
@@ -212,6 +242,20 @@ BCMPOSTTRAPFN(bcm_xtlv_pack_xtlv)(bcm_xtlv_t *xtlv, uint16 type, uint16 len, con
 {
 	uint8 *data_buf;
 	bcm_xtlv_opts_t mask = BCM_XTLV_OPTION_IDU8 | BCM_XTLV_OPTION_LENU8;
+	bcm_xlvp_t *tuples;
+	uint16 i = 0;
+	int err;
+	const xtlv_gather_desc_t *desc = NULL;
+
+	/* Get the gather descriptor */
+	if (opts & BCM_XTLV_OPTION_GATHER_DESC) {
+		if (data == NULL) {
+			/* This function is a low level packaging fn and this is not expected */
+			ASSERT(0);
+			return;
+		}
+		desc = (const xtlv_gather_desc_t *)data;
+	}
 
 	if (!(opts & mask)) {		/* default */
 		uint8 *idp = (uint8 *)xtlv;
@@ -247,8 +291,32 @@ BCMPOSTTRAPFN(bcm_xtlv_pack_xtlv)(bcm_xtlv_t *xtlv, uint16 type, uint16 len, con
 		len &= 0xff;
 	}
 
-	if (data != NULL) {
-		memcpy(data_buf, data, len);
+	if (opts & BCM_XTLV_OPTION_GATHER_DESC) {
+		/* populate data */
+		tuples = desc->tuples;
+		for (i = 0; i < BCM_XTLV_GATHER_DESC_NUM_TUPLES(desc); i++) {
+			if (tuples->data == NULL || tuples->len == 0) {
+				tuples++;
+				continue;
+			}
+			/* memmove_s is used here to allow overlapped dest/src addresses */
+			err = memmove_s(data_buf, len, tuples->data, tuples->len);
+			BCM_REFERENCE(err);
+			ASSERT(err == BCME_OK);
+
+			/* Data is really packed next to each other */
+			data_buf += tuples->len;
+			len -= tuples->len;
+			tuples++;
+		}
+	} else {
+		/* Legacy packer */
+		if (data != NULL) {
+			/* memmove_s is used here to allow overlapped dest/src addresses */
+			err = memmove_s(data_buf, len, data, len);
+			BCM_REFERENCE(err);
+			ASSERT(err == BCME_OK);
+		}
 	}
 }
 
@@ -377,10 +445,12 @@ bcm_unpack_xtlv_entry(const uint8 **tlv_buf, uint16 xpct_type, uint16 xpct_len,
 
 	bcm_xtlv_unpack_xtlv(ptlv, &type, &len, &data, opts);
 	if (len) {
-		if ((type != xpct_type) || (len > xpct_len))
+		if (type != xpct_type) {
 			return BCME_BADARG;
-		if (dst_data && data)
-			memcpy(dst_data, data, len); /* copy data to dst */
+		}
+		if (dst_data && data) {
+			return memcpy_s(dst_data, xpct_len, data, len); /* copy data to dst */
+		}
 	}
 
 	*tlv_buf += BCM_XTLV_SIZE_EX(ptlv, opts);
@@ -528,6 +598,34 @@ bcm_pack_xtlv_buf_from_mem(uint8 **tlv_buf, uint16 *buflen, const xtlv_desc_t *i
 }
 
 /*
+ * pack xtlv according to xtlv_desc_t and return the idx where buffer ran out
+ */
+int
+bcm_pack_xtlv_buf_from_mem_index(uint8 **tlv_buf, uint16 *buflen, const xtlv_desc_t *items,
+        bcm_xtlv_opts_t opts, uint16 *stopped_at)
+{
+	int res = BCME_OK;
+	uint8 *ptlv = *tlv_buf;
+	uint16 idx = 0;
+
+	while (items->type != 0) {
+		if (items->len && items->ptr) {
+			res = bcm_pack_xtlv_entry(&ptlv, buflen, items->type,
+				items->len, items->ptr, opts);
+			if (res != BCME_OK) {
+				*stopped_at = idx;
+				break;
+			}
+		}
+		idx++;
+		items++;
+	}
+
+	*tlv_buf = ptlv; /* update the external pointer */
+	return res;
+}
+
+/*
  *  unpack xtlv buffer to memory according to xtlv_desc_t
  *
  */
@@ -557,7 +655,8 @@ bcm_unpack_xtlv_buf_to_mem(const uint8 *tlv_buf, int *buflen, xtlv_desc_t *items
 				if (len != dst_desc->len) {
 					res = BCME_BADLEN;
 				} else {
-					memcpy(dst_desc->ptr, data, len);
+					(void)memcpy_s(dst_desc->ptr, dst_desc->len,
+						data, dst_desc->len);
 				}
 				break;
 			}
@@ -641,4 +740,197 @@ bcm_xtlv_bcopy(const bcm_xtlv_t *src, bcm_xtlv_t *dst,
 	}
 
 	return dst_next;
+}
+
+static int
+bcm_xtlv_gather_leaf_data_size(xtlv_gather_desc_t *desc)
+{
+	int len = 0;
+	uint16 i = 0;
+	bcm_xlvp_t *tuples;
+
+	tuples = desc->tuples;
+	for (i = 0; i < BCM_XTLV_GATHER_DESC_NUM_TUPLES(desc); i++) {
+		if (tuples->data == NULL || tuples->len == 0) {
+			tuples++;
+			continue;
+		}
+		/* Data is really packed next to each other */
+		len += tuples->len;
+		tuples++;
+	}
+	return len;
+}
+
+static int
+bcm_xtlv_gather_leaf_xtlv_size(xtlv_gather_desc_t *desc, bcm_xtlv_opts_t opts)
+{
+	int len = 0;
+
+	len = bcm_xtlv_gather_leaf_data_size(desc);
+	if (len > (int)BCM_XTLV_MAX_DATA_SIZE_EX(opts)) {
+		return BCME_BADLEN;
+	}
+	/* return size of entire XTLV with payload of size len */
+	return bcm_xtlv_size_for_data(len, opts);
+}
+
+/* Process one leaf gather descriptor */
+int
+bcm_xtlv_put_gather_desc_leaf(xtlv_gather_desc_t *desc, struct bcm_xtlvbuf *xtlvbuf,
+	uint16 *attempted_write_len)
+{
+	bcm_xtlv_t *xtlv;
+	int size, data_len;
+	int max_xtlv_size;
+
+	/* Must be a leaf level descriptor */
+	if (BCM_XTLV_GATHER_DESC_IS_CONTAINER(desc)) {
+		return BCME_BADARG;
+	}
+
+	max_xtlv_size = (int)BCM_XTLV_MAX_DATA_SIZE_EX(xtlvbuf->opts);
+
+	data_len = bcm_xtlv_gather_leaf_data_size(desc);
+	if (data_len > max_xtlv_size) {
+		return BCME_BADLEN;
+	}
+	/* len is payload as input. output is sub-xtlv size */
+	size = bcm_xtlv_size_for_data(data_len, xtlvbuf->opts);
+
+	/* Whole XTLV is populated or nothing */
+	if (bcm_xtlv_buf_rlen(xtlvbuf) < size) {
+		if (attempted_write_len) {
+			/* Note how much we attempted to write to a given buffer */
+			*attempted_write_len =
+				(size > max_xtlv_size) ? max_xtlv_size : (uint16)size;
+		}
+		return BCME_BUFTOOSHORT;
+	}
+
+	xtlv = (bcm_xtlv_t *)bcm_xtlv_buf(xtlvbuf);
+	bcm_xtlv_pack_xtlv(xtlv, desc->type, (uint16)data_len, (const uint8 *)desc,
+		xtlvbuf->opts | BCM_XTLV_OPTION_GATHER_DESC);
+	xtlvbuf->buf += size;
+	return BCME_OK;
+}
+
+/* Process all given leaf descriptors */
+int
+bcm_xtlv_process_gather_descs_leaf(xtlv_gather_desc_t *desc, struct bcm_xtlvbuf *xtlvbuf,
+	uint16 *stopped_at, uint16 *attempted_write_len)
+{
+	uint16 index = 0;
+	int rc = BCME_OK;
+
+	if (desc == NULL || xtlvbuf == NULL) {
+		return BCME_BADARG;
+	}
+
+	while (desc->type != 0) {
+		rc = bcm_xtlv_put_gather_desc_leaf(desc, xtlvbuf, attempted_write_len);
+		if (rc != BCME_OK) {
+			if (stopped_at) {
+				*stopped_at = index;
+			}
+			/* Break on any error */
+			break;
+		}
+		index++;
+		desc++;
+	}
+
+	return rc;
+}
+
+/* Fills up a container with data from gather descs at leaf level. A container descriptor contains
+ * leaf level descriptors only
+ */
+int
+bcm_xtlv_process_gather_descs_fill_container(xtlv_gather_desc_t *desc,
+	struct bcm_xtlvbuf *xtlvbuf, uint16 *stopped_at, uint16 *attempted_write_len, uint8 ecc)
+{
+	int rc = BCME_OK;
+	uint16 rlen, local_len;
+	uint16 index = 0;
+	xtlv_gather_desc_t *leaf_level_desc;
+	struct bcm_xtlvbuf local_xtlvbuf = {0, };
+	int min_len = 0, hsz, max_xtlv_size;
+
+	/* Some error checks */
+	if ((desc == NULL) || (BCM_XTLV_GATHER_DESC_IS_CONTAINER(desc) == FALSE) ||
+		(xtlvbuf == NULL)) {
+		rc = BCME_BADARG;
+		goto fail;
+	}
+
+	/* Go to the next level */
+	leaf_level_desc = desc->descs;
+	if (leaf_level_desc) {
+		/* Can the first XTLV fit in the container? */
+		min_len = bcm_xtlv_gather_leaf_xtlv_size(leaf_level_desc, xtlvbuf->opts);
+		if (min_len < 0) {
+			return min_len; /* return error reported */
+		}
+	}
+	/* For the outer container */
+	min_len = bcm_xtlv_size_for_data(min_len, xtlvbuf->opts);
+
+	rlen = bcm_xtlv_buf_rlen(xtlvbuf);
+
+	/* Can the container with at least one leaf XTLV fit in buffer provided? */
+	if (rlen <= min_len) {
+		if (attempted_write_len) {
+			/* Note how much we attempted to write to a given buffer */
+			max_xtlv_size = (int)BCM_XTLV_MAX_DATA_SIZE_EX(xtlvbuf->opts);
+			*attempted_write_len =
+				(min_len > max_xtlv_size) ? max_xtlv_size : (uint16)min_len;
+		}
+		if (stopped_at) {
+			/* Stopped at the very first leaf level descriptor */
+			*stopped_at = 0;
+		}
+		rc = BCME_BUFTOOSHORT;
+		goto fail;
+	}
+
+	hsz = bcm_xtlv_hdr_size(xtlvbuf->opts);
+
+	/* Create a new local XTLV buffer after leaving space for container's type and length */
+	rc = bcm_xtlv_buf_init(&local_xtlvbuf,
+		(bcm_xtlv_buf(xtlvbuf) + hsz), (rlen - (uint16)hsz), xtlvbuf->opts);
+
+	if (rc != BCME_OK) {
+		goto fail;
+	}
+
+	/* Go through all leaf level descriptors */
+	if (leaf_level_desc) {
+		while (leaf_level_desc->type != 0) {
+			rc = bcm_xtlv_put_gather_desc_leaf(leaf_level_desc, &local_xtlvbuf,
+				attempted_write_len);
+
+			if (rc != BCME_OK) {
+				if (stopped_at) {
+					*stopped_at = index;
+				}
+				/* Break on any error */
+				break;
+			}
+			index++;
+			leaf_level_desc++;
+		}
+	}
+
+	/* Was at least one complete XTLV written? */
+	local_len = bcm_xtlv_buf_len(&local_xtlvbuf);
+	/* ecc = empty container create. If true, then create empty container if there is
+	 * nothing to populate from leaf descriptors
+	 */
+	if (local_len || (ecc == TRUE)) {
+		/* Complete the outer container with type and length */
+		(void)bcm_xtlv_put_data(xtlvbuf, desc->type, NULL, local_len);
+	}
+fail:
+	return rc;
 }

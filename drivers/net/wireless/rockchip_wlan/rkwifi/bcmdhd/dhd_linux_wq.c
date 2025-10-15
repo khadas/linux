@@ -2,7 +2,26 @@
  * Broadcom Dongle Host Driver (DHD), Generic work queue framework
  * Generic interface to handle dhd deferred work events
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -19,9 +38,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #include <linux/init.h>
@@ -43,7 +60,7 @@
 #include <dhd_linux_wq.h>
 
 /*
- * XXX: always make sure that the size of this structure is aligned to
+ * always make sure that the size of this structure is aligned to
  * the power of 2 (2^n) i.e, if any new variable has to be added then
  * modify the padding accordingly
  */
@@ -62,10 +79,6 @@ typedef struct dhd_deferred_event {
  */
 #define DHD_PRIO_WORK_FIFO_SIZE	(16 * DEFRD_EVT_SIZE)
 #define DHD_WORK_FIFO_SIZE	(64 * DEFRD_EVT_SIZE)
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 32))
-#define kfifo_avail(fifo) (fifo->size - kfifo_len(fifo))
-#endif /* (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 32)) */
 
 #define DHD_FIFO_HAS_FREE_SPACE(fifo) \
 	((fifo) && (kfifo_avail(fifo) >= DEFRD_EVT_SIZE))
@@ -88,17 +101,13 @@ static inline struct kfifo*
 dhd_kfifo_init(u8 *buf, int size, spinlock_t *lock)
 {
 	struct kfifo *fifo;
-	gfp_t flags = CAN_SLEEP()? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t flags = CAN_SLEEP() ? GFP_KERNEL : GFP_ATOMIC;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
-	fifo = kfifo_init(buf, size, flags, lock);
-#else
 	fifo = (struct kfifo *)kzalloc(sizeof(struct kfifo), flags);
 	if (!fifo) {
 		return NULL;
 	}
 	kfifo_init(fifo, buf, size);
-#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)) */
 	return fifo;
 }
 
@@ -115,10 +124,10 @@ static void dhd_deferred_work_handler(struct work_struct *data);
 void*
 dhd_deferred_work_init(void *dhd_info)
 {
-	struct dhd_deferred_wq	*work = NULL;
-	u8*	buf;
+	struct dhd_deferred_wq *work = NULL;
+	u8 *buf;
 	unsigned long	fifo_size = 0;
-	gfp_t	flags = CAN_SLEEP()? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t	flags = CAN_SLEEP() ? GFP_KERNEL : GFP_ATOMIC;
 
 	if (!dhd_info) {
 		DHD_ERROR(("%s: dhd info not initialized\n", __FUNCTION__));
@@ -141,7 +150,7 @@ dhd_deferred_work_init(void *dhd_info)
 	fifo_size = DHD_PRIO_WORK_FIFO_SIZE;
 	fifo_size = is_power_of_2(fifo_size) ? fifo_size :
 			roundup_pow_of_two(fifo_size);
-	buf = (u8*)kzalloc(fifo_size, flags);
+	buf = (u8 *)kzalloc(fifo_size, flags);
 	if (!buf) {
 		DHD_ERROR(("%s: prio work fifo allocation failed\n",
 			__FUNCTION__));
@@ -159,7 +168,7 @@ dhd_deferred_work_init(void *dhd_info)
 	fifo_size = DHD_WORK_FIFO_SIZE;
 	fifo_size = is_power_of_2(fifo_size) ? fifo_size :
 			roundup_pow_of_two(fifo_size);
-	buf = (u8*)kzalloc(fifo_size, flags);
+	buf = (u8 *)kzalloc(fifo_size, flags);
 	if (!buf) {
 		DHD_ERROR(("%s: work fifo allocation failed\n", __FUNCTION__));
 		goto return_null;
@@ -174,7 +183,7 @@ dhd_deferred_work_init(void *dhd_info)
 
 	work->dhd_info = dhd_info;
 	work->event_skip_mask = 0;
-	DHD_ERROR(("%s: work queue initialized\n", __FUNCTION__));
+	DHD_PRINT(("%s: work queue initialized\n", __FUNCTION__));
 	return work;
 
 return_null:
@@ -197,7 +206,7 @@ dhd_deferred_work_deinit(void *work)
 	}
 
 	/* cancel the deferred work handling */
-	cancel_work_sync((struct work_struct *)deferred_work);
+	dhd_cancel_work_sync((struct work_struct *)deferred_work);
 
 	/*
 	 * free work event fifo.
@@ -337,11 +346,11 @@ dhd_deferred_dump_work_event(dhd_deferred_event_t *work_event)
 		return;
 	}
 
-	DHD_ERROR(("%s: work_event->event = %d\n", __FUNCTION__,
+	DHD_PRINT(("%s: work_event->event = %d\n", __FUNCTION__,
 		work_event->event));
-	DHD_ERROR(("%s: work_event->event_data = %p\n", __FUNCTION__,
+	DHD_PRINT(("%s: work_event->event_data = %p\n", __FUNCTION__,
 		work_event->event_data));
-	DHD_ERROR(("%s: work_event->event_handler = %p\n", __FUNCTION__,
+	DHD_PRINT(("%s: work_event->event_handler = %p\n", __FUNCTION__,
 		work_event->event_handler));
 }
 
@@ -373,7 +382,7 @@ dhd_deferred_work_handler(struct work_struct *work)
 		}
 
 		/*
-		 * XXX: don't do NULL check for 'work_event.event_data'
+		 * don't do NULL check for 'work_event.event_data'
 		 * as for some events like DHD_WQ_WORK_DHD_LOG_DUMP the
 		 * event data is always NULL even though rest of the
 		 * event parameters are valid

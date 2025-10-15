@@ -1,7 +1,26 @@
 /*
  *  'Standard' SDIO HOST CONTROLLER driver
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,9 +37,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: bcmsdstd.h 833030 2019-08-02 17:22:42Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -58,6 +75,8 @@ extern void sdstd_osfree(sdioh_info_t *sd);
 #define sd_log(x)
 #endif
 
+#define sd_print	sd_err
+
 #define SDIOH_ASSERT(exp) \
 	do { if (!(exp)) \
 		printf("!!!ASSERT fail: file %s lines %d", __FILE__, __LINE__); \
@@ -75,17 +94,18 @@ extern void sdstd_osfree(sdioh_info_t *sd);
 #define SDIOH_MODE_SD1		1
 #define SDIOH_MODE_SD4		2
 
-#define MAX_SLOTS 6 	/* For PCI: Only 6 BAR entries => 6 slots */
+#define MAX_SLOTS 6	/* For PCI: Only 6 BAR entries => 6 slots */
 #define SDIOH_REG_WINSZ	0x100 /* Number of registers in Standard Host Controller */
 
 #define SDIOH_TYPE_ARASAN_HDK	1
 #define SDIOH_TYPE_BCM27XX	2
+
 #define SDIOH_TYPE_TI_PCIXX21	4	/* TI PCIxx21 Standard Host Controller */
 #define SDIOH_TYPE_RICOH_R5C822	5	/* Ricoh Co Ltd R5C822 SD/SDIO/MMC/MS/MSPro Host Adapter */
 #define SDIOH_TYPE_JMICRON	6	/* JMicron Standard SDIO Host Controller */
 
 /* For linux, allow yielding for dongle */
-#if defined(linux) && defined(BCMDONGLEHOST)
+#if defined(__linux__) && defined(BCMDONGLEHOST)
 #define BCMSDYIELD
 #endif
 
@@ -295,4 +315,8 @@ extern void sdstd_enable_disable_periodic_timer(sdioh_info_t * sd, uint val);
 
 extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq);
 extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd);
+extern void* bcmsdh_probe(osl_t *osh, void *dev, void *sdioh, void *adapter_info, uint bus_type,
+	uint bus_num, uint slot_num);
+extern int bcmsdh_remove(bcmsdh_info_t *bcmsdh);
+
 #endif /* _BCM_SD_STD_H */

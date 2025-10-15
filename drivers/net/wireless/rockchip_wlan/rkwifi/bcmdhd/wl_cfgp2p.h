@@ -1,7 +1,26 @@
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,6 +43,7 @@
 #define _wl_cfgp2p_h_
 #include <802.11.h>
 #include <p2p.h>
+#include <wl_cfg80211.h>
 
 struct bcm_cfg80211;
 extern u32 wl_dbg_level;
@@ -108,6 +128,60 @@ enum wl_cfgp2p_status {
 	WLP2P_STATUS_DISC_IN_PROGRESS
 };
 
+struct p2p_config_af_params {
+	s32 max_tx_retry;	/* max tx retry count if tx no ack */
+#ifdef WL_CFG80211_GON_COLLISION
+	/* drop tx go nego request if go nego collision occurs */
+	bool drop_tx_req;
+#endif
+#ifdef WL_CFG80211_SYNC_GON
+	/* WAR: dongle does not keep the dwell time of 'actframe' sometime.
+	 * if extra_listen is set, keep the dwell time to get af response frame
+	 */
+	bool extra_listen;
+#endif
+	bool search_channel;	/* 1: search peer's channel to send af */
+};
+
+enum p2p_attr_id {
+	P2P_ATTR_STATUS = 0,
+	P2P_ATTR_MINOR_REASON_CODE = 1,
+	P2P_ATTR_CAPABILITY = 2,
+	P2P_ATTR_DEVICE_ID = 3,
+	P2P_ATTR_GROUP_OWNER_INTENT = 4,
+	P2P_ATTR_CONFIGURATION_TIMEOUT = 5,
+	P2P_ATTR_LISTEN_CHANNEL = 6,
+	P2P_ATTR_GROUP_BSSID = 7,
+	P2P_ATTR_EXT_LISTEN_TIMING = 8,
+	P2P_ATTR_INTENDED_INTERFACE_ADDR = 9,
+	P2P_ATTR_MANAGEABILITY = 10,
+	P2P_ATTR_CHANNEL_LIST = 11,
+	P2P_ATTR_NOTICE_OF_ABSENCE = 12,
+	P2P_ATTR_DEVICE_INFO = 13,
+	P2P_ATTR_GROUP_INFO = 14,
+	P2P_ATTR_GROUP_ID = 15,
+	P2P_ATTR_INTERFACE = 16,
+	P2P_ATTR_OPERATING_CHANNEL = 17,
+	P2P_ATTR_INVITATION_FLAGS = 18,
+	P2P_ATTR_OOB_GO_NEG_CHANNEL = 19,
+	P2P_ATTR_SERVICE_HASH = 21,
+	P2P_ATTR_SESSION_INFORMATION_DATA = 22,
+	P2P_ATTR_CONNECTION_CAPABILITY = 23,
+	P2P_ATTR_ADVERTISEMENT_ID = 24,
+	P2P_ATTR_ADVERTISED_SERVICE = 25,
+	P2P_ATTR_SESSION_ID = 26,
+	P2P_ATTR_FEATURE_CAPABILITY = 27,
+	P2P_ATTR_PERSISTENT_GROUP = 28,
+	P2P_ATTR_CAPABILITY_EXTENSION = 29,
+	P2P_ATTR_WLAN_AP_INFORMATION = 30,
+	P2P_ATTR_DEVICE_IDENTITY_KEY = 31,
+	P2P_ATTR_DEVICE_IDENTITY_RESOLUTION = 32,
+	P2P_ATTR_PAIRING_AND_BOOTSTRAPPING = 33,
+	P2P_ATTR_PASSWORD = 34,
+	P2P_ATTR_ACTION_FRAME_WRAPPER = 35,
+	P2P_ATTR_VENDOR_SPECIFIC = 221
+};
+
 #define wl_to_p2p_bss_ndev(cfg, type)		((cfg)->p2p->bss[type].dev)
 #define wl_to_p2p_bss_bssidx(cfg, type)		((cfg)->p2p->bss[type].bssidx)
 #define wl_to_p2p_bss_macaddr(cfg, type)     &((cfg)->p2p->bss[type].mac_addr)
@@ -127,13 +201,21 @@ enum wl_cfgp2p_status {
 #define p2p_is_on(cfg) ((cfg)->p2p && (cfg)->p2p->on)
 
 #if defined(CUSTOMER_DBG_PREFIX_ENABLE)
+#ifdef CUSTOM_PREFIX_NORTCTIME
+#define USER_PREFIX_CFGP2P		CUSTOM_PREFIX_NORTCTIME"[cfgp2p][wlan] "
+#else
 #define USER_PREFIX_CFGP2P		"[cfgp2p][wlan] "
+#endif /* CUSTOM_PREFIX_NORTCTIME */
 #define CFGP2P_ERROR_TEXT		USER_PREFIX_CFGP2P
 #define CFGP2P_INFO_TEXT		USER_PREFIX_CFGP2P
 #define CFGP2P_ACTION_TEXT		USER_PREFIX_CFGP2P
 #define CFGP2P_DEBUG_TEXT		USER_PREFIX_CFGP2P
 #else
+#ifdef CUSTOMER_HW4_DEBUG
+#define CFGP2P_ERROR_TEXT		"CFGP2P-INFO2) "
+#else
 #define CFGP2P_ERROR_TEXT		"CFGP2P-ERROR) "
+#endif /* CUSTOMER_HW4_DEBUG */
 #define CFGP2P_INFO_TEXT		"CFGP2P-INFO) "
 #define CFGP2P_ACTION_TEXT		"CFGP2P-ACTION) "
 #define CFGP2P_DEBUG_TEXT		"CFGP2P-DEBUG) "
@@ -205,34 +287,16 @@ enum wl_cfgp2p_status {
 	} while (0)
 #define CFGP2P_DBG(x) CFGP2P_DBG_MSG x
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 0, 8))
-#ifdef WL_SUPPORT_BACKPORTED_KPATCHES
-#undef WL_SUPPORT_BACKPORTED_KPATCHES
-#endif
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0))
-#ifdef WL_CFG80211_STA_EVENT
-#undef WL_CFG80211_STA_EVENT
-#endif
-#endif
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)) && !defined(WL_CFG80211_P2P_DEV_IF)
 #define WL_CFG80211_P2P_DEV_IF
-
-#ifdef WL_ENABLE_P2P_IF
-#undef WL_ENABLE_P2P_IF
-#endif
 
 #ifdef WL_SUPPORT_BACKPORTED_KPATCHES
 #undef WL_SUPPORT_BACKPORTED_KPATCHES
 #endif
 #else
 #ifdef WLP2P
-#ifndef WL_ENABLE_P2P_IF
 /* Enable P2P network Interface if P2P support is enabled */
 #define WL_ENABLE_P2P_IF
-#endif /* WL_ENABLE_P2P_IF */
 #endif /* WLP2P */
 #endif /* (LINUX_VERSION >= VERSION(3, 8, 0)) */
 
@@ -242,16 +306,9 @@ enum wl_cfgp2p_status {
 #endif
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
-#if defined(WL_ENABLE_P2P_IF) && (defined(WL_CFG80211_P2P_DEV_IF) || \
-	(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)))
-#error Disable 'WL_ENABLE_P2P_IF', if 'WL_CFG80211_P2P_DEV_IF' is enabled \
-	or kernel version is 3.8.0 or above
-#endif /* WL_ENABLE_P2P_IF && (WL_CFG80211_P2P_DEV_IF || (LINUX_VERSION >= VERSION(3, 8, 0))) */
-
-#if !defined(WLP2P) && \
-	(defined(WL_ENABLE_P2P_IF) || defined(WL_CFG80211_P2P_DEV_IF))
+#if !defined(WLP2P) && defined(WL_CFG80211_P2P_DEV_IF)
 #error WLP2P not defined
-#endif /* !WLP2P && (WL_ENABLE_P2P_IF || WL_CFG80211_P2P_DEV_IF) */
+#endif
 
 #if defined(WL_CFG80211_P2P_DEV_IF)
 #define bcm_struct_cfgdev	struct wireless_dev
@@ -266,7 +323,7 @@ enum wl_cfgp2p_status {
 #define P2P_ECSA_CNT 50
 
 extern void
-wl_cfgp2p_listen_expired(unsigned long data);
+wl_cfgp2p_listen_expired(void *data);
 extern bool
 wl_cfgp2p_is_pub_action(void *frame, u32 frame_len);
 extern bool
@@ -369,19 +426,19 @@ extern s32
 wl_cfgp2p_down(struct bcm_cfg80211 *cfg);
 
 extern s32
-wl_cfgp2p_set_p2p_noa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+wl_cfgp2p_set_p2p_noa(struct net_device *ndev, char* buf, int len);
 
 extern s32
-wl_cfgp2p_get_p2p_noa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+wl_cfgp2p_get_p2p_noa(struct net_device *ndev, char* buf, int len);
 
 extern s32
-wl_cfgp2p_set_p2p_ps(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+wl_cfgp2p_set_p2p_ps(struct net_device *ndev, char* buf, int len);
 
 extern s32
-wl_cfgp2p_set_p2p_ecsa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+wl_cfgp2p_set_p2p_ecsa(struct net_device *ndev, char* buf, int len);
 
 extern s32
-wl_cfgp2p_increase_p2p_bw(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+wl_cfgp2p_increase_p2p_bw(struct net_device *ndev, char* buf, int len);
 
 extern const u8 *
 wl_cfgp2p_retreive_p2pattrib(const void *buf, u8 element_id);
@@ -437,6 +494,21 @@ wl_cfgp2p_is_p2p_specific_scan(struct cfg80211_scan_request *request);
 extern s32
 wl_cfg80211_abort_action_frame(struct bcm_cfg80211 *cfg, struct net_device *dev, s32 bssidx);
 
+#ifdef WL_CFG80211_P2P_DEV_IF
+extern void wl_cfgp2p_del_p2p_wdev(struct net_device *dev);
+#endif /* WL_CFG80211_P2P_DEV_IF */
+extern int wl_cfgp2p_deinit_p2p_discovery(struct bcm_cfg80211 * cfg);
+#ifdef P2PLISTEN_AP_SAMECHN
+extern s32 wl_cfgp2p_set_p2p_resp_ap_chn(struct net_device *net, s32 enable);
+#endif /* P2PLISTEN_AP_SAMECHN */
+extern s32 wl_cfgp2p_config_p2p_pub_af_tx(struct wiphy *wiphy,
+	wl_action_frame_v1_t *action_frame, wl_af_params_v1_t *af_params,
+	struct p2p_config_af_params *config_af_params);
+#if defined(WL_NEWCFG_PRIVCMD_SUPPORT)
+extern s32 wl_cfgp2p_attach_p2p(struct bcm_cfg80211 *cfg);
+extern s32 wl_cfgp2p_detach_p2p(struct bcm_cfg80211 *cfg);
+#endif
+
 /* WiFi Direct */
 #define SOCIAL_CHAN_1 1
 #define SOCIAL_CHAN_2 6
@@ -476,11 +548,17 @@ wl_cfg80211_abort_action_frame(struct bcm_cfg80211 *cfg, struct net_device *dev,
  * instead of channel in actframe iovar.
  */
 #define FW_MAJOR_VER_ACTFRAME_CHSPEC    14
-#define FW_MAJOR_VER_ACTFRAME_CHSPEC_PORTED(ver)  \
-	((ver.wlc_ver_major == 12) && (ver.wlc_ver_minor >= 3))
 
-#ifdef BCMDBUS
-int
-wl_cfgp2p_start_p2p_device_resume(dhd_pub_t *dhd);
-#endif /* BCMDBUS */
+#if defined(WL_NEWCFG_PRIVCMD_SUPPORT)
+extern bool wl_cfgp2p_is_p2p_net(struct net_device * dev);
+#endif /* WL_NEWCFG_PRIVCMD_SUPPORT) */
+
+extern struct wireless_dev *
+wl_cfgp2p_if_add(struct bcm_cfg80211 *cfg, wl_iftype_t wl_iftype,
+	char const *name, u8 *mac_addr, s32 *ret_err);
+
+extern s32 wl_cfgp2p_if_del(struct wiphy *wiphy,
+	struct wireless_dev *wdev);
+extern s32 wl_cfgp2p_get_p2p_dev_addr(struct net_device *net,
+	struct ether_addr *p2pdev_addr);
 #endif /* _wl_cfgp2p_h_ */

@@ -1,7 +1,26 @@
 /*
  * Broadcom HND chip & on-chip-interconnect-related definitions.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -51,15 +70,9 @@
 #define WL_BRIDGE2_S	(0x18133000)
 
 /** new(er) chips started locating their chipc core at a different BP address than 0x1800_0000 */
-#ifdef DONGLEBUILD
 // firmware is always compiled for a particular chip
 #define SI_ENUM_BASE(sih)	SI_ENUM_BASE_DEFAULT
 #define SI_WRAP_BASE(sih)	SI_WRAP_BASE_DEFAULT
-#else
-// NIC and DHD driver binaries should support both old(er) and new(er) chips at the same time
-#define SI_ENUM_BASE(sih)	((sih)->enum_base)
-#define SI_WRAP_BASE(sih)	(SI_ENUM_BASE(sih) + 0x00100000)
-#endif /* DONGLEBUILD */
 
 #define SI_CORE_SIZE		0x1000		/* each core gets 4Kbytes for registers */
 
@@ -112,9 +125,7 @@
 #define	SI_ARMCM3_SRAM2		0x60000000	/* ARM Cortex-M3 SRAM Region 2 */
 #define	SI_ARM7S_SRAM2		0x80000000	/* ARM7TDMI-S SRAM Region 2 */
 #define	SI_ARMCA7_ROM		0x00000000	/* ARM Cortex-A7 ROM */
-#ifndef SI_ARMCA7_RAM
-#define	SI_ARMCA7_RAM		0x00200000	/* ARM Cortex-A7 RAM */
-#endif
+#define	SI_ARMCA7_RAM		RAMBASE		/* ARM Cortex-A7 RAM */
 #define	SI_ARM_FLASH1		0xffff0000	/* ARM Flash Region 1 */
 #define	SI_ARM_FLASH1_SZ	0x00010000	/* ARM Size of Flash Region 1 */
 
@@ -138,6 +149,15 @@
 /* AXI-AHB bridge code */
 #define	AXI2AHB_BRIDGE_ID		0x240		/* AXI_AHB Bridge */
 
+#define EROM_VENDOR_BRCM		(0x800u)
+#ifdef VLSI_EROM_DONGLE_H
+#define HAL_BRCM_CORE_ID(core)	(EROM_VENDOR_BRCM | HAL_ID(core))
+#endif
+
+/*
+ * TODO: Below 0x8xx core_id definitions can be removed,
+ * after all source switches to HAL_BRCM_CORE_ID(core)
+ */
 /* core codes */
 #define	NODEV_CORE_ID		0x700		/* Invalid coreid */
 #define	CC_CORE_ID		0x800		/* chipcommon core */
@@ -206,12 +226,21 @@
 #define CMEM_CORE_ID		0x846		/* CNDS DDR2/3 memory controller */
 #define ARMCA7_CORE_ID		0x847		/* ARM CA7 CPU */
 #define SYSMEM_CORE_ID		0x849		/* System memory core */
+#define RADIODIG_CORE_ID	0x84a		/* System memory core */
+#define AXIMEM_CORE_ID		0x850		/* axi memory core */
 #define HUB_CORE_ID		0x84b           /* Hub core ID */
 #define HWA_CORE_ID		0x851		/* HWA Core ID */
+#define HND_DRR_CORE_ID		0x852		/* DRR Core ID */
 #define SPMI_SLAVE_CORE_ID	0x855		/* SPMI Slave Core ID */
 #define BT_CORE_ID		0x857		/* Bluetooth Core ID */
 #define HND_OOBR_CORE_ID	0x85c		/* Hnd oob router core ID */
 #define SOE_CORE_ID		0x85d		/* SOE core */
+#define SDTC_CORE_ID		0x85e		/* SDTC core */
+#define SRCB_CORE_ID		0x85f		/* SRCB core */
+#define D11_SAQM_CORE_ID	0x863		/* SAQM core ID */
+#define DAP_CORE_ID		0x865		/* DAP core ID */
+#define PCIE_SERDES_CORE_ID	0x867		/* SerDes core ID */
+#define SMB_CORE_ID		0x874		/* SMB - Shared Memory Block core ID */
 #define APB_BRIDGE_CORE_ID	0x135		/* APB bridge core ID */
 #define AXI_CORE_ID		0x301		/* AXI/GPV core ID */
 #define EROM_CORE_ID		0x366		/* EROM core ID */
@@ -220,7 +249,6 @@
 #define DEF_AI_COMP		0xfff		/* Default component, in ai chips it maps all
 						 * unused address ranges
 						 */
-
 #define NS_PCIEG2_CORE_ID	0x501		/* PCIE Gen 2 core */
 #define NS_DMA_CORE_ID		0x502		/* DMA core */
 #define NS_SDIO3_CORE_ID	0x503		/* SDIO3 core */
@@ -250,13 +278,14 @@
  * and chipcommon being the first core:
  */
 #define	SI_CC_IDX		0
+
 /* SOC Interconnect types (aka chip types) */
-#define	SOCI_SB			0u
+/* #define SOCI_SB		0u */	/* obsolete */
 #define	SOCI_AI			1u
-#define	SOCI_UBUS		2u
-#define	SOCI_NAI		3u
-#define SOCI_DVTBUS		4u /* BCM7XXX Digital Video Tech bus */
-#define SOCI_NCI		6u /* NCI (non coherent interconnect) i.e. BOOKER */
+/* #define SOCI_UBUS		2u */	/* obsolete */
+/* #define SOCI_NAI		3u */	/* obsolete */
+/* #define SOCI_DVTBUS		4u */	/* BCM7XXX Digital Video Tech bus */
+#define SOCI_NCI		6u	/* NCI (non coherent interconnect) i.e. BOOKER */
 
 /* Common core control flags */
 #define	SICF_BIST_EN		0x8000

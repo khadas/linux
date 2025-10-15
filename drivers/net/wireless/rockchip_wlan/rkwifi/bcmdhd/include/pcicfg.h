@@ -1,7 +1,26 @@
 /*
  * pcicfg.h: PCI configuration constants and structures.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -485,14 +504,17 @@ typedef struct _pcie_enhanced_caphdr {
 } pcie_enhanced_caphdr;
 
 #define	PCIE_CFG_PMCSR		0x4C
-#define	PCI_BAR0_WIN		0x80	/* backplane addres space accessed by BAR0 */
-#define	PCI_BAR1_WIN		0x84	/* backplane addres space accessed by BAR1 */
+#define	PCI_BAR0_WIN		0x80	/* backplane address space accessed by BAR0 */
+#define	PCI_BAR1_WIN		0x84	/* backplane address space accessed by BAR1 */
 #define	PCI_SPROM_CONTROL	0x88	/* sprom property control */
 #define	PCIE_CFG_SUBSYSTEM_CONTROL	0x88	/* used as subsystem control in PCIE devices */
 #define	PCI_BAR1_CONTROL	0x8c	/* BAR1 region burst control */
+#define	PCI_BAR2_WIN		0x8c	/* backplane address space accessed by BAR2 */
 #define	PCI_INT_STATUS		0x90	/* PCI and other cores interrupts */
 #define	PCI_INT_MASK		0x94	/* mask of PCI and other cores interrupts */
 #define PCI_TO_SB_MB		0x98	/* signal backplane interrupts */
+#define PCI_CFG_INDBP_ADDR	0x98u	/* config space indirect access - address */
+#define PCI_CFG_INDBP_DATA	0x9cu	/* config space indirect access - data */
 #define PCI_BACKPLANE_ADDR	0xa0	/* address an arbitrary location on the system backplane */
 #define PCI_BACKPLANE_DATA	0xa4	/* data at the location specified by above address */
 #define	PCI_CLK_CTL_ST		0xa8	/* pci config space clock control/status (>=rev14) */
@@ -510,14 +532,14 @@ typedef struct _pcie_enhanced_caphdr {
 #define PCIE2_BAR0_CORE2_WIN2_OFFSET	0x5000u
 
 #define	PCI_GPIO_OUTEN		0xb8	/* pci config space gpio output enable (>=rev3) */
-#ifdef PCI_L1SS_CTRL2
-#undef PCI_L1SS_CTRL2
-#endif /* PCI_L1SS_CTRL2 */
 #define	PCI_L1SS_CTRL2		0x24c	/* The L1 PM Substates Control register */
 
 #define	PCI_CFG_PTM_CAP		0x204
 #define	PCI_CFG_PTM_CTRL	0x208
 #define PCI_CFG_PTM_ENABLED (1u << 0)
+#define PCI_CFG_SSCTRL_BPACCESSEN (1u << 6)
+#define PCI_CFG_BAR0_RESET_VAL 0x4u
+#define PCI_CFG_BAR1_RESET_VAL 0x4u
 
 /* Private Registers */
 #define	PCI_STAT_CTRL		0xa80

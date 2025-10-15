@@ -1,7 +1,26 @@
 /*
  * Linux roam cache
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -28,6 +47,7 @@
 #include <bcmutils.h>
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
+#include <wl_cfgscan.h>
 #endif
 #include <wldev_common.h>
 #if defined(__linux__)
@@ -150,6 +170,8 @@ void update_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 			sizeof(channel_list), iobuf, sizeof(iobuf), NULL);
 		if (error) {
 			WL_ERR(("Failed to update roamscan channels, error = %d\n", error));
+		} else {
+			WL_DBG(("RCC updated\n"));
 		}
 	}
 
@@ -256,7 +278,7 @@ int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan,
 		n++;
 	}
 
-	WL_SCAN(("0x%04X\n", channels[0]));
+	WL_SCAN(("Chanspec = %s\n", wf_chspec_ntoa_ex(channels[0], chanbuf)));
 
 #ifdef WES_SUPPORT
 	if (cfg->roamscan_mode == ROAMSCAN_MODE_WES) {
@@ -272,8 +294,7 @@ int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan,
 			ch = wf_chspec_ctlchan(ch) | CHSPEC_BAND(ch) | band_bw;
 
 			if (band_match && !is_duplicated_channel(channels, n, ch)) {
-				WL_SCAN(("Chanspec = %s\n",
-					wf_chspec_ntoa_ex(ch, chanbuf)));
+				WL_SCAN(("Chanspec = %s\n", wf_chspec_ntoa_ex(ch, chanbuf)));
 				channels[n++] = ch;
 				if (n >= n_channels) {
 					WL_ERR(("Too many roam scan channels\n"));
@@ -300,8 +321,7 @@ int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan,
 			band_match && !is_duplicated_channel(channels, n, ch) &&
 			(memcmp(roam_cache[i].ssid, ssid->SSID, ssid->SSID_len) == 0)) {
 			/* match found, add it */
-			WL_SCAN(("Chanspec = %s\n",
-				wf_chspec_ntoa_ex(ch, chanbuf)));
+			WL_SCAN(("Chanspec = %s\n", wf_chspec_ntoa_ex(ch, chanbuf)));
 			channels[n++] = ch;
 			if (n >= n_channels) {
 				WL_ERR(("Too many roam scan channels\n"));
@@ -432,6 +452,8 @@ set_roamscan_chanspec_list(struct net_device *dev, uint nchan, chanspec_t *chans
 	if (error) {
 		WL_ERR(("Failed to set roamscan channels, error = %d\n", error));
 		return error;
+	} else {
+		WL_DBG(("RCC updated\n"));
 	}
 
 	return error;
@@ -567,6 +589,12 @@ void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 		}
 	}
 	chanlist_after.n = 0;
+	if (chanlist_before.n > MAX_ROAM_CHANNEL) {
+		WL_ERR(("channel list cnt (%d) > MAX_ROAM_CHANNEL (%d), "
+			"force setting to the max\n", chanlist_before.n, MAX_ROAM_CHANNEL));
+		chanlist_before.n = MAX_ROAM_CHANNEL;
+	}
+
 	/* filtering by the given band */
 	for (i = 0; i < chanlist_before.n; i++) {
 		chanspec_t chspec = chanlist_before.channels[i];
@@ -591,6 +619,8 @@ void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 				sizeof(wl_roam_channel_list_t), iobuf, sizeof(iobuf), NULL);
 		if (error) {
 			WL_ERR(("Failed to update roamscan channels, error = %d\n", error));
+		} else {
+			WL_DBG(("RCC updated\n"));
 		}
 		wldev_iovar_setint(dev, "roamscan_mode", ROAMSCAN_MODE_WES);
 	} else {
@@ -601,6 +631,8 @@ void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 				sizeof(wl_roam_channel_list_t), iobuf, sizeof(iobuf), NULL);
 		if (error) {
 			WL_ERR(("Failed to update roamscan channels, error = %d\n", error));
+		} else {
+			WL_DBG(("RCC updated\n"));
 		}
 	}
 }

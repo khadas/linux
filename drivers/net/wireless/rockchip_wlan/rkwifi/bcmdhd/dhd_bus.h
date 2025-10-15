@@ -4,7 +4,26 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,16 +40,12 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #ifndef _dhd_bus_h_
 #define _dhd_bus_h_
 
-extern int dbus_up(struct dhd_bus *pub);
-extern int dbus_stop(struct dhd_bus *pub);
 /*
  * Exported from dhd bus module (dhd_usb, dhd_sdio)
  */
@@ -44,7 +59,7 @@ extern void dhd_bus_unregister(void);
 
 /* Download firmware image and nvram image */
 extern int dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
-	char *fw_path, char *nv_path, char *clm_path, char *conf_path);
+	char *fw_path, char *nv_path);
 #if defined(BT_OVER_SDIO)
 extern int dhd_bus_download_btfw(struct dhd_bus *bus, osl_t *osh, char *btfw_path);
 #endif /* defined (BT_OVER_SDIO) */
@@ -69,11 +84,17 @@ extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
 #endif
 
 #ifdef BCMPCIE
+uint16 dhd_prot_get_max_rxbufpost(dhd_pub_t *dhd);
 extern uint16 dhd_prot_get_rxbufpost_sz(dhd_pub_t *dhd);
 extern uint16 dhd_prot_get_rxbufpost_alloc_sz(dhd_pub_t *dhd);
 extern uint16 dhd_prot_get_h2d_rx_post_active(dhd_pub_t *dhd);
 extern uint16 dhd_prot_get_d2h_rx_cpln_active(dhd_pub_t *dhd);
 extern void dhdpcie_cto_recovery_handler(dhd_pub_t *dhd);
+extern void dhdpcie_quirks_after_prot_init(dhd_pub_t *dhd);
+extern uint dhd_bus_db0_addr_get(struct dhd_bus *bus);
+extern uint dhd_bus_db0_addr_2_get(struct dhd_bus *bus);
+extern uint dhd_bus_db1_addr_get(struct dhd_bus *bus);
+extern uint dhd_bus_db1_addr_3_get(struct dhd_bus *bus);
 #endif /* BCMPCIE */
 
 /* Send/receive a control message to/from the dongle.
@@ -89,7 +110,8 @@ extern int dhd_bus_oob_intr_register(dhd_pub_t *dhdp);
 extern void dhd_bus_oob_intr_unregister(dhd_pub_t *dhdp);
 extern void dhd_bus_oob_intr_set(dhd_pub_t *dhdp, bool enable);
 extern int dhd_bus_get_oob_irq_num(dhd_pub_t *dhdp);
-extern struct device * dhd_bus_to_dev(struct dhd_bus *bus);
+extern struct device *dhd_bus_to_dev(struct dhd_bus *bus);
+extern void *dhd_bus_to_pdev(struct dhd_bus *bus);
 extern void dhd_bus_dev_pm_stay_awake(dhd_pub_t *dhdpub);
 extern void dhd_bus_dev_pm_relax(dhd_pub_t *dhdpub);
 extern bool dhd_bus_dev_pm_enabled(dhd_pub_t *dhdpub);
@@ -102,11 +124,11 @@ extern int dhd_bus_txcons(dhd_pub_t *dhd, uchar *msg, uint msglen);
 
 /* Deferred processing for the bus, return TRUE requests reschedule */
 extern bool dhd_bus_dpc(struct dhd_bus *bus);
-extern void dhd_bus_isr(bool * InterruptRecognized, bool * QueueMiniportHandleInterrupt, void *arg);
+extern void dhd_bus_isr(bool *InterruptRecognized, bool *QueueMiniportHandleInterrupt, void *arg);
 
 /* Check for and handle local prot-specific iovar commands */
 extern int dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
-                            void *params, uint plen, void *arg, uint len, bool set);
+	void *params, uint plen, void *arg, uint len, bool set);
 
 /* Add bus dump output to a buffer */
 extern void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
@@ -122,7 +144,7 @@ extern uint dhd_bus_chip(struct dhd_bus *bus);
 extern uint dhd_bus_chiprev(struct dhd_bus *bus);
 
 /* Set user-specified nvram parameters. */
-extern void dhd_bus_set_nvram_params(struct dhd_bus * bus, const char *nvram_params);
+extern void dhd_bus_set_nvram_params(struct dhd_bus *bus, const char *nvram_params);
 
 extern void *dhd_bus_pub(struct dhd_bus *bus);
 extern void *dhd_bus_txq(struct dhd_bus *bus);
@@ -141,7 +163,7 @@ extern uint8 dhd_bus_is_ioready(struct dhd_bus *bus);
 } while (0)
 
 /* Register a dummy SDIO client driver in order to be notified of new SDIO device */
-extern int dhd_bus_reg_sdio_notify(void* semaphore);
+extern int dhd_bus_reg_sdio_notify(void *semaphore);
 extern void dhd_bus_unreg_sdio_notify(void);
 extern void dhd_txglom_enable(dhd_pub_t *dhdp, bool enable);
 extern int dhd_bus_get_ids(struct dhd_bus *bus, uint32 *bus_type, uint32 *bus_num,
@@ -199,25 +221,28 @@ enum {
 	DNGL_TO_HOST_TRAP_ADDR,
 	HOST_SCB_ADDR,		/* update host scb base address to dongle */
 	HOST_CAP2,		/* Host capability 2 flags */
+	HOSTCAP_AGGR,	/* Host capability for pcie aggregation work items */
+	TXPOST_MAX_AGGR,	/* Max Txpost aggregation */
+	RXPOST_MAX_AGGR,	/* Max Rxpost aggregation */
 };
 
 typedef void (*dhd_mb_ring_t) (struct dhd_bus *, uint32);
 typedef void (*dhd_mb_ring_2_t) (struct dhd_bus *, uint32, bool);
-extern void dhd_bus_cmn_writeshared(struct dhd_bus *bus, void * data, uint32 len, uint8 type,
+extern void dhd_bus_cmn_writeshared(struct dhd_bus *bus, void *data, uint32 len, uint8 type,
 	uint16 ringid);
 extern void dhd_bus_ringbell(struct dhd_bus *bus, uint32 value);
 extern void dhd_bus_ringbell_2(struct dhd_bus *bus, uint32 value, bool devwake);
-extern void dhd_bus_cmn_readshared(struct dhd_bus *bus, void* data, uint8 type, uint16 ringid);
+extern void dhd_bus_cmn_readshared(struct dhd_bus *bus, void *data, uint8 type, uint16 ringid);
 extern uint32 dhd_bus_get_sharedflags(struct dhd_bus *bus);
-extern void dhd_bus_rx_frame(struct dhd_bus *bus, void* pkt, int ifidx, uint pkt_count);
+extern void dhd_bus_rx_frame(struct dhd_bus *bus, void *pkt, int ifidx, uint pkt_count);
 extern void dhd_bus_start_queue(struct dhd_bus *bus);
 extern void dhd_bus_stop_queue(struct dhd_bus *bus);
 extern dhd_mb_ring_t dhd_bus_get_mbintr_fn(struct dhd_bus *bus);
 extern dhd_mb_ring_2_t dhd_bus_get_mbintr_2_fn(struct dhd_bus *bus);
 extern void dhd_bus_write_flow_ring_states(struct dhd_bus *bus,
-	void * data, uint16 flowid);
+	void *data, uint16 flowid);
 extern void dhd_bus_read_flow_ring_states(struct dhd_bus *bus,
-	void * data, uint8 flowid);
+	void *data, uint8 flowid);
 extern int dhd_bus_flow_ring_create_request(struct dhd_bus *bus, void *flow_ring_node);
 extern void dhd_bus_clean_flow_ring(struct dhd_bus *bus, void *flow_ring_node);
 extern void dhd_bus_flow_ring_create_response(struct dhd_bus *bus, uint16 flow_id, int32 status);
@@ -229,16 +254,12 @@ extern uint32 dhd_bus_max_h2d_queues(struct dhd_bus *bus);
 extern int dhd_bus_schedule_queue(struct dhd_bus *bus, uint16 flow_id, bool txs,
 		uint32 bound, bool *is_qempty);
 
-#ifdef IDLE_TX_FLOW_MGMT
-extern void dhd_bus_flow_ring_resume_response(struct dhd_bus *bus, uint16 flowid, int32 status);
-#endif /* IDLE_TX_FLOW_MGMT */
-
 #ifdef BCMDBG
 extern void
 dhd_bus_flow_ring_cnt_update(struct dhd_bus *bus, uint16 flowid, uint32 txstatus);
 #endif
 
-#if defined(LINUX) || defined(linux)
+#if defined(__linux__)
 extern int dhdpcie_bus_start_host_dev(struct dhd_bus *bus);
 extern int dhdpcie_bus_stop_host_dev(struct dhd_bus *bus);
 extern int dhdpcie_bus_enable_device(struct dhd_bus *bus);
@@ -252,7 +273,7 @@ extern int dhdpcie_get_pcieirq(struct dhd_bus *bus, unsigned int *irq);
 extern void dhd_bus_aer_config(struct dhd_bus *bus);
 #else
 static INLINE void dhd_bus_aer_config(struct dhd_bus *bus) { }
-#endif /* LINUX || linux */
+#endif /* __linux__ */
 
 extern int dhdpcie_cto_init(struct dhd_bus *bus, bool enable);
 extern int dhdpcie_cto_cfg_init(struct dhd_bus *bus, bool enable);
@@ -266,13 +287,14 @@ extern int dhd_dongle_mem_dump(void);
 #ifdef IDLE_TX_FLOW_MGMT
 extern void dhd_bus_idle_tx_ring_suspend(dhd_pub_t *dhd, uint16 flow_ring_id);
 #endif /* IDLE_TX_FLOW_MGMT */
-extern void dhd_bus_handle_mb_data(struct dhd_bus *bus, uint32 d2h_mb_data);
+extern void dhd_bus_handle_mb_data(struct dhd_bus *bus, uint32 d2h_mb_data, const char *context);
 #endif /* BCMPCIE */
 
 /* dump the device trap informtation  */
 extern void dhd_bus_dump_trap_info(struct dhd_bus *bus, struct bcmstrbuf *b);
 extern void dhd_bus_copy_trap_sig(struct dhd_bus *bus,  trap_t *tr);
 #ifdef WL_CFGVENDOR_SEND_HANG_EVENT
+extern void dhd_dump_pcie_rc_regs_for_linkdown(dhd_pub_t *dhd, int *bytes_written);
 void copy_hang_info_linkdown(dhd_pub_t *dhd);
 void copy_ext_trap_sig(dhd_pub_t *dhd, trap_t *tr);
 void copy_hang_info_trap(dhd_pub_t *dhd);
@@ -286,7 +308,7 @@ extern void dhd_bus_pmu_reg_reset(dhd_pub_t *dhdp);
 
 extern void dhd_bus_ucode_download(struct dhd_bus *bus);
 
-extern int dhd_bus_readwrite_bp_addr(dhd_pub_t *dhdp, uint addr, uint size, uint* data, bool read);
+extern int dhd_bus_readwrite_bp_addr(dhd_pub_t *dhdp, uint addr, uint size, uint *data, bool read);
 extern int dhd_get_idletime(dhd_pub_t *dhd);
 extern bool dhd_get_rpm_state(dhd_pub_t *dhd);
 extern void dhd_set_rpm_state(dhd_pub_t *dhd, bool state);
@@ -300,10 +322,16 @@ extern int dhd_bus_get_cto(dhd_pub_t *dhdp);
 extern bool dhd_bus_get_read_shm(dhd_pub_t *dhdp);
 extern void dhd_bus_set_linkdown(dhd_pub_t *dhdp, bool val);
 extern int dhd_bus_get_linkdown(dhd_pub_t *dhdp);
+bool dhd_bus_is_wl_bp_down(dhd_pub_t *dhdp);
+bool dhd_bus_is_common_bp_down(dhd_pub_t *dhdp);
+bool dhd_bus_is_coex_bp_down(dhd_pub_t *dhdp);
+void dhd_bus_reset_link_state(dhd_pub_t *dhdp);
 #if defined(CONFIG_ARCH_MSM) && defined(CONFIG_SEC_PCIE_L1SS)
 extern void dhd_bus_inform_ep_loaded_to_rc(dhd_pub_t *dhdp, bool up);
 #endif /* CONFIG_ARCH_MSM  && CONFIG_SEC_PCIE_L1SS */
 extern int dhd_bus_checkdied(struct dhd_bus *bus, char *data, uint size);
+void
+dhd_prot_get_driver_state(dhd_pub_t *dhdp, driver_state_t *driver_state);
 #else
 #define dhd_bus_dump_console_buffer(x)
 static INLINE void dhd_bus_intr_count_dump(dhd_pub_t *dhdp) { UNUSED_PARAMETER(dhdp); }
@@ -315,8 +343,15 @@ static INLINE int dhd_bus_get_linkdown(dhd_pub_t *dhdp) { return 0; }
 static INLINE int dhd_bus_get_cto(dhd_pub_t *dhdp) { return 0; }
 static INLINE bool dhd_bus_get_read_shm(dhd_pub_t *dhdp) { return 0; }
 static INLINE int dhd_bus_checkdied(struct dhd_bus *bus, char *data, uint size) { return 0; }
+static INLINE bool dhd_bus_is_wl_bp_down(dhd_pub_t *dhdp) { return FALSE; }
+static INLINE bool dhd_bus_is_common_bp_down(dhd_pub_t *dhdp) { return FALSE; }
+static INLINE bool dhd_bus_is_coex_bp_down(dhd_pub_t *dhdp) { return FALSE; }
+static INLINE void dhd_bus_reset_link_state(dhd_pub_t *dhdp) { return; }
 #endif /* BCMPCIE */
 
+#ifdef DHD_COREDUMP
+void dhdpcie_get_etd_trapcode_str(dhd_pub_t *dhd, char *trap_code, char *trap_subcode, int len);
+#endif /* DHD_COREDUMP */
 #if defined(BCMPCIE) && defined(EWP_ETD_PRSRV_LOGS)
 void dhdpcie_get_etd_preserve_logs(dhd_pub_t *dhd, uint8 *ext_trap_data,
 		void *event_decode_data);
@@ -325,10 +360,14 @@ void dhdpcie_get_etd_preserve_logs(dhd_pub_t *dhd, uint8 *ext_trap_data,
 extern uint16 dhd_get_chipid(struct dhd_bus *bus);
 extern uint16 dhd_get_chiprev(struct dhd_bus *bus);
 
+#ifdef BTLOG
+extern void dhd_bus_rx_bt_log(struct dhd_bus *bus, void *pkt);
+#endif	/* BTLOG */
+
 #ifdef DHD_WAKE_STATUS
-extern wake_counts_t* dhd_bus_get_wakecount(dhd_pub_t *dhd);
-extern int dhd_bus_get_bus_wake(dhd_pub_t * dhd);
-extern int dhd_bus_set_get_bus_wake(dhd_pub_t * dhd, int set);
+extern wake_counts_t *dhd_bus_get_wakecount(dhd_pub_t *dhd);
+extern int dhd_bus_get_bus_wake(dhd_pub_t *dhd);
+extern int dhd_bus_set_get_bus_wake(dhd_pub_t *dhd, int set);
 #if defined(BCMPCIE)
 extern int dhd_bus_set_get_bus_wake_pkt_dump(dhd_pub_t *dhd, int wake_pkt_dump);
 #endif /* BCMPCIE */
@@ -356,6 +395,8 @@ extern bool dhd_bus_is_l1ss_enab_rc_ep(struct dhd_bus *bus);
 
 bool dhd_bus_is_multibp_capable(struct dhd_bus *bus);
 
+extern void dhd_bus_pcie_pwr_req_reload_war(struct dhd_bus *bus);
+
 #ifdef BCMPCIE
 extern void dhdpcie_advertise_bus_cleanup(dhd_pub_t  *dhdp);
 extern void dhd_msgbuf_iovar_timeout_dump(dhd_pub_t *dhd);
@@ -365,16 +406,18 @@ extern int dhd_dump_flowrings(dhd_pub_t *dhdp, char *buf, int buflen);
 #endif /* BCMPCIE */
 
 extern bool dhd_bus_force_bt_quiesce_enabled(struct dhd_bus *bus);
-extern void dhd_bwm_bt_quiesce(struct dhd_bus *bus);
-extern void dhd_bwm_bt_resume(struct dhd_bus *bus);
 
-#ifdef DHD_SSSR_DUMP
-extern int dhd_bus_fis_trigger(dhd_pub_t *dhd);
-extern int dhd_bus_fis_dump(dhd_pub_t *dhd);
-#endif /* DHD_SSSR_DUMP */
+#ifdef BCMPCIE
+extern bool dhd_bus_cto_triggered(dhd_pub_t *dhd);
+#endif
 
 #ifdef PCIE_FULL_DONGLE
 extern int dhdpcie_set_dma_ring_indices(dhd_pub_t *dhd, int32 int_val);
+#ifdef DHD_AGGR_WI
+extern int dhdpcie_set_aggr_wi_enable(dhd_pub_t *dhd, int32 int_val);
+extern int dhdpcie_get_aggr_wi_enable(dhd_pub_t *dhd);
+extern uint8 dhd_aggr_rxcpl_enab(struct dhd_bus *bus);
+#endif /* DHD_AGGR_WI */
 #endif /* PCIE_FULL_DONGLE */
 
 #ifdef D2H_MINIDUMP
@@ -394,26 +437,35 @@ extern int dhdpcie_set_dma_ring_indices(dhd_pub_t *dhd, int32 int_val);
 #error "Minidump doesnot work as BCM_BUZZZ is defined"
 #endif /* BCM_BUZZZ */
 extern bool dhd_bus_is_minidump_enabled(dhd_pub_t  *dhdp);
-dhd_dma_buf_t* dhd_prot_get_minidump_buf(dhd_pub_t *dhd);
+dhd_dma_buf_t *dhd_prot_get_minidump_buf(dhd_pub_t *dhd);
 #endif /* D2H_MINIDUMP */
-
-#ifdef DHD_CFG80211_SUSPEND_RESUME
-extern void dhd_cfg80211_suspend(dhd_pub_t *dhdp);
-extern void dhd_cfg80211_resume(dhd_pub_t *dhdp);
-#endif /* DHD_CFG80211_SUSPEND_RESUME */
-
+extern void dhd_bwm_bt_quiesce(struct dhd_bus *bus);
+extern void dhd_bwm_bt_resume(struct dhd_bus *bus);
 #ifdef DHD_SDTC_ETB_DUMP
 extern int dhd_bus_get_etb_info(dhd_pub_t *dhd, uint32 etb_info_addr, etb_info_t *etb_info);
 extern int dhd_bus_get_sdtc_etb(dhd_pub_t *dhd, uint8 *sdtc_etb_mempool,
 	uint addr, uint read_bytes);
 #endif /* DHD_SDTC_ETB_DUMP */
 
-#ifndef BCMDBUS
+#ifdef DHD_CFG80211_SUSPEND_RESUME
+extern void dhd_cfg80211_suspend(dhd_pub_t *dhdp);
+extern void dhd_cfg80211_resume(dhd_pub_t *dhdp);
+#endif /* DHD_CFG80211_SUSPEND_RESUME */
+
+#ifdef TX_CSO
+bool dhd_bus_get_txcso_supported(struct dhd_bus *bus);
+#endif
+#ifdef RX_CSO
+#define RXCSO_ENAB(dhd)	((dhd)->rxcso_enabled)
+#else
+#define RXCSO_ENAB(dhd) (FALSE)
+#endif /* RX_CSO */
+
+extern bool dhd_recover_timeout_by_scheduling_dpc(struct dhd_bus *bus);
+
 extern int dhd_socram_dump(struct dhd_bus *bus);
-#endif /* BCMDBUS */
 
 extern int dhdpcie_get_max_eventbufpost(struct dhd_bus *bus);
-
 #ifdef DHD_FLOW_RING_STATUS_TRACE
 extern void dhd_bus_flow_ring_status_isr_trace(dhd_pub_t *dhd);
 extern void dhd_bus_flow_ring_status_dpc_trace(dhd_pub_t *dhd);
@@ -423,10 +475,32 @@ extern bool dhd_bus_init_done(struct dhd_bus *bus);
 
 extern void dhdpcie_db7_trap(struct dhd_bus *bus);
 
-#if defined(NDIS)
-void * dhd_bus_get_socram_buf(struct dhd_bus *bus, struct dhd_pub *dhdp);
-#endif
+#ifdef DHD_FW_COREDUMP
+void *dhd_bus_get_socram_buf(struct dhd_bus *bus, struct dhd_pub *dhdp);
+#endif /* DHD_FW_COREDUMP */
 
 void dhd_bus_set_signature_path(struct dhd_bus *bus, char *sig_path);
 
+int dhdsdio_mpdu_init(dhd_pub_t *dhdp);
+extern void dhd_bus_pktq_flush(dhd_pub_t *dhdp);
+
+#if defined(BCMSDIO)
+extern void dhd_bus_check_srmemsize(dhd_pub_t *dhdp);
+#endif /* BCMSDIO */
+int dhd_bus_get_ewp_etb_config(struct dhd_bus *bus);
+int dhd_bus_get_ewp_etb_dump(struct dhd_bus *bus, uint8 *buf, uint bufsize);
+int dhd_bus_alloc_ewp_etb_config_mem(struct dhd_bus *bus);
+void dhd_bus_dealloc_ewp_etb_config_mem(struct dhd_bus *bus);
+#ifdef DHD_COREDUMP
+extern void dhd_get_ewp_init_state(struct dhd_bus *bus, uint8 *init_state);
+extern void dhd_coredump_add_status(char *buf, char *err_tag, uint32 status);
+#endif /* DHD_COREDUMP */
+
+void dhd_bus_update_flow_watermark_stats(struct dhd_bus *bus, uint16 flowid, uint16 rd,
+	uint16 wr, uint16 ringsz, bool upd_watermark);
+void dhd_initilize_idsup(uint16 chipid);
+#ifdef DHD_SDTC_ETB_DUMP
+int dhd_bus_get_etb_dump(struct dhd_bus *bus, uint8 *buf, uint bufsize);
+#endif /* DHD_SDTC_ETB_DUMP */
+int dhd_bus_get_etb_config(struct dhd_bus *bus, uint32 etb_config_info_addr);
 #endif /* _dhd_bus_h_ */

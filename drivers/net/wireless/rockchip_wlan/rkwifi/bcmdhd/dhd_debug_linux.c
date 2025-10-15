@@ -1,7 +1,26 @@
 /*
  * DHD debugability Linux os layer
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,9 +37,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #include <typedefs.h>
@@ -34,10 +51,6 @@
 
 #include <net/cfg80211.h>
 #include <wl_cfgvendor.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
-#include <linux/sched/clock.h>
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) */
-#include <dhd_config.h>
 
 typedef void (*dbg_ring_send_sub_t)(void *ctx, const int ring_id, const void *data,
 	const uint32 len, const dhd_dbg_ring_status_t ring_status);
@@ -246,10 +259,11 @@ exit:
 		if ((ring_info->interval)) {
 			if ((ring_status.written_bytes == ring_status.read_bytes) ||
 #ifdef DHD_PKT_LOGGING_DBGRING
-				(ringid == PACKET_LOG_RING_ID)) {
+				(ringid == PACKET_LOG_RING_ID))
 #else
-				FALSE) {
+				FALSE)
 #endif /* DHD_PKT_LOGGING_DBGRING */
+			{
 				schedule_delayed_work(d_work, ring_info->interval);
 			}
 		}
@@ -290,7 +304,7 @@ dhd_os_start_logging(dhd_pub_t *dhdp, char *ring_name, int log_level,
 	if (!VALID_RING(ring_id))
 		return BCME_UNSUPPORTED;
 
-	DHD_ERROR(("%s , ring_id : %d log_level : %d, "
+	DHD_PRINT(("%s , ring_id : %d log_level : %d, "
 			"time_intval : %d, threshod %d Bytes\n",
 			__FUNCTION__, ring_id, log_level, time_intval, threshold));
 
@@ -308,10 +322,10 @@ dhd_os_start_logging(dhd_pub_t *dhdp, char *ring_name, int log_level,
 	ring_info->log_level = log_level;
 	if (time_intval == 0 || log_level == 0) {
 		ring_info->interval = 0;
-		cancel_delayed_work_sync(&ring_info->work);
+		dhd_cancel_delayed_work_sync(&ring_info->work);
 	} else {
 		ring_info->interval = msecs_to_jiffies(time_intval * MSEC_PER_SEC);
-		cancel_delayed_work_sync(&ring_info->work);
+		dhd_cancel_delayed_work_sync(&ring_info->work);
 		schedule_delayed_work(&ring_info->work, ring_info->interval);
 	}
 
@@ -344,7 +358,7 @@ dhd_os_reset_logging(dhd_pub_t *dhdp)
 			return ret;
 		}
 		/* cancel any pending work */
-		cancel_delayed_work_sync(&ring_info->work);
+		dhd_cancel_delayed_work_sync(&ring_info->work);
 	}
 	return ret;
 }
@@ -395,7 +409,7 @@ dhd_os_trigger_get_ring_data(dhd_pub_t *dhdp, char *ring_name)
 	if (os_priv) {
 		ring_info = &os_priv[ring_id];
 		if (ring_info->interval) {
-			cancel_delayed_work_sync(&ring_info->work);
+			dhd_cancel_delayed_work_sync(&ring_info->work);
 		}
 		schedule_delayed_work(&ring_info->work, 0);
 	} else {
@@ -422,13 +436,13 @@ dhd_os_push_push_ring_data(dhd_pub_t *dhdp, int ring_id, void *data, int32 data_
 	} else
 		return BCME_NORESOURCE;
 
-	memset(&msg_hdr, 0, sizeof(dhd_dbg_ring_entry_t));
+	bzero(&msg_hdr, sizeof(dhd_dbg_ring_entry_t));
 
 	if (ring_id == DHD_EVENT_RING_ID) {
 		msg_hdr.type = DBG_RING_ENTRY_EVENT_TYPE;
 		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP;
 		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_BINARY;
-		msg_hdr.timestamp = osl_localtime_ns();
+		msg_hdr.timestamp = local_clock();
 		/* convert to ms */
 		msg_hdr.timestamp = DIV_U64_BY_U32(msg_hdr.timestamp, NSEC_PER_MSEC);
 		msg_hdr.len = data_len;
@@ -445,7 +459,7 @@ dhd_os_push_push_ring_data(dhd_pub_t *dhdp, int ring_id, void *data, int32 data_
 			ring_id == ROAM_STATS_RING_ID) {
 		msg_hdr.type = DBG_RING_ENTRY_DATA_TYPE;
 		msg_hdr.flags |= DBG_RING_ENTRY_FLAGS_HAS_TIMESTAMP;
-		msg_hdr.timestamp = osl_localtime_ns();
+		msg_hdr.timestamp = local_clock();
 		msg_hdr.timestamp = DIV_U64_BY_U32(msg_hdr.timestamp, NSEC_PER_MSEC);
 		msg_hdr.len = strlen(data);
 	}
@@ -463,60 +477,114 @@ dhd_os_push_push_ring_data(dhd_pub_t *dhdp, int ring_id, void *data, int32 data_
 int
 dhd_os_dbg_attach_pkt_monitor(dhd_pub_t *dhdp)
 {
-	return dhd_dbg_attach_pkt_monitor(dhdp, dhd_os_dbg_monitor_tx_pkts,
-		dhd_os_dbg_monitor_tx_status, dhd_os_dbg_monitor_rx_pkts);
+	int i, ret;
+	for (i = 0; i < PKT_MON_IF_MAX; i++) {
+		ret = dhd_dbg_attach_pkt_monitor(dhdp, i, dhd_os_dbg_monitor_tx_pkts,
+			dhd_os_dbg_monitor_tx_status, dhd_os_dbg_monitor_rx_pkts);
+		if (unlikely(ret)) {
+			DHD_ERROR(("%s - failed to attach pkt mon idx:%d\n", __func__, i));
+			return ret;
+		}
+	}
+	return BCME_OK;
 }
 
 int
-dhd_os_dbg_start_pkt_monitor(dhd_pub_t *dhdp)
+dhd_os_dbg_start_pkt_monitor(dhd_pub_t *dhdp, int ifidx)
 {
-	return dhd_dbg_start_pkt_monitor(dhdp);
+	return dhd_dbg_start_pkt_monitor(dhdp, ifidx);
 }
 
 int
-dhd_os_dbg_monitor_tx_pkts(dhd_pub_t *dhdp, void *pkt, uint32 pktid,
-	frame_type type, uint8 mgmt_acked)
+dhd_os_dbg_monitor_tx_pkts(dhd_pub_t *dhdp, int ifidx, void *pkt, uint32 pktid,
+	frame_type type, uint8 mgmt_acked, bool aml)
 {
-	return dhd_dbg_monitor_tx_pkts(dhdp, pkt, pktid, type, mgmt_acked);
+	return dhd_dbg_monitor_tx_pkts(dhdp, ifidx, pkt, pktid, type, mgmt_acked,
+		aml);
 }
 
 int
-dhd_os_dbg_monitor_tx_status(dhd_pub_t *dhdp, void *pkt, uint32 pktid,
+dhd_os_dbg_monitor_tx_status(dhd_pub_t *dhdp, int ifidx, void *pkt, uint32 pktid,
 	uint16 status)
 {
-	return dhd_dbg_monitor_tx_status(dhdp, pkt, pktid, status);
+	return dhd_dbg_monitor_tx_status(dhdp, ifidx, pkt, pktid, status);
 }
 
 int
-dhd_os_dbg_monitor_rx_pkts(dhd_pub_t *dhdp, void *pkt, frame_type type)
+dhd_os_dbg_monitor_rx_pkts(dhd_pub_t *dhdp, int ifidx, void *pkt, frame_type type,
+	bool aml)
 {
-	return dhd_dbg_monitor_rx_pkts(dhdp, pkt, type);
+	return dhd_dbg_monitor_rx_pkts(dhdp, ifidx, pkt, type, aml);
 }
 
 int
-dhd_os_dbg_stop_pkt_monitor(dhd_pub_t *dhdp)
+dhd_os_dbg_stop_pkt_monitor(dhd_pub_t *dhdp, int ifidx)
 {
-	return dhd_dbg_stop_pkt_monitor(dhdp);
+	return dhd_dbg_stop_pkt_monitor(dhdp, ifidx);
+}
+
+#ifdef DHD_PKT_MON_DUAL_STA
+int
+dhd_os_dbg_attach_pkt_monitor_dev(dhd_pub_t *dhdp, struct net_device *ndev)
+{
+	int ifidx, ret;
+
+	ifidx = dhd_net2idx(dhdp->info, ndev);
+	if (ifidx == DHD_BAD_IF) {
+		DHD_ERROR(("%s: bad ifidx:%d\n", __FUNCTION__, ifidx));
+		return -EINVAL;
+	}
+
+	ret = dhd_dbg_attach_pkt_monitor(dhdp, ifidx, dhd_os_dbg_monitor_tx_pkts,
+		dhd_os_dbg_monitor_tx_status, dhd_os_dbg_monitor_rx_pkts);
+	if (unlikely(ret)) {
+		DHD_ERROR(("%s - failed to attach pkt mon idx:%d\n", __func__, ifidx));
+		return ret;
+	}
+	return BCME_OK;
 }
 
 int
-dhd_os_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
-	uint16 req_count, uint16 *resp_count)
+dhd_os_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, int ifidx,
+	void __user *user_buf, uint16 req_count, uint16 *resp_count)
 {
-	return dhd_dbg_monitor_get_tx_pkts(dhdp, user_buf, req_count, resp_count);
+	return dhd_dbg_monitor_get_tx_pkts(dhdp, ifidx, user_buf, req_count, resp_count);
 }
 
 int
-dhd_os_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
-	uint16 req_count, uint16 *resp_count)
+dhd_os_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, int ifidx,
+	void __user *user_buf, uint16 req_count, uint16 *resp_count)
 {
-	return dhd_dbg_monitor_get_rx_pkts(dhdp, user_buf, req_count, resp_count);
+	return dhd_dbg_monitor_get_rx_pkts(dhdp, ifidx, user_buf, req_count, resp_count);
 }
+#else
+int
+dhd_os_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp,
+	void __user *user_buf, uint16 req_count, uint16 *resp_count)
+{
+	return dhd_dbg_monitor_get_tx_pkts(dhdp, 0, user_buf, req_count, resp_count);
+}
+
+int
+dhd_os_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp,
+	void __user *user_buf, uint16 req_count, uint16 *resp_count)
+{
+	return dhd_dbg_monitor_get_rx_pkts(dhdp, 0, user_buf, req_count, resp_count);
+}
+#endif /* DHD_PKT_MON_DUAL_STA */
 
 int
 dhd_os_dbg_detach_pkt_monitor(dhd_pub_t *dhdp)
 {
-	return dhd_dbg_detach_pkt_monitor(dhdp);
+	int i, ret;
+	for (i = 0; i < PKT_MON_IF_MAX; i++) {
+		ret = dhd_dbg_detach_pkt_monitor(dhdp, i);
+		if (ret) {
+			DHD_ERROR(("%s - failed to detach pkt mon idx:%d\n", __func__, i));
+			return ret;
+		}
+	}
+	return BCME_OK;
 }
 #endif /* DBG_PKT_MON */
 
@@ -524,20 +592,11 @@ int
 dhd_os_dbg_get_feature(dhd_pub_t *dhdp, int32 *features)
 {
 	int ret = BCME_OK;
-#ifdef DEBUGABILITY
-#ifndef DEBUGABILITY_DISABLE_MEMDUMP
-	struct dhd_conf *conf = dhdp->conf;
-#endif /* !DEBUGABILITY_DISABLE_MEMDUMP */
-#endif
-
-	/* XXX : we need to find a way to get the features for dbg */
+	/* we need to find a way to get the features for dbg */
 	*features = 0;
 #ifdef DEBUGABILITY
 #ifndef DEBUGABILITY_DISABLE_MEMDUMP
-	// fix for RequestFirmwareDebugDump issue of VTS
-	if ((conf->chip != BCM4359_CHIP_ID) && (conf->chip != BCM43751_CHIP_ID) &&
-			(conf->chip != BCM43752_CHIP_ID) && (conf->chip != BCM4375_CHIP_ID))
-		*features |= DBG_MEMORY_DUMP_SUPPORTED;
+	*features |= DBG_MEMORY_DUMP_SUPPORTED;
 #endif /* !DEBUGABILITY_DISABLE_MEMDUMP */
 	if (FW_SUPPORTED(dhdp, logtrace)) {
 		*features |= DBG_CONNECT_EVENT_SUPPORTED;
@@ -564,7 +623,7 @@ dhd_os_dbg_pullreq(void *os_priv, int ring_id)
 	linux_dbgring_info_t *ring_info;
 
 	ring_info = &((linux_dbgring_info_t *)os_priv)[ring_id];
-	cancel_delayed_work(&ring_info->work);
+	dhd_cancel_delayed_work(&ring_info->work);
 	schedule_delayed_work(&ring_info->work, 0);
 }
 
@@ -621,7 +680,7 @@ dhd_os_dbg_detach(dhd_pub_t *dhdp)
 		ring_info = &os_priv[ring_id];
 		if (ring_info->interval) {
 			ring_info->interval = 0;
-			cancel_delayed_work_sync(&ring_info->work);
+			dhd_cancel_delayed_work_sync(&ring_info->work);
 		}
 	}
 	VMFREE(dhdp->osh, os_priv, sizeof(*os_priv) * DEBUG_RING_ID_MAX);
