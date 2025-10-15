@@ -18,42 +18,19 @@
 	model = "Khadas Edge2 2L";
 	compatible = "khadas,edge-2l", "rockchip,rk3576";
 
-	es8388_sound: es8388-sound {
-		status = "disabled";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
-		hp-det-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "adc-detect";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-		spk-con-gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		hp-con-gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
-		rockchip,pre-power-on-delay-ms = <30>;
-		rockchip,post-power-down-delay-ms = <40>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&sai1>;
-		rockchip,codec = <&es8388>;
-		rockchip,audio-routing =
-			"Headphone", "LOUT1",
-			"Headphone", "ROUT1",
-			"Speaker", "LOUT2",
-			"Speaker", "ROUT2",
-			"Headphone", "Headphone Power",
-			"Headphone", "Headphone Power",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
-			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
-			"RINPUT1", "Headset Mic",
-			"RINPUT2", "Headset Mic";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		play-pause-key {
-			label = "playpause";
-			linux,code = <KEY_PLAYPAUSE>;
-			press-threshold-microvolt = <2000>;
+	es8316_sound: es8316-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,es8316-codec";
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&sai2>;
+			};
+			codec {
+				sound-dai = <&es8316>;
+			};
 		};
 	};
 
@@ -416,22 +393,6 @@
 	};
 };
 
-&i2c3 {
-	status = "disabled";
-	es8388: es8388@10 {
-		status = "disabled";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
-		reg = <0x10>;
-		clocks = <&mclkout_sai1>;
-		clock-names = "mclk";
-		assigned-clocks = <&mclkout_sai1>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sai1m0_mclk>;
-	};
-};
-
 &i2c6 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -456,6 +417,21 @@
 		poll_delay_ms = <30>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
 		layout = <4>;
+	};
+
+	es8316: es8316@10 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8316";
+		reg = <0x10>;
+		clocks = <&mclkout_sai2>;
+		clock-names = "mclk";
+		assigned-clocks = <&mclkout_sai2>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-0 = <&sai2m0_mclk>,<&hp_det>,<&spk_con>;
+		pinctrl-names = "default","hp_det","spk_con";
+		spk-con-gpio = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio2 RK_PD6 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -493,6 +469,10 @@
 	status = "disabled";
 };
 
+&sai2 {
+	status = "okay";
+};
+
 &pdm1 {
 	status = "disabled";
 	pinctrl-names = "default", "idle", "clk";
@@ -527,9 +507,12 @@
 		};
 	};
 
-	headphone {
+	audio {
 		hp_det: hp-det {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <2 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		spk_con: spk-con {
+			rockchip,pins = <3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
