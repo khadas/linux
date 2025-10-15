@@ -241,17 +241,7 @@ EXPORT_SYMBOL(mcu_reboot_boot_mode);
 
 static int is_mcu_fan_control_supported(void)
 {
-	// MCU FAN control is supported for:
-	// 1. Khadas EDGE2
-	if (g_mcu_data->board == KHADAS_BOARD_EDGE2L) {
-		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V11)
 			return 1;
-		else
-			return 0;
-	} else {
-			return 0;
-	}
-
 }
 
 static int is_mcu_mculed_control_supported(void)
