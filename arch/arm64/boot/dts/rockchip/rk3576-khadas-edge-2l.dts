@@ -274,7 +274,7 @@
 	/* rx_delay = <0x3f>; */
 
 	phy-handle = <&rgmii_phy0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &gmac1 {
@@ -299,7 +299,7 @@
 	/* rx_delay = <0x3f>; */
 
 	phy-handle = <&rgmii_phy1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &gt1x {
