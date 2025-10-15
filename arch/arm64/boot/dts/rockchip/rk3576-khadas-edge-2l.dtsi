@@ -939,33 +939,27 @@
 	pinctrl-0 = <&i2c0m1_xfer>;
 	status = "okay";
 
-	gt1x: gt1x@14 {
-		status = "disabled";
-		compatible = "goodix,gt1x";
-		reg = <0x14>;
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC5 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&touch_gpio>;
-		goodix,rst-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		goodix,irq-gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&tp_rst_gpio>;
+		status = "okay";
 	};
 
-	hynitron: hynitron@5a {
-		status = "disabled";
-		compatible = "hyn,3240";
-		reg = <0x5a>;
-
-		pinctrl-names = "ts_active","ts_suspend";
-		pinctrl-0 = <&ts_int_active &ts_reset_active>;
-		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-
-		reset-gpios = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		irq-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_LOW>;
-
-		max-touch-number = <5>;
-		display-coords = <0 0 1080 1920>;
-		pos-swap = <0>;
-		posx-reverse = <0>;
-		posy-reverse = <0>;
+	gt9xx: gt9xx@14 {
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
+		touch-gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+		max-x = <1920>;
+		max-y = <1200>;
+		tp-size = <89>;
+		wakeup-source = <1>;
+		status = "okay";
 	};
 };
 
@@ -1017,27 +1011,9 @@
 		};
 	};
 
-	touch {
-		touch_gpio: touch-gpio {
-			rockchip,pins =
-				<0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		ts_int_active: ts_int_active {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		ts_reset_active: ts_reset_active {
-			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		ts_int_suspend: ts_int_suspend {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-
-		ts_reset_suspend: ts_reset_suspend {
-			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_down>;
+	ft5336 {
+		tp_rst_gpio: tp-rst-gpio {
+			rockchip,pins = <0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

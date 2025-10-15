@@ -333,11 +333,6 @@
 	status = "disabled";
 };
 
-&gt1x {
-	status = "okay";
-	power-supply = <&vcc3v3_lcd_n>;
-};
-
 &hdmi {
 	status = "okay";
 	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -352,10 +347,6 @@
 	status = "okay";
 };
 
-&hynitron {
-	status = "okay";
-	power-supply = <&vcc3v3_lcd_n>;
-};
 
 &i2c2 {
 	status = "okay";
