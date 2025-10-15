@@ -309,7 +309,7 @@
 
 &hdmi {
 	status = "okay";
-	enable-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 	rockchip,sda-falling-delay-ns = <360>;
 };
 
