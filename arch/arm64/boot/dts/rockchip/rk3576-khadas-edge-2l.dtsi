@@ -965,17 +965,17 @@
 &i2c2 {
 	status = "okay";
 
-	hym8563: hym8563@51 {
+	pt7c4363: pt7c4363@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
-		clock-output-names = "hym8563";
+		clock-output-names = "pt7c4363";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hym8563_int>;
 		interrupt-parent = <&gpio0>;
 		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-source;
+		//wakeup-source;
 	};
 };
 
