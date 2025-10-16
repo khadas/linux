@@ -648,3 +648,31 @@
 &vp0 {
 	status = "okay";
 };
+
+&pwm0_2ch_1 {
+	compatible = "rockchip,remotectl-pwm-v4";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0m2_ch1>;
+	remote_pwm_id = <0>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <0>;
+	status = "okay";
+
+	ir_key1 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xeb KEY_POWER>,
+			<0xec KEY_MENU>,
+			<0xfc KEY_UP>,
+			<0xfd KEY_DOWN>,
+			<0xf1 KEY_LEFT>,
+			<0xe5 KEY_RIGHT>,
+			<0xf8 KEY_ENTER>,
+			<0xa7 KEY_VOLUMEDOWN>,
+			<0xa3 388>,
+			<0xa4 388>,
+			<0xf4 KEY_VOLUMEUP>,
+			<0xfe KEY_BACK>,
+			<0xb7 KEY_HOMEPAGE>;
+	};
+};
