@@ -45,11 +45,13 @@
 
 enum khadas_board {
 	KHADAS_BOARD_NONE = 0,
-	KHADAS_BOARD_EDGE2
+	KHADAS_BOARD_EDGE2,
+	KHADAS_BOARD_EDGE_2L
 };
 
 enum khadas_board_hwver {
 	KHADAS_BOARD_HWVER_NONE = 0,
+	KHADAS_BOARD_HWVER_V10,
 	KHADAS_BOARD_HWVER_V11
 };
 
@@ -165,9 +167,13 @@ static int is_mcu_fan_control_supported(void)
 			return 1;
 		else
 			return 0;
-	} else {
+	} else if (g_mcu_data->board == KHADAS_BOARD_EDGE_2L) {	//2. Khadas Edge 2L
+		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
+			return 1;
+		else
 			return 0;
-	}
+	}else
+		return 0;
 
 }
 static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
@@ -178,7 +184,7 @@ static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
 
         g_mcu_data->fan_data.level = level;
 
-		if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
+		if (g_mcu_data->board == KHADAS_BOARD_EDGE2 || g_mcu_data->board == KHADAS_BOARD_EDGE_2L) {
             if (level == 0)
                 data = MCU_FAN_SPEED_OFF;
             else if (level == 1)
@@ -206,7 +212,7 @@ static void fan_work_func(struct work_struct *_work)
         int temp = -EINVAL;
         struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
 
-		if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
+		if (g_mcu_data->board == KHADAS_BOARD_EDGE2 || g_mcu_data->board == KHADAS_BOARD_EDGE_2L) {
             temp = rk_get_temperature();
 		} else {
            temp = fan_data->trig_temp_level0;
@@ -340,7 +346,7 @@ static ssize_t show_fan_temp(struct class *cls,
     struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
     int temp = -EINVAL;
 
-    if (g_mcu_data->board == KHADAS_BOARD_EDGE2)
+	if (g_mcu_data->board == KHADAS_BOARD_EDGE2 || g_mcu_data->board == KHADAS_BOARD_EDGE_2L)
         temp = rk_get_temperature();
     else
         temp = fan_data->trig_temp_level0;
@@ -357,7 +363,7 @@ void fan_level_set(struct mcu_data *ug_mcu_data)
     struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
     int temp = -EINVAL;
 
-    if (ug_mcu_data->board == KHADAS_BOARD_EDGE2)
+	if (ug_mcu_data->board == KHADAS_BOARD_EDGE2 || ug_mcu_data->board == KHADAS_BOARD_EDGE_2L)
         temp = rk_get_temperature();
     else
         temp = fan_data->trig_temp_level0;
@@ -569,12 +575,17 @@ static int mcu_parse_dt(struct device *dev)
 	} else {
 			if (strstr(hwver, "EDGE2"))
 					g_mcu_data->board = KHADAS_BOARD_EDGE2;
+			else if (strstr(hwver, "EDGE_2L"))
+					g_mcu_data->board = KHADAS_BOARD_EDGE_2L;
 			else
 					g_mcu_data->board = KHADAS_BOARD_NONE;
 
 			if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
 					if (strcmp(hwver, "EDGE2.V11") == 0)
 							g_mcu_data->hwver = KHADAS_BOARD_HWVER_V11;
+			}else if (g_mcu_data->board == KHADAS_BOARD_EDGE_2L) {
+					if (strcmp(hwver, "EDGE_2L.V10") == 0)
+							g_mcu_data->hwver = KHADAS_BOARD_HWVER_V10;
 			}
 	}
 
