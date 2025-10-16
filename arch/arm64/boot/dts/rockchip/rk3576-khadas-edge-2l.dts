@@ -559,15 +559,6 @@
 	connect = <&vp0_out_hdmi>;
 };
 
-&sai1 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&sai1m0_lrck
-		     &sai1m0_sclk
-		     &sai1m0_sdi0
-		     &sai1m0_sdo0>;
-};
-
 &sdio {
 	max-frequency = <200000000>;
 	no-sd;
