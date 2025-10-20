@@ -111,9 +111,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk2m0_clk2>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
 		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		//power-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
@@ -149,7 +147,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk2m0_clk2>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
 		reset-gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
@@ -174,9 +171,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk2m0_clk2>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
-		reset-gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_LOW>;
-		power-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-IMX585-PX1";
@@ -198,9 +193,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk2m0_clk2>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
-		reset-gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_LOW>;
-		power-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "FH34SRJ-30S";
@@ -227,9 +220,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk1m0_clk1>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
 		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
-		//power-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
@@ -265,7 +256,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk1m0_clk1>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
 		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
@@ -291,9 +281,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk1m0_clk1>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
-		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
-		power-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-IMX585-PX1";
@@ -315,9 +303,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clk1m0_clk1>;
 		power-domains = <&power RK3576_PD_VI>;
-		//avdd-supply = <&vcc_mipidcphy0>;
-		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
-		power-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "FH34SRJ-30S";
