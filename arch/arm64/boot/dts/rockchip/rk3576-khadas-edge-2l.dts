@@ -711,3 +711,23 @@
 		reg = <0>;
 	};
 };
+
+&sfc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi1m1_pins>;
+	status = "okay";
+};
+
+&fspi1m1_pins {
+	rockchip,pins =
+	/* fspi1_clk_m1 */
+	<1 RK_PD5 3 &pcfg_pull_none>,
+	/* fspi1_d0_m1 */
+	<1 RK_PC4 3 &pcfg_pull_none>,
+	/* fspi1_d1_m1 */
+	<1 RK_PC5 3 &pcfg_pull_none>,
+	/* fspi1_d2_m1 */
+	<1 RK_PC6 3 &pcfg_pull_none>,
+	/* fspi1_d3_m1 */
+	<1 RK_PC7 3 &pcfg_pull_none>;
+};
