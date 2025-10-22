@@ -4756,6 +4756,38 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 			desc->bus_flags = bus_flags;
 		}
 	}
+}else if(khadas_mipi_id == 4){
+		if (of_child_node_is_present(np, "display-timings3")) {
+			struct drm_display_mode *mode;
+
+			mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+			if (!mode)
+				return -ENOMEM;
+
+		if (!of_get_drm_display_mode(np, mode, &bus_flags,
+					     OF_USE_NATIVE_MODE)) {
+			desc->modes = mode;
+			desc->num_modes = 1;
+			desc->bus_flags = bus_flags;
+		}
+	} else if (of_child_node_is_present(np, "panel-timing")) {
+		struct display_timing *timing;
+		struct videomode vm;
+
+		timing = devm_kzalloc(dev, sizeof(*timing), GFP_KERNEL);
+		if (!timing)
+			return -ENOMEM;
+
+		if (!of_get_display_timing(np, "panel-timing", timing)) {
+			desc->timings = timing;
+			desc->num_timings = 1;
+
+			bus_flags = 0;
+			vm.flags = timing->flags;
+			drm_bus_flags_from_videomode(&vm, &bus_flags);
+			desc->bus_flags = bus_flags;
+		}
+	}
 }
 else{
 	if (of_child_node_is_present(np, "display-timings")) {
@@ -4809,10 +4841,15 @@ else{
 		printk("new TS050 of_get_display_timings\n");
 		data = of_get_property(np, "panel-init-sequence2", &len);
 	}else if(2 == khadas_mipi_id){
-                printk("new TS101 of_get_display_timings1\n");
+                printk("1200x1920 TS101 of_get_display_timings1\n");
+                data = of_get_property(np, "panel-init-sequence1", &len);
+	}else if(4 == khadas_mipi_id){
+                printk("1200x1920 TS101 of_get_display_timings3\n");
                 data = of_get_property(np, "panel-init-sequence3", &len);
-	}
-	else{//old TS050
+	}else if(5 == khadas_mipi_id){
+                printk("1200x1920 TS101 of_get_display_timings4\n");
+                data = of_get_property(np, "panel-init-sequence4", &len);
+	}else{//old TS050
 		printk("old TS050 of_get_display_timings\n");
 		data = of_get_property(np, "panel-init-sequence", &len);
 	}
