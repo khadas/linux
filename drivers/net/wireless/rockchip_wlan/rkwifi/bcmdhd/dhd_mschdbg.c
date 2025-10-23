@@ -1,7 +1,26 @@
 /*
  * DHD debugability support
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,9 +37,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id: dhd_mschdbg.c 639872 2016-05-25 05:39:30Z $
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #ifdef SHOW_LOGTRACE
 #include <typedefs.h>
@@ -43,11 +60,20 @@ static const char *head_log = "";
 		MSCH_EVENT(("%s_E:  ", head_log)); \
 		if (space > 0) { \
 			int ii; \
-			for (ii = 0; ii < space; ii += 4) MSCH_EVENT(("    ")); \
+			for (ii = 0; ii < space; ii += 4) \
+				MSCH_EVENT(("    ")); \
 		} \
 	} while (0)
 
-#if defined(CUSTOM_PREFIX)
+#ifdef DHD_EFI
+#define MSCH_EVENT(args) \
+do {	\
+	if (dhd_msg_level & DHD_EVENT_VAL) {	\
+		DHD_LOG_DUMP_WRITE_FW("[%s]: ", dhd_log_dump_get_timestamp()); \
+		DHD_LOG_DUMP_WRITE_FW args; \
+	}	\
+} while (0)
+#elif defined(LOG_CUSTOM_PREFIX_AND_RTC) || defined(CUSTOM_PREFIX_NORTCTIME)
 #define MSCH_EVENT(args) \
 do {	\
 	if (dhd_msg_level & DHD_EVENT_VAL) {	\
@@ -56,8 +82,11 @@ do {	\
 	}	\
 } while (0)
 #else
-#define MSCH_EVENT(args) do {if (dhd_msg_level & DHD_EVENT_VAL) printf args;} while (0)
-#endif
+#define MSCH_EVENT(args) do { \
+		if (dhd_msg_level & DHD_EVENT_VAL) \
+			printf args; \
+	} while (0)
+#endif /* DHD_EFI */
 
 static uint64 solt_start_time[4], req_start_time[4], profiler_start_time[4];
 static uint32 solt_chanspec[4] = {0, }, req_start[4] = {0, };
@@ -145,8 +174,7 @@ dhd_mschdbg_req_param_profiler_event_data(int sp, int ver, char *data, uint16 pt
 		char *req_type[] = {"fixed", "start-flexible", "duration-flexible",
 			"both-flexible"};
 		MSCH_EVENT(("%s", req_type[type]));
-	}
-	else
+	} else
 		MSCH_EVENT(("unknown(%d)", type));
 
 	flags = ntoh16(p->flags);
@@ -198,12 +226,12 @@ dhd_mschdbg_timeslot_profiler_event_data(int sp, int ver, char *title, char *dat
 	if (empty) {
 		MSCH_EVENT((" null\n"));
 		return;
-	}
-	else
+	} else
 		MSCH_EVENT(("0x%08x\n", ntoh32(p->p_timeslot)));
 
 	s = (int)(ntoh32(p->state));
-	if (s < 0 || s > 5) s = 0;
+	if (s < 0 || s > 5)
+		s = 0;
 
 	MSCH_EVENT_HEAD(sn);
 	MSCH_EVENT(("id: %d, state[%d]: %s, chan_ctxt: [0x%08x]\n",
@@ -237,8 +265,7 @@ dhd_mschdbg_req_timing_profiler_event_data(int sp, int ver, char *title, char *d
 	if (empty) {
 		MSCH_EVENT((" null\n"));
 		return;
-	}
-	else
+	} else
 		MSCH_EVENT(("0x%08x (prev 0x%08x, next 0x%08x)\n",
 			ntoh32(p->p_req_timing), ntoh32(p->p_prev), ntoh32(p->p_next)));
 
@@ -297,8 +324,7 @@ dhd_mschdbg_chan_ctxt_profiler_event_data(int sp, int ver, char *data, uint16 pt
 	if (empty) {
 		MSCH_EVENT((" null\n"));
 		return;
-	}
-	else
+	} else
 		MSCH_EVENT(("0x%08x (prev 0x%08x, next 0x%08x)\n",
 			ntoh32(p->p_chan_ctxt), ntoh32(p->p_prev), ntoh32(p->p_next)));
 
@@ -306,7 +332,7 @@ dhd_mschdbg_chan_ctxt_profiler_event_data(int sp, int ver, char *data, uint16 pt
 
 	MSCH_EVENT_HEAD(sn);
 	MSCH_EVENT(("channel: %s, bf_sch_pending: %s, bf_skipped: %d\n",
-		wf_chspec_ntoa(c, buf), p->bf_sch_pending? "TRUE" : "FALSE",
+		wf_chspec_ntoa(c, buf), p->bf_sch_pending ? "TRUE" : "FALSE",
 		ntoh32(p->bf_skipped_count)));
 
 	MSCH_EVENT_HEAD(sn);
@@ -342,8 +368,7 @@ dhd_mschdbg_req_entity_profiler_event_data(int sp, int ver, char *data, uint16 p
 	if (empty) {
 		MSCH_EVENT((" null\n"));
 		return;
-	}
-	else
+	} else
 		MSCH_EVENT(("0x%08x (prev 0x%08x, next 0x%08x)\n",
 			ntoh32(p->p_req_entity), ntoh32(p->req_hdl_link_prev),
 			ntoh32(p->req_hdl_link_next)));
@@ -395,8 +420,7 @@ dhd_mschdbg_req_entity_profiler_event_data(int sp, int ver, char *data, uint16 p
 	if (p->p_chan_ctxt && (p->chan_ctxt_ptr == 0)) {
 		MSCH_EVENT_HEAD(sn);
 		MSCH_EVENT(("<chan_ctxt>: 0x%08x\n", ntoh32(p->p_chan_ctxt)));
-	}
-	else
+	} else
 		dhd_mschdbg_chan_ctxt_profiler_event_data(sn, ver, data, p->chan_ctxt_ptr,
 			(p->chan_ctxt_ptr == 0));
 }
@@ -414,8 +438,7 @@ dhd_mschdbg_req_handle_profiler_event_data(int sp, int ver, char *data, uint16 p
 	if (empty) {
 		MSCH_EVENT((" null\n"));
 		return;
-	}
-	else
+	} else
 		MSCH_EVENT(("0x%08x (prev 0x%08x, next 0x%08x)\n",
 			ntoh32(p->p_req_handle), ntoh32(p->p_prev), ntoh32(p->p_next)));
 
@@ -507,7 +530,7 @@ dhd_mschdbg_profiler_profiler_event_data(int sp, int ver, char *data, uint16 ptr
 	if (flags & WL_MSCH_STATE_SCHD_PENDING)
 		MSCH_EVENT(("SCHD_PENDING, "));
 	MSCH_EVENT(("slotskip_flags: %d, cur_armed_timeslot: 0x%08x\n",
-		(ver >= 2)? ntoh32(p->slotskip_flag) : 0, ntoh32(p->cur_armed_timeslot)));
+		(ver >= 2) ? ntoh32(p->slotskip_flag) : 0, ntoh32(p->cur_armed_timeslot)));
 	MSCH_EVENT_HEAD(sp);
 	MSCH_EVENT(("flex_list_cnt: %d, service_interval: %d, "
 		"max_lo_prio_interval: %d\n",
@@ -647,7 +670,7 @@ static void dhd_mschdbg_dump_data(dhd_pub_t *dhdp, void *raw_event_ptr, int type
 			tt = ((uint64)(ntoh32(p->end_time_h)) << 32) | ntoh32(p->end_time_l);
 			MSCH_EVENT(("end %s duration %d\n",
 				dhd_mschdbg_display_time(p->end_time_h, p->end_time_l),
-				(p->end_time_h == 0xffffffff && p->end_time_l == 0xffffffff)?
+				(p->end_time_h == 0xffffffff && p->end_time_l == 0xffffffff) ?
 				-1 : (int)(tt - t)));
 		}
 
@@ -679,7 +702,7 @@ static void dhd_mschdbg_dump_data(dhd_pub_t *dhdp, void *raw_event_ptr, int type
 			if (ntoh16(p->hdr.fmt_num) == DHD_OW_BI_RAW_EVENT_LOG_FMT) {
 				hdr.binary_payload = TRUE;
 			}
-			dhd_dbg_verboselog_printf(dhdp, &hdr, raw_event_ptr, p->data, 0, 0);
+			dhd_dbg_verboselog_printf(dhdp, &hdr, raw_event_ptr, p->data, 0, 0, FALSE);
 		}
 		lastMessages = TRUE;
 		break;
@@ -780,7 +803,7 @@ wl_mschdbg_verboselog_handler(dhd_pub_t *dhdp, void *raw_event_ptr, prcd_event_l
 		if (ntoh16(p->hdr.fmt_num) == DHD_OW_BI_RAW_EVENT_LOG_FMT) {
 			hdr.binary_payload = TRUE;
 		}
-		dhd_dbg_verboselog_printf(dhdp, &hdr, raw_event_ptr, p->data, 0, 0);
+		dhd_dbg_verboselog_printf(dhdp, &hdr, raw_event_ptr, p->data, 0, 0, FALSE);
 	} else {
 		msch_collect_tlv_t *p = (msch_collect_tlv_t *)log_ptr;
 		int type = ntoh16(p->type);

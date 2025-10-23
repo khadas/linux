@@ -9,7 +9,7 @@
 #include <wl_iapsta.h>
 #include <dhd_config.h>
 
-#define ESCAN_BUF_SIZE (64 * 1024)
+#define WL_ESCAN_BUF_SIZE (64 * 1024)
 
 #define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* Scan timeout */
 
@@ -22,12 +22,12 @@ enum escan_state {
 
 typedef struct wl_escan_info {
 	struct net_device *dev;
-	bool scan_params_v2;
+	u8 scan_params_ver;
 	dhd_pub_t *pub;
 	timer_list_compat_t scan_timeout; /* Timer for catch scan event timeout */
 	int escan_state;
 	int ioctl_ver;
-	u8 escan_buf[ESCAN_BUF_SIZE];
+	u8 escan_buf[WL_ESCAN_BUF_SIZE];
 	wl_scan_results_v109_t *bss_list;
 	u8 *escan_ioctl_buf;
 	struct mutex usr_sync; /* maily for up/down synchronization */
@@ -71,6 +71,7 @@ int wl_escan_drv_acs_scan(struct net_device *dev, uint32 band,
 	wl_scan_info_t *scan_info);
 int wl_escan_drv_apcs(struct net_device *dev, uint32 band, wl_scan_info_t *scan_info);
 int wl_escan_set_scan(struct net_device *dev, wl_scan_info_t *scan_info);
+int wl_escan_passive_chan_scan(struct net_device *dev);
 #if defined(WL_WIRELESS_EXT)
 int wl_escan_get_scan(struct net_device *dev,
 	struct iw_request_info *info, struct iw_point *dwrq, char *extra);

@@ -1,7 +1,26 @@
 /*
  * HND OOBR interface header
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -31,16 +50,19 @@
 #define HND_CORE_MAIN_INTR	0
 #define HND_CORE_ALT_INTR	1
 
+typedef enum {
+	HND_OOBR_DUMP_PRINT,
+	HND_OOBR_DUMP_GET_SIZE,
+	HND_OOBR_DUMP_IN_BUF
+} hnd_oobr_dump_op_t;
+
 uint32 hnd_oobr_get_clkpwrreq(si_t *sih, uint coreid);
 uint32 hnd_oobr_get_intstatus(si_t *sih);
 int hnd_oobr_get_intr_config(si_t *sih, uint srccidx, uint srcpidx, uint dstcidx, uint *dstpidx);
+int hnd_oobr_get_intr_config_arm(si_t *sih, uint srccidx, uint srcpidx);
 int hnd_oobr_set_intr_src(si_t *sih, uint dstcidx, uint dstpidx, uint intrnum);
 void hnd_oobr_init(si_t *sih);
-
-#ifdef BCMDBG
-/* dump oobr registers values to console */
-void hnd_oobr_dump(si_t *sih);
-#endif
+uint32 hnd_oobr_dump_op(si_t *sih, uchar *p, hnd_oobr_dump_op_t op);
 
 #define OOBR_INVALID_PORT       0xFFu
 
@@ -57,9 +79,9 @@ void hnd_oobr_dump(si_t *sih);
 #define OOBR_EXT_RSRC_REQ_PERCORE_OFFSET 0x34u
 #define OOBR_EXT_RSRC_OFFSET 0x100u
 #define OOBR_EXT_RSRC_SHIFT 7u
-#define OOBR_EXT_RSRC_REQ_ADDR(oodr_base, core_idx) (uint32)((uintptr)(oodr_base) +\
+#define OOBR_EXT_RSRC_REQ_ADDR(oodr_base, core_idx) ((uint32)((uintptr)(oodr_base) +\
 	 OOBR_EXT_RSRC_OFFSET + ((core_idx) << OOBR_EXT_RSRC_SHIFT) +\
-	 OOBR_EXT_RSRC_REQ_PERCORE_OFFSET)
+	 OOBR_EXT_RSRC_REQ_PERCORE_OFFSET))
 
 typedef volatile struct hndoobr_percore_reg {
 	uint32 sourcesel[OOBR_INTR_PER_CONFREG];        /* 0x00 - 0x0c */
@@ -83,8 +105,9 @@ typedef volatile struct hndoobr_percore_reg {
 #define OOBR_PERCORE_CORENCONFIG_INTOUTPUTS_SHIFT	8u
 
 typedef volatile struct hndoobr_reg {
-	uint32 capability;                      /* 0x00 */
-	uint32 reserved[3];
+	uint32 capability;                      /* 0x00 - 0x03 */
+	uint32 capability2;                     /* 0x04 - 0x07 */
+	uint32 reserved[2];
 	uint32 intstatus[4];                    /* 0x10 - 0x1c */
 	uint32 reserved1[4];                    /* 0x20 - 0x2c */
 	uint32 topintdestsel[4];                /* 0x30 - 0x3c */
@@ -92,5 +115,10 @@ typedef volatile struct hndoobr_reg {
 	uint32 reserved2[44];                   /* 0x50 - 0xfc */
 	hndoobr_percore_reg_t percore_reg[1];   /* 0x100 */
 } hndoobr_reg_t;
+
+/*
+ * Top2 OOBR Resource
+ */
+#define PTM_CLKREQ_PMU_RSRC		15
 
 #endif /* _hndoobr_h_ */

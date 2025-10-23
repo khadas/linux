@@ -1,7 +1,26 @@
 /*
  * DHD debug ring API and structures - implementation
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,19 +37,17 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #include <typedefs.h>
 #include <osl.h>
 #include <bcmutils.h>
+#include <bcmstdlib_s.h>
 #include <bcmendian.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_dbg.h>
 #include <dhd_dbg_ring.h>
-#include <dhd_debug.h>
 
 dhd_dbg_ring_t *
 dhd_dbg_ring_alloc_init(dhd_pub_t *dhd, uint16 ring_id,
@@ -148,7 +165,7 @@ dhd_dbg_ring_deinit(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring)
 	ring->id = 0;
 	ring->name[0] = 0;
 	ring->wp = ring->rp = 0;
-	memset(&ring->stat, 0, sizeof(ring->stat));
+	bzero(&ring->stat, sizeof(ring->stat));
 	ring->threshold = 0;
 	ring->state = RING_STOP;
 	DHD_DBG_RING_UNLOCK(ring->lock, flags);
@@ -293,7 +310,7 @@ dhd_dbg_ring_push(dhd_dbg_ring_t *ring, dhd_dbg_ring_entry_t *hdr, void *data)
 					w_len));
 
 				/* 0 pad insufficient tail space */
-				memset((uint8 *)ring->ring_buf + ring->wp, 0, ring->rem_len);
+				bzero((uint8 *)ring->ring_buf + ring->wp, ring->rem_len);
 				/* If read pointer is still at the beginning, make some room */
 				if (ring->rp == 0) {
 					r_entry = (dhd_dbg_ring_entry_t *)((uint8 *)ring->ring_buf +
@@ -556,6 +573,6 @@ dhd_dbg_ring_start(dhd_dbg_ring_t *ring)
 	ring->log_level = 0;
 	ring->rp = ring->wp = 0;
 	ring->threshold = 0;
-	memset(&ring->stat, 0, sizeof(struct ring_statistics));
-	memset(ring->ring_buf, 0, ring->ring_size);
+	bzero(&ring->stat, sizeof(struct ring_statistics));
+	bzero(ring->ring_buf, ring->ring_size);
 }

@@ -1,12 +1,14 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/skbuff.h>
+#include <linux/vmalloc.h>
 
-#define	DHD_STATIC_VERSION_STR		"101.10.361.36 (wlan=r892223-20231107-1)"
+#define	DHD_STATIC_VERSION_STR		"103.20.25.15(20250903-1)"
 #define STATIC_ERROR_LEVEL	BIT(0)
 #define STATIC_TRACE_LEVEL	BIT(1)
 #define STATIC_MSG_LEVEL	BIT(0)
@@ -47,9 +49,22 @@ do { \
 //#define BCMDHD_UNUSE_MEM
 #endif
 
+#ifndef BCMDHD_MDRIVER
+//#define BCMDHD_MDRIVER
+#endif
+
 #ifndef MAX_NUM_ADAPTERS
 #define MAX_NUM_ADAPTERS	1
 #endif
+
+#define BUF_KMALLOC(size)	kmalloc(size, GFP_KERNEL)
+#define BUF_KFREE(addr)		kfree(addr)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
+#define BUF_KVMALLOC(size)	vmalloc(size)
+#else
+#define BUF_KVMALLOC(size)	kvmalloc(size, GFP_KERNEL)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) */
+#define BUF_KVFREE(addr)	kvfree(addr)
 
 enum dhd_prealloc_index {
 	DHD_PREALLOC_PROT = 0,
@@ -84,10 +99,10 @@ enum dhd_prealloc_index {
 	DHD_PREALLOC_DHD_PKTLOG_DUMP_BUF = 17,
 	DHD_PREALLOC_STAT_REPORT_BUF = 18,
 	DHD_PREALLOC_WL_ESCAN = 19,
+#if defined(BCMDHD_UNUSE_MEM)
 	DHD_PREALLOC_FW_VERBOSE_RING = 20,
 	DHD_PREALLOC_FW_EVENT_RING = 21,
 	DHD_PREALLOC_DHD_EVENT_RING = 22,
-#if defined(BCMDHD_UNUSE_MEM)
 	DHD_PREALLOC_NAN_EVENT_RING = 23,
 #endif /* BCMDHD_UNUSE_MEM */
 	DHD_PREALLOC_MAX
@@ -106,8 +121,9 @@ enum dhd_prealloc_index {
 #define DHD_PREALLOC_DATABUF_SIZE	(64 * 1024)
 #define DHD_PREALLOC_OSL_BUF_SIZE	(STATIC_BUF_MAX_NUM * STATIC_BUF_SIZE)
 #define DHD_PREALLOC_WIPHY_ESCAN0_SIZE	(64 * 1024)
-#define DHD_PREALLOC_DHD_INFO_SIZE	(46 * 1024)
-#define DHD_PREALLOC_MEMDUMP_RAM_SIZE	(1600 * 1024)
+#define DHD_PREALLOC_WIPHY_ESCAN1_SIZE	(64 * 1024)
+#define DHD_PREALLOC_DHD_INFO_SIZE	(72 * 1024)
+#define DHD_PREALLOC_MEMDUMP_RAM_SIZE	(2535 * 1024)
 #define DHD_PREALLOC_DHD_WLFC_HANGER_SIZE	(73 * 1024)
 #ifdef DHD_USE_STATIC_MEMDUMP
 #define DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE \
@@ -134,7 +150,6 @@ enum dhd_prealloc_index {
 #define WLAN_DHD_WLFC_BUF_SIZE	(64 * 1024)
 #define WLAN_DHD_IF_FLOW_LKUP_SIZE	(20 * 1024)
 #endif /* CONFIG_64BIT */
-#define WLAN_DHD_MEMDUMP_SIZE	(800 * 1024)
 
 #define DHD_SKB_1PAGE_BUFSIZE	(PAGE_SIZE * 1)
 #define DHD_SKB_2PAGE_BUFSIZE	(PAGE_SIZE * 2)
@@ -175,10 +190,12 @@ void *wlan_static_dhd_log_dump_buf[MAX_NUM_ADAPTERS] = {};
 void *wlan_static_dhd_log_dump_buf_ex[MAX_NUM_ADAPTERS] = {};
 #endif /* DHD_USE_STATIC_MEMDUMP */
 void *wlan_static_wl_escan_info_buf[MAX_NUM_ADAPTERS] = {};
+#ifdef BCMDHD_UNUSE_MEM
 void *wlan_static_fw_verbose_ring_buf[MAX_NUM_ADAPTERS] = {};
 void *wlan_static_fw_event_ring_buf[MAX_NUM_ADAPTERS] = {};
 void *wlan_static_dhd_event_ring_buf[MAX_NUM_ADAPTERS] = {};
 void *wlan_static_nan_event_ring_buf[MAX_NUM_ADAPTERS] = {};
+#endif /* BCMDHD_UNUSE_MEM */
 
 #if defined(BCMSDIO) || defined(BCMPCIE)
 static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM] = {};
@@ -307,6 +324,7 @@ dhd_wlan_mem_prealloc(
 		}
 		return wlan_static_wl_escan_info_buf[index];
 	}
+#ifdef BCMDHD_UNUSE_MEM
 	if (section == DHD_PREALLOC_FW_VERBOSE_RING) {
 		if (size > FW_VERBOSE_RING_SIZE) {
 			DHD_STATIC_ERROR("request DHD_PREALLOC_FW_VERBOSE_RING(%lu) > %d\n",
@@ -331,7 +349,6 @@ dhd_wlan_mem_prealloc(
 		}
 		return wlan_static_dhd_event_ring_buf[index];
 	}
-#if defined(BCMDHD_UNUSE_MEM)
 	if (section == DHD_PREALLOC_NAN_EVENT_RING) {
 		if (size > NAN_EVENT_RING_SIZE) {
 			DHD_STATIC_ERROR("request DHD_PREALLOC_NAN_EVENT_RING(%lu) > %d\n",
@@ -363,54 +380,54 @@ dhd_deinit_wlan_mem(int index)
 #endif /* BCMSDIO | BCMPCIE */
 
 	if (wlan_static_prot[index])
-		kfree(wlan_static_prot[index]);
+		BUF_KFREE(wlan_static_prot[index]);
 #if defined(BCMSDIO)
 	if (wlan_static_rxbuf[index])
-		kfree(wlan_static_rxbuf[index]);
+		BUF_KFREE(wlan_static_rxbuf[index]);
 	if (wlan_static_databuf[index])
-		kfree(wlan_static_databuf[index]);
+		BUF_KFREE(wlan_static_databuf[index]);
 #endif /* BCMSDIO */
 	if (wlan_static_osl_buf[index])
-		kfree(wlan_static_osl_buf[index]);
+		BUF_KFREE(wlan_static_osl_buf[index]);
 	if (wlan_static_scan_buf0[index])
-		kfree(wlan_static_scan_buf0[index]);
+		BUF_KVFREE(wlan_static_scan_buf0[index]);
 	if (wlan_static_scan_buf1[index])
-		kfree(wlan_static_scan_buf1[index]);
+		BUF_KVFREE(wlan_static_scan_buf1[index]);
 	if (wlan_static_dhd_info_buf[index])
-		kfree(wlan_static_dhd_info_buf[index]);
+		BUF_KFREE(wlan_static_dhd_info_buf[index]);
 #if defined(BCMSDIO) || defined(BCMDBUS)
 	if (wlan_static_dhd_wlfc_info_buf[index])
-		kfree(wlan_static_dhd_wlfc_info_buf[index]);
+		BUF_KFREE(wlan_static_dhd_wlfc_info_buf[index]);
 #endif /* BCMSDIO | BCMDBUS */
 #ifdef BCMPCIE
 	if (wlan_static_if_flow_lkup[index])
-		kfree(wlan_static_if_flow_lkup[index]);
+		BUF_KFREE(wlan_static_if_flow_lkup[index]);
 #endif /* BCMPCIE */
 #if defined(DHD_USE_STATIC_MEMDUMP) || defined(BCMDBUS)
 	if (wlan_static_dhd_memdump_ram_buf[index])
-		kfree(wlan_static_dhd_memdump_ram_buf[index]);
+		BUF_KVFREE(wlan_static_dhd_memdump_ram_buf[index]);
 #endif /* DHD_USE_STATIC_MEMDUMP | BCMDBUS */
 #if defined(BCMSDIO) || defined(BCMDBUS)
 	if (wlan_static_dhd_wlfc_hanger_buf[index])
-		kfree(wlan_static_dhd_wlfc_hanger_buf[index]);
+		BUF_KFREE(wlan_static_dhd_wlfc_hanger_buf[index]);
 #endif /* BCMSDIO | BCMDBUS */
 #ifdef DHD_USE_STATIC_MEMDUMP
 	if (wlan_static_dhd_log_dump_buf[index])
-		kfree(wlan_static_dhd_log_dump_buf[index]);
+		BUF_KVFREE(wlan_static_dhd_log_dump_buf[index]);
 	if (wlan_static_dhd_log_dump_buf_ex[index])
-		kfree(wlan_static_dhd_log_dump_buf_ex[index]);
+		BUF_KVFREE(wlan_static_dhd_log_dump_buf_ex[index]);
 #endif /* DHD_USE_STATIC_MEMDUMP */
 	if (wlan_static_wl_escan_info_buf[index])
-		kfree(wlan_static_wl_escan_info_buf[index]);
+		BUF_KVFREE(wlan_static_wl_escan_info_buf[index]);
+#ifdef BCMDHD_UNUSE_MEM
 	if (wlan_static_fw_verbose_ring_buf[index])
-		kfree(wlan_static_fw_verbose_ring_buf[index]);
+		BUF_KFREE(wlan_static_fw_verbose_ring_buf[index]);
 	if (wlan_static_fw_event_ring_buf[index])
-		kfree(wlan_static_fw_event_ring_buf[index]);
+		BUF_KFREE(wlan_static_fw_event_ring_buf[index]);
 	if (wlan_static_dhd_event_ring_buf[index])
-		kfree(wlan_static_dhd_event_ring_buf[index]);
-#if defined(BCMDHD_UNUSE_MEM)
+		BUF_KFREE(wlan_static_dhd_event_ring_buf[index]);
 	if (wlan_static_nan_event_ring_buf[index])
-		kfree(wlan_static_nan_event_ring_buf[index]);
+		BUF_KFREE(wlan_static_nan_event_ring_buf[index]);
 #endif /* BCMDHD_UNUSE_MEM */
 
 #if defined(BCMSDIO) || defined(BCMPCIE)
@@ -463,7 +480,7 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_SKB_BUF, i, DHD_SKB_4PAGE_BUFSIZE);
 #endif /* BCMSDIO */
 
-	wlan_static_prot[index] = kmalloc(DHD_PREALLOC_PROT_SIZE, GFP_KERNEL);
+	wlan_static_prot[index] = BUF_KMALLOC(DHD_PREALLOC_PROT_SIZE);
 	if (!wlan_static_prot[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_PROT_SIZE;
@@ -471,14 +488,14 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_PROT, DHD_PREALLOC_PROT_SIZE);
 
 #if defined(BCMSDIO)
-	wlan_static_rxbuf[index] = kmalloc(DHD_PREALLOC_RXBUF_SIZE, GFP_KERNEL);
+	wlan_static_rxbuf[index] = BUF_KMALLOC(DHD_PREALLOC_RXBUF_SIZE);
 	if (!wlan_static_rxbuf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_RXBUF_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_RXBUF, DHD_PREALLOC_RXBUF_SIZE);
 
-	wlan_static_databuf[index] = kmalloc(DHD_PREALLOC_DATABUF_SIZE, GFP_KERNEL);
+	wlan_static_databuf[index] = BUF_KMALLOC(DHD_PREALLOC_DATABUF_SIZE);
 	if (!wlan_static_databuf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_DATABUF_SIZE;
@@ -486,21 +503,28 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_DATABUF, DHD_PREALLOC_DATABUF_SIZE);
 #endif /* BCMSDIO */
 
-	wlan_static_osl_buf[index] = kmalloc(DHD_PREALLOC_OSL_BUF_SIZE, GFP_KERNEL);
+	wlan_static_osl_buf[index] = BUF_KMALLOC(DHD_PREALLOC_OSL_BUF_SIZE);
 	if (!wlan_static_osl_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_OSL_BUF_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%ld\n",
 		DHD_PREALLOC_OSL_BUF, DHD_PREALLOC_OSL_BUF_SIZE);
 
-	wlan_static_scan_buf0[index] = kmalloc(DHD_PREALLOC_WIPHY_ESCAN0_SIZE, GFP_KERNEL);
+	wlan_static_scan_buf0[index] = BUF_KVMALLOC(DHD_PREALLOC_WIPHY_ESCAN0_SIZE);
 	if (!wlan_static_scan_buf0[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_WIPHY_ESCAN0_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_WIPHY_ESCAN0, DHD_PREALLOC_WIPHY_ESCAN0_SIZE);
 
-	wlan_static_dhd_info_buf[index] = kmalloc(DHD_PREALLOC_DHD_INFO_SIZE, GFP_KERNEL);
+	wlan_static_scan_buf1[index] = BUF_KVMALLOC(DHD_PREALLOC_WIPHY_ESCAN1_SIZE);
+	if (!wlan_static_scan_buf1[index])
+		goto err_mem_alloc;
+	size += DHD_PREALLOC_WIPHY_ESCAN1_SIZE;
+	DHD_STATIC_TRACE("section %d, size=%d\n",
+		DHD_PREALLOC_WIPHY_ESCAN1, DHD_PREALLOC_WIPHY_ESCAN1_SIZE);
+
+	wlan_static_dhd_info_buf[index] = BUF_KMALLOC(DHD_PREALLOC_DHD_INFO_SIZE);
 	if (!wlan_static_dhd_info_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_DHD_INFO_SIZE;
@@ -508,7 +532,7 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_DHD_INFO, DHD_PREALLOC_DHD_INFO_SIZE);
 
 #if defined(BCMSDIO) || defined(BCMDBUS)
-	wlan_static_dhd_wlfc_info_buf[index] = kmalloc(WLAN_DHD_WLFC_BUF_SIZE, GFP_KERNEL);
+	wlan_static_dhd_wlfc_info_buf[index] = BUF_KMALLOC(WLAN_DHD_WLFC_BUF_SIZE);
 	if (!wlan_static_dhd_wlfc_info_buf[index])
 		goto err_mem_alloc;
 	size += WLAN_DHD_WLFC_BUF_SIZE;
@@ -517,7 +541,7 @@ dhd_init_wlan_mem(int index)
 #endif /* BCMSDIO | BCMDBUS */
 
 #ifdef BCMPCIE
-	wlan_static_if_flow_lkup[index] = kmalloc(DHD_PREALLOC_IF_FLOW_LKUP_SIZE, GFP_KERNEL);
+	wlan_static_if_flow_lkup[index] = BUF_KMALLOC(DHD_PREALLOC_IF_FLOW_LKUP_SIZE);
 	if (!wlan_static_if_flow_lkup[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_IF_FLOW_LKUP_SIZE;
@@ -526,7 +550,7 @@ dhd_init_wlan_mem(int index)
 #endif /* BCMPCIE */
 
 #if defined(DHD_USE_STATIC_MEMDUMP) || defined(BCMDBUS)
-	wlan_static_dhd_memdump_ram_buf[index] = kmalloc(DHD_PREALLOC_MEMDUMP_RAM_SIZE, GFP_KERNEL);
+	wlan_static_dhd_memdump_ram_buf[index] = BUF_KVMALLOC(DHD_PREALLOC_MEMDUMP_RAM_SIZE);
 	if (!wlan_static_dhd_memdump_ram_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_MEMDUMP_RAM_SIZE;
@@ -535,7 +559,7 @@ dhd_init_wlan_mem(int index)
 #endif /* DHD_USE_STATIC_MEMDUMP | BCMDBUS */
 
 #if defined(BCMSDIO) || defined(BCMDBUS)
-	wlan_static_dhd_wlfc_hanger_buf[index] = kmalloc(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE, GFP_KERNEL);
+	wlan_static_dhd_wlfc_hanger_buf[index] = BUF_KMALLOC(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE);
 	if (!wlan_static_dhd_wlfc_hanger_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_DHD_WLFC_HANGER_SIZE;
@@ -544,14 +568,14 @@ dhd_init_wlan_mem(int index)
 #endif /* BCMSDIO | BCMDBUS */
 
 #ifdef DHD_USE_STATIC_MEMDUMP
-	wlan_static_dhd_log_dump_buf[index] = kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE, GFP_KERNEL);
+	wlan_static_dhd_log_dump_buf[index] = BUF_KVMALLOC(DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE);
 	if (!wlan_static_dhd_log_dump_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_DHD_LOG_DUMP_BUF, DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE);
 
-	wlan_static_dhd_log_dump_buf_ex[index] = kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE, GFP_KERNEL);
+	wlan_static_dhd_log_dump_buf_ex[index] = BUF_KVMALLOC(DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE);
 	if (!wlan_static_dhd_log_dump_buf_ex[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE;
@@ -559,36 +583,36 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX, DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE);
 #endif /* DHD_USE_STATIC_MEMDUMP */
 
-	wlan_static_wl_escan_info_buf[index] = kmalloc(DHD_PREALLOC_WL_ESCAN_SIZE, GFP_KERNEL);
+	wlan_static_wl_escan_info_buf[index] = BUF_KVMALLOC(DHD_PREALLOC_WL_ESCAN_SIZE);
 	if (!wlan_static_wl_escan_info_buf[index])
 		goto err_mem_alloc;
 	size += DHD_PREALLOC_WL_ESCAN_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_WL_ESCAN, DHD_PREALLOC_WL_ESCAN_SIZE);
 
-	wlan_static_fw_verbose_ring_buf[index] = kmalloc(FW_VERBOSE_RING_SIZE, GFP_KERNEL);
+#ifdef BCMDHD_UNUSE_MEM
+	wlan_static_fw_verbose_ring_buf[index] = BUF_KMALLOC(FW_VERBOSE_RING_SIZE);
 	if (!wlan_static_fw_verbose_ring_buf[index])
 		goto err_mem_alloc;
 	size += FW_VERBOSE_RING_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_FW_VERBOSE_RING, FW_VERBOSE_RING_SIZE);
 
-	wlan_static_fw_event_ring_buf[index] = kmalloc(FW_EVENT_RING_SIZE, GFP_KERNEL);
+	wlan_static_fw_event_ring_buf[index] = BUF_KMALLOC(FW_EVENT_RING_SIZE);
 	if (!wlan_static_fw_event_ring_buf[index])
 		goto err_mem_alloc;
 	size += FW_EVENT_RING_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_FW_EVENT_RING, FW_EVENT_RING_SIZE);
 
-	wlan_static_dhd_event_ring_buf[index] = kmalloc(DHD_EVENT_RING_SIZE, GFP_KERNEL);
+	wlan_static_dhd_event_ring_buf[index] = BUF_KMALLOC(DHD_EVENT_RING_SIZE);
 	if (!wlan_static_dhd_event_ring_buf[index])
 		goto err_mem_alloc;
 	size += DHD_EVENT_RING_SIZE;
 	DHD_STATIC_TRACE("section %d, size=%d\n",
 		DHD_PREALLOC_DHD_EVENT_RING, DHD_EVENT_RING_SIZE);
 
-#if defined(BCMDHD_UNUSE_MEM)
-	wlan_static_nan_event_ring_buf[index] = kmalloc(NAN_EVENT_RING_SIZE, GFP_KERNEL);
+	wlan_static_nan_event_ring_buf[index] = BUF_KMALLOC(NAN_EVENT_RING_SIZE);
 	if (!wlan_static_nan_event_ring_buf[index])
 		goto err_mem_alloc;
 	size += NAN_EVENT_RING_SIZE;
@@ -614,7 +638,13 @@ dhd_static_buf_init(void)
 {
 	int i, ret = 0;
 
-	DHD_STATIC_MSG("%s\n", DHD_STATIC_VERSION_STR);
+	DHD_STATIC_MSG("%s (%s)\n", DHD_STATIC_VERSION_STR,
+#ifdef CONFIG_64BIT
+		"64bits"
+#else
+		"32bits"
+#endif
+	);
 
 	for (i = 0; i < MAX_NUM_ADAPTERS; i++) {
 		ret = dhd_init_wlan_mem(i);

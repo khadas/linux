@@ -1,7 +1,26 @@
 /*
  * OS Abstraction Layer
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,13 +45,19 @@
 
 #include <osl_decl.h>
 
+#ifdef WL_UNITTEST
+#include <assert.h>
+#endif /* WL_UNITTEST */
+
 enum {
 	TAIL_BYTES_TYPE_FCS = 1,
 	TAIL_BYTES_TYPE_ICV = 2,
 	TAIL_BYTES_TYPE_MIC = 3
 };
 
-#if defined(MACOSX)
+#ifdef DHD_EFI
+#define OSL_PKTTAG_SZ	40 /* Size of PktTag */
+#elif defined(MACOSX)
 #define OSL_PKTTAG_SZ	56
 #elif defined(__linux__)
 #define OSL_PKTTAG_SZ   48 /* standard linux pkttag size is 48 bytes */
@@ -40,7 +65,7 @@ enum {
 #ifndef OSL_PKTTAG_SZ
 #define OSL_PKTTAG_SZ	32 /* Size of PktTag */
 #endif /* !OSL_PKTTAG_SZ */
-#endif
+#endif /* DHD_EFI */
 
 /* Drivers use PKTFREESETCB to register a callback function when a packet is freed by OSL */
 typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
@@ -73,9 +98,8 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
 #define PKTDBG_TRACE(osh, pkt, bit)	BCM_REFERENCE(osh)
 #endif
 
-#ifndef BCM_UPTIME_PROFILE
+/* DEPRECATED! */
 #define OSL_GETCYCLES_PROF(x)
-#endif
 
 /* --------------------------------------------------------------------------
 ** Register manipulation macros.
@@ -103,11 +127,11 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
  * @param  val     Value to and into the register at the address.
  * @return         The value in the register at the provided address after the optional write.
  */
-#define RMWR_REG(addr, mask, val) ({ \
+#define RMWR_REG(addr, mask, val) BCM_EXTENSION ({ \
 	if ((mask != 0) || (val != 0)) { \
-		SET_REG(NULL, (uint32 *)(addr), (mask), (val)); \
+		SET_REG(NULL, (uint32 *)(uintptr)(addr), (mask), (val)); \
 	} \
-	R_REG(NULL, (uint32 *)(addr)); \
+	R_REG(NULL, (uint32 *)(uintptr)(addr)); \
 })
 
 #if !defined(OSL_SYSUPTIME)
@@ -164,7 +188,9 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
  * we otherwise would have halted.
  */
 #define OSL_SYS_HALT()   __coverity_panic__()
-#else /* __COVERITY__ */
+#elif defined(WL_UNITTEST)
+#define OSL_SYS_HALT()	assert(0)
+#else
 #define OSL_SYS_HALT()	do {} while (0)
 #endif /* __COVERITY__ */
 #endif /* OSL_SYS_HALT */
@@ -322,6 +348,17 @@ do { \
 #define PKTRESETTXALFRAG(osh, lb)	BCM_REFERENCE(osh)
 #endif
 
+/* RX ALFRAG */
+#ifndef PKT_IS_RX_ALFRAG
+#define PKT_IS_RX_ALFRAG(osh, lb)	(0)
+#endif
+#ifndef PKT_SET_RX_ALFRAG
+#define PKT_SET_RX_ALFRAG(osh, lb)	(BCM_REFERENCE(osh))
+#endif
+#ifndef PKT_RESET_RX_ALFRAG
+#define PKT_RESET_RX_ALFRAG(osh, lb)	(BCM_REFERENCE(osh))
+#endif
+
 #ifndef PKTNUMMPDUS
 #define PKTNUMMPDUS(osh, lb)		(1)
 #endif
@@ -408,6 +445,14 @@ do { \
 #define PKTRESETUDR(osh, lb)			BCM_REFERENCE(osh)
 #endif
 
+#ifndef PKTGETNMSDU_AMSDU
+#define PKTGETNMSDU_AMSDU(osh, p)		0
+#endif
+
+#ifndef PKTSETNMSDU_AMSDU
+#define PKTSETNMSDU_AMSDU(osh, lb, _nmsdu)	BCM_REFERENCE(osh)
+#endif
+
 #if !defined(__linux__)
 #define PKTLIST_INIT(x)			BCM_REFERENCE(x)
 #define PKTLIST_ENQ(x, y)		BCM_REFERENCE(x)
@@ -445,11 +490,11 @@ do { \
 #endif /* !MFREE_PERSIST */
 
 #ifndef MALLOC_SET_NOPERSIST
-	#define MALLOC_SET_NOPERSIST(osh)	do { } while (0)
+	#define MALLOC_SET_NOPERSIST(osh)	{BCM_REFERENCE(osh);do { } while (0);}
 #endif /* !MALLOC_SET_NOPERSIST */
 
 #ifndef MALLOC_CLEAR_NOPERSIST
-	#define MALLOC_CLEAR_NOPERSIST(osh)	do { } while (0)
+	#define MALLOC_CLEAR_NOPERSIST(osh)	{BCM_REFERENCE(osh);do { } while (0);}
 #endif /* !MALLOC_CLEAR_NOPERSIST */
 
 #if defined(OSL_MEMCHECK)
@@ -475,6 +520,9 @@ do { \
 #if !defined(OSL_PHYS_TO_VIRT_ADDR)
 	#define OSL_PHYS_TO_VIRT_ADDR(pa)	((void*)(uintptr)(pa))
 #endif
+#if !defined(FREEBSD) && !defined(MACOSX) && !defined(BCM_USE_PLATFORM_STRLCPY)
+extern size_t strlcpy(char *dest, const char *src, size_t size);
+#endif /* !defined(FREEBSD) && !defined(MACOSX) && !defined(BCM_USE_PLATFORM_STRLCPY) */
 
 #ifndef DBG_PKTLEAK
 #define PKTSETQCALLER(lb, queue, caller_addr)
@@ -483,20 +531,29 @@ do { \
 
 /* Memory breakup capturing macros */
 #ifdef BCMDBG_MEM_BREAKUP
+extern uint32 g_mb_depth;
 #define MB_START(var) \
-		uint mb_memuse_before_##var = MALLOCED(NULL)
+		uint mb_memuse_before_##var = MALLOCED(NULL); g_mb_depth++
 
-#define MB_END(var, fmt, ...) \
+/* The variable argument list includes 'fmt' as the first param. This ensures that there is at least
+ * one argument in '...', as required by (pre-C23) ISO C for variadic macros.
+ */
+#define MB_END(var, ...) \
 		do { \
 			uint mb_memuse_##var = MALLOCED(NULL) - mb_memuse_before_##var; \
+			g_mb_depth--; \
 			if (mb_memuse_##var) { \
-				printf("[MB] " fmt, ##__VA_ARGS__); \
-				printf(" %d\n", mb_memuse_##var); \
+				printf("[MB] "); \
+				for (uint _i = 0; _i < g_mb_depth; _i++) { \
+					printf("-"); \
+				} \
+				printf(__VA_ARGS__); \
+				printf(" %d, %d\n", mb_memuse_##var, MALLOCED(NULL)); \
 			} \
 		} while (0)
 #else
 #define MB_START(var)
-#define MB_END(var, fmt, ...)
+#define MB_END(var, ...)
 #endif /* BCMDBG_MEM_BREAKUP */
 
 /* ASSERT NULL check should not be enabled for ROM build */
@@ -527,4 +584,49 @@ do { \
 #define MFREE_PERSIST MFREE
 #endif /* DONGLEBUILD && !BCM_MEM_PERSIST_ENABLE */
 
+#ifndef PKTISRXHWPKTID_CHAINED
+#define PKTISRXHWPKTID_CHAINED(osh, lb)		{BCM_REFERENCE(osh); BCM_BCM_REFERENCE(lb); FALSE}
+#endif /* PKTISRXHWPKTID_CHAINED */
+
+#ifndef PKTSETRXHWPKTID_CHAINED
+#define PKTSETRXHWPKTID_CHAINED(osh, lb)	(BCM_REFERENCE(osh), BCM_REFERENCE(lb))
+#endif /* PKTSETRXHWPKTID_CHAINED */
+
+#ifndef PKTRESETRXHWPKTID_CHAINED
+#define PKTRESETRXHWPKTID_CHAINED(osh, lb)	(BCM_REFERENCE(osh), BCM_REFERENCE(lb))
+#endif /* PKTRESETRXHWPKTID_CHAINED */
+
+#define OSL_ALLOC_FATAL_LOGBUF(osh) \
+	(osl_alloc_fatal_logbuf(osh))
+#define OSL_DEALLOC_FATAL_LOGBUF(osh) \
+	(osl_dealloc_fatal_logbuf(osh))
+#define OSL_GET_FATAL_LOGBUF_SIZE(osh) \
+	(osl_get_fatal_logbuf_size(osh))
+#define OSL_GET_FATAL_LOGBUF_ADDR(osh) \
+		(osl_get_fatal_logbuf_addr(osh))
+#define OSL_GET_FATAL_LOGBUF(osh, size, alloced)	\
+	(osl_get_fatal_logbuf((osh), (size), (alloced)))
+#define OSL_GET_FATAL_LOGBUF_END(osh, size, alloced)	\
+	(osl_get_fatal_logbuf_end(osh, size, alloced))
+
+#define OSL_TIMER_CREATE(osh, name, fn, arg) \
+	(osl_timer_create(osh, name, fn, arg))
+#define OSL_TIMER_INIT(osh, name, fn, arg) \
+	(osl_timer_init(osh, name, fn, arg))
+#define OSL_TIMER_ADD(osh, t, ms, periodic) \
+	(osl_timer_add(osh, t, ms, periodic))
+#define OSL_TIMER_DEL(osh, t) \
+	(osl_timer_del(osh, t))
+#define OSL_TIMER_FREE(osh, t) \
+	(osl_timer_free(osh, t))
+#define OSL_TIMER_GET_CTX(t) \
+	(osl_timer_get_ctx((t)))
+
+#ifndef OSH_STACK_CTX_SZ
+#define OSH_STACK_CTX_SZ 0u
+uint osl_ctx_push(osl_t *osh, void *ptr);
+void osl_ctx_pop(osl_t *osh, uint flag);
+uint osl_ctx_copy(osl_t *osh, uintptr *out, uint sz);
+void osl_ctx_enab(osl_t *osh);
+#endif /* OSH_STACK_CTX_SZ */
 #endif	/* _osl_h_ */

@@ -2,7 +2,26 @@
  * Fundamental types and constants relating to WFA NAN
  * (Neighbor Awareness Networking)
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -64,6 +83,8 @@
 #define NAN_PUB_ACT_FRAME_HDR_SIZE (OFFSETOF(nan_pub_act_frame_t, data))
 /* NAN network ID */
 #define NAN_NETWORK_ID		"\x51\x6F\x9A\x01\x00\x00"
+/* NAN Cluster ID common bytes length */
+#define NAN_CLUSTER_ID_CMN_LEN      (WFA_OUI_LEN + 1u)
 /* Service Control Type length */
 #define NAN_SVC_CONTROL_TYPE_LEN	2
 /* Binding Bitmap length */
@@ -114,9 +135,18 @@
 #define NAN_SLOT_DUR_8192TU	8192
 
 #define NAN_SOC_CHAN_2G		6	/* NAN 2.4G discovery channel */
-#define NAN_SOC_CHAN_5G_CH149	149	/* NAN 5G discovery channel if upper band allowed */
 #define NAN_SOC_CHAN_5G_CH44	44	/* NAN 5G discovery channel if only lower band allowed */
 
+#ifdef BCMQT
+/* for fpga testing  ch:149 may not be enabled, use ch:36 for fpga testing
+ *  this can be configured from chip make file
+ */
+#ifndef NAN_SOC_CHAN_5G_CH149
+#define NAN_SOC_CHAN_5G_CH149 36
+#endif /* NAN_SOC_CHAN_5G_CH149 */
+#else
+#define NAN_SOC_CHAN_5G_CH149	149	/* NAN 5G discovery channel if upper band allowed */
+#endif /* BCMQT */
 /* size of ndc id */
 #define NAN_DATA_NDC_ID_SIZE 6
 
@@ -247,7 +277,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_cluster_attr_s {
 typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_svc_id_attr_s {
 	uint8	id;
 	uint16	len;
-	uint8	svcid[0]; /* 6*len of srvc IDs */
+	uint8	svcid[]; /* 6*len of srvc IDs */
 } BWL_POST_PACKED_STRUCT wifi_nan_svc_id_attr_t;
 
 /* service_control bitmap for wifi_nan_svc_descriptor_attr_t below */
@@ -283,6 +313,17 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_svc_descriptor_attr_s {
 	uint8 svc_control;
 	/* Optional fields follow */
 } BWL_POST_PACKED_STRUCT wifi_nan_svc_descriptor_attr_t;
+
+#define NAN_SVC_INFO_TYPE_RSVD		0u
+#define NAN_SVC_INFO_TYPE_BONJOUR	1u
+#define NAN_SVC_INFO_TYPE_GENERIC	2u
+
+/* Service info field */
+typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_svc_info_field_s {
+	uint8 oui[DOT11_OUI_LEN];	/* 0x50-6F-9A */
+	uint8 svc_protocol;
+	uint8 svc_spec_info[];
+} BWL_POST_PACKED_STRUCT wifi_nan_svc_info_field_t;
 
 /* IBSS attribute */
 typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_ibss_attr_s {
@@ -357,7 +398,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_avail_entry_s {
 typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_vendor_attr_s {
 	uint8	id;			/* 0xDD */
 	uint16	len;			/* IE length */
-	uint8	oui[DOT11_OUI_LEN]; 	/* 00-90-4C */
+	uint8	oui[DOT11_OUI_LEN];	/* 00-90-4C */
 	uint8	type;			/* attribute type */
 	uint8	attr[BCM_FLEX_ARRAY];	/* var len attributes */
 } BWL_POST_PACKED_STRUCT wifi_nan_vendor_attr_t;
@@ -566,6 +607,34 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_conn_cap_attr_s {
 	uint16	conn_cap_bmp;	/* Connection capability bitmap */
 } BWL_POST_PACKED_STRUCT wifi_nan_conn_cap_attr_t;
 
+/* non-NAN operating channel information field */
+typedef BWL_PRE_PACKED_STRUCT struct wifi_non_nan_op_chan_info_field_s {
+	uint8 opclass;		/* Global operating class */
+	uint8 primary_chan;	/* Primary 20MHz Channel */
+	uint8 secondary_chan;	/* channel center freq of second segment-valid for 80+80, else 0 */
+} BWL_POST_PACKED_STRUCT wifi_non_nan_op_chan_info_field_t;
+
+/* non-NAN operating channel information field */
+typedef BWL_PRE_PACKED_STRUCT struct wifi_non_nan_bcn_info_field_s {
+	uint16 tbtt_offset;	/* TBTT offset with NAN DW0 */
+	uint16 bcn_interval;	/* Beacon interval */
+} BWL_POST_PACKED_STRUCT wifi_non_nan_bcn_info_field_t;
+
+#define NAN_WLAN_INFRA_EXT_ROLE_AP		0x0u
+#define NAN_WLAN_INFRA_EXT_ROLE_STA_CONN	0x1u
+#define NAN_WLAN_INFRA_EXT_ROLE_STA_LISTEN	0x2u
+
+/* NAN Extended WLAN Infrastructure Attribute */
+typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_wlan_infra_ext_attr_s {
+	uint8 id;			/* id - 0x1E */
+	uint16 len;			/* Total length of following IEs */
+	struct ether_addr bssid;	/* Infra connection BSSID */
+	struct ether_addr mac_addr;	/* Infra connection MAC addr */
+	uint8 role;			/* Device role in Infra connection */
+	wifi_non_nan_op_chan_info_field_t chan_info;
+	wifi_non_nan_bcn_info_field_t bcn_info;
+} BWL_POST_PACKED_STRUCT wifi_nan_wlan_infra_ext_attr_t;
+
 /* NAN Element container Attribute */
 typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_container_attr_s {
 	uint8 id;	/* id - 0x20 */
@@ -604,7 +673,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_chan_entry_s {
 	uint8 oper_class;		/* Operating Class */
 	uint16 chan_bitmap;		/* Channel Bitmap */
 	uint8 primary_chan_bmp;		/* Primary Channel Bitmap */
-	uint8 aux_chan[0];			/* Auxiliary Channel bitmap */
+	uint8 aux_chan[];			/* Auxiliary Channel bitmap */
 } BWL_POST_PACKED_STRUCT wifi_nan_chan_entry_t;
 
 /* Channel entry */
@@ -980,6 +1049,43 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_dev_cap_ext_s {
 	/* Bit field with variable length in octets as indicated in the len field */
 	uint8 data[];
 } BWL_POST_PACKED_STRUCT wifi_nan_dev_cap_ext_t;
+
+/* NAN R4 - Pairing Bootsrapping Attribute */
+typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_npba_attr_s {
+	uint8	id;	      /* NAN_ATTR_NPBA = 0x2C */
+	uint16	len;	      /* Length of the fields in the attribute */
+	uint8	dialog_token; /* Identify req and resp */
+	uint8	type_status;  /* Bits[3-0] type subfield, Bits[7-4] status subfield */
+	uint8	reason;	      /* Identifies reject reason */
+	uint8	var[];	      /* Optional fields follow */
+} BWL_POST_PACKED_STRUCT wifi_nan_npba_attr_t;
+
+/* NPBA attribute macros */
+#define	NAN_NPBA_ATTR_COMEBACK_LEN	    2u
+#define	NAN_NPBA_ATTR_COOKIE_HDR_LEN	    1u
+#define	NAN_NPBA_ATTR_PAIRING_BS_METHOD_LEN 2u
+#define	NAN_NPBA_ATTR_STATUS_SHIFT	    4u
+
+#define	NAN_BOOTSTRAPPING_ADVERTISE	    0u
+#define	NAN_BOOTSTRAPPING_REQUEST	    1u
+#define NAN_BOOTSTRAPPING_RESPONSE	    2u
+
+#define NAN_BOOTSTRAPPING_STATUS_ACCEPT	    0u
+#define NAN_BOOTSTRAPPING_STATUS_REJECT	    1u
+#define NAN_BOOTSTRAPPING_STATUS_COMEBACK   2u
+
+/* Supported bootstrapping methods */
+#define NAN_PAIRING_BOOTSTRAPPING_OPPORTUNISTIC_MASK          0x0001u
+#define NAN_PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY_MASK       0x0002u
+#define NAN_PAIRING_BOOTSTRAPPING_PASSPHRASE_DISPLAY_MASK     0x0004u
+#define NAN_PAIRING_BOOTSTRAPPING_QR_DISPLAY_MASK             0x0008u
+#define NAN_PAIRING_BOOTSTRAPPING_NFC_TAG_MASK                0x0010u
+#define NAN_PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD_MASK        0x0020u
+#define NAN_PAIRING_BOOTSTRAPPING_PASSPHRASE_KEYPAD_MASK      0x0040u
+#define NAN_PAIRING_BOOTSTRAPPING_QR_SCAN_MASK                0x0080u
+#define NAN_PAIRING_BOOTSTRAPPING_NFC_READER_MASK             0x0100u
+#define NAN_PAIRING_BOOTSTRAPPING_SERVICE_MANAGED_MASK        0x4000u
+#define NAN_PAIRING_BOOTSTRAPPING_HANDSHAKE_SHIP_MASK         0x8000u
 
 /* Fixed string for the NIK (NAN Identity Key) generation algorithm */
 static const uint8 nan_pairing_nik_prefix[] = "NIK Generation";
@@ -1588,23 +1694,26 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_svc_desc_ext_attr_s {
  * 10: GTKSA, IGTKSA, and BIGTKSA are supported;
  * 11: Reserved;
  */
-#define NAN_SEC_CIPHER_SUITE_CAP_DIS_GTK_IGTK_BIGTK     (0 << 1)
-#define NAN_SEC_CIPHER_SUITE_CAP_DIS_BIGTK		(1 << 1)
-#define NAN_SEC_CIPHER_SUITE_CAP_ENAB_GTK_IGTK_BIGTK	(1 << 2)
+#define NAN_SEC_CIPHER_SUITE_CAP_DIS_GTK_IGTK_BIGTK     (0u)
+#define NAN_SEC_CIPHER_SUITE_CAP_DIS_BIGTK		(1u << 1u)
+#define NAN_SEC_CIPHER_SUITE_CAP_ENAB_GTK_IGTK_BIGTK	(1u << 2u)
 
 /*
  * Bit 3 is 0 for 4 GTKSA replay counters, if GTKSA is supported
  * Bit 3 is 1 for 16 GTKSA replay counters, if GTKSA is supported
  */
-#define NAN_SEC_CIPHER_SUITE_CAP_GTK_REPLAY_4		(0 << 4)
-#define NAN_SEC_CIPHER_SUITE_CAP_GTK_REPLAY_16		(1 << 4)
+#define NAN_SEC_CIPHER_SUITE_CAP_GTK_REPLAY_4		(0u)
+#define NAN_SEC_CIPHER_SUITE_CAP_GTK_REPLAY_16		(1u << 3u)
 
 /*
  * Bit 4 is 0: BIP-CMAC-128 is selected for transmit, if IGTKSA or BIGTKSA is supported
  * Bit 4 is 1: BIP-GMAC-256 is selected for transmit, if IGTKSA or BIGTKSA is supported
  */
-#define NAN_SEC_CIPHER_SUITE_CAP_BIP_CMAC_128		(0)
-#define NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256		(1 << 5)
+#define NAN_SEC_CIPHER_SUITE_CAP_BIP_CMAC_128		(0u)
+#define NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256		(1u << 4u)
+
+/* Bits 1-4 */
+#define NAN_SEC_CIPHER_SUITE_CAP_GROUP_SEC_MASK		(0x1Eu)
 
 #define NAN_SEC_BIP_ENABLED(cap)	((cap) & \
 	(NAN_SEC_CIPHER_SUITE_CAP_ENAB_GTK_IGTK_BIGTK | \
@@ -1829,7 +1938,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_nan_nmsg_attr_s {
 	uint8 mc_id; /* Multicast id similar to NDPID */
 	uint8 nmsg_ctrl; /* NMSG control field */
 	/* Optional publish id, NMSGID and svc info are included in var[] */
-	uint8 var[0];
+	uint8 var[];
 } BWL_POST_PACKED_STRUCT wifi_nan_nmsg_attr_t;
 
 #define NMSG_ATTR_MCAST_SCHED_MAP_ID_MASK     0x1E

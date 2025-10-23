@@ -1,7 +1,26 @@
 /*
  * SiliconBackplane System Memory core
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,13 +45,25 @@
 
 #ifndef _LANGUAGE_ASSEMBLY
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif	/* PAD */
+#ifdef DONGLEBUILD
+#include <vlsi_sysmem_all_regs.h>
+#endif
 
+#if defined(VLSI_SYSMEM_ALL_REGS_H)
+typedef volatile struct sysmemregs sysmemregs_t;
+#define SYSMEM_REG_OFF(regname) \
+	sysmem_##regname##_ADDR
+
+/* Force a compile error if any register is referenced that does not exist in the built sysmem's
+ * register set.
+ */
+#undef INVALID_ADDRESS_sysmem
+#define INVALID_ADDRESS_sysmem hnd_invalid_reg_sysmem()
+#undef INVALID_SHIFT_sysmem
+#define INVALID_SHIFT_sysmem hnd_invalid_reg_sysmem()
+
+#else
+/* FIXME: remove after removing non-ca7/sysmem chips */
 /* sysmem core registers */
 typedef volatile struct sysmemregs {
 	uint32	coreinfo;
@@ -63,12 +94,43 @@ typedef volatile struct sysmemregs {
 	uint32  PAD[31];
 	uint32	workaround;
 	uint32	pwrctl;
-	uint32	PAD[133];
+	uint32	PAD[5];
+	uint32  vlsi_key[8];		/* 0x200 */
+	uint32	PAD[120];
 	uint32  sr_control;
 	uint32  sr_status;
 	uint32  sr_address;
 	uint32  sr_data;
 } sysmemregs_t;
+#define SYSMEM_REG_OFF(regname) \
+	OFFSETOF(sysmemregs_t, regname)
+#endif /* !VLSI_SYSMEM_ALL_REGS_H  */
+
+#define SYSMEM_REG_FIELD_MASK(regname, regfield) \
+	sysmem_##regname##__##regfield##_MASK
+#define SYSMEM_REG_FIELD_SHIFT(regname, regfield) \
+	sysmem_##regname##__##regfield##_SHIFT
+
+#define SYSMEM_REG_ADDR(regbase, regname) \
+	((volatile uint32 *)((uintptr)(regbase) + SYSMEM_REG_OFF(regname)))
+
+#if defined(VLSI_SYSMEM_ALL_REGS_H)
+/* FIXME: workaround missing sysmem registers */
+#define sysmem_initiat_n_masks_ADDR	0xe0U
+#else
+/* FIXME: remove after removing non-ca7/sysmem chips */
+#define CoreInfo			coreinfo
+#define BankIndex			bankidx
+#define BankInfo			bankinfo
+#define MpuCap				mpucapabilities
+#define MpuControl			mpucontrol
+#define MpuRegion0			region_n_regs
+#define TcamBankXPatchCtrl		cambankpatchctrl
+#define TcamBankXPatchTableAddress	cambankpatchtblbaseaddr
+#define TcamBankXCmd			cambankcmdreg
+#define TcamBankXData			cambankdatareg
+#define ExtraCoreCapabilities		extracoreinfo
+#endif /* !VLSI_SYSMEM_ALL_REGS_H  */
 
 /* bus MPU region count mask of sysmemregs_t->mpucapabilities */
 #define ACC_MPU_REGION_CNT_MASK	0x7u
@@ -117,10 +179,20 @@ typedef volatile struct sysmemregs {
 #define	SYSMEM_SRCI_SRNB_MASK	0x1f
 #define	SYSMEM_SRCI_SRNB_SHIFT	0
 /* Above bits are obsolete and replaced with below in rev 12 */
-#define	SYSMEM_SRCI_NEW_ROMNB_MASK	0xff000000u
-#define	SYSMEM_SRCI_NEW_ROMNB_SHIFT	24u
-#define	SYSMEM_SRCI_NEW_SRNB_MASK	0xff0000u
-#define	SYSMEM_SRCI_NEW_SRNB_SHIFT	16u
+#define	SYSMEM_SRCI_ROMNB_V2_MASK	0xff000000u
+#define	SYSMEM_SRCI_ROMNB_V2_SHIFT	24u
+#define	SYSMEM_SRCI_SRNB_V2_MASK	0xff0000u
+#define	SYSMEM_SRCI_SRNB_V2_SHIFT	16u
+
+#define SYSMEM_ROMNB(coreinfo, corerev) \
+	((corerev >= 12) ? \
+	(coreinfo & SYSMEM_SRCI_ROMNB_V2_MASK) >> SYSMEM_SRCI_ROMNB_V2_SHIFT : \
+	(coreinfo & SYSMEM_SRCI_ROMNB_MASK) >> SYSMEM_SRCI_ROMNB_SHIFT)
+
+#define SYSMEM_SRNB(coreinfo, corerev) \
+	((corerev >= 12) ? \
+	(coreinfo & SYSMEM_SRCI_SRNB_V2_MASK) >> SYSMEM_SRCI_SRNB_V2_SHIFT : \
+	(coreinfo & SYSMEM_SRCI_SRNB_MASK) >> SYSMEM_SRCI_SRNB_SHIFT)
 
 /* Standby control register */
 #define	SRSC_SBYOVR_MASK	0x80000000
@@ -147,7 +219,8 @@ typedef volatile struct sysmemregs {
 #define SRECC_BANKSIZE(value)	 (1 << (value))
 
 /* CAM bank patch control */
-#define SRCBPC_PATCHENABLE 0x80000000
+#define SRCBPC_PATCHENABLE	0x80000000
+#define SRCBPC_PATCHENABLE_DLY	1000u
 
 #define SRP_ADDRESS   0x0001FFFC
 #define SRP_VALID     0x8000

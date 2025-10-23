@@ -4,7 +4,26 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -83,14 +102,6 @@ typedef uint32 ratespec_t;
 
 #define HIGHEST_SINGLE_STREAM_MCS	7 /* MCS values greater than this enable multiple streams */
 
-#ifndef OEM_ANDROID
-/* 'proprietary' string should not exist in open source(OEM_ANDROID) */
-/* given a proprietary MCS, get number of spatial streams */
-#define GET_PROPRIETARY_11N_MCS_NSS(mcs) (1 + ((mcs) - 85) / 8)
-
-#define GET_11N_MCS_NSS(mcs) ((mcs) < 32 ? (1 + ((mcs) / 8)) \
-				: ((mcs) == 32 ? 1 : GET_PROPRIETARY_11N_MCS_NSS(mcs)))
-#endif /* !OEM_ANDROID */
 #endif /* USE_LEGACY_RSPEC_DEFS */
 
 /* Legacy defines for the nrate iovar */
@@ -142,8 +153,12 @@ typedef uint32 ratespec_t;
 #define WL_STA_AUTHE		0x00000008	/* Authenticated */
 #define WL_STA_ASSOC		0x00000010	/* Associated */
 #define WL_STA_AUTHO		0x00000020	/* Authorized */
-#define WL_STA_WDS		0x00000040	/* Wireless Distribution System */
-#define WL_STA_WDS_LINKUP	0x00000080	/* WDS traffic/probes flowing properly */
+/* TODO: WDS feature is obsolete.
+ * Remove WL_STA_WDS and WL_STA_WDS_LINKUP defines once older branches (WOLF and earlier) do not use
+ * the current version of this file.
+ */
+#define WL_STA_WDS		0x00000040	/* OBSOLETE Wireless Distribution System */
+#define WL_STA_WDS_LINKUP	0x00000080	/* OBSOLETE WDS traffic/probes flowing properly */
 #define WL_STA_PS		0x00000100	/* STA is in power save mode from AP's viewpoint */
 #define WL_STA_APSD_BE		0x00000200	/* APSD delv/trigger for AC_BE is default enabled */
 #define WL_STA_APSD_BK		0x00000400	/* APSD delv/trigger for AC_BK is default enabled */
@@ -158,9 +173,10 @@ typedef uint32 ratespec_t;
 #define WL_STA_RIFS_CAP		0x00080000	/* rifs enabled */
 #define WL_STA_VHT_CAP		0x00100000	/* STA VHT(11ac) capable */
 #define WL_STA_WPS		0x00200000	/* WPS state */
-#define WL_STA_DWDS_CAP		0x01000000	/* DWDS CAP */
-#define WL_STA_DWDS		0x02000000	/* DWDS active */
-#define WL_WDS_LINKUP		WL_STA_WDS_LINKUP	/* deprecated */
+/*                              0x00400000 available */
+/*                              0x00800000 available */
+/*                              0x01000000 available */
+/*                              0x02000000 available */
 #define WL_STA_IS_2G		0x04000000	/* 2G channels supported */
 #define WL_STA_IS_5G		0x08000000	/* 5G channels supported */
 #define WL_STA_IS_6G		0x10000000	/* 6G channels supported */
@@ -253,14 +269,14 @@ typedef uint32 ratespec_t;
 #define WL_SCANFLAGS_SWTCHAN			0x20U	/* Force channel switch for differerent
 							* bandwidth.
 							*/
-#define WL_SCANFLAGS_FORCE_PARALLEL 		0x40U	/* Force parallel scan even when actcb_fn_t
+#define WL_SCANFLAGS_FORCE_PARALLEL		0x40U	/* Force parallel scan even when actcb_fn_t
 							* is on.By default parallel scan will be
 							* disabled if actcb_fn_t is provided.
 							*/
 #define WL_SCANFLAGS_SISO			0x40U	/* Use 1 RX chain for scanning */
 #define WL_SCANFLAGS_MIMO			0x80U	/* Force MIMO scanning */
 
-#define WL_SCANFLAGS_NO_6GHZ_FOLLOWUP  		0x100U	/* No 6G active scan due to RNR or FILS */
+#define WL_SCANFLAGS_NO_6GHZ_FOLLOWUP		0x100U	/* No 6G active scan due to RNR or FILS */
 #define WL_SCANFLAGS_INCL_FILS_DISC_FRAMES	0x200U	/* Include Fils info as well in
 							* escan results.
 							*/
@@ -295,11 +311,21 @@ typedef uint32 ratespec_t;
 						 * enable LISTEN along with PASSIVE flag
 						 */
 
+/* Use lower 16 bit for scan flags, the upper 16 bits are for internal use */
+/* WL_SCANFLAGS_EXT_ flags */
+#define WL_SCANFLAGS_EXT_LOWPOWER_PARALLEL_2G_SCAN	0x1U	/* Lowpower parallel 2G scan */
+#define WL_SCANFLAGS_EXT_NOMLOFOLLOWUP			0x2U	/* No 2G or 5G band active
+								 * scan due to RNR
+								 */
+
 /* BIT MASK for 6G_SCAN_TYPE  */
 #define WL_SCAN_SSIDFLAGS_SHORT_SSID		0x01U /* include short ssid */
 #define WL_SCAN_INC_RNR				0x02U /* Include RNR channels for scan */
 #define WL_SCAN_SKIP_FILS_DISCOVERY_PERIOD	0x04U /* Skip FILS Discovery Period for 6G chans */
 #define WL_SCAN_ACTIVE_6GHZ			0x08U /* Force active scan for 6GHZ channel */
+#define WL_SCAN_LPSC_DISABLE_2G			0x10U    /* Disable 2G scan on scan core */
+#define WL_SCAN_LPSC_DISABLE_5G_6G		0x20U    /* Disable 5G scan on scan core */
+#define WL_SCAN_LPSC_AVOID_TRUE_SLICE		0x40U    /* Avoid scans on true slice when set */
 
 /* Value to decide scan type based on scqs */
 #define WL_SC_RETRY_SCAN_MODE_NO_SCAN		0x0u	/* Do not reschedule scan */
@@ -459,12 +485,15 @@ typedef uint32 ratespec_t;
 #define WL_BSS2_FLAGS_RNR_MATCH		0x10	/* To report original BSS that has RNR match */
 #define WL_BSS2_FLAGS_HE_BCN_PRBRSP	0x20	/* BSS update to indiacte HE bcn or prb rsp. */
 #define WL_BSS2_FLAGS_HE_6G_DUP		0x40	/* non-HT dup'ed beacon indicator */
+#define WL_BSS2_FLAGS_FROM_SS		0x80	/* obsoleted. to be removed */
+#define WL_BSS2_FLAGS_FROM_MS		0x80	/* bss_info from results on multi scan */
 
 /* bit definitions for bcnflags in wl_bss_info */
 #define WL_BSS_BCNFLAGS_INTERWORK_PRESENT	0x01 /* beacon had IE, accessnet valid */
 #define WL_BSS_BCNFLAGS_INTERWORK_PRESENT_VALID 0x02 /* on indicates support for this API */
-#define WL_BSS_BCNFLAGS_MULTIPLE_BSSID_SET 0x4 /* this AP belongs to a multiple BSSID set */
-#define WL_BSS_BCNFLAGS_NONTRANSMITTED_BSSID 0x8 /* this AP is the transmitted BSSID */
+#define WL_BSS_BCNFLAGS_MULTIPLE_BSSID_SET	0x04 /* this AP belongs to a multiple BSSID set */
+#define WL_BSS_BCNFLAGS_NONTRANSMITTED_BSSID	0x08 /* this AP is the transmitted BSSID */
+#define WL_BSS_BCNFLAGS_BSSCOLOR_PRESENT	0x10 /* this AP has BSS color info */
 
 /* bssinfo flag for nbss_cap */
 #define VHT_BI_SGI_80MHZ		0x00000100
@@ -534,18 +563,19 @@ typedef uint32 ratespec_t;
 #define WSEC_GEN_MFP_DISASSOC_ERROR	0x0010
 #define WSEC_GEN_MFP_DEAUTH_ERROR	0x0020
 
-#define WL_SOFT_KEY	(1 << 0)	/* Indicates this key is using soft encrypt */
-#define WL_PRIMARY_KEY	(1 << 1)	/* Indicates this key is the primary (ie tx) key */
+#define WL_SOFT_KEY		(1 << 0)	/* Indicates this key is using soft encrypt */
+#define WL_PRIMARY_KEY		(1 << 1)	/* Indicates this key is the primary (ie tx) key */
 #if defined(BCMCCX) || defined(BCMEXTCCX)
-#define WL_CKIP_KP	(1 << 4)	/* CMIC */
-#define WL_CKIP_MMH	(1 << 5)	/* CKIP */
+#define WL_CKIP_KP		(1 << 4)	/* CMIC */
+#define WL_CKIP_MMH		(1 << 5)	/* CKIP */
 #else
-#define WL_KF_RES_4	(1 << 4)	/* Reserved for backward compat */
-#define WL_KF_RES_5	(1 << 5)	/* Reserved for backward compat */
+#define WL_KF_RES_4		(1 << 4)	/* Reserved for backward compat */
+#define WL_KF_RES_5		(1 << 5)	/* Reserved for backward compat */
 #endif /* BCMCCX || BCMEXTCCX */
 #define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
-#define WL_LINK_KEY	(1 << 7)	/* For linking keys of both cores */
-#define WL_UNLINK_KEY	(1 << 8)	/* For unlinking keys of both cores */
+#define WL_LINK_KEY		(1 << 7)	/* For linking keys of both cores */
+#define WL_UNLINK_KEY		(1 << 8)	/* For unlinking keys of both cores */
+#define WL_SCAN_SLICE_KEY	(1 << 9)	/* Key for the scan slice, not for the i/f slice */
 
 /* wireless security bitvec */
 #define WSEC_NONE		0x0
@@ -626,6 +656,8 @@ typedef uint32 ratespec_t;
 #define MFP_CAPABLE		0x0200
 #define MFP_REQUIRED	0x0400
 #define MFP_SHA256		0x0800 /* a special configuration for STA for WIFI test tool */
+#define SAE_PWE_REQUIRED	0x1000
+#define WSEC_SAE_PWE_REQUIRED(wsec)	((wsec) & SAE_PWE_REQUIRED)
 
 /* WPA authentication mode bitvec */
 #define WPA_AUTH_DISABLED		0x0000	/* Legacy (i.e., non-WPA) */
@@ -671,7 +703,7 @@ typedef uint32 ratespec_t;
 
 #ifdef MACOSX
 /* Macos limits ioctl maxlen for TX to 1864 and for RX to 2004 */
-#define WLC_IOCTL_MAXLEN            2000    /* "max" length ioctl buffer */
+#define WLC_IOCTL_MAXLEN            2000u    /* "max" length ioctl buffer */
 #else
 #define WLC_IOCTL_MAXLEN            8192u   /* "max" length ioctl buffer */
 #endif /* MACOSX */
@@ -812,8 +844,8 @@ typedef uint32 ratespec_t;
 #define WLC_SET_EAP_RESTRICT			120
 #define WLC_SCB_AUTHORIZE			121
 #define WLC_SCB_DEAUTHORIZE			122
-#define WLC_GET_WDSLIST				123
-#define WLC_SET_WDSLIST				124
+//#define WLC_GET_WDSLIST			123 OBSOLETE
+//#define WLC_SET_WDSLIST			124 OBSOLETE
 #define WLC_GET_ATIM				125
 #define WLC_SET_ATIM				126
 #define WLC_GET_RSSI				127
@@ -827,8 +859,8 @@ typedef uint32 ratespec_t;
 #define WLC_GET_PHY_NOISE			135
 #define WLC_GET_BSS_INFO			136
 #define WLC_GET_PKTCNTS				137
-#define WLC_GET_LAZYWDS				138
-#define WLC_SET_LAZYWDS				139
+//#define WLC_GET_LAZYWDS			138 OBSOLETE
+//#define WLC_SET_LAZYWDS			139 OBSOLETE
 #define WLC_GET_BANDLIST			140
 #define WLC_GET_BAND				141
 #define WLC_SET_BAND				142
@@ -936,14 +968,14 @@ typedef uint32 ratespec_t;
 #define WLC_SET_RADAR				243
 #define WLC_SET_SPECT_MANAGMENT			244
 #define WLC_GET_SPECT_MANAGMENT			245
-#define WLC_WDS_GET_REMOTE_HWADDR		246	/* handled in wl_linux.c/wl_vx.c */
-#define WLC_WDS_GET_WPA_SUP			247
+//#define WLC_WDS_GET_REMOTE_HWADDR		246 OBSOLETE
+//#define WLC_WDS_GET_WPA_SUP			247 OBSOLETE
 #define WLC_SET_CS_SCAN_TIMER			248
 #define WLC_GET_CS_SCAN_TIMER			249
 #define WLC_MEASURE_REQUEST			250
 #define WLC_INIT				251
 #define WLC_SEND_QUIET				252
-#define WLC_KEEPALIVE			253
+#define WLC_KEEPALIVE				253
 #define WLC_SEND_PWR_CONSTRAINT			254
 #define WLC_UPGRADE_STATUS			255
 #define WLC_CURRENT_PWR				256
@@ -1464,8 +1496,8 @@ typedef uint32 ratespec_t;
 #define WL_OCE_VAL		0x20000000 /* reuse */
 #define WL_PCIE_VAL		0x40000000
 #define WL_PMDUR_VAL		0x80000000
-/* use top-bit for WL_TIME_STAMP_VAL because this is a modifier
- * rather than a message-type of its own
+/* Use top-bit for WL_TIME_STAMP_VAL because this is a modifier
+ * rather than a message-type of its own.
  */
 #define WL_TIMESTAMP_VAL        0x80000000
 
@@ -1477,6 +1509,10 @@ typedef uint32 ratespec_t;
 #define WL_LATENCY_VAL		0x00000004
 #define WL_WBUS_VAL		0x00000008
 #define WL_DTPC_DBG_VAL		0x00000010
+#define WL_DYNBW_DBG_VAL	0x00000020
+#define WL_RATE_INFO_VAL	0x00000040
+#define WL_RATE_TRACE_VAL	0x00000080
+#define WL_KM_INFO_VAL		0x00000100
 
 /* number of bytes needed to define a proper bit mask for MAC event reporting */
 #define BCMIO_ROUNDUP(x, y)	((((x) + ((y) - 1)) / (y)) * (y))
@@ -1486,17 +1522,29 @@ typedef uint32 ratespec_t;
 #define WL_EVENTING_MASK_EXT_LEN	ROUNDUP(WLC_E_LAST, NBBY)/NBBY
 
 /* join preference types */
-#define WL_JOIN_PREF_RSSI		1u	/* by RSSI */
-#define WL_JOIN_PREF_WPA		2u	/* by akm and ciphers */
-#define WL_JOIN_PREF_BAND		3u	/* by 802.11 band */
-#define WL_JOIN_PREF_RSSI_DELTA		4u	/* by 802.11 band only if RSSI
-						 * delta condition matches
-						 */
-#define WL_JOIN_PREF_TRANS_PREF		5u	/* defined by requesting AP */
-#define WL_JOIN_PREF_RSN_PRIO		6u	/* by RSNE/RSNXE related security priority */
-#define WL_JOIN_PREF_RSSI_PER_BAND	7u	/* RSSI boost value per band */
-#define WL_JOIN_PREF_SKIP_PSC		8u	/* Used to set flag to filter PSC channel scan */
-#define WL_JOIN_PREF_6G_DISABLE		9u	/* Used to disable join/roam 6G BSS target */
+#define WL_JOIN_PREF_RSSI			1u	/* by RSSI */
+#define WL_JOIN_PREF_WPA			2u	/* by akm and ciphers */
+#define WL_JOIN_PREF_BAND			3u	/* by 802.11 band */
+#define WL_JOIN_PREF_RSSI_DELTA			4u	/* by 802.11 band only if RSSI
+							 * delta condition matches
+							 */
+#define WL_JOIN_PREF_TRANS_PREF			5u	/* defined by requesting AP */
+#define WL_JOIN_PREF_RSN_PRIO			6u	/* by RSNE/RSNXE related
+							 * security priority
+							 */
+#define WL_JOIN_PREF_RSSI_PER_BAND		7u	/* RSSI boost value per band */
+#define WL_JOIN_PREF_SKIP_PSC			8u	/* Used to set flag to filter
+							 * PSC channel scan
+							 */
+#define WL_JOIN_PREF_6G_DISABLE			9u	/* Used to disable join/roam
+							 * 6G BSS target
+							 */
+#define WL_JOIN_PREF_ML_LINK_RSSI_BOOST		10u	/* Used to configure boost
+							 * for MLO targets
+							 */
+#define WL_JOIN_PREF_ML_SUB_LINK_WEIGHTAGE	11u	/* Percent weightage for
+							 * subsidary link
+							 */
 
 /* Join preference 6G disable Flag definition */
 #define WL_JP_6G_DISABLE_ROAM	(1u << 0u)	/* Used to set flag to disable join/roam to
@@ -1593,6 +1641,7 @@ typedef uint32 ratespec_t;
 #define WL_BTC_FLAG_ECI                  (1 << 6)
 #define WL_BTC_FLAG_LIGHT                (1 << 7)
 #define WL_BTC_FLAG_PARALLEL             (1 << 8)
+#define WL_BTC_FLAG_MAC_SUSP_GRANT_DENY  (1 << 9)
 
 /* maximum channels returned by the get valid channels iovar */
 #define WL_NUMCHANNELS		64
@@ -1617,15 +1666,12 @@ typedef uint32 ratespec_t;
 #else
 #if defined(WL11AC_80P80)
 #define WL_NUMCHANSPECS 206
+#elif defined(WL_BW160MHZ)
+#define WL_NUMCHANSPECS 140
 #else
 #define WL_NUMCHANSPECS 110
 #endif
 #endif /* WL_BAND6G */
-
-/* WDS link local endpoint WPA role */
-#define WL_WDS_WPA_ROLE_AUTH	0	/* authenticator */
-#define WL_WDS_WPA_ROLE_SUP	1	/* supplicant */
-#define WL_WDS_WPA_ROLE_AUTO	255	/* auto, based on mac addr value */
 
 /* Base offset values */
 #define WL_PKT_FILTER_BASE_PKT   0
@@ -1852,28 +1898,37 @@ typedef uint32 ratespec_t;
 #define CHANIM_ACS_RECORD			10
 
 /* CHANIM */
-#define CCASTATS_TXDUR  0
-#define CCASTATS_INBSS  1
-#define CCASTATS_OBSS   2
-#define CCASTATS_NOCTG  3
-#define CCASTATS_NOPKT  4
-#define CCASTATS_DOZE   5
-#define CCASTATS_TXOP	6
-#define CCASTATS_GDTXDUR        7
-#define CCASTATS_BDTXDUR        8
+#define CCASTATS_TXDUR  0u
+#define CCASTATS_INBSS  1u
+#define CCASTATS_OBSS   2u
+#define CCASTATS_NOCTG  3u
+#define CCASTATS_NOPKT  4u
+#define CCASTATS_DOZE   5u
+#define CCASTATS_TXOP	6u
+#define CCASTATS_GDTXDUR        7u
+#define CCASTATS_BDTXDUR        8u
+#define CCASTATS_MYRX      9u
+#define CCASTATS_TXMUTE      10u
+#define CCASTATS_RXBLNK      11u
 
 /* FIXME: CCASTATS_MAX is 9 for existing chips and 10 for new ones.
  * This is to avoid rom invalidation of existing chips.
  */
+#define CCASTATS_V3_MAX    10
 #ifndef WLCHANIM_V2
 #define CCASTATS_MAX    9
 #else /* WLCHANIM_V2 */
-#define CCASTATS_MYRX      9
 #define CCASTATS_MAX    10
 #endif /* WLCHANIM_V2 */
+#define	CCASTATS_V4_MAX	12
 
 #define WL_CHANIM_COUNT_ALL	0xff
 #define WL_CHANIM_COUNT_ONE	0x1
+#define WL_CHANIM_US_DUR               0xfa
+#define WL_CHANIM_US_DUR_GET           0xfb
+#define WL_CHANIM_COUNT_US_ONE         0xfc
+#define WL_CHANIM_COUNT_US_ALL         0xfd
+#define WL_CHANIM_COUNT_US_RESET       0xfe
 
 /* flags used in scandb, indicates bss attributes of interest */
 #define WLC_SCANDB_CACHE_FLAG_NONE	(0u)		/* None */
@@ -1887,6 +1942,7 @@ typedef uint32 ratespec_t;
 #define SC_CHANIM_ID_NULL	0u
 #define SC_CHANIM_ID_SCAN	1u	/* Module Id of scan, used to report scqs */
 #define SC_CHANIM_ID_STA	2u	/* Module Id of STA, used tp report scqs */
+#define SC_CHANIM_ID_SBI	3u	/* Module Id of SBI, used to report scqs */
 
 /* ap tpc modes */
 #define	AP_TPC_OFF		0
@@ -2156,6 +2212,7 @@ typedef uint32 ratespec_t;
 /* report found/lost events for SSID and BSSID networks seperately */
 #define REPORT_SEPERATELY_BIT		11
 #define BESTN_BSSID_ONLY_BIT		12
+#define BESTN_BSSID_ASSOC_BIT		13
 
 #define SORT_CRITERIA_MASK		0x0001
 #define AUTO_NET_SWITCH_MASK		0x0002
@@ -2172,6 +2229,7 @@ typedef uint32 ratespec_t;
 #define REPORT_SEPARATELY_MASK	0x0800
 #define REPORT_SEPERATELY_MASK	REPORT_SEPARATELY_MASK  // Legacy typo
 #define BESTN_BSSID_ONLY_MASK		0x1000
+#define BESTN_BSSID_ASSOC_MASK		0x2000
 
 #ifdef PFN_SCANRESULT_2
 #define PFN_SCANRESULT_VERSION		2
@@ -2190,8 +2248,11 @@ typedef uint32 ratespec_t;
 #define DEFAULT_REPEAT			10
 #define DEFAULT_EXP				2
 
-#define PFN_PARTIAL_SCAN_BIT		0
-#define PFN_PARTIAL_SCAN_MASK		1
+/* Results flags for pfn scan history */
+#define PFN_PARTIAL_SCAN_BIT		0u
+#define PFN_PARTIAL_SCAN_MASK		0x1u
+#define PFN_ASSOCIATED_AP_BIT		1u
+#define PFN_ASSOCIATED_AP_MASK		0x2u
 
 #define WL_PFN_SUPPRESSFOUND_MASK	0x08
 #define WL_PFN_SUPPRESSLOST_MASK	0x10
@@ -2300,6 +2361,12 @@ typedef uint32 ratespec_t;
 #define BCM_DCS_IOVAR		0x1
 #define BCM_DCS_UNKNOWN		0xFF
 
+/* Definition of policies to extend STA DFS/Indoor to Peer-to-Peer roles */
+#define WL_CHAN_CC_INDOOR_EXT		(1u << 0u)	/* To extend sta indoor chan to P2P role */
+#define WL_CHAN_CC_DFS_EXT		(1u << 1u)	/* To extend sta DFS chan to P2P role */
+#define WL_CHAN_CC_AWARE_DFS_EXT	(1u << 2u)	/* To extend sta DFS chan to NAN role */
+#define WL_CHAN_CC_POLICY_MASK		0x7u		/* Supported chan concurrency policy mask */
+
 #ifdef EXT_STA
 #define IHV_OID_BCM 0x00181000	/* based on BRCM_OUI value */
 /* ---------------------------------------------------------------------------
@@ -2360,12 +2427,6 @@ typedef uint32 ratespec_t;
 #define WL_DFRTS_LOGIC_OR	1	/* OR all non-zero threshold conditions */
 #define WL_DFRTS_LOGIC_AND	2	/* AND all non-zero threshold conditions */
 
-/* Definitions for Reliable Multicast */
-#define WL_RELMCAST_MAX_CLIENT		32
-#define WL_RELMCAST_FLAG_INBLACKLIST	1
-#define WL_RELMCAST_FLAG_ACTIVEACKER	2
-#define WL_RELMCAST_FLAG_RELMCAST	4
-
 /* structures for proximity detection device role */
 #define WL_PROXD_MODE_DISABLE	0
 #define WL_PROXD_MODE_NEUTRAL	1
@@ -2403,18 +2464,10 @@ typedef uint32 ratespec_t;
 
 /* Override bit for WLC_SET_TXPWR.  if set, ignore other level limits */
 #define WL_TXPWR_OVERRIDE	(1U<<31)
-#define WL_TXPWR_2G		(1U<<30)
-#define WL_TXPWR_5G		(1U<<29)
 #define WL_TXPWR_NEG   (1U<<28)
-
-#define WL_TXPWR_MASK		(~(0x7<<29))
-#define WL_TXPWR_CORE_MAX	(3)
-#define WL_TXPWR_CORE0_MASK	(0x000000FF)
-#define WL_TXPWR_CORE0_SHIFT	(0)
-#define WL_TXPWR_CORE1_MASK	(0x0000FF00)
-#define WL_TXPWR_CORE1_SHIFT	(8)
-#define WL_TXPWR_CORE2_MASK	(0x00FF0000)
-#define WL_TXPWR_CORE2_SHIFT	(16)
+#define WL_TXPWR_DEV_CAT_MASK  0xC000000
+#define WL_TXPWR_DEV_CAT_SHIFT (26u)
+#define WL_TXPWR_DEV_CAT_MAX	(3u) /* Max dev cat is SP */
 
 /* phy types (returned by WLC_GET_PHYTPE) */
 #define	WLC_PHY_TYPE_A		0
@@ -2436,7 +2489,7 @@ typedef uint32 ratespec_t;
 #define PM_FAST 2
 #define PM_FORCE_OFF 3		/* use this bit to force PM off even bt is active */
 
-#define WL_WME_CNT_VERSION	1	/* current version of wl_wme_cnt_t */
+#define WL_WME_CNT_VERSION	WL_WME_CNT_VER_1	/* current version of wl_wme_cnt_t */
 
 /* fbt_cap: FBT assoc / reassoc modes. */
 #define WLC_FBT_CAP_DRV_4WAY_AND_REASSOC  1 /* Driver 4-way handshake & reassoc (WLFBT). */
@@ -2552,5 +2605,814 @@ typedef uint32 ratespec_t;
 #define DBG_DISABLE_RX_STALL_TO_MASK		0x00000200
 /* Disables TX DMA stall health check */
 #define DBG_DISABLE_TX_STALL_TO_MASK		0x00000400
+
+#define	NFIFO			6	/**< # tx/rx fifopairs */
+
+#ifndef NFIFO_EXT
+#if defined(BCM_AQM_DMA_DESC) && !defined(BCM_AQM_DMA_DESC_DISABLED)
+#if (defined(LLW) && !defined(SWLLW)) || defined(BCM_SAQM_FOR_ALL_TX_QUEUES)
+#ifdef SAQM_STATIC_QUEUE_CONFIG_2
+#define NFIFO_EXT		9	/* 4 EDCA + 1 Mcast/Bcast +  4 Trigger */
+#else
+#define NFIFO_EXT		11	/* 4EDCA + 4 TWT + 1 Mcast/Bcast + 1 Spare + 1 LLQ */
+#endif /* SAQM_STATIC_QUEUE_CONFIG_2 */
+#else
+#define NFIFO_EXT		10	/* 4EDCA + 4 TWT + 1 Mcast/Bcast + 1 Spare */
+#endif /* (LLW && !SWLLW) || BCM_SAQM_FOR_ALL_TX_QUEUES */
+#elif defined(WL11AX_TRIGGERQ) && !defined(WL11AX_TRIGGERQ_DISABLED)
+#define NFIFO_EXT		10
+#else
+#define NFIFO_EXT		NFIFO
+#endif /* BCM_AQM_DMA_DESC && !BCM_AQM_DMA_DESC_DISABLED */
+#endif /* NFIFO_EXT */
+
+/* When new reason codes are added to list, Please update wl_reinit_names also */
+/* Reinit reason codes */
+enum {
+	WL_REINIT_RC_NONE             = 0,
+	WL_REINIT_RC_PS_SYNC          = 1,
+	WL_REINIT_RC_PSM_WD           = 2,
+	WL_REINIT_RC_MAC_WAKE         = 3,
+	WL_REINIT_RC_MAC_SUSPEND      = 4,
+	WL_REINIT_RC_MAC_SPIN_WAIT    = 5,
+	WL_REINIT_RC_AXI_BUS_ERROR    = 6,
+	WL_REINIT_RC_DEVICE_REMOVED   = 7,
+	WL_REINIT_RC_PCIE_FATAL_ERROR = 8,
+	WL_REINIT_RC_OL_FW_TRAP       = 9,
+	WL_REINIT_RC_FIFO_ERR         = 10,
+	WL_REINIT_RC_INV_TX_STATUS    = 11,
+	WL_REINIT_RC_MQ_ERROR         = 12,
+	WL_REINIT_RC_PHYTXERR_THRESH  = 13,
+	WL_REINIT_RC_USER_FORCED      = 14,
+	WL_REINIT_RC_FULL_RESET       = 15,
+	WL_REINIT_RC_AP_BEACON        = 16,
+	WL_REINIT_RC_PM_EXCESSED      = 17,
+	WL_REINIT_RC_NO_CLK           = 18,
+	WL_REINIT_RC_SW_ASSERT        = 19,
+	WL_REINIT_RC_PSM_JMP0         = 20,
+	WL_REINIT_RC_PSM_RUN          = 21,
+	WL_REINIT_RC_ENABLE_MAC       = 22,
+	WL_REINIT_RC_SCAN_TIMEOUT     = 23,
+	WL_REINIT_RC_JOIN_TIMEOUT     = 24,
+	/* Below error codes are generated during D3 exit validation */
+	WL_REINIT_RC_LINK_NOT_ACTIVE  = 25,
+	WL_REINIT_RC_PCI_CFG_RD_FAIL  = 26,
+	WL_REINIT_RC_INV_VEN_ID       = 27,
+	WL_REINIT_RC_INV_DEV_ID       = 28,
+	WL_REINIT_RC_INV_BAR0         = 29,
+	WL_REINIT_RC_INV_BAR2         = 30,
+	WL_REINIT_RC_AER_UC_FATAL     = 31,
+	WL_REINIT_RC_AER_UC_NON_FATAL = 32,
+	WL_REINIT_RC_AER_CORR         = 33,
+	WL_REINIT_RC_AER_DEV_STS      = 34,
+	WL_REINIT_RC_PCIe_STS         = 35,
+	WL_REINIT_RC_MMIO_RD_FAIL     = 36,
+	WL_REINIT_RC_MMIO_RD_INVAL    = 37,
+	WL_REINIT_RC_MMIO_ARM_MEM_RD_FAIL = 38,
+	WL_REINIT_RC_MMIO_ARM_MEM_INVAL   = 39,
+	WL_REINIT_RC_SROM_LOAD_FAILED     = 40,
+	WL_REINIT_RC_PHY_CRASH            = 41,
+	WL_REINIT_TX_STALL                = 42,
+	WL_REINIT_RC_TX_FLOW_CONTROL_BLOCKED	= 43,
+	WL_REINIT_RC_RX_HC_FAIL           = 44,
+	WL_REINIT_RC_RX_DMA_STALL         = 45,
+	WL_REINIT_UTRACE_BUF_OVERLAP_SR	  = 46,
+	WL_REINIT_UTRACE_TPL_OUT_BOUNDS   = 47,
+	WL_REINIT_UTRACE_TPL_OSET_STRT0   = 48,
+	WL_REINIT_RC_PHYTXERR             = 49,
+	WL_REINIT_RC_PSM_FATAL_SUSP       = 50,
+	WL_REINIT_RC_TX_FIFO_SUSP         = 51,
+	WL_REINIT_RC_MAC_ENABLE           = 52,
+	WL_REINIT_RC_SCAN_STALLED         = 53,
+	WL_REINIT_RC_PHY_HC		  = 54,
+	WL_REINIT_RC_LAST,	/* DONOT use this any more, kept for legacy reasons */
+	WL_REINIT_RC_RADIO_CRASH	  = 55,
+	WL_REINIT_RC_BM_IDLE_FAIL_TO	  = 56, /* BM idle fail timeout */
+	WL_REINIT_RC_URB_CBM_ERROR	  = 57, /* URB CBM error */
+	WL_REINIT_RC_TXE_SHARED_ERR	  = 58, /* TXE shared error */
+	WL_REINIT_RC_TXDMA_ERR		  = 59, /* Tx DMA errors */
+	WL_REINIT_RC_RX_HW_ERR		  = 60, /* Rx HW error */
+	WL_REINIT_RC_URB_LEN_ERROR	  = 61, /* URB LEN error */
+	WL_REINIT_RC_PHY_BAD_ERROR	  = 62, /* PHY badness detected */
+	WL_REINIT_RC_SUPPORTED_LAST	/* Use for app ONLY, DONOT use this in wlc code.
+					 * For wlc, use WL_REINIT_RC_VERSIONED_LAST
+					 */
+};
+
+#define WL_REINIT_RC_V2		(2u)
+#define WL_REINIT_RC_LAST_V2	(WL_REINIT_RC_RADIO_CRASH)
+
+#define WL_REINIT_RC_INVALID	255
+
+#define NREINITREASONCOUNT	8
+/* NREINITREASONCOUNT is 8 in other branches.
+ * Any change to this will break wl tool compatibility with other branches
+ * #define NREINITREASONCOUNT	WL_REINIT_RC_LAST
+ */
+/* REINITRSNIDX is kept for legacy reasons. Use REINIT_RSN_IDX for new versioned structure */
+#define REINITRSNIDX(_x)	(((_x) < WL_REINIT_RC_LAST) ? (_x) : 0)
+#define REINIT_RSN_IDX(_x)	(((_x) < WL_REINIT_RC_SUPPORTED_LAST) ? (_x) : 0) /* TBD: move
+										   * this to src
+										   */
+#define REINIT_RSN_IDX_V2(_x)	(((_x) <= WL_REINIT_RC_LAST_V2) ? (_x) : 0)
+
+#define WL_CNT_VERSION_6	6
+#define WL_CNT_VERSION_7	7
+#define WL_CNT_VERSION_11	11
+#define WL_CNT_VERSION_XTLV	30
+#define WL_CNT_VERSION_XTLV_ML	31
+
+#define WL_COUNTERS_IOV_VERSION_1	1
+#define WL_SUBCNTR_IOV_VER		WL_COUNTERS_IOV_VERSION_1
+/* First two uint16 are version and length fields. So offset of the first counter will be 4 */
+#define FIRST_COUNTER_OFFSET		0x04
+
+/* need for now due to src/wl/ndis automerged to other branches. e.g. BISON */
+#define WLC_WITH_XTLV_CNT
+
+/* Number of xtlv info as required to calculate subcounter offsets */
+#define WL_CNT_XTLV_ID_NUM	20
+#define WL_TLV_IOV_VERSION_1	1u
+#define WL_TLV_IOV_VERSION_2	2u
+
+#define WL_TLV_DATASET_V2_LEN	2u /* First 32 bit - TLV type
+				* Second 32 bit - TLV Len
+				*/
+#define SUBC_SUBFLD_NUMTLV_MASK		0x00ff
+#define SUBC_SUBFLD_NUMTLV_GET(val)	(val & SUBC_SUBFLD_NUMTLV_MASK)
+
+#define SUBC_SUBFLD_NUMLINKS_MASK	0x0f00
+#define SUBC_SUBFLD_NUMLINKS_SHIFT	8
+#define SUBC_SUBFLD_NUMLINKS_UPD(val, nl)		\
+		(val) |= (((((uint16)nl)) << SUBC_SUBFLD_NUMLINKS_SHIFT) & \
+		SUBC_SUBFLD_NUMLINKS_MASK)
+#define SUBC_SUBFLD_NUMLINKS_GET(val)		\
+		(val & SUBC_SUBFLD_NUMLINKS_MASK) >> SUBC_SUBFLD_NUMLINKS_SHIFT
+
+#define SUBC_SUBFLD_SLICEIX_MASK	0x7000
+#define SUBC_SUBFLD_SLICEIX_SHIFT	12
+#define SUBC_SUBFLD_SLICEIX_UPD(val, slix)		\
+		(val) |= (((((uint16)slix)) << SUBC_SUBFLD_SLICEIX_SHIFT) & \
+		SUBC_SUBFLD_SLICEIX_MASK)
+#define SUBC_SUBFLD_SLICEIX_GET(val)		\
+		(val & SUBC_SUBFLD_SLICEIX_MASK) >> SUBC_SUBFLD_SLICEIX_SHIFT
+/**
+ * tlv IDs uniquely identifies counter component
+ * packed into wl_cmd_t container
+ */
+enum wl_cnt_xtlv_id {
+	WL_CNT_XTLV_SLICE_IDX = 0x1,		/**< Slice index */
+	WL_CNT_XTLV_COUNTERS_REPORT_STATUS = 0x2,	/* IOV Counter Reporting */
+	WL_CNT_XTLV_WLC = 0x100,		/**< WLC layer counters */
+	WL_CNT_XTLV_WLC_RINIT_RSN = 0x101,	/**< WLC layer reinitreason extension: LEGACY */
+	WL_CNT_XTLV_WLC_HE = 0x102,		/* he counters */
+	WL_CNT_XTLV_WLC_SECVLN = 0x103,		/* security vulnerabilities counters */
+	WL_CNT_XTLV_WLC_HE_OMI = 0x104,		/* he omi counters */
+	WL_CNT_XTLV_WLC_RINIT_RSN_V2 = 0x105,	/**< WLC layer reinitreason extension */
+	WL_CNT_XTLV_WLC_MESH_PKT_V1 = 0x106,	/**< WLC layer Mesh pkt counters */
+	WL_CNT_XTLV_WLC_HE_TX = 0x107,		/* HE Tx counters for WL counters */
+	WL_CNT_XTLV_WLC_HE_RX = 0x108,		/* HE Rx counters for WL counters */
+
+	WL_CNT_XTLV_CNTV_LE10_UCODE = 0x200,	/**< wl counter ver < 11 UCODE MACSTAT */
+	WL_CNT_XTLV_LT40_UCODE_V1 = 0x300,	/**< corerev < 40 UCODE MACSTAT */
+	WL_CNT_XTLV_GE40_UCODE_V1 = 0x400,	/**< corerev >= 40 UCODE MACSTAT */
+	WL_CNT_XTLV_GE64_UCODEX_V1 = 0x800,	/* corerev >= 64 UCODEX MACSTAT */
+	WL_CNT_XTLV_GE80_UCODE_V1 = 0x900,	/* corerev >= 80 UCODEX MACSTAT */
+	WL_CNT_XTLV_GE80_RXERR_UCODE_V1 = 0x901,	/* corerev >= 80 UCODE RXERR mac stat */
+	WL_CNT_XTLV_GE80_TXFUNFL_UCODE_V1 = 0x1000,	/* corerev >= 80 UCODEX MACSTAT */
+	WL_CNT_XTLV_GE88_UCODE_TX_V1 = 0x1001,		/* corerev >= 88 ucode macstats V1 - tx */
+	WL_CNT_XTLV_GE88_UCODE_RX_V1 = 0x1002,		/* corerev >= 88 ucode macstats V1 - rx */
+	WL_CNT_XTLV_GE88_UCODE_TX_V2 = 0x1003,		/* corerev >= 88 ucode macstats V2 - tx */
+	WL_CNT_XTLV_GE88_UCODE_RX_V2 = 0x1004,		/* corerev >= 88 ucode macstats V2 - rx */
+	WL_CNT_XTLV_GE88_UCODE_TX_U32_V1 = 0x1005,	/* corerev >= 88 ucode macstats V1 - tx */
+	WL_CNT_XTLV_GE88_UCODE_RX_U32_V1 = 0x1006,	/* corerev >= 88 ucode macstats V1 - rx */
+	WL_CNT_XTLV_GE88_UCODE_TX_V3 = 0x1007,		/* corerev >= 88 ucode macstats V3 - tx */
+	WL_CNT_XTLV_GE88_UCODE_RX_V3 = 0x1008,		/* corerev >= 88 ucode macstats V3 - rx */
+	WL_CNT_XTLV_GE88_UCODE_TX_U32_V2 = 0x1009,	/* corerev >= 88 ucode macstats V2 - tx */
+	WL_CNT_XTLV_GE88_UCODE_RX_U32_V2 = 0x100a,	/* corerev >= 88 ucode macstats V2 - rx */
+	WL_CNT_XTLV_DYN_BW_STATS_V1 = 0x100b,		/* Deprecated */
+	WL_CNT_XTLV_DYN_BW_STATS = 0x100c,		/* corerev >= 88 DynBW stats */
+	WL_CNT_XTLV_SLIM_SCAN_STATS = 0x100d,		/* Slim Scan stats */
+	WL_CNT_XTLV_DATA_BW_STATS = 0x100e,		/* corerev >= 89 DataBW stats */
+	WL_CNT_XTLV_MACST_TX_V4 = 0x100f,		/* corerev >= 88 ucode macstats V4 - tx */
+	WL_CNT_XTLV_MULTI_SCAN_STATS = 0x1010,		/* Multi Scan stats */
+	WL_CNT_XTLV_PHY_RX_STATS = 0x1011,		/* PHY RX stats */
+	/* XLTVs in this gap are available for use */
+	/* scan aux core related additional counters */
+	WL_CNT_XTLV_SCANAUX_UCODE_V1 = 0x1012,
+
+	/* For use in ecounters */
+	WL_CNT_XTLV_UCODE_TX_BLK0 = 0x1013,
+	WL_CNT_XTLV_UCODE_RX_BLK0 = 0x1014,
+	WL_CNT_XTLV_UCODE_RXERR_BLK0 = 0x1015,
+	WL_CNT_XTLV_WLC_HE_OMI_BLK0 = 0x1016,
+	WL_CNT_XTLV_WLC_HE_RX_BLK0 = 0x1017,
+	WL_CNT_XTLV_WLC_HE_TX_BLK0 = 0x1018,
+	WL_CNT_XTLV_DYN_BW_BLK0 = 0x1019,
+	WL_CNT_XTLV_DATA_BW_BLK0 = 0x101a,
+	WL_CNT_XTLV_WLC_HE_UNIFIED_BLK0 = 0x101b,
+	/* 13 XTLVs reserved for new counters that may need to be added */
+	WL_CNT_XTLV_UCODE_TX_BLK1 = 0x1028,
+	WL_CNT_XTLV_UCODE_RX_BLK1 = 0x1029,
+	WL_CNT_XTLV_UCODE_RXERR_BLK1 = 0x102a,
+	WL_CNT_XTLV_WLC_HE_OMI_BLK1 = 0x102b,
+	WL_CNT_XTLV_WLC_HE_RX_BLK1 = 0x102c,
+	WL_CNT_XTLV_WLC_HE_TX_BLK1 = 0x102d,
+	WL_CNT_XTLV_DYN_BW_BLK1 = 0x102e,
+	WL_CNT_XTLV_DATA_BW_BLK1 = 0x102f,
+	WL_CNT_XTLV_WLC_HE_UNIFIED_BLK1 = 0x1030,
+	/* 13 XTLVs reserved for new counters that may need to be added */
+	/* XTLVs till 0x1100 reserved for ecounters */
+
+	/* main/aux slices */
+	WL_CNT_XTLV_MCST_RXERR_V1 = 0x1101,
+	WL_CNT_XTLV_MCST_RXERR_U32_V1 = 0x1102,
+	WL_CNT_XTLV_MCST_TXERR_V1 = 0x1103,
+	WL_CNT_XTLV_MCST_TXERR_U32_V1 = 0x1104,
+	WL_CNT_XTLV_MCST_RXTB_V1 = 0x1105,
+	WL_CNT_XTLV_MCST_TXTB_V1 = 0x1106,
+	WL_CNT_XTLV_MCST_RXFRM_V1 = 0x1107,
+	WL_CNT_XTLV_MCST_RXFRM_U32_V1 = 0x1108,
+	WL_CNT_XTLV_MCST_TXFRM_V1 = 0x1109,
+	WL_CNT_XTLV_MCST_TXFRM_U32_V1 = 0x110a,
+	/* 10 reserved for more counters */
+
+	/* scan slice */
+	WL_CNT_XTLV_MCST_SC_RXERR_V1 = 0x1115,
+	WL_CNT_XTLV_MCST_SC_RXTB_V1 = 0x1116,
+	WL_CNT_XTLV_MCST_SC_RXFRM_V1 = 0x1117,
+	/* 5 reserved for more SC counters */
+};
+
+/* bitmap for clm_flags iovar */
+#define WL_CLM_TXBF                0x01u /**< Flag for Tx beam forming */
+#define WL_CLM_RED_EU              0x02u /* Flag for EU RED */
+#define WL_CLM_EDCRS_EU            0x04u /**< Use EU post-2015 energy detect */
+#define WL_CLM_DFS_TPC             0x08u /**< Flag for DFS TPC */
+#define WL_CLM_RADAR_TYPE_EU       0x10u /**< Flag for EU */
+#define WL_CLM_DSA                 0x20u /**< Flag for DSA */
+#define WL_CLM_PER_ANTENNA         0x40u /**< Flag for PER_ANTENNA */
+#define WL_CLM_LO_GAIN_NBCAL       0x20u /**< Flag for LO_GAIN_NBCAL */
+#define WL_CLM_PSD                 0x80u /**< Flag for PSD */
+#define WL_CLM_HE                  0x100u /**< Flag for HE */
+#define WL_CLM_NO_80MHZ            0x200u /**< Flag for NO_80MHZ */
+#define WL_CLM_NO_40MHZ            0x400u /**< Flag for NO_40MHZ */
+#define WL_CLM_NO_MIMO             0x800u /**< Flag for NO_MIMO */
+#define WL_CLM_HAS_DSSS_EIRP       0x1000u /**< Flag for HAS_DSSS_EIRP */
+#define WL_CLM_HAS_OFDM_EIRP       0x2000u /**< Flag for HAS_OFDM_EIRP */
+#define WL_CLM_NO_160MHZ           0x4000u /**< Flag for NO_160MHZ */
+#define WL_CLM_NO_80_80MHZ         0x8000u /**< Flag for NO_80_80MHZ */
+#define WL_CLM_EHT                 0x10000u /**< Flag for EHT */
+#define WL_CLM_MRU                 0x20000u /**< Flag for MRU */
+#define WL_CLM_VLP_TPC_FCC         0x40000u /**< Flag for VLP_TPC_FCC */
+#define WL_CLM_NO_320MHZ           0x200000u /**< Flag for NO_320MHZ */
+#define WL_CLM_NO_160_160MHZ       0x400000u /**< Flag for NO_160_160MHZ */
+#define WL_CLM_CBP_FCC             0x800000u /**< Flag for CBP_FCC */
+#define WL_CLM_6G_P2P_FLAGS_MASK   0x7000000u /**< 3 bits to represent 6GHz p2p releated flags
+					       * 0x3 ~ 0x6 are reserved for now
+					       */
+#define WL_CLM_C2C_DISABLED        0x0u       /**< No C2C related flags */
+#define WL_CLM_C2C_EU              0x1000000u /**< Flag for C2C_EU */
+#define WL_CLM_C2C_US              0x2000000u /**< Flag for C2C_US */
+#define WL_CLM_VLP_P2P_DISABLE     0x7000000u /**< Flag VLP_P2P_DISABLE */
+#define WL_CLM_DFS_FCC             WL_CLM_DFS_TPC /**< Flag for DFS FCC */
+#define WL_CLM_DFS_EU              (WL_CLM_DFS_TPC | WL_CLM_RADAR_TYPE_EU) /**< Flag for DFS EU */
+#define WL_CLM_PP                  0x8000000u /**< Flag for Punctured bandwidth allowed */
+#define WL_CLM_NO_FDSS		   0x10000000u /**< Flag for FDSS disabled for given country */
+
+typedef enum sup_auth_status {
+	/* Basic supplicant authentication states */
+	WLC_SUP_DISCONNECTED = 0,
+	WLC_SUP_CONNECTING,
+	WLC_SUP_IDREQUIRED,
+	WLC_SUP_AUTHENTICATING,
+	WLC_SUP_AUTHENTICATED,
+	WLC_SUP_KEYXCHANGE,
+	WLC_SUP_KEYED,
+	WLC_SUP_TIMEOUT,
+	WLC_SUP_LAST_BASIC_STATE,
+
+	/* Extended supplicant authentication states */
+	/** Waiting to receive handshake msg M1 */
+	WLC_SUP_KEYXCHANGE_WAIT_M1 = WLC_SUP_AUTHENTICATED,
+	/** Preparing to send handshake msg M2 */
+	WLC_SUP_KEYXCHANGE_PREP_M2 = WLC_SUP_KEYXCHANGE,
+	/* Waiting to receive handshake msg M3 */
+	WLC_SUP_KEYXCHANGE_WAIT_M3 = WLC_SUP_LAST_BASIC_STATE,
+	WLC_SUP_KEYXCHANGE_PREP_M4,	/**< Preparing to send handshake msg M4 */
+	WLC_SUP_KEYXCHANGE_WAIT_G1,	/**< Waiting to receive handshake msg G1 */
+	WLC_SUP_KEYXCHANGE_PREP_G2	/**< Preparing to send handshake msg G2 */
+} sup_auth_status_t;
+
+/* Per-interface reportable stats types */
+enum wl_ifstats_xtlv_id {
+	/* global */
+	WL_IFSTATS_XTLV_SLICE_INDEX = 1,
+	WL_IFSTATS_XTLV_IF_INDEX = 2,
+	WL_IFSTATS_XTLV_MAC_ADDR = 3,
+	WL_IFSTATS_XTLV_REPORT_CMD = 4,	/* Comes in an iovar */
+	WL_IFSTATS_XTLV_BUS_PCIE = 5,
+	WL_STATS_XTLV_BUS_PCIE_TX_HISTOGRAMS = 6,
+	WL_STATS_XTLV_BUS_PCIE_TX_QUEUE_DEPTH = 7,
+	/* history of blocks freed most recently */
+	WL_STATS_XTLV_FBINFO_STATS = 8,
+
+	/* Report data across all SCBs using ecounters */
+	/* STA_info ecounters */
+	WL_IFSTATS_XTLV_WL_STA_INFO_ECOUNTERS = 0x100,
+	/* For AMPDU stat sub-types requested in a different format */
+	/* these could be sum and report stats across slices. OR
+	 * report sub-types in pairs so host can sum and add.
+	 * Information sent here is across slices, therefore global
+	 */
+	WL_IFSTATS_XTLV_TX_AMPDU_STATS = 0x101,
+	WL_IFSTATS_XTLV_RX_AMPDU_STATS = 0x102,
+	/* scb ecounter statistics */
+	WL_IFSTATS_XTLV_SCB_ECOUNTERS = 0x103,
+	/* Global NAN stats */
+	WL_IFSTATS_XTLV_NAN_STATS = 0x104,
+	WL_IFSTATS_XTLV_CHAN_STATS = 0x105,
+	/* TDLS state */
+	WL_IFSTATS_XTLV_IF_TDLS_STATE = 0x106,
+	WL_IFSTATS_XTLV_KEY_PLUMB_INFO = 0x107,
+	/* HE TX related stats */
+	WL_IFSTATS_XTLV_HE_TXMU_STATS = 0x108,
+
+	WL_IFSTATS_XTLV_SC_PERIODIC_STATE = 0x109,
+	WL_IFSTATS_XTLV_WBUS_PERIODIC_STATE = 0x10A,
+
+	/* PHY ecounters */
+	WL_STATS_XTLV_PHY_ECOUNTER = 0x10B,
+
+	/* PHYCAL ecounters */
+	WL_STATS_XTLV_PHYCAL_ECOUNTER = 0x10C,
+
+	/* missed dtim eCounter */
+	WL_STATS_XTLV_MISSED_DTIM_COUNTER = 0x10D,
+
+	/* Per-slice information
+	 * Per-interface reporting could also include slice specific data
+	 */
+	/* xtlv container for reporting */
+	WL_IFSTATS_XTLV_WL_SLICE = 0x301,
+	/* Per-slice AMPDU stats */
+	WL_IFSTATS_XTLV_WL_SLICE_TX_AMPDU_DUMP = 0x302,
+	WL_IFSTATS_XTLV_WL_SLICE_RX_AMPDU_DUMP = 0x303,
+	/* Per-slice BTCOEX stats */
+	WL_IFSTATS_XTLV_WL_SLICE_BTCOEX = 0x304,
+	/* V11_WLCNTRS used in ecounters */
+	WL_IFSTATS_XTLV_WL_SLICE_V11_WLCNTRS = 0x305,
+	/* V30_WLCNTRS Used in ecounters */
+	WL_IFSTATS_XTLV_WL_SLICE_V30_WLCNTRS = 0x306,
+	/* phy,ucode,scan pwrstats */
+	WL_IFSTATS_XTLV_WL_SLICE_PWRSTATS_PHY = 0x307,
+	WL_IFSTATS_XTLV_WL_SLICE_PWRSTATS_SCAN = 0x308,
+	WL_IFSTATS_XTLV_WL_SLICE_PWRSTATS_WAKE_V2 = 0x309,
+	/* Per-slice LTECOEX stats */
+	WL_IFSTATS_XTLV_WL_SLICE_LTECOEX = 0x30A,
+	/* TVPM ecounters */
+	WL_IFSTATS_XTLV_WL_SLICE_TVPM = 0x30B,
+	/* TDMTX ecounters */
+	WL_IFSTATS_XTLV_WL_SLICE_TDMTX = 0x30C,
+	/* Slice specific state capture in periodic fasion */
+	WL_SLICESTATS_XTLV_PERIODIC_STATE = 0x30D,
+	WL_SLICESTATS_XTLV_HIST_TX_STATS = 0x30E,
+	WL_SLICESTATS_XTLV_HIST_RX_STATS = 0x30F,
+	/* TX histograms */
+	WL_STATS_XTLV_WL_SLICE_TX_HISTOGRAMS = 0x310,
+	/* TX queue depth */
+	WL_STATS_XTLV_WL_SLICE_TX_QUEUE_DEPTH = 0x311,
+	/* Latency instrumentation debug */
+	WL_STATS_XTLV_WL_QUEUE_STOP = 0x312,
+	/* Beamforming counters */
+	WL_IFSTATS_XTLV_WL_SLICE_TXBF = 0x313,
+	/* Per-slice BTCOEX task duration stats */
+	WL_IFSTATS_XTLV_WL_SLICE_BTCOEX_TSKDUR_STATS = 0x314,
+	/* Per-slice RC1 COEX (NR5G Coex) stats */
+	WL_IFSTATS_XTLV_WL_SLICE_NR5GCX = 0x315,
+	/* Per-slice RC1 COEX (RC1 Coex) stats for trunk and future branches */
+	WL_IFSTATS_XTLV_WL_SLICE_RC1CX = 0x315,
+	/* Per-slice sta offload stats */
+	WL_IFSTATS_XTLV_WL_SLICE_STA_OFLD_STATS = 0x316,
+	/* Per-Slice [only aux] btcec sc stats */
+	WL_IFSTATS_XTLV_WL_SLICE_BTCEC_PERIODIC_STATS = 0x317,
+	/* Per-Slice sc lq stats */
+	WL_IFSTATS_XTLV_SC_CHANIM_PERIODIC_STATS = 0x318,
+	/* Per-slice RC2 COEX stats */
+	WL_IFSTATS_XTLV_WL_SLICE_RC2CX = 0x319,
+	/* Rx MPDU lost counter per-slice */
+	WL_STATS_XTLV_WL_SLICE_RX_LOST_CNT = 0x31A,
+	/* per slice tx mpdu cnt eCounters */
+	WL_STATS_XTLV_WME_TX_CNT_WL_SLICE = 0x31B,
+	/* per slice rx mpdu cnt eCounters */
+	WL_STATS_XTLV_WME_RX_CNT_WL_SLICE = 0x31C,
+	/* Per-slice UWBCX stats */
+	WL_IFSTATS_XTLV_WL_SLICE_UWBCX = 0x31D,
+	/* Per-slice UWBCX stats */
+	WL_IFSTATS_XTLV_WL_SLICE_PWRSTATS_SCAN_6E = 0x31E,
+	/* Per-interface */
+	/* XTLV container for reporting */
+	WL_IFSTATS_XTLV_IF = 0x501,
+	/* Generic stats applicable to all IFs */
+	WL_IFSTATS_XTLV_GENERIC = 0x502,
+	/* Infra specific */
+	WL_IFSTATS_XTLV_INFRA_SPECIFIC = 0x503,
+	/* MGT counters infra and softAP */
+	WL_IFSTATS_XTLV_MGT_CNT = 0x504,
+	/* AMPDU stats on per-IF */
+	WL_IFSTATS_XTLV_AMPDU_DUMP = 0x505,
+	WL_IFSTATS_XTLV_IF_SPECIFIC = 0x506,
+
+	WL_IFSTATS_XTLV_IF_LQM = 0x508,
+	/* Interface specific state capture in periodic fashion */
+	WL_IFSTATS_XTLV_IF_PERIODIC_STATE = 0x509,
+	/* Event statistics on per-IF */
+	WL_IFSTATS_XTLV_IF_EVENT_STATS = 0x50A,
+	/* Infra HE specific */
+	WL_IFSTATS_XTLV_INFRA_SPECIFIC_HE = 0x50B,
+	/* Roam statistics */
+	WL_IFSTATS_XTLV_ROAM_STATS_PERIODIC = 0x50C,
+	WL_IFSTATS_XTLV_ROAM_STATS_EVENT = 0x50D,
+	WL_IFSTATS_XTLV_IF_PEER_STATS = 0x50E,
+	/* ecounters for nan */
+	/* nan slot stats */
+	WL_IFSTATS_XTLV_NAN_SLOT_STATS = 0x601,
+	/* Ecounters for NDP session status */
+	WL_STATS_XTLV_NDP_SESSION_STATUS = 0x602,
+	/* NAN disc frame status ecounters */
+	WL_STATS_XTLV_NAN_DISC_FRM_STATUS = 0x603
+};
+
+/* CAPEXT WL partition */
+/* The features listed in the enumeration below have subfeatures
+ * If a new feature is added and that feature has sub-features that need to be reported,
+ * add that feature here
+ */
+#define CAPEXT_WL_FEATURE_ID_BASE		(2048u)
+enum capext_wl_feature_id {
+	CAPEXT_WL_FEATURE_RSVD		= (CAPEXT_WL_FEATURE_ID_BASE + 0),
+	/* WL top level feature id to hold and report bitmaps of features with and
+	 * without sub-features.
+	 */
+	CAPEXT_WL_FEATURE_WL_FEATURES	= (CAPEXT_WL_FEATURE_ID_BASE + 1),
+	/* other wl features with sub-features that need to be reported */
+	CAPEXT_WL_FEATURE_AMPDU		= (CAPEXT_WL_FEATURE_ID_BASE + 2),
+	CAPEXT_WL_FEATURE_AMSDU		= (CAPEXT_WL_FEATURE_ID_BASE + 3),
+	CAPEXT_WL_FEATURE_STBC		= (CAPEXT_WL_FEATURE_ID_BASE + 4),
+	CAPEXT_WL_FEATURE_NAN		= (CAPEXT_WL_FEATURE_ID_BASE + 5),
+	CAPEXT_WL_FEATURE_COEX		= (CAPEXT_WL_FEATURE_ID_BASE + 6),
+	CAPEXT_WL_FEATURE_FBT		= (CAPEXT_WL_FEATURE_ID_BASE + 7),
+	CAPEXT_WL_FEATURE_MBSS		= (CAPEXT_WL_FEATURE_ID_BASE + 8),
+	CAPEXT_WL_FEATURE_TXPWRCAP	= (CAPEXT_WL_FEATURE_ID_BASE + 9),
+	CAPEXT_WL_FEATURE_PPR		= (CAPEXT_WL_FEATURE_ID_BASE + 10),
+	CAPEXT_WL_FEATURE_PKT_FILTER	= (CAPEXT_WL_FEATURE_ID_BASE + 11),
+	CAPEXT_WL_FEATURE_EHT		= (CAPEXT_WL_FEATURE_ID_BASE + 12),
+	CAPEXT_WL_FEATURE_AP		= (CAPEXT_WL_FEATURE_ID_BASE + 13),
+	CAPEXT_WL_FEATURE_MAX
+};
+
+/* MBSS cap sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_mbss_subfeature_bitpos {
+	WLC_CAPEXT_MBSS_BITPOS_UCODE_BSS_0	= 0,
+	WLC_CAPEXT_MBSS_BITPOS_UCODE_BSS_1	= 1,
+	WLC_CAPEXT_MBSS_BITPOS_UCODE_BSS_2	= 2,
+	WLC_CAPEXT_MBSS_BITPOS_MAX
+};
+
+/* AMPDU cap sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_ampdu_subfeature_bitpos {
+	WLC_CAPEXT_AMPDU_BITPOS_RX		= 0,
+	WLC_CAPEXT_AMPDU_BITPOS_TX		= 1,
+	WLC_CAPEXT_AMPDU_BITPOS_MAX
+};
+
+/* AMSDU cap sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_amsdu_subfeature_bitpos {
+	WLC_CAPEXT_AMSDU_BITPOS_RX		= 0,
+	WLC_CAPEXT_AMSDU_BITPOS_TX		= 1,
+	WLC_CAPEXT_AMSDU_BITPOS_DYNLEN		= 2,
+	WLC_CAPEXT_AMSDU_BITPOS_MAX
+};
+
+/* STBC cap sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_stbc_subfeature_bitpos {
+	WLC_CAPEXT_STBC_BITPOS_TX		= 0,
+	WLC_CAPEXT_STBC_BITPOS_RX_1SS		= 1,
+	WLC_CAPEXT_STBC_BITPOS_MAX
+};
+
+/* TX power cap sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_txpwrcap_subfeature_bitpos {
+	WLC_CAPEXT_TXPWRCAP_BITPOS_RSVD		= 0,
+	WLC_CAPEXT_TXPWRCAP_BITPOS_TXPWRCAP_1	= 1,
+	WLC_CAPEXT_TXPWRCAP_BITPOS_TXPWRCAP_2	= 2,
+	WLC_CAPEXT_TXPWRCAP_BITPOS_TXPWRCAP_3	= 3,
+	WLC_CAPEXT_TXPWRCAP_BITPOS_TXPWRCAP_4	= 4,
+	WLC_CAPEXT_TXPWRCAP_BITPOS_MAX
+};
+
+/* PPR sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_ppr_subfeature_bitpos {
+	WLC_CAPEXT_PPR_BITPOS_RSVD		= 0,
+	WLC_CAPEXT_PPR_BITPOS_TLV_VER_1		= 1,
+	WLC_CAPEXT_PPR_BITPOS_TLV_VER_2		= 2,
+	WLC_CAPEXT_PPR_BITPOS_TLV_VER_3		= 3,
+	WLC_CAPEXT_PPR_BITPOS_TLV_VER_4		= 4,
+	WLC_CAPEXT_PPR_BITPOS_MAX
+};
+
+/* COEX sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_coex_subfeature_bitpos {
+	WLC_CAPEXT_COEX_BITPOS_LTE		= 0,
+	WLC_CAPEXT_COEX_BITPOS_LTECX_LBT	= 1,
+	WLC_CAPEXT_COEX_BITPOS_BTC_WIFI_PROT	= 2,
+	WLC_CAPEXT_COEX_BITPOS_RC1		= 3,
+#if defined(WL_RC2COEX) || defined(RC2CX)
+	WLC_CAPEXT_COEX_BITPOS_RC2		= 4,
+#endif /* WL_RC2COEX */
+	WLC_CAPEXT_COEX_BITPOS_SIB		= 5,
+#ifdef LR154CX
+	WLC_CAPEXT_COEX_BITPOS_154		= 6,
+#endif /* LR154CX */
+	WLC_CAPEXT_COEX_BITPOS_BT2G		= 7,
+	WLC_CAPEXT_COEX_BITPOS_BT5G		= 8,
+	WLC_CAPEXT_COEX_BITPOS_MAX
+};
+
+/* NAN sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_nan_subfeature_bitpos {
+	WLC_CAPEXT_NAN_BITPOS_AUTODAM		= 0,
+	WLC_CAPEXT_NAN_BITPOS_P2P		= 1,
+	WLC_CAPEXT_NAN_BITPOS_RANGE		= 2,
+	WLC_CAPEXT_NAN_BITPOS_MESH		= 3,
+	WLC_CAPEXT_NAN_BITPOS_MAX
+};
+
+/* FBT sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_fbt_subfeature_bitpos {
+	WLC_CAPEXT_FBT_BITPOS_OVERDS		= 0,
+	WLC_CAPEXT_FBT_BITPOS_ADPT		= 1,
+	WLC_CAPEXT_FBT_BITPOS_MAX
+};
+
+/* Packet filter sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_pkt_filter_subfeature_bitpos {
+	WLC_CAPEXT_PKT_FILTER_BITPOS_PKT_FILTER2	= 0,
+	WLC_CAPEXT_PKT_FILTER_BITPOS_PKT_FILTER6	= 1,
+	WLC_CAPEXT_PKT_FILTER_BITPOS_MAX
+};
+
+/* AP sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_ap_subfeature_bitpos {
+	WLC_CAPEXT_AP_BITPOS_NONAX		= 0,
+	WLC_CAPEXT_AP_BITPOS_AX_5G_ONLY		= 1,
+	WLC_CAPEXT_AP_BITPOS_SAE		= 2,
+	WLC_CAPEXT_AP_BITPOS_BCNPROT_AP		= 3,
+	WLC_CAPEXT_AP_BITPOS_MAX
+};
+
+/* EHT sub-feature bit positions. These sub-features need to be reported */
+enum wlc_capext_eht_subfeature_bitpos {
+	WLC_CAPEXT_EHT_BITPOS_320MHZ		= 0,
+	WLC_CAPEXT_EHT_BITPOS_MLO		= 1,
+	WLC_CAPEXT_EHT_BITPOS_MAX
+};
+
+/* WLC features bit positions in top level WLC feature id. Features mentioned below are reported */
+enum wlc_capext_feature_bitpos {
+	WLC_CAPEXT_FEATURE_BITPOS_AP			= 0,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_STA			= 1,
+	WLC_CAPEXT_FEATURE_BITPOS_TOE			= 2,
+	WLC_CAPEXT_FEATURE_BITPOS_WME			= 3,
+	WLC_CAPEXT_FEATURE_BITPOS_802_11d		= 4,
+
+	WLC_CAPEXT_FEATURE_BITPOS_802_11h		= 5,
+	WLC_CAPEXT_FEATURE_BITPOS_RM			= 6,
+	WLC_CAPEXT_FEATURE_BITPOS_CQA			= 7,
+	WLC_CAPEXT_FEATURE_BITPOS_CAC			= 8,
+	WLC_CAPEXT_FEATURE_BITPOS_MBSS			= 9,	/* feature with sub-features */
+
+	WLC_CAPEXT_FEATURE_BITPOS_DUALBAND		= 10,
+	WLC_CAPEXT_FEATURE_BITPOS_AMPDU			= 11,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_AMSDU			= 12,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_TDLS			= 13,
+	WLC_CAPEXT_FEATURE_BITPOS_WMF			= 14,
+
+	WLC_CAPEXT_FEATURE_BITPOS_RXCHAIN_PWRSAVE	= 15,
+	WLC_CAPEXT_FEATURE_BITPOS_RADIO_PWRSAVE		= 16,
+	WLC_CAPEXT_FEATURE_BITPOS_P2P			= 17,
+	WLC_CAPEXT_FEATURE_BITPOS_BCMDCS		= 18,
+	WLC_CAPEXT_FEATURE_BITPOS_PROP_TXSTATUS		= 19,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MCHAN			= 20,
+//	WLC_CAPEXT_FEATURE_BITPOS_WDS			= 21, OBSOLETE
+//	WLC_CAPEXT_FEATURE_BITPOS_DWDS			= 22, OBSOLETE
+	WLC_CAPEXT_FEATURE_BITPOS_CSO			= 23,
+	WLC_CAPEXT_FEATURE_BITPOS_P2P0			= 24,
+
+	WLC_CAPEXT_FEATURE_BITPOS_ANQPO			= 25,
+	WLC_CAPEXT_FEATURE_BITPOS_PROXD			= 26,
+	WLC_CAPEXT_FEATURE_BITPOS_VHT_PROP_RATES	= 27,
+	WLC_CAPEXT_FEATURE_BITPOS_MU_BEAMFORMER		= 28,
+	WLC_CAPEXT_FEATURE_BITPOS_SU_BEAMFORMER		= 29,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MU_BEAMFORMEE		= 30,
+	WLC_CAPEXT_FEATURE_BITPOS_SU_BEAMFORMEE		= 31,
+	WLC_CAPEXT_FEATURE_BITPOS_160MHZ_SUPPORT	= 32,
+	WLC_CAPEXT_FEATURE_BITPOS_HE			= 33,
+	WLC_CAPEXT_FEATURE_BITPOS_EHT			= 34,	/* feature with sub-features */
+
+	WLC_CAPEXT_FEATURE_BITPOS_DFRTS			= 35,
+	WLC_CAPEXT_FEATURE_BITPOS_LPAS			= 36,
+	WLC_CAPEXT_FEATURE_BITPOS_TXPWRCACHE		= 37,
+	WLC_CAPEXT_FEATURE_BITPOS_STBC			= 38,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_PS_PRETEND		= 39,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MP2P			= 40,
+	WLC_CAPEXT_FEATURE_BITPOS_RSDB			= 41,
+	WLC_CAPEXT_FEATURE_BITPOS_PRBRESP_MAC_FLTR	= 42,
+	WLC_CAPEXT_FEATURE_BITPOS_MFP			= 43,
+	WLC_CAPEXT_FEATURE_BITPOS_NDOE			= 44,
+
+	WLC_CAPEXT_FEATURE_BITPOS_RSSI_MON		= 45,
+	WLC_CAPEXT_FEATURE_BITPOS_WNM			= 46,
+	WLC_CAPEXT_FEATURE_BITPOS_BSSTRANS		= 47,
+	WLC_CAPEXT_FEATURE_BITPOS_EPNO			= 48,
+	WLC_CAPEXT_FEATURE_BITPOS_PFNX			= 49,
+
+	WLC_CAPEXT_FEATURE_BITPOS_SCANMAC		= 51,
+	WLC_CAPEXT_FEATURE_BITPOS_BDO			= 52,
+	WLC_CAPEXT_FEATURE_BITPOS_PPR			= 53,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_VE			= 54,
+
+	WLC_CAPEXT_FEATURE_BITPOS_FBT			= 55,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_CDEF			= 56,
+	WLC_CAPEXT_FEATURE_BITPOS_TXPWRCAP		= 58,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_MIMO_PS		= 59,
+
+	WLC_CAPEXT_FEATURE_BITPOS_ARB			= 60,
+	WLC_CAPEXT_FEATURE_BITPOS_OCL			= 61,
+	WLC_CAPEXT_FEATURE_BITPOS_D11STATUS		= 62,
+	WLC_CAPEXT_FEATURE_BITPOS_SCANCACHE		= 63,
+	WLC_CAPEXT_FEATURE_BITPOS_APF			= 64,
+
+	WLC_CAPEXT_FEATURE_BITPOS_ICMP			= 65,
+	WLC_CAPEXT_FEATURE_BITPOS_IFVER			= 66,
+	WLC_CAPEXT_FEATURE_BITPOS_TKO			= 67,
+	WLC_CAPEXT_FEATURE_BITPOS_BGDFS			= 68,
+	WLC_CAPEXT_FEATURE_BITPOS_IDAUTH		= 69,
+
+	WLC_CAPEXT_FEATURE_BITPOS_IFST			= 70,
+	WLC_CAPEXT_FEATURE_BITPOS_NAP			= 71,
+	WLC_CAPEXT_FEATURE_BITPOS_UCM			= 72,
+	WLC_CAPEXT_FEATURE_BITPOS_FIE			= 73,
+	WLC_CAPEXT_FEATURE_BITPOS_TVPM			= 74,
+
+	WLC_CAPEXT_FEATURE_BITPOS_TSYNC			= 75,
+	WLC_CAPEXT_FEATURE_BITPOS_BCNTRIM		= 76,
+	WLC_CAPEXT_FEATURE_BITPOS_LPR_SCAN		= 77,
+	WLC_CAPEXT_FEATURE_BITPOS_BKOFF_EVT		= 78,
+	WLC_CAPEXT_FEATURE_BITPOS_OPS			= 79,
+
+	WLC_CAPEXT_FEATURE_BITPOS_CLM_RESTRICT		= 80,
+	WLC_CAPEXT_FEATURE_BITPOS_EVT_EXT		= 81,
+	WLC_CAPEXT_FEATURE_BITPOS_TDMTX			= 83,
+	WLC_CAPEXT_FEATURE_BITPOS_NATOE			= 84,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MONITOR		= 85,
+	WLC_CAPEXT_FEATURE_BITPOS_PSBW			= 86,
+	WLC_CAPEXT_FEATURE_BITPOS_ROAMSTATS		= 87,
+	WLC_CAPEXT_FEATURE_BITPOS_IDSUP			= 88,
+	WLC_CAPEXT_FEATURE_BITPOS_GCMP			= 89,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MBO			= 90,
+	WLC_CAPEXT_FEATURE_BITPOS_ESTM			= 91,
+	WLC_CAPEXT_FEATURE_BITPOS_SC			= 92,
+	WLC_CAPEXT_FEATURE_BITPOS_6G			= 93,
+	WLC_CAPEXT_FEATURE_BITPOS_TX_PROF		= 94,
+
+	WLC_CAPEXT_FEATURE_BITPOS_DSA			= 95,
+	WLC_CAPEXT_FEATURE_BITPOS_ARPOE			= 96,
+	WLC_CAPEXT_FEATURE_BITPOS_BCNPROT		= 97,
+	WLC_CAPEXT_FEATURE_BITPOS_AVOID_BSSID		= 98,
+	WLC_CAPEXT_FEATURE_BITPOS_IOT_BM		= 99,
+
+	WLC_CAPEXT_FEATURE_BITPOS_IOT_BD		= 100,
+	WLC_CAPEXT_FEATURE_BITPOS_HOST_SFHLLC		= 101,
+	WLC_CAPEXT_FEATURE_BITPOS_RCO			= 102,
+	WLC_CAPEXT_FEATURE_BITPOS_PMR			= 103,
+	WLC_CAPEXT_FEATURE_BITPOS_SCR			= 104,
+
+	WLC_CAPEXT_FEATURE_BITPOS_DTPC			= 105,
+	WLC_CAPEXT_FEATURE_BITPOS_PASN			= 106,
+	WLC_CAPEXT_FEATURE_BITPOS_QOS_MGMT		= 107,
+	WLC_CAPEXT_FEATURE_BITPOS_LPC			= 108,
+	WLC_CAPEXT_FEATURE_BITPOS_SAE			= 109,
+
+	WLC_CAPEXT_FEATURE_BITPOS_EXTSAE		= 110,
+	WLC_CAPEXT_FEATURE_BITPOS_D3CBUF		= 111,
+	WLC_CAPEXT_FEATURE_BITPOS_PKT_FILTER		= 112,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_COEX			= 113,	/* feature with sub-features */
+	WLC_CAPEXT_FEATURE_BITPOS_NAN			= 114,	/* feature with sub-features */
+
+	WLC_CAPEXT_FEATURE_BITPOS_IGMPOE		= 115,
+	WLC_CAPEXT_FEATURE_BITPOS_OWE			= 116,
+	WLC_CAPEXT_FEATURE_BITPOS_CSI			= 117,
+	WLC_CAPEXT_FEATURE_BITPOS_SAE_H2E		= 118,
+	WLC_CAPEXT_FEATURE_BITPOS_SAE_PK		= 119,
+
+	WLC_CAPEXT_FEATURE_BITPOS_OBSS_HW		= 120,
+	WLC_CAPEXT_FEATURE_BITPOS_DYN_BW		= 121,
+	WLC_CAPEXT_FEATURE_BITPOS_OCT			= 122,
+	WLC_CAPEXT_FEATURE_BITPOS_MBO_MIN		= 123,
+	WLC_CAPEXT_FEATURE_BITPOS_OCV			= 124,
+
+	WLC_CAPEXT_FEATURE_BITPOS_OCV_AP		= 125,
+	WLC_CAPEXT_FEATURE_BITPOS_WIFI_BT5G		= 126,
+	WLC_CAPEXT_FEATURE_BITPOS_SAE_EXT		= 127,
+	WLC_CAPEXT_FEATURE_BITPOS_11AZ			= 128,
+	WLC_CAPEXT_FEATURE_BITPOS_PRUNE_WPA		= 129,
+	WLC_CAPEXT_FEATURE_BITPOS_SCCA			= 130,
+	WLC_CAPEXT_FEATURE_BITPOS_SC_6G_HE		= 131,
+	WLC_CAPEXT_FEATURE_BITPOS_SPMI_SCAN_FWD		= 132,
+	WLC_CAPEXT_FEATURE_BITPOS_OWE_AP		= 133,
+	WLC_CAPEXT_FEATURE_BITPOS_EDS			= 134,
+	WLC_CAPEXT_FEATURE_BITPOS_PLATCFG		= 135,
+	WLC_CAPEXT_FEATURE_BITPOS_ANTGAIN6G		= 136,
+	WLC_CAPEXT_FEATURE_BITPOS_MONITOR_MULTI		= 137,
+	WLC_CAPEXT_FEATURE_BITPOS_MPF_SCAN		= 138,
+	WLC_CAPEXT_FEATURE_BITPOS_MRSNO			= 139,
+	WLC_CAPEXT_FEATURE_BITPOS_AOP_SCAN		= 140,
+	WLC_CAPEXT_FEATURE_BITPOS_TXSHAPER		= 141,
+	WLC_CAPEXT_FEATURE_BITPOS_SLIMEMLSR		= 142,
+	WLC_CAPEXT_FEATURE_BITPOS_SCF			= 143,
+
+	WLC_CAPEXT_FEATURE_BITPOS_MAX
+};
+
+/* Debug Crash types */
+#define WL_DBG_CRSH_TYPE_RD_RANDOM			0x00u
+#define WL_DBG_CRSH_TYPE_RD_INV_CORE			0x01u
+#define WL_DBG_CRSH_TYPE_WR_INV_CORE			0x02u
+#define WL_DBG_CRSH_TYPE_RD_INV_WRAP			0x03u
+#define WL_DBG_CRSH_TYPE_WR_INV_WRAP			0x04u
+#define WL_DBG_CRSH_TYPE_RD_RES_CORE			0x05u
+#define WL_DBG_CRSH_TYPE_WR_RES_CORE			0x06u
+#define WL_DBG_CRSH_TYPE_RD_RES_WRAP			0x07u
+#define WL_DBG_CRSH_TYPE_WR_RES_WRAP			0x08u
+#define WL_DBG_CRSH_TYPE_RD_CORE_NO_CLK			0x09u
+#define WL_DBG_CRSH_TYPE_WR_CORE_NO_CLK			0x0Au
+#define WL_DBG_CRSH_TYPE_RD_CORE_NO_PWR			0x0Bu
+#define WL_DBG_CRSH_TYPE_WR_CORE_NO_PWR			0x0Cu
+#define WL_DBG_CRSH_TYPE_PCIe_AER			0x0Du
+#define WL_DBG_CRSH_TYPE_POWERCYCLE			0x0Eu
+#define WL_DBG_CRSH_TYPE_TRAP				0x0Eu
+#define WL_DBG_CRSH_TYPE_HANG				0x0Fu
+#define WL_DBG_CRSH_TYPE_PHYTXERR			0x10u
+
+#define WL_DBG_CRSH_TYPE_PHYREAD			0x11u
+#define WL_DBG_CRSH_TYPE_PHYWRITE			0x12u
+#define WL_DBG_CRSH_TYPE_INV_PHYREAD			0x13u
+#define WL_DBG_CRSH_TYPE_INV_PHYWRITE			0x14u
+#define WL_DBG_CRSH_TYPE_DUMP_STATE			0x15u
+
+/* Radio/PHY health check crash scenarios - reserved 0x16 to 0x30 */
+#define WL_DBG_CRSH_TYPE_RADIO_HEALTHCHECK_START	0x16u
+#define WL_DBG_CRSH_TYPE_DESENSE_LIMITS			0x17u
+#define WL_DBG_CRSH_TYPE_BASEINDEX_LIMITS		0x18u
+#define WL_DBG_CRSH_TYPE_TXCHAIN_INVALID		0x19u
+#define WL_DBG_CRSH_TYPE_CRITICAL_MALLOC_FAIL		0x1au
+#define WL_DBG_CRSH_TYPE_TEMPSENSE_LIMITS		0x20u
+#define WL_DBG_CRSH_TYPE_TXPOWER_LIMITS			0x21u
+#define WL_DBG_CRSH_TYPE_VCOCAL_FAILED			0x22u
+#define WL_DBG_CRSH_TYPE_PLL_NOTLOCKED			0x23u
+#define WL_DBG_CRSH_TYPE_RADIO_HEALTHCHECK_LAST		0x30u
+#define WL_DBG_CRSH_TYPE_BTCOEX_RFACTIVE		0x31u
+#define WL_DBG_CRSH_TYPE_BTCOEX_TXCONF_DELAY		0x32u
+#define WL_DBG_CRSH_TYPE_BTCOEX_ANT_DELAY		0x33u
+#define WL_DBG_CRSH_TYPE_BTCOEX_INVLD_TASKID		0x34u
+#define WL_DBG_CRSH_TYPE_STACK_OVERRUN			0x35u
+#define WL_DBG_CRSH_TYPE_MPU_HCHK			0x36u
+#define WL_DBG_CRSH_TYPE_STACK_CORRUPTION		0x38u
+/* To maintain uniformity with other branches, leaving 0x37 & 0x38 unused */
+#define WL_DBG_CRSH_TYPE_ARM_DBG_REG_ACCESS		0x39u
+#define WL_DBG_CRSH_TYPE_WLREGON			0x3au
+
+#define WL_DBG_CRSH_TYPE_SR_DCCAL0			0x40u
+#define WL_DBG_CRSH_TYPE_SR_DCCAL1			0x41u
+#define WL_DBG_CRSH_TYPE_SR_RXIQCAL0			0x50u
+#define WL_DBG_CRSH_TYPE_SR_RXIQCAL1			0x51u
+#define WL_DBG_CRSH_TYPE_SR_TEMP0			0x60u
+#define WL_DBG_CRSH_TYPE_SR_TEMP1			0x61u
+#define WL_DBG_CRSH_TYPE_SR_TEMP2			0x62u
+#define WL_DBG_CRSH_TYPE_SR_FULLCAL0			0x70u
+#define WL_DBG_CRSH_TYPE_SR_FULLCAL1			0x71u
+#define WL_DBG_CRSH_TYPE_SR_MPCAL0			0x80u
+#define WL_DBG_CRSH_TYPE_SR_MPCAL1			0x81u
+#define WL_DBG_CRSH_TYPE_SR_SEM				0x90u
+#define WL_DBG_CRSH_TYPE_SR_AXI				0x91u
+#define WL_DBG_CRSH_TYPE_SR_TEMPREQ_NORSP		0xa0u
+#define WL_DBG_CRSH_TYPE_SR_CALREQ_NORSP		0xa1u
+#define WL_DBG_CRSH_TYPE_LAST				0xa2u
 
 #endif /* wlioctl_defs_h */

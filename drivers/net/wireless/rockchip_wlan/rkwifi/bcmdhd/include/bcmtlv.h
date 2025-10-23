@@ -1,7 +1,26 @@
 /*
  * TLV and XTLV support
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -171,12 +190,13 @@ typedef struct bcm_xtlv {
 } bcm_xtlv_t;
 
 /* xtlv options */
-#define BCM_XTLV_OPTION_NONE	0x0000u
-#define BCM_XTLV_OPTION_ALIGN32	0x0001u /* 32bit alignment of type.len.data */
-#define BCM_XTLV_OPTION_IDU8	0x0002u /* shorter id */
-#define BCM_XTLV_OPTION_LENU8	0x0004u /* shorted length */
-#define BCM_XTLV_OPTION_IDBE	0x0008u /* big endian format id */
-#define BCM_XTLV_OPTION_LENBE	0x0010u /* big endian format length */
+#define BCM_XTLV_OPTION_NONE		0x0000u
+#define BCM_XTLV_OPTION_ALIGN32		0x0001u /* 32bit alignment of type.len.data */
+#define BCM_XTLV_OPTION_IDU8		0x0002u /* shorter id */
+#define BCM_XTLV_OPTION_LENU8		0x0004u /* shorted length */
+#define BCM_XTLV_OPTION_IDBE		0x0008u /* big endian format id */
+#define BCM_XTLV_OPTION_LENBE		0x0010u /* big endian format length */
+#define BCM_XTLV_OPTION_GATHER_DESC	0x0020u /* Gather descriptor */
 typedef uint16 bcm_xtlv_opts_t;
 
 /* header size. depends on options. Macros names ending w/ _EX are where
@@ -311,6 +331,8 @@ int bcm_unpack_xtlv_buf_to_mem(const uint8 *buf, int *buflen, xtlv_desc_t *items
 /* pack a set of tlvs into buffer using provided xtlv descriptors */
 int bcm_pack_xtlv_buf_from_mem(uint8 **buf, uint16 *buflen,
 	const xtlv_desc_t *items, bcm_xtlv_opts_t opts);
+int bcm_pack_xtlv_buf_from_mem_index(uint8 **buf, uint16 *buflen,
+	const xtlv_desc_t *items, bcm_xtlv_opts_t opts, uint16 *stopped_at);
 
 /* return data pointer and data length of a given id from xtlv buffer
  * data_len may be NULL
@@ -334,6 +356,8 @@ int bcm_pack_xtlv_buf(void *ctx, uint8 *tlv_buf, uint16 buflen,
 
 /* pack an xtlv. does not do any error checking. if data is not NULL
  * data of given length is copied  to buffer (xtlv)
+ * If opts has BCM_XTLV_OPTION_GATHER_DESC bit set, then the data arg is treated as a pointer
+ * to a gather descriptor
  */
 void bcm_xtlv_pack_xtlv(bcm_xtlv_t *xtlv, uint16 type, uint16 len,
 	const uint8 *data, bcm_xtlv_opts_t opts);
@@ -374,9 +398,62 @@ struct bcm_const_ulvp {
 
 typedef struct bcm_const_ulvp bcm_const_ulvp_t;
 
+#define BCM_XTLV_GATHER_DESC_TUPLES_MAX		(3u)
+
+/* Bits 3..0 are for num tuples but really only 1..0 are used others are reserved
+ * for now
+ */
+#define BCM_XTLV_GATHER_DESC_NUM_TUPLES_MASK		(0x3u)
+/* Bit 4 indicates if the tuple is a container level descriptor set */
+/* Support for 2 level packing with one container and leaf level XTLVs */
+/* If set, the last tuple in the descriptor points to a another set of
+ * gather XTLV descs
+ */
+#define BCM_XTLV_GATHER_DESC_CONTAINER_MASK	(0x10u)
+/* Bit 5 and later are reserved */
+
+#define BCM_XTLV_GATHER_DESC_NUM_TUPLES(desc)	\
+	((desc)->flags & BCM_XTLV_GATHER_DESC_NUM_TUPLES_MASK)
+
+#define BCM_XTLV_GATHER_DESC_NUM_TUPLES_SET(desc, num_tuples)		\
+	(((desc)->flags & (~BCM_XTLV_GATHER_DESC_NUM_TUPLES_MASK)) |	\
+	((num_tuples) & (BCM_XTLV_GATHER_DESC_NUM_TUPLES_MASK)))
+
+/* Sets if a descriptor is container. If next level is present,
+ * the last tuple must point to set of XTLV gather descriptors
+ */
+#define BCM_XTLV_GATHER_DESC_CONTAINER_SET(desc)			\
+	((desc)->flags | BCM_XTLV_GATHER_DESC_CONTAINER_MASK |		\
+	(0x1u & BCM_XTLV_GATHER_DESC_NUM_TUPLES_MASK))
+
+#define BCM_XTLV_GATHER_DESC_IS_CONTAINER(desc)			\
+	((desc)->flags & BCM_XTLV_GATHER_DESC_CONTAINER_MASK)
+
+/* A gather descriptor. Tuples are located elsewhere in memory */
+typedef struct xtlv_gather_desc {
+	uint16	type;
+	uint16	flags;	/* bit 3:0: number of tuples capped to 3 */
+	union {
+		bcm_xlvp_t *tuples;
+		struct xtlv_gather_desc *descs;
+	};
+} xtlv_gather_desc_t;
+
+/* Process one leaf level gather descriptor */
+int bcm_xtlv_put_gather_desc_leaf(xtlv_gather_desc_t *desc, struct bcm_xtlvbuf *xtlvbuf,
+	uint16 *attempted_write_len);
+
+/* Process a bunch of leaf level gather descriptors */
+int bcm_xtlv_process_gather_descs_leaf(xtlv_gather_desc_t *desc, struct bcm_xtlvbuf *xtlvbuf,
+	uint16 *stopped_at, uint16 *attempted_write_len);
+
+/* Process one container desc + leaf level gather descriptors for XTLVs that fit in the enclosing
+ * container
+ */
+int bcm_xtlv_process_gather_descs_fill_container(xtlv_gather_desc_t *desc,
+	struct bcm_xtlvbuf *xtlvbuf, uint16 *stopped_at, uint16 *attempted_write_len, uint8 ecc);
 /* end length value pairs */
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
 #endif	/* _bcmtlv_h_ */

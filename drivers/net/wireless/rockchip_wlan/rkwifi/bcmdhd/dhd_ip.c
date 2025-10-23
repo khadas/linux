@@ -1,7 +1,26 @@
 /*
  * IP Packet Parser Module.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -18,9 +37,7 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -42,7 +59,9 @@
 #include <dhd_proto.h>
 #include <bcmtcp.h>
 #endif /* DHDTCPACK_SUPPRESS || DHDTCPSYNC_FLOOD_BLK */
-
+#ifdef PROP_TXSTATUS
+#include <dhd_wlfc.h>
+#endif /* PROP_TXSTATUS */
 /* special values */
 /* 802.3 llc/snap header */
 static const uint8 llc_snap_hdr[SNAP_HDR_LEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
@@ -70,7 +89,7 @@ pkt_frag_t pkt_frag_info(osl_t *osh, void *p)
 		/* Frame is Ethernet II */
 		pt = frame + ETHER_TYPE_OFFSET;
 	} else if (length >= ETHER_HDR_LEN + SNAP_HDR_LEN + ETHER_TYPE_LEN &&
-	           !bcmp(llc_snap_hdr, frame + ETHER_HDR_LEN, SNAP_HDR_LEN)) {
+		!bcmp(llc_snap_hdr, frame + ETHER_HDR_LEN, SNAP_HDR_LEN)) {
 		pt = frame + ETHER_HDR_LEN + SNAP_HDR_LEN;
 	} else {
 		DHD_INFO(("%s: non-SNAP 802.3 frame\n", __FUNCTION__));
@@ -113,7 +132,7 @@ pkt_frag_t pkt_frag_info(osl_t *osh, void *p)
 	} else if ((iph_frag & IPV4_FRAG_MORE) == 0) {
 		return DHD_PKT_FRAG_LAST;
 	} else {
-		return (iph_frag & IPV4_FRAG_OFFSET_MASK)? DHD_PKT_FRAG_CONT : DHD_PKT_FRAG_FIRST;
+		return (iph_frag & IPV4_FRAG_OFFSET_MASK) ? DHD_PKT_FRAG_CONT : DHD_PKT_FRAG_FIRST;
 	}
 }
 
@@ -271,7 +290,7 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
 		tcpdata_info->tdata_psh_info_tail = NULL;
 	}
 #ifdef DHDTCPACK_SUP_DBG
-	DHD_ERROR(("%s %d: PSH INFO ENQ %d\n",
+	DHD_PRINT(("%s %d: PSH INFO ENQ %d\n",
 		__FUNCTION__, __LINE__, tcpack_sup_mod->psh_info_enq_num));
 #endif /* DHDTCPACK_SUP_DBG */
 
@@ -292,7 +311,7 @@ static void _tdata_psh_info_pool_deinit(dhd_pub_t *dhdp,
 
 #ifdef BCMPCIE
 #ifndef TCPACK_SUPPRESS_HOLD_HRT
-static void dhd_tcpack_send(ulong data)
+static void dhd_tcpack_send(void *data)
 #else
 static enum hrtimer_restart dhd_tcpack_send(struct hrtimer *timer)
 #endif /* TCPACK_SUPPRESS_HOLD_HRT */
@@ -301,7 +320,7 @@ static enum hrtimer_restart dhd_tcpack_send(struct hrtimer *timer)
 	tcpack_info_t *cur_tbl;
 	dhd_pub_t *dhdp;
 	int ifidx;
-	void* pkt;
+	void *pkt;
 	unsigned long flags;
 
 #ifndef TCPACK_SUPPRESS_HOLD_HRT
@@ -401,44 +420,44 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 
 	/* Pre-process routines to change a new mode as per previous mode */
 	switch (prev_mode) {
-		case TCPACK_SUP_OFF:
+	case TCPACK_SUP_OFF:
+		if (tcpack_sup_module == NULL) {
+			tcpack_sup_module = MALLOC(dhdp->osh, sizeof(tcpack_sup_module_t));
 			if (tcpack_sup_module == NULL) {
-				tcpack_sup_module = MALLOC(dhdp->osh, sizeof(tcpack_sup_module_t));
-				if (tcpack_sup_module == NULL) {
-					DHD_ERROR(("%s[%d]: Failed to allocate the new memory for "
-						"tcpack_sup_module\n", __FUNCTION__, __LINE__));
-					dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
-					ret = BCME_NOMEM;
-					goto exit;
-				}
-				dhdp->tcpack_sup_module = tcpack_sup_module;
-			}
-			bzero(tcpack_sup_module, sizeof(tcpack_sup_module_t));
-			break;
-#ifdef BCMSDIO
-		case TCPACK_SUP_DELAYTX:
-			if (tcpack_sup_module) {
-				/* We won't need tdata_psh_info pool and
-				 * tcpddata_info_tbl anymore
-				 */
-				_tdata_psh_info_pool_deinit(dhdp, tcpack_sup_module);
-				tcpack_sup_module->tcpdata_info_cnt = 0;
-				bzero(tcpack_sup_module->tcpdata_info_tbl,
-					sizeof(tcpdata_info_t) * TCPDATA_INFO_MAXNUM);
-			}
-
-			/* For half duplex bus interface, tx precedes rx by default */
-			if (dhdp->bus) {
-				dhd_bus_set_dotxinrx(dhdp->bus, TRUE);
-			}
-
-			if (tcpack_sup_module == NULL) {
-				DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
-					__FUNCTION__, __LINE__));
+				DHD_ERROR(("%s[%d]: Failed to allocate the new memory for "
+					"tcpack_sup_module\n", __FUNCTION__, __LINE__));
 				dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
+				ret = BCME_NOMEM;
 				goto exit;
 			}
-			break;
+			dhdp->tcpack_sup_module = tcpack_sup_module;
+		}
+		bzero(tcpack_sup_module, sizeof(tcpack_sup_module_t));
+		break;
+#ifdef BCMSDIO
+	case TCPACK_SUP_DELAYTX:
+		if (tcpack_sup_module) {
+			/* We won't need tdata_psh_info pool and
+			 * tcpddata_info_tbl anymore
+			 */
+			_tdata_psh_info_pool_deinit(dhdp, tcpack_sup_module);
+			tcpack_sup_module->tcpdata_info_cnt = 0;
+			bzero(tcpack_sup_module->tcpdata_info_tbl,
+				sizeof(tcpdata_info_t) * TCPDATA_INFO_MAXNUM);
+		}
+
+		/* For half duplex bus interface, tx precedes rx by default */
+		if (dhdp->bus) {
+			dhd_bus_set_dotxinrx(dhdp->bus, TRUE);
+		}
+
+		if (tcpack_sup_module == NULL) {
+			DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
+				__FUNCTION__, __LINE__));
+			dhdp->tcpack_sup_mode = TCPACK_SUP_OFF;
+			goto exit;
+		}
+		break;
 #endif /* BCMSDIO */
 	}
 
@@ -447,69 +466,69 @@ int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 mode)
 
 	/* Process for a new mode */
 	switch (mode) {
-		case TCPACK_SUP_OFF:
-			ASSERT(tcpack_sup_module != NULL);
-			/* Clean up timer/data structure for
-			 * any remaining/pending packet or timer.
-			 */
-			if (tcpack_sup_module) {
-				/* Check if previous mode is TCAPACK_SUP_HOLD */
-				if (prev_mode == TCPACK_SUP_HOLD) {
-					for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
-						tcpack_info_t *tcpack_info_tbl =
-							&tcpack_sup_module->tcpack_info_tbl[i];
+	case TCPACK_SUP_OFF:
+		ASSERT(tcpack_sup_module != NULL);
+		/* Clean up timer/data structure for
+		 * any remaining/pending packet or timer.
+		 */
+		if (tcpack_sup_module) {
+			/* Check if previous mode is TCAPACK_SUP_HOLD */
+			if (prev_mode == TCPACK_SUP_HOLD) {
+				for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
+					tcpack_info_t *tcpack_info_tbl =
+						&tcpack_sup_module->tcpack_info_tbl[i];
 #ifndef TCPACK_SUPPRESS_HOLD_HRT
-						del_timer(&tcpack_info_tbl->timer);
+					del_timer(&tcpack_info_tbl->timer);
 #else
-						hrtimer_cancel(&tcpack_info_tbl->timer.timer);
+					hrtimer_cancel(&tcpack_info_tbl->timer.timer);
 #endif /* TCPACK_SUPPRESS_HOLD_HRT */
-						if (tcpack_info_tbl->pkt_in_q) {
-							PKTFREE(dhdp->osh,
-								tcpack_info_tbl->pkt_in_q, TRUE);
-							tcpack_info_tbl->pkt_in_q = NULL;
-						}
+					if (tcpack_info_tbl->pkt_in_q) {
+						PKTFREE(dhdp->osh,
+							tcpack_info_tbl->pkt_in_q, TRUE);
+						tcpack_info_tbl->pkt_in_q = NULL;
 					}
 				}
-				MFREE(dhdp->osh, tcpack_sup_module, sizeof(tcpack_sup_module_t));
-				dhdp->tcpack_sup_module = NULL;
-			} else {
-				DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
-					__FUNCTION__, __LINE__));
 			}
-			break;
+			MFREE(dhdp->osh, tcpack_sup_module, sizeof(tcpack_sup_module_t));
+			dhdp->tcpack_sup_module = NULL;
+		} else {
+			DHD_ERROR(("%s[%d]: tcpack_sup_module should not be NULL\n",
+				__FUNCTION__, __LINE__));
+		}
+		break;
 #ifdef BCMSDIO
-		case TCPACK_SUP_REPLACE:
-			/* There is nothing to configure for this mode */
+	case TCPACK_SUP_REPLACE:
+		/* There is nothing to configure for this mode */
+		break;
+	case TCPACK_SUP_DELAYTX:
+		ret = _tdata_psh_info_pool_init(dhdp, tcpack_sup_module);
+		if (ret != BCME_OK) {
+			DHD_ERROR(("%s %d: pool init fail with %d\n",
+				__FUNCTION__, __LINE__, ret));
 			break;
-		case TCPACK_SUP_DELAYTX:
-			ret = _tdata_psh_info_pool_init(dhdp, tcpack_sup_module);
-			if (ret != BCME_OK) {
-				DHD_ERROR(("%s %d: pool init fail with %d\n",
-					__FUNCTION__, __LINE__, ret));
-				break;
-			}
-			if (dhdp->bus) {
-				dhd_bus_set_dotxinrx(dhdp->bus, FALSE);
-			}
-			break;
+		}
+		if (dhdp->bus) {
+			dhd_bus_set_dotxinrx(dhdp->bus, FALSE);
+		}
+		break;
 #endif /* BCMSDIO */
 #ifdef BCMPCIE
-		case TCPACK_SUP_HOLD:
-			dhdp->tcpack_sup_ratio = dhdp->conf->tcpack_sup_ratio;
-			dhdp->tcpack_sup_delay = dhdp->conf->tcpack_sup_delay;
-			for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
-				tcpack_info_t *tcpack_info_tbl =
-					&tcpack_sup_module->tcpack_info_tbl[i];
-				tcpack_info_tbl->dhdp = dhdp;
+	case TCPACK_SUP_HOLD:
+		dhdp->tcpack_sup_ratio = dhdp->conf->tcpack_sup_ratio;
+		dhdp->tcpack_sup_delay = dhdp->conf->tcpack_sup_delay;
+		for (i = 0; i < TCPACK_INFO_MAXNUM; i++) {
+			tcpack_info_t *tcpack_info_tbl =
+				&tcpack_sup_module->tcpack_info_tbl[i];
+			tcpack_info_tbl->dhdp = dhdp;
 #ifndef TCPACK_SUPPRESS_HOLD_HRT
-				init_timer_compat(&tcpack_info_tbl->timer, dhd_tcpack_send,
-					tcpack_info_tbl);
+			init_timer_compat(&tcpack_info_tbl->timer, dhd_tcpack_send,
+				tcpack_info_tbl);
 #else
-				tasklet_hrtimer_init(&tcpack_info_tbl->timer,
-					dhd_tcpack_send, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+			tasklet_hrtimer_init(&tcpack_info_tbl->timer,
+				dhd_tcpack_send, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 #endif /* TCPACK_SUPPRESS_HOLD_HRT */
-			}
-			break;
+		}
+		break;
 #endif /* BCMPCIE */
 	}
 
@@ -831,7 +850,8 @@ dhd_tcpack_suppress(dhd_pub_t *dhdp, void *pkt)
 		uint32 old_ip_hdr_len, old_tcp_hdr_len;
 		uint32 old_tcpack_num;	/* TCP ACK number of old TCPACK packet in Q */
 
-		if ((oldpkt = tcpack_info_tbl[i].pkt_in_q) == NULL) {
+		oldpkt = tcpack_info_tbl[i].pkt_in_q;
+		if (oldpkt == NULL) {
 			DHD_ERROR(("%s %d: Unexpected error!! cur idx %d, ttl cnt %d\n",
 				__FUNCTION__, __LINE__, i, tcpack_sup_mod->tcpack_info_cnt));
 			break;
@@ -874,6 +894,7 @@ dhd_tcpack_suppress(dhd_pub_t *dhdp, void *pkt)
 				new_tcp_hdr_len == old_tcp_hdr_len) {
 				ASSERT(memcmp(new_ether_hdr, old_ether_hdr, ETHER_HDR_LEN) == 0);
 				bcopy(new_ip_hdr, old_ip_hdr, new_ip_total_len);
+
 				PKTFREE(dhdp->osh, pkt, FALSE);
 				DHD_TRACE(("%s %d: TCP ACK replace %u -> %u\n",
 					__FUNCTION__, __LINE__, old_tcpack_num, new_tcp_ack_num));
@@ -993,11 +1014,6 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 	cur_framelen -= ip_hdr_len;
 
 	ASSERT(cur_framelen >= TCP_MIN_HEADER_LEN);
-	if (cur_framelen < TCP_MIN_HEADER_LEN) {
-		DHD_TRACE(("%s %d: cur_framelen is less than TCP_MIN_HEADER_LEN\n",
-			__FUNCTION__, __LINE__));
-		goto exit;
-	}
 
 	DHD_TRACE(("%s %d: TCP pkt!\n", __FUNCTION__, __LINE__));
 
@@ -1073,7 +1089,7 @@ dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt)
 				_tdata_psh_info_pool_enq(tcpack_sup_mod, tdata_psh_info_tmp);
 			}
 #ifdef DHDTCPACK_SUP_DBG
-			DHD_ERROR(("%s %d: PSH INFO ENQ %d\n",
+			DHD_PRINT(("%s %d: PSH INFO ENQ %d\n",
 				__FUNCTION__, __LINE__, tcpack_sup_mod->psh_info_enq_num));
 #endif /* DHDTCPACK_SUP_DBG */
 			tcpack_sup_mod->tcpdata_info_cnt--;
@@ -1285,7 +1301,8 @@ dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx)
 		uint32 old_ip_hdr_len;
 		uint32 old_tcpack_num;	/* TCP ACK number of old TCPACK packet in Q */
 
-		if ((oldpkt = tcpack_info_tbl[i].pkt_in_q) == NULL) {
+		oldpkt = tcpack_info_tbl[i].pkt_in_q;
+		if (oldpkt == NULL) {
 			if (free_slot == TCPACK_INFO_MAXNUM) {
 				free_slot = i;
 			}
@@ -1373,6 +1390,7 @@ dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx)
 #endif /* TCPACK_SUPPRESS_HOLD_HRT */
 		tcpack_sup_mod->tcpack_info_cnt++;
 	} else {
+		hold = FALSE;
 		DHD_TRACE(("%s %d: No empty tcp ack info tbl\n",
 			__FUNCTION__, __LINE__));
 	}

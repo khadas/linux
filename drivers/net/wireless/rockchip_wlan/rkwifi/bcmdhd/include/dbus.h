@@ -2,7 +2,26 @@
  * Dongle BUS interface Abstraction layer
  *   target serial buses like USB, SDIO, SPI, etc.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,21 +45,18 @@
 #define __DBUS_H__
 
 #include "typedefs.h"
-#include <dhd_linux.h>
 
-extern uint dbus_msglevel;
-#define DBUS_ERROR_VAL	0x0001
-#define DBUS_TRACE_VAL	0x0002
-#define DBUS_INFO_VAL	0x0004
-
-#if defined(DHD_DEBUG)
-#define DBUSERR(args)		do {if (dbus_msglevel & DBUS_ERROR_VAL) printf args;} while (0)
-#define DBUSTRACE(args)		do {if (dbus_msglevel & DBUS_TRACE_VAL) printf args;} while (0)
-#define DBUSINFO(args)		do {if (dbus_msglevel & DBUS_INFO_VAL) printf args;} while (0)
-#else /* defined(DHD_DEBUG) */
-#define DBUSERR(args)
-#define DBUSTRACE(args)
+#ifdef BCMDBG
+#define DBUSERR(args)         printf args
 #define DBUSINFO(args)
+#define DBUSTRACE(args)
+#define DBUSDBGLOCK(args)
+
+#else
+#define DBUSTRACE(args)
+#define DBUSERR(args)
+#define DBUSINFO(args)
+#define DBUSDBGLOCK(args)
 #endif
 
 enum {
@@ -106,6 +122,9 @@ enum {
 #define DBUS_BUFFER_SIZE_TX_NOAGG	2048
 #define DBUS_BUFFER_SIZE_RX_NOAGG	2048
 
+/* Size of USB data packets that are transmitted in CPUless mode */
+#define DBUS_PACKET_SIZE_CPULESS	(8u)
+
 /** DBUS types */
 enum {
 	DBUS_USB,
@@ -139,7 +158,7 @@ enum dbus_file {
 typedef enum _DEVICE_SPEED {
 	INVALID_SPEED = -1,
 	LOW_SPEED     =  1,	/**< USB 1.1: 1.5 Mbps */
-	FULL_SPEED,     	/**< USB 1.1: 12  Mbps */
+	FULL_SPEED,	/**< USB 1.1: 12  Mbps */
 	HIGH_SPEED,		/**< USB 2.0: 480 Mbps */
 	SUPER_SPEED,		/**< USB 3.0: 4.8 Gbps */
 } DEVICE_SPEED;
@@ -153,6 +172,7 @@ typedef struct {
 	int mtu;
 	int nchan; /**< Data Channels */
 	int has_2nd_bulk_in_ep;
+	int cpuless; /* boolean indicating device is operating in CPUless mode. */
 } dbus_attrib_t;
 
 /* FIX: Account for errors related to DBUS;
@@ -201,8 +221,7 @@ typedef struct dbus_extdl {
 struct dbus_callbacks;
 struct exec_parms;
 
-typedef void *(*probe_cb_t)(void *arg, const char *desc, uint32 bustype,
-	uint16 bus_no, uint16 slot, uint32 hdrlen);
+typedef void *(*probe_cb_t)(void *arg, const char *desc, uint32 bustype, uint32 hdrlen);
 typedef void (*disconnect_cb_t)(void *arg);
 typedef void *(*exec_cb_t)(struct exec_parms *args);
 
@@ -258,7 +277,7 @@ typedef struct {
 	int  (*get_config)(void *bus, dbus_config_t *config);
 
 	bool (*device_exists)(void *bus);
-	int (*dlneeded)(void *bus);
+	bool (*dlneeded)(void *bus);
 	int  (*dlstart)(void *bus, uint8 *fw, int len);
 	int  (*dlrun)(void *bus);
 	bool (*recv_needed)(void *bus);
@@ -283,7 +302,7 @@ typedef struct {
 	int (*recv_irb_from_ep)(void *bus, struct dbus_irb_rx *rxirb, uint ep_idx);
 
 	int (*readreg)(void *bus, uint32 regaddr, int datalen, uint32 *value);
-
+	int (*writereg)(void *bus, uint32 regaddr, int datalen, uint32 data);
 	/* Add from the bottom */
 } dbus_intf_t;
 
@@ -296,7 +315,7 @@ typedef struct dbus_pub {
 	int ntxq, nrxq, rxsize;
 	void *bus;
 	struct shared_info *sh;
-	void *dev_info;
+    void *dev_info;
 } dbus_pub_t;
 
 #define BUS_INFO(bus, type) (((type *) bus)->pub->bus)
@@ -316,25 +335,30 @@ typedef struct dbus_pub {
  *  For NDIS60, param2 is WdfDevice
  * Under Linux, param1 and param2 are NULL;
  */
-//extern int dbus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
-//	void *param1, void *param2);
-//extern int dbus_deregister(void);
+extern int dbus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
+	void *param1, void *param2);
+extern int dbus_deregister(void);
 
-//extern int dbus_download_firmware(dbus_pub_t *pub);
-//extern int dbus_up(struct dhd_bus *pub);
+extern dbus_pub_t *dbus_attach(struct osl_info *osh, int rxsize, int nrxq, int ntxq,
+	void *cbarg, dbus_callbacks_t *cbs, dbus_extdl_t *extdl, struct shared_info *sh);
+extern void dbus_detach(dbus_pub_t *pub);
+
+extern int dbus_download_firmware(dbus_pub_t *pub);
+extern int dbus_up(dbus_pub_t *pub);
 extern int dbus_down(dbus_pub_t *pub);
-//extern int dbus_stop(struct dhd_bus *pub);
+extern int dbus_stop(dbus_pub_t *pub);
 extern int dbus_shutdown(dbus_pub_t *pub);
 extern void dbus_flowctrl_rx(dbus_pub_t *pub, bool on);
 
-//extern int dbus_send_txdata(dbus_pub_t *dbus, void *pktbuf);
+extern int dbus_send_txdata(dbus_pub_t *dbus, void *pktbuf);
 extern int dbus_send_buf(dbus_pub_t *pub, uint8 *buf, int len, void *info);
-//extern int dbus_send_pkt(dbus_pub_t *pub, void *pkt, void *info);
-//extern int dbus_send_ctl(struct dhd_bus *pub, uint8 *buf, int len);
-//extern int dbus_recv_ctl(struct dhd_bus *pub, uint8 *buf, int len);
-//extern int dbus_recv_bulk(dbus_pub_t *pub, uint32 ep_idx);
-//extern int dbus_poll_intr(dbus_pub_t *pub);
+extern int dbus_send_pkt(dbus_pub_t *pub, void *pkt, void *info);
+extern int dbus_send_ctl(dbus_pub_t *pub, uint8 *buf, int len);
+extern int dbus_recv_ctl(dbus_pub_t *pub, uint8 *buf, int len);
+extern int dbus_recv_bulk(dbus_pub_t *pub, uint32 ep_idx);
+extern int dbus_poll_intr(dbus_pub_t *pub);
 extern int dbus_get_stats(dbus_pub_t *pub, dbus_stats_t *stats);
+extern int dbus_get_attrib(dbus_pub_t *pub, dbus_attrib_t *attrib);
 extern int dbus_get_device_speed(dbus_pub_t *pub);
 extern int dbus_set_config(dbus_pub_t *pub, dbus_config_t *config);
 extern int dbus_get_config(dbus_pub_t *pub, dbus_config_t *config);
@@ -348,8 +372,11 @@ extern int dbus_pnp_sleep(dbus_pub_t *pub);
 extern int dbus_pnp_resume(dbus_pub_t *pub, int *fw_reload);
 extern int dbus_pnp_disconnect(dbus_pub_t *pub);
 
-//extern int dbus_iovar_op(dbus_pub_t *pub, const char *name,
-//	void *params, int plen, void *arg, int len, bool set);
+extern int dbus_iovar_op(dbus_pub_t *pub, const char *name,
+	void *params, int plen, void *arg, int len, bool set);
+int dbus_readreg(dbus_pub_t *, uint32 regaddr, int datalen, uint32 *value);
+int dbus_writereg(dbus_pub_t *, uint32 regaddr, int datalen, uint32 data);
+
 #ifdef BCMDBG
 extern void dbus_hist_dump(dbus_pub_t *pub, struct bcmstrbuf *b);
 #endif /* BCMDBG */
@@ -377,7 +404,7 @@ typedef struct dbus_irb_rx {
 } dbus_irb_rx_t;
 
 typedef struct dbus_irb_tx {
-	struct dbus_irb irb; 	/** Must be first */
+	struct dbus_irb irb;	/** Must be first */
 	uint8 *buf;		/** mutually exclusive with struct member 'pkt' */
 	int len;		/** length of field 'buf' */
 	void *pkt;		/** mutually exclusive with struct member 'buf' */
@@ -407,18 +434,6 @@ typedef struct dbus_intf_callbacks {
 	void (*rxerr_indicate)(void *cbarg, bool on);
 } dbus_intf_callbacks_t;
 
-/* callback functions */
-typedef struct {
-	/* probe the device */
-	void *(*probe)(uint16 bus, uint16 slot, uint32 hdrlen);
-	/* remove the device */
-	void (*remove)(void *context);
-	/* can we suspend now */
-	int (*suspend)(void *context);
-	/* resume from suspend */
-	int (*resume)(void *context);
-} dbus_driver_t;
-
 /*
  * Porting: To support new bus, port these functions below
  */
@@ -427,7 +442,8 @@ typedef struct {
  * Bus specific Interface
  * Implemented by dbus_usb.c/dbus_sdio.c
  */
-extern int dbus_bus_register(dbus_driver_t *driver, dbus_intf_t **intf);
+extern int dbus_bus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
+	dbus_intf_t **intf, void *param1, void *param2);
 extern int dbus_bus_deregister(void);
 extern void dbus_bus_fw_get(void *bus, uint8 **fw, int *fwlen, int *decomp);
 
@@ -435,7 +451,8 @@ extern void dbus_bus_fw_get(void *bus, uint8 **fw, int *fwlen, int *decomp);
  * Bus-specific and OS-specific Interface
  * Implemented by dbus_usb_[linux/ndis].c/dbus_sdio_[linux/ndis].c
  */
-extern int dbus_bus_osl_register(dbus_driver_t *driver, dbus_intf_t **intf);
+extern int dbus_bus_osl_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb,
+	void *prarg, dbus_intf_t **intf, void *param1, void *param2);
 extern int dbus_bus_osl_deregister(void);
 
 /*
@@ -449,7 +466,7 @@ extern int dbus_bus_osl_hw_deregister(void);
 extern uint usbdev_bulkin_eps(void);
 #if defined(BCM_REQUEST_FW)
 extern void *dbus_get_fw_nvfile(int devid, int chiprev, uint8 **fw, int *fwlen, int type,
-  uint16 boardtype, uint16 boardrev, char *path);
+  uint16 boardtype, uint16 boardrev);
 extern void dbus_release_fw_nvfile(void *firmware);
 #endif  /* #if defined(BCM_REQUEST_FW) */
 
@@ -512,7 +529,7 @@ extern void dbus_release_fw_nvfile(void *firmware);
  * NOTE that is does not need to (and does not) match its kernel counterpart
  */
 #define EHCI_QTD_NBUFFERS       5
-#define EHCI_QTD_ALIGN  	32
+#define EHCI_QTD_ALIGN	32
 #define EHCI_BULK_PACKET_SIZE	512
 #define EHCI_QTD_XACTERR_MAX	32
 
@@ -533,8 +550,8 @@ struct ehci_qtd {
 #define EHCI_QTD_BABBLE         0x10
 #define EHCI_QTD_XACTERR        0x08
 #define EHCI_QTD_MISSEDMICRO    0x04
-	volatile uint32_t 	qtd_buffer[EHCI_QTD_NBUFFERS];
-	volatile uint32_t 	qtd_buffer_hi[EHCI_QTD_NBUFFERS];
+	volatile uint32_t	qtd_buffer[EHCI_QTD_NBUFFERS];
+	volatile uint32_t	qtd_buffer_hi[EHCI_QTD_NBUFFERS];
 
 	/* Implementation extension */
 	dma_addr_t		qtd_self;		/**< own hardware address */
@@ -556,10 +573,10 @@ struct ehci_qtd {
  */
 struct ehci_qh {
 	/* Hardware map */
-	volatile uint32_t 	qh_link;
-	volatile uint32_t 	qh_endp;
-	volatile uint32_t 	qh_endphub;
-	volatile uint32_t 	qh_curqtd;
+	volatile uint32_t	qh_link;
+	volatile uint32_t	qh_endp;
+	volatile uint32_t	qh_endphub;
+	volatile uint32_t	qh_curqtd;
 
 	/* QTD overlay */
 	volatile uint32_t	ow_next;
@@ -570,7 +587,7 @@ struct ehci_qh {
 
 	/* Extension (should match the kernel layout) */
 	dma_addr_t		unused0;
-	void 			*unused1;
+	void			*unused1;
 	struct list_head	unused2;
 	struct ehci_qtd		*dummy;
 	struct ehci_qh		*unused3;
@@ -637,4 +654,5 @@ void  dbus_flowctrl_tx(void *dbi, bool on);
 #ifdef LINUX
 struct device * dbus_get_dev(void);
 #endif /* LINUX */
+
 #endif /* __DBUS_H__ */

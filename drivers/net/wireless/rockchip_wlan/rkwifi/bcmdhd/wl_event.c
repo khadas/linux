@@ -51,7 +51,7 @@ struct wl_event_q {
 	struct list_head eq_list;
 	u32 etype;
 	wl_event_msg_t emsg;
-	s8 edata[1];
+	s8 edata[BCM_FLEX_ARRAY];
 };
 
 typedef void(*EXT_EVENT_HANDLER) (struct net_device *dev, void *cb_argu,

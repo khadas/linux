@@ -1,5 +1,24 @@
 /*
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -112,24 +131,30 @@ typedef enum {
 
 	WLFC_CTL_TYPE_FLOWID_OPEN		= 26, /* open flowring with flowid */
 	WLFC_CTL_TYPE_FLOWID_CLOSE		= 27, /* close flowring with flowid */
+	WLFC_CTL_TYPE_FLOWID_MAC		= 28, /* Get flow's MAC (used by WLMESH) */
 
-	WLFC_CTL_TYPE_PENDING_TX_PKTS		= 28, /* Get the outstandinding packets in host
+	WLFC_CTL_TYPE_PENDING_TX_PKTS		= 29, /* Get the outstandinding packets in host
 							* flowring for the given interface.
 							*/
-	WLFC_CTL_TYPE_UPD_SCB_RATESEL_CHANGE	= 29, /* Upd flow's max rate dynamically */
-	WLFC_CTL_TYPE_AMSDU_STATE		= 30, /* Upd flow's AMSDU state(Enabled/Disabled) */
-	WLFC_CTL_TYPE_APP_STATE			= 31, /* Upd flow's APP state, enable/disable APP */
-	WLFC_CTL_TYPE_HP2P_EXT_TXSTATUS		= 32, /* Hp2p extended tx status */
-	WLFC_CTL_TYPE_HP2P_ACTIVE_STATE		= 33, /* Get status of HP2P ring active or not */
-	WLFC_CTL_TYPE_HP2P_QUERY_LIFETIME	= 34, /* Query lifetime for last unacked */
-
-	WLFC_CTL_TYPE_FLOWID_MAC		= 35, /* Get flow's MAC (used by WLMESH) */
+	WLFC_CTL_TYPE_UPD_SCB_RATESEL_CHANGE	= 30, /* Upd flow's max rate dynamically */
+	WLFC_CTL_TYPE_AMSDU_STATE		= 31, /* Upd flow's AMSDU state(Enabled/Disabled) */
+	WLFC_CTL_TYPE_APP_STATE			= 32, /* Upd flow's APP state, enable/disable APP */
+	WLFC_CTL_TYPE_HP2P_EXT_TXSTATUS		= 33, /* Hp2p extended tx status */
+	WLFC_CTL_TYPE_HP2P_ACTIVE_STATE		= 34, /* Get status of HP2P ring active or not */
+	WLFC_CTL_TYPE_HP2P_QUERY_LIFETIME	= 35, /* Query lifetime for last unacked */
 
 	WLFC_CTL_TYPE_LLW_OPEN			= 36, /* Open LLW interface */
 	WLFC_CTL_TYPE_LLW_CLOSE			= 37, /* Close LLW interface */
-
-	WLFC_CTL_TYPE_D2HQ_STATUS		= 38,
+	WLFC_CTL_TYPE_LLW_QUERY			= 38, /* Check if flowring with flowid is LLW */
 	WLFC_CTL_TYPE_LLW_LATENCY		= 39, /* LLW latency TLV */
+
+	WLFC_CTL_TYPE_D2HQ_STATUS		= 40,
+
+	WLFC_CTL_TYPE_CHECK_CTLCPL_FULL		= 41, /* Query current complietion ring is full */
+	WLFC_CTL_TYPE_CHECK_HLTH_THRTL		= 42, /* Query health resources to throttle */
+	WLFC_CTL_TYPE_CHECK_NINQ_THRTL		= 43, /* Query number not in q for throttle */
+
+	WLFC_CTL_TYPE_INTERFACE_OPEN_EAPOL	= 44, /* Only open 802.1x EAPOL flows */
 
 	WLFC_CTL_TYPE_FILLER			= 255
 } wlfc_ctl_type_t;
@@ -154,7 +179,7 @@ typedef enum {
 #define WLFC_CTL_EXT_TXSTATUS_PAYLOAD_LEN	8u	/* Payload legnth of extention tx status */
 
 #define WLFC_CTL_VALUE_LEN_LLW			8u	/** tid, ifindex, MAC */
-#define WLFC_CTL_VALUE_LEN_LLW_LATENCY		16u	/* Peer latency information */
+#define WLFC_CTL_VALUE_LEN_LLW_LATENCY		20u	/* Peer latency information */
 
 /* Reset the flags set for the corresponding flowring of the SCB which is de-inited */
 /* FLOW_RING_FLAG_LAST_TIM | FLOW_RING_FLAG_INFORM_PKTPEND | FLOW_RING_FLAG_PKT_REQ */
@@ -414,14 +439,14 @@ typedef enum {
 
 /* AMPDU host reorder packet flags */
 #define WLHOST_REORDERDATA_MAXFLOWS		256
-#define WLHOST_REORDERDATA_LEN		 10
-#define WLHOST_REORDERDATA_TOTLEN	(WLHOST_REORDERDATA_LEN + 1 + 1) /* +tag +len */
+#define WLHOST_REORDERDATA_LEN			10
+#define WLHOST_REORDERDATA_TOTLEN		(WLHOST_REORDERDATA_LEN + 1 + 1) /* +tag +len */
 
-#define WLHOST_REORDERDATA_FLOWID_OFFSET		0
-#define WLHOST_REORDERDATA_MAXIDX_OFFSET		2
-#define WLHOST_REORDERDATA_FLAGS_OFFSET			4
-#define WLHOST_REORDERDATA_CURIDX_OFFSET		6
-#define WLHOST_REORDERDATA_EXPIDX_OFFSET		8
+#define WLHOST_REORDERDATA_FLOWID_OFFSET	0
+#define WLHOST_REORDERDATA_MAXIDX_OFFSET	2
+#define WLHOST_REORDERDATA_FLAGS_OFFSET		4
+#define WLHOST_REORDERDATA_CURIDX_OFFSET	6
+#define WLHOST_REORDERDATA_EXPIDX_OFFSET	8
 
 #define WLHOST_REORDERDATA_DEL_FLOW		0x01
 #define WLHOST_REORDERDATA_FLUSH_ALL		0x02
@@ -483,11 +508,12 @@ typedef enum {
 #define FLOW_RING_HP2P_TXQ_STOP      17u
 #define FLOW_RING_GET_TXPARAMS       18u
 #define FLOW_RING_GET_ONCHAN_TIME    19u
+#define FLOW_RING_GET_BCMC_SUPPORT   20u
 
 /* bit 7, indicating if is TID(1) or AC(0) mapped info in tid field) */
 #define PCIEDEV_IS_AC_TID_MAP_MASK	0x80
 
-#define WLFC_PCIEDEV_AC_PRIO_MAP	 0
+#define WLFC_PCIEDEV_AC_PRIO_MAP	0
 #define WLFC_PCIEDEV_TID_PRIO_MAP     1
 #define WLFC_PCIEDEV_LLR_PRIO_MAP	2
 
@@ -501,7 +527,10 @@ typedef enum {
 	APP_STS_80211_FRAGMENTATION	= 3u,   /* 802.11 fragmentation enabled */
 	APP_STS_DISABLE_FOR_BTCX	= 4u,	/* BTCX requested APP disable */
 	APP_STS_DISABLE_FOR_QOS		= 5u,	/* Disable APP for QoS */
-	APP_STS_MAX			= 6u	/* MAX */
+	APP_STS_DISABLE_SP_PROBE	= 6u,	/* Disable APP for Spatial Probe */
+	APP_STS_FLOWRING_MESH		= 7u,	/* Disable APP for Mesh flowring under txmacapp */
+	APP_STS_IOVAR			= 8u,	/* Disable APP for a flowring from iovar */
+	APP_STS_MAX			= 9u	/* MAX */
 } app_disable_reason_s;
 
 /* shared structure between wlc and pciedev layer to set/reset a reason code */

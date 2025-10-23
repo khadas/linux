@@ -2,7 +2,26 @@
  * Broadcom Dongle Host Driver (DHD), Linux-specific network interface
  * Basically selected code segments from usb-cdc.c and usb-rndis.c
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -19,15 +38,14 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Open:>>
- *
- * $Id$
+ * <<Broadcom-WL-IPTag/Dual:>>
  */
 
 #include <dhd_linux_priv.h>
-#include <wl_android.h>
+#include <dhd_plat.h>
+#include <dhd_proto.h>
 
-extern dhd_pub_t* g_dhd_pub;
+extern dhd_pub_t *g_dhd_pub;
 
 #if defined(DHD_LB)
 
@@ -36,11 +54,23 @@ extern dhd_pub_t* g_dhd_pub;
 #define DHD_NAPI_LATENCY_SIZE (sizeof(uint64) * DHD_NUM_NAPI_LATENCY_ROWS)
 #endif /* DHD_LB_STATS */
 
+#if defined(DHD_LB_RXPOST)
+static int dhd_lb_rxpost_thread(void *data);
+#endif /* DHD_LB_RXPOST */
+
+/* latency improvement */
+#define DHD_LB_ACTIVE_LOW_WATERMARK	3
+
 void
 dhd_lb_set_default_cpus(dhd_info_t *dhd)
 {
 	/* Default CPU allocation for the jobs */
+#if defined(DHD_LB_RXPOST)
+	atomic_set(&dhd->rx_napi_cpu, 3);
+	atomic_set(&dhd->rxpost_cpu, 1);
+#else
 	atomic_set(&dhd->rx_napi_cpu, 1);
+#endif /* DHD_LB_RXPOST */
 	atomic_set(&dhd->tx_cpu, 2);
 	atomic_set(&dhd->net_tx_cpu, 0);
 	atomic_set(&dhd->dpc_cpu, 0);
@@ -50,10 +80,12 @@ void
 dhd_cpumasks_deinit(dhd_info_t *dhd)
 {
 	free_cpumask_var(dhd->cpumask_curr_avail);
-	free_cpumask_var(dhd->cpumask_primary);
-	free_cpumask_var(dhd->cpumask_primary_new);
-	free_cpumask_var(dhd->cpumask_secondary);
-	free_cpumask_var(dhd->cpumask_secondary_new);
+	free_cpumask_var(dhd->cpumask_set8);
+	free_cpumask_var(dhd->cpumask_set8_new);
+	free_cpumask_var(dhd->cpumask_set4);
+	free_cpumask_var(dhd->cpumask_set4_new);
+	free_cpumask_var(dhd->cpumask_set0);
+	free_cpumask_var(dhd->cpumask_set0_new);
 }
 
 int
@@ -63,39 +95,47 @@ dhd_cpumasks_init(dhd_info_t *dhd)
 	uint32 cpus, num_cpus = num_possible_cpus();
 	int ret = 0;
 
-	DHD_ERROR(("%s CPU masks primary(big)=0x%x secondary(little)=0x%x\n", __FUNCTION__,
-		DHD_LB_PRIMARY_CPUS, DHD_LB_SECONDARY_CPUS));
+	DHD_PRINT(("%s CPU masks set8(bigger)=0x%x set4(big)=0x%x set0(little)=0x%x\n",
+		__FUNCTION__, DHD_LB_CPU_SET8, DHD_LB_CPU_SET4, DHD_LB_CPU_SET0));
 
 	/* FIXME: If one alloc fails we must free_cpumask_var the previous */
 	if (!alloc_cpumask_var(&dhd->cpumask_curr_avail, GFP_KERNEL) ||
-	    !alloc_cpumask_var(&dhd->cpumask_primary, GFP_KERNEL) ||
-	    !alloc_cpumask_var(&dhd->cpumask_primary_new, GFP_KERNEL) ||
-	    !alloc_cpumask_var(&dhd->cpumask_secondary, GFP_KERNEL) ||
-	    !alloc_cpumask_var(&dhd->cpumask_secondary_new, GFP_KERNEL)) {
+	    !alloc_cpumask_var(&dhd->cpumask_set8, GFP_KERNEL) ||
+	    !alloc_cpumask_var(&dhd->cpumask_set8_new, GFP_KERNEL) ||
+	    !alloc_cpumask_var(&dhd->cpumask_set4, GFP_KERNEL) ||
+	    !alloc_cpumask_var(&dhd->cpumask_set4_new, GFP_KERNEL) ||
+	    !alloc_cpumask_var(&dhd->cpumask_set0, GFP_KERNEL) ||
+	    !alloc_cpumask_var(&dhd->cpumask_set0_new, GFP_KERNEL)) {
 		DHD_ERROR(("%s Failed to init cpumasks\n", __FUNCTION__));
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	cpumask_copy(dhd->cpumask_curr_avail, cpu_online_mask);
-	cpumask_clear(dhd->cpumask_primary);
-	cpumask_clear(dhd->cpumask_secondary);
+	cpumask_clear(dhd->cpumask_set8);
+	cpumask_clear(dhd->cpumask_set4);
+	cpumask_clear(dhd->cpumask_set0);
 
 	if (num_cpus > 32) {
 		DHD_ERROR(("%s max cpus must be 32, %d too big\n", __FUNCTION__, num_cpus));
 		ASSERT(0);
 	}
 
-	cpus = DHD_LB_PRIMARY_CPUS;
+	cpus = DHD_LB_CPU_SET8;
 	for (id = 0; id < num_cpus; id++) {
 		if (isset(&cpus, id))
-			cpumask_set_cpu(id, dhd->cpumask_primary);
+			cpumask_set_cpu(id, dhd->cpumask_set8);
+	}
+	cpus = DHD_LB_CPU_SET4;
+	for (id = 0; id < num_cpus; id++) {
+		if (isset(&cpus, id))
+			cpumask_set_cpu(id, dhd->cpumask_set4);
 	}
 
-	cpus = DHD_LB_SECONDARY_CPUS;
+	cpus = DHD_LB_CPU_SET0;
 	for (id = 0; id < num_cpus; id++) {
 		if (isset(&cpus, id))
-			cpumask_set_cpu(id, dhd->cpumask_secondary);
+			cpumask_set_cpu(id, dhd->cpumask_set0);
 	}
 
 	return ret;
@@ -105,11 +145,69 @@ fail:
 }
 
 /*
+ * dhd_select_napi_tx_cpus - helper function which sets the napi and tx cpus
+ * from the given cpu set.
+ * cpumask_curr_avail - currently available cpus
+ * cpumask_set - subset of cpus from which to choose
+ * cpumask_set_new - subset of cpumask_set from which dpc and net_tx_cpu are removed
+ * net_tx_cpu - cpu on which DHD's xmit fn. is called
+ * napi_cpu - output param, if not null, will have the cpu on which napi should run
+ * tx_cpu - output param, if not null, will have the cpu on which tx should happen
+ */
+static void
+dhd_select_napi_tx_cpus(cpumask_var_t cpumask_curr_avail, cpumask_var_t cpumask_set,
+	cpumask_var_t cpumask_set_new, uint32 net_tx_cpu,
+	uint32 *napi_cpu, uint32 *tx_cpu)
+{
+	if (napi_cpu != NULL) {
+		*napi_cpu = cpumask_first(cpumask_set_new);
+	}
+
+	if (tx_cpu == NULL) {
+		return;
+	}
+
+	/* If no further CPU is available,
+	 * cpumask_next returns >= nr_cpu_ids
+	 */
+	if (napi_cpu != NULL) {
+		*tx_cpu = cpumask_next(*napi_cpu, cpumask_set_new);
+	} else {
+		/* if napi_cpu is null, it means that the
+		 * napi_cpu is already selected from a prev set,
+		 * so select first cpu from this set as tx_cpu
+		 */
+		*tx_cpu = cpumask_first(cpumask_set_new);
+	}
+	if (*tx_cpu >= nr_cpu_ids) {
+		/* If no CPU is available for tx processing in the set,
+		 * choose the same CPU with net_tx_cpu
+		 * in case net_tx_cpu is in the set.
+		 */
+		cpumask_and(cpumask_set_new, cpumask_set,
+				cpumask_curr_avail);
+
+		if (cpumask_test_cpu(net_tx_cpu, cpumask_set_new)) {
+			*tx_cpu = net_tx_cpu;
+			DHD_INFO(("%s If no CPU is for tx cpu, use net_tx_cpu %d\n",
+				__FUNCTION__, net_tx_cpu));
+		} else {
+			*tx_cpu = 0;
+		}
+	}
+}
+
+/*
  * The CPU Candidacy Algorithm
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~
- * The available CPUs for selection are divided into two groups
- *  Primary Set - A CPU mask that carries the First Choice CPUs
- *  Secondary Set - A CPU mask that carries the Second Choice CPUs.
+ * The available CPUs for selection are divided into 3 groups
+ * SET_0 --> CPUs 0-3
+ * SET_4 --> CPUs 4-7
+ * SET_8 --> CPUs 8-11
+ *
+ *  Set8 - A CPU mask that carries the First Choice CPUs
+ *  Set4 - A CPU mask that carries the Second Choice CPUs
+ *  Set0 - A CPU mask that carries the Last Choice CPUs.
  *
  * There are two types of Job, that needs to be assigned to
  * the CPUs, from one of the above mentioned CPU group. The Jobs are
@@ -122,97 +220,103 @@ fail:
  */
 void dhd_select_cpu_candidacy(dhd_info_t *dhd)
 {
-	uint32 primary_available_cpus; /* count of primary available cpus */
-	uint32 secondary_available_cpus; /* count of secondary available cpus */
+	uint32 set8_available_cpus; /* count of available cpus in 'bigger' set */
+	uint32 set4_available_cpus; /* count of available cpus in 'big' set */
+	uint32 set0_available_cpus; /* count of available cpus in 'little' set */
 	uint32 napi_cpu = 0; /* cpu selected for napi rx processing */
 	uint32 tx_cpu = 0; /* cpu selected for tx processing job */
 	uint32 dpc_cpu = atomic_read(&dhd->dpc_cpu);
 	uint32 net_tx_cpu = atomic_read(&dhd->net_tx_cpu);
+	bool use_big_core = dhd_plat_pcie_enable_big_core();
 
-	cpumask_clear(dhd->cpumask_primary_new);
-	cpumask_clear(dhd->cpumask_secondary_new);
+#if defined(DHD_LB_CANDIDACY_OVERRIDE)
+	return;
+#endif /* DHD_LB_CANDIDACY_OVERRIDE */
+	cpumask_clear(dhd->cpumask_set8_new);
+	cpumask_clear(dhd->cpumask_set4_new);
+	cpumask_clear(dhd->cpumask_set0_new);
 
 	/*
-	 * Now select from the primary mask. Even if a Job is
-	 * already running on a CPU in secondary group, we still move
-	 * to primary CPU. So no conditional checks.
+	 * Now select from the set4/8 mask. Even if a Job is
+	 * already running on a CPU in set0 group, we still move
+	 * to set4/8 CPU. So no conditional checks.
 	 */
-	cpumask_and(dhd->cpumask_primary_new, dhd->cpumask_primary,
+	cpumask_and(dhd->cpumask_set8_new, dhd->cpumask_set8,
 		dhd->cpumask_curr_avail);
 
-	cpumask_and(dhd->cpumask_secondary_new, dhd->cpumask_secondary,
+	cpumask_and(dhd->cpumask_set4_new, dhd->cpumask_set4,
+		dhd->cpumask_curr_avail);
+
+	cpumask_and(dhd->cpumask_set0_new, dhd->cpumask_set0,
 		dhd->cpumask_curr_avail);
 
 	/* Clear DPC cpu from new masks so that dpc cpu is not chosen for LB */
-	cpumask_clear_cpu(dpc_cpu, dhd->cpumask_primary_new);
-	cpumask_clear_cpu(dpc_cpu, dhd->cpumask_secondary_new);
+	cpumask_clear_cpu(dpc_cpu, dhd->cpumask_set8_new);
+	cpumask_clear_cpu(dpc_cpu, dhd->cpumask_set4_new);
+	cpumask_clear_cpu(dpc_cpu, dhd->cpumask_set0_new);
 
 	/* Clear net_tx_cpu from new masks so that same is not chosen for LB */
-	cpumask_clear_cpu(net_tx_cpu, dhd->cpumask_primary_new);
-	cpumask_clear_cpu(net_tx_cpu, dhd->cpumask_secondary_new);
+	cpumask_clear_cpu(net_tx_cpu, dhd->cpumask_set8_new);
+	cpumask_clear_cpu(net_tx_cpu, dhd->cpumask_set4_new);
+	cpumask_clear_cpu(net_tx_cpu, dhd->cpumask_set0_new);
 
-	primary_available_cpus = cpumask_weight(dhd->cpumask_primary_new);
+	if (use_big_core) {
+		set8_available_cpus = cpumask_weight(dhd->cpumask_set8_new);
+	} else {
+		set8_available_cpus = 0;
+	}
+	set4_available_cpus = cpumask_weight(dhd->cpumask_set4_new);
 
+	DHD_INFO(("%s select cpu from set4/8\n", __FUNCTION__));
 #if defined(DHD_LB_HOST_CTRL)
-	/* Does not use promary cpus if DHD received affinity off cmd
+	/* Do not use set4/8 cpus if DHD received affinity off cmd
 	*  from framework
 	*/
-	if (primary_available_cpus > 0 && dhd->permitted_primary_cpu)
-#else
-	if (primary_available_cpus > 0)
+	if (dhd->permitted_primary_cpu)
 #endif /* DHD_LB_HOST_CTRL */
 	{
-		napi_cpu = cpumask_first(dhd->cpumask_primary_new);
-
-		/* If no further CPU is available,
-		 * cpumask_next returns >= nr_cpu_ids
-		 */
-		tx_cpu = cpumask_next(napi_cpu, dhd->cpumask_primary_new);
-		if (tx_cpu >= nr_cpu_ids) {
-			/* If no CPU is available for tx processing in primary CPUs,
-			 * choose the same CPU with net_tx_cpu
-			 * in case net_tx_cpu is in primary CPUs.
-			 */
-			cpumask_and(dhd->cpumask_primary_new, dhd->cpumask_primary,
-					dhd->cpumask_curr_avail);
-
-			if (cpumask_test_cpu(net_tx_cpu, dhd->cpumask_primary_new)) {
-				tx_cpu = net_tx_cpu;
-				DHD_INFO(("%s If no CPU is for tx cpu, use net_tx_cpu %d\n",
-					__FUNCTION__, net_tx_cpu));
-			} else {
-				tx_cpu = 0;
+		if (set8_available_cpus > 0) {
+			dhd_select_napi_tx_cpus(dhd->cpumask_curr_avail, dhd->cpumask_set8,
+				dhd->cpumask_set8_new, net_tx_cpu,
+				&napi_cpu, &tx_cpu);
+		}
+		DHD_INFO(("%s After set8 CPU check napi_cpu %d tx_cpu %d\n",
+			__FUNCTION__, napi_cpu, tx_cpu));
+		if (set4_available_cpus > 0) {
+			if (napi_cpu == 0) {
+				dhd_select_napi_tx_cpus(dhd->cpumask_curr_avail, dhd->cpumask_set4,
+					dhd->cpumask_set4_new, net_tx_cpu,
+					&napi_cpu, &tx_cpu);
+			} else if (tx_cpu == 0) {
+				dhd_select_napi_tx_cpus(dhd->cpumask_curr_avail, dhd->cpumask_set4,
+					dhd->cpumask_set4_new, net_tx_cpu,
+					NULL, &tx_cpu);
 			}
 		}
+		DHD_INFO(("%s After set4 CPU check napi_cpu %d tx_cpu %d\n",
+			__FUNCTION__, napi_cpu, tx_cpu));
 	}
 
-	DHD_INFO(("%s After primary CPU check napi_cpu %d tx_cpu %d\n",
-		__FUNCTION__, napi_cpu, tx_cpu));
+	/* -- Now check for the CPUs from set0 -- */
+	set0_available_cpus = cpumask_weight(dhd->cpumask_set0_new);
 
-	/* -- Now check for the CPUs from the secondary mask -- */
-	secondary_available_cpus = cpumask_weight(dhd->cpumask_secondary_new);
+	DHD_INFO(("%s Available set0 cpus %d nr_cpu_ids %d\n",
+		__FUNCTION__, set0_available_cpus, nr_cpu_ids));
 
-	DHD_INFO(("%s Available secondary cpus %d nr_cpu_ids %d\n",
-		__FUNCTION__, secondary_available_cpus, nr_cpu_ids));
-
-	if (secondary_available_cpus > 0) {
+	if (set0_available_cpus > 0) {
 		/* At this point if napi_cpu is unassigned it means no CPU
-		 * is online from Primary Group
+		 * is online from set4/8
 		 */
-#if defined(DHD_LB_TXP_LITTLE_CORE_CTRL)
-		/* Clear tx_cpu, so that it can be picked from little core */
-		tx_cpu = 0;
-#endif /* DHD_LB_TXP_LITTLE_CORE_CTRL */
 		if (napi_cpu == 0) {
-			napi_cpu = cpumask_first(dhd->cpumask_secondary_new);
-			tx_cpu = cpumask_next(napi_cpu, dhd->cpumask_secondary_new);
+			napi_cpu = cpumask_first(dhd->cpumask_set0_new);
+			tx_cpu = cpumask_next(napi_cpu, dhd->cpumask_set0_new);
 		} else if (tx_cpu == 0) {
-			tx_cpu = cpumask_first(dhd->cpumask_secondary_new);
+			tx_cpu = cpumask_first(dhd->cpumask_set0_new);
 		}
 	}
 
-	if ((primary_available_cpus == 0) &&
-		(secondary_available_cpus == 0)) {
+	if ((set8_available_cpus == 0) && (set4_available_cpus == 0) &&
+		(set0_available_cpus == 0)) {
 		/* No CPUs available from primary or secondary mask */
 		tx_cpu = napi_cpu = nr_cpu_ids - 1;
 	}
@@ -225,7 +329,7 @@ void dhd_select_cpu_candidacy(dhd_info_t *dhd)
 	if (tx_cpu >= nr_cpu_ids)
 		tx_cpu = 0;
 
-	DHD_INFO(("%s After secondary CPU check napi_cpu %d tx_cpu %d nr cpu ids %d\n",
+	DHD_INFO(("%s After set0 CPU check napi_cpu %d tx_cpu %d nr cpu ids %d\n",
 		__FUNCTION__, napi_cpu, tx_cpu, nr_cpu_ids));
 
 	if (!cpu_online(napi_cpu)) {
@@ -301,24 +405,23 @@ dhd_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		return NOTIFY_BAD;
 	}
 
-	/* XXX: Do we need other action types ? */
-	switch (action)
-	{
-		case CPU_ONLINE:
-		case CPU_ONLINE_FROZEN:
-			DHD_LB_STATS_INCR(dhd->cpu_online_cnt[cpu]);
-			cpumask_set_cpu(cpu, dhd->cpumask_curr_avail);
-			dhd_select_cpu_candidacy(dhd);
-			break;
+	/* Do we need other action types ? */
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		DHD_LB_STATS_INCR(dhd->cpu_online_cnt[cpu]);
+		cpumask_set_cpu(cpu, dhd->cpumask_curr_avail);
+		dhd_select_cpu_candidacy(dhd);
+		break;
 
-		case CPU_DOWN_PREPARE:
-		case CPU_DOWN_PREPARE_FROZEN:
-			DHD_LB_STATS_INCR(dhd->cpu_offline_cnt[cpu]);
-			cpumask_clear_cpu(cpu, dhd->cpumask_curr_avail);
-			dhd_select_cpu_candidacy(dhd);
-			break;
-		default:
-			break;
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		DHD_LB_STATS_INCR(dhd->cpu_offline_cnt[cpu]);
+		cpumask_clear_cpu(cpu, dhd->cpumask_curr_avail);
+		dhd_select_cpu_candidacy(dhd);
+		break;
+	default:
+		break;
 	}
 
 	return NOTIFY_OK;
@@ -434,6 +537,9 @@ void dhd_lb_stats_reset(dhd_pub_t *dhdp)
 
 	dhd->pub.lb_rxp_napi_sched_cnt = 0;
 	dhd->pub.lb_rxp_napi_complete_cnt = 0;
+#ifdef DHD_LB_RXP
+	dhd->pub.lb_rxp_emerge_enqueue_err = 0;
+#endif  /* DHD_LB_RXP */
 	return;
 }
 
@@ -601,7 +707,8 @@ void dhd_lb_stats_deinit(dhd_pub_t *dhdp)
 	return;
 }
 
-void dhd_lb_stats_dump_napi_latency(dhd_pub_t *dhdp,
+static void
+dhd_lb_stats_dump_napi_latency(dhd_pub_t *dhdp,
 	struct bcmstrbuf *strbuf, uint64 *napi_latency)
 {
 	uint32 i;
@@ -612,7 +719,8 @@ void dhd_lb_stats_dump_napi_latency(dhd_pub_t *dhdp,
 	}
 }
 
-void dhd_lb_stats_dump_histo(dhd_pub_t *dhdp,
+static void
+dhd_lb_stats_dump_histo(dhd_pub_t *dhdp,
 	struct bcmstrbuf *strbuf, uint32 **hist)
 {
 	int i, j;
@@ -656,7 +764,8 @@ void dhd_lb_stats_dump_histo(dhd_pub_t *dhdp,
 	return;
 }
 
-void dhd_lb_stats_dump_cpu_array(struct bcmstrbuf *strbuf, uint32 *p)
+static void
+dhd_lb_stats_dump_cpu_array(struct bcmstrbuf *strbuf, uint32 *p)
 {
 	int i, num_cpus = num_possible_cpus();
 
@@ -718,7 +827,7 @@ uint64 dhd_lb_mem_usage(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 		skb_queue_len(&dhd->rx_emerge_queue), skb_queue_len(&dhd->rx_pend_queue),
 		skb_queue_len(&dhd->rx_napi_queue), skb_queue_len(&dhd->rx_process_queue));
 	bcm_bprintf(strbuf, "DHD rx-path memory_usage: %llubytes %lluKB \n",
-		rx_path_memory_usage, (rx_path_memory_usage/ 1024));
+		rx_path_memory_usage, (rx_path_memory_usage / 1024));
 	return rx_path_memory_usage;
 }
 #endif /* DHD_MEM_STATS */
@@ -740,6 +849,8 @@ void dhd_lb_stats_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	}
 
 	bcm_bprintf(strbuf, "\nLoad Balancing/NAPI stats:\n==========================\n");
+	bcm_bprintf(strbuf, "\nLB set8 cpu mask:0x%x, set4 cpu mask:0x%x, set0 cpu mask:0x%x\n",
+		DHD_LB_CPU_SET8, DHD_LB_CPU_SET4, DHD_LB_CPU_SET0);
 	bcm_bprintf(strbuf, "\ncpu_online_cnt:\n");
 	dhd_lb_stats_dump_cpu_array(strbuf, dhd->cpu_online_cnt);
 
@@ -764,6 +875,7 @@ void dhd_lb_stats_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	bcm_bprintf(strbuf, "\nNAPI poll latency stats ie from napi schedule to napi execution\n");
 	dhd_lb_stats_dump_napi_latency(dhdp, strbuf, dhd->napi_latency);
 
+	bcm_bprintf(strbuf, "lb_rxp_emerge_enqueue_err: %u\n", dhdp->lb_rxp_emerge_enqueue_err);
 	bcm_bprintf(strbuf, "\nlb_rxp_stop_thr_hitcnt: %llu lb_rxp_strt_thr_hitcnt: %llu"
 		" rx_dma_stall_hc_ignore_cnt: %llu\n",
 		dhdp->lb_rxp_stop_thr_hitcnt, dhdp->lb_rxp_strt_thr_hitcnt,
@@ -779,33 +891,69 @@ void dhd_lb_stats_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	bcm_bprintf(strbuf, "\ntx_start_percpu_run_cnt:\n");
 	dhd_lb_stats_dump_cpu_array(strbuf, dhd->tx_start_percpu_run_cnt);
 #endif /* DHD_LB_TXP */
+
 	bcm_bprintf(strbuf, "\n");
 }
 
-void dhd_lb_stats_update_napi_latency(uint64 *bin, uint32 latency)
+static void
+dhd_lb_stats_update_napi_latency(uint64 *bin, uint32 latency)
 {
 	uint64 *p;
 	uint32 bin_power;
 	bin_power = next_larger_power2(latency);
 
 	switch (bin_power) {
-		case   1: p = bin + 0; break;
-		case   2: p = bin + 1; break;
-		case   4: p = bin + 2; break;
-		case   8: p = bin + 3; break;
-		case  16: p = bin + 4; break;
-		case  32: p = bin + 5; break;
-		case  64: p = bin + 6; break;
-		case 128: p = bin + 7; break;
-		case 256: p = bin + 8; break;
-		case 512: p = bin + 9; break;
-		case 1024: p = bin + 10; break;
-		case 2048: p = bin + 11; break;
-		case 4096: p = bin + 12; break;
-		case 8192: p = bin + 13; break;
-		case 16384: p = bin + 14; break;
-		case 32768: p = bin + 15; break;
-		default : p = bin + 16; break;
+	case   1:
+		p = bin + 0;
+		break;
+	case   2:
+		p = bin + 1;
+		break;
+	case   4:
+		p = bin + 2;
+		break;
+	case   8:
+		p = bin + 3;
+		break;
+	case  16:
+		p = bin + 4;
+		break;
+	case  32:
+		p = bin + 5;
+		break;
+	case  64:
+		p = bin + 6;
+		break;
+	case 128:
+		p = bin + 7;
+		break;
+	case 256:
+		p = bin + 8;
+		break;
+	case 512:
+		p = bin + 9;
+		break;
+	case 1024:
+		p = bin + 10;
+		break;
+	case 2048:
+		p = bin + 11;
+		break;
+	case 4096:
+		p = bin + 12;
+		break;
+	case 8192:
+		p = bin + 13;
+		break;
+	case 16384:
+		p = bin + 14;
+		break;
+	case 32768:
+		p = bin + 15;
+		break;
+	default:
+		p = bin + 16;
+		break;
 	}
 	ASSERT((p - bin) < DHD_NUM_NAPI_LATENCY_ROWS);
 	*p = *p + 1;
@@ -813,22 +961,41 @@ void dhd_lb_stats_update_napi_latency(uint64 *bin, uint32 latency)
 
 }
 
-void dhd_lb_stats_update_histo(uint32 **bin, uint32 count, uint32 cpu)
+static void
+dhd_lb_stats_update_histo(uint32 **bin, uint32 count, uint32 cpu)
 {
 	uint32 bin_power;
 	uint32 *p;
 	bin_power = next_larger_power2(count);
 
 	switch (bin_power) {
-		case   1: p = bin[0] + cpu; break;
-		case   2: p = bin[1] + cpu; break;
-		case   4: p = bin[2] + cpu; break;
-		case   8: p = bin[3] + cpu; break;
-		case  16: p = bin[4] + cpu; break;
-		case  32: p = bin[5] + cpu; break;
-		case  64: p = bin[6] + cpu; break;
-		case 128: p = bin[7] + cpu; break;
-		default : p = bin[8] + cpu; break;
+	case   1:
+		p = bin[0] + cpu;
+		break;
+	case   2:
+		p = bin[1] + cpu;
+		break;
+	case   4:
+		p = bin[2] + cpu;
+		break;
+	case   8:
+		p = bin[3] + cpu;
+		break;
+	case  16:
+		p = bin[4] + cpu;
+		break;
+	case  32:
+		p = bin[5] + cpu;
+		break;
+	case  64:
+		p = bin[6] + cpu;
+		break;
+	case 128:
+		p = bin[7] + cpu;
+		break;
+	default:
+		p = bin[8] + cpu;
+		break;
 	}
 
 	*p = *p + 1;
@@ -889,10 +1056,14 @@ void dhd_lb_stats_rxc_percpu_cnt_incr(dhd_pub_t *dhdp)
  * CPU and schedules a tasklet.
  * @tasklet: opaque pointer to the tasklet
  */
-INLINE void
+static void
 dhd_tasklet_schedule(void *tasklet)
 {
+#ifdef DHD_PCIE_USE_TASK_HI_SCHED
+	tasklet_hi_schedule((struct tasklet_struct *)tasklet);
+#else
 	tasklet_schedule((struct tasklet_struct *)tasklet);
+#endif /* DHD_PCIE_USE_TASK_HI_SCHED */
 }
 
 /**
@@ -905,20 +1076,20 @@ dhd_tasklet_schedule(void *tasklet)
  * will be invoked to schedule the specified work on the requested CPU.
  */
 
-INLINE void
+static void
 dhd_work_schedule_on(struct work_struct *work, int on_cpu)
 {
 	schedule_work_on(on_cpu, work);
 }
 
-INLINE void
+static void
 dhd_delayed_work_schedule_on(struct delayed_work *dwork, int on_cpu, ulong delay)
 {
 	schedule_delayed_work_on(on_cpu, dwork, delay);
 }
 
 #if defined(DHD_LB_TXP)
-void dhd_tx_dispatcher_work(struct work_struct * work)
+void dhd_tx_dispatcher_work(struct work_struct *work)
 {
 	struct dhd_info *dhd;
 
@@ -1009,7 +1180,7 @@ dhd_napi_poll(struct napi_struct *napi, int budget)
 	int ifid;
 	const int pkt_count = 1;
 	const int chan = 0;
-	struct sk_buff * skb;
+	struct sk_buff *skb;
 	unsigned long flags;
 	struct dhd_info *dhd;
 	int processed = 0;
@@ -1120,18 +1291,10 @@ dhd_napi_schedule(void *info)
 	 * rx performance drop of ~5Mbs(SWWLAN-349763).
 	 * So, excludes this prevention for Android platform.
 	 */
-#ifndef OEM_ANDROID
-	DHD_GENERAL_LOCK(&dhd->pub, flags);
 
-	if (DHD_BUS_BUSY_CHECK_SUSPEND_IN_PROGRESS(&dhd->pub)) {
-		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		return;
-	}
-
-	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-#endif /* OEM_ANDROID */
-
+#if defined(CUSTOMER_HW_ROCKCHIP) && defined(CONFIG_ARCH_ROCKCHIP)
 	local_bh_disable();
+#endif
 	/* add napi_struct to softnet data poll list and raise NET_RX_SOFTIRQ */
 	if (napi_schedule_prep(&dhd->rx_napi_struct)) {
 
@@ -1152,7 +1315,9 @@ dhd_napi_schedule(void *info)
 		raise_softirq(NET_RX_SOFTIRQ);
 #endif /* WAKEUP_KSOFTIRQD_POST_NAPI_SCHEDULE */
 	}
+#if defined(CUSTOMER_HW_ROCKCHIP) && defined(CONFIG_ARCH_ROCKCHIP)
 	local_bh_enable();
+#endif
 
 	/*
 	 * If the rx_napi_struct was already running, then we let it complete
@@ -1187,7 +1352,7 @@ dhd_napi_schedule(void *info)
  * we are running from tasklet context. Since dhd_rx_napi_dispatcher_work can
  * run from Work Queue context we have to call these functions
  */
-void dhd_rx_napi_dispatcher_work(struct work_struct * work)
+void dhd_rx_napi_dispatcher_work(struct work_struct *work)
 {
 	struct dhd_info *dhd;
 	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
@@ -1197,6 +1362,7 @@ void dhd_rx_napi_dispatcher_work(struct work_struct * work)
 	dhd_napi_schedule(dhd);
 }
 
+#define HT_RXCPL_WM      20000
 /**
  * dhd_lb_rx_napi_dispatch - load balance by dispatching the rx_napi_struct
  * to run on another CPU. The rx_napi_struct's poll function will retrieve all
@@ -1227,17 +1393,21 @@ dhd_lb_rx_napi_dispatch(dhd_pub_t *dhdp)
 	DHD_RX_NAPI_QUEUE_UNLOCK(&dhd->rx_napi_queue.lock, flags);
 
 	/* If sysfs lb_rxp_active is not set, schedule on current cpu */
-	if (!atomic_read(&dhd->lb_rxp_active))
-	{
+	if ((dhdp->curr_rxcpl < HT_RXCPL_WM) && (!atomic_read(&dhd->lb_rxp_active) ||
+		(skb_queue_len(&dhd->rx_napi_queue) < DHD_LB_ACTIVE_LOW_WATERMARK))) {
 		dhd_napi_schedule(dhd);
 		return;
 	}
-#ifdef TPUT_MONITOR
-	if (wl_ext_tput_get(dhdp) < dhdp->conf->napi_tput_thresh) {
+
+#ifdef DHD_SCHED_NAPI_DIRECTLY_LOW_TPUT
+	/* Based on customer request, for lower TPUTs
+	 * schedule napi directly on the same core.
+	 */
+	if (!dhd_plat_pcie_enable_big_core()) {
 		dhd_napi_schedule(dhd);
 		return;
 	}
-#endif /* TPUT_MONITOR */
+#endif /* DHD_SCHED_NAPI_DIRECTLY_LOW_TPUT */
 
 	/*
 	 * Get cpu will disable pre-ermption and will not allow any cpu to go offline
@@ -1252,11 +1422,7 @@ dhd_lb_rx_napi_dispatch(dhd_pub_t *dhdp)
 	/*
 	 * Avoid cpu candidacy, if override is set via sysfs for changing cpu mannually
 	 */
-	if (dhd->dhd_lb_candidacy_override) {
-		if (!cpu_online(rx_napi_cpu)) {
-			rx_napi_cpu = curr_cpu;
-		}
-	} else {
+	if (!dhd->dhd_lb_candidacy_override) {
 		/*
 		 * Now if the DPC has scheduled in the same CPU
 		 * that is chosen for Rx napi processing
@@ -1274,6 +1440,10 @@ dhd_lb_rx_napi_dispatch(dhd_pub_t *dhdp)
 
 	}
 
+	if (!cpu_online(rx_napi_cpu)) {
+		rx_napi_cpu = curr_cpu;
+	}
+
 	DHD_INFO(("%s : schedule to curr_cpu : %d, rx_napi_cpu : %d\n",
 		__FUNCTION__, curr_cpu, rx_napi_cpu));
 	dhd_work_schedule_on(&dhd->rx_napi_dispatcher_work, rx_napi_cpu);
@@ -1283,19 +1453,41 @@ dhd_lb_rx_napi_dispatch(dhd_pub_t *dhdp)
 }
 
 /**
+ * dhd_rx_emerge_queue_len - rx ememrgency queue length
+ */
+uint
+dhd_rx_emerge_queue_len(dhd_pub_t *dhdp)
+{
+	dhd_info_t *dhd = dhdp->info;
+	return skb_queue_len(&dhd->rx_emerge_queue);
+}
+
+/**
  * dhd_rx_emerge_enqueue - Enqueue the packet into the ememrgency queue for repost
  */
 void
 dhd_rx_emerge_enqueue(dhd_pub_t *dhdp, void *pkt)
 {
 	dhd_info_t *dhd = dhdp->info;
+	uint pkt_len, rxbufpost_sz;
+
+	pkt_len = PKTLEN(dhdp->osh, pkt);
+	rxbufpost_sz = dhd_prot_get_rxbufpost_sz(dhdp);
+	if (pkt_len != rxbufpost_sz) {
+		DHD_ERROR(("%s possible skb corruption. pkt_len: %d rxbufpost_sz: %d \n",
+			__FUNCTION__, pkt_len, rxbufpost_sz));
+		PKTFREE(dhdp->osh, pkt, FALSE);
+		dhdp->lb_rxp_emerge_enqueue_err++;
+		ASSERT(0);
+		return;
+	}
 	skb_queue_tail(&dhd->rx_emerge_queue, pkt);
 }
 
 /**
  * dhd_rx_emerge_dequeue - Deueue the packet from the emergency queue for repost
  */
-void *
+void*
 dhd_rx_emerge_dequeue(dhd_pub_t *dhdp)
 {
 	dhd_info_t *dhd = dhdp->info;
@@ -1309,9 +1501,11 @@ void
 dhd_lb_rx_pkt_enqueue(dhd_pub_t *dhdp, void *pkt, int ifidx)
 {
 	dhd_info_t *dhd = dhdp->info;
-
-	DHD_INFO(("%s enqueue pkt<%p> ifidx<%d> pend_queue<%d>\n", __FUNCTION__,
-		pkt, ifidx, skb_queue_len(&dhd->rx_pend_queue)));
+#ifdef DHD_PRINT_RXPKTS_TRACE
+	DHD_ERROR(("%s enqueue pkt<%p> data<%p> len<%d> ifidx<%d> pend_queue<%d>\n", __FUNCTION__,
+		pkt, PKTDATA(dhdp->osh, pkt), PKTLEN(dhdp->osh, pkt), ifidx,
+		skb_queue_len(&dhd->rx_pend_queue)));
+#endif /* DHD_PRINT_RXPKTS_TRACE */
 	DHD_PKTTAG_SET_IFID((dhd_pkttag_fr_t *)PKTTAG(pkt), ifidx);
 	__skb_queue_tail(&dhd->rx_pend_queue, pkt);
 	DHD_LB_STATS_PERCPU_ARR_INCR(dhd->napi_percpu_run_cnt);
@@ -1368,7 +1562,7 @@ BCMFASTPATH(dhd_lb_sendpkt)(dhd_info_t *dhd, struct net_device *net,
 /*
  * Function that performs the TX processing on a given CPU
  */
-bool
+static bool
 dhd_lb_tx_process(dhd_info_t *dhd)
 {
 	struct sk_buff *skb;
@@ -1427,6 +1621,68 @@ dhd_lb_tx_handler(unsigned long data)
 }
 
 #endif /* DHD_LB_TXP */
+
+#if defined(DHD_LB_RXPOST)
+void
+dhd_lb_rxpost_init(dhd_pub_t *dhdp)
+{
+	dhd_info_t *dhd = dhdp->info;
+	uint32 rxpost_cpu = atomic_read(&dhd->rxpost_cpu);
+	PROC_START_ON(dhd_lb_rxpost_thread, dhd, &dhd->lb_rxpost_thread, 0,
+		"dhd_lb_rxpost_thread", rxpost_cpu);
+}
+
+void
+dhd_lb_rxpost_deinit(dhd_pub_t *dhdp)
+{
+	dhd_info_t *dhd = dhdp->info;
+	tsk_ctl_t *tsk = &dhd->lb_rxpost_thread;
+	if (tsk->parent && tsk->thr_pid >= 0) {
+		PROC_STOP_USING_BINARY_SEMA(tsk);
+	} else {
+		DHD_ERROR(("%s: lb_rxpost_thread(%ld) not inited\n",
+			__FUNCTION__, tsk->thr_pid));
+	}
+}
+
+void
+dhd_lb_rxpost_dispatch(dhd_pub_t *dhdp)
+{
+	dhd_info_t *dhd = dhdp->info;
+	binary_sema_up(&dhd->lb_rxpost_thread);
+}
+
+/* Rxpost Work */
+static int
+dhd_lb_rxpost_thread(void *data)
+{
+	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
+	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
+
+	while (TRUE) {
+		if (!binary_sema_down(tsk)) {
+			SMP_RD_BARRIER_DEPENDS();
+			/* Check terminated before processing the items */
+			if (tsk->terminated) {
+				DHD_ERROR(("%s: task terminated\n", __FUNCTION__));
+				goto exit;
+			}
+			OSL_DISABLE_PREEMPTION(dhd->pub.osh);
+			dhd_msgbuf_rxbuf_post(&dhd->pub, FALSE); /* alloc pkt ids */
+			OSL_ENABLE_PREEMPTION(dhd->pub.osh);
+
+		} else {
+			DHD_ERROR_RLMT(("%s: unexpected break\n", __FUNCTION__));
+			break;
+		}
+	}
+exit:
+	DHD_TRACE(("%s: EXITED...\n", __FUNCTION__));
+	KTHREAD_COMPLETE_AND_EXIT(&tsk->completed, 0);
+
+}
+#endif /* DHD_LB_RXPOST */
+
 #endif /* DHD_LB */
 
 #if defined(SET_PCIE_IRQ_CPU_CORE) || defined(DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON)
@@ -1446,7 +1702,7 @@ dhd_irq_set_affinity(dhd_pub_t *dhdp, const struct cpumask *cpumask)
 		return;
 	}
 
-	DHD_ERROR(("%s : irq set affinity cpu:0x%lx\n",
+	DHD_PRINT(("%s : irq set affinity cpu:0x%lx\n",
 			__FUNCTION__, *cpumask_bits(cpumask)));
 
 	dhdpcie_get_pcieirq(dhdp->bus, &irq);
@@ -1484,7 +1740,7 @@ dhd_set_irq_cpucore(dhd_pub_t *dhdp, int affinity_cmd)
 		return;
 	}
 
-	DHD_ERROR(("Enter %s, PCIe affinity cmd=0x%x\n", __FUNCTION__, affinity_cmd));
+	DHD_PRINT(("Enter %s, PCIe affinity cmd=0x%x\n", __FUNCTION__, affinity_cmd));
 
 #if defined(DHD_LB) && defined(DHD_LB_HOST_CTRL)
 	dhd = dhdp->info;
@@ -1512,24 +1768,24 @@ dhd_set_irq_cpucore(dhd_pub_t *dhdp, int affinity_cmd)
 		PCIe interrupt scheduled on CPU core 0
 	*/
 	switch (affinity_cmd) {
-		case DHD_AFFINITY_OFF:
+	case DHD_AFFINITY_OFF:
 #if defined(DHD_LB) && defined(DHD_LB_HOST_CTRL)
-			dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_secondary);
+		dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_set0);
 #endif /* DHD_LB && DHD_LB_HOST_CTRL */
-			break;
-		case DHD_AFFINITY_TPUT_150MBPS:
-			dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_primary);
-			break;
-		case DHD_AFFINITY_TPUT_300MBPS:
+		break;
+	case DHD_AFFINITY_TPUT_150MBPS:
+		dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_set4);
+		break;
+	case DHD_AFFINITY_TPUT_300MBPS:
 #ifdef CONFIG_ARCH_EXYNOS
-			dhd_irq_set_affinity(dhdp, cpumask_of(PCIE_IRQ_CPU_CORE));
+		dhd_irq_set_affinity(dhdp, cpumask_of(PCIE_IRQ_CPU_CORE));
 #else
-			dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_primary);
+		dhd_irq_set_affinity(dhdp, dhdp->info->cpumask_set4);
 #endif /* CONFIG_ARCH_EXYNOS */
-			break;
-		default:
-			DHD_ERROR(("%s, Unknown PCIe affinity cmd=0x%x\n",
-				__FUNCTION__, affinity_cmd));
+		break;
+	default:
+		DHD_ERROR(("%s, Unknown PCIe affinity cmd=0x%x\n",
+			__FUNCTION__, affinity_cmd));
 	}
 }
 #endif /* SET_PCIE_IRQ_CPU_CORE */

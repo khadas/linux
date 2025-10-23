@@ -1,7 +1,26 @@
 /*
  * Broadcom proprietary types and constants relating to 802.11
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -91,6 +110,7 @@ typedef struct dot11_brcm_extch dot11_brcm_extch_ie_t;
 #define HT_ADD_IE_TYPE			52	/* faked out as current spec is illegal */
 #define BRCM_EXTCH_IE_TYPE		53	/* 802.11n ID not yet assigned */
 #define MEMBER_OF_BRCM_PROP_IE_TYPE	54      /* used in prop IE 221 only */
+/* TODO: remove obsolete RELMCAST code once no branches have them. */
 #define RELMCAST_BRCM_PROP_IE_TYPE	55	/* used in prop IE 221 only */
 /* BCM proprietary IE type for AIBSS */
 #define BCM_AIBSS_IE_TYPE		56
@@ -106,7 +126,12 @@ typedef struct dot11_brcm_extch dot11_brcm_extch_ie_t;
 
 /* Action frame type */
 #define PROXD_AF_TYPE			11	/* Wifi proximity action frame type */
-#define BRCM_RELMACST_AF_TYPE	        12	/* RMC action frame type */
+
+/*
+ * TODO: the obsolete 'BRCM_RELMACST_AF_TYPE 12' has been removed. But some related code remained in
+ * branches. Please don't reuse '12' until RELMCAST code is cleaned completely.
+ */
+
 /* Action frame type for FTM Initiator Report */
 #define BRCM_FTM_VS_AF_TYPE		14
 
@@ -217,22 +242,6 @@ typedef struct member_of_brcm_prop_ie member_of_brcm_prop_ie_t;
 #define MEMBER_OF_BRCM_PROP_IE_LEN	10	/* IE max length */
 #define MEMBER_OF_BRCM_PROP_IE_HDRLEN	(sizeof(member_of_brcm_prop_ie_t))
 
-/** BRCM Reliable Multicast IE */
-BWL_PRE_PACKED_STRUCT struct relmcast_brcm_prop_ie {
-	uint8 id;
-	uint8 len;
-	uint8 oui[3];
-	uint8 type;		/* type indicates what follows */
-	struct ether_addr ea;	/* The ack sender's MAC Adrress */
-	struct ether_addr mcast_ea;  /* The multicast MAC address */
-	uint8 updtmo; /* time interval(second) for client to send null packet to report its rssi */
-} BWL_POST_PACKED_STRUCT;
-typedef struct relmcast_brcm_prop_ie relmcast_brcm_prop_ie_t;
-
-/* IE length */
-/* BRCM_PROP_IE_LEN = sizeof(relmcast_brcm_prop_ie_t)-((sizeof (id) + sizeof (len)))? */
-#define RELMCAST_BRCM_PROP_IE_LEN	(sizeof(relmcast_brcm_prop_ie_t)-(2*sizeof(uint8)))
-
 /* BRCM BTC IE */
 BWL_PRE_PACKED_STRUCT struct btc_brcm_prop_ie {
 	uint8 id;
@@ -296,7 +305,7 @@ typedef struct vht_features_ie_hdr vht_features_ie_hdr_t;
 typedef BWL_PRE_PACKED_STRUCT struct {
 	uint8	id;
 	uint8	len;
-	uint8	data[1];
+	uint8	data[];
 } BWL_POST_PACKED_STRUCT ftm_vs_tlv_t;
 
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_vs_ie {
@@ -305,7 +314,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_ftm_vs_ie {
 	uint8 oui[3];		/* BRCM_PROP_OUI (or Customer) */
 	uint8 sub_type;		/* BRCM_FTM_IE_TYPE (or Customer) */
 	uint8 version;
-	ftm_vs_tlv_t tlvs[BCM_FLEX_ARRAY];
+	uint8 tlvs[]; /* ftm_vs_tlv_t tlv */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_ftm_vs_ie dot11_ftm_vs_ie_t;
 
@@ -316,7 +325,7 @@ typedef struct dot11_ftm_vs_ie dot11_ftm_vs_ie_t;
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_vs_ie_pyld {
 	uint8 sub_type;		/* BRCM_FTM_IE_TYPE (or Customer) */
 	uint8 version;
-	ftm_vs_tlv_t tlvs[BCM_FLEX_ARRAY];
+	uint8 tlvs[]; /* ftm_vs_tlv_t tlv */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_ftm_vs_ie_pyld dot11_ftm_vs_ie_pyld_t;
 

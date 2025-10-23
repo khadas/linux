@@ -1,7 +1,26 @@
 /*
  * Broadcom Dongle Host Driver (DHD), RTT
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2025, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -35,7 +54,7 @@
 #define DEFAULT_FTM_CNTR_FREQ0 5210
 #define RTT_MAX_GEOFENCE_TARGET_CNT 8
 
-#define TARGET_INFO_SIZE(count) (sizeof(rtt_target_info_t) * count)
+#define TARGET_INFO_SIZE(count) (sizeof(rtt_mc_az_target_info_t) * count)
 
 #define TARGET_TYPE(target) (target->type)
 
@@ -73,6 +92,9 @@
 
 #define DHD_RTT_INVALID_TARGET_INDEX		-1
 
+/* minimum WLC API version supporting separate FTM passphrase db */
+#define FTM_SEPARATE_PASSPHRASE_DB_MIN_WLC_VER	21u
+
 enum rtt_role {
 	RTT_INITIATOR = 0,
 	RTT_TARGET = 1
@@ -86,11 +108,12 @@ typedef int64_t wifi_timestamp; /* In microseconds (us) */
 typedef int64_t wifi_timespan;
 typedef int32 wifi_rssi_rtt;
 
-typedef enum {
-	RTT_INVALID,
-	RTT_ONE_WAY,
-	RTT_TWO_WAY,
-	RTT_AUTO
+typedef enum rtt_type_e {
+	RTT_INVALID		= 0u,
+	RTT_ONE_WAY		= 1u,
+	RTT_TWO_WAY_MC		= 2u,
+	RTT_TWO_WAY_NTB		= 3u,
+	RTT_TWO_WAY_NTB_SECURE	= 4u
 } rtt_type_t;
 
 /* RTT peer type */
@@ -104,60 +127,92 @@ typedef enum {
 } rtt_peer_type_t;
 
 /* Ranging status */
-typedef enum rtt_reason {
+typedef enum rtt_reason_e {
 	RTT_STATUS_SUCCESS       = 0,
-	RTT_STATUS_FAILURE       = 1,           // general failure status
-	RTT_STATUS_FAIL_NO_RSP   = 2,           // target STA does not respond to request
-	RTT_STATUS_FAIL_REJECTED = 3,           // request rejected. Applies to 2-sided RTT only
+	RTT_STATUS_FAILURE       = 1,           /* general failure status */
+	RTT_STATUS_FAIL_NO_RSP   = 2,           /* target STA does not respond to request */
+	RTT_STATUS_FAIL_REJECTED = 3,           /* request rejected. Applies to 2-sided RTT only */
 	RTT_STATUS_FAIL_NOT_SCHEDULED_YET  = 4,
-	RTT_STATUS_FAIL_TM_TIMEOUT         = 5, // timing measurement times out
-	RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL = 6, // Target on different channel, cannot range
-	RTT_STATUS_FAIL_NO_CAPABILITY  = 7,     // ranging not supported
-	RTT_STATUS_ABORTED             = 8,     // request aborted for unknown reason
-	RTT_STATUS_FAIL_INVALID_TS     = 9,     // Invalid T1-T4 timestamp
-	RTT_STATUS_FAIL_PROTOCOL       = 10,    // 11mc protocol failed
-	RTT_STATUS_FAIL_SCHEDULE       = 11,    // request could not be scheduled
-	RTT_STATUS_FAIL_BUSY_TRY_LATER = 12,    // responder cannot collaborate at time of request
-	RTT_STATUS_INVALID_REQ         = 13,    // bad request args
-	RTT_STATUS_NO_WIFI             = 14,    // WiFi not enabled Responder overrides param info
-						// cannot range with new params
-	RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE = 15
+	RTT_STATUS_FAIL_TM_TIMEOUT         = 5, /* timing measurement times out */
+	RTT_STATUS_FAIL_AP_ON_DIFF_CHANNEL = 6, /* Target on different channel, cannot range */
+	RTT_STATUS_FAIL_NO_CAPABILITY  = 7,     /* ranging not supported */
+	RTT_STATUS_ABORTED             = 8,     /* request aborted for unknown reason */
+	RTT_STATUS_FAIL_INVALID_TS     = 9,     /* Invalid T1-T4 timestamp */
+	RTT_STATUS_FAIL_PROTOCOL       = 10,    /* 11mc protocol failed */
+	RTT_STATUS_FAIL_SCHEDULE       = 11,    /* request could not be scheduled */
+	/* responder cannot collaborate at time of request */
+	RTT_STATUS_FAIL_BUSY_TRY_LATER = 12,
+	RTT_STATUS_INVALID_REQ         = 13,    /* bad request args */
+	RTT_STATUS_NO_WIFI             = 14,    /* WiFi not enabled */
+	/* Responder overrides param info, cannot range with new params */
+	RTT_STATUS_FAIL_FTM_PARAM_OVERRIDE	= 15,
+	RTT_STATUS_NAN_RANGING_PROTOCOL_FAILURE = 16, /* Negotiation failure */
+	 /* concurrency not supported (NDP+RTT) */
+	RTT_STATUS_NAN_RANGING_CONCURRENCY_NOT_SUPPORTED = 17,
+	/* IEEE 802.11az secure mode ranging is failed */
+	RTT_STATUS_FAIL_11AZ_SECURITY		= 18
 } rtt_reason_t;
 
-enum {
-	RTT_CAP_ONE_WAY	 = BIT(0),
+enum rtt_cap_proto_e {
+	RTT_CAP_ONE_WAY			= BIT(0),
 	/* IEEE802.11mc */
-	RTT_CAP_FTM_WAY  = BIT(1)
+	RTT_CAP_FTM_WAY			= BIT(1),
+	/* IEEE802.11az */
+	RTT_CAP_FTM_11AZ_INIT		= BIT(2),
+	RTT_CAP_FTM_11AZ_RESP		= BIT(3),
+	RTT_CAP_FTM_11AZ_SECURE		= BIT(4)
 };
+typedef uint16 rtt_cap_proto_t;
 
-enum {
-	RTT_FEATURE_LCI = BIT(0),
-	RTT_FEATURE_LCR = BIT(1),
-	RTT_FEATURE_PREAMBLE = BIT(2),
-	RTT_FEATURE_BW = BIT(3)
+enum rtt_cap_feature_e {
+	RTT_FEATURE_LCI		= BIT(0),
+	RTT_FEATURE_LCR		= BIT(1),
+	RTT_FEATURE_PREAMBLE	= BIT(2),
+	RTT_FEATURE_BW		= BIT(3),
+	RTT_FEATURE_11AZ	= BIT(4)
 };
+typedef uint16 rtt_cap_feature_t;
 
-enum {
-	RTT_PREAMBLE_LEGACY = BIT(0),
-	RTT_PREAMBLE_HT = BIT(1),
-	RTT_PREAMBLE_VHT = BIT(2)
+enum rtt_cap_preamble_type_e {
+	RTT_PREAMBLE_LEGACY	= BIT(0),
+	RTT_PREAMBLE_HT		= BIT(1),
+	RTT_PREAMBLE_VHT	= BIT(2),
+	RTT_PREAMBLE_HE		= BIT(3),
+	RTT_PREAMBLE_EHT	= BIT(4)
 };
+typedef uint16 rtt_cap_preamble_type_t;
 
-enum {
+enum rtt_cap_bw_e {
 	RTT_BW_5 = BIT(0),
 	RTT_BW_10 = BIT(1),
 	RTT_BW_20 = BIT(2),
 	RTT_BW_40 = BIT(3),
 	RTT_BW_80 = BIT(4),
-	RTT_BW_160 = BIT(5)
+	RTT_BW_160 = BIT(5),
+	RTT_BW_320 = BIT(6)
 };
+typedef uint8 rtt_cap_bw_t;
 
-enum rtt_rate_bw {
+enum rtt_rate_bw_e {
 	RTT_RATE_20M,
 	RTT_RATE_40M,
 	RTT_RATE_80M,
 	RTT_RATE_160M
 };
+typedef uint8 rtt_rate_bw_t;
+
+/* RTT Measurement Bandwidth */
+enum wifi_rtt_bw_e {
+	WIFI_RTT_BW_UNSPECIFIED = 0x00,
+	WIFI_RTT_BW_5           = 0x01,
+	WIFI_RTT_BW_10          = 0x02,
+	WIFI_RTT_BW_20          = 0x04,
+	WIFI_RTT_BW_40          = 0x08,
+	WIFI_RTT_BW_80          = 0x10,
+	WIFI_RTT_BW_160         = 0x20,
+	WIFI_RTT_BW_320         = 0x40
+};
+typedef uint16 wifi_rtt_bw_t;
 
 typedef enum ranging_type {
 	RTT_TYPE_INVALID	=	0,
@@ -178,20 +233,31 @@ typedef enum ranging_target_list_mode {
 #define HAS_ONEWAY_CAP(cap) (cap & RTT_CAP_ONE_WAY)
 #define HAS_RTT_CAP(cap) (HAS_ONEWAY_CAP(cap) || HAS_11MC_CAP(cap))
 
-typedef struct rtt_target_info {
-	struct ether_addr addr;
-	struct ether_addr local_addr;
-	rtt_type_t type; /* rtt_type */
-	rtt_peer_type_t peer; /* peer type */
-	wifi_channel_info channel; /* channel information */
-	chanspec_t chanspec; /* chanspec for channel */
-	bool	disable; /* disable for RTT measurement */
+typedef struct rtt_cmn_target_info {
+	rtt_type_t			tgt_type;
+	struct ether_addr		addr;
+	struct ether_addr		local_addr;
+	rtt_peer_type_t			peer;		/* peer type */
+	wifi_channel_info		channel;	/* channel information */
+	chanspec_t			chanspec;	/* chanspec for channel */
+	bool				disable;	/* disable for RTT measurement */
+	uint16				sid;		/* session ID for the target */
+	wifi_rtt_bw_t			bw;		/* 5, 10, 20, 40, 80, 160 */
+	uint8				LCI_request;
+	uint8				LCR_request;
+#ifdef WL_RTT_LCI
+	bcm_xtlv_t			*LCI; /* LCI Report */
+	bcm_xtlv_t			*LCR; /* Location Civic Report */
+#endif /* WL_RTT_LCI */
+} rtt_cmn_target_info_t;
+
+typedef struct rtt_mc_target_info {
 	/*
 	* Time interval between bursts (units: 100 ms).
 	* Applies to 1-sided and 2-sided RTT multi-burst requests.
 	* Range: 0-31, 0: no preference by initiator (2-sided RTT)
 	*/
-	uint32	burst_period;
+	uint32				burst_period;
 	/*
 	* Total number of RTT bursts to be executed. It will be
 	* specified in the same way as the parameter "Number of
@@ -204,7 +270,7 @@ typedef struct rtt_target_info {
 	* for 1-sided RTT: max num of RTT results = (2^num_burst)*(num_frames_per_burst)
 	* for 2-sided RTT: max num of RTT results = (2^num_burst)*(num_frames_per_burst - 1)
 	*/
-	uint16 num_burst;
+	uint16				num_burst;
 	/*
 	* num of frames per burst.
 	* Minimum value = 1, Maximum value = 31
@@ -214,21 +280,16 @@ typedef struct rtt_target_info {
 	* initiator will request that the responder send
 	* in a single frame
 	*/
-	uint32 num_frames_per_burst;
+	uint32				num_frames_per_burst;
 	/*
 	 * num of frames in each RTT burst
 	 * for single side, measurement result num = frame number
 	 * for 2 side RTT, measurement result num  = frame number - 1
 	 */
-	uint32 num_retries_per_ftm; /* retry time for RTT measurment frame */
+	/* retry time for RTT measurment frame */
+	uint32				num_retries_per_ftm;
 	/* following fields are only valid for 2 side RTT */
-	uint32 num_retries_per_ftmr;
-	uint8  LCI_request;
-	uint8  LCR_request;
-#ifdef WL_RTT_LCI
-	bcm_xtlv_t *LCI; /* LCI Report */
-	bcm_xtlv_t *LCR; /* Location Civic Report */
-#endif /* WL_RTT_LCI */
+	uint32				num_retries_per_ftmr;
 	/*
 	* Applies to 1-sided and 2-sided RTT. Valid values will
 	* be 2-11 and 15 as specified by the 802.11mc std for
@@ -239,12 +300,43 @@ typedef struct rtt_target_info {
 	* the initiator will sent TMR_STOP to terminate RTT
 	* at the end of the burst_duration it requested.
 	*/
-	uint32 burst_duration;
-	uint32 burst_timeout;
-	uint8  preamble;	/* 1 - Legacy, 2 - HT, 4 - VHT */
-	uint8  bw;		/* 5, 10, 20, 40, 80, 160 */
-	uint16 sid;		/* session ID for the target */
-} rtt_target_info_t;
+	uint32				burst_duration;
+	uint32				burst_timeout;
+	uint8				preamble;	/* 1 - Legacy, 2 - HT, 4 - VHT */
+} rtt_mc_target_info_t;
+
+#define MAX_PASSPHRASE_LEN	63u	/* Max length of passphrase */
+
+/* Security params */
+typedef struct rtt_target_security_info {
+	uint16		akm;				/* AKM to use i.e, SAE/FT/FILS/PASN */
+	uint16		cipher_type;			/* Type of cipher used ie., CCM/GCM */
+	uint8		passphrase[MAX_PASSPHRASE_LEN];	/* passphrase */
+	uint8		passphrase_len;			/* length of key */
+	uint8		sec_ltf_reqd;			/* Is secure lft required */
+	uint8		protected_frm_reqd;		/* Is protected rtt frames required */
+} rtt_target_security_info_t;
+
+typedef struct rtt_az_target_info {
+	/* Minimum measuremen time in us */
+	uint32				min_delta;
+	/* Maximum measuremen time in us */
+	uint32				max_delta;
+	uint8				format_bw;
+	uint16				num_measurements;
+	/* secure ranging params */
+	rtt_target_security_info_t	sec_info;
+} rtt_az_target_info_t;
+
+typedef struct {
+	rtt_cmn_target_info_t		cmn_tgt_info;
+	union {
+		/* mc target info */
+		rtt_mc_target_info_t	mc_tgt_info;
+		/* AZ target info */
+		rtt_az_target_info_t	az_tgt_info;
+	} u;
+} rtt_mc_az_target_info_t;
 
 typedef struct rtt_goefence_target_info {
 	bool valid;
@@ -254,7 +346,7 @@ typedef struct rtt_goefence_target_info {
 typedef struct rtt_config_params {
 	int8 rtt_target_cnt;
 	uint8 target_list_mode;
-	rtt_target_info_t *target_info;
+	rtt_mc_az_target_info_t *target_info;
 } rtt_config_params_t;
 
 typedef struct rtt_geofence_setup_status {
@@ -284,6 +376,30 @@ typedef struct rtt_directed_cfg {
 	int directed_sessions_cnt; /* No. of Geofence/Resp Sessions running currently */
 	rtt_directed_setup_status_t directed_setup_status;
 } rtt_directed_cfg_t;
+
+/* RTT AKM type */
+enum rtt_akm_type_e {
+	WPA_KEY_MGMT_DEFAULT             = 0x0,
+	WPA_KEY_MGMT_PASN                = 0x1,
+	WPA_KEY_MGMT_SAE                 = 0x2,
+	WPA_KEY_MGMT_EAP_FT_SHA256       = 0x4,
+	WPA_KEY_MGMT_FT_PSK_SHA256       = 0x8,
+	WPA_KEY_MGMT_EAP_FT_SHA384       = 0x10,
+	WPA_KEY_MGMT_FT_PSK_SHA384       = 0x20,
+	WPA_KEY_MGMT_EAP_FILS_SHA256     = 0x40,
+	WPA_KEY_MGMT_EAP_FILS_SHA384     = 0x80
+};
+typedef uint16 rtt_akm_type_t;
+
+/* RTT cipher type */
+enum rtt_cipher_type_e {
+	RTT_WPA_CIPHER_DEFAULT     = 0x0,
+	RTT_WPA_CIPHER_CCMP_128    = 0x1,
+	RTT_WPA_CIPHER_CCMP_256    = 0x2,
+	RTT_WPA_CIPHER_GCMP_128    = 0x4,
+	RTT_WPA_CIPHER_GCMP_256    = 0x8
+};
+typedef uint16 rtt_cipher_type_t;
 
 /*
  * Keep Adding more reasons
@@ -319,19 +435,22 @@ enum rtt_invalid_state {
 
 typedef struct rtt_status_info {
 	dhd_pub_t	*dhd;
-	int8		status;   /* current status for the current entry */
-	int8		txchain; /* current device tx chain */
-	int		pm; /* to save current value of pm */
-	int8		pm_restore; /* flag to reset the old value of pm */
-	int8		cur_idx; /* current entry to do RTT */
-	int8		start_idx; /* start index for RTT */
-	bool		all_cancel; /* cancel all request once we got the cancel requet */
-	uint32		flags; /* indicate whether device is configured as initiator or target */
+	int8		status;		/* current status for the current entry */
+	int8		txchain;	/* current device tx chain */
+	int		pm;		/* to save current value of pm */
+	int8		pm_restore;	/* flag to reset the old value of pm */
+	int8		cur_idx;	/* current entry to do RTT */
+	int8		start_idx;	/* start index for RTT */
+	bool		all_cancel;	/* cancel all request once we got the cancel requet */
+	uint32		flags;		/* indicate whether device is configured as init or tgt */
 	struct capability {
-		int32 proto     :8;
-		int32 feature   :8;
-		int32 preamble  :8;
-		int32 bw        :8;
+		rtt_cap_proto_t		proto;
+		rtt_cap_feature_t	feature;
+		rtt_cap_preamble_type_t	preamble;
+		rtt_cap_preamble_type_t az_preamble;
+		rtt_cap_bw_t		bw;
+		rtt_akm_type_t		akm;
+		rtt_cipher_type_t	cipher;
 	} rtt_capa; /* rtt capability */
 	struct			mutex rtt_mutex;
 	struct			mutex geofence_mutex;
@@ -339,13 +458,15 @@ typedef struct rtt_status_info {
 	rtt_geofence_cfg_t	geofence_cfg;
 	rtt_directed_cfg_t	directed_cfg;
 	struct work_struct	work;
+	struct delayed_work	dwork;			/* delayed work for nan geofence rtt */
+	struct delayed_work	nan_directed_rtt_dwork; /* delayed work for nan directed rtt */
 	struct list_head	noti_fn_list;
-	struct list_head	rtt_results_cache; /* store results for RTT */
-	int			rtt_sched_reason; /* rtt_schedule_reason: what scheduled RTT */
-	struct delayed_work	proxd_timeout; /* Proxd Timeout work */
-	struct delayed_work	rtt_retry_timer;   /* Timer for retry RTT after all targets done */
-	bool			rtt_sched; /* TO serialize rtt thread */
-	int			max_nan_rtt_sessions; /* To be Polled from FW via IOVAR Query */
+	struct list_head	rtt_results_cache;	/* store results for RTT */
+	int			rtt_sched_reason;	/* what scheduled RTT */
+	struct delayed_work	proxd_timeout;		/* Proxd Timeout work */
+	struct delayed_work	rtt_retry_timer;	/* retry RTT after all tgts done */
+	bool			rtt_sched;		/* To serialize rtt thread */
+	int			max_nan_rtt_sessions;	/* To be Polled from FW via IOVAR Query */
 } rtt_status_info_t;
 
 typedef struct rtt_report {
@@ -370,11 +491,11 @@ typedef struct rtt_report {
 	* 2-sided RTT: TX rate of FTM frame coming from responder.
 	*/
 	wifi_rate_v1 rx_rate;
-	wifi_timespan rtt;	/*  round trip time in 0.1 nanoseconds */
-	wifi_timespan rtt_sd;	/* rtt standard deviation in 0.1 nanoseconds */
+	wifi_timespan rtt;	/*  round trip time in picoseconds */
+	wifi_timespan rtt_sd;	/* rtt standard deviation in picoseconds */
 	wifi_timespan rtt_spread; /* difference between max and min rtt times recorded */
-	int distance; /* distance in cm (optional) */
-	int distance_sd; /* standard deviation in cm (optional) */
+	int distance; /* distance in mm (optional) */
+	int distance_sd; /* standard deviation in mm (optional) */
 	int distance_spread; /* difference between max and min distance recorded (optional) */
 	wifi_timestamp ts; /* time of the measurement (in microseconds since boot) */
 	int burst_duration; /* in ms, how long the FW time is to fininish one burst measurement */
@@ -382,7 +503,9 @@ typedef struct rtt_report {
 	bcm_tlv_t *LCI; /* LCI Report */
 	bcm_tlv_t *LCR; /* Location Civic Report */
 } rtt_report_t;
-#define RTT_REPORT_SIZE (sizeof(rtt_report_t))
+
+#define RTT_MC_REPORT_SIZE (sizeof(rtt_report_t))
+#define RTT_AZ_REPORT_SIZE (sizeof(rtt_report_t))
 
 /* rtt_results_header to maintain rtt result list per mac address */
 typedef struct rtt_results_header {
@@ -392,18 +515,72 @@ typedef struct rtt_results_header {
 	struct list_head list;
 	struct list_head result_list;
 } rtt_results_header_t;
-struct rtt_result_detail {
+
+struct rtt_mc_result_detail {
 	uint8 num_ota_meas;
 	uint32 result_flags;
 };
+
+typedef struct rtt_mc_result {
+	struct rtt_report		report;
+	int32				report_len; /* total length of rtt_report */
+	struct rtt_mc_result_detail	rtt_detail;
+	int32				detail_len;
+} rtt_mc_result_t;
+
+struct rtt_az_result_detail {
+	/* Minimum non-trigger based (non-TB) dynamic measurement
+	 * time assigned by responder in 100 us unit
+	 */
+	uint32			min_delta;
+	/* Maximum non-trigger based (non-TB) dynamic measurement
+	 * time assigned by responder in 10 ms unit
+	 */
+	uint32			max_delta;
+	/* Multiple transmissions of HE-LTF symbols in an HE (I2R) Ranging NDP.
+	 * An HE-LTF repetition value of 1 indicates no repetitions.
+	 */
+	uint8			i2r_ltf_rep;
+	/* Multiple transmissions of HE-LTF symbols in an HE (R2I) Ranging NDP.
+	 * An HE-LTF repetition value of 1 indicates no repetitions.
+	 */
+	uint8			r2i_ltf_rep;
+	/* Number of transmit space-time streams used */
+	uint8			i2r_sts;
+	/* Number of receive space-time streams used */
+	uint8			r2i_sts;
+	/* Indicates ranging frame protection */
+	uint8			is_ranging_protection_enabled;
+	/* Indicates use of secure LTF */
+	uint8			is_secure_ltf_enabled;
+	/* AKM type used for secure ranging */
+	rtt_akm_type_t		rtt_akm;
+	/* Cipher type used for secure ranging */
+	rtt_cipher_type_t	cipher_type;
+	/* secure ltf protocol version */
+	uint			secure_ltf_protocol_version;
+};
+
+typedef struct rtt_az_result {
+	struct rtt_report		report;
+	int32				report_len; /* total length of rtt_report */
+	struct rtt_az_result_detail	rtt_detail;
+	int32				detail_len;
+} rtt_az_result_t;
+
 /* rtt_result to link all of rtt_report */
-typedef struct rtt_result {
-	struct list_head list;
-	struct rtt_report report;
-	int32 report_len; /* total length of rtt_report */
-	struct rtt_result_detail rtt_detail;
-	int32 detail_len;
-} rtt_result_t;
+typedef struct rtt_mc_az_result {
+	struct list_head	list;
+	rtt_type_t		type; /* rtt type */
+	/* primary channel frequency (MHz) used for ranging measurements */
+	wifi_channel		frequency;
+	/* RTT packet bandwidth is an average BW of the BWs of RTT frames. */
+	uint8			packet_bw;
+	union {
+		rtt_mc_result_t		mc_result;
+		rtt_az_result_t		az_result;
+	} u;
+} rtt_mc_az_result_t;
 
 /* RTT Capabilities */
 typedef struct rtt_capabilities {
@@ -413,7 +590,30 @@ typedef struct rtt_capabilities {
 	uint8 lcr_support;		/* Civic Location */
 	uint8 preamble_support;         /* bit mask indicate what preamble is supported */
 	uint8 bw_support;               /* bit mask indicate what BW is supported */
+	uint8 PAD[2];
 } rtt_capabilities_t;
+
+/* RTT Capabilities v2 (11az support) */
+typedef struct rtt_capabilities_mc_az {
+	struct			rtt_capabilities rtt_capab;
+	/* 11AZ support */
+	/* Bitmask of preamble supported by the 11az initiator */
+	rtt_cap_preamble_type_t	az_preamble_support;
+	/* bitmask of BW supported by 11az initiator */
+	uint8			az_bw_support;
+	/* if 11az non-TB initiator is supported */
+	uint8			ntb_initiator_supported;
+	/* if 11az non-TB responder is supported */
+	uint8			ntb_responder_supported;
+	/* if 11az secure ltf is supported */
+	uint8			secure_ltf_supported;
+	/* if 11az protected ranging frame is supported */
+	uint8			protected_rtt_frm_supported;
+	/* Supported AKM for secure ranging */
+	rtt_akm_type_t		akm_type_supported;
+	/* Supported cipher type for secure ranging */
+	rtt_cipher_type_t	cipher_type_supported;
+} rtt_capabilities_mc_az_t;
 
 /* RTT responder information */
 typedef struct wifi_rtt_responder {
@@ -517,6 +717,7 @@ int dhd_rtt_unregister_noti_callback(dhd_pub_t *dhd, dhd_rtt_compl_noti_fn noti_
 int dhd_rtt_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data);
 
 int dhd_rtt_capability(dhd_pub_t *dhd, rtt_capabilities_t *capa);
+int dhd_rtt_capability_mc_az(dhd_pub_t *dhd, rtt_capabilities_mc_az_t *capa);
 
 int dhd_rtt_avail_channel(dhd_pub_t *dhd, wifi_channel_info *channel_info);
 
