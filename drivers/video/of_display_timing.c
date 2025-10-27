@@ -152,10 +152,10 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		return NULL;
 	if (strstr(saved_command_line, "lcd_panel=ts101")) {
 		timings_np = of_get_child_by_name(np, "display-timings1");
-	} else if (strstr(saved_command_line, "lcd_panel=ts050")){
+	} else if (strstr(saved_command_line, "lcd_panel=ts050") || strstr(saved_command_line, "lcd_panel=newts050")){
 		timings_np = of_get_child_by_name(np, "display-timings");
 	} else {
-		timings_np = of_get_child_by_name(np, "display-timings");
+		timings_np = of_get_child_by_name(np, "display-timings3");
 	}
 
 	if (!timings_np) {

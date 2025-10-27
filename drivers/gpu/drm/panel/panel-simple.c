@@ -4721,8 +4721,10 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 
 	if(strstr(saved_command_line, "lcd_panel=newts050")) {
 		data = of_get_property(np, "panel-init-sequence2", &len);
+	} else if (strstr(saved_command_line, "lcd_panel=ts050") || strstr(saved_command_line, "lcd_panel=ts101")) {
+		data = of_get_property(np, "panel-init-sequence", &len);
 	} else {
-	data = of_get_property(np, "panel-init-sequence", &len);
+		data = of_get_property(np, "panel-init-sequence3", &len);
 	}
 	if (data) {
 		desc->init_seq = devm_kzalloc(dev, sizeof(*desc->init_seq),
