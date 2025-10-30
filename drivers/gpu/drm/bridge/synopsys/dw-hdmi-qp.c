@@ -1177,7 +1177,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 
 			stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
 			if (!stat) {
-				dev_err(hdmi->dev, "i2c write time out!\n");
+				dev_dbg(hdmi->dev, "i2c write time out!\n");
 				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 				hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
 				retry -= 10;
@@ -1186,7 +1186,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 
 			/* Check for error condition on the bus */
 			if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-				dev_err(hdmi->dev, "i2c write nack!\n");
+				dev_dbg(hdmi->dev, "i2c write nack!\n");
 				hdmi_writel(hdmi, 0x01, I2CM_CONTROL0);
 				hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
 				retry--;
@@ -1200,7 +1200,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, 0, I2CM_WR_MASK, I2CM_INTERFACE_CONTROL0);
 
 		if (retry <= 0) {
-			dev_err(hdmi->dev, "ddc write failed\n");
+			dev_dbg(hdmi->dev, "ddc write failed\n");
 			return -EIO;
 		}
 	}
