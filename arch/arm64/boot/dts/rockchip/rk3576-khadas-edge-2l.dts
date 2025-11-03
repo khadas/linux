@@ -259,7 +259,7 @@
  * when dsi is enabled
  */
 &dsi {
-	status = "disabled";
+	status = "okay";
 	reset-delay-ms = <20>;
 	reset-gpios = <&gpio4 RK_PC7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
