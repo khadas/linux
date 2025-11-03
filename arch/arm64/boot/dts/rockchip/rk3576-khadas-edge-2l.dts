@@ -15,7 +15,7 @@
 
 / {
 
-	model = "Khadas Edge2 2L";
+	model = "Khadas Edge 2L";
 	compatible = "khadas,edge-2l", "rockchip,rk3576";
 
 	es8316_sound: es8316-sound {
