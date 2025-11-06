@@ -1511,7 +1511,7 @@
 
 		bt_gpio: bt-gpio {
 			rockchip,pins =
-				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
@@ -1603,7 +1603,7 @@
 
 	rockchip,sleep-io-ret-config = <
 		(0
-		| RKPM_VCCIO3_RET_EN
+		| RKPM_VCCIO2_RET_EN
 		)
 	>;
 

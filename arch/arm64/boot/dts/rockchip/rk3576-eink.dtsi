@@ -495,6 +495,7 @@
 &rockchip_suspend {
 	rockchip,sleep-pin-config = <
 		(0
+		| RKPM_SLEEP_PIN0_EN
 		| RKPM_SLEEP_PIN1_EN
 		)
 		(0)
@@ -502,7 +503,7 @@
 
 	rockchip,sleep-io-ret-config = <
 		(0
-		 | RKPM_VCCIO3_RET_EN
+		 | RKPM_VCCIO2_RET_EN
 		)
 	>;
 
