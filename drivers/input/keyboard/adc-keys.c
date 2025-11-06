@@ -29,6 +29,8 @@ struct adc_keys_state {
 	const struct adc_keys_button *map;
 };
 
+extern int key_test_flag;
+
 static void adc_keys_poll(struct input_dev *input)
 {
 	struct adc_keys_state *st = input_get_drvdata(input);
@@ -48,6 +50,10 @@ static void adc_keys_poll(struct input_dev *input)
 				keycode = st->map[i].keycode;
 			}
 		}
+	}
+
+	if(key_test_flag){
+		keycode = KEY_VOLUMEDOWN;
 	}
 
 	if (abs(st->keyup_voltage - value) < closest)
@@ -162,6 +168,8 @@ static int adc_keys_probe(struct platform_device *pdev)
 	__set_bit(EV_KEY, input->evbit);
 	for (i = 0; i < st->num_keys; i++)
 		__set_bit(st->map[i].keycode, input->keybit);
+
+	input_set_capability(input, EV_KEY, KEY_VOLUMEDOWN);
 
 	if (device_property_read_bool(dev, "autorepeat"))
 		__set_bit(EV_REP, input->evbit);

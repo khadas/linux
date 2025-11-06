@@ -16,11 +16,16 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
+extern int key_test_flag;
+
 static irqreturn_t pwrkey_fall_irq(int irq, void *_pwr)
 {
 	struct input_dev *pwr = _pwr;
 
-	input_report_key(pwr, KEY_POWER, 1);
+	if(key_test_flag)
+		input_report_key(pwr, KEY_VOLUMEUP, 1);
+	else
+		input_report_key(pwr, KEY_POWER, 1);
 	input_sync(pwr);
 
 	return IRQ_HANDLED;
@@ -30,7 +35,10 @@ static irqreturn_t pwrkey_rise_irq(int irq, void *_pwr)
 {
 	struct input_dev *pwr = _pwr;
 
-	input_report_key(pwr, KEY_POWER, 0);
+	if(key_test_flag)
+		input_report_key(pwr, KEY_VOLUMEUP, 0);
+	else
+		input_report_key(pwr, KEY_POWER, 0);
 	input_sync(pwr);
 
 	return IRQ_HANDLED;
@@ -59,6 +67,7 @@ static int rk805_pwrkey_probe(struct platform_device *pdev)
 	pwr->phys = "rk805_pwrkey/input0";
 	pwr->id.bustype = BUS_HOST;
 	input_set_capability(pwr, EV_KEY, KEY_POWER);
+	input_set_capability(pwr, EV_KEY, KEY_VOLUMEUP);
 
 	fall_irq = platform_get_irq(pdev, 0);
 	if (fall_irq < 0)
