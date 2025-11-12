@@ -1,26 +1,7 @@
 /*
  * Linux OS Independent Layer
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -46,24 +27,24 @@
 #include <bcmendian.h>
 #include <linuxver.h>
 #include <bcmdefs.h>
-#include <bcmstdlib_s.h>
+
 #if defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING)
 #include <asm/cacheflush.h>
 #endif /* __ARM_ARCH_7A__ && !DHD_USE_COHERENT_MEM_FOR_RING */
 
 #include <linux/random.h>
-
-#include <osl.h>
-#include <bcmutils.h>
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 #include <linux/sched/clock.h>
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) */
 
+#include <osl.h>
+#include <bcmutils.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-#include <linux/namei.h>
 #include <pcicfg.h>
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(4, 8, 0))
+#include <asm-generic/pci-dma-compat.h>
+#endif
 
 #include <linux/fs.h>
 
@@ -72,48 +53,15 @@
 #endif /* BCM_OBJECT_TRACE */
 #include "linux_osl_priv.h"
 
-#ifdef AXI_TIMEOUTS_NIC
-#include "hal_dngl_bp.h"
-#endif
-
 #define PCI_CFG_RETRY		10	/* PR15065: retry count for pci cfg accesses */
 
 #define DUMPBUFSZ 1024
 
-struct osl_timer {
-	timer_list_compat_t	timer;
-	void			(*fn)(void *);
-	void			*arg;	/**< argument to fn */
-	uint32			ms;	/* Time in millisec */
-	bool			periodic;
-	bool			set;	/* If set timer is active */
-	uint8			PAD[2];
-	struct osl_timer	*next;	/* list of osl timers */
-#ifdef BCMDBG
-	char			*name; /* Desription of the timer */
-#endif
-};
-
-#if defined(NICBUILD) && defined(WL_MACDBG)
-/* TODO: This buffer size is good enough for register dump
- * collection. In future when other dumps like ucode code
- * dump is going to be supported, this needs to be relooked
- */
-#define FATAL_LOGBUF_SIZE	(256 * 1024)
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
-#define USER_NS mnt_user_ns(path.mnt),
-#else
-#define USER_NS
-#endif
-#endif /* NICBUILD && WL_MACDBG */
-
-#if defined(CUSTOMER_HW4_DEBUG) || defined(CUSTOMER_HW2_DEBUG) || \
-	defined(CUSTOMER_HW7_DEBUG)
+#if defined(CUSTOMER_HW7_DEBUG)
 uint32 g_assert_type = 1; /* By Default not cause Kernel Panic */
 #else
 uint32 g_assert_type = 0; /* By Default Kernel Panic */
-#endif /* CUSTOMER_HW4_DEBUG || CUSTOMER_HW2_DEBUG || CUSTOMER_HW7_DEBUG */
+#endif
 
 module_param(g_assert_type, int, 0);
 
@@ -136,10 +84,6 @@ static void osl_dma_lock_init(osl_t *osh);
 #define DMA_LOCK_INIT(osh)	do { /* noop */ } while(0)
 #endif /* USE_DMA_LOCK */
 
-#ifdef NIC_PCIE_DEDICATED_WINDOWS
-uintptr __osl_v = 0;
-#endif /* NIC_PCIE_DEDICATED_WINDOWS */
-
 uint lmtest = FALSE;
 
 #ifdef DHD_MAP_LOGGING
@@ -155,7 +99,7 @@ typedef struct dhd_map_item {
 typedef struct dhd_map_record {
 	uint32 items;		/* number of total items */
 	uint32 idx;		/* current index of metadata */
-	dhd_map_item_t map[];	/* metadata storage */
+	dhd_map_item_t map[0];	/* metadata storage */
 } dhd_map_log_t;
 
 void
@@ -300,10 +244,6 @@ osl_attach(void *pdev, uint bustype, bool pkttag
 
 	switch (bustype) {
 		case PCI_BUS:
-			spin_lock_init(&(osh->bpaccess_lock_r));
-			spin_lock_init(&(osh->bpaccess_lock_w));
-			osh->pub.mmbus = TRUE;
-			break;
 		case SI_BUS:
 			osh->pub.mmbus = TRUE;
 			break;
@@ -362,7 +302,6 @@ void* osl_get_bus_handle(osl_t *osh)
 void
 osl_detach(osl_t *osh)
 {
-	osl_timer_t *t, *next;
 	if (osh == NULL)
 		return;
 
@@ -389,17 +328,6 @@ osl_detach(osl_t *osh)
 	if (atomic_read(&osh->cmn->refcount) == 0) {
 			kfree(osh->cmn);
 	}
-
-	/* free timers */
-	for (t = osh->timers; t; t = next) {
-		next = t->next;
-#ifdef BCMDBG
-		if (t->name) {
-			MFREE(osh, t->name, strlen(t->name) + 1);
-		}
-#endif
-		MFREE(osh, t, sizeof(*t));
-	}
 	kfree(osh);
 }
 
@@ -422,20 +350,20 @@ osl_is_flag_set(osl_t *osh, uint32 mask)
 	return (osh->flags & mask);
 }
 
-#if (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
+#if (defined(BCMPCIE) && defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
 
 inline void
 BCMFASTPATH(osl_cache_flush)(void *va, uint size)
 {
 	if (size > 0)
-		dma_sync_single_for_device(OSH_NULL, virt_to_dma(OSH_NULL, va), size,
+		dma_sync_single_for_device(OSH_NULL, virt_to_phys(va), size,
 			DMA_TO_DEVICE);
 }
 
 inline void
 BCMFASTPATH(osl_cache_inv)(void *va, uint size)
 {
-	dma_sync_single_for_cpu(OSH_NULL, virt_to_dma(OSH_NULL, va), size, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(OSH_NULL, virt_to_phys(va), size, DMA_FROM_DEVICE);
 }
 
 inline void
@@ -493,22 +421,8 @@ osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 		 */
 		if (offset != PCI_BAR0_WIN && offset != PCI_BAR1_WIN)
 			break;
-		if (osl_pci_read_config(osh, offset, size) == val) {
-#ifdef NIC_REG_ACCESS_LEGACY
-			/*
-			 * If the Config Write is to update the BAR0 window, ensure that
-			 * the address is cached and updated in osl_reg_access_pcie_window.bp_addr
-			 * One could call R_REG, W_REG and the NIC_REG_ACCESS_LEGACY option ensures
-			 * that the BAR window value is cached. But one could directly call
-			 * OSL_PCI_WRITE_CONFIG to update BAR windows, in that case too, bp_addr
-			 * should be updated.
-			 */
-			if (offset == PCI_BAR0_WIN) {
-				osl_reg_access_pcie_window.bp_addr = val;
-			}
-#endif /* NIC_REG_ACCESS_LEGACY */
+		if (osl_pci_read_config(osh, offset, size) == val)
 			break;
-		}
 	} while (retry--);
 
 #ifdef BCMDBG
@@ -518,6 +432,7 @@ osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 #endif /* BCMDBG */
 }
 
+#ifdef BCMPCIE
 /* return bus # for the pci device pointed by osh->pdev */
 uint
 osl_pci_bus(osl_t *osh)
@@ -580,6 +495,7 @@ osl_pci_device(osl_t *osh)
 
 	return osh->pdev;
 }
+#endif
 
 void *
 osl_malloc(osl_t *osh, uint size)
@@ -836,11 +752,10 @@ osl_kvmalloc(osl_t *osh, uint size)
 
 	flags = CAN_SLEEP() ? GFP_KERNEL: GFP_ATOMIC;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
-	if ((addr = vmalloc(size)) == NULL)
+	if ((addr = kmalloc(size, flags)) == NULL) {
 #else
-	if ((addr = kvmalloc(size, flags)) == NULL)
+	if ((addr = kvmalloc(size, flags)) == NULL) {
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) */
-	{
 		if (osh)
 			osh->failed++;
 		return (NULL);
@@ -886,7 +801,11 @@ osl_kvmfree(osl_t *osh, void *addr, uint size)
 
 		atomic_sub(size, &osh->cmn->malloced);
 	}
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
+	kfree(addr);
+#else
 	kvfree(addr);
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0) */
 }
 
 uint
@@ -1385,20 +1304,23 @@ osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits, uint *alloced
 void
 osl_dma_free_consistent(osl_t *osh, void *va, uint size, dmaaddr_t pa)
 {
+	struct pci_dev *hwdev = NULL;
 #ifdef BCMDMA64OSL
 	dma_addr_t paddr;
 #endif /* BCMDMA64OSL */
 	ASSERT_NULL(osh);
 	ASSERT(osh->magic == OS_HANDLE_MAGIC);
+	UNUSED_PARAMETER(hwdev);
 
 #if (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING))
 	KVFREE(osh, va);
 #else /* (defined(__ARM_ARCH_7A__) && !defined(DHD_USE_COHERENT_MEM_FOR_RING)) */
+	hwdev = osh->pdev;
 #ifdef BCMDMA64OSL
 	PHYSADDRTOULONG(pa, paddr);
-	DHD_DMA_FREE_COHERENT(osh->pdev, size, va, paddr);
-#else
-	DHD_DMA_FREE_COHERENT(osh->pdev, size, va, (dma_addr_t)pa);
+	dma_free_coherent(&hwdev->dev, size, va, paddr);
+#else /* BCMDMA64OSL */
+	dma_free_coherent(&hwdev->dev, size, va, (dma_addr_t)pa);
 #endif /* BCMDMA64OSL */
 #endif /* __ARM_ARCH_7A__ && !DHD_USE_COHERENT_MEM_FOR_RING */
 }
@@ -1421,6 +1343,7 @@ dmaaddr_t
 BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p,
 	hnddma_seg_map_t *dmah)
 {
+	struct pci_dev *hwdev = osh->pdev;
 	int dir;
 	dmaaddr_t ret_addr;
 	dma_addr_t map_addr;
@@ -1434,9 +1357,9 @@ BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p
 	/* For Rx buffers, keep direction as bidirectional to handle packet fetch cases */
 	dir = (direction == DMA_RX)? DMA_RXTX: direction;
 
-	map_addr = DHD_DMA_MAP_SINGLE(osh->pdev, va, size, dir);
+	map_addr = dma_map_single(&hwdev->dev, va, size, dir);
 
-	ret = DHD_DMA_MAPPING_ERROR(osh->pdev, map_addr);
+	ret = dma_mapping_error(&hwdev->dev, map_addr);
 
 	if (ret) {
 		OSL_PRINT(("%s: Failed to map memory\n", __FUNCTION__));
@@ -1463,6 +1386,7 @@ BCMFASTPATH(osl_dma_unmap)(osl_t *osh, dmaaddr_t pa, uint size, int direction)
 #ifdef BCMDMA64OSL
 	dma_addr_t paddr;
 #endif /* BCMDMA64OSL */
+	struct pci_dev *hwdev = osh->pdev;
 
 	ASSERT_NULL(osh);
 	ASSERT(osh->magic == OS_HANDLE_MAGIC);
@@ -1478,9 +1402,9 @@ BCMFASTPATH(osl_dma_unmap)(osl_t *osh, dmaaddr_t pa, uint size, int direction)
 
 #ifdef BCMDMA64OSL
 	PHYSADDRTOULONG(pa, paddr);
-	DHD_DMA_UNMAP_SINGLE(osh->pdev, paddr, size, dir);
+	dma_unmap_single(&hwdev->dev, paddr, size, dir);
 #else /* BCMDMA64OSL */
-	DHD_DMA_UNMAP_SINGLE(osh->pdev, (uint32)pa, size, dir);
+	dma_unmap_single(&hwdev->dev, (uint32)pa, size, dir);
 #endif /* BCMDMA64OSL */
 
 	DMA_UNLOCK(osh);
@@ -1580,19 +1504,21 @@ osl_sleep(uint ms)
 	ms *= htclkratio;
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	if (ms < 20)
 		usleep_range(ms*1000, ms*1000 + 1000);
 	else
+#endif
 		msleep(ms);
 }
 
 uint64
 osl_sysuptime_us(void)
 {
-	struct timespec64 ts;
+	struct osl_timespec ts;
 	uint64 usec;
 
-	ktime_get_real_ts64(&ts);
+	osl_do_gettimeofday(&ts);
 	/* tv_nsec content is fraction of a second */
 	usec = (uint64)ts.tv_sec * USEC_PER_SEC + (ts.tv_nsec / NSEC_PER_USEC);
 #ifdef BCMSLTGT
@@ -1602,21 +1528,13 @@ osl_sysuptime_us(void)
 	return usec;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 uint64
 osl_sysuptime_ns(void)
 {
-	struct timespec64 ts;
-	uint64 nsec;
-
-	ktime_get_real_ts64(&ts);
-	/* tv_nsec content is fraction of a second */
-	nsec = (uint64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
-#if defined(BCMSLTGT)
-	/* scale down the time to match the slow target roughly */
-	nsec /= htclkratio;
-#endif /* BCMSLTGT */
-	return nsec;
+	return ktime_get_real_ns();
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0) */
 
 uint64
 osl_localtime_ns(void)
@@ -1629,7 +1547,11 @@ osl_localtime_ns(void)
 	 * GPL-incompatible module (NIC builds wl.ko)
 	 * cannnot use the GPL-only symbol.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	ts_nsec = local_clock();
+#else
+	ts_nsec = cpu_clock(smp_processor_id());
+#endif
 #endif /* BCMDONGLEHOST */
 	return ts_nsec;
 }
@@ -1646,7 +1568,11 @@ osl_get_localtime(uint64 *sec, uint64 *usec)
 	 * GPL-incompatible module (NIC builds wl.ko) can
 	 * not use the GPL-only symbol.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	ts_nsec = local_clock();
+#else
+	ts_nsec = cpu_clock(smp_processor_id());
+#endif
 	rem_nsec = do_div(ts_nsec, NSEC_PER_SEC);
 #endif /* BCMDONGLEHOST */
 	*sec = (uint64)ts_nsec;
@@ -1656,10 +1582,10 @@ osl_get_localtime(uint64 *sec, uint64 *usec)
 uint64
 osl_systztime_us(void)
 {
-	struct timespec64 ts;
+	struct osl_timespec ts;
 	uint64 tzusec;
 
-	ktime_get_real_ts64(&ts);
+	osl_do_gettimeofday(&ts);
 	/* apply timezone */
 	tzusec = (uint64)((ts.tv_sec - (sys_tz.tz_minuteswest * 60L)) * USEC_PER_SEC);
 	tzusec += ts.tv_nsec / NSEC_PER_USEC;
@@ -1667,7 +1593,6 @@ osl_systztime_us(void)
 	return tzusec;
 }
 
-#ifdef LOG_CUSTOM_PREFIX_AND_RTC
 char *
 osl_get_rtctime(void)
 {
@@ -1682,19 +1607,6 @@ osl_get_rtctime(void)
 			"%02d:%02d:%02d.%06lu",
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec/NSEC_PER_USEC);
 	return timebuf;
-}
-#endif /* LOG_CUSTOM_PREFIX_AND_RTC */
-
-uint64
-osl_getcycles(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	return get_cycles();
-#else
-	/* NOTE: For now keeping the implemenatation same as KUDU. */
-	OSL_PRINT(("osl_getcycles: Un-supported platform for get cycles\n"));
-	return 0;
-#endif /* i386 || x86_64 */
 }
 
 /*
@@ -1942,6 +1854,19 @@ osl_cached(void *va)
 	return ((void*)va);
 }
 
+uint
+osl_getcycles(void)
+{
+	uint cycles;
+
+#if defined(__i386__)
+	rdtscl(cycles);
+#else
+	cycles = 0;
+#endif /* __i386__ */
+	return cycles;
+}
+
 void *
 osl_reg_map(uint32 pa, uint size)
 {
@@ -1973,277 +1898,71 @@ osl_rand(void)
 	return rand;
 }
 
-#ifdef DHD_SUPPORT_VFS_CALL
-/* Linux Kernel: File Operations: start */
-void *
-osl_os_open_image(char *filename)
-{
-	struct file *fp;
-
-	fp = filp_open(filename, O_RDONLY, 0);
-	/*
-	 * 2.6.11 (FC4) supports filp_open() but later revs don't?
-	 * Alternative:
-	 * fp = open_namei(AT_FDCWD, filename, O_RD, 0);
-	 * ???
-	 */
-	if (IS_ERR(fp)) {
-		OSL_PRINT(("ERROR %ld: Unable to open file %s\n", PTR_ERR(fp), filename));
-		fp = NULL;
-	}
-
-	return fp;
-}
-
-int
-osl_os_get_image_block(char *buf, int len, void *image)
-{
-	struct file *fp = (struct file *)image;
-	int rdlen;
-
-	if (fp == NULL) {
-		return 0;
-	}
-
-	rdlen = kernel_read_compat(fp, fp->f_pos, buf, len);
-	if (rdlen > 0) {
-		fp->f_pos += rdlen;
-	}
-
-	return rdlen;
-}
-
-void
-osl_os_close_image(void *image)
-{
-	struct file *fp = (struct file *)image;
-
-	if (fp != NULL) {
-		filp_close(fp, NULL);
-	}
-}
-
-int
-osl_os_image_size(void *image)
-{
-	int len = 0, curroffset;
-
-	if (image) {
-		/* store the current offset */
-		curroffset = generic_file_llseek(image, 0, 1);
-		/* goto end of file to get length */
-		len = generic_file_llseek(image, 0, 2);
-		/* restore back the offset */
-		generic_file_llseek(image, curroffset, 0);
-	}
-	return len;
-}
-#endif /* DHD_SUPPORT_VFS_CALL */
-
 /* Linux Kernel: File Operations: end */
-
-/* Reads the register and check for possible AXI errors.
- * The value read could indeed be 0xFFs or due to errors.
- */
-#if defined(AXI_TIMEOUTS_NIC)
-inline void
-osl_bpt_rreg(osl_t *osh, ulong addr, volatile void *v, ulong r, uint size, bool *chk_rdsts)
-{
-	bool verify = FALSE;
-	BCM_REFERENCE(r);
-	switch (size) {
-	case sizeof(uint8):
-		*(volatile uint8 *)v = readb((volatile uint8 *)(addr));
-		if (*(volatile uint8 *)v == 0xFFu)
-			verify = TRUE;
-		break;
-	case sizeof(uint16):
-		*(volatile uint16 *)v = readw((volatile uint16 *)(addr));
-		if (*(volatile uint16 *)v == 0xFFFFu)
-			verify = TRUE;
-		break;
-	case sizeof(uint32):
-		*(volatile uint32 *)v = readl((volatile uint32 *)(addr));
-		if (*(volatile uint32 *)v == 0xFFFFFFFFu)
-			verify = TRUE;
-		break;
-	case sizeof(uint64):
-		*(volatile uint64 *)v = *((volatile uint64 *)(addr));
-		if (*(volatile uint64 *)v == 0xFFFFFFFFFFFFFFFFu)
-			verify = TRUE;
-		break;
-	}
-	if (verify) {
-		*chk_rdsts = TRUE;
-	}
-}
-
-/* Check and handle for any axi errors seen on current register read */
-void
-osl_bpt_chk_rreg_status(bool read_st)
-{
-	/* log and clear the axi wrapper registers */
-	if (read_st) {
-		(void)hal_dngl_bp_clear_timeout();
-	}
-}
-#endif /* AXI_TIMEOUTS_NIC */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 void
 timer_cb_compat(struct timer_list *tl)
 {
 	timer_list_compat_t *t = container_of(tl, timer_list_compat_t, timer);
-	t->callback((void*)t->arg);
+	t->callback((ulong)t->arg);
 }
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) */
-
-static void
-osl_timer_main(void *data)
-{
-	osl_timer_t *t = (osl_timer_t *)data;
-
-	if (t->set && (!timer_pending(&t->timer))) {
-		if (t->periodic) {
-			/* Periodic timer can't be a zero delay */
-			ASSERT(t->ms != 0);
-#if defined(BCMSLTGT)
-			timer_expires(&t->timer) = jiffies + (((t->ms * HZ) / 1000u) * htclkratio);
-
-#else
-			/* See the comment in the similar logic in osl_timer_add in this file but
-			 * note in this case of re-programming a periodic timer, there has
-			 * been a conscious decision to still add the +1 adjustment.  We want
-			 * to guarantee that two consecutive callbacks are always AT LEAST the
-			 * requested ms delay apart, even if this means the callbacks might "drift"
-			 * from even the rounded ms to jiffy HZ period.
-			 */
-			timer_expires(&t->timer) = jiffies + (((t->ms * HZ) + 999u) / 1000u) + 1u;
-#endif
-			add_timer(&t->timer);
-			t->set = TRUE;
-		} else {
-			t->set = FALSE;
-		}
-		if (t->fn) {
-			t->fn(t->arg);
-		}
-	}
-}
-
-/* In OSL timer callback API contxt is already passed as an arg,
- * there is nothing to derive so just reusing the same.
- */
-void *
-osl_timer_get_ctx(void *arg)
-{
-	return (arg);
-}
 
 /* timer apis */
 /* Note: All timer api's are thread unsafe and should be protected with locks by caller */
 
-/* Create a osl timer, init and return timer if succeeds. */
 osl_timer_t *
-osl_timer_create(osl_t *osh, const char *name, void (*fn)(void *arg), void *arg)
-{
-	osl_timer_t *t, *ret = NULL;
-
-	t = osl_timer_init(osh, name, fn, arg);
-	if (t != NULL) {
-		ret = t;
-	} else {
-		OSL_PRINT(("osl_timer_create: out of memory, malloced %d bytes\n", MALLOCED(osh)));
-	}
-	return ret;
-}
-
-osl_timer_t *
-osl_timer_init(osl_t *osh, const char *name, void (*fn)(void *arg), void *arg)
+osl_timer_init(osl_t *osh, const char *name, void (*fn)(ulong arg), void *arg)
 {
 	osl_timer_t *t;
 	BCM_REFERENCE(fn);
-
-	if ((t = MALLOCZ(osh, sizeof(osl_timer_t))) == NULL) {
+	if ((t = MALLOCZ(NULL, sizeof(osl_timer_t))) == NULL) {
 		OSL_PRINT(("osl_timer_init: out of memory, malloced %d bytes\n",
 			(int)sizeof(osl_timer_t)));
 		return (NULL);
 	}
 	bzero(t, sizeof(osl_timer_t));
+	if ((t->timer = MALLOCZ(NULL, sizeof(timer_list_compat_t))) == NULL) {
+		OSL_PRINT(("osl_timer_init: malloc failed\n"));
+		MFREE(NULL, t, sizeof(osl_timer_t));
+		return (NULL);
+	}
+
+	t->set = TRUE;
 #ifdef BCMDBG
-	if ((t->name = MALLOCZ(osh, strlen(name) + 1)) != NULL) {
+	if ((t->name = MALLOCZ(NULL, strlen(name) + 1)) != NULL) {
 		strcpy(t->name, name);
 	}
 #endif
-	/* suppress error the mismatched function pointer cast.
-	 * from void (*)(void *) to void (*)(ulong)
-	 * void pointer is compatible with ulong.
-	 */
-	GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE();
-	init_timer_compat(&t->timer, osl_timer_main, t);
 
-	t->fn = fn;
-	t->arg = arg;
-	t->next = osh->timers;
-	osh->timers = t;
+	init_timer_compat(t->timer, (linux_timer_fn)fn, arg);
+
 	return (t);
 }
 
-bool
+void
 osl_timer_add(osl_t *osh, osl_timer_t *t, uint32 ms, bool periodic)
 {
 	if (t == NULL) {
-		OSL_PRINT(("osl_timer_add: Timer handle is NULL\n"));
-		return FALSE;
+		OSL_PRINT(("%s: Timer handle is NULL\n", __FUNCTION__));
+		return;
 	}
+	ASSERT(!t->set);
 
-	/* Delay can't be zero for a periodic timer */
-	ASSERT(periodic == 0 || ms != 0);
-
-	t->ms = ms;
-	t->periodic = (bool) periodic;
-
-	/* This case happens in passive mode */
-	/* if timer has been added, Just return w/ updated behavior */
-	if (t->set) {
-		return TRUE;
+	t->set = TRUE;
+	if (periodic) {
+		OSL_PRINT(("Periodic timers are not supported by Linux timer apis\n"));
 	}
-
 #if defined(BCMSLTGT)
-	timer_expires(&t->timer) = jiffies + (((ms * HZ) / 1000u) * htclkratio);
+	timer_expires(t->timer) = jiffies + ms*HZ/1000*htclkratio;
 #else
-	/* Make sure that you meet the guarantee of ms delay before
-	 * calling the function. You must consider both rounding to
-	 * HZ and the fact that the next jiffy might be imminent,
-	 * e.g. the timer interrupt is only a us away.
-	 */
-	if (ms == 0) {
-		/* Zero is special - no HZ rounding up necessary nor
-		 * accounting for an imminent timer tick.  Just use
-		 * the current jiffies value.
-		 */
-		timer_expires(&t->timer) = jiffies;
-	} else {
-		/* In converting ms to HZ, round up. Example: with HZ=250
-		 * and thus a 4 ms jiffy/tick, round a 3 ms request to
-		 * 1 jiffy, i.e. 4 ms.	In addition because the timer
-		 * tick might occur imminently, you must add an extra
-		 * jiffy/tick to guarantee the 3 ms request.
-		 */
-		timer_expires(&t->timer) = jiffies + (((ms * HZ) + 999u) / 1000u) + 1u;
-	}
+	timer_expires(t->timer) = jiffies + ms*HZ/1000;
 #endif /* defined(BCMSLTGT) */
 
-	add_timer(&t->timer);
-	t->set = TRUE;
+	add_timer(t->timer);
 
-	return TRUE;
-}
-
-void
-osl_timer_add_us(osl_t *osh, osl_timer_t *t, uint us, bool periodic)
-{
-	(void)osl_timer_add(osh, t, us, periodic);
+	return;
 }
 
 void
@@ -2258,12 +1977,12 @@ osl_timer_update(osl_t *osh, osl_timer_t *t, uint32 ms, bool periodic)
 	}
 	t->set = TRUE;
 #if defined(BCMSLTGT)
-	timer_expires(&t->timer) = jiffies + (((ms * HZ) / 1000u) * htclkratio);
+	timer_expires(t->timer) = jiffies + ms*HZ/1000*htclkratio;
 #else
-	timer_expires(&t->timer) = jiffies + ((ms * HZ) / 1000u);
+	timer_expires(t->timer) = jiffies + ms*HZ/1000;
 #endif /* defined(BCMSLTGT) */
 
-	mod_timer(&t->timer, timer_expires(&t->timer));
+	mod_timer(t->timer, timer_expires(t->timer));
 
 	return;
 }
@@ -2274,61 +1993,24 @@ osl_timer_update(osl_t *osh, osl_timer_t *t, uint32 ms, bool periodic)
 bool
 osl_timer_del(osl_t *osh, osl_timer_t *t)
 {
-	bool ret = TRUE;
 	if (t == NULL) {
-		OSL_PRINT(("osl_timer_del: Timer handle is NULL\n"));
-		ret = FALSE;
-		goto exit;
+		OSL_PRINT(("%s: Timer handle is NULL\n", __FUNCTION__));
+		return (FALSE);
 	}
 	if (t->set) {
 		t->set = FALSE;
-		if (!del_timer(&t->timer)) {
-#ifdef BCMDBG
-			OSL_PRINT(("osl_timer_del: Deleted inactive timer %s.\n", t->name));
-#endif
-			ret = FALSE;
+		if (t->timer) {
+			del_timer(t->timer);
+			MFREE(NULL, t->timer, sizeof(timer_list_compat_t));
 		}
-	}
-exit:
-	return ret;
-}
-
-void
-osl_timer_free(osl_t *osh, osl_timer_t *t)
-{
-	osl_timer_t *tmp;
-
-	/* delete the timer in case it is active */
-	if (t) {
-		osl_timer_del(osh, t);
-	}
-
-	if (osh->timers == t) {
-		osh->timers = osh->timers->next;
 #ifdef BCMDBG
-		if (t->name)
-			MFREE(osh, t->name, strlen(t->name) + 1);
-#endif
-		MFREE(osh, t, sizeof(osl_timer_t));
-		return;
-
-	}
-
-	tmp = osh->timers;
-	while (tmp) {
-		if (tmp->next == t) {
-			tmp->next = t->next;
-#ifdef BCMDBG
-			if (t->name) {
-				MFREE(osh, t->name, strlen(t->name) + 1);
-			}
-#endif
-			MFREE(osh, t, sizeof(osl_timer_t));
-			return;
+		if (t->name) {
+			MFREE(NULL, t->name, strlen(t->name) + 1);
 		}
-		tmp = tmp->next;
+#endif
+		MFREE(NULL, t, sizeof(osl_timer_t));
 	}
-
+	return (TRUE);
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
@@ -2523,34 +2205,19 @@ osl_pcie_window_t osl_reg_access_pcie_window;
 /**
  * Initialize osl_reg_access_pcie_window.
  * @param[in]  osh                      OS handle.
+ * @param[in]  bp_access_lock           Lock for restricting backplane access.
  * @param[in]  window_offset            Config space window base register offset.
  * @param[in]  bar_addr                 ioremap address of this window.
  */
 void
-osl_reg_access_pcie_window_init(osl_t *osh, unsigned long window_offset,
+osl_reg_access_pcie_window_init(osl_t *osh, void *bp_access_lock, unsigned long window_offset,
 		volatile void *bar_addr)
 {
-	osl_reg_access_pcie_window.osh = osh;
-	osl_reg_access_pcie_window.bp_access_lock_r = (void *)&osh->bpaccess_lock_r;
-	osl_reg_access_pcie_window.bp_access_lock_w = (void *)&osh->bpaccess_lock_w;
+	osl_reg_access_pcie_window.bp_access_lock = bp_access_lock;
 	osl_reg_access_pcie_window.window_offset = window_offset;
 	osl_reg_access_pcie_window.bar_addr = bar_addr;
 	osl_reg_access_pcie_window.bp_addr = OSL_PCI_READ_CONFIG(osh,
 		osl_reg_access_pcie_window.window_offset, sizeof(uint32));
-}
-
-/**
- * De-Initialize osl_reg_access_pcie_window.
- * @param[in]  osh                      OS handle.
- */
-void
-osl_reg_access_pcie_window_deinit(osl_t *osh)
-{
-	osl_reg_access_pcie_window.osh = NULL;
-	osl_reg_access_pcie_window.bp_access_lock_r = NULL;
-	osl_reg_access_pcie_window.bp_access_lock_w = NULL;
-	osl_reg_access_pcie_window.bp_addr = (uintptr)NULL;
-	osl_reg_access_pcie_window.bar_addr = NULL;
 }
 
 /**
@@ -2568,176 +2235,13 @@ osl_update_pcie_win(osl_t *osh, volatile void *reg_addr)
 	unsigned long base_addr = (r_addr & BAR0_WINDOW_ADDRESS_MASK);
 	if (base_addr != osl_reg_access_pcie_window.bp_addr) {
 		osl_reg_access_pcie_window.bp_addr = base_addr;
-
-		OSL_PCI_WRITE_CONFIG(osl_reg_access_pcie_window.osh,
-			osl_reg_access_pcie_window.window_offset, sizeof(uint32),
+		OSL_PCI_WRITE_CONFIG(osh, osl_reg_access_pcie_window.window_offset, sizeof(uint32),
 			osl_reg_access_pcie_window.bp_addr);
 	}
 	return (volatile void *)(((volatile uint8 *)osl_reg_access_pcie_window.bar_addr) +
 		(r_addr & BAR0_WINDOW_OFFSET_MASK));
 }
 #endif /* defined(NIC_REG_ACCESS_LEGACY) || defined(NIC_REG_ACCESS_LEGACY_DBG) */
-
-#if defined(NICBUILD) && defined(WL_MACDBG)
-/* Allocates the fatal log buffer used for mac dump collection */
-int
-osl_alloc_fatal_logbuf(osl_t *osh)
-{
-	int ret = BCME_OK;
-	osh->fatal_logbuf = VMALLOCZ(osh, FATAL_LOGBUF_SIZE);
-	if (!osh->fatal_logbuf) {
-		ret = BCME_NOMEM;
-	} else {
-		osh->fatal_logbuf_size = FATAL_LOGBUF_SIZE;
-	}
-	return ret;
-}
-
-/* Free the fatal logbuffer */
-void
-osl_dealloc_fatal_logbuf(osl_t *osh)
-{
-	if (osh->fatal_logbuf) {
-		VMFREE(osh, osh->fatal_logbuf, FATAL_LOGBUF_SIZE);
-		osh->fatal_logbuf_size = 0;
-	}
-}
-
-/* Returns the address of the fatal logbuffer */
-uchar *
-osl_get_fatal_logbuf_addr(osl_t *osh)
-{
-	return (osh->fatal_logbuf);
-}
-
-/* Returns the size of the fatal logbuffer */
-uint32
-osl_get_fatal_logbuf_size(osl_t *osh)
-{
-	return (osh->fatal_logbuf_size);
-}
-
-/* Clears fatal logbuffer contents and return its address */
-void*
-osl_get_fatal_logbuf(osl_t *osh, uint32 size, uint32 *alloced)
-{
-	BCM_REFERENCE(size);
-
-	memset_s(osh->fatal_logbuf, osh->fatal_logbuf_size, 0, osh->fatal_logbuf_size);
-	*alloced = osh->fatal_logbuf_size;
-	return (osh->fatal_logbuf);
-}
-
-/* Clear size bytes from end of fatal logbuf and return the address */
-void*
-osl_get_fatal_logbuf_end(osl_t *osh, uint32 size, uint32 *alloced)
-{
-	void *fatal_logbuf_endaddr;
-	BCM_REFERENCE(alloced);
-
-	fatal_logbuf_endaddr = osh->fatal_logbuf + osh->fatal_logbuf_size - size;
-	memset_s(fatal_logbuf_endaddr, size, 0, size);
-	return (fatal_logbuf_endaddr);
-}
-
-int
-osl_create_directory(const char *pathname, int mode)
-{
-	struct path path;
-	struct dentry *dentry;
-	int err;
-
-	dentry = kern_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
-	if (IS_ERR(dentry)) {
-		err = PTR_ERR(dentry);
-		printf("%s: kern_path_create failed %d\n", __FUNCTION__, err);
-		return BCME_ERROR;
-	}
-
-	err = security_path_mkdir(&path, dentry, mode);
-	if (err) {
-		printf("%s: create path %s not allowed %d\n",
-			__FUNCTION__, pathname, err);
-		goto exit;
-	}
-
-	err = vfs_mkdir(USER_NS path.dentry->d_inode, dentry, mode);
-	if (err) {
-		printf("%s: failed to create %s %d\n", __FUNCTION__, pathname, err);
-	}
-exit:
-	done_path_create(&path, dentry);
-	return err ? BCME_ERROR : BCME_OK;
-}
-
-/* Returns the pid of a the userspace process running with the given name */
-struct task_struct *
-_get_task_info(const char *pname)
-{
-	struct task_struct *task;
-
-	if (!pname) {
-		return NULL;
-	}
-
-	for_each_process(task) {
-		if (strcmp(pname, task->comm) == 0) {
-			return task;
-		}
-	}
-
-	return NULL;
-}
-
-int
-osl_send_sig_info(int signo, int arg, struct task_struct *tsk)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 9)
-	struct kernel_siginfo sinfo;
-#else
-	struct siginfo sinfo;
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 9) */
-
-	bzero(&sinfo, sizeof(sinfo));
-
-	sinfo.si_signo = signo;
-	sinfo.si_code = SI_QUEUE;
-	sinfo.si_int = arg;
-
-	return send_sig_info(signo, &sinfo, tsk);
-}
-
-uint
-osl_ctx_push(osl_t *osh, void *ptr)
-{
-	BCM_REFERENCE(osh);
-	BCM_REFERENCE(ptr);
-	return 0u;
-}
-
-void
-osl_ctx_pop(osl_t *osh, uint flag)
-{
-	BCM_REFERENCE(osh);
-	BCM_REFERENCE(flag);
-}
-
-uint
-osl_ctx_copy(osl_t *osh, uintptr *out, uint sz)
-{
-	BCM_REFERENCE(osh);
-	BCM_REFERENCE(out);
-	BCM_REFERENCE(sz);
-	return 0u;
-}
-
-void
-osl_ctx_enab(osl_t *osh)
-{
-	BCM_REFERENCE(osh);
-}
-
-#endif /* NICBUILD && WL_MACDBG */
 
 void
 osl_do_gettimeofday(struct osl_timespec *ts)
@@ -2778,3 +2282,26 @@ osl_do_gettimediff(struct osl_timespec *cur_ts, struct osl_timespec *old_ts)
 	total_diff_us = pgc_g ? (diff_s * 1000000 + diff_us) : (diff_s * 1000000 - diff_us);
 	return total_diff_us;
 }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+void
+osl_get_monotonic_boottime(struct osl_timespec *ts)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+	struct timespec64 curtime;
+#else
+	struct timespec curtime;
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+	curtime = ktime_to_timespec64(ktime_get_boottime());
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
+	curtime = ktime_to_timespec(ktime_get_boottime());
+#else
+	get_monotonic_boottime(&curtime);
+#endif
+	ts->tv_sec = curtime.tv_sec;
+	ts->tv_nsec = curtime.tv_nsec;
+	ts->tv_usec = curtime.tv_nsec / 1000;
+}
+#endif

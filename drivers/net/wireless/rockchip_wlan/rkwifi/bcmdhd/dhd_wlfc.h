@@ -1,24 +1,5 @@
 /*
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -35,7 +16,9 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Dual:>>
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  *
  */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -49,12 +32,8 @@
 
 #define KERNEL_THREAD_RETURN_TYPE int
 
-#if defined(BCMDBUS)
-typedef int (*f_commitpkt_t)(dhd_pub_t *dhdp, void *p);
-#else
-typedef int (*f_commitpkt_t)(struct dhd_bus *bus, void *p);
-#endif
-typedef bool (*f_processpkt_t)(void *p, void *arg);
+typedef int (*f_commitpkt_t)(struct dhd_bus *ctx, void* p);
+typedef bool (*f_processpkt_t)(void* p, void* arg);
 
 #define WLFC_UNSUPPORTED -9999
 
@@ -101,7 +80,7 @@ typedef struct wlfc_hanger_item {
 	uint8	pkt_state;     /**< bitmask containing eg WLFC_HANGER_PKT_STATE_TXCOMPLETE */
 	uint8	pkt_txstatus;
 	uint32	identifier;
-	void	*pkt;
+	void*	pkt;
 #ifdef PROP_TXSTATUS_DEBUG
 	uint32	push_time;
 #endif
@@ -117,7 +96,7 @@ typedef struct wlfc_hanger {
 	uint32 failed_to_pop;
 	uint32 failed_slotfind;
 	uint32 slot_pos;
-	/** items[1] should be the last element here. Do not add new elements below it. */
+	/** XXX: items[1] should be the last element here. Do not add new elements below it. */
 	wlfc_hanger_item_t items[1];
 } wlfc_hanger_t;
 
@@ -132,8 +111,13 @@ typedef struct wlfc_hanger {
 
 #define WLFC_PSQ_LEN			(4096 * 8)
 
+#ifdef BCMDBUS
 #define WLFC_FLOWCONTROL_HIWATER	((4096 * 8) - 256)
 #define WLFC_FLOWCONTROL_LOWATER	256
+#else
+#define WLFC_FLOWCONTROL_HIWATER	((4096 * 8) - 256)
+#define WLFC_FLOWCONTROL_LOWATER	256
+#endif
 
 #if (WLFC_FLOWCONTROL_HIWATER >= (WLFC_PSQ_LEN - 256))
 #undef WLFC_FLOWCONTROL_HIWATER
@@ -161,7 +145,6 @@ typedef struct wlfc_mac_descriptor {
 	struct pktq	psq;    /**< contains both 'delayed' and 'suppressed' packets */
 	/** packets at firmware queue */
 	struct pktq	afq;
-
 	/** The AC pending bitmap that was reported to the fw at last change */
 	uint8 traffic_lastreported_bmp;
 	/** The new AC pending bitmap */
@@ -188,31 +171,31 @@ typedef struct wlfc_mac_descriptor {
 	uint32 opened_ct;
 	uint32 closed_ct;
 #endif
-	struct wlfc_mac_descriptor *prev;
-	struct wlfc_mac_descriptor *next;
+#ifdef PROPTX_MAXCOUNT
+	/** Max Number of packets at dongle for this entry. */
+	int transit_maxcount;
+#endif /* PROPTX_MAXCOUNT */
+	struct wlfc_mac_descriptor* prev;
+	struct wlfc_mac_descriptor* next;
 #ifdef BULK_DEQUEUE
 	uint16 release_count[AC_COUNT + 1];
 #endif
 } wlfc_mac_descriptor_t;
 
-/** A 'commit' is the hand over of a packet from the host OS layer to the layer below */
+/** A 'commit' is the hand over of a packet from the host OS layer to the layer below (eg DBUS) */
 typedef struct dhd_wlfc_commit_info {
-	uint8 needs_hdr;
-	uint8 ac_fifo_credit_spent;
-	ewlfc_packet_state_t pkt_type;
-	wlfc_mac_descriptor_t *mac_entry;
-	void *p;
+	uint8					needs_hdr;
+	uint8					ac_fifo_credit_spent;
+	ewlfc_packet_state_t	pkt_type;
+	wlfc_mac_descriptor_t*	mac_entry;
+	void*					p;
 } dhd_wlfc_commit_info_t;
 
-#define WLFC_DECR_SEQCOUNT(entry, prec) do { \
-		if (entry->seq[(prec)] == 0) { \
-			entry->seq[prec] = 0xff; \
-		} else \
-			entry->seq[prec]--; \
-	} while (0)
+#define WLFC_DECR_SEQCOUNT(entry, prec) do { if (entry->seq[(prec)] == 0) {\
+	entry->seq[prec] = 0xff; } else entry->seq[prec]--;} while (0)
 
-#define WLFC_INCR_SEQCOUNT(entry, prec) (entry->seq[(prec)]++)
-#define WLFC_SEQCOUNT(entry, prec) (entry->seq[(prec)])
+#define WLFC_INCR_SEQCOUNT(entry, prec) entry->seq[(prec)]++
+#define WLFC_SEQCOUNT(entry, prec) entry->seq[(prec)]
 
 typedef struct athost_wl_stat_counters {
 	uint32	pktin;
@@ -271,14 +254,11 @@ typedef struct athost_wl_stat_counters {
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define WLFC_HOST_FIFO_CREDIT_INC_SENTCTRS(ctx, ac) do { \
-		(ctx)->stats.fifo_credits_sent[(ac)]++;	\
-	} while (0)
+	(ctx)->stats.fifo_credits_sent[(ac)]++;} while (0)
 #define WLFC_HOST_FIFO_CREDIT_INC_BACKCTRS(ctx, ac) do { \
-		(ctx)->stats.fifo_credits_back[(ac)]++;	\
-	} while (0)
+	(ctx)->stats.fifo_credits_back[(ac)]++;} while (0)
 #define WLFC_HOST_FIFO_DROPPEDCTR_INC(ctx, ac) do { \
-		(ctx)->stats.dropped_qfull[(ac)]++;	\
-	} while (0)
+	(ctx)->stats.dropped_qfull[(ac)]++;} while (0)
 #else
 #define WLFC_HOST_FIFO_CREDIT_INC_SENTCTRS(ctx, ac) do {} while (0)
 #define WLFC_HOST_FIFO_CREDIT_INC_BACKCTRS(ctx, ac) do {} while (0)
@@ -315,7 +295,7 @@ typedef struct athost_wl_status_info {
 	void *dhdp;
 
 	f_commitpkt_t fcommit;
-	void *commit_ctx;
+	void* commit_ctx;
 
 	/** statistics */
 	athost_wl_stat_counters_t stats;
@@ -374,8 +354,8 @@ typedef struct athost_wl_status_info {
 	bool	bcmc_credit_supported;
 
 #ifdef BULK_DEQUEUE
-	uint8   max_release_count;
-#endif /* BULK_DEQUEUE */
+	uint8	max_release_count;
+#endif /* total_credit */
 } athost_wl_status_info_t;
 
 /** Please be mindful that total pkttag space is 32 octets only */
@@ -396,7 +376,7 @@ typedef struct dhd_pkttag {
 	b[9  ] - 1 = packet is host->firmware (transmit direction)
 	       - 0 = packet received from firmware (firmware->host)
 	b[8  ] - 1 = packet was sent due to credit_request (pspoll),
-		packet does not count against FIFO credit.
+	             packet does not count against FIFO credit.
 	       - 0 = normal transaction, packet counts against FIFO credit
 	b[7  ] - 1 = AP, 0 = STA
 	b[6:4] - AC FIFO number
@@ -427,7 +407,7 @@ typedef struct dhd_pkttag {
 			uint32 thing2;
 		} sd;
 
-		/* using the USB typedef here will complicate life for anybody using dhd.h */
+		/* XXX: using the USB typedef here will complicate life for anybody using dhd.h */
 		struct {
 			void *bus;
 			void *urb;
@@ -437,104 +417,104 @@ typedef struct dhd_pkttag {
 
 #define DHD_PKTTAG_WLFCPKT_MASK			0x1
 #define DHD_PKTTAG_WLFCPKT_SHIFT		15
-#define DHD_PKTTAG_WLFCPKT_SET(tag, value)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_WLFCPKT_SET(tag, value)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_WLFCPKT_MASK << DHD_PKTTAG_WLFCPKT_SHIFT)) | \
 	(((value) & DHD_PKTTAG_WLFCPKT_MASK) << DHD_PKTTAG_WLFCPKT_SHIFT)
-#define DHD_PKTTAG_WLFCPKT(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_WLFCPKT(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_WLFCPKT_SHIFT) & DHD_PKTTAG_WLFCPKT_MASK)
 
 #define DHD_PKTTAG_EXEMPT_MASK			0x3
 #define DHD_PKTTAG_EXEMPT_SHIFT			13
-#define DHD_PKTTAG_EXEMPT_SET(tag, value)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_EXEMPT_SET(tag, value)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_EXEMPT_MASK << DHD_PKTTAG_EXEMPT_SHIFT)) | \
 	(((value) & DHD_PKTTAG_EXEMPT_MASK) << DHD_PKTTAG_EXEMPT_SHIFT)
-#define DHD_PKTTAG_EXEMPT(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_EXEMPT(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_EXEMPT_SHIFT) & DHD_PKTTAG_EXEMPT_MASK)
 
 #define DHD_PKTTAG_EVENT_MASK			0x1
 #define DHD_PKTTAG_EVENT_SHIFT			12
-#define DHD_PKTTAG_SETEVENT(tag, event)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETEVENT(tag, event)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_EVENT_MASK << DHD_PKTTAG_EVENT_SHIFT)) | \
 	(((event) & DHD_PKTTAG_EVENT_MASK) << DHD_PKTTAG_EVENT_SHIFT)
-#define DHD_PKTTAG_EVENT(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_EVENT(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_EVENT_SHIFT) & DHD_PKTTAG_EVENT_MASK)
 
 #define DHD_PKTTAG_ONETIMEPKTRQST_MASK		0x1
 #define DHD_PKTTAG_ONETIMEPKTRQST_SHIFT		11
-#define DHD_PKTTAG_SETONETIMEPKTRQST(tag)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETONETIMEPKTRQST(tag)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_ONETIMEPKTRQST_MASK << DHD_PKTTAG_ONETIMEPKTRQST_SHIFT)) | \
 	(1 << DHD_PKTTAG_ONETIMEPKTRQST_SHIFT)
-#define DHD_PKTTAG_ONETIMEPKTRQST(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_ONETIMEPKTRQST(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_ONETIMEPKTRQST_SHIFT) & DHD_PKTTAG_ONETIMEPKTRQST_MASK)
 
 #define DHD_PKTTAG_SIGNALONLY_MASK		0x1
 #define DHD_PKTTAG_SIGNALONLY_SHIFT		10
-#define DHD_PKTTAG_SETSIGNALONLY(tag, signalonly)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETSIGNALONLY(tag, signalonly)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_SIGNALONLY_MASK << DHD_PKTTAG_SIGNALONLY_SHIFT)) | \
 	(((signalonly) & DHD_PKTTAG_SIGNALONLY_MASK) << DHD_PKTTAG_SIGNALONLY_SHIFT)
-#define DHD_PKTTAG_SIGNALONLY(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_SIGNALONLY(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_SIGNALONLY_SHIFT) & DHD_PKTTAG_SIGNALONLY_MASK)
 
 #define DHD_PKTTAG_PKTDIR_MASK			0x1
 #define DHD_PKTTAG_PKTDIR_SHIFT			9
-#define DHD_PKTTAG_SETPKTDIR(tag, dir)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETPKTDIR(tag, dir)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_PKTDIR_MASK << DHD_PKTTAG_PKTDIR_SHIFT)) | \
 	(((dir) & DHD_PKTTAG_PKTDIR_MASK) << DHD_PKTTAG_PKTDIR_SHIFT)
-#define DHD_PKTTAG_PKTDIR(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_PKTDIR(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_PKTDIR_SHIFT) & DHD_PKTTAG_PKTDIR_MASK)
 
 #define DHD_PKTTAG_CREDITCHECK_MASK		0x1
 #define DHD_PKTTAG_CREDITCHECK_SHIFT		8
-#define DHD_PKTTAG_SETCREDITCHECK(tag, check)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETCREDITCHECK(tag, check)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_CREDITCHECK_MASK << DHD_PKTTAG_CREDITCHECK_SHIFT)) | \
 	(((check) & DHD_PKTTAG_CREDITCHECK_MASK) << DHD_PKTTAG_CREDITCHECK_SHIFT)
-#define DHD_PKTTAG_CREDITCHECK(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_CREDITCHECK(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_CREDITCHECK_SHIFT) & DHD_PKTTAG_CREDITCHECK_MASK)
 
 #define DHD_PKTTAG_IFTYPE_MASK			0x1
 #define DHD_PKTTAG_IFTYPE_SHIFT			7
-#define DHD_PKTTAG_SETIFTYPE(tag, isAP)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & \
+#define DHD_PKTTAG_SETIFTYPE(tag, isAP)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
 	~(DHD_PKTTAG_IFTYPE_MASK << DHD_PKTTAG_IFTYPE_SHIFT)) | \
 	(((isAP) & DHD_PKTTAG_IFTYPE_MASK) << DHD_PKTTAG_IFTYPE_SHIFT)
-#define DHD_PKTTAG_IFTYPE(tag)	((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_IFTYPE(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_IFTYPE_SHIFT) & DHD_PKTTAG_IFTYPE_MASK)
 
 #define DHD_PKTTAG_FIFO_MASK			0x7
 #define DHD_PKTTAG_FIFO_SHIFT			4
-#define DHD_PKTTAG_SETFIFO(tag, fifo)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & ~(DHD_PKTTAG_FIFO_MASK << DHD_PKTTAG_FIFO_SHIFT)) | \
+#define DHD_PKTTAG_SETFIFO(tag, fifo)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & ~(DHD_PKTTAG_FIFO_MASK << DHD_PKTTAG_FIFO_SHIFT)) | \
 	(((fifo) & DHD_PKTTAG_FIFO_MASK) << DHD_PKTTAG_FIFO_SHIFT)
-#define DHD_PKTTAG_FIFO(tag)		((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_FIFO(tag)		((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_FIFO_SHIFT) & DHD_PKTTAG_FIFO_MASK)
 
 #define DHD_PKTTAG_IF_MASK			0xf
 #define DHD_PKTTAG_IF_SHIFT			0
-#define DHD_PKTTAG_SETIF(tag, if)	((dhd_pkttag_t *)(tag))->if_flags = \
-	(((dhd_pkttag_t *)(tag))->if_flags & ~(DHD_PKTTAG_IF_MASK << DHD_PKTTAG_IF_SHIFT)) | \
+#define DHD_PKTTAG_SETIF(tag, if)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & ~(DHD_PKTTAG_IF_MASK << DHD_PKTTAG_IF_SHIFT)) | \
 	(((if) & DHD_PKTTAG_IF_MASK) << DHD_PKTTAG_IF_SHIFT)
-#define DHD_PKTTAG_IF(tag)		((((dhd_pkttag_t *)(tag))->if_flags >> \
+#define DHD_PKTTAG_IF(tag)		((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_IF_SHIFT) & DHD_PKTTAG_IF_MASK)
 
-#define DHD_PKTTAG_SETDSTN(tag, dstn_MAC_ea)	memcpy(((dhd_pkttag_t *)((tag)))->dstn_ether, \
+#define DHD_PKTTAG_SETDSTN(tag, dstn_MAC_ea)	memcpy(((dhd_pkttag_t*)((tag)))->dstn_ether, \
 	(dstn_MAC_ea), ETHER_ADDR_LEN)
-#define DHD_PKTTAG_DSTN(tag)	(((dhd_pkttag_t *)(tag))->dstn_ether)
+#define DHD_PKTTAG_DSTN(tag)	((dhd_pkttag_t*)(tag))->dstn_ether
 
-#define DHD_PKTTAG_SET_H2DTAG(tag, h2dvalue)	(((dhd_pkttag_t *)(tag))->htod_tag = (h2dvalue))
-#define DHD_PKTTAG_H2DTAG(tag)			(((dhd_pkttag_t *)(tag))->htod_tag)
+#define DHD_PKTTAG_SET_H2DTAG(tag, h2dvalue)	((dhd_pkttag_t*)(tag))->htod_tag = (h2dvalue)
+#define DHD_PKTTAG_H2DTAG(tag)			(((dhd_pkttag_t*)(tag))->htod_tag)
 
-#define DHD_PKTTAG_SET_H2DSEQ(tag, seq)		(((dhd_pkttag_t *)(tag))->htod_seq = (seq))
-#define DHD_PKTTAG_H2DSEQ(tag)			(((dhd_pkttag_t *)(tag))->htod_seq)
+#define DHD_PKTTAG_SET_H2DSEQ(tag, seq)		((dhd_pkttag_t*)(tag))->htod_seq = (seq)
+#define DHD_PKTTAG_H2DSEQ(tag)			(((dhd_pkttag_t*)(tag))->htod_seq)
 
-#define DHD_PKTTAG_SET_ENTRY(tag, entry)	(((dhd_pkttag_t *)(tag))->entry = (entry))
-#define DHD_PKTTAG_ENTRY(tag)			(((dhd_pkttag_t *)(tag))->entry)
+#define DHD_PKTTAG_SET_ENTRY(tag, entry)	((dhd_pkttag_t*)(tag))->entry = (entry)
+#define DHD_PKTTAG_ENTRY(tag)			(((dhd_pkttag_t*)(tag))->entry)
 
 #define PSQ_SUP_IDX(x) (x * 2 + 1)
 #define PSQ_DLY_IDX(x) (x * 2)
@@ -548,19 +528,19 @@ typedef struct dhd_pkttag {
 #endif
 
 #ifdef BCM_OBJECT_TRACE
-#define DHD_PKTTAG_SET_SN(tag, val)		(((dhd_pkttag_t *)(tag))->sn = (val))
-#define DHD_PKTTAG_SN(tag)			(((dhd_pkttag_t *)(tag))->sn)
+#define DHD_PKTTAG_SET_SN(tag, val)		((dhd_pkttag_t*)(tag))->sn = (val)
+#define DHD_PKTTAG_SN(tag)			(((dhd_pkttag_t*)(tag))->sn)
 #endif /* BCM_OBJECT_TRACE */
 
 #define DHD_PKTID_IF_SHIFT			(16u)
 #define DHD_PKTID_FIFO_SHIFT			(8u)
 
 /* public functions */
-int dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void *pktbuf, int tlv_hdr_len,
+int dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void* pktbuf, int tlv_hdr_len,
 	uchar *reorder_info_buf, uint *reorder_info_len);
 KERNEL_THREAD_RETURN_TYPE dhd_wlfc_transfer_packets(void *data);
 int dhd_wlfc_commit_packets(dhd_pub_t *dhdp, f_commitpkt_t fcommit,
-	void *commit_ctx, void *pktbuf, bool need_toggle_host_if);
+	struct dhd_bus *commit_ctx, void *pktbuf, bool need_toggle_host_if);
 int dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success);
 int dhd_wlfc_init(dhd_pub_t *dhd);
 #ifdef SUPPORT_P2P_GO_PS
@@ -569,12 +549,12 @@ int dhd_wlfc_resume(dhd_pub_t *dhd);
 #endif /* SUPPORT_P2P_GO_PS */
 int dhd_wlfc_hostreorder_init(dhd_pub_t *dhd);
 int dhd_wlfc_cleanup_txq(dhd_pub_t *dhd, f_processpkt_t fn, void *arg);
-int dhd_wlfc_cleanup(dhd_pub_t *dhd, f_processpkt_t fn, void *arg);
+int dhd_wlfc_cleanup(dhd_pub_t *dhd, f_processpkt_t fn, void* arg);
 int dhd_wlfc_deinit(dhd_pub_t *dhd);
-int dhd_wlfc_interface_event(dhd_pub_t *dhdp, uint8 action, uint8 ifid, uint8 iftype, uint8 *ea);
-int dhd_wlfc_FIFOcreditmap_event(dhd_pub_t *dhdp, uint8 *event_data);
+int dhd_wlfc_interface_event(dhd_pub_t *dhdp, uint8 action, uint8 ifid, uint8 iftype, uint8* ea);
+int dhd_wlfc_FIFOcreditmap_event(dhd_pub_t *dhdp, uint8* event_data);
 #ifdef LIMIT_BORROW
-int dhd_wlfc_disable_credit_borrow_event(dhd_pub_t *dhdp, uint8 *event_data);
+int dhd_wlfc_disable_credit_borrow_event(dhd_pub_t *dhdp, uint8* event_data);
 #endif /* LIMIT_BORROW */
 int dhd_wlfc_BCMCCredit_support_event(dhd_pub_t *dhdp);
 int dhd_wlfc_enable(dhd_pub_t *dhdp);
@@ -584,9 +564,9 @@ int dhd_wlfc_get_enable(dhd_pub_t *dhd, bool *val);
 int dhd_wlfc_get_mode(dhd_pub_t *dhd, int *val);
 int dhd_wlfc_set_mode(dhd_pub_t *dhd, int val);
 bool dhd_wlfc_is_supported(dhd_pub_t *dhd);
-bool dhd_wlfc_is_header_only_pkt(dhd_pub_t *dhd, void *pktbuf);
+bool dhd_wlfc_is_header_only_pkt(dhd_pub_t * dhd, void *pktbuf);
 int dhd_wlfc_flowcontrol(dhd_pub_t *dhdp, bool state, bool bAcquireLock);
-int dhd_wlfc_save_rxpath_ac_time(dhd_pub_t *dhd, uint8 prio);
+int dhd_wlfc_save_rxpath_ac_time(dhd_pub_t * dhd, uint8 prio);
 
 int dhd_wlfc_get_module_ignore(dhd_pub_t *dhd, int *val);
 int dhd_wlfc_set_module_ignore(dhd_pub_t *dhd, int val);
@@ -597,6 +577,9 @@ int dhd_wlfc_set_txstatus_ignore(dhd_pub_t *dhd, int val);
 
 int dhd_wlfc_get_rxpkt_chk(dhd_pub_t *dhd, int *val);
 int dhd_wlfc_set_rxpkt_chk(dhd_pub_t *dhd, int val);
-int dhd_txpkt_log_and_dump(dhd_pub_t *dhdp, void *pkt, uint16 *pktfate_status);
+int dhd_txpkt_log_and_dump(dhd_pub_t *dhdp, void* pkt, uint16 *pktfate_status);
+#ifdef PROPTX_MAXCOUNT
+int dhd_wlfc_update_maxcount(dhd_pub_t *dhdp, uint8 ifid, int maxcount);
+#endif /* PROPTX_MAXCOUNT */
 
 #endif /* __wlfc_host_driver_definitions_h__ */

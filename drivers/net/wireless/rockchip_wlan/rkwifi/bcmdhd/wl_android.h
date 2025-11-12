@@ -1,26 +1,7 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -39,8 +20,9 @@
  *
  * <<Broadcom-WL-IPTag/Dual:>>
  */
-#ifndef _wl_android_h_
-#define _wl_android_h_
+
+#ifndef _wl_android_
+#define _wl_android_
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -74,8 +56,10 @@
 #include <net/genetlink.h>
 #endif
 
+#if !defined(WL_MBO_IOV_VERSION)
 /* MBO IOV API version */
 #define WL_MBO_IOV_VERSION WL_MBO_IOV_VERSION_1_1
+#endif
 
 typedef struct _android_wifi_priv_cmd {
     char *buf;
@@ -107,7 +91,6 @@ typedef struct _compat_android_wifi_priv_cmd {
 #define ANDROID_AMPDU_LEVEL	(1 << 9)
 #define ANDROID_TVPM_LEVEL	(1 << 10)
 #define ANDROID_BTC_LEVEL	(1 << 11)
-#define ANDROID_SWDIV_LEVEL	(1 << 12)
 #define ANDROID_MSG_LEVEL	(1 << 0)
 
 #define WL_MSG(name, arg1, args...) \
@@ -156,9 +139,11 @@ int wl_android_wifi_on(struct net_device *dev);
 int wl_android_wifi_off(struct net_device *dev, bool on_failure);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr);
 int wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len);
+#ifdef WL_CFG80211
 int wl_android_set_spect(struct net_device *dev, int spect);
 s32 wl_android_get_band_chanspecs(struct net_device *ndev, void *buf, s32 buflen,
 	chanspec_band_t band, bool acs_req);
+#endif
 
 #ifdef WL_GENL
 typedef struct bcm_event_hdr {
@@ -200,7 +185,9 @@ enum {
 s32 wl_genl_send_msg(struct net_device *ndev, u32 event_type,
 	const u8 *string, u16 len, u8 *hdr, u16 hdrlen);
 #endif /* WL_GENL */
+#ifdef WL_NETLINK
 s32 wl_netlink_send_msg(int pid, int type, int seq, const void *data, size_t size);
+#endif /* WL_NETLINK */
 
 /* hostap mac mode */
 #define MACLIST_MODE_DISABLED   0
@@ -237,10 +224,6 @@ s32 wl_netlink_send_msg(int pid, int type, int seq, const void *data, size_t siz
 #define APCS_DEFAULT_5G_CH	149
 #define APCS_DEFAULT_6G_CH	5
 
-extern int wl_android_set_whitelist_ssid(struct net_device *dev,
-	wl_ssid_whitelist_t *ssid_whitelist, uint32 len, uint32 flush);
-extern int wl_android_set_blacklist_bssid(struct net_device *dev, maclist_t *blacklist,
-    uint32 len, uint32 flush);
 int wl_android_set_ap_mac_list(struct net_device *dev, int macmode, struct maclist *maclist);
 #ifdef WL_BCNRECV
 extern int wl_android_bcnrecv_config(struct net_device *ndev, char *data,
@@ -286,11 +269,4 @@ extern int wl_android_bcnrecv_event(struct net_device *ndev,
 extern int wl_android_set_he_6g_band(struct net_device *dev, bool enable);
 #endif /* CUSTOM_CONTROL_HE_6G_FEATURES */
 extern int wl_android_rcroam_turn_on(struct net_device *dev, int rcroam_enab);
-#ifdef WL_TWT
-extern int wl_update_twt_setup_evt_info(struct sk_buff *skb, void *event_data);
-extern int wl_update_twt_teardown_evt_info(struct sk_buff *skb, void *event_data);
-extern int wl_update_twt_info_frm_evt_info(struct sk_buff *skb, void *event_data);
-extern int wl_update_twt_notify_evt_info(struct sk_buff *skb, void *event_data);
-#endif /* WL_TWT */
-
-#endif /* _wl_android_h_ */
+#endif /* _wl_android_ */

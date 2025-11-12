@@ -1,26 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -40,26 +21,8 @@
  * <<Broadcom-WL-IPTag/Dual:>>
  */
 
-// For strict C17 Posix 2008 target builds, enable bzero()
-#define _GNU_SOURCE 1
-
-#if defined(__linux__) && !defined(BCMDRIVER)
-// for 'uint'
-#define USE_TYPEDEF_DEFAULTS
-#endif
-
 #include <typedefs.h>
 #include <bcmdefs.h>
-
-#if defined(__linux__)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-#include <linux/stdarg.h>
-#else
-#include <stdarg.h>
-#endif /* LINUX_VERSION_CODE */
-#else
-#include <stdarg.h>
-#endif /* __linux__ */
 
 #ifdef BCMDRIVER
 #include <osl.h>
@@ -70,9 +33,6 @@
 
 #else /* !BCMDRIVER */
 
-#if defined(__linux__) && !defined(BCMFUZZ)
-#include <strings.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <bcmutils.h>
@@ -136,16 +96,6 @@ BCMRAMFN(privacy_addrmask_get)(void)
 }
 #endif /* PRIVACY_MASK */
 
-#if defined(PRIORITIZE_ARP)
-/* default value is set at NC/TID=7 */
-uint8 prio_arp = PRIO_8021D_NC;
-#endif
-
-int BCMACCESSOR_RAMFN(bcm_get_last_err)(void)
-{
-	return BCME_LAST;
-}
-
 #ifdef BCMDRIVER
 
 #ifndef BCM_ARM_BACKTRACE
@@ -167,21 +117,32 @@ void (*const BCMPOST_TRAP_RODATA(print_btrace_int_fn))(int depth, uint32 pc, uin
 /* Forward declarations */
 static int getintvararray_internal(char *vars, const char *name, int index);
 static int getintvararraysize_internal(char *vars, const char *name);
-static const char *getvar_internal(char *vars, const char *name);
+static
+#ifndef ATE_BUILD
+const
+#endif
+char * getvar_internal(char *vars, const char *name);
 static int getintvar_internal(char *vars, const char *name);
 
 /*
  * Search the name=value vars for a specific one and return its value.
  * Returns NULL if not found.
  */
-const char *
+#ifndef ATE_BUILD
+const
+#endif
+char *
 getvar(char *vars, const char *name)
 {
 	NVRAM_RECLAIM_CHECK(name);
 	return getvar_internal(vars, name);
 }
 
-static const char *
+static
+#ifndef ATE_BUILD
+const
+#endif
+char *
 getvar_internal(char *vars, const char *name)
 {
 	char *s;
@@ -215,7 +176,7 @@ getvar_internal(char *vars, const char *name)
 int
 getintvar(char *vars, const char *name)
 {
-	NVRAM_RECLAIM_CHECK_EXT(name, 0);
+	NVRAM_RECLAIM_CHECK(name);
 	return getintvar_internal(vars, name);
 }
 
@@ -233,7 +194,7 @@ getintvar_internal(char *vars, const char *name)
 int
 getintvararray(char *vars, const char *name, int index)
 {
-	NVRAM_RECLAIM_CHECK_EXT(name, 0);
+	NVRAM_RECLAIM_CHECK(name);
 	return getintvararray_internal(vars, name, index);
 }
 
@@ -267,7 +228,7 @@ getintvararray_internal(char *vars, const char *name, int index)
 int
 getintvararraysize(char *vars, const char *name)
 {
-	NVRAM_RECLAIM_CHECK_EXT(name, 0);
+	NVRAM_RECLAIM_CHECK(name);
 	return getintvararraysize_internal(vars, name);
 }
 
@@ -301,7 +262,7 @@ getintvararraysize_internal(char *vars, const char *name)
  * Pass in NULL for the dest_array[12] that is not to be used.
  */
 static int
-BCMATTACHFN(getintvararray_slicespecific)(osl_t *osh, char *vars, char *vars_table_accessor,
+getintvararray_slicespecific(osl_t *osh, char *vars, char *vars_table_accessor,
 	const char* name, uint8* dest_array1, int16* dest_array2, uint dest_size)
 {
 	uint i;
@@ -354,7 +315,7 @@ done:
 }
 
 int
-BCMATTACHFN(get_uint8_vararray_slicespecific)(osl_t *osh, char *vars, char *vars_table_accessor,
+get_uint8_vararray_slicespecific(osl_t *osh, char *vars, char *vars_table_accessor,
 	const char* name, uint8* dest_array, uint dest_size)
 {
 	int ret;
@@ -365,7 +326,7 @@ BCMATTACHFN(get_uint8_vararray_slicespecific)(osl_t *osh, char *vars, char *vars
 }
 
 int
-BCMATTACHFN(get_int16_vararray_slicespecific)(osl_t *osh, char *vars, char *vars_table_accessor,
+get_int16_vararray_slicespecific(osl_t *osh, char *vars, char *vars_table_accessor,
 	const char* name, int16* dest_array, uint dest_size)
 {
 	return getintvararray_slicespecific(osh, vars, vars_table_accessor,
@@ -377,7 +338,7 @@ BCMATTACHFN(get_int16_vararray_slicespecific)(osl_t *osh, char *vars, char *vars
  * Caller is responsible for freeing the resulting name string with MFREE.
  */
 uint
-BCMATTACHFN(get_slicespecific_var_name)(osl_t *osh, char *vars_table_accessor, const char *name,
+get_slicespecific_var_name(osl_t *osh, char *vars_table_accessor, const char *name,
 	char **name_out)
 {
 	char *name_with_prefix = NULL;
@@ -408,15 +369,6 @@ end:
 	return sz;
 }
 #endif /* BCM_BOOTLOADER */
-
-#if defined(WLC_NVRAMSIG)
-int
-getvarsig(const uint8 **sig, uint *ssize, const char **var, int *vsize, uint idx)
-{
-	NVRAM_RECLAIM_CHECK_EXT("getvarsig", 0);
-	return nvram_get_sig(sig, ssize, var, vsize, idx);
-}
-#endif /* WLC_NVRAMSIG */
 
 #if defined(BCMNVRAMR) || defined(BCMNVRAMW)
 /* Search for token in comma separated token-string */
@@ -552,7 +504,7 @@ BCMFASTPATH(pktsegcnt)(osl_t *osh, void *p)
 			cnt++;
 		}
 #ifdef BCMLFRAG
-		if (BCMLFRAG_ENAB() && PKTISTXFRAG(osh, p)) {
+		if (BCMLFRAG_ENAB() && PKTISFRAG(osh, p)) {
 				cnt += PKTFRAGTOTNUM(osh, p);
 		}
 #endif /* BCMLFRAG */
@@ -623,7 +575,7 @@ BCMPOSTTRAPFN(pktcopy)(osl_t *osh, void *p, uint offset, uint len, uchar *buf)
 	/* copy the data */
 	for (; p && len; p = PKTNEXT(osh, p)) {
 		n = MIN(PKTLEN(osh, p) - offset, len);
-		(void)memcpy_s(buf, n, PKTDATA(osh, p) + offset, n);
+		bcopy(PKTDATA(osh, p) + offset, buf, n);
 		buf += n;
 		len -= n;
 		ret += n;
@@ -652,7 +604,7 @@ pktfrombuf(osl_t *osh, void *p, uint offset, uint len, uchar *buf)
 	/* copy the data */
 	for (; p && len; p = PKTNEXT(osh, p)) {
 		n = MIN(PKTLEN(osh, p) - offset, len);
-		(void)memcpy_s(PKTDATA(osh, p) + offset, n, buf, n);
+		bcopy(buf, PKTDATA(osh, p) + offset, n);
 		buf += n;
 		len -= n;
 		ret += n;
@@ -661,29 +613,6 @@ pktfrombuf(osl_t *osh, void *p, uint offset, uint len, uchar *buf)
 
 	return ret;
 }
-
-#ifdef NOT_YET
-/* copy data from one pkt buffer (chain) to another */
-uint
-pkt2pktcopy(osl_t *osh, void *p1, uint offs1, void *p2, uint offs2, uint maxlen)
-{
-	uint8 *dp1, *dp2;
-	uint len1, len2, copylen, totallen;
-
-	for (; p1 && offs; p1 = PKTNEXT(osh, p1)) {
-		if (offs1 < (uint)PKTLEN(osh, p1))
-			break;
-		offs1 -= PKTLEN(osh, p1);
-	}
-	for (; p2 && offs; p2 = PKTNEXT(osh, p2)) {
-		if (offs2 < (uint)PKTLEN(osh, p2))
-			break;
-		offs2 -= PKTLEN(osh, p2);
-	}
-
-	/* Heck w/it, only need the above for now */
-}
-#endif /* NOT_YET */
 
 uint8 *
 BCMFASTPATH(pktdataoffset)(osl_t *osh, void *p,  uint offset)
@@ -731,128 +660,6 @@ bcm_mdelay(uint ms)
 	for (i = 0; i < ms; i++) {
 		OSL_DELAY(1000);
 	}
-}
-
-/* State machine logger info (per module) */
-struct bcm_sm_log_info {
-	uint32 idx;		/* Index into the circular buffer of entires */
-	uint32 flags;		/* State machine logger flags */
-	uint32 num_entries;	/* Number of entries */
-	uint32 module_entry_sz;	/* Size of each module specific entry in bytes */
-	/* Note: The following elements are not grouped into a structure to avoid memory
-	 * waste that can cause by padding.
-	 * TODO: any issue with packing?
-	 */
-	uint8 *state;		/* Logger data: State number */
-	uint8 *event;		/* Logger data: Event number */
-	void **call_site;	/* Logger data: Caller address */
-	uint32 *time_stamp;	/* Logger data: Time stamp */
-	void *data;		/* Logger data: Module specific data */
-};
-
-/**
- * @brief Initialization of a logger instance. A module who wants to use the bcm state machine
- * logger infra has to instantiate a logger before starting the logging.
- *
- * @param[in] osh		OS handler
- * @param[in] flags		State machine logger flags
- * @param[in] num_enries	Max number of entries to hold in the logger instance
- * @param[in] module_entry_sz	Size (in bytes) of each module specific entry
- *
- * @return Returns the pointer to logger instance
- */
-bcm_sm_log_info_t *
-bcm_sm_logger_init(osl_t *osh, uint32 flags, uint32 num_entries, uint32 module_entry_sz)
-{
-	bcm_sm_log_info_t *bsli;
-
-	bsli = MALLOCZ(osh, sizeof(*bsli));
-	if (bsli) {
-		bsli->flags = flags;
-		bsli->num_entries = num_entries;
-		bsli->module_entry_sz = module_entry_sz;
-
-		bsli->state = MALLOCZ(osh, (num_entries * sizeof(*bsli->state)));
-		if (!bsli->state) {
-			goto fail;
-		}
-
-		if (flags & BCM_SM_LOG_FLAG_EVENT_PRESENT) {
-			bsli->event = MALLOCZ(osh, (num_entries * sizeof(*bsli->state)));
-			if (!bsli->event) {
-				goto fail;
-			}
-		}
-
-		bsli->call_site = MALLOCZ(osh, (num_entries * sizeof(*bsli->call_site)));
-		if (!bsli->call_site) {
-			goto fail;
-		}
-
-		bsli->time_stamp = MALLOCZ(osh, (num_entries * sizeof(*bsli->time_stamp)));
-		if (!bsli->time_stamp) {
-			goto fail;
-		}
-
-		bsli->data = MALLOCZ(osh, (num_entries * module_entry_sz));
-		if (!bsli->data) {
-			goto fail;
-		}
-	}
-
-	return bsli;
-
-fail:
-	bcm_sm_logger_deinit(osh, bsli);
-	return NULL;
-}
-
-void
-bcm_sm_logger_deinit(osl_t *osh, bcm_sm_log_info_t *bsli)
-{
-	if (bsli == NULL) {
-		return;
-	}
-
-	MFREE(osh, bsli->state, (bsli->num_entries * sizeof(*bsli->state)));
-	MFREE(osh, bsli->event, (bsli->num_entries * sizeof(*bsli->event)));
-	MFREE(osh, bsli->call_site, (bsli->num_entries * sizeof(*bsli->call_site)));
-	MFREE(osh, bsli->time_stamp, (bsli->num_entries * sizeof(*bsli->time_stamp)));
-	MFREE(osh, bsli->data, (bsli->num_entries * bsli->module_entry_sz));
-	MFREE(osh, bsli, sizeof(*bsli));
-}
-
-/**
- * @brief Logs the state info in a given logger instance.
- *
- * @param[in] bcmli	Pointer to logger instance
- * @param[in] state      State number (supports upto 255)
- * @param[in] event      Event number (supports upto 255)
- * @param[in] call_site  Caller address
- *
- * @return Returns the pointer to module specific portion of each entry
- */
-void *
-bcm_sm_log(bcm_sm_log_info_t *bsli, uint32 state, uint32 event, void *call_site)
-{
-	uint32 idx = bsli->idx;
-	void *data;
-
-	bsli->state[idx] = (uint8) state;
-	bsli->call_site[idx] = call_site;
-#ifdef DONGLEBUILD
-	bsli->time_stamp[idx] = OSL_SYSUPTIME();
-#endif /* DONGLEBUILD */
-
-	if (bsli->flags & BCM_SM_LOG_FLAG_EVENT_PRESENT) {
-		bsli->event[idx] = (uint8) event;
-	}
-
-	data = ((uint8 *)(bsli->data)) + (idx * bsli->module_entry_sz);
-
-	bsli->idx = (idx + 1u) % bsli->num_entries;
-
-	return data;
 }
 
 #if defined(BCMPERFSTATS) || defined(BCMTSTAMPEDLOGS)
@@ -1297,10 +1104,8 @@ BCMFASTPATH(pktsetprio)(void *pkt, bool update_vtag)
 		 * congested scenarios with traffic, ARP packets may not get chance
 		 * for transmission leading to disconnection. so prioritize it.
 		 */
-		if (prio_arp) {
-			priority = prio_arp;
-			rc = PKTPRIO_DSCP;
-		}
+		priority = PRIO_8021D_NC;
+		rc = PKTPRIO_DSCP;
 #endif /* PRIORITIZE_ARP */
 #if defined(WLTDLS)
 	} else if (eh->ether_type == hton16(ETHER_TYPE_89_0D)) {
@@ -1380,34 +1185,12 @@ dscp2up(uint8 *up_table, uint8 dscp)
 uint
 BCMFASTPATH(pktsetprio_qms)(void *pkt, uint8* up_table, bool update_vtag)
 {
-	uint8 *pktdata;
-	uint user_priority = 0;
-	uint rc = 0;
-
-#if defined(EAPOL_PKT_PRIO) || defined(DHD_LOSSLESS_ROAMING)
-	/* For some reason, EAPOL frames are always going with UP 7.
-	 * Avoid consulting qosmap table and return early with highest prioroity UP
-	 * for the EAPOL frames.
-	 */
-	struct ether_header *eh;
-
-	pktdata = (uint8 *)PKTDATA(OSH_NULL, pkt);
-	ASSERT_FP(ISALIGNED((uintptr)pktdata, sizeof(uint16)));
-
-	eh = (struct ether_header *) pktdata;
-
-	/* Send EAPOL frames with the highest priority (i.e., UP 7) irrespective of qosmap */
-	if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
-		user_priority = PRIO_8021D_NC;
-		rc = PKTPRIO_DSCP;
-		PKTSETPRIO(pkt, user_priority);
-		return (rc | user_priority);
-	}
-#endif /* defined(EAPOL_PKT_PRIO) || defined(DHD_LOSSLESS_ROAMING) */
-
 	if (up_table) {
+		uint8 *pktdata;
 		uint pktlen;
 		uint8 dscp;
+		uint user_priority = 0;
+		uint rc = 0;
 
 		pktdata = (uint8 *)PKTDATA(OSH_NULL, pkt);
 		pktlen = PKTLEN(OSH_NULL, pkt);
@@ -1494,7 +1277,7 @@ BCMFASTPATH(wl_set_up_table)(uint8 *up_table, bcm_tlv_t *qos_map_ie)
 	}
 
 	/* clear table to check table was set or not */
-	(void)memset_s(up_table, UP_TABLE_MAX, 0xff, UP_TABLE_MAX);
+	memset(up_table, 0xff, UP_TABLE_MAX);
 
 	/* length of QoS Map IE must be 16+n*2, n is number of exceptions */
 	if (qos_map_ie != NULL && qos_map_ie->id == DOT11_MNG_QOS_MAP_ID &&
@@ -1515,7 +1298,7 @@ BCMFASTPATH(wl_set_up_table)(uint8 *up_table, bcm_tlv_t *qos_map_ie)
 
 			if (!up_table_set(up_table, i / 2, low, high)) {
 				/* clear the table on failure */
-				(void)memset_s(up_table, UP_TABLE_MAX, 0xff, UP_TABLE_MAX);
+				memset(up_table, 0xff, UP_TABLE_MAX);
 				return BCME_ERROR;
 			}
 		}
@@ -1545,9 +1328,9 @@ const char *
 BCMRAMFN(bcmerrorstr)(int bcmerror)
 {
 	/* check if someone added a bcmerror code but forgot to add errorstring */
-	STATIC_ASSERT(ABS(BCME_LAST) == (ARRAYSIZE(bcmerrorstrtable) - 1));
+	ASSERT(ABS(BCME_LAST) == (ARRAYSIZE(bcmerrorstrtable) - 1));
 
-	if (bcmerror > 0 || bcmerror < bcm_get_last_err()) {
+	if (bcmerror > 0 || bcmerror < BCME_LAST) {
 		snprintf(bcm_undeferrstr, sizeof(bcm_undeferrstr), "Undefined error %d", bcmerror);
 		return bcm_undeferrstr;
 	}
@@ -1627,8 +1410,8 @@ _pktlist_remove(pktlist_info_t *pktlist, void *pkt)
 			pktlist->list[i].line = pktlist->list[num-1].line;
 			pktlist->list[i].file = pktlist->list[num-1].file;
 #ifdef BCMDBG_PTRACE
-			(void)memcpy_s(pktlist->list[i].pkt_trace, PKTTRACE_MAX_BYTES,
-				pktlist->list[num-1].pkt_trace, PKTTRACE_MAX_BYTES);
+			memcpy(pktlist->list[i].pkt_trace, pktlist->list[num-1].pkt_trace,
+				PKTTRACE_MAX_BYTES);
 			idx = PKTLIST_IDX(pktlist->list[i].pkt);
 			*idx = i;
 #endif /* BCMDBG_PTRACE */
@@ -1678,66 +1461,33 @@ pktlist_dump(pktlist_info_t *pktlist, char *buf)
 {
 	char *obuf = buf;
 	uint16 i;
-	int olen = 0;
 
-	if (buf != NULL) {
-		olen = snprintf(buf, bufsz, "Packet list dump:\n");
-		if (olen > 0 && (uint)olen < bufsz) {
-			buf += olen;
-			bufsz -= (uint)olen;
-		} else {
-			return obuf;
-		}
-	} else {
+	if (buf != NULL)
+		buf += sprintf(buf, "Packet list dump:\n");
+	else
 		printf("Packet list dump:\n");
-	}
 
 	for (i = 0; i < (pktlist->count); i++) {
-		if (buf != NULL) {
-			olen = snprintf(buf, bufsz, "Pkt_addr: 0x%p Line: %d File: %s\t",
+		if (buf != NULL)
+			buf += sprintf(buf, "Pkt_addr: 0x%p Line: %d File: %s\t",
 				OSL_OBFUSCATE_BUF(pktlist->list[i].pkt), pktlist->list[i].line,
 				pktlist->list[i].file);
-			if (olen > 0 && (uint)olen < bufsz) {
-				buf += olen;
-				bufsz -= (uint)olen;
-			} else {
-				return obuf;
-			}
-		} else {
+		else
 			printf("Pkt_addr: 0x%p Line: %d File: %s\t",
 				OSL_OBFUSCATE_BUF(pktlist->list[i].pkt),
 				pktlist->list[i].line, pktlist->list[i].file);
-		}
 
 /* #ifdef NOTDEF  Remove this ifdef to print pkttag and pktdata */
 		if (buf != NULL) {
 			if (PKTTAG(pktlist->list[i].pkt)) {
 				/* Print pkttag */
-				olen = snprintf(buf, bufsz, "Pkttag(in hex): ");
-				if (olen > 0 && (uint)olen < bufsz) {
-					buf += olen;
-					bufsz -= (uint)olen;
-				} else {
-					return obuf;
-				}
-				if (bufsz >= OSL_PKTTAG_SZ) {
-					buf += bcm_format_hex(buf, PKTTAG(pktlist->list[i].pkt),
-						OSL_PKTTAG_SZ);
-					bufsz -= OSL_PKTTAG_SZ;
-				}
+				buf += sprintf(buf, "Pkttag(in hex): ");
+				buf += bcm_format_hex(buf, PKTTAG(pktlist->list[i].pkt),
+					OSL_PKTTAG_SZ);
 			}
-			olen = snprintf(buf, bufsz, "Pktdata(in hex): ");
-			if (olen > 0 && olen < bufsz) {
-				buf += olen;
-				bufsz -= olen;
-			} else {
-				return obuf;
-			}
-			if (bufsz >= PKTLEN(OSH_NULL, pktlist->list[i].pkt)) {
-				buf += bcm_format_hex(buf, PKTDATA(OSH_NULL, pktlist->list[i].pkt),
-					PKTLEN(OSH_NULL, pktlist->list[i].pkt));
-				bufsz -= PKTLEN(OSH_NULL, pktlist->list[i].pkt);
-			}
+			buf += sprintf(buf, "Pktdata(in hex): ");
+			buf += bcm_format_hex(buf, PKTDATA(OSH_NULL, pktlist->list[i].pkt),
+			                      PKTLEN(OSH_NULL, pktlist->list[i].pkt));
 		} else {
 			void *pkt = pktlist->list[i].pkt, *npkt;
 
@@ -1776,17 +1526,10 @@ pktlist_dump(pktlist_info_t *pktlist, char *buf)
 		}
 /* #endif  NOTDEF */
 
-		if (buf != NULL) {
-			olen = snprintf(buf, bufsz, "\n");
-			if (olen > 0 && (uint)olen < bufsz) {
-				buf += olen;
-				bufsz -= (uint)olen;
-			} else {
-				return obuf;
-			}
-		} else {
+		if (buf != NULL)
+			buf += sprintf(buf, "\n");
+		else
 			printf("\n");
-		}
 	}
 	return obuf;
 }
@@ -1944,12 +1687,12 @@ typedef struct bcm_mwbmap {     /* Hierarchical multiword bitmap allocator    */
 	int8   wd_count[BCM_MWBMAP_WORDS_MAX];  /* free id running count, 1st lvl */
 #endif /*  ! BCM_MWBMAP_USE_CNTSETBITS */
 
-	uint32 id_bitmap[];        /* Second level bitmap */
+	uint32 id_bitmap[0];        /* Second level bitmap                        */
 } bcm_mwbmap_t;
 
 /* Incarnate a hierarchical multiword bitmap based small index allocator. */
 struct bcm_mwbmap *
-BCMATTACHFN(bcm_mwbmap_init)(osl_t *osh, uint32 items_max)
+bcm_mwbmap_init(osl_t *osh, uint32 items_max)
 {
 	struct bcm_mwbmap * mwbmap_p;
 	uint32 wordix, size, words, extra;
@@ -2022,7 +1765,7 @@ error1:
 
 /* Release resources used by multiword bitmap based small index allocator. */
 void
-BCMATTACHFN(bcm_mwbmap_fini)(osl_t * osh, struct bcm_mwbmap * mwbmap_hdl)
+bcm_mwbmap_fini(osl_t * osh, struct bcm_mwbmap * mwbmap_hdl)
 {
 	bcm_mwbmap_t * mwbmap_p;
 
@@ -2061,9 +1804,10 @@ BCMFASTPATH(bcm_mwbmap_alloc)(struct bcm_mwbmap * mwbmap_hdl)
 			}
 			MWBMAP_ASSERT(C_bcm_count_leading_zeros(bitmap) ==
 			              bcm_count_leading_zeros(bitmap));
-			bitix    = (BCM_MWBMAP_BITS_WORD - 1)
-				 - bcm_count_leading_zeros(bitmap); /* use asm clz */
-			wordix   = BCM_MWBMAP_MULOP(wordix) + bitix;
+			bitix = bcm_count_leading_zeros(bitmap); /* use asm clz */
+			bitix = (bitix <= (BCM_MWBMAP_BITS_WORD - 1)) ?
+					((BCM_MWBMAP_BITS_WORD - 1) - bitix) : 0;
+			wordix = BCM_MWBMAP_MULOP(wordix) + bitix;
 
 			/* Clear bit if wd count is 0, without conditional branch */
 #if defined(BCM_MWBMAP_USE_CNTSETBITS)
@@ -2330,6 +2074,9 @@ bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl)
 	}
 
 	ASSERT((int)free_cnt == mwbmap_p->ifree);
+	if (free_cnt != mwbmap_p->ifree) {
+		printf("Error: free_cnt != mwbmap_p->ifree\n");
+	}
 }
 
 /* END : Multiword bitmap based 64bit to Unique 32bit Id allocator. */
@@ -2341,7 +2088,7 @@ typedef struct id16_map {
 	uint16  total;     /* total number of ids managed by allocator */
 	uint16  start;     /* start value of 16bit ids to be managed */
 	int     stack_idx; /* index into stack of available ids */
-	uint16  stack[];  /* stack of 16 bit ids */
+	uint16  stack[0];  /* stack of 16 bit ids */
 } id16_map_t;
 
 #define ID16_MAP_SZ(items)      (sizeof(id16_map_t) + \
@@ -2354,7 +2101,7 @@ typedef struct id16_map {
 
 typedef struct id16_map_dbg {
 	uint16  total;
-	bool    avail[];
+	bool    avail[0];
 } id16_map_dbg_t;
 #define ID16_MAP_DBG_SZ(items)  (sizeof(id16_map_dbg_t) + \
 				     (sizeof(bool) * (items)))
@@ -2711,9 +2458,11 @@ dll_pool_dump(dll_pool_t * dll_pool_p, dll_elem_dump elem_dump)
 	}
 }
 #endif /* BCMDBG */
+
 #endif /* BCMDRIVER */
 
 #if defined(BCMDRIVER) || defined(WL_UNITTEST)
+
 #ifndef DONGLEBUILD
 /* triggers bcm_bprintf to print to kernel log */
 bool bcm_bprintf_bypass = FALSE;
@@ -2900,6 +2649,46 @@ bcm_find_ie(const uint8* tlvs, uint tlvs_len, uint8 tag, uint8 oui_len,
 	return NULL;
 }
 
+/* Look for vendor-specific IE with specified OUI and optional type */
+bcm_tlv_t *
+bcm_find_vendor_ie(const  void *tlvs, uint tlvs_len, const char *voui, uint8 *type, uint type_len)
+{
+	const  bcm_tlv_t *ie;
+	uint8 ie_len;
+
+	COV_TAINTED_DATA_SINK(tlvs_len);
+	COV_NEG_SINK(tlvs_len);
+
+	ie = (const  bcm_tlv_t*)tlvs;
+
+	/* make sure we are looking at a valid IE */
+	if (ie == NULL || !bcm_valid_tlv(ie, tlvs_len)) {
+		return NULL;
+	}
+
+	/* Walk through the IEs looking for an OUI match */
+	do {
+		ie_len = ie->len;
+		if ((ie->id == DOT11_MNG_VS_ID) &&
+		    (ie_len >= (DOT11_OUI_LEN + type_len)) &&
+		    !bcmp(ie->data, voui, DOT11_OUI_LEN))
+		{
+			/* compare optional type */
+			if (type_len == 0 ||
+			    !bcmp(((const char *)ie->data) + DOT11_OUI_LEN, type, type_len)) {
+
+				COV_TAINTED_DATA_ARG(ie);
+
+				GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+				return (bcm_tlv_t *)(ie);		/* a match */
+				GCC_DIAGNOSTIC_POP();
+			}
+		}
+	} while ((ie = bcm_next_tlv(ie, &tlvs_len)) != NULL);
+
+	return NULL;
+}
+
 #if defined(WLTINYDUMP) || defined(BCMDBG) || defined(WLMSG_INFORM) || \
 	defined(WLMSG_ASSOC) || defined(WLMSG_PRPKT) || defined(WLMSG_WSEC)
 #define SSID_FMT_BUF_LEN	((4 * DOT11_MAX_SSID_LEN) + 1)
@@ -2933,48 +2722,9 @@ bcm_format_ssid(char* buf, const uchar ssid[], uint ssid_len)
 
 #endif /* BCMDRIVER || WL_UNITTEST */
 
-/* Look for vendor-specific IE with specified OUI and optional type */
-bcm_tlv_t *
-bcm_find_vendor_ie(const  void *tlvs, uint tlvs_len, const char *voui, uint8 *type, uint type_len)
-{
-	const  bcm_tlv_t *ie;
-	uint8 ie_len;
-
-	COV_TAINTED_DATA_SINK(tlvs_len);
-	COV_NEG_SINK(tlvs_len);
-
-	ie = (const  bcm_tlv_t*)tlvs;
-
-	/* make sure we are looking at a valid IE */
-	if (ie == NULL || !bcm_valid_tlv(ie, tlvs_len)) {
-		return NULL;
-	}
-
-	/* Walk through the IEs looking for an OUI match */
-	do {
-		ie_len = ie->len;
-		if ((ie->id == DOT11_MNG_VS_ID) &&
-		    (ie_len >= (DOT11_OUI_LEN + type_len)) &&
-		    !memcmp(ie->data, voui, DOT11_OUI_LEN)) {
-			/* compare optional type */
-			if (type_len == 0 ||
-			    !memcmp(((const char *)ie->data) + DOT11_OUI_LEN, type, type_len)) {
-
-				COV_TAINTED_DATA_ARG(ie);
-
-				GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
-				return (bcm_tlv_t *)(ie);		/* a match */
-				GCC_DIAGNOSTIC_POP();
-			}
-		}
-	} while ((ie = bcm_next_tlv(ie, &tlvs_len)) != NULL);
-
-	return NULL;
-}
-
 /* Masking few bytes of MAC address per customer in all prints/eventlogs. */
 int
-bcm_addrmask_set(int enable)
+BCMRAMFN(bcm_addrmask_set)(int enable)
 {
 #ifdef PRIVACY_MASK
 	struct ether_addr *privacy = privacy_addrmask_get();
@@ -2987,9 +2737,10 @@ bcm_addrmask_set(int enable)
 			privacy->octet[3] = 0;
 		privacy->octet[0] = privacy->octet[5] = 0xff;
 		privacy->octet[4] = 0x0f;
-	} else {
+	} else
+	{
 		/* No masking. All are 0xff. */
-		eacopy(&ether_bcast, privacy);
+		memcpy(privacy, &ether_bcast, sizeof(struct ether_addr));
 	}
 
 	return BCME_OK;
@@ -2997,6 +2748,7 @@ bcm_addrmask_set(int enable)
 	BCM_REFERENCE(enable);
 	return BCME_UNSUPPORTED;
 #endif /* PRIVACY_MASK */
+
 }
 
 int
@@ -3018,12 +2770,12 @@ bcm_addrmask_get(int *val)
 }
 
 uint64
-bcm_ether_ntou64(const struct ether_addr *ea)
+BCMRAMFN(bcm_ether_ntou64)(const struct ether_addr *ea)
 {
 	uint64 mac;
 	struct ether_addr addr;
 
-	(void)memcpy_s(&addr, sizeof(addr), ea, sizeof(addr));
+	memcpy(&addr, ea, sizeof(struct ether_addr));
 
 #ifdef PRIVACY_MASK
 	struct ether_addr *privacy = privacy_addrmask_get();
@@ -3041,10 +2793,11 @@ bcm_ether_ntou64(const struct ether_addr *ea)
 char *
 bcm_ether_ntoa(const struct ether_addr *ea, char *buf)
 {
-	static const char hex[] = {
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-	};
+	static const char hex[] =
+	  {
+		  '0', '1', '2', '3', '4', '5', '6', '7',
+		  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+	  };
 	const uint8 *octet = ea->octet;
 	char *p = buf;
 	int i;
@@ -3096,7 +2849,7 @@ bcm_ipv6_ntoa(void *ipv6, char *buf)
 	char *p = buf;
 	int i, i_max = -1, cnt = 0, cnt_max = 1;
 	uint8 *a4 = NULL;
-	(void)memcpy_s(&tmp[0], IPV6_ADDR_LEN, ipv6, IPV6_ADDR_LEN);
+	memcpy((uint8 *)&tmp[0], (uint8 *)ipv6, IPV6_ADDR_LEN);
 
 	for (i = 0; i < IPV6_ADDR_LEN/2; i++) {
 		if (a[i]) {
@@ -3773,7 +3526,7 @@ FREED_ENTRY_FOUND:
 					obj,
 					dbgobj->caller, dbgobj->line,
 					caller, line);
-				// ASSERT(0); /*  release same obj more than one time? */
+				//ASSERT(0); /* release same obj more than one time? */
 				goto EXIT;
 			}
 			dbgobj = dbgobj->prior;
@@ -3784,7 +3537,7 @@ FREED_ENTRY_FOUND:
 		printf("bcm_object_trace_opr: ################### release none-existing"
 			" obj %p from %s(%d)\n",
 			obj, caller, line);
-		// ASSERT(0); /*  release same obj more than one time? */
+		//ASSERT(0); /* release same obj more than one time? */
 
 	}
 
@@ -3995,7 +3748,7 @@ BCMPOSTTRAPFN(bcm_write_tlv)(int type, const void *data, uint datalen, uint8 *ds
 		 */
 		if (datalen > 0u) {
 
-			(void)memcpy_s(dst_tlv->data, datalen, data, datalen);
+			memcpy(dst_tlv->data, data, datalen);
 		}
 
 		/* update the output destination poitner to point past
@@ -4043,7 +3796,7 @@ bcm_write_tlv_ext(uint8 type, uint8 ext, const void *data, uint8 datalen, uint8 
 		 * pointer to output buffer
 		 */
 		if (datalen > 0) {
-			(void)memcpy_s(dst_tlv->data, datalen, data, datalen);
+			memcpy(dst_tlv->data, data, datalen);
 		}
 
 		/* update the output destination poitner to point past
@@ -4084,8 +3837,9 @@ bcm_copy_tlv(const void *src, uint8 *dst)
 
 	ASSERT(dst && src);
 	if (dst && src) {
-		totlen = BCM_TLV_SIZE(src_tlv);
-		(void)memcpy_s(dst, totlen, src_tlv, totlen);
+
+		totlen = BCM_TLV_HDR_SIZE + src_tlv->len;
+		memcpy(dst, src_tlv, totlen);
 		new_dst = dst + totlen;
 	}
 
@@ -4252,70 +4006,6 @@ hndcrc16(
 	return crc;
 }
 
-/*******************************************************************************
- * crc16
- *
- * Computes a crc16 over the input data using the ANSI/IBM polynomial:
- *
- *       x^16 + x^15 +x^2 + 1 (or 0x18005 in hex notation)
- *
- * The caller provides the initial value (either CRC16_INIT_VALUE
- * or the previous returned value) to allow for processing of
- * discontiguous blocks of data.  When generating the CRC the
- * caller is responsible for complementing the final return value
- * and inserting it into the byte stream.  When checking, a final
- * return value of CRC16_GOOD_VALUE indicates a valid CRC.
- */
-static const uint16 crc16_ansi_table[256] = {
-	0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
-	0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
-	0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
-	0x0A00, 0xCAC1, 0xCB81, 0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841,
-	0xD801, 0x18C0, 0x1980, 0xD941, 0x1B00, 0xDBC1, 0xDA81, 0x1A40,
-	0x1E00, 0xDEC1, 0xDF81, 0x1F40, 0xDD01, 0x1DC0, 0x1C80, 0xDC41,
-	0x1400, 0xD4C1, 0xD581, 0x1540, 0xD701, 0x17C0, 0x1680, 0xD641,
-	0xD201, 0x12C0, 0x1380, 0xD341, 0x1100, 0xD1C1, 0xD081, 0x1040,
-	0xF001, 0x30C0, 0x3180, 0xF141, 0x3300, 0xF3C1, 0xF281, 0x3240,
-	0x3600, 0xF6C1, 0xF781, 0x3740, 0xF501, 0x35C0, 0x3480, 0xF441,
-	0x3C00, 0xFCC1, 0xFD81, 0x3D40, 0xFF01, 0x3FC0, 0x3E80, 0xFE41,
-	0xFA01, 0x3AC0, 0x3B80, 0xFB41, 0x3900, 0xF9C1, 0xF881, 0x3840,
-	0x2800, 0xE8C1, 0xE981, 0x2940, 0xEB01, 0x2BC0, 0x2A80, 0xEA41,
-	0xEE01, 0x2EC0, 0x2F80, 0xEF41, 0x2D00, 0xEDC1, 0xEC81, 0x2C40,
-	0xE401, 0x24C0, 0x2580, 0xE541, 0x2700, 0xE7C1, 0xE681, 0x2640,
-	0x2200, 0xE2C1, 0xE381, 0x2340, 0xE101, 0x21C0, 0x2080, 0xE041,
-	0xA001, 0x60C0, 0x6180, 0xA141, 0x6300, 0xA3C1, 0xA281, 0x6240,
-	0x6600, 0xA6C1, 0xA781, 0x6740, 0xA501, 0x65C0, 0x6480, 0xA441,
-	0x6C00, 0xACC1, 0xAD81, 0x6D40, 0xAF01, 0x6FC0, 0x6E80, 0xAE41,
-	0xAA01, 0x6AC0, 0x6B80, 0xAB41, 0x6900, 0xA9C1, 0xA881, 0x6840,
-	0x7800, 0xB8C1, 0xB981, 0x7940, 0xBB01, 0x7BC0, 0x7A80, 0xBA41,
-	0xBE01, 0x7EC0, 0x7F80, 0xBF41, 0x7D00, 0xBDC1, 0xBC81, 0x7C40,
-	0xB401, 0x74C0, 0x7580, 0xB541, 0x7700, 0xB7C1, 0xB681, 0x7640,
-	0x7200, 0xB2C1, 0xB381, 0x7340, 0xB101, 0x71C0, 0x7080, 0xB041,
-	0x5000, 0x90C1, 0x9181, 0x5140, 0x9301, 0x53C0, 0x5280, 0x9241,
-	0x9601, 0x56C0, 0x5780, 0x9741, 0x5500, 0x95C1, 0x9481, 0x5440,
-	0x9C01, 0x5CC0, 0x5D80, 0x9D41, 0x5F00, 0x9FC1, 0x9E81, 0x5E40,
-	0x5A00, 0x9AC1, 0x9B81, 0x5B40, 0x9901, 0x59C0, 0x5880, 0x9841,
-	0x8801, 0x48C0, 0x4980, 0x8941, 0x4B00, 0x8BC1, 0x8A81, 0x4A40,
-	0x4E00, 0x8EC1, 0x8F81, 0x4F40, 0x8D01, 0x4DC0, 0x4C80, 0x8C41,
-	0x4400, 0x84C1, 0x8581, 0x4540, 0x8701, 0x47C0, 0x4680, 0x8641,
-	0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
-};
-
-#define CRC_ANSI_INNER_LOOP(n, c, x) \
-	(c) = ((c) >> 8) ^ crc##n##_ansi_table[((c) ^ (x)) & 0xff]
-
-uint16
-hndcrc16ansi(
-	const uint8 *pdata,  /* pointer to array of data to process */
-	uint nbytes, /* number of input data bytes to process */
-	uint16 crc     /* either CRC16_INIT_VALUE or previous return value */
-)
-{
-	while (nbytes-- > 0)
-		CRC_ANSI_INNER_LOOP(16, crc, *pdata++);
-	return crc;
-}
-
 static const uint32 BCMPOST_TRAP_RODATA(crc32_table)[256] = {
     0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA,
     0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
@@ -4388,7 +4078,7 @@ static const uint32 BCMPOST_TRAP_RODATA(crc32_table)[256] = {
  * accumulating over multiple pieces.
  */
 uint32
-BCMPOSTTRAPFN(hndcrc32)(const uint8 *pdata, uint nbytes, uint32 crc)
+BCMPOSTTRAPRAMFN(hndcrc32)(const uint8 *pdata, uint nbytes, uint32 crc)
 {
 	const uint8 *pend;
 	pend = pdata + nbytes;
@@ -4397,42 +4087,6 @@ BCMPOSTTRAPFN(hndcrc32)(const uint8 *pdata, uint nbytes, uint32 crc)
 
 	return crc;
 }
-
-#ifdef NOT_YET
-#define CLEN	1499	/*  CRC Length */
-#define CBUFSIZ		(CLEN+4)
-#define CNBUFS		5 /* # of bufs */
-
-void
-testcrc32(void)
-{
-	uint j, k, l;
-	uint8 *buf;
-	uint len[CNBUFS];
-	uint32 crcr;
-	uint32 crc32tv[CNBUFS] =
-		{0xd2cb1faa, 0xd385c8fa, 0xf5b4f3f3, 0x55789e20, 0x00343110};
-
-	ASSERT((buf = MALLOCZ(CBUFSIZ*CNBUFS)) != NULL);
-
-	/* step through all possible alignments */
-	for (l = 0; l <= 4; l++) {
-		for (j = 0; j < CNBUFS; j++) {
-			len[j] = CLEN;
-			for (k = 0; k < len[j]; k++)
-				*(buf + j*CBUFSIZ + (k+l)) = (j+k) & 0xff;
-		}
-
-		for (j = 0; j < CNBUFS; j++) {
-			crcr = crc32(buf + j*CBUFSIZ + l, len[j], CRC32_INIT_VALUE);
-			ASSERT(crcr == crc32tv[j]);
-		}
-	}
-
-	MFREE(buf, CBUFSIZ*CNBUFS);
-	return;
-}
-#endif /* NOT_YET */
 
 /*
  * Advance from the current 1-byte tag/1-byte length/variable-length value
@@ -4939,7 +4593,7 @@ bcm_format_octets(const bcm_bit_desc_t *bd, uint bdsz,
 {
 	uint i;
 	char *p = buf;
-	uint nlen = 0;
+	uint slen = 0, nlen = 0;
 	uint32 bit;
 	const char* name;
 	bool more = FALSE;
@@ -4956,15 +4610,18 @@ bcm_format_octets(const bcm_bit_desc_t *bd, uint bdsz,
 		name = bd[i].name;
 		if (isset(addr, bit)) {
 			nlen = strlen(name);
-			if (memcpy_s(p, len - (p - buf) - 2, name, nlen)) {
+			slen += nlen;
+			/* need SPACE - for simplicity */
+			slen += 1;
+			/* need NULL as well */
+			if (len < slen + 1) {
 				more = TRUE;
 				break;
 			}
+			memcpy(p, name, nlen);
 			p += nlen;
-			/* need SPACE - for simplicity */
 			p[0] = ' ';
 			p += 1;
-			/* need NULL as well */
 			p[0] = '\0';
 		}
 	}
@@ -5046,10 +4703,8 @@ prhex(const char *msg, const uchar *buf, uint nbytes)
 	int nchar;
 	uint i;
 
-	if (msg && (msg[0] != '\0')) {
-		printf("%s (len=%u):\n", msg, nbytes);
+	if (msg && (msg[0] != '\0'))
 		printf("%s:\n", msg);
-	}
 
 	p = line;
 	for (i = 0; i < nbytes; i++) {
@@ -5223,9 +4878,7 @@ bcm_mkiovar(const char *name, const char *data, uint datalen, char *buf, uint bu
 
 	/* append data onto the end of the name string */
 	if (data && datalen != 0) {
-		if (memcpy_s(&buf[len], buflen - len, data, datalen)) {
-			return 0;
-		}
+		memcpy(&buf[len], data, datalen);
 		len += datalen;
 	}
 
@@ -5387,62 +5040,6 @@ bcm_count_bits(const uint8 *buf, uint buf_len, uint from_bit, uint to_bit, bool 
 	return bits;
 }
 
-/* ' '     (0x20)    space (SPC)
-   '\t'    (0x09)    horizontal tab (TAB)
-   '\v'    (0x0b)    vertical tab (VT)
-   '\f'    (0x0c)    feed (FF)
-   '\r'    (0x0d)    carriage return (CR)
-   '\n'    (0x0a)    newline (LF) */
-#define IS_WHITE_SPACE(ch)     ((' ' == (ch)) || ('\t' == (ch)) || ('\v' == (ch)) || ('\f' == (ch)))
-#define IS_ROW_END(ch)        (('\r' == (ch)) || ('\n' == (ch)) || ('\0' == (ch)))
-
-unsigned int
-trim_nvram_spaces(char *varbuf, unsigned int len)
-{
-	char *dp, *pend;
-	unsigned int n;
-
-	dp = pend = varbuf;
-
-	for (n = 0; n < len; n++) {
-		if (IS_ROW_END(varbuf[n])) {
-			/* remove all suffix space */
-			while ((pend > dp) && (IS_WHITE_SPACE(*(pend - 1)))) {
-				pend--;
-			}
-
-			*pend++ = '\0';
-			dp = pend;
-			continue;
-		}
-
-		/* remove all prefix space */
-		if ((dp == pend) && (IS_WHITE_SPACE(varbuf[n])))
-			continue;
-
-		/* remove all space before = */
-		if (varbuf[n] == '=') {
-			while ((pend > dp) && (IS_WHITE_SPACE(*(pend - 1)))) {
-				pend--;
-			}
-		}
-
-		/* remove all space after = */
-		if ((pend > dp) && (*(pend - 1) == '=')) {
-			while (IS_WHITE_SPACE(varbuf[n])) {
-				n++;
-			}
-		}
-
-		*pend++ = varbuf[n];
-	}
-
-	while (pend < varbuf + n)
-		*pend++ = 0;
-
-	return (dp - varbuf);
-}
-
 static void
 dump_nvram(char *varbuf, int column, unsigned int n, unsigned int len)
 {
@@ -5457,7 +5054,7 @@ dump_nvram(char *varbuf, int column, unsigned int n, unsigned int len)
 				break;
 			vars[m-n] = varbuf[m];
 		}
-		printf("  NVRAM: %s\n", vars);
+		printf("%s\n", vars);
 	}
 }
 
@@ -5505,11 +5102,6 @@ process_nvram_vars(char *varbuf, unsigned int len)
 		column++;
 	}
 	buf_len = (unsigned int)(dp - varbuf);
-
-#if 0
-	buf_len = trim_nvram_spaces(varbuf, buf_len);
-#endif
-
 	if (buf_len % 4) {
 		pad = 4 - buf_len % 4;
 		if (pad && (buf_len + pad <= len)) {
@@ -5763,9 +5355,9 @@ bcm_sub_64(uint32* r_hi, uint32* r_lo, uint32 offset)
 }
 
 int
-valid_bcmerror(int e)
+BCMRAMFN(valid_bcmerror)(int e)
 {
-	return ((e <= 0) && (e >= bcm_get_last_err()));
+	return ((e <= 0) && (e >= BCME_LAST));
 }
 
 #ifdef DEBUG_COUNTER
@@ -5907,8 +5499,8 @@ ipv4_tcp_hdr_cksum(uint8 *ip, uint8 *tcp, uint16 tcp_len)
 
 	/* pseudo header cksum */
 	bzero(&tcp_ps, sizeof(tcp_ps));
-	(void)memcpy_s(&tcp_ps.dst_ip, IPV4_ADDR_LEN, ip_hdr->dst_ip, IPV4_ADDR_LEN);
-	(void)memcpy_s(&tcp_ps.src_ip, IPV4_ADDR_LEN, ip_hdr->src_ip, IPV4_ADDR_LEN);
+	memcpy(&tcp_ps.dst_ip, ip_hdr->dst_ip, IPV4_ADDR_LEN);
+	memcpy(&tcp_ps.src_ip, ip_hdr->src_ip, IPV4_ADDR_LEN);
 	tcp_ps.zero = 0;
 	tcp_ps.prot = ip_hdr->prot;
 	tcp_ps.tcp_size = hton16(tcp_len);
@@ -5943,10 +5535,10 @@ ipv6_tcp_hdr_cksum(uint8 *ipv6, uint8 *tcp, uint16 tcp_len)
 
 	/* pseudo header cksum */
 	bzero((char *)&ipv6_pseudo, sizeof(ipv6_pseudo));
-	(void)memcpy_s(ipv6_pseudo.saddr, sizeof(ipv6_pseudo.saddr),
-		ipv6_hdr->saddr.addr, sizeof(ipv6_pseudo.saddr));
-	(void)memcpy_s(ipv6_pseudo.daddr, sizeof(ipv6_pseudo.daddr),
-		ipv6_hdr->daddr.addr, sizeof(ipv6_pseudo.daddr));
+	memcpy((char *)ipv6_pseudo.saddr, (char *)ipv6_hdr->saddr.addr,
+		sizeof(ipv6_pseudo.saddr));
+	memcpy((char *)ipv6_pseudo.daddr, (char *)ipv6_hdr->daddr.addr,
+		sizeof(ipv6_pseudo.daddr));
 	ipv6_pseudo.payload_len = ipv6_hdr->payload_len;
 	ipv6_pseudo.next_hdr = ipv6_hdr->nexthdr;
 	sum = ip_cksum_partial(sum, (uint8 *)&ipv6_pseudo, sizeof(ipv6_pseudo));
@@ -5956,6 +5548,34 @@ ipv6_tcp_hdr_cksum(uint8 *ipv6, uint8 *tcp, uint16 tcp_len)
 }
 
 void *_bcmutils_dummy_fn = NULL;
+
+/* GROUP 1 --- start
+ * These function under GROUP 1 are general purpose functions to do complex number
+ * calculations and square root calculation.
+ */
+
+uint32 sqrt_int(uint32 value)
+{
+	uint32 root = 0, shift = 0;
+
+	/* Compute integer nearest to square root of input integer value */
+	for (shift = 0; shift < 32; shift += 2) {
+		if (((0x40000000u >> shift) + root) <= value) {
+			value -= ((0x40000000u >> shift) + root);
+			root = (root >> 1) | (0x40000000u >> shift);
+		}
+		else {
+			root = root >> 1;
+		}
+	}
+
+	/* round to the nearest integer */
+	if (root < value) ++root;
+
+	return root;
+}
+
+/* GROUP 1 --- end */
 
 /* read/write field in a consecutive bits in an octet array.
  * 'addr' is the octet array's start byte address
@@ -6223,7 +5843,7 @@ BCMRAMFN(bcm_ether_privacy_mask)(struct ether_addr *addr)
 
 /* Count the number of elements not matching a given value in a null terminated array */
 int
-BCMATTACHFN(array_value_mismatch_count)(uint8 value, uint8 *array, int array_size)
+array_value_mismatch_count(uint8 value, uint8 *array, int array_size)
 {
 	int i;
 	int count = 0;
@@ -6242,14 +5862,14 @@ BCMATTACHFN(array_value_mismatch_count)(uint8 value, uint8 *array, int array_siz
 
 /* Count the number of non-zero elements in an uint8 array */
 int
-BCMATTACHFN(array_nonzero_count)(uint8 *array, int array_size)
+array_nonzero_count(uint8 *array, int array_size)
 {
 	return array_value_mismatch_count(0, array, array_size);
 }
 
 /* Count the number of non-zero elements in an int16 array */
 int
-BCMATTACHFN(array_nonzero_count_int16)(int16 *array, int array_size)
+array_nonzero_count_int16(int16 *array, int array_size)
 {
 	int i;
 	int count = 0;
@@ -6264,7 +5884,7 @@ BCMATTACHFN(array_nonzero_count_int16)(int16 *array, int array_size)
 
 /* Count the number of zero elements in an uint8 array */
 int
-BCMATTACHFN(array_zero_count)(uint8 *array, int array_size)
+array_zero_count(uint8 *array, int array_size)
 {
 	int i;
 	int count = 0;
@@ -6281,7 +5901,7 @@ BCMATTACHFN(array_zero_count)(uint8 *array, int array_size)
  * One of array1 or array2 should be non-NULL.  The other should be NULL.
  */
 static int
-BCMATTACHFN(verify_ordered_array)(uint8 *array1, int16 *array2, int array_size,
+verify_ordered_array(uint8 *array1, int16 *array2, int array_size,
 	int range_lo, int range_hi, bool err_if_no_zero_term, bool is_ordered)
 {
 	int ret;
@@ -6329,7 +5949,7 @@ BCMATTACHFN(verify_ordered_array)(uint8 *array1, int16 *array2, int array_size,
 
 /* Validate an ordered uint8 configuration array */
 int
-BCMATTACHFN(verify_ordered_array_uint8)(uint8 *array, int array_size,
+verify_ordered_array_uint8(uint8 *array, int array_size,
 	uint8 range_lo, uint8 range_hi)
 {
 	return verify_ordered_array(array, NULL, array_size, (int)range_lo, (int)range_hi,
@@ -6338,7 +5958,7 @@ BCMATTACHFN(verify_ordered_array_uint8)(uint8 *array, int array_size,
 
 /* Validate an ordered int16 non-zero-terminated configuration array */
 int
-BCMATTACHFN(verify_ordered_array_int16)(int16 *array, int array_size,
+verify_ordered_array_int16(int16 *array, int array_size,
 	int16 range_lo, int16 range_hi)
 {
 	return verify_ordered_array(NULL, array, array_size, (int)range_lo, (int)range_hi,
@@ -6347,7 +5967,7 @@ BCMATTACHFN(verify_ordered_array_int16)(int16 *array, int array_size,
 
 /* Validate all values in an array are in range */
 int
-BCMATTACHFN(verify_array_values)(uint8 *array, int array_size,
+verify_array_values(uint8 *array, int array_size,
 	int range_lo, int range_hi, bool zero_terminated)
 {
 	int ret = BCME_OK;
@@ -6444,7 +6064,7 @@ bcm_get_ceil_pow_2(uint val)
 #if !defined(BCMDONGLEHOST)
 /** Initialization of varbuf structure */
 void
-BCMATTACHFN(varbuf_init)(varbuf_t *b, char *buf, uint size)
+varbuf_init(varbuf_t *b, char *buf, uint size)
 {
 	b->size = size;
 	b->base = b->buf = buf;
@@ -6452,7 +6072,7 @@ BCMATTACHFN(varbuf_init)(varbuf_t *b, char *buf, uint size)
 
 /** append a null terminated var=value string */
 int
-BCMATTACHFN(varbuf_append)(varbuf_t *b, const char *fmt, ...)
+varbuf_append(varbuf_t *b, const char *fmt, ...)
 {
 	va_list ap;
 	int r;
@@ -6484,10 +6104,7 @@ BCMATTACHFN(varbuf_append)(varbuf_t *b, const char *fmt, ...)
 		for (s = b->base; s < b->buf;) {
 			if ((memcmp(s, b->buf, len) == 0) && s[len] == '=') {
 				len = strlen(s) + 1;
-				if (memmove_s(s, b->size - len,
-					(s + len), (size_t)((b->buf + r + 1) - (s + len)))) {
-					ASSERT(0);
-				}
+				memmove(s, (s + len), (size_t)((b->buf + r + 1) - (s + len)));
 				b->buf -= len;
 				b->size += (unsigned int)len;
 				break;
@@ -6512,22 +6129,18 @@ BCMATTACHFN(varbuf_append)(varbuf_t *b, const char *fmt, ...)
  * Return 0 on success, nonzero on error.
  */
 int
-BCMATTACHFN(initvars_table)(osl_t *osh, char *start, char *end, char **vars,
+initvars_table(osl_t *osh, char *start, char *end, char **vars,
 	uint *count)
 {
 	uint c = (uint)(end - start);
 
 	/* do it only when there is more than just the null string */
 	if (c > 1) {
-#if defined(BCMSDIODEV_ENABLED)
-		char *vp = MALLOC_NOPERSIST(osh, c);
-#else
 		char *vp = MALLOCZ(osh, c);
-#endif
 		ASSERT(vp != NULL);
 		if (!vp)
 			return BCME_NOMEM;
-		(void)memcpy_s(vp, c, start, c);
+		bcopy(start, vp, c);
 		*vars = vp;
 		*count = c;
 	}
@@ -6791,8 +6404,9 @@ bcm_mwbmap_total_pktid(struct bcm_mwbmap * mwbmap_hdl)
 uint64
 BCMPOSTTRAPFASTPATH(div_1K)(uint64 q)
 {
-	// 1/1000 fractional bits: 0x004189374BC6A7EF(9DB)
-	// shift until no leading zeros: 0x83126E97'8D4FDF3B S = 9
+	/** 1/1000 fractional bits: 0x004189374BC6A7EF(9DB)
+	 * shift until no leading zeros: 0x83126E97'8D4FDF3B S=9
+	 */
 
 	const uint64 d1 = 0x83126E97llu; // first 32 fractional bits
 	const uint64 d2 = 0x8D4FDF3Bllu; // second 32 fractional bits
@@ -6839,8 +6453,9 @@ BCMPOSTTRAPFASTPATH(div_1K)(uint64 q)
 uint64
 BCMPOSTTRAPFASTPATH(div_1M)(uint64 q)
 {
-	// 1/1000000 fractional bits: 0x000010C6F7A0B5ED8D36B
-	// shift until no leading zeros: 0x8637BD05'AF6C69B5 S = 19
+	/** 1/1000000 fractional bits: 0x000010C6F7A0B5ED8D36B
+	 * shift until no leading zeros: 0x8637BD05'AF6C69B5 S=19
+	 */
 
 	const uint64 d1 = 0x8637BD05llu; // first 32 fractional bits
 	const uint64 d2 = 0xAF6C69B5llu; // second 32 fractional bits
@@ -6875,4 +6490,21 @@ BCMPOSTTRAPFASTPATH(div_1M)(uint64 q)
 	a = a >> S;
 
 	return a;
+}
+
+/* Add to adjust the 802.1x priority */
+void
+pktset8021xprio(void *pkt, int prio)
+{
+	struct ether_header *eh;
+	uint8 *pktdata;
+	if(prio == PKTPRIO(pkt))
+		return;
+	pktdata = (uint8 *)PKTDATA(OSH_NULL, pkt);
+	ASSERT(ISALIGNED((uintptr)pktdata, sizeof(uint16)));
+	eh = (struct ether_header *) pktdata;
+	if (eh->ether_type == hton16(ETHER_TYPE_802_1X)) {
+		ASSERT(prio >= 0 && prio <= MAXPRIO);
+		PKTSETPRIO(pkt, prio);
+	}
 }

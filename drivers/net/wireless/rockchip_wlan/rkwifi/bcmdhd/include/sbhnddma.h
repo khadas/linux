@@ -2,26 +2,7 @@
  * Generic Broadcom Home Networking Division (HND) DMA engine HW interface
  * This supports the following chips: BCM42xx, 44xx, 47xx .
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -232,16 +213,6 @@ typedef volatile struct {
 /** control flags in the range [27:20] are core-specific and not defined here */
 #define	CTRL_CORE_MASK	0x0ff00000
 
-/** max tx burstlen */
-#ifndef DMA_BL_TX_MAX
-#define DMA_BL_TX_MAX  DMA_BL_1024
-#endif
-
-/** max rx burstlen */
-#ifndef DMA_BL_RX_MAX
-#define DMA_BL_RX_MAX  DMA_BL_512
-#endif
-
 /* 64 bits addressing */
 
 /** dma registers per channel(xmt or rcv) */
@@ -291,6 +262,9 @@ typedef volatile struct {
 
 #define	D64MAXDD	(D64MAXRINGSZ / sizeof (dma64dd_t))
 
+/** for cores with large descriptor ring support, descriptor ring size can be up to 4096 */
+#define	D64MAXDD_LARGE		((1 << 16) / sizeof (dma64dd_t))
+
 /**
  * for cores with large descriptor ring support (4k descriptors), descriptor ring cannot cross
  * 64K boundary
@@ -336,8 +310,8 @@ typedef volatile struct {
 #define	D64_XP_LD_MASK		0x00001fff	/**< last valid descriptor */
 
 /* transmit channel status */
-#define	D64_XS0_CD_MASK(di)	((di)->dma_tx->d64_xs0_cd_mask)	/**< current descriptor pointer */
-#define	D64_XS0_XS_MASK		0xf0000000	/**< transmit state */
+#define	D64_XS0_CD_MASK		(di->d64_xs0_cd_mask)	/**< current descriptor pointer */
+#define	D64_XS0_XS_MASK		0xf0000000     	/**< transmit state */
 #define	D64_XS0_XS_SHIFT		28
 #define	D64_XS0_XS_DISABLED	0x00000000	/**< disabled */
 #define	D64_XS0_XS_ACTIVE	0x10000000	/**< active */
@@ -345,8 +319,8 @@ typedef volatile struct {
 #define	D64_XS0_XS_STOPPED	0x30000000	/**< stopped */
 #define	D64_XS0_XS_SUSP		0x40000000	/**< suspend pending */
 
-#define	D64_XS1_AD_MASK(di)	((di)->dma_tx->d64_xs1_ad_mask)	/**< active descriptor */
-#define	D64_XS1_XE_MASK		0xf0000000	/**< transmit errors */
+#define	D64_XS1_AD_MASK		(di->d64_xs1_ad_mask)	/**< active descriptor */
+#define	D64_XS1_XE_MASK		0xf0000000     	/**< transmit errors */
 #define	D64_XS1_XE_SHIFT		28
 #define	D64_XS1_XE_NOERR	0x00000000	/**< no error */
 #define	D64_XS1_XE_DPE		0x10000000	/**< descriptor protocol error */
@@ -412,9 +386,7 @@ typedef volatile struct {
 #define DMA_CTRL_CS		(1u << 10u)	/* channel switch enable */
 #define DMA_CTRL_ROEXT		(1u << 11u)	/* receive frame offset extension support */
 #define DMA_CTRL_RX_ALIGN_8BYTE	(1u << 12u)	/* RXDMA address 8-byte aligned */
-#define DMA_CTRL_USE_BOOTMEM	(1u << 13u)	/* Use bootmem for dma descs */
 #define DMA_CTRL_SHARED_POOL	(1u << 15u)	/** shared descriptor pool */
-#define DMA_CTRL_MLO_POOL	(1u << 16u)	/** shared MLO descriptor pool */
 #define DMA_CTRL_COREUNIT_SHIFT	(17u)		/* Core unit shift */
 #define DMA_CTRL_COREUNIT_MASK	(0x3u << 17u)	/* Core unit mask */
 
@@ -425,14 +397,12 @@ typedef volatile struct {
 #define DMA_CTRL_GET_COREUNIT(di) \
 	(((di)->hnddma.dmactrlflags & DMA_CTRL_COREUNIT_MASK) >> DMA_CTRL_COREUNIT_SHIFT)
 
-#define DMA_CTRL_SAQM_DMA	(1u << 19u)	/** sAQM`s AQM DMA */
-
 /* receive descriptor table pointer */
 #define	D64_RP_LD_MASK		0x00001fff	/**< last valid descriptor */
 
 /* receive channel status */
-#define	D64_RS0_CD_MASK		(di->dma_rx->d64_rs0_cd_mask)	/**< current descriptor pointer */
-#define	D64_RS0_RS_MASK		0xf0000000	/**< receive state */
+#define	D64_RS0_CD_MASK		(di->d64_rs0_cd_mask)	/**< current descriptor pointer */
+#define	D64_RS0_RS_MASK		0xf0000000     	/**< receive state */
 #define	D64_RS0_RS_SHIFT		28
 #define	D64_RS0_RS_DISABLED	0x00000000	/**< disabled */
 #define	D64_RS0_RS_ACTIVE	0x10000000	/**< active */
@@ -440,7 +410,7 @@ typedef volatile struct {
 #define	D64_RS0_RS_STOPPED	0x30000000	/**< stopped */
 #define	D64_RS0_RS_SUSP		0x40000000	/**< suspend pending */
 
-#define	D64_RS1_AD_MASK		(di->dma_rx->d64_rs1_ad_mask)	/* active descriptor pointer */
+#define	D64_RS1_AD_MASK		(di->d64_rs1_ad_mask)	/* active descriptor pointer */
 #define	D64_RS1_RE_MASK		0xf0000000	/* receive errors */
 #define	D64_RS1_RE_SHIFT		28
 #define	D64_RS1_RE_NOERR	0x00000000	/**< no error */
@@ -479,14 +449,12 @@ typedef volatile struct {
 #define	D64_CTRL1_IOC		((uint32)1 << 29)	/**< interrupt on completion */
 #define	D64_CTRL1_EOF		((uint32)1 << 30)	/**< end of frame */
 #define	D64_CTRL1_SOF		((uint32)1 << 31)	/**< start of frame */
+#define D64_CTRL1_SOFPTR	0x0000FFFFu
 #define D64_CTRL1_NUMD_MASK	0x00F00000u
 #define D64_CTRL1_NUMD_SHIFT	20u
 
-#define D64_CTRL4_COHERENT_AQM	((uint32)1u << 31) /**< cache coherent applicable from MACrev >88 */
-
 /* descriptor control flags 2 */
 #define	D64_CTRL2_MAX_LEN	0x0000fff7 /* Max transfer length (buffer byte count) <= 65527 */
-#define	D64_CTRL2_MAX_LEN_32KB	0x00007ff7 /* Max transfer length (buffer byte count) <= 32759 */
 #define	D64_CTRL2_BC_MASK	0x0000ffff /**< mask for buffer byte count */
 #define	D64_CTRL2_AE		0x00030000 /**< address extension bits */
 #define	D64_CTRL2_AE_SHIFT	16

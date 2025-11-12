@@ -1,26 +1,7 @@
 /*
  * Linux Packet (skb) interface
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -38,8 +19,6 @@
  *
  *
  * <<Broadcom-WL-IPTag/Dual:>>
- *
- * Edited with the help of GENAI.
  */
 
 #ifndef _linux_pkt_h_
@@ -78,22 +57,17 @@
 #define	PKTDUP(osh, skb)		osl_pktdup((osh), (skb))
 #endif /* BCM_OBJECT_TRACE */
 #endif /* BCMDBG_CTRACE */
-#define PKTLIST_DUMP(osh, buf, bufsz)		BCM_EXTENSION  \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(buf);})
-#define PKTDBG_TRACE(osh, pkt, bit)	BCM_EXTENSION  \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(pkt);})
+#define PKTLIST_DUMP(osh, buf)		BCM_REFERENCE(osh)
+#define PKTDBG_TRACE(osh, pkt, bit)	BCM_REFERENCE(osh)
 #else /* BCMDBG_PKT pkt logging for debugging */
 #define	PKTGET(osh, len, send)		linux_pktget((osh), (len), __LINE__, __FILE__)
 #define	PKTDUP(osh, skb)		osl_pktdup((osh), (skb), __LINE__, __FILE__)
-#define PKTLIST_DUMP(osh, buf, bufsz)		osl_pktlist_dump(osh, buf, bufsz)
+#define PKTLIST_DUMP(osh, buf) 		osl_pktlist_dump(osh, buf)
 #define BCMDBG_PTRACE
 #define PKTLIST_IDX(skb)		((uint16 *)((char *)PKTTAG(skb) + \
 					sizeof(((struct sk_buff*)(skb))->cb) - sizeof(uint16)))
 #define PKTDBG_TRACE(osh, pkt, bit)     osl_pkttrace(osh, pkt, bit)
 #endif /* BCMDBG_PKT */
-
-#define PKTGET_EX(osh, len, send)	PKTGET(osh, len, send)
-
 #if defined(BCM_OBJECT_TRACE)
 #define	PKTFREE(osh, skb, send)		linux_pktfree((osh), (skb), (send), __LINE__, __FUNCTION__)
 #else
@@ -107,74 +81,64 @@
 #define	PKTFREE_STATIC	PKTFREE
 #endif /* CONFIG_DHD_USE_STATIC_BUF */
 
-#define	PKTDATA(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->data);})
-#define	PKTLEN(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->len);})
-#define	PKTHEAD(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->head);})
-#define	PKTSOCK(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->sk);})
-#define PKTSETHEAD(osh, skb, h)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); \
+#define	PKTDATA(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->data);})
+#define	PKTLEN(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->len);})
+#define	PKTHEAD(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->head);})
+#define	PKTSOCK(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->sk);})
+#define PKTSETHEAD(osh, skb, h)		({BCM_REFERENCE(osh); \
 					(((struct sk_buff *)(skb))->head = (h));})
 #define PKTHEADROOM(osh, skb)		(PKTDATA(osh, skb)-(((struct sk_buff*)(skb))->head))
-#define PKTEXPHEADROOM(osh, skb, b)	BCM_EXTENSION \
+#define PKTEXPHEADROOM(osh, skb, b)	\
 	({ \
 	 BCM_REFERENCE(osh); \
 	 skb_realloc_headroom((struct sk_buff*)(skb), (b)); \
 	 })
-#define PKTTAILROOM(osh, skb)		BCM_EXTENSION \
+#define PKTTAILROOM(osh, skb)		\
 	({ \
 	 BCM_REFERENCE(osh); \
 	 skb_tailroom((struct sk_buff*)(skb)); \
 	 })
-#define PKTPADTAILROOM(osh, skb, padlen) BCM_EXTENSION \
+#define PKTPADTAILROOM(osh, skb, padlen) \
 	({ \
 	 BCM_REFERENCE(osh); \
 	 skb_pad((struct sk_buff*)(skb), (padlen)); \
 	 })
-#define	PKTNEXT(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->next);})
-#define	PKTSETNEXT(osh, skb, x)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); \
+#define	PKTNEXT(osh, skb)		({BCM_REFERENCE(osh); (((struct sk_buff*)(skb))->next);})
+#define	PKTSETNEXT(osh, skb, x)		\
+	({ \
+	 BCM_REFERENCE(osh); \
 	 (((struct sk_buff*)(skb))->next = (struct sk_buff*)(x)); \
 	 })
-#define	PKTSETLEN(osh, skb, len)	BCM_EXTENSION \
+#define	PKTSETLEN(osh, skb, len)	\
 	({ \
 	 BCM_REFERENCE(osh); \
 	 __skb_trim((struct sk_buff*)(skb), (len)); \
 	 })
-#define	PKTPUSH(osh, skb, bytes)	BCM_EXTENSION \
+#define	PKTPUSH(osh, skb, bytes)	\
 	({ \
 	 BCM_REFERENCE(osh); \
 	 skb_push((struct sk_buff*)(skb), (bytes)); \
 	 })
-#define	PKTPULL(osh, skb, bytes)	BCM_EXTENSION \
+#define	PKTPULL(osh, skb, bytes)	\
 	({ \
 	 BCM_REFERENCE(osh); \
 	 skb_pull((struct sk_buff*)(skb), (bytes)); \
 	 })
 #define	PKTTAG(skb)			((void*)(((struct sk_buff*)(skb))->cb))
 #define PKTSETPOOL(osh, skb, x, y)	BCM_REFERENCE(osh)
-#define	PKTPOOL(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
+#define	PKTPOOL(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
 #define PKTFREELIST(skb)        PKTLINK(skb)
 #define PKTSETFREELIST(skb, x)  PKTSETLINK((skb), (x))
 #define PKTPTR(skb)             (skb)
-#define PKTID(skb)              BCM_EXTENSION \
-	({BCM_REFERENCE(skb); 0;})
-#define PKTSETID(skb, id)       BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(id);})
+#define PKTID(skb)              ({BCM_REFERENCE(skb); 0;})
+#define PKTSETID(skb, id)       ({BCM_REFERENCE(skb); BCM_REFERENCE(id);})
 #define PKTIDAVAIL()            (0xFFFFFFFFu)
-#define PKTSHRINK(osh, m)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); m;})
+#define PKTSHRINK(osh, m)		({BCM_REFERENCE(osh); m;})
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)) && defined(TSQ_MULTIPLIER)
-#define PKTORPHAN(skb)          osl_pkt_orphan_partial(skb)
-extern void osl_pkt_orphan_partial(struct sk_buff *skb);
+#define PKTORPHAN(skb, tsq)          osl_pkt_orphan_partial(skb, tsq)
+extern void osl_pkt_orphan_partial(struct sk_buff *skb, int tsq);
 #else
-#define PKTORPHAN(skb)          BCM_EXTENSION \
-	({BCM_REFERENCE(skb); 0;})
+#define PKTORPHAN(skb, tsq)          ({BCM_REFERENCE(skb); 0;})
 #endif /* Linux Version >= 3.6 */
 
 #ifdef RX_PKT_POOL
@@ -224,68 +188,46 @@ extern void osl_pkt_orphan_partial(struct sk_buff *skb);
 #define PKTCALLER(zskb)	UPDATE_CTRACE((struct sk_buff *)zskb, (char *)__FUNCTION__, __LINE__)
 #endif /* BCMDBG_CTRACE */
 
-#define	PKTSETFAST(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRFAST(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTISFAST(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
+#define	PKTSETFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTISFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
 
-#define PKTLITIDX(skb, link)			BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(link); 0;})
-#define PKTSETLITIDX(skb, idx, link)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx); \
-						BCM_REFERENCE(link);})
-#define PKTRESETLITIDX(skb, link)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb);BCM_REFERENCE(link);})
+#define PKTLITIDX(skb)			({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX(skb, idx)		({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX(skb)		({BCM_REFERENCE(skb);})
+#define PKTLITIDX_1(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX_1(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX_1(skb)		({BCM_REFERENCE(skb);})
+#define PKTLITIDX_2(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX_2(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX_2(skb)		({BCM_REFERENCE(skb);})
 
-#define PKTLITVALID(skb, link)  ({BCM_REFERENCE(skb); BCM_REFERENCE(link); 0;})
-#define PKTSETLITVALID(skb, link)  ({BCM_REFERENCE(skb); BCM_REFERENCE(link);})
-#define PKTRESETLITVALID(skb, link)  ({BCM_REFERENCE(skb); BCM_REFERENCE(link);})
-#define PKTISLITVALID(skb, link)  ({BCM_REFERENCE(skb); BCM_REFERENCE(link); 0;})
-#define PKTSETLITVALIDIDX(skb, idx, link)  \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx); BCM_REFERENCE(link); })
-#define PKTRESETLITVALIDIDX(skb, idx, link)  \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx); BCM_REFERENCE(link); })
+#define PKTRITIDX(skb)			({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX(skb, idx)		({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX(skb)		({BCM_REFERENCE(skb);})
+#define PKTRITIDX_1(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX_1(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX_1(skb)		({BCM_REFERENCE(skb);})
+#define PKTRITIDX_2(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX_2(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX_2(skb)		({BCM_REFERENCE(skb);})
 
-#define PKTRITIDX(skb, link)			BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(link); 0;})
-#define PKTSETRITIDX(skb, idx, link)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx); \
-						BCM_REFERENCE(link);})
-#define PKTRESETRITIDX(skb, link)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(link);})
-
-#define	PKTSETSKIPCT(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRSKIPCT(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTSKIPCT(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTSETSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
 
 #define PKTFRAGLEN(osh, lb, ix)		(0)
 #define PKTSETFRAGLEN(osh, lb, ix, len)	BCM_REFERENCE(osh)
 
-#define	PKTSETTOBR(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRTOBR(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTISTOBR(skb)			BCM_EXTENSION \
-	({BCM_REFERENCE(skb); FALSE;})
-
-#define PKTISTXFRAGSPPROBE(skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb); 0; })
-#define PKTSETTXFRAGSPPROBE(skb, idx)	BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx); })
-#define PKTRESETTXFRAGSPPROBE(skb)	BCM_EXTENSION \
-	({BCM_REFERENCE(skb); })
+#define	PKTSETTOBR(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRTOBR(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTISTOBR(skb)			({BCM_REFERENCE(skb); FALSE;})
 
 #ifdef BCMFA
 #ifdef BCMFA_HW_HASH
 #define PKTSETFAHIDX(skb, idx)	(((struct sk_buff*)(skb))->napt_idx = idx)
 #else
-#define PKTSETFAHIDX(skb, idx)	BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTSETFAHIDX(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
 #endif /* BCMFA_SW_HASH */
 #define PKTGETFAHIDX(skb)	(((struct sk_buff*)(skb))->napt_idx)
 #define PKTSETFADEV(skb, imp)	(((struct sk_buff*)(skb))->dev = imp)
@@ -301,12 +243,9 @@ extern void osl_pkt_orphan_partial(struct sk_buff *skb);
 #define	PKTISFAFREED(skb)	(((struct sk_buff*)(skb))->napt_flags & AUX_FREED)
 #define	PKTISFABRIDGED(skb)	PKTISFAAUX(skb)
 #else
-#define	PKTISFAAUX(skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(skb); FALSE;})
-#define	PKTISFABRIDGED(skb)	BCM_EXTENSION \
-	({BCM_REFERENCE(skb); FALSE;})
-#define	PKTISFAFREED(skb)	BCM_EXTENSION \
-	({BCM_REFERENCE(skb); FALSE;})
+#define	PKTISFAAUX(skb)		({BCM_REFERENCE(skb); FALSE;})
+#define	PKTISFABRIDGED(skb)	({BCM_REFERENCE(skb); FALSE;})
+#define	PKTISFAFREED(skb)	({BCM_REFERENCE(skb); FALSE;})
 
 #define	PKTCLRFAAUX(skb)	BCM_REFERENCE(skb)
 #define PKTSETFAFREED(skb)	BCM_REFERENCE(skb)
@@ -328,7 +267,7 @@ extern void *osl_pkt_frmnative(osl_t *osh, void *skb, int line, char *file);
 extern void *osl_pktdup(osl_t *osh, void *skb, int line, char *file);
 extern void osl_pktlist_add(osl_t *osh, void *p, int line, char *file);
 extern void osl_pktlist_remove(osl_t *osh, void *p);
-extern char *osl_pktlist_dump(osl_t *osh, char *buf, uint bufsz);
+extern char *osl_pktlist_dump(osl_t *osh, char *buf);
 #ifdef BCMDBG_PTRACE
 extern void osl_pkttrace(osl_t *osh, void *pkt, uint16 bit);
 #endif /* BCMDBG_PTRACE */
@@ -400,7 +339,7 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 #define	PKTGET(osh, len, send)		linux_pktget((osh), (len), __LINE__, __FILE__)
 #define	PKTDUP(osh, skb)		osl_pktdup((osh), (skb), __LINE__, __FILE__)
 #define PKTFRMNATIVE(osh, skb)		osl_pkt_frmnative((osh), (skb), __LINE__, __FILE__)
-#define PKTLIST_DUMP(osh, buf, bufsz)		osl_pktlist_dump(osh, buf, bufsz)
+#define PKTLIST_DUMP(osh, buf) 		osl_pktlist_dump(osh, buf)
 #define PKTDBG_TRACE(osh, pkt, bit)	BCM_REFERENCE(osh)
 #else /* BCMDBG_PKT */
 #ifdef BCMDBG_CTRACE
@@ -417,10 +356,8 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 #endif /* BCM_OBJECT_TRACE */
 #define PKTFRMNATIVE(osh, skb)		osl_pkt_frmnative((osh), (skb))
 #endif /* BCMDBG_CTRACE */
-#define PKTLIST_DUMP(osh, buf, bufsz)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(buf);})
-#define PKTDBG_TRACE(osh, pkt, bit)	BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(pkt);})
+#define PKTLIST_DUMP(osh, buf)		({BCM_REFERENCE(osh); BCM_REFERENCE(buf);})
+#define PKTDBG_TRACE(osh, pkt, bit)	({BCM_REFERENCE(osh); BCM_REFERENCE(pkt);})
 #endif /* BCMDBG_PKT */
 #if defined(BCM_OBJECT_TRACE)
 #define	PKTFREE(osh, skb, send)		linux_pktfree((osh), (skb), (send), __LINE__, __FUNCTION__)
@@ -432,8 +369,7 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 #define PKTHEADROOM(osh, skb)		osl_pktheadroom((osh), (skb))
 #define PKTTAILROOM(osh, skb)		osl_pkttailroom((osh), (skb))
 #define	PKTNEXT(osh, skb)		osl_pktnext((osh), (skb))
-#define	PKTSETNEXT(osh, skb, x)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); osl_pktsetnext((skb), (x));})
+#define	PKTSETNEXT(osh, skb, x)		({BCM_REFERENCE(osh); osl_pktsetnext((skb), (x));})
 #define	PKTSETLEN(osh, skb, len)	osl_pktsetlen((osh), (skb), (len))
 #define	PKTPUSH(osh, skb, bytes)	osl_pktpush((osh), (skb), (bytes))
 #define	PKTPULL(osh, skb, bytes)	osl_pktpull((osh), (skb), (bytes))
@@ -444,17 +380,13 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 #define	PKTPRIO(skb)			osl_pktprio((skb))
 #define	PKTSETPRIO(skb, x)		osl_pktsetprio((skb), (x))
 #define PKTSHARED(skb)                  osl_pktshared((skb))
-#define PKTSETPOOL(osh, skb, x, y)	BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTPOOL(osh, skb)		BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
+#define PKTSETPOOL(osh, skb, x, y)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTPOOL(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
 #define PKTFREELIST(skb)        PKTLINK(skb)
 #define PKTSETFREELIST(skb, x)  PKTSETLINK((skb), (x))
 #define PKTPTR(skb)             (skb)
-#define PKTID(skb)              BCM_EXTENSION \
-	({BCM_REFERENCE(skb); 0;})
-#define PKTSETID(skb, id)       BCM_EXTENSION \
-	({BCM_REFERENCE(skb); BCM_REFERENCE(id);})
+#define PKTID(skb)              ({BCM_REFERENCE(skb); 0;})
+#define PKTSETID(skb, id)       ({BCM_REFERENCE(skb); BCM_REFERENCE(id);})
 #define PKTIDAVAIL()            (0xFFFFFFFFu)
 
 #ifdef BCMDBG_PKT /* pkt logging for debugging */
@@ -494,7 +426,7 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 extern bool osl_pktshared(void *skb);
 
 #ifdef BCMDBG_PKT /* pkt logging for debugging */
-extern char *osl_pktlist_dump(osl_t *osh, char *buf, uint bufsz);
+extern char *osl_pktlist_dump(osl_t *osh, char *buf);
 extern void osl_pktlist_add(osl_t *osh, void *p, int line, char *file);
 extern void osl_pktlist_remove(osl_t *osh, void *p);
 #endif /* BCMDBG_PKT */
@@ -506,53 +438,6 @@ extern uint osl_pktalloced(osl_t *osh);
 
 #define PKTPOOLHEAPCOUNT()            (0u)
 
-#if !defined(BCMDONGLEHOST) && !defined(DONGLEBUILD)
-#define PKT_IS_HOST_SFHLLC(osh, lb)		(FALSE)
-#define PKT_SET_HOST_SFHLLC(osh, lb)		BCM_EXTENSION \
-	({;})
-#define PKT_IS_HOST_SFHLLC_DONE(osh, lb)	(FALSE)
-#define PKT_SET_HOST_SFHLLC_DONE(osh, lb)	BCM_EXTENSION \
-	({;})
-#define PKT_RESET_HOST_SFHLLC(osh, lb)		BCM_EXTENSION \
-	({;})
-#define PKTISPKTFETCHED(osh, lb)		(FALSE)
-
-#define PKTTAG_SCB_HANDLE	20u
-
-#define	PKTTAG_GET_SCBHNDL(lfrag)		((int8*)PKTTAG(lfrag))[PKTTAG_SCB_HANDLE]
-#define	PKTTAG_SET_SCBHNDL(lfrag, handle)	((int8*)PKTTAG(lfrag))[PKTTAG_SCB_HANDLE] = \
-						(int8)handle
-
-#define PKTHASMETADATA(osh, lb)			FALSE
-
-#define	PKTRXMETADATA(osh, lb)			PKTDATA(osh, p)
-#define PKTSETHWRXOFF(lb, rxoff)		BCM_EXTENSION \
-	({BCM_REFERENCE(rxoff); (lb = 0u);})
-/* Used for rev88 and above */
-#define PKT_SET_FRAMEID(lb, id)			BCM_EXTENSION \
-	({BCM_REFERENCE(lb); BCM_REFERENCE(id);})
-/* Used for rev88 and above */
-#define PKTFRAGRINGINDEX(osh, lb)		(0u)
-#define PKTFRAGFLOWRINGID(osh, lb)		(0u)
-#define PKTFRAGFLOWRINGID(osh, lb)		(0u)
-
-#define PKTRXCPLID(osh, lb)			BCM_EXTENSION \
-	({BCM_REFERENCE(osh); BCM_REFERENCE(lb);0u;})
-
-/* ============MLO========================= */
-/* MLO related */
-#define PKT_GET_LINKINFO(lb, link)		(0u)
-#define PKT_SET_PREF_LINKID(lb, val)		(lb = val)
-#define PKT_GET_PREF_LINKID(lb)			NULL
-#define PKT_SET_LINKINFO(lb, link, val)		BCM_EXTENSION \
-	({BCM_REFERENCE(lb); BCM_REFERENCE(val); \
-						BCM_REFERENCE(link);0u;})
-#define PKT_GET_LINK_RATEPROBE(lb, link)	BCM_EXTENSION \
-	({BCM_REFERENCE(lb); BCM_REFERENCE(link);0u;})
-#define PKT_SET_LINK_RATEPROBE(lb, link)	BCM_EXTENSION \
-	({;})
-/* ============MLO========================= */
-#endif /* !BCMDONGLEHOST && !DONGLEBUILD */
 #endif /* BCMDRIVER */
 
 #endif	/* _linux_pkt_h_ */

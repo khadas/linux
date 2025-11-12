@@ -1,26 +1,7 @@
 /*
  * Broadcom Secure Standard Library.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -40,14 +21,6 @@
  * <<Broadcom-WL-IPTag/Dual:>>
  */
 
-// For strict C17 Posix 2008 target builds, enable bzero()
-#define _GNU_SOURCE 1
-
-#if defined(__linux__) && !defined(BCMDRIVER)
-// for 'uint'
-#define USE_TYPEDEF_DEFAULTS
-#endif
-
 #include <typedefs.h>
 #include <bcmdefs.h>
 #ifdef BCMDRIVER
@@ -56,9 +29,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
-#if defined(__linux) && !defined(BCMFUZZ)
-#include <strings.h>
-#endif
 #endif /* else BCMDRIVER */
 
 #include <bcmstdlib_s.h>
@@ -89,9 +59,7 @@
 #endif /* __SIZE_MAX__ */
 #define SIZE_MAX __SIZE_MAX__
 #endif /* SIZE_MAX */
-#ifndef RSIZE_MAX
 #define RSIZE_MAX (SIZE_MAX >> 1u)
-#endif /* RSIZE_MAX */
 
 #if !defined(__STDC_WANT_SECURE_LIB__) && !(defined(__STDC_LIB_EXT1__) && \
 	defined(__STDC_WANT_LIB_EXT1__))
@@ -187,11 +155,7 @@ BCMPOSTTRAPFN(memcpy_s)(void *dest, size_t destsz, const void *src, size_t n)
 exit:
 	return err;
 }
-#endif /* !__STDC_WANT_SECURE_LIB__ && !(__STDC_LIB_EXT1__ && __STDC_WANT_LIB_EXT1__) */
 
-#if (!defined(__STDC_WANT_SECURE_LIB__) && !(defined(__STDC_LIB_EXT1__) && \
-	defined(__STDC_WANT_LIB_EXT1__))) || (defined(__STDC_WANT_SECURE_LIB__) && \
-	defined(WIN32))
 /*
  * memset_s - secure memset
  * dest : pointer to the object to be set
@@ -226,10 +190,7 @@ BCMPOSTTRAPFN(memset_s)(void *dest, size_t destsz, int c, size_t n)
 exit:
 	return err;
 }
-
-#endif /* (!__STDC_WANT_SECURE_LIB__ && !(__STDC_LIB_EXT1__ && __STDC_WANT_LIB_EXT1__)) ||
-	  (__STDC_WANT_SECURE_LIB__ && WIN32)
-*/
+#endif /* !__STDC_WANT_SECURE_LIB__ && !(__STDC_LIB_EXT1__ && __STDC_WANT_LIB_EXT1__) */
 
 #if !defined(FREEBSD) && !defined(MACOSX) && !defined(BCM_USE_PLATFORM_STRLCPY)
 /**
@@ -248,17 +209,6 @@ size_t BCMPOSTTRAPFN(strlcpy)(char *dest, const char *src, size_t size)
 {
 	size_t i;
 
-#ifdef __GNUC__
-#if __GNUC__ >= 9
-	/*
-	 * False Positives on testing dest==NULL and src==NULL below,
-	 * for some builds, depending on compiler version and strictness options.
-	 */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnonnull-compare"
-#endif /* __GNUC__ > 9 */
-#endif /* __GNUC__ */
-
 	if (dest == NULL || size == 0) {
 		return 0;
 	}
@@ -267,12 +217,6 @@ size_t BCMPOSTTRAPFN(strlcpy)(char *dest, const char *src, size_t size)
 		*dest = '\0';
 		return 0;
 	}
-
-#ifdef __GNUC__
-#if __GNUC__ >= 9
-#pragma GCC diagnostic pop
-#endif /* __GNUC__ > 9 */
-#endif /* __GNUC__ */
 
 	for (i = 0; i < size; i++) {
 		dest[i] = src[i];
@@ -342,7 +286,7 @@ strlcat_s(char *dest, const char *src, size_t size)
 		if (n != 0) {
 			/* copy relevant chars (until end of src buf or given size is reached) */
 			bytes_to_copy = MIN(slen - (size_t)(s - src), n - 1);
-			(void)memcpy_s(d, bytes_to_copy, s, bytes_to_copy);
+			(void)memcpy(d, s, bytes_to_copy);
 			d += bytes_to_copy;
 		}
 	}

@@ -1,26 +1,7 @@
 /*
  * Header for Linux cfg80211 scan
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -75,14 +56,10 @@
 
 #define SCAN_PARAMS_VER_2    2u
 #define SCAN_PARAMS_VER_3    3u
-#define SCAN_PARAMS_VER_4    4u
-
 /* SCAN_PARAMS V3 and V2 have same size. so use V3 with appriate version param */
 #define IS_SCAN_PARAMS_V3_V2(cfg) (((cfg->scan_params_ver == SCAN_PARAMS_VER_3) || \
 			(cfg->scan_params_ver == SCAN_PARAMS_VER_2)) ? TRUE : FALSE)
 #define IS_SCAN_PARAMS_V3(cfg) ((cfg->scan_params_ver == SCAN_PARAMS_VER_3) ? \
-				TRUE : FALSE)
-#define IS_SCAN_PARAMS_V4(cfg) ((cfg->scan_params_ver == SCAN_PARAMS_VER_4) ? \
 				TRUE : FALSE)
 
 extern s32 wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
@@ -99,7 +76,7 @@ extern s32 wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 extern int wl_cfg80211_scan_stop(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev);
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
-#if defined(DHCP_SCAN_SUPPRESS)
+#if defined(OEM_ANDROID) && defined(DHCP_SCAN_SUPPRESS)
 extern void wl_cfg80211_work_handler(struct work_struct *work);
 extern void wl_cfg80211_scan_supp_timerfunc(ulong data);
 #endif /* DHCP_SCAN_SUPPRESS */
@@ -109,6 +86,8 @@ extern void wl_cfg80211_abort_scan(struct wiphy *wiphy, struct wireless_dev *wde
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) */
 extern s32 wl_init_scan(struct bcm_cfg80211 *cfg);
 extern int wl_cfg80211_scan_stop(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev);
+extern s32 wl_notify_scan_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
+	const wl_event_msg_t *e, void *data);
 extern void wl_cfg80211_set_passive_scan(struct net_device *dev, char *command);
 #ifdef PNO_SUPPORT
 extern s32 wl_notify_pfn_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
@@ -123,13 +102,14 @@ extern s32 wl_notify_gscan_event(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cf
 extern s32 wl_cfgscan_pfn_scanresult_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	const wl_event_msg_t *e, void *data);
 extern s32 wl_cfgscan_pfn_handler(struct bcm_cfg80211 *cfg,
-	wl_pfn_scanresult_v3_1_t *pfn_scanresult, u32 total_event_len);
+	wl_pfn_scanresult_v3_1_t *pfn_scanresult);
 #endif /* WL_SCHED_SCAN */
 
 #if defined(GSCAN_SUPPORT) || defined(WL_SCHED_SCAN)
 extern s32 wl_cfgscan_notify_pfn_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	const wl_event_msg_t *e, void *data);
 #endif /* GSCAN_SUPPORT || WL_SCHED_SCAN */
+#ifdef WES_SUPPORT
 #ifdef CUSTOMER_SCAN_TIMEOUT_SETTING
 #define CUSTOMER_WL_SCAN_TIMER_INTERVAL_MS	25000 /* Scan timeout */
 enum wl_custom_scan_time_type {
@@ -142,6 +122,7 @@ enum wl_custom_scan_time_type {
 extern s32 wl_cfg80211_custom_scan_time(struct net_device *dev,
 		enum wl_custom_scan_time_type type, int time);
 #endif /* CUSTOMER_SCAN_TIMEOUT_SETTING */
+#endif /* WES_SUPPORT */
 
 #if defined(SUPPORT_RANDOM_MAC_SCAN)
 int wl_cfg80211_set_random_mac(struct net_device *dev, bool enable);
@@ -185,12 +166,12 @@ extern int wl_android_get_roam_scan_freqlist(struct bcm_cfg80211 *cfg);
 extern s32 wl_get_assoc_channels(struct bcm_cfg80211 *cfg,
 	struct net_device *dev, wlcfg_assoc_info_t *info);
 extern void wl_cfgscan_cancel_scan(struct bcm_cfg80211 *cfg);
+extern void wl_cfgscan_scan_abort(struct bcm_cfg80211 *cfg);
 
 #define APCS_DEFAULT_2G_FREQ	2437u
 #define APCS_DEFAULT_5G_FREQ	5745u
 #define APCS_DEFAULT_6G_FREQ	5975u
 
-#ifdef DHD_GET_VALID_CHANNELS
 typedef enum {
 	WIFI_BAND_UNSPECIFIED,
 	/* 2.4 GHz */
@@ -218,7 +199,6 @@ typedef enum {
 extern bool wl_cfgscan_is_dfs_set(wifi_band band);
 extern s32 wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg,
 		struct wireless_dev *wdev, int band, uint32 *list, uint32 *num_channels);
-#endif /* DHD_GET_VALID_CHANNELS */
 #define MAX_AP_IFACES 2
 typedef struct ap_iface_data {
 	chanspec_t chspec;
@@ -230,9 +210,7 @@ typedef struct ap_oper_data {
 	wl_ap_iface_data_t iface[MAX_AP_IFACES];
 } wl_ap_oper_data_t;
 
-extern bool wl_cfgscan_check_dynamic_restrictions(struct bcm_cfg80211 *cfg,
-		chanspec_t chspec, u8 *indoor_restrict);
-extern int wl_get_ap_chanspecs(struct bcm_cfg80211 *cfg, wl_ap_oper_data_t *ap_data);
+extern void wl_get_ap_chanspecs(struct bcm_cfg80211 *cfg, wl_ap_oper_data_t *ap_data);
 
 extern int wl_android_get_sta_channel(struct bcm_cfg80211 *cfg);
 extern int wl_handle_acs_concurrency_cases(struct bcm_cfg80211 *cfg,
@@ -240,7 +218,9 @@ extern int wl_handle_acs_concurrency_cases(struct bcm_cfg80211 *cfg,
 #ifdef WL_SCHED_SCAN
 extern void wl_cfgscan_sched_scan_stop_work(struct work_struct *work);
 #endif /* WL_SCHED_SCAN */
+#ifdef WL_SOFTAP_ACS
 extern bool wl_is_chanspec_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
+#endif /* WL_SOFTAP_ACS */
 #ifdef ESCAN_CHANNEL_CACHE
 void reset_roam_cache(struct bcm_cfg80211 *cfg);
 void add_roam_cache(struct bcm_cfg80211 *cfg, wl_bss_info_v109_t *bi);
@@ -248,30 +228,10 @@ int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan, chan
 	int n_channels, const wlc_ssid_t *ssid, int ioctl_ver);
 void set_roam_band(int band);
 #endif /* ESCAN_CHANNEL_CACHE */
-#ifdef WL_DYNAMIC_CHAN_POLICY
-extern s32 wl_cfgscan_update_dynamic_channels(struct bcm_cfg80211 *cfg,
-		struct net_device *ndev, bool linkup);
-#endif /* WL_DYNAMIC_CHAN_POLICY */
-extern bool wl_is_5g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
-extern bool wl_is_6g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
-extern bool wl_is_2g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
-#define WL_MLO_PRMRY_NON_SLEEPABLE
-extern bool wl_is_link_sleepable(struct bcm_cfg80211 *cfg, chanspec_t pri_chspec,
-	chanspec_t target_chspec);
-extern bool wl_cfgscan_chaninfo_restricted(struct bcm_cfg80211 *cfg,
-		struct net_device *dev, u32 chan_info, chanspec_t chspec);
-extern s32
-wl_cfgscan_get_bw_chspec(chanspec_t *chspec, u32 bw);
-extern s32 wl_cfgscan_get_chan_info(struct bcm_cfg80211 *cfg,
-		u32 *chan_info, chanspec_t in_chspec);
-extern u8 wl_cfgscan_get_max_num_chans_per_bw(chanspec_t chspec);
-extern s32 wl_cfgscan_get_dynamic_chan_info(struct bcm_cfg80211 *cfg,
-		u32 *chan_info, chanspec_t in_chspec, u32 chan_info_flags);
-extern void wl_connected_channel_debuggability(struct bcm_cfg80211 *cfg,
-		struct net_device *ndev);
-extern void wl_cfgscan_scan_abort(struct bcm_cfg80211 *cfg);
+
 #ifdef WL11U
-extern bcm_tlv_t * wl_cfg80211_find_interworking_ie(const u8 *parse, u32 len);
+extern bcm_tlv_t * 
+wl_cfg80211_find_interworking_ie(const u8 *parse, u32 len);
 extern s32
 wl_cfg80211_add_iw_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 bssidx, s32 pktflag,
 	uint8 ie_id, uint8 *data, uint8 data_len);
@@ -279,10 +239,7 @@ extern s32
 wl_cfg80211_clear_iw_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 bssidx);
 #endif /* WL11U */
 
-#ifdef ROAM_CHANNEL_CACHE
-extern int init_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver);
-extern void print_roam_cache(struct bcm_cfg80211 *cfg);
-extern void wl_update_roamscan_cache_by_band(struct net_device *dev, int band);
-#endif /* ROAM_CHANNEL_CACHE */
-
+#define FW_MAJOR_VER_PFN_CHSPEC_SUPPORTED(ver) \
+	((ver.wlc_ver_major > 12) || \
+	((ver.wlc_ver_major == 12) && (ver.wlc_ver_minor >= 3))) //43756E
 #endif /* _wl_cfgscan_h_ */

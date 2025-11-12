@@ -1,26 +1,7 @@
 /*
  * Neighbor Awareness Networking
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -65,26 +46,10 @@
 #include <dhd_rtt.h>
 #endif /* RTT_SUPPORT */
 #include <bcmstdlib_s.h>
-#ifdef WL_CELLULAR_CHAN_AVOID
-#include <wl_cfg_cellavoid.h>
-#endif /* WL_CELLULAR_CHAN_AVOID */
 
 #define NAN_RANGE_REQ_EVNT 1
+#define NAN_RAND_MAC_RETRIES 10
 #define NAN_SCAN_DWELL_TIME_DELTA_MS 10
-
-/* Delay NAN geofence RTT start by 2 sec if it is triggered from RNG_TERM or directed NAN RTT END */
-#define NAN_GEOFENCE_RTT_START_DELAY	2000u
-
-#define NAN_GTK_BIP_CTRL2_FLAGS (WL_NAN_CTRL2_FLAG1_GTK | WL_NAN_CTRL2_FLAG1_IGTK | \
-	WL_NAN_CTRL2_FLAG1_BIGTK | WL_NAN_CTRL2_FLAG1_BIP_GMAC_256 | \
-	WL_NAN_CTRL2_FLAG1_BIP_CMAC_128)
-
-#ifdef DISABLE_NAN_PAIRING
-uint nan_pairing_enable = FALSE;
-#else
-uint nan_pairing_enable = TRUE;
-#endif /* DISABLE_NAN_PAIRING */
-module_param(nan_pairing_enable, uint, 0660);
 
 #ifdef WL_NAN_DISC_CACHE
 /* Disc Cache Parameters update Flags */
@@ -96,8 +61,6 @@ static int wl_cfgnan_reset_disc_result(struct bcm_cfg80211 *cfg,
 	nan_disc_result_cache *disc_res);
 static nan_disc_result_cache * wl_cfgnan_get_disc_result(struct bcm_cfg80211 *cfg,
 	uint8 remote_pubid, struct ether_addr *peer);
-static nan_svc_info_t * wl_cfgnan_get_svc_inst(struct bcm_cfg80211 *cfg,
-	wl_nan_instance_id svc_inst_id, uint8 ndp_id);
 #endif /* WL_NAN_DISC_CACHE */
 
 static int wl_cfgnan_set_if_addr(struct bcm_cfg80211 *cfg);
@@ -109,6 +72,7 @@ void wl_cfgnan_data_remove_peer(struct bcm_cfg80211 *cfg,
         struct ether_addr *peer_addr);
 static void wl_cfgnan_send_stop_event(struct bcm_cfg80211 *cfg);
 static void wl_cfgnan_disable_cleanup(struct bcm_cfg80211 *cfg);
+static s32 wl_cfgnan_get_ndi_idx(struct bcm_cfg80211 *cfg);
 static int wl_cfgnan_init(struct bcm_cfg80211 *cfg);
 static int wl_cfgnan_deinit(struct bcm_cfg80211 *cfg, uint8 busstate);
 static void wl_cfgnan_update_dp_info(struct bcm_cfg80211 *cfg, bool add,
@@ -118,6 +82,8 @@ static void wl_cfgnan_data_set_peer_dp_state(struct bcm_cfg80211 *cfg,
 static nan_ndp_peer_t* wl_cfgnan_data_get_peer(struct bcm_cfg80211 *cfg,
 	struct ether_addr *peer_addr);
 static int wl_cfgnan_disable(struct bcm_cfg80211 *cfg);
+static s32 wl_cfgnan_del_ndi_data(struct bcm_cfg80211 *cfg, char *name);
+static s32 wl_cfgnan_add_ndi_data(struct bcm_cfg80211 *cfg, s32 idx, char *name);
 static int wl_nan_print_stats_tlvs(void *ctx, const uint8 *data, uint16 type, uint16 len);
 
 #ifdef RTT_SUPPORT
@@ -143,37 +109,6 @@ static void wl_cfgnan_remove_ranging_instance(struct bcm_cfg80211 *cfg,
 static void wl_cfgnan_periodic_nmi_rand_addr(struct work_struct *work);
 static uint8 wl_cfgnan_map_nan_prot_csid_to_host_csid(uint8 prot_csid);
 static uint8 wl_cfgnan_map_host_csid_to_nan_prot_csid(uint8 host_csid);
-static s32 wl_cfgnan_parse_npba_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
-	uint16 len, nan_event_data_t *tlv_data);
-static s32 wl_cfgnan_parse_nira_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr, uint16 len,
-	nan_event_data_t *tlv_data);
-static s32 wl_cfgnan_parse_dcea_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr, uint16 len,
-	nan_event_data_t *tlv_data);
-static nan_bootstrapping_entry_t * wl_cfgnan_add_bootstrapping_entry(struct bcm_cfg80211 *cfg,
-	struct ether_addr *nmi, struct ether_addr *peer, uint8 role, uint8 requestor_instance_id,
-	uint8 lcl_inst_id, nan_str_data_t *npba);
-static nan_bootstrapping_entry_t *
-	(wl_cfgnan_get_bootstrapping_entry_by_peer_nmi)(struct bcm_cfg80211 *cfg,
-	struct ether_addr *peer);
-static nan_bootstrapping_entry_t *
-	wl_cfgnan_get_bootstrapping_entry_by_txs_token(struct bcm_cfg80211 *cfg, uint16 txs_token);
-static nan_bootstrapping_entry_t *
-	wl_cfgnan_get_bootstrapping_entry_by_pairing_id(struct bcm_cfg80211 *cfg,
-	uint16 pairing_id);
-static nan_bootstrapping_entry_t *
-	wl_cfgnan_get_bootstrapping_entry_by_peer_nmi_n_lcl_svc_id(struct bcm_cfg80211 *cfg,
-	struct ether_addr *peer, wl_nan_instance_id_t lcl_svc_id);
-static nan_bootstrapping_entry_t *
-	wl_cfgnan_get_bootstrapping_entry_by_bs_id(struct bcm_cfg80211 *cfg,
-	wl_nan_instance_id_t peer_svc_id);
-static int wl_cfgnan_reset_bootstrapping_entries(struct bcm_cfg80211 *cfg);
-static int wl_cfgnan_clear_bootstrapping_entry(struct bcm_cfg80211 *cfg,
-	nan_bootstrapping_entry_t *bs_entry);
-static int wl_cfgnan_aligned_data_size_of_opt_pairing_params(uint16 *data_size,
-	nan_pairing_bs_cmd_data_t *cmd_data);
-
-#define NAN_IS_GTK_CSID(csid)  ((csid == NAN_SEC_ALGO_NCS_GK_CCM_128) || \
-	  (csid == NAN_SEC_ALGO_NCS_GK_GCM_256))
 
 typedef struct nan_csid_map {
 	uint16 fw_csid;
@@ -182,14 +117,10 @@ typedef struct nan_csid_map {
 
 nan_csid_map_t nan_csid_map_table[] = {
 	{NAN_SEC_ALGO_NONE, 0},
-	{NAN_SEC_ALGO_NCS_SK_CCM_128, NAN_CIPHER_SUITE_SHARED_KEY_128_MASK},
-	{NAN_SEC_ALGO_NCS_SK_GCM_256, NAN_CIPHER_SUITE_SHARED_KEY_256_MASK},
-	{NAN_SEC_ALGO_NCS_PK_CCM_128, NAN_CIPHER_SUITE_PUBLIC_KEY_128_MASK},
-	{NAN_SEC_ALGO_NCS_PK_GCM_256, NAN_CIPHER_SUITE_PUBLIC_KEY_256_MASK},
-	{NAN_SEC_ALGO_NCS_GK_CCM_128, NAN_CIPHER_SUITE_GROUP_KEY_128_MASK},
-	{NAN_SEC_ALGO_NCS_GK_GCM_256, NAN_CIPHER_SUITE_GROUP_KEY_256_MASK},
-	{NAN_SEC_ALGO_NCS_PK_PASN_CCM_128, NAN_CIPHER_SUITE_PK_PASN_128_MASK},
-	{NAN_SEC_ALGO_NCS_PK_PASN_GCM_256, NAN_CIPHER_SUITE_PK_PASN_256_MASK}
+	{NAN_SEC_ALGO_NCS_SK_CCM_128, WL_NAN_CIPHER_SUITE_SHARED_KEY_128_MASK},
+	{NAN_SEC_ALGO_NCS_SK_GCM_256, WL_NAN_CIPHER_SUITE_SHARED_KEY_256_MASK},
+	{NAN_SEC_ALGO_NCS_PK_CCM_128, WL_NAN_CIPHER_SUITE_PUBLIC_KEY_128_MASK},
+	{NAN_SEC_ALGO_NCS_PK_GCM_256, WL_NAN_CIPHER_SUITE_PUBLIC_KEY_256_MASK}
 };
 
 static const char *
@@ -319,14 +250,6 @@ nan_event_to_str(u16 cmd)
 		break;
 	C2S(WL_NAN_EVENT_SCHED_CHANGE);
 		break;
-	C2S(WL_NAN_EVENT_SUSPENSION_IND);
-		break;
-	C2S(WL_NAN_EVENT_PAIRING_IND);
-		break;
-	C2S(WL_NAN_EVENT_PAIRING_ESTBL);
-		break;
-	C2S(WL_NAN_EVENT_PAIRING_END);
-		break;
 	C2S(WL_NAN_EVENT_INVALID);
 		break;
 
@@ -424,10 +347,6 @@ static int wl_cfgnan_execute_ioctl(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, bcm_iov_batch_buf_t *nan_buf,
 	uint16 nan_buf_size, uint32 *status, uint8 *resp_buf,
 	uint16 resp_buf_len);
-
-static int wl_cfgnan_build_execute_ioctl(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	uint8 *input_data, uint8 size_of_iov, uint16 cmd_type, uint32 *status);
-
 int
 wl_cfgnan_generate_inst_id(struct bcm_cfg80211 *cfg, uint8 *p_inst_id)
 {
@@ -470,14 +389,12 @@ wl_cfgnan_remove_inst_id(struct bcm_cfg80211 *cfg, uint8 inst_id)
 	return ret;
 }
 
-static s32
-wl_cfgnan_parse_sdea_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
+s32 wl_cfgnan_parse_sdea_data(osl_t *osh, const uint8 *p_attr,
 		uint16 len, nan_event_data_t *tlv_data)
 {
 	const wifi_nan_svc_desc_ext_attr_t *nan_svc_desc_ext_attr = NULL;
 	uint8 offset;
 	s32 ret = BCME_OK;
-	osl_t *osh = cfg->osh;
 
 	/* service descriptor ext attributes */
 	nan_svc_desc_ext_attr = (const wifi_nan_svc_desc_ext_attr_t *)p_attr;
@@ -516,8 +433,7 @@ wl_cfgnan_parse_sdea_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
 		}
 
 		if (tlv_data->sde_svc_info.dlen > 0) {
-			tlv_data->sde_svc_info.data = MALLOCZ(osh,
-					tlv_data->sde_svc_info.dlen);
+			tlv_data->sde_svc_info.data = MALLOCZ(osh, tlv_data->sde_svc_info.dlen);
 			if (!tlv_data->sde_svc_info.data) {
 				WL_ERR(("%s: memory allocation failed\n", __FUNCTION__));
 				tlv_data->sde_svc_info.dlen = 0;
@@ -546,13 +462,11 @@ wl_cfgnan_parse_sdea_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
 				__FUNCTION__));
 		}
 	}
-	if (tlv_data->sde_control_flag & NAN_SDE_CF_GTK_REQUIRED) {
-		tlv_data->gtk_required = true;
-	}
 	return ret;
 fail:
 	if (tlv_data->sde_svc_info.data) {
-		MFREE(osh, tlv_data->sde_svc_info.data, tlv_data->sde_svc_info.dlen);
+		MFREE(osh, tlv_data->sde_svc_info.data,
+				tlv_data->sde_svc_info.dlen);
 		tlv_data->sde_svc_info.data = NULL;
 	}
 
@@ -564,14 +478,13 @@ fail:
  * This attribute contains some mandatory fields and some optional fields
  * depending on the content of the service discovery request.
  */
-static s32
-wl_cfgnan_parse_sda_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
+s32
+wl_cfgnan_parse_sda_data(osl_t *osh, const uint8 *p_attr,
 		uint16 len, nan_event_data_t *tlv_data)
 {
 	uint8 svc_control = 0, offset = 0;
 	s32 ret = BCME_OK;
 	const wifi_nan_svc_descriptor_attr_t *nan_svc_desc_attr = NULL;
-	osl_t *osh = cfg->osh;
 
 	/* service descriptor attributes */
 	nan_svc_desc_attr = (const wifi_nan_svc_descriptor_attr_t *)p_attr;
@@ -818,7 +731,7 @@ fail:
 }
 
 static s32
-wl_cfgnan_parse_scid_info(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
+wl_cfgnan_parse_scid_info(osl_t *osh, const uint8 *p_attr,
 		uint16 len, nan_event_data_t *tlv_data)
 {
 	s32 ret = BCME_OK;
@@ -826,7 +739,6 @@ wl_cfgnan_parse_scid_info(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
 	const wifi_nan_sec_ctx_id_info_attr_t *scid_info_attr;
 	wifi_nan_sec_ctx_id_field_t *p = NULL;
 	uint16 scid_len;
-	osl_t *osh = cfg->osh;
 
 	/* security context id attribute */
 	scid_info_attr = (const wifi_nan_sec_ctx_id_info_attr_t *)p_attr;
@@ -875,7 +787,7 @@ fail:
 }
 
 static s32
-wl_cfgnan_parse_csid_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
+wl_cfgnan_parse_csid_data(osl_t *osh, const uint8 *p_attr,
 		uint16 len, nan_event_data_t *tlv_data, uint16 type)
 {
 	s32 ret = BCME_OK;
@@ -898,7 +810,6 @@ wl_cfgnan_parse_csid_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
 		ret = BCME_BUFTOOSHORT;
 		goto fail;
 	}
-	tlv_data->csia_cap = csid_info_attr->capabilities;
 
 	csid_offset = (OFFSETOF(wifi_nan_sec_cipher_suite_info_attr_t, var) -
 			NAN_ATTR_HDR_LEN);
@@ -906,17 +817,15 @@ wl_cfgnan_parse_csid_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
 	csid_field = (wifi_nan_sec_cipher_suite_field_t *)(csid_info_attr->var);
 	csid_len -= csid_offset;
 
-	if ((type == WL_NAN_XTLV_SD_DISC_RESULTS) || (type == WL_NAN_XTLV_SD_NAN_AF)) {
+	if (type == WL_NAN_XTLV_SD_DISC_RESULTS) {
 		while (csid_len >= sizeof(*csid_field)) {
 			if (csid_field->inst_id == tlv_data->pub_id) {
-				if (NAN_IS_GTK_CSID(csid_field->cipher_suite_id)) {
-					tlv_data->peer_gtk_csid = csid_field->cipher_suite_id;
-				} else {
-					tlv_data->peer_cipher_suite = csid_field->cipher_suite_id;
-				}
+				tlv_data->peer_cipher_suite = csid_field->cipher_suite_id;
+				break;
+			} else {
+				csid_field++;
+				csid_len -= sizeof(*csid_field);
 			}
-			csid_field++;
-			csid_len -= sizeof(*csid_field);
 		}
 	} else {
 		if  (csid_len != sizeof(*csid_field)) {
@@ -937,94 +846,7 @@ fail:
 }
 
 static s32
-wl_cfgnan_parse_ndpe_data(struct bcm_cfg80211 *cfg, const uint8 *p_attr,
-		uint16 len, nan_event_data_t *tlv_data, uint16 type)
-{
-	s32 ret = BCME_OK;
-	const wifi_nan_ndp_attr_t *ndpe;
-
-	/* NDPE attribute */
-	ndpe = (const wifi_nan_ndp_attr_t *)p_attr;
-	/* attribute ID */
-	WL_TRACE(("> attr id: 0x%02x\n", ndpe->id));
-
-	/* attribute length */
-	WL_TRACE(("> attr len: 0x%x\n", ndpe->len));
-
-	if (ndpe->len > len) {
-		WL_ERR(("Invalid event buffer len\n"));
-		ret = BCME_BUFTOOSHORT;
-		goto fail;
-	}
-	/* For now check only for ndpe control flag GTK REQUIRED */
-	if (ndpe->control & NAN_NDPE_CTRL_GTK_REQUIRED) {
-		tlv_data->gtk_required = true;
-	}
-	return ret;
-fail:
-	WL_DBG(("Parse NDPE event data, status = %d\n", ret));
-	return ret;
-}
-
-static s32
-wl_cfgnan_parse_nan_af(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *data,
-	nan_event_data_t *tlv_data, uint16 type)
-{
-	const uint8 *p_attr = data;
-	uint16 offset = 0;
-	s32 ret = BCME_OK;
-
-	WL_DBG((">> WL_NAN_XTLV_SD_NAN_AF: NDP frame \n"));
-
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy remote nmi\n"));
-		goto fail;
-	}
-
-	/* advance to NDP pkt data */
-	offset = OFFSETOF(nan2_pub_act_frame_t, data[0]);
-	if (offset > len) {
-		WL_ERR(("Invalid event buffer len\n"));
-		ret = BCME_BUFTOOSHORT;
-		goto fail;
-	}
-	p_attr += offset;
-	len -= offset;
-
-	while (len) {
-		if ((uint8)*p_attr == NAN_ATTR_CIPHER_SUITE_INFO) {
-			WL_TRACE(("> attr id: NAN_ATTR_CIPHER_SUITE_INFO \n"));
-			ret = wl_cfgnan_parse_csid_data(cfg, p_attr, len, tlv_data, type);
-			if (unlikely(ret)) {
-				WL_ERR(("wl_cfgnan_parse_csid_data failed,"
-						"error = %d \n", ret));
-				goto fail;
-			}
-		}
-		if ((uint8)*p_attr == NAN_ATTR_NDPE) {
-			WL_TRACE(("> attr id: NAN_ATTR_NDPE \n"));
-			ret = wl_cfgnan_parse_ndpe_data(cfg, p_attr, len, tlv_data, type);
-			if (unlikely(ret)) {
-				WL_ERR(("wl_cfgnan_parse_ndpe_data failed,"
-						"error = %d \n", ret));
-				goto fail;
-			}
-		}
-		offset = NAN_ATTR_HDR_LEN + (p_attr[1] | (p_attr[2] << 8));
-		if (offset > len) {
-			WL_ERR(("Invalid event buffer len\n"));
-			ret = BCME_BUFTOOSHORT;
-			goto fail;
-		}
-		p_attr += offset;
-		len -= offset;
-	}
-fail:
-	return ret;
-}
-
-static s32
-wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *data,
+wl_cfgnan_parse_sd_attr_data(osl_t *osh, uint16 len, const uint8 *data,
 	nan_event_data_t *tlv_data, uint16 type)
 {
 	const uint8 *p_attr = data;
@@ -1074,8 +896,8 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 		iter = ev_disc->attr_num;
 		while (iter) {
 			if ((uint8)*p_attr == NAN_ATTR_SVC_DESCRIPTOR) {
-				WL_TRACE(("> attr id: NAN_ATTR_SVC_DESCRIPTOR "));
-				ret = wl_cfgnan_parse_sda_data(cfg, p_attr, len, tlv_data);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_sda_data(osh, p_attr, len, tlv_data);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_sda_data failed,"
 							"error = %d \n", ret));
@@ -1084,8 +906,8 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 			}
 
 			if ((uint8)*p_attr == NAN_ATTR_SVC_DESC_EXTENSION) {
-				WL_TRACE(("> attr id: NAN_ATTR_SVC_DESC_EXTENSION\n"));
-				ret = wl_cfgnan_parse_sdea_data(cfg, p_attr, len, tlv_data);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_sdea_data(osh, p_attr, len, tlv_data);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_sdea_data failed,"
 							"error = %d \n", ret));
@@ -1094,8 +916,8 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 			}
 
 			if ((uint8)*p_attr == NAN_ATTR_SEC_CTX_ID_INFO) {
-				WL_TRACE(("> attr id: NAN_ATTR_SEC_CTX_ID_INFO\n"));
-				ret = wl_cfgnan_parse_scid_info(cfg, p_attr, len, tlv_data);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_scid_info(osh, p_attr, len, tlv_data);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_scid_info failed,"
 							"error = %d \n", ret));
@@ -1104,35 +926,10 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 			}
 
 			if ((uint8)*p_attr == NAN_ATTR_CIPHER_SUITE_INFO) {
-				WL_TRACE(("> attr id: NAN_ATTR_CIPHER_SUITE_INFO \n"));
-				ret = wl_cfgnan_parse_csid_data(cfg, p_attr, len, tlv_data, type);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_csid_data(osh, p_attr, len, tlv_data, type);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_csid_data failed,"
-							"error = %d \n", ret));
-					goto fail;
-				}
-			}
-			if ((uint8)*p_attr == NAN_ATTR_DEV_CAP_EXT) {
-				WL_TRACE(("> attr id: NAN_ATTR_DEV_CAP_EXT \n"));
-				ret = wl_cfgnan_parse_dcea_attr(cfg, p_attr, len, tlv_data);
-				if (unlikely(ret)) {
-					WL_ERR(("DCEA_attr parse failed,error = %d \n", ret));
-					goto fail;
-				}
-			}
-			if ((uint8)*p_attr == NAN_ATTR_NIRA) {
-				WL_TRACE(("> attr id: NAN_ATTR_NIRA \n"));
-				ret = wl_cfgnan_parse_nira_attr(cfg, p_attr, len, tlv_data);
-				if (unlikely(ret)) {
-					WL_ERR(("NIRA attr parse failed,error = %d \n", ret));
-					goto fail;
-				}
-			}
-			if ((uint8)*p_attr == NAN_ATTR_NPBA) {
-				WL_TRACE(("> attr id: NAN_ATTR_NPBA \n"));
-				ret = wl_cfgnan_parse_npba_attr(cfg, p_attr, len, tlv_data);
-				if (unlikely(ret)) {
-					WL_ERR(("wl_cfgnan_parse_npba_attr failed,"
 							"error = %d \n", ret));
 					goto fail;
 				}
@@ -1186,8 +983,8 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 		iter = ev_fup->attr_num;
 		while (iter) {
 			if ((uint8)*p_attr == NAN_ATTR_SVC_DESCRIPTOR) {
-				WL_TRACE(("> attr id: NAN_ATTR_SVC_DESCRIPTOR \n"));
-				ret = wl_cfgnan_parse_sda_data(cfg, p_attr, len, tlv_data);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_sda_data(osh, p_attr, len, tlv_data);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_sda_data failed,"
 							"error = %d \n", ret));
@@ -1196,27 +993,11 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 			}
 
 			if ((uint8)*p_attr == NAN_ATTR_SVC_DESC_EXTENSION) {
-				WL_TRACE(("> attr id: NAN_ATTR_SVC_DESC_EXTENSION \n"));
-				ret = wl_cfgnan_parse_sdea_data(cfg, p_attr, len, tlv_data);
+				WL_TRACE(("> attr id: 0x%02x\n", (uint8)*p_attr));
+				ret = wl_cfgnan_parse_sdea_data(osh, p_attr, len, tlv_data);
 				if (unlikely(ret)) {
 					WL_ERR(("wl_cfgnan_parse_sdea_data failed,"
 							"error = %d \n", ret));
-					goto fail;
-				}
-			}
-			if ((uint8)*p_attr == NAN_ATTR_NIRA) {
-				WL_TRACE(("> attr id: NAN_ATTR_NIRA \n"));
-				ret = wl_cfgnan_parse_nira_attr(cfg, p_attr, len, tlv_data);
-				if (unlikely(ret)) {
-					WL_ERR(("NIRA attr parse failed,error = %d \n", ret));
-					goto fail;
-				}
-			}
-			if ((uint8)*p_attr == NAN_ATTR_NPBA) {
-				WL_TRACE(("> attr id: NAN_ATTR_NPBA \n"));
-				ret = wl_cfgnan_parse_npba_attr(cfg, p_attr, len, tlv_data);
-				if (unlikely(ret)) {
-					WL_ERR(("NPBA attr parse failed,error = %d \n", ret));
 					goto fail;
 				}
 			}
@@ -1290,7 +1071,7 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 		}
 		p_attr += offset;
 		len -= offset;
-		ret = wl_cfgnan_parse_sda_data(cfg, p_attr, len, tlv_data);
+		ret = wl_cfgnan_parse_sda_data(osh, p_attr, len, tlv_data);
 		if (unlikely(ret)) {
 			WL_ERR(("wl_cfgnan_parse_sdea_data failed,"
 				"error = %d \n", ret));
@@ -1298,33 +1079,6 @@ wl_cfgnan_parse_sd_attr_data(struct bcm_cfg80211 *cfg, uint16 len, const uint8 *
 	}
 
 fail:
-	return ret;
-}
-
-static int
-wl_cfgnan_alloc_n_copy_tlv_data(struct bcm_cfg80211 *cfg, const uint8 *data, uint16 len,
-	nan_str_data_t *tlv)
-{
-	int ret = BCME_OK;
-
-	tlv->data = MALLOCZ(cfg->osh, len);
-	if (!tlv->data) {
-		WL_ERR(("%s: memory allocation failed\n", __FUNCTION__));
-		tlv->dlen = 0;
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-	tlv->dlen = len;
-	ret = memcpy_s(tlv->data, tlv->dlen, data, len);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy tlv info data\n"));
-		goto fail;
-	}
-	return ret;
-fail:
-	if (tlv->data) {
-		MFREE(cfg->osh, tlv->data, len);
-	}
 	return ret;
 }
 
@@ -1336,10 +1090,9 @@ wl_cfgnan_set_vars_cbfn(void *ctx, const uint8 *data, uint16 type, uint16 len)
 	nan_event_data_t *tlv_data = ((nan_event_data_t *)(ctx_tlv_data->nan_evt_data));
 	int ret = BCME_OK;
 	uint8 csid;
-	nan_str_data_t *str_tlv = NULL;
 
 	if (!data || !len) {
-		WL_ERR(("data or length is invalid, data %p len %d \n", data, len));
+		WL_ERR(("data length is invalid\n"));
 		ret = BCME_ERROR;
 		goto fail;
 	}
@@ -1351,7 +1104,7 @@ wl_cfgnan_set_vars_cbfn(void *ctx, const uint8 *data, uint16 type, uint16 len)
 	 */
 	case WL_NAN_XTLV_SD_FUP_RECEIVED:
 	case WL_NAN_XTLV_SD_DISC_RESULTS: {
-		ret = wl_cfgnan_parse_sd_attr_data(ctx_tlv_data->cfg,
+		ret = wl_cfgnan_parse_sd_attr_data(ctx_tlv_data->cfg->osh,
 			len, data, tlv_data, type);
 		break;
 	}
@@ -1436,11 +1189,7 @@ wl_cfgnan_set_vars_cbfn(void *ctx, const uint8 *data, uint16 type, uint16 len)
 
 		break;
 	}
-	case WL_NAN_XTLV_SD_NAN_AF: {
-		ret = wl_cfgnan_parse_nan_af(ctx_tlv_data->cfg,
-			len, data, tlv_data, type);
-		break;
-	}
+	case WL_NAN_XTLV_SD_NAN_AF:
 	case WL_NAN_XTLV_DAM_NA_ATTR:
 		/* No action -intentionally added to avoid prints when these events are rcvd */
 		break;
@@ -1462,53 +1211,16 @@ wl_cfgnan_set_vars_cbfn(void *ctx, const uint8 *data, uint16 type, uint16 len)
 	case WL_NAN_XTLV_GEN_AVAIL_STATS_SCHED:
 		ret = wl_nan_print_stats_tlvs(ctx, data, type, len);
 		break;
-	case WL_NAN_XTLV_PAIRING_CACHING_NPK:
-		str_tlv = &tlv_data->npk;
-		break;
-	case WL_NAN_XTLV_PAIRING_LOCAL_NIK:
-		str_tlv = &tlv_data->local_nik;
-		break;
-	case WL_NAN_XTLV_PAIRING_PEER_NIK:
-		str_tlv = &tlv_data->peer_nik;
-		break;
-	case WL_NAN_XTLV_PAIRING_PEER_TAG:
-		str_tlv = &tlv_data->nira_tag;
-		break;
-	case WL_NAN_XTLV_PAIRING_PEER_NONCE:
-		str_tlv = &tlv_data->nira_nonce;
-		break;
-	case WL_NAN_XTLV_PAIRING_SID:
-		tlv_data->pairing_id = *(uint16 *)data;
-		break;
-	case WL_NAN_XTLV_PAIRING_FLAGS:
-		tlv_data->enable_pairing_cache = !!((*(uint16 *)data) &
-				WL_NAN_PAIRING_FLAGS_NPK_CACHING);
-		break;
-	case WL_NAN_XTLV_PAIRING_PUB_ID:
-		tlv_data->pub_id = *(uint8 *)data;
-		break;
-	case WL_NAN_XTLV_PAIRING_PASN_POLICY: {
-		uint8 pasn_policy = *(uint8 *)data;
-		if (pasn_policy == WL_PASN_POLICY_SETUP_PMKSA) {
-			tlv_data->nan_akm = NAN_AKM_SAE;
-		} else {
-			tlv_data->nan_akm = NAN_AKM_PASN;
-		}
-		break;
-	}
 	default:
 		WL_ERR(("Not available for tlv type = 0x%x\n", type));
 		ret = BCME_ERROR;
 		break;
 	}
-	if (str_tlv) {
-		ret = wl_cfgnan_alloc_n_copy_tlv_data(ctx_tlv_data->cfg, data, len, str_tlv);
-	}
 fail:
 	return ret;
 }
 
-static int
+int
 wl_cfg_nan_check_cmd_len(uint16 nan_iov_len, uint16 data_size,
 		uint16 *subcmd_len)
 {
@@ -1529,7 +1241,7 @@ wl_cfg_nan_check_cmd_len(uint16 nan_iov_len, uint16 data_size,
 	return ret;
 }
 
-static int
+int
 wl_cfgnan_config_eventmask(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	uint8 event_ind_flag, bool disable_events)
 {
@@ -1633,10 +1345,6 @@ wl_cfgnan_config_eventmask(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_RNG_REQ_IND));
 		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_RNG_TERM_IND));
 		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_DISC_CACHE_TIMEOUT));
-		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_SUSPENSION_IND));
-		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_PAIRING_IND));
-		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_PAIRING_ESTBL));
-		setbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_PAIRING_END));
 		/* Disable below events by default */
 		clrbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_PEER_SCHED_UPD_NOTIF));
 		clrbit(event_mask, NAN_EVENT_MAP(WL_NAN_EVENT_RNG_RPT_IND));
@@ -1911,9 +1619,10 @@ fail:
 	return ret;
 }
 
+/* API to configure nan ctrl and nan ctrl2 commands */
 static int
-wl_cfgnan_config_control_flags_get(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	uint32 *flag1, uint32 *flag2, uint16 cmd_id, uint32 *status)
+wl_cfgnan_config_control_flag(struct net_device *ndev, struct bcm_cfg80211 *cfg,
+	uint32 flag1, uint32 flag2, uint16 cmd_id, uint32 *status, bool set)
 {
 	bcm_iov_batch_buf_t *nan_buf = NULL;
 	s32 ret = BCME_OK;
@@ -1923,11 +1632,12 @@ wl_cfgnan_config_control_flags_get(struct net_device *ndev, struct bcm_cfg80211 
 	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
 	bcm_iov_batch_subcmd_t *sub_cmd_resp = NULL;
 	wl_nan_iov_t *nan_iov_data = NULL;
+	uint32 *cfg_ctrl;
 	uint16 cfg_ctrl_size;
 	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
 
 	NAN_DBG_ENTER();
-	nan_buf = MALLOCZ(cfg->osh, NAN_IOCTL_BUF_SIZE);
+	nan_buf = MALLOCZ(cfg->osh, nan_buf_size);
 	if (!nan_buf) {
 		WL_ERR(("%s: memory allocation failed\n", __func__));
 		ret = BCME_NOMEM;
@@ -1989,119 +1699,35 @@ wl_cfgnan_config_control_flags_get(struct net_device *ndev, struct bcm_cfg80211 
 	if (cmd_id == WL_NAN_CMD_CFG_NAN_CONFIG) {
 		wl_nan_cfg_ctrl_t *cfg_ctrl1;
 		cfg_ctrl1 = ((uint32 *)&sub_cmd_resp->data[0]);
-		if (flag1) {
-			*flag1 = *cfg_ctrl1;
-			WL_INFORM_MEM(("%s: get nan ctrl flags value %x\n",
-					__FUNCTION__, *flag1));
+		if (set) {
+			*cfg_ctrl1 |= flag1;
+		} else {
+			*cfg_ctrl1 &= ~flag1;
 		}
+		cfg_ctrl = cfg_ctrl1;
+		WL_INFORM_MEM(("%s: Modifying nan ctrl flag %x val %d\n",
+				__FUNCTION__, flag1, set));
 	} else {
 		wl_nan_cfg_ctrl2_t *cfg_ctrl2;
 		cfg_ctrl2 = ((wl_nan_cfg_ctrl2_t *)&sub_cmd_resp->data[0]);
-		if (flag1) {
-			*flag1 = cfg_ctrl2->flags1;
-			WL_INFORM_MEM(("%s: get nan ctrl2 flag1 %x\n",
-					__FUNCTION__, *flag1));
+		if (set) {
+			cfg_ctrl2->flags1 |= flag1;
+			cfg_ctrl2->flags2 |= flag2;
+		} else {
+			cfg_ctrl2->flags1 &= ~flag1;
+			cfg_ctrl2->flags2 &= ~flag2;
 		}
-		if (flag2) {
-			*flag2 = cfg_ctrl2->flags2;
-			WL_INFORM_MEM(("%s: get nan ctrl2 flag2 %x\n",
-					__FUNCTION__, *flag2));
-		}
+		cfg_ctrl = (uint32 *)cfg_ctrl2;
+		WL_INFORM_MEM(("%s: Modifying nan ctrl2 flag1 %x flag2 %x val %d\n",
+				__FUNCTION__, flag1, flag2, set));
 	}
-	WL_DBG(("get nan cfg ctrl successfull\n"));
-fail:
-	if (nan_buf) {
-		MFREE(cfg->osh, nan_buf, NAN_IOCTL_BUF_SIZE);
-	}
-	if (nan_iov_data) {
-		MFREE(cfg->osh, nan_iov_data, sizeof(*nan_iov_data));
-	}
-
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-/* API to configure nan ctrl and nan ctrl2 commands */
-static int
-wl_cfgnan_config_control_flags_set(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	uint32 flag1, uint32 flag2, uint16 cmd_id, uint32 *status)
-{
-	bcm_iov_batch_buf_t *nan_buf = NULL;
-	s32 ret = BCME_OK;
-	uint16 nan_iov_start, nan_iov_end;
-	uint16 nan_buf_size = NAN_IOCTL_BUF_SIZE;
-	uint16 subcmd_len;
-	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
-	wl_nan_iov_t *nan_iov_data = NULL;
-	void *cfg_ctrl;
-	uint16 cfg_ctrl_size;
-	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
-	wl_nan_cfg_ctrl_t cfg_ctrl1;
-	wl_nan_cfg_ctrl2_t cfg_ctrl2;
-
-	NAN_DBG_ENTER();
-	nan_buf = MALLOCZ(cfg->osh, NAN_IOCTL_BUF_SIZE);
-	if (!nan_buf) {
-		WL_ERR(("%s: memory allocation failed\n", __func__));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	nan_iov_data = MALLOCZ(cfg->osh, sizeof(*nan_iov_data));
-	if (!nan_iov_data) {
-		WL_ERR(("%s: memory allocation failed\n", __func__));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	if (cmd_id == WL_NAN_CMD_CFG_NAN_CONFIG) {
-		cfg_ctrl1 = flag1;
-
-		cfg_ctrl = &cfg_ctrl1;
-		cfg_ctrl_size = sizeof(cfg_ctrl1);
-	} else if (cmd_id == WL_NAN_CMD_CFG_NAN_CONFIG2) {
-		cfg_ctrl2.flags1 = flag1;
-		cfg_ctrl2.flags2 = flag2;
-
-		cfg_ctrl = &cfg_ctrl2;
-		cfg_ctrl_size = sizeof(cfg_ctrl2);
-	} else {
-		ret = BCME_BADARG;
-		goto fail;
-	}
-
-	nan_iov_data->nan_iov_len = nan_iov_start = NAN_IOCTL_BUF_SIZE;
-	nan_iov_data->nan_iov_buf = (uint8 *)(&nan_buf->cmds[0]);
-	nan_iov_data->nan_iov_len -= OFFSETOF(bcm_iov_batch_buf_t, cmds[0]);
-	sub_cmd = (bcm_iov_batch_subcmd_t*)(nan_iov_data->nan_iov_buf);
-
-	ret = wl_cfg_nan_check_cmd_len(nan_iov_data->nan_iov_len,
-			cfg_ctrl_size, &subcmd_len);
-	if (unlikely(ret)) {
-		WL_ERR(("nan_sub_cmd check failed\n"));
-		goto fail;
-	}
-
-	sub_cmd->id = htod16(cmd_id);
-	sub_cmd->len = sizeof(sub_cmd->u.options) + cfg_ctrl_size;
-	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
-
-	/* Reduce the iov_len size by subcmd_len */
-	nan_iov_data->nan_iov_len -= subcmd_len;
-	nan_iov_end = nan_iov_data->nan_iov_len;
-	nan_buf_size = (nan_iov_start - nan_iov_end);
-
-	bzero(resp_buf, sizeof(resp_buf));
-
-	ret = memcpy_s(sub_cmd->data, cfg_ctrl_size, (uint8 *)cfg_ctrl, cfg_ctrl_size);
+	ret = memcpy_s(sub_cmd->data, cfg_ctrl_size, cfg_ctrl, cfg_ctrl_size);
 	if (ret != BCME_OK) {
 		WL_ERR(("Failed to copy cfg ctrl\n"));
 		goto fail;
 	}
 
-	nan_buf->version = htol16(WL_NAN_IOV_BATCH_VERSION);
 	nan_buf->is_set = true;
-	nan_buf->count++;
 	ret = wl_cfgnan_execute_ioctl(ndev, cfg, nan_buf, nan_buf_size, status,
 			(void*)resp_buf, NAN_IOCTL_BUF_SIZE);
 	if (unlikely(ret) || unlikely(*status)) {
@@ -2330,17 +1956,27 @@ wl_cfgnan_set_if_addr(struct bcm_cfg80211 *cfg)
 	struct ether_addr if_addr;
 	uint8 buf[NAN_IOCTL_BUF_SIZE];
 	bcm_iov_batch_buf_t *nan_buf = (bcm_iov_batch_buf_t*)buf;
+	bool rand_mac = cfg->nancfg->mac_rand;
 
 	nan_buf->version = htol16(WL_NAN_IOV_BATCH_VERSION);
 	nan_buf->count = 0;
 	nan_buf_size -= OFFSETOF(bcm_iov_batch_buf_t, cmds[0]);
-
-	/* By default randomize NAN mac address */
-	RANDOM_BYTES(if_addr.octet, 6);
-	/* restore mcast and local admin bits to 0 and 1 */
-	ETHER_SET_UNICAST(if_addr.octet);
-	ETHER_SET_LOCALADDR(if_addr.octet);
-
+	if (rand_mac) {
+		RANDOM_BYTES(if_addr.octet, 6);
+		/* restore mcast and local admin bits to 0 and 1 */
+		ETHER_SET_UNICAST(if_addr.octet);
+		ETHER_SET_LOCALADDR(if_addr.octet);
+	} else {
+		/* Use primary MAC with the locally administered bit for the
+		 * NAN NMI I/F
+		 */
+		if (wl_get_vif_macaddr(cfg, WL_IF_TYPE_NAN_NMI,
+				if_addr.octet) != BCME_OK) {
+			ret = -EINVAL;
+			WL_ERR(("Failed to get mac addr for NMI\n"));
+			goto fail;
+		}
+	}
 	WL_INFORM_MEM(("%s: NMI " MACDBG "\n",
 			__FUNCTION__, MAC2STRDBG(if_addr.octet)));
 	ret = wl_cfgnan_if_addr_handler(&nan_buf->cmds[0],
@@ -2369,16 +2005,13 @@ wl_cfgnan_set_if_addr(struct bcm_cfg80211 *cfg)
 	}
 #ifdef WL_NMI_IF
 	/* copy new nmi addr to dedicated NMI interface */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	__dev_addr_set(cfg->nmi_ndev, if_addr.octet, ETHER_ADDR_LEN);
-#else
 	eacopy(if_addr.octet, cfg->nmi_ndev->dev_addr);
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
 #endif /* WL_NMI_IF */
-	/* Reset bootstrapping entries cache info as NMI has changed */
-	wl_cfgnan_reset_bootstrapping_entries(cfg);
 	return ret;
 fail:
+	if (!rand_mac) {
+		wl_release_vif_macaddr(cfg, if_addr.octet, WL_IF_TYPE_NAN_NMI);
+	}
 
 	return ret;
 }
@@ -2694,10 +2327,10 @@ wl_cfgnan_check_for_valid_5gchan(struct net_device *ndev, uint8 chan)
 	s32 ret = BCME_OK;
 	uint bitmap;
 	u8 ioctl_buf[WLC_IOCTL_SMLEN];
-	uint32 chanspec_arg, chanspec, chan_info;
-
+	uint32 chanspec_arg;
 	NAN_DBG_ENTER();
-	chanspec = chanspec_arg = CH20MHZ_CHSPEC(chan);
+
+	chanspec_arg = CH20MHZ_CHSPEC(chan);
 	chanspec_arg = wl_chspec_host_to_driver(chanspec_arg);
 	bzero(ioctl_buf, WLC_IOCTL_SMLEN);
 	ret = wldev_iovar_getbuf(ndev, "per_chan_info",
@@ -2721,6 +2354,12 @@ wl_cfgnan_check_for_valid_5gchan(struct net_device *ndev, uint8 chan)
 		goto exit;
 	}
 
+	if (bitmap & WL_CHAN_RADAR) {
+		WL_ERR(("Radar channel, NAN can not operate\n"));
+		ret = BCME_BADCHAN;
+		goto exit;
+	}
+
 	if (bitmap & WL_CHAN_PASSIVE) {
 		WL_ERR(("Passive channel, NAN can not operate\n"));
 		ret = BCME_BADCHAN;
@@ -2738,59 +2377,20 @@ wl_cfgnan_check_for_valid_5gchan(struct net_device *ndev, uint8 chan)
 		ret = BCME_BADCHAN;
 		goto exit;
 	}
-
-	if (bitmap & WL_CHAN_P2P_PROHIBITED) {
-		WL_ERR(("peer to peer prohibited channel, NAN can not operate\n"));
-		ret = BCME_BADCHAN;
-		goto exit;
-	}
-
-	if (bitmap & WL_CHAN_RADAR) {
-		WL_ERR(("DFS channel, NAN can not operate\n"));
-		ret = BCME_BADCHAN;
-		goto exit;
-	}
-
-	/* if no other restrictions, check for indoor restriction */
-	if (bitmap & WL_CHAN_INDOOR_ONLY) {
-		WL_ERR(("INDOOR ONLY channel, NAN can not operate\n"));
-		ret = BCME_BADCHAN;
-		goto exit;
-	}
-
-	if (wl_cfgscan_get_chan_info(wl_get_cfg(ndev),
-			&chan_info, chanspec) != BCME_OK) {
-		WL_ERR(("can't find cached chan info for chanspec:%x\n", chanspec));
-	} else {
-		WL_DBG(("chanspec:%x chan_info:%x\n", chanspec, chan_info));
-		if ((chan_info & (WL_CHAN_RESTRICTED |
-			WL_CHAN_CLM_RESTRICTED | WL_CHAN_P2P_PROHIBITED |
-			WL_CHAN_INDOOR_ONLY | WL_CHAN_RADAR |
-			WL_CHAN_PASSIVE))) {
-			WL_ERR(("chan_info:%x, NAN can not operate\n", chan_info));
-			ret = BCME_BADCHAN;
-			goto exit;
-		}
-	}
 exit:
 	NAN_DBG_EXIT();
 	return ret;
 }
 
 static int
-wl_cfgnan_set_nan_soc_chans(struct bcm_cfg80211 *cfg, struct net_device *ndev,
-	nan_config_cmd_data_t *cmd_data, wl_nan_iov_t *nan_iov_data, uint32 nan_attr_mask)
+wl_cfgnan_set_nan_soc_chans(struct net_device *ndev, nan_config_cmd_data_t *cmd_data,
+	wl_nan_iov_t *nan_iov_data, uint32 nan_attr_mask)
 {
 	s32 ret = BCME_OK;
 	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
 	wl_nan_social_channels_t *soc_chans = NULL;
 	uint16 subcmd_len;
-#ifdef WL_CELLULAR_CHAN_AVOID
-	chanspec_t soc_chspec_2g = 0;
-	chanspec_t soc_chspec_5g = 0;
-	bool allowed_soc_2g = FALSE;
-	bool allowed_soc_5g = FALSE;
-#endif /* WL_CELLULAR_CHAN_AVOID */
+
 	NAN_DBG_ENTER();
 
 	sub_cmd = (bcm_iov_batch_subcmd_t*)(nan_iov_data->nan_iov_buf);
@@ -2832,34 +2432,6 @@ wl_cfgnan_set_nan_soc_chans(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 					"continuing with 2G only operation\n"));
 			}
 		}
-#ifdef WL_CELLULAR_CHAN_AVOID
-		soc_chspec_2g = wf_channel2chspec(soc_chans->soc_chan_2g, WL_CHANSPEC_BW_20);
-		soc_chspec_5g = wf_channel2chspec(soc_chans->soc_chan_5g, WL_CHANSPEC_BW_20);
-		wl_cellavoid_sync_lock(cfg);
-		allowed_soc_2g = wl_cellavoid_operation_allowed(cfg->cellavoid_info,
-			soc_chspec_2g, NL80211_IFTYPE_NAN);
-		allowed_soc_5g = wl_cellavoid_operation_allowed(cfg->cellavoid_info,
-			soc_chspec_5g, NL80211_IFTYPE_NAN);
-		wl_cellavoid_sync_unlock(cfg);
-		if (!allowed_soc_2g) {
-			WL_ERR(("2G social channel is in the unsafe list\n"));
-#ifdef WL_CELLULAR_CHAN_AVOID_DUMP
-			wl_cellavoid_sync_lock(cfg);
-			wl_cellavoid_dump_chan_info_list(cfg);
-			wl_cellavoid_sync_unlock(cfg);
-#endif /* WL_CELLULAR_CHAN_AVOID_DUMP */
-			return BCME_ERROR;
-		}
-		if (!allowed_soc_5g) {
-			WL_ERR(("5G social channel is in the unsafe list\n"));
-			soc_chans->soc_chan_5g = 0;
-#ifdef WL_CELLULAR_CHAN_AVOID_DUMP
-			wl_cellavoid_sync_lock(cfg);
-			wl_cellavoid_dump_chan_info_list(cfg);
-			wl_cellavoid_sync_unlock(cfg);
-#endif /* WL_CELLULAR_CHAN_AVOID_DUMP */
-		}
-#endif /* WL_CELLULAR_CHAN_AVOID */
 	} else {
 		WL_DBG(("5G support is disabled\n"));
 	}
@@ -3155,7 +2727,6 @@ wl_cfgnan_set_awake_dws(struct net_device *ndev, nan_config_cmd_data_t *cmd_data
 	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
 	wl_nan_awake_dws_t *awake_dws = NULL;
 	uint16 subcmd_len;
-	uint32 ctrl_flags = cfg->nancfg->nan_ctrl;
 	NAN_DBG_ENTER();
 
 	sub_cmd =
@@ -3183,34 +2754,23 @@ wl_cfgnan_set_awake_dws(struct net_device *ndev, nan_config_cmd_data_t *cmd_data
 	if (cfg->nancfg->support_5g) {
 		if (nan_attr_mask & NAN_ATTR_5G_DW_CONFIG) {
 			awake_dws->dw_interval_5g = cmd_data->awake_dws.dw_interval_5g;
-			if (awake_dws->dw_interval_5g) {
-				ctrl_flags |= (WL_NAN_CTRL_DISC_BEACON_TX_5G |
-						WL_NAN_CTRL_SYNC_BEACON_TX_5G);
-			} else {
-				ctrl_flags &= ~(WL_NAN_CTRL_DISC_BEACON_TX_5G |
-						WL_NAN_CTRL_SYNC_BEACON_TX_5G);
-			}
 			/* config sync/discovery beacons on 5G band */
-			ret = wl_cfgnan_config_control_flags_set(ndev, cfg,
-					ctrl_flags,
+			ret = wl_cfgnan_config_control_flag(ndev, cfg,
+					WL_NAN_CTRL_DISC_BEACON_TX_5G |
+					WL_NAN_CTRL_SYNC_BEACON_TX_5G,
 					0, WL_NAN_CMD_CFG_NAN_CONFIG,
-					&(cmd_data->status));
+					&(cmd_data->status),
+					awake_dws->dw_interval_5g);
 			if (unlikely(ret) || unlikely(cmd_data->status)) {
 				WL_ERR((" nan control set config handler, ret = %d"
 					" status = %d \n", ret, cmd_data->status));
 				goto fail;
-			} else {
-				cfg->nancfg->nan_ctrl = ctrl_flags;
 			}
 		} else {
 			/* Set 5G awake dw value to fw default value 1 */
 			awake_dws->dw_interval_5g = NAN_SYNC_DEF_AWAKE_DW;
 		}
 	}
-
-	WL_INFORM_MEM(("%s: awake dws 2g:%d 5g:%d\n", __FUNCTION__,
-			awake_dws->dw_interval_2g,
-			awake_dws->dw_interval_5g));
 
 	sub_cmd->id = htod16(WL_NAN_CMD_SYNC_AWAKE_DWS);
 	sub_cmd->len = sizeof(sub_cmd->u.options) +
@@ -3306,1303 +2866,6 @@ fail:
 }
 
 static int
-wl_cfgnan_build_execute_ioctl(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	uint8 *input_data, uint8 size_of_iov, uint16 cmd_type, uint32 *status)
-{
-	bcm_iov_batch_buf_t *nan_buf = NULL;
-	s32 ret = BCME_OK;
-	uint16 nan_iov_start, nan_iov_end;
-	uint16 nan_buf_size = NAN_IOCTL_BUF_SIZE;
-	uint16 subcmd_len;
-	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
-	wl_nan_iov_t *nan_iov_data = NULL;
-	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
-
-	nan_buf = MALLOCZ(cfg->osh, nan_buf_size);
-	if (!nan_buf) {
-		WL_ERR(("%s: memory allocation failed\n", __func__));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	nan_iov_data = MALLOCZ(cfg->osh, sizeof(*nan_iov_data));
-	if (!nan_iov_data) {
-		WL_ERR(("%s: memory allocation failed\n", __func__));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	nan_iov_data->nan_iov_len = nan_iov_start = NAN_IOCTL_BUF_SIZE;
-	nan_buf->version = htol16(WL_NAN_IOV_BATCH_VERSION);
-	nan_buf->count = 0;
-	nan_iov_data->nan_iov_buf = (uint8 *)(&nan_buf->cmds[0]);
-	nan_iov_data->nan_iov_len -= OFFSETOF(bcm_iov_batch_buf_t, cmds[0]);
-	sub_cmd = (bcm_iov_batch_subcmd_t*)(nan_iov_data->nan_iov_buf);
-
-	ret = wl_cfg_nan_check_cmd_len(nan_iov_data->nan_iov_len,
-		size_of_iov, &subcmd_len);
-	if (unlikely(ret)) {
-		WL_ERR(("nan_sub_cmd check failed\n"));
-		goto fail;
-	}
-
-	sub_cmd->id = htod16(cmd_type);
-	sub_cmd->len = sizeof(sub_cmd->u.options) + size_of_iov;
-	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
-
-	/* Reduce the iov_len size by subcmd_len */
-	nan_iov_data->nan_iov_len -= subcmd_len;
-	nan_iov_end = nan_iov_data->nan_iov_len;
-	nan_buf_size = (nan_iov_start - nan_iov_end);
-
-	(void)memcpy_s(sub_cmd->data, nan_iov_data->nan_iov_len,
-		input_data, size_of_iov);
-
-	nan_buf->is_set = true;
-	nan_buf->count++;
-	bzero(resp_buf, sizeof(resp_buf));
-
-	ret = wl_cfgnan_execute_ioctl(ndev, cfg, nan_buf, nan_buf_size, status,
-			(void*)resp_buf, NAN_IOCTL_BUF_SIZE);
-	if (unlikely(ret) || unlikely(*status)) {
-		WL_ERR(("IOVAR, failed ret %d status %d \n", ret, *status));
-		goto fail;
-	}
-fail:
-	if (nan_buf) {
-		MFREE(cfg->osh, nan_buf, NAN_IOCTL_BUF_SIZE);
-	}
-	if (nan_iov_data) {
-		MFREE(cfg->osh, nan_iov_data, sizeof(*nan_iov_data));
-	}
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-int
-wl_cfgnan_suspend_resume_request(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	uint8 suspend, wl_nan_instance_id_t svc_id, uint32 *status)
-{
-	s32 ret = BCME_OK;
-	wl_nan_suspend_resume_req_t suspend_req;
-	uint8 size_of_iov;
-
-	NAN_DBG_ENTER();
-
-	suspend_req.service_id = svc_id;
-	suspend_req.suspend = suspend;
-
-	size_of_iov = sizeof(wl_nan_suspend_resume_req_t);
-
-	ret = wl_cfgnan_build_execute_ioctl(ndev, cfg, (uint8 *)&suspend_req, size_of_iov,
-			WL_NAN_CMD_SD_SUSPEND_RESUME, status);
-	if (unlikely(ret) || unlikely(*status)) {
-		WL_ERR(("Suspension request suspend %d  svc_id %d failed ret %d status %d \n",
-				suspend, svc_id, ret, *status));
-		goto fail;
-	}
-fail:
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-/* workqueue to handle pairing event timeout */
-static void
-wl_cfgnan_pairing_timeout_handler(struct work_struct *work)
-{
-	struct bcm_cfg80211 *cfg = NULL;
-	wl_nancfg_t *nancfg = NULL;
-	WL_DBG(("Timeout: Clearing bs_entries\n"));
-
-	BCM_SET_CONTAINER_OF(nancfg, work, wl_nancfg_t, nan_pairing.work);
-
-	cfg = nancfg->cfg;
-	if (!nancfg->nan_enable) {
-		return;
-	}
-	nancfg->pairing_in_prog = false;
-	nancfg->pairing_cfm_pend_cnt = 0;
-
-	if (nancfg->nan_bs_entries) {
-		/* Reset bootstrapping entries cache info */
-		wl_cfgnan_reset_bootstrapping_entries(cfg);
-	}
-	return;
-}
-
-static void
-wl_cfgnan_clear_pairing_timeout(struct bcm_cfg80211 *cfg)
-{
-	cfg->nancfg->pairing_in_prog = false;
-
-	if (delayed_work_pending(&cfg->nancfg->nan_pairing)) {
-		dhd_cancel_delayed_work(&cfg->nancfg->nan_pairing);
-	}
-	WL_DBG(("Clean delayed pairing work\n"));
-	return;
-}
-
-static void
-wl_cfgnan_set_pairing_timeout(struct bcm_cfg80211 *cfg, uint32 timeout)
-{
-	cfg->nancfg->pairing_in_prog = true;
-
-	if (delayed_work_pending(&cfg->nancfg->nan_pairing)) {
-		dhd_cancel_delayed_work(&cfg->nancfg->nan_pairing);
-	}
-	schedule_delayed_work(&cfg->nancfg->nan_pairing, msecs_to_jiffies(timeout * 1000));
-	WL_DBG(("scheduled delayed pairing work, timer %d \n", timeout));
-	return;
-}
-
-int
-wl_cfgnan_pairing_end_handler(struct net_device *ndev,
-	struct bcm_cfg80211 *cfg, wl_nan_instance_id_t pairing_id, int *status)
-{
-	bcm_iov_batch_buf_t *nan_buf = NULL;
-	wl_nan_pairing_end_t *pairing_end = NULL;
-	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
-	s32 ret = BCME_OK;
-	uint16 nan_buf_size = NAN_IOCTL_BUF_SIZE;
-	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
-
-	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(ndev);
-
-	/* TODO implement pairing end in FW and remove below return */
-	return ret;
-
-	NAN_DBG_ENTER();
-	NAN_MUTEX_LOCK();
-
-	if (!dhdp->up) {
-		WL_ERR(("bus is already down, hence blocking nan pairing end\n"));
-		ret = BCME_OK;
-		goto fail;
-	}
-
-	if (!cfg->nancfg->nan_enable) {
-		WL_ERR(("nan is not enabled, nan pairing end blocked\n"));
-		ret = BCME_OK;
-		goto fail;
-	}
-
-	/* Pairing instance id must be from 1 to 255, 0 is reserved */
-	/* Max check tautological for 8 but pairing_id */
-	if (pairing_id < NAN_ID_MIN /* || pairing_id > NAN_ID_MAX */) {
-		WL_ERR(("Invalid pairing instance id: %d\n", pairing_id));
-		ret = BCME_BADARG;
-		goto fail;
-	}
-
-	nan_buf = MALLOCZ(cfg->osh, nan_buf_size);
-	if (!nan_buf) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	nan_buf->version = htol16(WL_NAN_IOV_BATCH_VERSION);
-	nan_buf->count = 0;
-	nan_buf_size -= OFFSETOF(bcm_iov_batch_buf_t, cmds[0]);
-
-	sub_cmd = (bcm_iov_batch_subcmd_t*)(&nan_buf->cmds[0]);
-	pairing_end = (wl_nan_pairing_end_t *)(sub_cmd->data);
-
-	/* Fill sub_cmd block */
-	sub_cmd->id = htod16(WL_NAN_CMD_PAIRING_END);
-	sub_cmd->len = sizeof(sub_cmd->u.options) + sizeof(*pairing_end);
-	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
-
-	pairing_end->pairing_id = pairing_id;
-
-	nan_buf->is_set = true;
-	nan_buf->count++;
-
-	nan_buf_size -= (sub_cmd->len +
-		OFFSETOF(bcm_iov_batch_subcmd_t, u.options));
-	bzero(resp_buf, sizeof(resp_buf));
-	ret = wl_cfgnan_execute_ioctl(ndev, cfg, nan_buf, nan_buf_size,
-			status, (void*)resp_buf, NAN_IOCTL_BUF_SIZE);
-	if (unlikely(ret) || unlikely(*status)) {
-		WL_ERR(("nan pairing end handler failed, error = %d status %d\n",
-			ret, *status));
-		goto fail;
-	}
-	WL_INFORM_MEM(("[NAN] pairing end successfull (pairing:%d)\n", pairing_end->pairing_id));
-
-fail:
-	if (nan_buf) {
-		MFREE(cfg->osh, nan_buf, NAN_IOCTL_BUF_SIZE);
-	}
-
-	NAN_MUTEX_UNLOCK();
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-int
-wl_cfgnan_pairing_request_n_response(struct net_device *ndev, struct bcm_cfg80211 *cfg,
-	nan_pairing_bs_cmd_data_t *cmd_data, uint32 cmd)
-{
-	s32 ret = BCME_OK;
-	bcm_iov_batch_buf_t *nan_buf = NULL;
-	wl_nan_pairing_oper_t *pairing_cmd = NULL;
-	bcm_iov_batch_subcmd_t *sub_cmd = NULL;
-	uint16 buflen_avail;
-	uint8 *pxtlv;
-	uint16 nan_buf_size;
-	uint8 *resp_buf = NULL;
-	uint8 pairing_instance_id = 0;
-	uint8 *xtlvs = NULL, *xtlvs_temp;
-	uint16 xtlvs_tot_len = 0, xtlvs_temp_len;
-	nan_bootstrapping_entry_t *bs_entry = NULL;
-	/* Considering fixed params */
-	uint16 data_size = WL_NAN_OBUF_DATA_OFFSET + OFFSETOF(wl_nan_pairing_oper_t, tlv_params[0]);
-	data_size = ALIGN_SIZE(data_size, 4);
-
-	ret = wl_cfgnan_aligned_data_size_of_opt_pairing_params(&data_size, cmd_data);
-	if (unlikely(ret)) {
-		WL_ERR(("Failed to get alligned size of optional params\n"));
-		goto fail;
-	}
-
-	nan_buf_size = data_size;
-	NAN_DBG_ENTER();
-
-	NAN_MUTEX_LOCK();
-
-	nan_buf = MALLOCZ(cfg->osh, data_size);
-	if (!nan_buf) {
-		WL_ERR(("memory allocation failed, size %d \n", data_size));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	resp_buf = MALLOCZ(cfg->osh, data_size + NAN_IOVAR_NAME_SIZE);
-	if (!resp_buf) {
-		WL_ERR(("memory allocation failed for resp_buf\n"));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	/* prepare batch sub cmds */
-	nan_buf->version = htol16(WL_NAN_IOV_BATCH_VERSION);
-	nan_buf->count = 0;
-	nan_buf_size -= OFFSETOF(bcm_iov_batch_buf_t, cmds[0]);
-
-	sub_cmd = (bcm_iov_batch_subcmd_t*)(&nan_buf->cmds[0]);
-	/* Fill the sub_command block */
-	sub_cmd->id = htod16(WL_NAN_CMD_PAIRING);
-	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
-
-	pairing_cmd = (wl_nan_pairing_oper_t *)(sub_cmd->data);
-
-	/* Fill pairing struct */
-	pairing_cmd->type = cmd_data->request_type;
-	pairing_cmd->pasn_csid = wl_cfgnan_map_host_csid_to_nan_prot_csid(cmd_data->csid);
-
-	/* generate pmk - default is oppurtunistic */
-	pairing_cmd->pasn_policy = WL_PASN_POLICY_SETUP_PMKSA;
-
-	if (cmd_data->enab_pairing_cache) {
-		pairing_cmd->flags |= WL_NAN_PAIRING_FLAGS_NPK_CACHING;
-	}
-
-	if (cmd == NAN_WIFI_SUBCMD_PAIRING_REQUEST) {
-		if (!ETHER_ISNULLADDR(&cmd_data->mac_addr.octet)) {
-			eacopy(&cmd_data->mac_addr, &pairing_cmd->peer_addr);
-		} else {
-			WL_ERR(("MAC addr provided is NULL \n"));
-			ret = BCME_BADARG;
-			goto fail;
-		}
-
-		if (pairing_cmd->type == WL_NAN_PAIRING_TYPE_SETUP) {
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-					&cmd_data->mac_addr);
-			if (bs_entry == NULL) {
-				WL_ERR(("Could not find bs cache with peer nmi\n"));
-				ret = BCME_NOTFOUND;
-				goto fail;
-			}
-			bs_entry->txs_token = cmd_data->token;
-		}
-
-		pairing_cmd->role = WL_NAN_PAIRING_ROLE_INITIATOR;
-		pairing_cmd->pub_id = cmd_data->req_inst_id;
-
-		/* setup IGTK/BIGTK based on CSIA capability */
-		if (bs_entry && NAN_SEC_BIP_ENABLED(bs_entry->lcl_csia) &&
-				NAN_SEC_BIP_ENABLED(bs_entry->peer_csia)) {
-			pairing_cmd->flags |= WL_NAN_PAIRING_FLAGS_SETUP_BIP;
-			bs_entry->setup_bip = true;
-			if ((bs_entry->lcl_csia & NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256) &&
-				(bs_entry->peer_csia & NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256)) {
-				pairing_cmd->flags |= WL_NAN_PAIRING_FLAGS_BIP_CIPHER_GMAC256;
-			}
-		}
-
-		WL_INFORM_MEM(("[NAN] Pairing Request cmd rcvd, peer " MACDBG ", type %d pub_id %d "
-			"policy %d caching %d is_oppur %d key_type %d key_len %d csid 0x %x \n",
-			MAC2STRDBG(&cmd_data->mac_addr), pairing_cmd->type, pairing_cmd->pub_id,
-			pairing_cmd->pasn_policy, pairing_cmd->flags, cmd_data->is_opportunistic,
-			cmd_data->key_type, cmd_data->key.dlen, cmd_data->csid));
-	} else if (cmd == NAN_WIFI_SUBCMD_PAIRING_RESPONSE) {
-		if (pairing_cmd->type == WL_NAN_PAIRING_TYPE_SETUP) {
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_pairing_id(cfg,
-					cmd_data->inst_id);
-			if (bs_entry == NULL) {
-				WL_ERR(("Could not find bs cache with pairing id %d\n",
-						cmd_data->inst_id));
-				ret = BCME_NOTFOUND;
-				goto fail;
-			}
-			bs_entry->txs_token = cmd_data->token;
-		}
-
-		pairing_cmd->role = WL_NAN_PAIRING_ROLE_RESPONDER;
-		pairing_cmd->response_code = cmd_data->rsp_code;
-		pairing_cmd->pairing_id = cmd_data->inst_id;
-
-		/* check only for Publisher local csia cap, as we may not know subscriber csia */
-		if (bs_entry && NAN_SEC_BIP_ENABLED(bs_entry->lcl_csia)) {
-			pairing_cmd->flags |= WL_NAN_PAIRING_FLAGS_SETUP_BIP;
-			bs_entry->setup_bip = true;
-			if (bs_entry->lcl_csia & NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256) {
-				pairing_cmd->flags |= WL_NAN_PAIRING_FLAGS_BIP_CIPHER_GMAC256;
-			}
-		}
-
-		WL_INFORM_MEM(("[NAN] Pairing Response cmd rcvd pairing_id %d type %d resp_code %d "
-			"policy %d caching %d is_oppur %d key_type %d key_len %d csid 0x%x\n",
-			pairing_cmd->pairing_id, pairing_cmd->type, pairing_cmd->response_code,
-			pairing_cmd->pasn_policy, pairing_cmd->flags, cmd_data->is_opportunistic,
-			cmd_data->key_type, cmd_data->key.dlen, cmd_data->csid));
-	}
-
-	sub_cmd->len = sizeof(sub_cmd->u.options) + OFFSETOF(wl_nan_pairing_oper_t, tlv_params);
-	pxtlv = (uint8 *)&pairing_cmd->tlv_params;
-
-	nan_buf_size -= (sub_cmd->len + OFFSETOF(bcm_iov_batch_subcmd_t, u.options));
-	buflen_avail = nan_buf_size;
-
-	if (pairing_cmd->response_code) {
-		/* As response code is reject case, directly proceed to send cmd to FW */
-		goto send_cmd;
-	}
-
-	if (!cmd_data->is_opportunistic) {
-		if (cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PASSPHRASE) {
-			if ((cmd_data->request_type != WL_NAN_PAIRING_TYPE_SETUP) ||
-				(cmd_data->nan_akm != NAN_AKM_SAE)) {
-				WL_ERR(("Invalid NAN AKM:%d or pairing req type:%d expected SAE AKM"
-						"and SETUP type\n", cmd_data->nan_akm,
-						cmd_data->request_type));
-				ret = BCME_BADARG;
-				goto fail;
-			}
-
-			if (cmd_data->key.data && cmd_data->key.dlen) {
-				WL_TRACE(("optional passphrase present, pack it\n"));
-				ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
-						WL_NAN_XTLV_PAIRING_PASSWORD, cmd_data->key.dlen,
-						cmd_data->key.data, BCM_XTLV_OPTION_ALIGN32);
-				if (unlikely(ret)) {
-					WL_ERR(("Fail to pack WL_NAN_XTLV_PAIRING_PASSWORD\n"));
-					goto fail;
-				}
-			} else {
-				WL_ERR(("NULL key_len provided for passphrase \n"));
-				ret = BCME_BADLEN;
-				goto fail;
-			}
-		} else {
-			if (cmd_data->request_type == WL_NAN_PAIRING_TYPE_SETUP) {
-				WL_ERR(("Invalid security, no passphrase in non-oppurtunistic\n"));
-				ret = BCME_BADARG;
-				goto fail;
-			}
-		}
-	} else {
-		pairing_cmd->pasn_policy = WL_PASN_POLICY_ALLOW_NO_PMKSA;
-		if (cmd_data->nan_akm != NAN_AKM_PASN) {
-			WL_ERR(("Invalid NAN AKM, PASN AKM expected for oppurtunistic \n"));
-			ret = BCME_BADARG;
-			goto fail;
-		}
-		if ((pairing_cmd->role == WL_NAN_PAIRING_ROLE_RESPONDER) && bs_entry &&
-				bs_entry->pairing &&
-				(cmd_data->nan_akm != NAN_AKM_PASN)) {
-			WL_ERR(("Invalid NAN PASN AKM, expectd peer pairing requst SAE AKM %d \n",
-					cmd_data->nan_akm));
-			ret = BCME_BADARG;
-			goto fail;
-		}
-	}
-
-	if (cmd_data->request_type == WL_NAN_PAIRING_TYPE_VERIFICATION) {
-		if (!cmd_data->enab_pairing_cache) {
-			WL_ERR(("Invalid cache type for verification \n"));
-			ret = BCME_BADARG;
-			goto fail;
-		}
-
-		/* Fill WL_NAN_XTLV_PAIRING_XTLV_LIST - with Local NIK and NPK */
-		/* Verification NPK */
-		xtlvs_tot_len += bcm_xtlv_size_for_data(cmd_data->key.dlen,
-				BCM_XTLV_OPTION_ALIGN32);
-		/* Local NIk */
-		xtlvs_tot_len += bcm_xtlv_size_for_data(NAN_IDENTITY_KEY_LEN,
-				BCM_XTLV_OPTION_ALIGN32);
-		xtlvs_temp_len = xtlvs_tot_len;
-		xtlvs_temp = MALLOCZ(cfg->osh, xtlvs_tot_len);
-		if (!xtlvs_temp) {
-			WL_ERR(("memory allocation failed\n"));
-			ret = BCME_NOMEM;
-			goto fail;
-		}
-
-		xtlvs = xtlvs_temp;
-
-		if (cmd_data->nan_akm == NAN_AKM_PASN) {
-			pairing_cmd->pasn_policy = WL_PASN_POLICY_ALLOW_NO_PMKSA;
-		}
-		if (cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) {
-			if (cmd_data->key.data && cmd_data->key.dlen) {
-				WL_TRACE(("optional pmk present, pack it\n"));
-				ret = bcm_pack_xtlv_entry(&xtlvs_temp, &xtlvs_temp_len,
-						WL_NAN_XTLV_PAIRING_CACHING_NPK,
-						cmd_data->key.dlen, cmd_data->key.data,
-						BCM_XTLV_OPTION_ALIGN32);
-				if (unlikely(ret)) {
-					WL_ERR(("fail to pack WL_NAN_XTLV_CFG_SEC_PMK\n"));
-					goto fail;
-				}
-			} else {
-				WL_ERR(("NULL key_len provided \n"));
-				ret = BCME_BADLEN;
-				goto fail;
-			}
-		} else {
-			WL_ERR(("NO PMK sent or invalid key type %d for Verification \n",
-					cmd_data->key_type));
-			ret = BCME_BADARG;
-			goto fail;
-		}
-
-		ret = bcm_pack_xtlv_entry(&xtlvs_temp, &xtlvs_temp_len,
-				WL_NAN_XTLV_PAIRING_LOCAL_NIK, NAN_IDENTITY_KEY_LEN,
-				(const uint8 *)&cmd_data->nan_identity_key,
-				BCM_XTLV_OPTION_ALIGN32);
-		if (unlikely(ret)) {
-			WL_ERR(("fail to pack on WL_NAN_XTLV_PAIRING_LOCAL_NIK\n"));
-			goto fail;
-		}
-
-		/* Embedd above packed nik and npk buffer xtlvs in WL_NAN_XTLV_PAIRING_XTLV_LIST */
-		ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
-				WL_NAN_XTLV_PAIRING_XTLV_LIST, (xtlvs_tot_len - xtlvs_temp_len),
-				(const uint8 *)xtlvs, BCM_XTLV_OPTION_ALIGN32);
-
-		/* reduce pairing timeout to 4 sec for pairing verification */
-		wl_cfgnan_set_pairing_timeout(cfg, NAN_PAIRING_TIMEOUT_VERIFICATION);
-	}
-
-send_cmd:
-	sub_cmd->len += (buflen_avail - nan_buf_size);
-	nan_buf->is_set = true;
-	nan_buf->count++;
-
-	ret = wl_cfgnan_execute_ioctl(ndev, cfg, nan_buf, data_size,
-			&(cmd_data->status), resp_buf, (data_size + NAN_IOVAR_NAME_SIZE));
-	if (unlikely(ret) || unlikely(cmd_data->status)) {
-		WL_ERR(("nan pairing cmd handler failed, ret = %d,"
-			" status %d, peer: " MACDBG "\n",
-			ret, cmd_data->status, MAC2STRDBG(&(cmd_data->mac_addr))));
-		goto fail;
-	}
-
-	/* check the response buff */
-	if (ret == BCME_OK) {
-		ret = wl_cfgnan_process_resp_buf(resp_buf +
-				(WL_NAN_OBUF_DATA_OFFSET + NAN_IOVAR_NAME_SIZE),
-				&pairing_instance_id, WL_NAN_CMD_PAIRING);
-		cmd_data->inst_id = pairing_instance_id;
-		if (bs_entry && !bs_entry->pairing) {
-			bs_entry->pairing = MALLOCZ(cfg->osh, sizeof(nan_pairing_event_data_t));
-			if (!bs_entry->pairing) {
-				WL_ERR(("memory allocation failed for bs_entry->pairing\n"));
-				ret = BCME_NOMEM;
-				goto fail;
-			}
-			if (pairing_instance_id) {
-				bs_entry->pairing->pairing_id = pairing_instance_id;
-			}
-		}
-	}
-	WL_INFORM_MEM(("[NAN] Pairing cmd successfull (pairing_id:%d)\n", cmd_data->inst_id));
-
-fail:
-	if (nan_buf) {
-		MFREE(cfg->osh, nan_buf, data_size);
-	}
-
-	if (resp_buf) {
-		MFREE(cfg->osh, resp_buf, data_size + NAN_IOVAR_NAME_SIZE);
-	}
-	if (xtlvs) {
-		MFREE(cfg->osh, xtlvs, xtlvs_tot_len);
-	}
-	if (ret != BCME_OK) {
-		wl_cfgnan_clear_pairing_timeout(cfg);
-	}
-	NAN_MUTEX_UNLOCK();
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-static s32
-wl_nan_pairing_cmn_event_data(struct bcm_cfg80211 *cfg, void *event_data,
-		uint16 data_len, uint16 *tlvs_offset, uint16 *nan_opts_len,
-		uint32 event_num, int *hal_event_id, nan_event_data_t *nan_event_data)
-{
-	s32 ret = BCME_OK;
-	nan_bootstrapping_entry_t *bs_entry;
-	wl_nan_ev_pairing_cmn_t *ev_pairing;
-	ev_pairing = (wl_nan_ev_pairing_cmn_t *)event_data;
-
-	if (!cfg->nancfg->nan_enable) {
-		WL_ERR(("nan is not enabled, stale pairing events processing not allowed\n"));
-		ret = BCME_OK;
-		goto fail;
-	}
-
-	NAN_DBG_ENTER();
-
-	/* Mapping to common struct between DHD and HAL */
-	WL_TRACE(("Pairing Event %d for pairing type: %d\n", event_num, ev_pairing->type));
-	nan_event_data->type = ev_pairing->type;
-	nan_event_data->peer_cipher_suite =
-			wl_cfgnan_map_nan_prot_csid_to_host_csid(ev_pairing->security);
-
-	ret = memcpy_s(&nan_event_data->remote_nmi, ETHER_ADDR_LEN,
-			&ev_pairing->peer_nmi, ETHER_ADDR_LEN);
-
-	if (event_num == WL_NAN_EVENT_PAIRING_IND) {
-		*hal_event_id = GOOGLE_NAN_EVENT_PAIRING_REQ_IND;
-	} else if (event_num == WL_NAN_EVENT_PAIRING_ESTBL) {
-		nan_event_data->status = NAN_STATUS_INTERNAL_FAILURE;
-		if (ev_pairing->status == WL_NAN_PAIRING_STATUS_PAIRED) {
-			nan_event_data->status = NAN_STATUS_SUCCESS;
-		}
-
-		/* Get boot strapping cache */
-		bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-				&nan_event_data->remote_nmi);
-		if (bs_entry) {
-			if (nan_event_data->type == WL_NAN_PAIRING_TYPE_SETUP) {
-				/* Defer sending Pairing confirm event to HAL till FUP Rx is receivd
-				 * So that we get PEER NIK from exchange
-				 * Store confirm data in BS cache
-				 */
-				if (!bs_entry->pairing) {
-					WL_ERR(("bs_entry->pairing not found\n"));
-					ret = BCME_NOTFOUND;
-					goto fail;
-				}
-				if (nan_event_data->status == NAN_STATUS_SUCCESS) {
-					bs_entry->pairing->type = WL_NAN_PAIRING_TYPE_SETUP;
-					bs_entry->pairing->csid = nan_event_data->peer_cipher_suite;
-					bs_entry->pairing->status = nan_event_data->status;
-
-					cfg->nancfg->pairing_cfm_pend_cnt++;
-				} else {
-					nan_event_data->pairing_id = bs_entry->pairing->pairing_id;
-					nan_event_data->nan_akm = bs_entry->pairing->akm;
-					wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-					WL_DBG_MEM(("GOOGLE_NAN_EVENT_PAIRING_CONFIRM -"
-							" Status Failed for pairing id %d \n",
-							nan_event_data->pairing_id));
-				}
-			} else {
-				wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-			}
-		} else {
-			/* BS/Pairing cache for verification type will not be available */
-			if (nan_event_data->type == WL_NAN_PAIRING_TYPE_SETUP) {
-				WL_ERR((" BS cache not found for pairing setup \n"));
-				ret = BCME_NOTFOUND;
-				goto fail;
-			}
-		}
-
-		*hal_event_id = GOOGLE_NAN_EVENT_PAIRING_CONFIRM;
-	} else if (event_num == WL_NAN_EVENT_PAIRING_END) {
-		*hal_event_id = GOOGLE_NAN_EVENT_PAIRING_END;
-	}
-
-	*tlvs_offset = OFFSETOF(wl_nan_ev_pairing_cmn_t, opt_tlvs);
-	*nan_opts_len = data_len - *tlvs_offset;
-
-fail:
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-static int
-wl_cfgnan_bootstrapping_prep_npba_attr(struct bcm_cfg80211 *cfg,
-	nan_discover_cmd_data_t *cmd_data, uint32 cmd)
-{
-	uint16	total_len = 0;
-	uint16	cookie_len = 0;
-	uint16	comeback_delay_len = 0;
-	wifi_nan_npba_attr_t *attr;
-	uint8	*p;
-	uint8	type_status = 0;
-	int	ret = BCME_OK;
-
-	total_len = NAN_NPBA_ATTR_MIN_LEN;
-
-	/* handle optional comeback field */
-	if (cmd == NAN_WIFI_SUBCMD_REQUEST_PUBLISH) {
-		type_status = NAN_BOOTSTRAPPING_ADVERTISE;
-	} else if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_REQUEST) {
-		type_status = NAN_BOOTSTRAPPING_REQUEST;
-		if ((cmd_data->response == NAN_BOOTSTRAPPING_STATUS_COMEBACK) ||
-				(cmd_data->cookie.data)) {
-			cookie_len += cmd_data->cookie.dlen;
-			cookie_len += NAN_NPBA_ATTR_COOKIE_HDR_LEN;
-			cmd_data->response = NAN_BOOTSTRAPPING_STATUS_COMEBACK;
-		}
-	} else if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_RESPONSE) {
-		type_status = NAN_BOOTSTRAPPING_RESPONSE;
-		if (cmd_data->response == NAN_BOOTSTRAPPING_STATUS_COMEBACK) {
-			if (!cmd_data->comeback_delay) {
-				WL_ERR(("Comeback delay not found \n"));
-				goto fail;
-			}
-			comeback_delay_len += NAN_NPBA_ATTR_COMEBACK_LEN;
-			comeback_delay_len += NAN_NPBA_ATTR_COOKIE_HDR_LEN;
-
-			if (cmd_data->cookie.dlen) {
-				cookie_len += cmd_data->cookie.dlen;
-			}
-		}
-	}
-
-	total_len += cookie_len + comeback_delay_len;
-
-	/* Alloc NPBA and populate fields */
-	cmd_data->npba_info.data = MALLOCZ(cfg->osh, total_len);
-	cmd_data->npba_info.dlen = total_len;
-
-	attr = (wifi_nan_npba_attr_t*)cmd_data->npba_info.data;
-	attr->id = NAN_ATTR_NPBA;
-	if (type_status != NAN_BOOTSTRAPPING_ADVERTISE) {
-		attr->dialog_token = cfg->nancfg->cur_bs_instance_id;
-	}
-
-	type_status |= (cmd_data->response << NAN_NPBA_ATTR_STATUS_SHIFT);
-	htol16_ua_store(total_len - NAN_ATTR_HDR_LEN, &attr->len);
-	htol16_ua_store(type_status, &attr->type_status);
-
-	p = attr->var;
-
-	if (comeback_delay_len) {
-		htol16_ua_store(cmd_data->comeback_delay, p);
-		p += NAN_NPBA_ATTR_COMEBACK_LEN;
-	}
-
-	if (cookie_len) {
-		htol16_ua_store(cookie_len, p);
-		p += NAN_NPBA_ATTR_COOKIE_HDR_LEN;
-
-		/* copy cookie info */
-		ret = memcpy_s(p, cookie_len, cmd_data->cookie.data, cmd_data->cookie.dlen);
-		if (ret != BCME_OK) {
-			WL_ERR(("Failed to copy cookie\n"));
-			goto fail;
-		}
-		p += cookie_len;
-	}
-	htol16_ua_store(cmd_data->pairing_config.supported_bootstrapping_methods, p);
-	WL_INFORM_MEM(("[NAN] Bootstrapping type_status %x  peer: " MACDBG " \n",
-		type_status, MAC2STRDBG(&cmd_data->mac_addr)));
-	prhex("NPBA info:", (void *)attr, total_len);
-	return ret;
-fail:
-	if (cmd_data->npba_info.data) {
-		MFREE(cfg->osh, cmd_data->npba_info.data, cmd_data->npba_info.dlen);
-		cmd_data->npba_info.data = NULL;
-	}
-	return ret;
-}
-
-static s32
-wl_cfgnan_parse_npba_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr, uint16 len,
-		nan_event_data_t *tlv_data)
-{
-	const wifi_nan_npba_attr_t *npba_attr = NULL;
-	uint8 comeback = 0;
-	uint8 offset;
-	s32 ret = BCME_OK;
-
-	/* service descriptor ext attributes */
-	npba_attr = (const wifi_nan_npba_attr_t *)p_attr;
-
-	/* attribute ID */
-	WL_TRACE(("> attr id: 0x%02x\n", npba_attr->id));
-
-	/* attribute length */
-	WL_TRACE(("> attr len: 0x%x\n", npba_attr->len));
-	offset = sizeof(*npba_attr);
-	if (offset > len) {
-		WL_ERR(("Invalid event buffer len\n"));
-		ret = BCME_BUFTOOSHORT;
-		goto fail;
-	}
-	tlv_data->npba_info.data = MALLOCZ(cfg->osh, (npba_attr->len + NAN_ATTR_HDR_LEN));
-	tlv_data->status = NAN_BOOTSTRAPPING_STATUS_ACCEPT;
-
-	if (npba_attr->type_status & NAN_BOOTSTRAPPING_ADVERTISE) {
-		tlv_data->type = NAN_BOOTSTRAPPING_ADVERTISE;
-	} else if (npba_attr->type_status & NAN_BOOTSTRAPPING_REQUEST) {
-		tlv_data->type = NAN_BOOTSTRAPPING_REQUEST;
-		if (npba_attr->type_status &
-			(NAN_BOOTSTRAPPING_STATUS_COMEBACK << NAN_NPBA_ATTR_STATUS_SHIFT)) {
-			comeback = true;
-		}
-	} else if (npba_attr->type_status & NAN_BOOTSTRAPPING_RESPONSE) {
-		tlv_data->type = NAN_BOOTSTRAPPING_RESPONSE;
-		if (npba_attr->type_status &
-			(NAN_BOOTSTRAPPING_STATUS_COMEBACK << NAN_NPBA_ATTR_STATUS_SHIFT)) {
-			comeback = true;
-			tlv_data->status = NAN_BOOTSTRAPPING_STATUS_COMEBACK;
-		}
-	}
-	if (!comeback) {
-		if (npba_attr->type_status &
-			(NAN_BOOTSTRAPPING_STATUS_REJECT << NAN_NPBA_ATTR_STATUS_SHIFT)) {
-			tlv_data->status = NAN_BOOTSTRAPPING_STATUS_REJECT;
-			tlv_data->reason = npba_attr->reason;
-		}
-	}
-
-	tlv_data->npba_info.dlen = (npba_attr->len + NAN_ATTR_HDR_LEN);
-	ret = memcpy_s(tlv_data->npba_info.data, tlv_data->npba_info.dlen,
-			npba_attr, (npba_attr->len + NAN_ATTR_HDR_LEN));
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy npba info\n"));
-		goto fail;
-	}
-	p_attr += offset;
-	len -= offset;
-	if (comeback) {
-		if (npba_attr->type_status & NAN_BOOTSTRAPPING_RESPONSE) {
-			tlv_data->bs_comeback_delay = *(uint16 *)p_attr;
-			p_attr += NAN_NPBA_ATTR_COMEBACK_LEN;
-			len -= NAN_NPBA_ATTR_COMEBACK_LEN;
-		}
-
-		tlv_data->cookie.dlen = *(uint8 *)p_attr;
-		p_attr += NAN_NPBA_ATTR_COOKIE_HDR_LEN;
-		len -= NAN_NPBA_ATTR_COOKIE_HDR_LEN;
-		if (tlv_data->cookie.dlen) {
-			tlv_data->cookie.data = MALLOCZ(cfg->osh, tlv_data->cookie.dlen);
-			if (!tlv_data->cookie.data) {
-				WL_ERR(("memory allocation failed\n"));
-				tlv_data->cookie.dlen = 0;
-				ret = BCME_NOMEM;
-				goto fail;
-			}
-			/* advance read pointer */
-			ret = memcpy_s(&tlv_data->cookie.data, tlv_data->cookie.dlen,
-					p_attr, tlv_data->cookie.dlen);
-			if (ret != BCME_OK) {
-				WL_ERR(("Failed to copy cookie\n"));
-				goto fail;
-			}
-			p_attr += tlv_data->cookie.dlen;
-			len -= tlv_data->cookie.dlen;
-		}
-	}
-	tlv_data->peer_bs_methods = *(uint16 *)p_attr;
-	WL_INFORM_MEM(("Peer BS_methods : 0x%02x\n", tlv_data->peer_bs_methods));
-	return ret;
-fail:
-	if (tlv_data->cookie.data) {
-		MFREE(cfg->osh, tlv_data->cookie.data, tlv_data->cookie.dlen);
-		tlv_data->cookie.data = NULL;
-	}
-	if (tlv_data->npba_info.data) {
-		MFREE(cfg->osh, tlv_data->npba_info.data, tlv_data->npba_info.dlen);
-		tlv_data->npba_info.data = NULL;
-	}
-
-	WL_DBG(("Error in Parsing NPBA attr, status = %d\n", ret));
-	return ret;
-}
-
-static s32
-wl_cfgnan_parse_nira_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr, uint16 len,
-		nan_event_data_t *tlv_data)
-{
-	const wifi_nan_nira_attr_t *nira_attr = NULL;
-	uint8 offset;
-	s32 ret = BCME_OK;
-
-	/* service descriptor ext attributes */
-	nira_attr = (const wifi_nan_nira_attr_t *)p_attr;
-
-	/* attribute ID */
-	WL_TRACE(("> attr id: 0x%02x\n", nira_attr->id));
-
-	/* attribute length */
-	WL_TRACE(("> attr len: 0x%x\n", nira_attr->len));
-	if (nira_attr->len != (NAN_NIRA_NONCE_LEN + NAN_NIRA_TAG_LEN +
-			sizeof(nira_attr->cipher_version))) {
-		WL_ERR((" Invalid NIRA length %d \n", nira_attr->len));
-		ret = BCME_BADLEN;
-		goto fail;
-	}
-	offset = sizeof(*nira_attr);
-	if (offset > len) {
-		WL_ERR(("Invalid event buffer len\n"));
-		ret = BCME_BUFTOOSHORT;
-		goto fail;
-	}
-	if (nira_attr->cipher_version != NAN_MAC_CIPHER_VERSION_0) {
-		WL_ERR((" Cipher version ID not supported \n"));
-		ret = BCME_UNSUPPORTED;
-		goto fail;
-	}
-
-	p_attr += offset;
-	/* Nira Nonce */
-	tlv_data->nira_nonce.data = MALLOCZ(cfg->osh, NAN_NIRA_NONCE_LEN);
-	tlv_data->nira_nonce.dlen = NAN_NIRA_NONCE_LEN;
-	ret = memcpy_s(tlv_data->nira_nonce.data, tlv_data->nira_nonce.dlen,
-			p_attr, NAN_NIRA_NONCE_LEN);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy Nira nonce \n"));
-		goto fail;
-	}
-
-	p_attr += NAN_NIRA_NONCE_LEN;
-
-	/* Nira Tag */
-	tlv_data->nira_tag.data = MALLOCZ(cfg->osh, NAN_NIRA_TAG_LEN);
-	tlv_data->nira_tag.dlen = NAN_NIRA_TAG_LEN;
-	ret = memcpy_s(tlv_data->nira_tag.data, tlv_data->nira_tag.dlen,
-			p_attr, NAN_NIRA_TAG_LEN);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy Nira tag \n"));
-		goto fail;
-	}
-
-	return ret;
-fail:
-	if (tlv_data->nira_nonce.data) {
-		MFREE(cfg->osh, tlv_data->nira_nonce.data, tlv_data->nira_nonce.dlen);
-		tlv_data->nira_nonce.data = NULL;
-	}
-	if (tlv_data->nira_tag.data) {
-		MFREE(cfg->osh, tlv_data->nira_tag.data, tlv_data->nira_tag.dlen);
-		tlv_data->nira_tag.data = NULL;
-	}
-
-	WL_DBG(("Error in Parsing NIRA attr, status = %d\n", ret));
-	return ret;
-}
-
-static s32
-wl_cfgnan_parse_dcea_attr(struct bcm_cfg80211 *cfg, const uint8 *p_attr, uint16 len,
-		nan_event_data_t *tlv_data)
-{
-	const wifi_nan_dev_cap_ext_t *dcea_attr = NULL;
-	nan_mac_dev_cap_ext_cap_data_t *cap_data; /* data for the capabilities */
-	uint8 offset;
-	s32 ret = BCME_OK;
-
-	/* service descriptor ext attributes */
-	dcea_attr = (const wifi_nan_dev_cap_ext_t *)p_attr;
-
-	/* attribute ID */
-	WL_TRACE(("> attr id: 0x%02x\n", dcea_attr->id));
-
-	/* attribute length */
-	WL_TRACE(("> attr len: 0x%x\n", dcea_attr->len));
-	offset = sizeof(*dcea_attr);
-	if (offset > len) {
-		WL_ERR(("Invalid event buffer len\n"));
-		ret = BCME_BUFTOOSHORT;
-		goto fail;
-	}
-
-	cap_data = (nan_mac_dev_cap_ext_cap_data_t *)dcea_attr->data;
-
-	tlv_data->pairing_setup_supported = cap_data->byte1.pairing_setup;
-	tlv_data->enable_pairing_cache = cap_data->byte1.npk_nik_caching;
-
-	return ret;
-fail:
-	WL_DBG(("Error in Parsing NIRA attr, status = %d\n", ret));
-	return ret;
-}
-
-int
-wl_cfgnan_bootstrapping_request_n_response(struct bcm_cfg80211 *cfg,
-	nan_discover_cmd_data_t *cmd_data, uint32 cmd)
-{
-	s32 ret = BCME_OK;
-	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
-	nan_bootstrapping_entry_t *bs_entry = NULL;
-	nan_svc_info_t *svc_info;
-	int bs_instance_id;
-	uint8 role;
-
-	NAN_DBG_ENTER();
-
-	svc_info = wl_cfgnan_get_svc_inst(cfg, cmd_data->local_id, 0);
-	if (svc_info) {
-		if (!(svc_info->pairing_config.flags & WL_NAN_SVC_CFG_ENAB_PAIRING_SETUP)) {
-			WL_ERR(("Local svc_id %d doesn't support pairing, svc_flags 0x%x \n",
-					cmd_data->local_id, svc_info->pairing_config.flags));
-			/* Clear bootstrapping entry as pairing is not supported by svc */
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi_n_lcl_svc_id(cfg,
-					&cmd_data->mac_addr, cmd_data->local_id);
-			ret = BCME_UNSUPPORTED;
-			if (bs_entry == NULL) {
-				WL_ERR(("Could not find bs cache\n"));
-				goto fail;
-			} else {
-				wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-			}
-			return ret;
-		}
-	} else {
-		WL_ERR(("Could not find svc_info cache for local svc_id %d\n", cmd_data->local_id));
-		ret = BCME_NOTFOUND;
-		goto fail;
-	}
-
-	if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_RESPONSE) {
-		/* Framework may send bs_id alone, instead of mac addr of peer */
-		if (ETHER_ISNULLADDR(&cmd_data->mac_addr.octet)) {
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_bs_id(cfg,
-					cmd_data->remote_id);
-			if (bs_entry) {
-				eacopy(&bs_entry->peer_nmi, &cmd_data->mac_addr);
-				/* Update remote_id with peer svc id to send follow-up frame */
-				cmd_data->remote_id = bs_entry->peer_inst_id;
-			}
-		} else {
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-					&cmd_data->mac_addr);
-		}
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find bs cache, bs ind event may not been recvd for "
-					"peer_id %d, peer NMI: " MACDBG "\n", cmd_data->remote_id,
-					MAC2STRDBG(&cmd_data->mac_addr)));
-			ret = BCME_NOTFOUND;
-			goto fail;
-		}
-		if ((bs_entry->peer_inst_id != cmd_data->remote_id) ||
-			(bs_entry->local_inst_id != cmd_data->local_id)) {
-			WL_ERR(("Peer instance Id %d mismatch BS cache id %d "
-				"Local inst Id %d mismatch BS cache inst %d BS instance id %d \n",
-				cmd_data->remote_id, bs_entry->peer_inst_id,
-				bs_entry->local_inst_id, cmd_data->local_id,
-				bs_entry->bs_inst_id));
-			goto fail;
-		}
-		WL_INFORM_MEM(("[NAN] bootstrapping Response cmd, peer: " MACDBG ", rsp_code %d\n"
-			"pub_id %d sub_id %d cookie_len %d cached bs_id %d \n",
-			MAC2STRDBG(&cmd_data->mac_addr), cmd_data->response,
-			cmd_data->remote_id, cmd_data->local_id, cmd_data->cookie.dlen,
-			bs_entry->bs_inst_id));
-		bs_entry->status = cmd_data->response;
-	} else if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_REQUEST) {
-		role = NAN_PAIRING_BS_ROLE_REQUESTOR;
-
-		bs_entry = wl_cfgnan_add_bootstrapping_entry(cfg,
-				(struct ether_addr *)cfg->nancfg->nan_nmi_mac,
-				&cmd_data->mac_addr, role, cmd_data->remote_id, cmd_data->local_id,
-				&cmd_data->npba_info);
-
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find bs cache, ret \n"));
-			ret = BCME_NOTFOUND;
-			goto fail;
-		}
-		bs_instance_id = bs_entry->bs_inst_id;
-		if (bs_instance_id <= 0) {
-			WL_ERR(("Could not add bootstrapping instance id: %d\n", bs_instance_id));
-			ret = BCME_NORESOURCE;
-			goto fail;
-		}
-		cmd_data->bootstrapping_id = bs_instance_id;
-
-		WL_INFORM_MEM(("[NAN] bootstrapping Request cmd rcvd, peer: " MACDBG ", pub_id %d"
-			"sub_id %d cookie_len %d created bs_id %d \n",
-			MAC2STRDBG(&cmd_data->mac_addr), cmd_data->remote_id,
-			cmd_data->local_id, cmd_data->cookie.dlen, cmd_data->bootstrapping_id));
-		wl_cfgnan_set_pairing_timeout(cfg, NAN_PAIRING_TIMEOUT);
-	} else {
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find bs cache for cmd 0x%x , ret \n", cmd));
-			ret = BCME_NOTFOUND;
-			goto fail;
-		}
-	}
-	/* prepare NPBA attribute and send it in transmit follow-up request */
-	wl_cfgnan_bootstrapping_prep_npba_attr(cfg, cmd_data, cmd);
-
-	/* Use TxID/token of pairing command for TX-FUP */
-	bs_entry->txs_token = cmd_data->token;
-	cfg->nancfg->bs_txs_pend_token++;
-
-	ret = wl_cfgnan_transmit_handler(ndev, cfg, cmd_data);
-	if (ret) {
-		WL_ERR(("Bootstrapping Transmit follow-up failed \n"));
-
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-
-	if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_REQUEST) {
-		bs_entry->state = NAN_STATE_BOOTSTRAPPING_REQ_SENT;
-	} else {
-		bs_entry->state = NAN_STATE_BOOTSTRAPPING_RESP_SENT;
-	}
-
-	NAN_DBG_EXIT();
-	return ret;
-fail:
-	wl_cfgnan_clear_pairing_timeout(cfg);
-	if (bs_entry) {
-		cfg->nancfg->bs_txs_pend_token--;
-		bs_entry->txs_token = 0;
-		bs_entry->state = 0;
-
-		if (cmd == NAN_WIFI_SUBCMD_BOOTSTRAPPING_REQUEST) {
-			wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-		}
-	}
-	NAN_DBG_EXIT();
-	return ret;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_add_bootstrapping_entry(struct bcm_cfg80211 *cfg, struct ether_addr *nmi,
-	struct ether_addr *peer, uint8 role, uint8 requestor_instance_id,
-	uint8 lcl_inst_id, nan_str_data_t *npba)
-{
-	int i = 0, j = 0;
-	int ret = BCME_NOTFOUND;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-	nan_svc_info_t *svc_info = NULL;
-	nan_disc_result_cache *disc_res = cfg->nancfg->nan_disc_cache;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (!memcmp(&bs_entry[i].peer_nmi, peer, ETHER_ADDR_LEN)) {
-			/* entry already exists with peer nmi */
-			return &bs_entry[i];
-		}
-		if (ETHER_ISNULLADDR(&bs_entry[i].peer_nmi) &&
-				ETHER_ISNULLADDR(&bs_entry[i].lcl_nmi)) {
-			bs_entry[i].bs_inst_id = cfg->nancfg->cur_bs_instance_id++;
-			bs_entry[i].role = role;
-			if (cfg->nancfg->cur_bs_instance_id == NAN_ID_MAX) {
-				cfg->nancfg->cur_bs_instance_id = NAN_ID_MIN;
-			}
-
-			eacopy(peer, &bs_entry[i].peer_nmi);
-			eacopy(nmi, &bs_entry[i].lcl_nmi);
-
-			bs_entry[i].peer_inst_id = requestor_instance_id;
-			bs_entry[i].local_inst_id = lcl_inst_id;
-
-			/* Local instance id svc search */
-			for (j = 0; j < NAN_MAX_SVC_INST; j++) {
-				if (cfg->nancfg->svc_info[j].svc_id == lcl_inst_id) {
-					svc_info = &cfg->nancfg->svc_info[j];
-					break;
-				} else {
-					continue;
-				}
-			}
-			if (svc_info) {
-				bs_entry[i].lcl_csia = svc_info->csia_cap;
-			}
-
-			/* Peer instance id svc search */
-			for (j = 0; j < NAN_MAX_CACHE_DISC_RESULT; j++) {
-				if (disc_res[j].valid &&
-						(disc_res[j].pub_id == requestor_instance_id)) {
-					break;
-				} else {
-					continue;
-				}
-			}
-			if (j == NAN_MAX_CACHE_DISC_RESULT) {
-				WL_ERR(("Unable to find peer service"));
-			} else {
-				bs_entry[i].peer_csia = disc_res[j].csia_cap;
-			}
-
-			if (npba->dlen) {
-				bs_entry[i].npba_info.dlen = npba->dlen;
-				bs_entry[i].npba_info.data = MALLOCZ(cfg->osh, npba->dlen);
-				ret = memcpy_s(bs_entry[i].npba_info.data,
-						bs_entry[i].npba_info.dlen,
-						npba->data, npba->dlen);
-				if (ret != BCME_OK) {
-					WL_ERR(("Failed to copy NPBA info \n"));
-					goto fail;
-				}
-			}
-
-			return &bs_entry[i];
-		}
-	}
-fail:
-	wl_cfgnan_clear_bootstrapping_entry(cfg, &bs_entry[i]);
-	return NULL;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_get_bootstrapping_entry_by_bs_id(struct bcm_cfg80211 *cfg, uint8 bs_id)
-{
-	int i = 0;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].bs_inst_id && (bs_entry[i].bs_inst_id == bs_id)) {
-			/* BS entry found with bs instance_id */
-			WL_INFORM_MEM(("BS instance ID match found %d \n", bs_entry[i].bs_inst_id));
-			return &bs_entry[i];
-		}
-	}
-	return NULL;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(struct bcm_cfg80211 *cfg, struct ether_addr *peer)
-{
-	int i = 0;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].bs_inst_id && !eacmp(&bs_entry[i].peer_nmi, peer)) {
-			/* BS entry found with peer nmi */
-			WL_INFORM_MEM(("BS instance ID match found %d \n", bs_entry[i].bs_inst_id));
-			return &bs_entry[i];
-		}
-	}
-	return NULL;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_get_bootstrapping_entry_by_peer_nmi_n_lcl_svc_id(struct bcm_cfg80211 *cfg,
-	struct ether_addr *peer, wl_nan_instance_id_t lcl_svc_id)
-{
-	int i = 0;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].bs_inst_id && (bs_entry[i].local_inst_id == lcl_svc_id) &&
-				(!eacmp(&bs_entry[i].peer_nmi, peer))) {
-			/* BS entry found with peer nmi  and lcl_svc_id */
-			WL_INFORM_MEM(("BS instance ID match found %d \n", bs_entry[i].bs_inst_id));
-			return &bs_entry[i];
-		}
-	}
-	return NULL;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_get_bootstrapping_entry_by_txs_token(struct bcm_cfg80211 *cfg, uint16 txs_token)
-{
-	int i = 0;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].bs_inst_id && (bs_entry[i].txs_token == txs_token)) {
-			/* BS entry found with txs token */
-			WL_INFORM_MEM(("BS instance ID match found %d txs_token %d \n",
-					bs_entry[i].bs_inst_id, txs_token));
-			return &bs_entry[i];
-		}
-	}
-	return NULL;
-}
-
-static nan_bootstrapping_entry_t *
-wl_cfgnan_get_bootstrapping_entry_by_pairing_id(struct bcm_cfg80211 *cfg, uint16 pairing_id)
-{
-	int i = 0;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].pairing && bs_entry[i].pairing->pairing_id == pairing_id) {
-			/* BS entry found with peer nmi */
-			WL_INFORM_MEM(("BS instance ID match found %d pairing id %d \n",
-					bs_entry[i].bs_inst_id, pairing_id));
-			return &bs_entry[i];
-		}
-	}
-	return NULL;
-}
-
-static int
-wl_cfgnan_reset_bootstrapping_entries(struct bcm_cfg80211 *cfg)
-{
-	int i;
-	nan_bootstrapping_entry_t *bs_entry = cfg->nancfg->nan_bs_entries;
-
-	for (i = 0; i < NAN_MAX_BOOTSTRAPPING_ENTRIES; i++) {
-		if (bs_entry[i].npba_info.data) {
-			MFREE(cfg->osh, bs_entry[i].npba_info.data, bs_entry[i].npba_info.dlen);
-		}
-		bzero(&bs_entry[i], sizeof(nan_bootstrapping_entry_t));
-	}
-	return BCME_OK;
-}
-
-static int
-wl_cfgnan_clear_bootstrapping_entry(struct bcm_cfg80211 *cfg, nan_bootstrapping_entry_t *bs_entry)
-{
-	nan_pairing_event_data_t *pairing_data;
-
-	if (!bs_entry) {
-		WL_ERR(("bs_entry is NULL\n"));
-		return BCME_NOTFOUND;
-	}
-
-	if (bs_entry->npba_info.data) {
-		MFREE(cfg->osh, bs_entry->npba_info.data, bs_entry->npba_info.dlen);
-	}
-
-	pairing_data = bs_entry->pairing;
-	if (pairing_data) {
-		if (pairing_data->local_nik.data) {
-			MFREE(cfg->osh, pairing_data->local_nik.data, pairing_data->local_nik.dlen);
-		}
-		if (pairing_data->npk.data) {
-			MFREE(cfg->osh, pairing_data->npk.data, pairing_data->npk.dlen);
-		}
-		if (pairing_data->cmd_data) {
-			MFREE(cfg->osh, pairing_data->cmd_data, sizeof(nan_discover_cmd_data_t));
-		}
-		MFREE(cfg->osh, pairing_data, sizeof(nan_pairing_event_data_t));
-		bs_entry->pairing = NULL;
-	}
-	bzero(bs_entry, sizeof(nan_bootstrapping_entry_t));
-	return BCME_OK;
-}
-
-static int
 wl_cfgnan_set_disc_beacon_interval_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	wl_nan_disc_bcn_interval_t disc_beacon_interval)
 {
@@ -4693,13 +2956,13 @@ fail:
 	return ret;
 }
 
-static void
+void
 wl_cfgnan_immediate_nan_disable_pending(struct bcm_cfg80211 *cfg)
 {
 	if (delayed_work_pending(&cfg->nancfg->nan_disable)) {
 		WL_DBG(("Do immediate nan_disable work\n"));
 		DHD_NAN_WAKE_UNLOCK(cfg->pub);
-		if (dhd_cancel_delayed_work(&cfg->nancfg->nan_disable)) {
+		if (cancel_delayed_work(&cfg->nancfg->nan_disable)) {
 			schedule_delayed_work(&cfg->nancfg->nan_disable, 0);
 		}
 	}
@@ -4726,9 +2989,9 @@ wl_cfgnan_check_nan_disable_pending(struct bcm_cfg80211 *cfg,
 		DHD_NAN_WAKE_UNLOCK(cfg->pub);
 
 		if (is_sync_reqd == true) {
-			dhd_cancel_delayed_work_sync(&cfg->nancfg->nan_disable);
+			cancel_delayed_work_sync(&cfg->nancfg->nan_disable);
 		} else {
-			dhd_cancel_delayed_work(&cfg->nancfg->nan_disable);
+			cancel_delayed_work(&cfg->nancfg->nan_disable);
 		}
 		force_disable = true;
 	}
@@ -4751,9 +3014,7 @@ wl_cfgnan_config_nmi_rand_mac(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, nan_config_cmd_data_t *cmd_data)
 {
 	s32 ret = BCME_OK;
-	wl_nancfg_t *nancfg = cfg->nancfg;
 
-	BCM_REFERENCE(nancfg);
 #ifdef WL_NAN_ENABLE_MERGE
 	/* Cluster merge enable/disable are being set using nmi random interval config param
 	 * If MSB(31st bit) is set that indicates cluster merge enable/disable config is set
@@ -4763,7 +3024,6 @@ wl_cfgnan_config_nmi_rand_mac(struct net_device *ndev,
 		uint8 merge_enable;
 		uint8 lwt_mode_enable;
 		int status = BCME_OK;
-		uint32 ctrl2_flags1 = nancfg->nan_ctrl2_flag1;
 
 		merge_enable = !!(cmd_data->nmi_rand_intvl &
 				NAN_NMI_RAND_CLUSTER_MERGE_ENAB);
@@ -4783,16 +3043,11 @@ wl_cfgnan_config_nmi_rand_mac(struct net_device *ndev,
 		lwt_mode_enable = !!(cmd_data->nmi_rand_intvl &
 				NAN_NMI_RAND_AUTODAM_LWT_MODE_ENAB);
 
-		if (lwt_mode_enable) {
-			ctrl2_flags1 |= WL_NAN_CTRL2_FLAG1_AUTODAM_LWT_MODE;
-		} else {
-			ctrl2_flags1 &= ~WL_NAN_CTRL2_FLAG1_AUTODAM_LWT_MODE;
-		}
 		/* set CFG CTRL2 flags1 and flags2 */
-		ret = wl_cfgnan_config_control_flags_set(ndev, cfg,
-				ctrl2_flags1, nancfg->nan_ctrl2_flag2,
-				WL_NAN_CMD_CFG_NAN_CONFIG2,
-				&status);
+		ret = wl_cfgnan_config_control_flag(ndev, cfg,
+				WL_NAN_CTRL2_FLAG1_AUTODAM_LWT_MODE,
+				0, WL_NAN_CMD_CFG_NAN_CONFIG2,
+				&status, lwt_mode_enable);
 		if (unlikely(ret) || unlikely(status)) {
 			WL_ERR(("Enable dam lwt mode: "
 						"failed to set config request  [%d]\n", ret));
@@ -4801,8 +3056,6 @@ wl_cfgnan_config_nmi_rand_mac(struct net_device *ndev,
 				ret = status;
 			}
 			return ret;
-		} else {
-			nancfg->nan_ctrl2_flag1 = ctrl2_flags1;
 		}
 
 		WL_INFORM_MEM(("LWT mode : %s\n", lwt_mode_enable ? "Enabled" : "Disabled"));
@@ -4819,7 +3072,7 @@ wl_cfgnan_config_nmi_rand_mac(struct net_device *ndev,
 		cfg->nancfg->nmi_rand_intvl =
 			(cmd_data->nmi_rand_intvl & NAN_NMI_RAND_INTVL_MASK);
 		if (delayed_work_pending(&cfg->nancfg->nan_nmi_rand)) {
-			dhd_cancel_delayed_work(&cfg->nancfg->nan_nmi_rand);
+			cancel_delayed_work(&cfg->nancfg->nan_nmi_rand);
 		}
 		schedule_delayed_work(&cfg->nancfg->nan_nmi_rand,
 				msecs_to_jiffies(cfg->nancfg->nmi_rand_intvl * 1000));
@@ -4831,7 +3084,7 @@ int
 wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	nan_config_cmd_data_t *cmd_data, uint32 nan_attr_mask)
 {
-	s32 ret = BCME_OK, err = BCME_OK;
+	s32 ret = BCME_OK;
 	uint16 nan_buf_size = NAN_IOCTL_BUF_SIZE;
 	bcm_iov_batch_buf_t *nan_buf = NULL;
 	wl_nan_iov_t *nan_iov_data = NULL;
@@ -4839,10 +3092,11 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
 	int i;
 	s32 timeout = 0;
-	uint32 status;
+	nan_hal_capabilities_t capabilities;
+	uint32 cfg_ctrl1_flags = 0;
+	uint32 cfg_ctrl2_flags1 = 0;
+	uint32 cfg_ctrl2_reset_flags1 = 0;
 	wl_nancfg_t *nancfg = cfg->nancfg;
-	uint32 cfg_ctrl1_flags;
-	uint32 cfg_ctrl2_flags1;
 
 	NAN_DBG_ENTER();
 
@@ -4851,7 +3105,6 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 		return BCME_ERROR;
 	}
 
-	nancfg->rng_nan_enab_start_ts = OSL_LOCALTIME_NS();
 	/* Protect discovery creation. Ensure proper mutex precedence.
 	 * If if_sync & nan_mutex comes together in same context, nan_mutex
 	 * should follow if_sync.
@@ -4859,13 +3112,17 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	mutex_lock(&cfg->if_sync);
 	NAN_MUTEX_LOCK();
 
-	ret = wl_cfg80211_iface_state_ops(ndev->ieee80211_ptr, WL_IF_NAN_ENABLE,
-		WL_IF_TYPE_NAN_NMI, WL_MODE_NAN);
-	if (ret != BCME_OK) {
+#ifdef WL_IFACE_MGMT
+	if ((ret = wl_cfg80211_handle_if_role_conflict(cfg, WL_IF_TYPE_NAN_NMI)) != BCME_OK) {
+		WL_ERR(("Conflicting iface is present, cant support nan\n"));
 		NAN_MUTEX_UNLOCK();
 		mutex_unlock(&cfg->if_sync);
 		goto fail;
 	}
+#endif /* WL_IFACE_MGMT */
+
+	/* disable TDLS on NAN init  */
+	wl_cfg80211_tdls_config(cfg, TDLS_STATE_NMI_CREATE, false);
 
 	WL_INFORM_MEM(("Initializing NAN\n"));
 	ret = wl_cfgnan_init(cfg);
@@ -4895,54 +3152,6 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	nancfg->nan_event_recvd = false;
 	NAN_MUTEX_UNLOCK();
 	mutex_unlock(&cfg->if_sync);
-
-	/* get nan ctrl config values */
-	ret = wl_cfgnan_config_control_flags_get(ndev, cfg,
-			&nancfg->nan_ctrl, NULL,
-			WL_NAN_CMD_CFG_NAN_CONFIG, &status);
-	if (unlikely(ret) || unlikely(status)) {
-		WL_ERR(("get nan cfg ctrl failed ret %d status %d \n", ret, status));
-		goto fail;
-	}
-
-	/* get nan ctrl2 config values */
-	ret = wl_cfgnan_config_control_flags_get(ndev, cfg,
-			&nancfg->nan_ctrl2_flag1, &nancfg->nan_ctrl2_flag2,
-			WL_NAN_CMD_CFG_NAN_CONFIG2, &status);
-	if (unlikely(ret) || unlikely(status)) {
-		WL_ERR(("get nan cfg ctrl2 failed ret %d status %d \n", ret, status));
-		goto fail;
-	}
-
-	cfg_ctrl1_flags = nancfg->nan_ctrl;
-	cfg_ctrl2_flags1 = nancfg->nan_ctrl2_flag1;
-
-	/* malloc for ndp peer list */
-	if ((ret = wl_cfgnan_get_capablities_handler(ndev, cfg, &nancfg->capabilities))
-			== BCME_OK) {
-		nancfg->max_ndp_count = nancfg->capabilities.max_ndp_sessions;
-		nancfg->max_ndi_supported = nancfg->capabilities.max_ndi_interfaces;
-		nancfg->nan_ndp_peer_info = MALLOCZ(cfg->osh,
-				nancfg->max_ndp_count * sizeof(nan_ndp_peer_t));
-		if (!nancfg->nan_ndp_peer_info) {
-			WL_ERR(("%s: memory allocation failed\n", __func__));
-			ret = BCME_NOMEM;
-			goto fail;
-		}
-
-		if (!nancfg->ndi) {
-			nancfg->ndi = MALLOCZ(cfg->osh,
-					nancfg->max_ndi_supported * sizeof(*nancfg->ndi));
-			if (!nancfg->ndi) {
-				WL_ERR(("%s: memory allocation failed\n", __func__));
-				ret = BCME_NOMEM;
-				goto fail;
-			}
-		}
-	} else {
-		WL_ERR(("wl_cfgnan_get_capabilities_handler failed, ret = %d\n", ret));
-		goto fail;
-	}
 
 	nan_buf = MALLOCZ(cfg->osh, nan_buf_size);
 	if (!nan_buf) {
@@ -4996,7 +3205,7 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	}
 
 	/* setting nan social channels */
-	ret = wl_cfgnan_set_nan_soc_chans(cfg, ndev, cmd_data, nan_iov_data, nan_attr_mask);
+	ret = wl_cfgnan_set_nan_soc_chans(ndev, cmd_data, nan_iov_data, nan_attr_mask);
 	if (unlikely(ret)) {
 		WL_ERR(("nan social channels set failed\n"));
 		goto fail;
@@ -5163,15 +3372,40 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	cfg_ctrl1_flags |= (WL_NAN_CTRL_AUTO_DPCONF | WL_NAN_CTRL_PROP_RATE);
 
 	/* set CFG CTRL flags */
-	ret = wl_cfgnan_config_control_flags_set(ndev, cfg, cfg_ctrl1_flags,
+	ret = wl_cfgnan_config_control_flag(ndev, cfg, cfg_ctrl1_flags,
 			0, WL_NAN_CMD_CFG_NAN_CONFIG,
-			&(cmd_data->status));
+			&(cmd_data->status), true);
 	if (unlikely(ret) || unlikely(cmd_data->status)) {
 		WL_ERR((" nan ctrl1 config flags setting failed, ret = %d status = %d \n",
 				ret, cmd_data->status));
 		goto fail;
+	}
+
+	/* malloc for ndp peer list */
+	if ((ret = wl_cfgnan_get_capablities_handler(ndev, cfg, &capabilities))
+			== BCME_OK) {
+		nancfg->max_ndp_count = capabilities.max_ndp_sessions;
+		nancfg->max_ndi_supported = capabilities.max_ndi_interfaces;
+		nancfg->nan_ndp_peer_info = MALLOCZ(cfg->osh,
+				nancfg->max_ndp_count * sizeof(nan_ndp_peer_t));
+		if (!nancfg->nan_ndp_peer_info) {
+			WL_ERR(("%s: memory allocation failed\n", __func__));
+			ret = BCME_NOMEM;
+			goto fail;
+		}
+
+		if (!nancfg->ndi) {
+			nancfg->ndi = MALLOCZ(cfg->osh,
+					nancfg->max_ndi_supported * sizeof(*nancfg->ndi));
+			if (!nancfg->ndi) {
+				WL_ERR(("%s: memory allocation failed\n", __func__));
+				ret = BCME_NOMEM;
+				goto fail;
+			}
+		}
 	} else {
-		nancfg->nan_ctrl = cfg_ctrl1_flags;
+		WL_ERR(("wl_cfgnan_get_capabilities_handler failed, ret = %d\n", ret));
+		goto fail;
 	}
 
 	BCM_REFERENCE(i);
@@ -5197,13 +3431,13 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	 * (cmd_data->use_ndpe_attr) as below
 	 * if (capabilities.ndpe_attr_supported && cmd_data->use_ndpe_attr)
 	 */
-	if (nancfg->capabilities.ndpe_attr_supported)
+	if (capabilities.ndpe_attr_supported)
 	{
 		cfg_ctrl2_flags1 |= WL_NAN_CTRL2_FLAG1_NDPE_CAP;
 		nancfg->ndpe_enabled = true;
 	} else {
 		/* reset NDPE capability in FW */
-		cfg_ctrl2_flags1 &= ~WL_NAN_CTRL2_FLAG1_NDPE_CAP;
+		cfg_ctrl2_reset_flags1 |= WL_NAN_CTRL2_FLAG1_NDPE_CAP;
 		nancfg->ndpe_enabled = false;
 	}
 
@@ -5212,19 +3446,29 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 		cfg_ctrl2_flags1 |= WL_NAN_CTRL2_FLAG1_INSTANT_MODE;
 	} else {
 		/* reset NAN 3.1 Instant communication mode in FW */
-		cfg_ctrl2_flags1 &= ~WL_NAN_CTRL2_FLAG1_INSTANT_MODE;
+		cfg_ctrl2_reset_flags1 |= WL_NAN_CTRL2_FLAG1_INSTANT_MODE;
+	}
+
+	/* Reset ctrl2 flags */
+	if (cfg_ctrl2_reset_flags1) {
+		ret = wl_cfgnan_config_control_flag(ndev, cfg, cfg_ctrl2_reset_flags1,
+				0, WL_NAN_CMD_CFG_NAN_CONFIG2,
+				&(cmd_data->status), false);
+		if (unlikely(ret) || unlikely(cmd_data->status)) {
+			WL_ERR(("nan ctrl2 config flags resetting failed, ret = %d status = %d \n",
+					ret, cmd_data->status));
+			goto fail;
+		}
 	}
 
 	/* set CFG CTRL2 flags1 and flags2 */
-	ret = wl_cfgnan_config_control_flags_set(ndev, cfg, cfg_ctrl2_flags1,
-			nancfg->nan_ctrl2_flag2, WL_NAN_CMD_CFG_NAN_CONFIG2,
-			&(cmd_data->status));
+	ret = wl_cfgnan_config_control_flag(ndev, cfg, cfg_ctrl2_flags1,
+			0, WL_NAN_CMD_CFG_NAN_CONFIG2,
+			&(cmd_data->status), true);
 	if (unlikely(ret) || unlikely(cmd_data->status)) {
 		WL_ERR(("nan ctrl2 config flags setting failed, ret = %d status = %d \n",
 				ret, cmd_data->status));
 		goto fail;
-	} else {
-		nancfg->nan_ctrl2_flag1 = cfg_ctrl2_flags1;
 	}
 
 #ifdef RTT_SUPPORT
@@ -5246,37 +3490,44 @@ wl_cfgnan_start_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	}
 
 	nancfg->nan_enable = true;
-	nancfg->rng_nan_enabled_ts = OSL_LOCALTIME_NS();
-	WL_ERR(("nan enable latency = %d us \n",
-		(uint32)((nancfg->rng_nan_enabled_ts - nancfg->rng_nan_enab_start_ts) / 1000)));
-	WL_INFORM_MEM(("[NAN] Enable successfull\n"));
+	WL_INFORM_MEM(("[NAN] Enable successfull \n"));
 	goto done;
 
 fail:
 	if (unlikely(ret) || unlikely(cmd_data->status)) {
 		mutex_lock(&cfg->if_sync);
-		err = wl_cfg80211_delete_iface(cfg, WL_IF_TYPE_NAN);
-		if (err != BCME_OK) {
-			WL_ERR(("failed to delete NDI[%d]\n", err));
+		ret = wl_cfg80211_delete_iface(cfg, WL_IF_TYPE_NAN);
+		if (ret != BCME_OK) {
+			WL_ERR(("failed to delete NDI[%d]\n", ret));
 		}
 		mutex_unlock(&cfg->if_sync);
 		if (delayed_work_pending(&cfg->nancfg->nan_nmi_rand)) {
-			dhd_cancel_delayed_work_sync(&cfg->nancfg->nan_nmi_rand);
+			cancel_delayed_work_sync(&cfg->nancfg->nan_nmi_rand);
 		}
-		err = wl_cfgnan_stop_handler(ndev, cfg);
-		if (err != BCME_OK) {
-			WL_ERR(("failed to stop nan[%d]\n", err));
+		if (nancfg->nan_ndp_peer_info) {
+			MFREE(cfg->osh, nancfg->nan_ndp_peer_info,
+					nancfg->max_ndp_count * sizeof(nan_ndp_peer_t));
+			nancfg->nan_ndp_peer_info = NULL;
 		}
-		err = wl_cfgnan_deinit(cfg, dhdp->up);
-		if (err != BCME_OK) {
-			WL_ERR(("failed to de-initialize NAN[%d]\n", err));
+		if (nancfg->ndi) {
+			MFREE(cfg->osh, nancfg->ndi,
+					nancfg->max_ndi_supported * sizeof(*nancfg->ndi));
+			nancfg->ndi = NULL;
 		}
+
+		ret = wl_cfgnan_stop_handler(ndev, cfg);
+		if (ret != BCME_OK) {
+			WL_ERR(("failed to stop nan[%d]\n", ret));
+		}
+		ret = wl_cfgnan_deinit(cfg, dhdp->up);
+		if (ret != BCME_OK) {
+			WL_ERR(("failed to de-initialize NAN[%d]\n", ret));
+		}
+
 	}
 done:
-#ifdef WLTDLS
 	/* Enable back TDLS if connected interface is <= 1 */
 	wl_cfg80211_tdls_config(cfg, TDLS_STATE_IF_DELETE, false);
-#endif /* WLTDLS */
 
 	/* reset conditon variable */
 	nancfg->nan_event_recvd = false;
@@ -5298,11 +3549,6 @@ wl_cfgnan_disable(struct bcm_cfg80211 *cfg)
 	s32 ret = BCME_OK;
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
 
-	if (!dhdp->up) {
-		WL_ERR(("bus is already down, hence blocking nan disable\n"));
-		return BCME_ERROR;
-	}
-
 	NAN_DBG_ENTER();
 	if ((cfg->nancfg->nan_init_state == TRUE) &&
 			(cfg->nancfg->nan_enable == TRUE)) {
@@ -5321,8 +3567,6 @@ wl_cfgnan_disable(struct bcm_cfg80211 *cfg)
 		} else if (ret != BCME_OK) {
 			WL_ERR(("failed to stop nan, error[%d]\n", ret));
 		}
-		wl_cfg80211_iface_state_ops(ndev->ieee80211_ptr, WL_IF_NAN_DISABLE,
-			WL_IF_TYPE_NAN, WL_MODE_NAN);
 		ret = wl_cfgnan_deinit(cfg, dhdp->up);
 		if (ret == -ENODEV) {
 			WL_ERR(("Bus is down, proceed to cleanup\n"));
@@ -5382,44 +3626,44 @@ wl_cfgnan_disable_cleanup(struct bcm_cfg80211 *cfg)
 #ifdef RTT_SUPPORT
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
 	rtt_status_info_t *rtt_status = GET_RTTSTATE(dhdp);
-	rtt_mc_az_target_info_t *target_info = NULL;
+	rtt_target_info_t *target_info = NULL;
 
 	/* Delete the geofence rtt target list */
 	dhd_rtt_delete_geofence_target_list(dhdp);
 	/* Cancel pending retry timer if any */
 	if (delayed_work_pending(&rtt_status->rtt_retry_timer)) {
-		dhd_cancel_delayed_work_sync(&rtt_status->rtt_retry_timer);
+		cancel_delayed_work_sync(&rtt_status->rtt_retry_timer);
 	}
 	/* Remove if any pending proxd timeout for nan-rtt */
 	target_info = &rtt_status->rtt_config.target_info[rtt_status->cur_idx];
-	if (target_info && target_info->cmn_tgt_info.peer == RTT_PEER_NAN) {
+	if (target_info && target_info->peer == RTT_PEER_NAN) {
 		/* Cancel pending proxd timeout work if any */
 		if (delayed_work_pending(&rtt_status->proxd_timeout)) {
-			dhd_cancel_delayed_work_sync(&rtt_status->proxd_timeout);
+			cancel_delayed_work_sync(&rtt_status->proxd_timeout);
 		}
-		if (delayed_work_pending(&rtt_status->dwork)) {
-			dhd_cancel_delayed_work_sync(&rtt_status->dwork);
-		}
-		rtt_status->rtt_sched = FALSE;
-		if (delayed_work_pending(&rtt_status->nan_directed_rtt_dwork)) {
-			dhd_cancel_delayed_work_sync(&rtt_status->nan_directed_rtt_dwork);
-		}
-		rtt_status->status = RTT_STOPPED;
 	}
 	/* Delete if any directed nan rtt session */
 	dhd_rtt_delete_nan_session(dhdp);
 #endif /* RTT_SUPPORT */
 	if (delayed_work_pending(&nancfg->nan_nmi_rand)) {
-		dhd_cancel_delayed_work_sync(&nancfg->nan_nmi_rand);
+		cancel_delayed_work_sync(&nancfg->nan_nmi_rand);
 	}
 	/* Clear the NDP ID array and dp count */
 	for (i = 0; i < NAN_MAX_NDP_PEER; i++) {
 		nancfg->ndp_id[i] = 0;
 	}
 	nancfg->nan_dp_count = 0;
-
-	wl_cfgvif_roam_config(cfg,
-			bcmcfg_to_prmry_ndev(cfg), ROAM_CONF_NAN_DISABLE);
+	if (nancfg->nan_ndp_peer_info) {
+		MFREE(cfg->osh, nancfg->nan_ndp_peer_info,
+			nancfg->max_ndp_count * sizeof(nan_ndp_peer_t));
+		nancfg->nan_ndp_peer_info = NULL;
+	}
+	if (nancfg->ndi) {
+		MFREE(cfg->osh, nancfg->ndi,
+			nancfg->max_ndi_supported * sizeof(*nancfg->ndi));
+		nancfg->ndi = NULL;
+	}
+	wl_cfg80211_concurrent_roam(cfg, false);
 	return;
 }
 
@@ -5512,6 +3756,8 @@ wl_cfgnan_stop_handler(struct net_device *ndev,
 			WL_ERR(("nan disable failed ret = %d status = %d\n", ret, status));
 			goto fail;
 		}
+		/* Enable back TDLS if connected interface is <= 1 */
+		wl_cfg80211_tdls_config(cfg, TDLS_STATE_IF_DELETE, false);
 	}
 
 	if (!nancfg->notify_user) {
@@ -5523,7 +3769,6 @@ fail:
 	memset(nancfg->svc_inst_id_mask, 0, sizeof(nancfg->svc_inst_id_mask));
 	memset(nancfg->svc_info, 0, NAN_MAX_SVC_INST * sizeof(nan_svc_info_t));
 	nancfg->nan_enable = false;
-	wl_cfgnan_clear_pairing_timeout(cfg);
 	WL_INFORM_MEM(("[NAN] Disable done\n"));
 
 	if (nan_buf) {
@@ -5547,8 +3792,6 @@ wl_cfgnan_config_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	uint16 nan_buf_size = NAN_IOCTL_BUF_SIZE;
 	wl_nan_iov_t *nan_iov_data = NULL;
 	uint8 resp_buf[NAN_IOCTL_BUF_SIZE];
-	wl_nancfg_t *nancfg = cfg->nancfg;
-	uint32 status;
 
 	NAN_DBG_ENTER();
 
@@ -5556,24 +3799,6 @@ wl_cfgnan_config_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	if (!cfg->nancfg->nan_enable) {
 		WL_INFORM(("nan is not enabled\n"));
 		ret = BCME_NOTENABLED;
-		goto fail;
-	}
-
-	/* get nan ctrl config values */
-	ret = wl_cfgnan_config_control_flags_get(ndev, cfg,
-			&nancfg->nan_ctrl, NULL,
-			WL_NAN_CMD_CFG_NAN_CONFIG, &status);
-	if (unlikely(ret) || unlikely(status)) {
-		WL_ERR(("get nan cfg ctrl failed ret %d status %d \n", ret, status));
-		goto fail;
-	}
-
-	/* get nan ctrl2 config values */
-	ret = wl_cfgnan_config_control_flags_get(ndev, cfg,
-			&nancfg->nan_ctrl2_flag1, &nancfg->nan_ctrl2_flag2,
-			WL_NAN_CMD_CFG_NAN_CONFIG2, &status);
-	if (unlikely(ret) || unlikely(status)) {
-		WL_ERR(("get nan cfg ctrl2 failed ret %d status %d \n", ret, status));
 		goto fail;
 	}
 
@@ -5717,23 +3942,22 @@ wl_cfgnan_config_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 
 	/* NAN 3.1 Instant communication config mode */
 	if (nan_attr_mask & NAN_ATTR_INSTANT_MODE_CONFIG) {
-		uint32 flags1;
+		uint8 set;
+		uint32 flags1 = WL_NAN_CTRL2_FLAG1_INSTANT_MODE;
 
 		if (cmd_data->instant_mode_en) {
-			flags1 = (nancfg->nan_ctrl2_flag1 | WL_NAN_CTRL2_FLAG1_INSTANT_MODE);
+			set = TRUE;
 		} else {
-			flags1 = (nancfg->nan_ctrl2_flag1 & ~WL_NAN_CTRL2_FLAG1_INSTANT_MODE);
+			set = FALSE;
 		}
 		/* trigger nan ctrl2 iovar to config NAN 3.1 instant mode */
-		ret = wl_cfgnan_config_control_flags_set(ndev, cfg, flags1,
-				nancfg->nan_ctrl2_flag2, WL_NAN_CMD_CFG_NAN_CONFIG2,
-				&(cmd_data->status));
+		ret = wl_cfgnan_config_control_flag(ndev, cfg, flags1,
+				0, WL_NAN_CMD_CFG_NAN_CONFIG2,
+				&(cmd_data->status), set);
 		if (unlikely(ret) || unlikely(cmd_data->status)) {
 			WL_ERR(("nan ctrl2 config flags setting failed, ret = %d status = %d \n",
 					ret, cmd_data->status));
 			goto fail;
-		} else {
-			nancfg->nan_ctrl2_flag1 = flags1;
 		}
 	}
 
@@ -5902,7 +4126,7 @@ wl_cfgnan_check_for_ranging(struct bcm_cfg80211 *cfg, struct ether_addr *peer)
 	return NULL;
 }
 
-static nan_ranging_inst_t *
+nan_ranging_inst_t *
 wl_cfgnan_get_rng_inst_by_id(struct bcm_cfg80211 *cfg, uint8 rng_id)
 {
 	uint8 i;
@@ -5963,8 +4187,8 @@ done:
 }
 #endif /* WL_NAN_DISC_CACHE */
 
-int
-wl_cfgnan_process_resp_buf(void *iov_resp,
+static int
+process_resp_buf(void *iov_resp,
 	uint8 *instance_id, uint16 sub_cmd_id)
 {
 	int res = BCME_OK;
@@ -5981,9 +4205,6 @@ wl_cfgnan_process_resp_buf(void *iov_resp,
 		range_id = (wl_nan_range_id *)(iov_resp);
 		*instance_id = *range_id;
 		WL_TRACE(("Range id: %d\n", *range_id));
-	} else if (sub_cmd_id == WL_NAN_CMD_PAIRING) {
-		uint16 *pairing_instance_id = (uint16 *)(iov_resp);
-		*instance_id = *pairing_instance_id;
 	}
 	WL_DBG(("instance_id: %d\n", *instance_id));
 	NAN_DBG_EXIT();
@@ -6136,19 +4357,15 @@ wl_cfgnan_cache_svc_info(struct bcm_cfg80211 *cfg,
 		goto fail;
 	}
 	if (cmd_data->sde_control_flag & NAN_SDE_CF_RANGING_REQUIRED) {
-		WL_TRACE(("%s: updating ranging info, enabling", __FUNCTION__));
+		WL_TRACE(("%s: updating ranging info, enabling\n", __FUNCTION__));
 		svc_info->status = 1;
-		if (cmd_data->ranging_intvl_msec) {
-			svc_info->ranging_interval = cmd_data->ranging_intvl_msec;
-		} else {
-			svc_info->ranging_interval = NAN_GEOFENCE_RTT_DEFAULT_INTVL;
-		}
+		svc_info->ranging_interval = cmd_data->ranging_intvl_msec;
 		svc_info->ranging_ind = cmd_data->ranging_indication;
 		svc_info->ingress_limit = cmd_data->ingress_limit;
 		svc_info->egress_limit = cmd_data->egress_limit;
 		svc_info->ranging_required = 1;
 	} else {
-		WL_TRACE(("%s: updating ranging info, disabling", __FUNCTION__));
+		WL_TRACE(("%s: updating ranging info, disabling\n", __FUNCTION__));
 		svc_info->status = 0;
 		svc_info->ranging_interval = 0;
 		svc_info->ranging_ind = 0;
@@ -6160,10 +4377,7 @@ wl_cfgnan_cache_svc_info(struct bcm_cfg80211 *cfg,
 	/* Reset Range status flags on svc creation/update */
 	svc_info->svc_range_status = 0;
 	svc_info->flags = cmd_data->flags;
-	svc_info->csia_cap = cmd_data->csia_cap;
 
-	/* store Pairing config */
-	svc_info->pairing_config = cmd_data->pairing_config;
 	if (cmd_id == WL_NAN_CMD_SD_SUBSCRIBE) {
 		svc_info->svc_id = cmd_data->sub_id;
 		if ((cmd_data->flags & WL_NAN_SUB_ACTIVE) &&
@@ -6465,10 +4679,9 @@ exit:
 
 /*
  * suspends all geofence ranging sessions
- * including initiators and responders.
- * Return TRUE if any geofence target is suspended
+ * including initiators and responders
  */
-bool
+void
 wl_cfgnan_suspend_all_geofence_rng_sessions(struct net_device *ndev,
 		int suspend_reason, u8 cancel_flags)
 {
@@ -6479,27 +4692,22 @@ wl_cfgnan_suspend_all_geofence_rng_sessions(struct net_device *ndev,
 	nan_ranging_inst_t *ranging_inst = NULL;
 	struct bcm_cfg80211 *cfg = wl_get_cfg(ndev);
 	dhd_pub_t *dhd = (struct dhd_pub *)(cfg->pub);
-	bool geofence_suspended = FALSE;
 
-	WL_INFORM_MEM(("Suspending all geofence sessions: "
+	WL_MEM(("Suspending all geofence sessions: "
 		"suspend_reason = %d\n", suspend_reason));
 
 	for (i = 0; i < NAN_MAX_RANGING_INST; i++) {
 		ranging_inst = &cfg->nancfg->nan_ranging_info[i];
 		/* Cancel Ranging if in progress for rang_inst */
-		if (ranging_inst->in_use && NAN_RANGING_IS_IN_PROG(ranging_inst->range_status) &&
-				((ranging_inst->range_type == RTT_TYPE_NAN_GEOFENCE) ||
-				(ranging_inst->range_role == NAN_RANGING_ROLE_RESPONDER))) {
-			WL_INFORM_MEM(("Suspending geofence target rng_id = %d \n",
-				ranging_inst->range_id));
-			geofence_suspended = TRUE;
+		if (ranging_inst->in_use &&
+				NAN_RANGING_IS_IN_PROG(ranging_inst->range_status)) {
 			ret =  wl_cfgnan_cancel_ranging(bcmcfg_to_prmry_ndev(cfg),
 					cfg, &ranging_inst->range_id,
 					NAN_RNG_TERM_FLAG_IMMEDIATE, &status);
 			if (unlikely(ret) || unlikely(status)) {
 				WL_ERR(("wl_cfgnan_suspend_all_geofence_rng_sessions: "
-					"nan range cancel failed ret = %d status = %d "
-					"rng_id = %d\n", ret, status, ranging_inst->range_id));
+					"nan range cancel failed ret = %d status = %d\n",
+					ret, status));
 			} else {
 				dhd_rtt_update_geofence_sessions_cnt(dhd, FALSE,
 					&ranging_inst->peer_addr);
@@ -6508,7 +4716,8 @@ wl_cfgnan_suspend_all_geofence_rng_sessions(struct net_device *ndev,
 		}
 	}
 
-	return geofence_suspended;
+	return;
+
 }
 
 /*
@@ -6631,14 +4840,9 @@ wl_ranging_geofence_session_with_peer(struct bcm_cfg80211 *cfg,
 
 	rng_inst = wl_cfgnan_check_for_ranging(cfg,
 		peer_addr);
-	if (rng_inst && (NAN_RANGING_IS_IN_PROG(rng_inst->range_status))) {
-		if (rng_inst->range_role == NAN_RANGING_ROLE_RESPONDER) {
-			ret = TRUE;
-		} else {
-			if (rng_inst->range_type ==  RTT_TYPE_NAN_GEOFENCE) {
-				ret = TRUE;
-			}
-		}
+	if (rng_inst &&
+			(NAN_RANGING_IS_IN_PROG(rng_inst->range_status))) {
+		ret = TRUE;
 	}
 
 	return ret;
@@ -6668,8 +4872,6 @@ wl_cfgnan_trigger_geofencing_ranging(struct net_device *dev,
 
 	if (!NAN_RANGING_IS_IN_PROG(ranging_inst->range_status)) {
 		WL_DBG(("Trigger range request with first svc in svc list of range inst\n"));
-		ranging_inst->range_type = RTT_TYPE_NAN_GEOFENCE;
-		ranging_inst->range_role = NAN_RANGING_ROLE_INITIATOR;
 		ret = wl_cfgnan_trigger_ranging(bcmcfg_to_prmry_ndev(cfg),
 				cfg, ranging_inst, ranging_inst->svc_idx[0],
 				NAN_RANGE_REQ_CMD, TRUE);
@@ -6691,6 +4893,9 @@ wl_cfgnan_trigger_geofencing_ranging(struct net_device *dev,
 				err_at = 3;
 				goto exit;
 			}
+		} else {
+			ranging_inst->range_type = RTT_TYPE_NAN_GEOFENCE;
+			ranging_inst->range_role = NAN_RANGING_ROLE_INITIATOR;
 		}
 	} else if (ranging_inst->range_role != NAN_RANGING_ROLE_RESPONDER) {
 		/* already in progress but not as responder.. This should not happen */
@@ -6748,12 +4953,6 @@ wl_cfgnan_check_disc_result_for_ranging(struct bcm_cfg80211 *cfg,
 		ASSERT((ranging_inst->range_role == NAN_RANGING_ROLE_INITIATOR) ||
 			NAN_RANGING_IS_IN_PROG(ranging_inst->range_status));
 
-		cfg->nancfg->rng_subscribe_match_ts = OSL_LOCALTIME_NS();
-		WL_ERR(("subscribe match latency = %d us svc_id = %d\n",
-			(uint32)(cfg->nancfg->rng_subscribe_match_ts -
-			cfg->nancfg->rng_subscribe_ts)/1000u,
-			svc->svc_id));
-
 		/*
 		 * On rec disc result with ranging required, add target, if
 		 * ranging role is responder (range state has to be in prog always)
@@ -6790,11 +4989,6 @@ wl_cfgnan_check_disc_result_for_ranging(struct bcm_cfg80211 *cfg,
 					MACDBG "\n", MAC2STRDBG(&ranging_inst->peer_addr)));
 				ranging_inst->role_concurrency_status = TRUE;
 			} else {
-				rtt_status_info_t *rtt_status = GET_RTTSTATE(dhd);
-				if (delayed_work_pending(&rtt_status->dwork)) {
-					dhd_cancel_delayed_work_sync(&rtt_status->dwork);
-					rtt_status->rtt_sched = FALSE;
-				}
 				/* Trigger/Reset geofence RTT */
 				wl_cfgnan_reset_geofence_ranging(cfg, ranging_inst,
 					RTT_SCHED_SUB_MATCH, TRUE);
@@ -7083,44 +5277,19 @@ wl_cfgnan_trigger_ranging(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 
 	sub_cmd = (bcm_iov_batch_subcmd_t*)(&nan_buf->cmds[0]);
 	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
-
 	if (range_cmd == NAN_RANGE_REQ_CMD) {
 		sub_cmd->id = htod16(WL_NAN_CMD_RANGE_REQUEST);
 		sub_cmd->len = sizeof(sub_cmd->u.options) + sizeof(wl_nan_range_req_t);
 		range_req = (wl_nan_range_req_t *)(sub_cmd->data);
 		/* ranging config */
 		range_req->peer = ranging_inst->peer_addr;
-
 		if (svc) {
-#ifdef NAN_DIRECTED_RTT_TERM_OFFLOAD
-			if (ranging_inst->range_type == RTT_TYPE_NAN_DIRECTED) {
-				range_req->interval = 0;
-			} else {
-				if (svc->ranging_interval) {
-					range_req->interval = svc->ranging_interval;
-				} else {
-					range_req->interval = NAN_GEOFENCE_RTT_DEFAULT_INTVL;
-				}
-			}
-#else
-			if (svc->ranging_interval != 0) {
-				range_req->interval = svc->ranging_interval;
-			} else {
-				range_req->interval = NAN_GEOFENCE_RTT_DEFAULT_INTVL;
-			}
-#endif /* NAN_DIRECTED_RTT_TERM_OFFLOAD */
+			range_req->interval = svc->ranging_interval;
 			/* Limits are in cm from host */
 			range_req->ingress = svc->ingress_limit;
 			range_req->egress = svc->egress_limit;
 		}
-#ifndef NAN_DIRECTED_RTT_TERM_OFFLOAD
-		else {
-			range_req->interval = NAN_GEOFENCE_RTT_DEFAULT_INTVL;
-		}
-#endif
-
 		range_req->indication = NAN_RANGING_INDICATE_CONTINUOUS_MASK;
-		range_req->num_meas = ranging_inst->num_meas;
 	} else {
 		/* range response config */
 		sub_cmd->id = htod16(WL_NAN_CMD_RANGE_RESPONSE);
@@ -7165,7 +5334,7 @@ wl_cfgnan_trigger_ranging(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 
 	/* check the response buff for request */
 	if (range_cmd == NAN_RANGE_REQ_CMD) {
-		ret = wl_cfgnan_process_resp_buf(resp_buf + WL_NAN_OBUF_DATA_OFFSET,
+		ret = process_resp_buf(resp_buf + WL_NAN_OBUF_DATA_OFFSET,
 				&ranging_inst->range_id, WL_NAN_CMD_RANGE_REQUEST);
 		WL_INFORM_MEM(("ranging instance returned %d\n", ranging_inst->range_id));
 	}
@@ -7260,69 +5429,6 @@ exit:
 }
 
 static int
-wl_cfgnan_gtk_csid_handler(struct net_device *ndev, struct bcm_cfg80211 *cfg, uint8 **pxtlv,
-	uint16 *nan_buf_size, uint8 gtk_csid, uint8 csia_cap) {
-
-	s32 ret = BCME_OK;
-	int status = BCME_OK;
-	uint32 cfg_nan_ctrl2_flag1, nan_ctrl2_flag1 = 0;
-
-#ifdef WL_NAN_DEBUG
-	/* get nan ctrl2 config values */
-	ret = wl_cfgnan_config_control_flags_get(ndev, cfg,
-		&cfg->nancfg->nan_ctrl2_flag1, &cfg->nancfg->nan_ctrl2_flag2,
-		WL_NAN_CMD_CFG_NAN_CONFIG2, &status);
-	if (unlikely(ret) || unlikely(status)) {
-		WL_ERR(("get nan cfg ctrl2 failed ret %d status %d \n", ret, status));
-		goto done;
-	}
-#endif /* WL_NAN_DEBUG */
-	if ((csia_cap & NAN_SEC_CIPHER_SUITE_CAP_DIS_BIGTK) ||
-			(csia_cap & NAN_SEC_CIPHER_SUITE_CAP_ENAB_GTK_IGTK_BIGTK)) {
-
-		nan_ctrl2_flag1 |= (WL_NAN_CTRL2_FLAG1_GTK | WL_NAN_CTRL2_FLAG1_IGTK);
-	}
-
-	if (csia_cap & NAN_SEC_CIPHER_SUITE_CAP_ENAB_GTK_IGTK_BIGTK) {
-		nan_ctrl2_flag1 |= WL_NAN_CTRL2_FLAG1_BIGTK;
-	}
-
-	if (csia_cap & NAN_SEC_CIPHER_SUITE_CAP_BIP_GMAC_256) {
-		nan_ctrl2_flag1 |= WL_NAN_CTRL2_FLAG1_BIP_GMAC_256;
-	} else {
-		nan_ctrl2_flag1 |= WL_NAN_CTRL2_FLAG1_BIP_CMAC_128;
-	}
-
-	cfg_nan_ctrl2_flag1 = cfg->nancfg->nan_ctrl2_flag1 & ~(NAN_GTK_BIP_CTRL2_FLAGS);
-	cfg_nan_ctrl2_flag1 |= nan_ctrl2_flag1;
-
-	if (cfg_nan_ctrl2_flag1 != cfg->nancfg->nan_ctrl2_flag1) {
-		ret = wl_cfgnan_config_control_flags_set(ndev, cfg,
-			cfg_nan_ctrl2_flag1, cfg->nancfg->nan_ctrl2_flag2,
-			WL_NAN_CMD_CFG_NAN_CONFIG2, &status);
-
-		if (unlikely(ret) || unlikely(status)) {
-			WL_ERR(("nan ctrl2 config flags1 setting failed, ret = %d\n", ret));
-			goto done;
-		} else {
-			cfg->nancfg->nan_ctrl2_flag1 = cfg_nan_ctrl2_flag1;
-		}
-	}
-
-	WL_TRACE(("gtk csid is present, pack it\n"));
-	ret = bcm_pack_xtlv_entry(pxtlv, nan_buf_size, WL_NAN_XTLV_CFG_SEC_GTK_CSID,
-		sizeof(nan_sec_csid_e), &gtk_csid,
-		BCM_XTLV_OPTION_ALIGN32);
-
-	if (unlikely(ret)) {
-		WL_ERR(("%s: fail to pack on gtk_csid\n", __FUNCTION__));
-		goto done;
-	}
-done:
-	return ret;
-}
-
-static int
 wl_cfgnan_sd_params_handler(struct net_device *ndev,
 	nan_discover_cmd_data_t *cmd_data, uint16 cmd_id,
 	void *p_buf, uint16 *nan_buf_size)
@@ -7350,10 +5456,6 @@ wl_cfgnan_sd_params_handler(struct net_device *ndev,
 	if (cmd_data->period) {
 		sd_params->awake_dw = cmd_data->period;
 	}
-
-	WL_INFORM_MEM(("%s: cmd period:%d awake_dw:%d\n", __FUNCTION__,
-			cmd_data->period, sd_params->awake_dw));
-
 	sd_params->period = 1;
 
 	if (cmd_data->ttl) {
@@ -7408,10 +5510,6 @@ wl_cfgnan_sd_params_handler(struct net_device *ndev,
 		ret = BCME_USAGE_ERROR;
 		WL_ERR(("wrong command id = %d \n", cmd_id));
 		goto fail;
-	}
-
-	if (cmd_data->svc_suspendable) {
-		sd_params->flags |= WL_NAN_SVC_CFG_SUSPENDABLE;
 	}
 
 	if ((cmd_data->svc_hash.dlen == WL_NAN_SVC_HASH_LEN) &&
@@ -7645,13 +5743,6 @@ wl_cfgnan_sd_params_handler(struct net_device *ndev,
 		}
 	}
 
-	if (cmd_data->csia_cap) {
-		if (wl_cfgnan_gtk_csid_handler(ndev, cfg, &pxtlv, nan_buf_size,
-				cmd_data->gtk_csid, cmd_data->csia_cap) != BCME_OK) {
-			goto fail;
-		}
-	}
-
 	/* When autoresponse is enabled, publish relies on the
 	 * NAN_ATTRIBUTE_SDE_CONTROL_SECURITY to hold that information
 	 * according to halutil implementation
@@ -7701,40 +5792,6 @@ wl_cfgnan_sd_params_handler(struct net_device *ndev,
 			goto fail;
 		}
 	}
-	if (cmd_data->local_nik.data && cmd_data->local_nik.dlen) {
-		ret = bcm_pack_xtlv_entry(&pxtlv, nan_buf_size,
-				WL_NAN_XTLV_PAIRING_LOCAL_NIK,
-				cmd_data->local_nik.dlen, cmd_data->local_nik.data,
-				BCM_XTLV_OPTION_ALIGN32);
-		if (ret != BCME_OK) {
-			WL_ERR(("Fail to pack WL_NAN_XTLV_PAIRING_LOCAL_NIK, ret %d \n", ret));
-			goto fail;
-		}
-	}
-	if (cmd_data->npba_info.data && cmd_data->npba_info.dlen) {
-		ret = bcm_pack_xtlv_entry(&pxtlv, nan_buf_size,
-				WL_NAN_XTLV_CFG_NPBA_INFO,
-				cmd_data->npba_info.dlen, cmd_data->npba_info.data,
-				BCM_XTLV_OPTION_ALIGN32);
-		if (ret != BCME_OK) {
-			WL_ERR(("Fail to pack WL_NAN_XTLV_CFG_NPBA_INFO, ret %d \n", ret));
-			goto fail;
-		}
-	}
-	if (cmd_data->pairing_config.flags) {
-		ret = bcm_pack_xtlv_entry(&pxtlv, nan_buf_size,
-				WL_NAN_XTLV_PAIRING_CFG, sizeof(wl_nan_pairing_config_t),
-				(const uint8 *)&cmd_data->pairing_config, BCM_XTLV_OPTION_ALIGN32);
-		if (ret != BCME_OK) {
-			WL_ERR(("Fail to pack WL_NAN_XTLV_PAIRING_CFG, ret %d buf_size %d \n",
-					ret, *(uint16 *)nan_buf_size));
-			goto fail;
-		}
-	}
-	WL_INFORM_MEM(("%s : csid %x bs_methods %x pair flags %x nik_len %d\n",
-		((cmd_id == WL_NAN_CMD_SD_PUBLISH) ? "PUB" : "SUB"), cmd_data->csid,
-		cmd_data->pairing_config.supported_bootstrapping_methods,
-		cmd_data->pairing_config.flags, cmd_data->local_nik.dlen));
 
 	sub_cmd->len += (buflen_avail - *nan_buf_size);
 
@@ -7754,18 +5811,14 @@ static int
 wl_cfgnan_aligned_data_size_of_opt_disc_params(uint16 *data_size, nan_discover_cmd_data_t *cmd_data)
 {
 	s32 ret = BCME_OK;
-	if (cmd_data->svc_info.dlen) {
+	if (cmd_data->svc_info.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->svc_info.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->sde_svc_info.dlen) {
+	if (cmd_data->sde_svc_info.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->sde_svc_info.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->tx_match.dlen) {
+	if (cmd_data->tx_match.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->tx_match.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->rx_match.dlen) {
+	if (cmd_data->rx_match.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->rx_match.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
 	if (cmd_data->use_srf) {
 		if (cmd_data->srf_type == SRF_TYPE_SEQ_MAC_ADDR) {
 			*data_size += (cmd_data->mac_list.num_mac_addr * ETHER_ADDR_LEN)
@@ -7775,38 +5828,16 @@ wl_cfgnan_aligned_data_size_of_opt_disc_params(uint16 *data_size, nan_discover_c
 		}
 		*data_size += ALIGN_SIZE(*data_size + NAN_XTLV_ID_LEN_SIZE, 4);
 	}
-	if (cmd_data->csid) {
+	if (cmd_data->csid)
 		*data_size +=  ALIGN_SIZE(sizeof(nan_sec_csid_e) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-
-	if (cmd_data->gtk_csid) {
-		*data_size += ALIGN_SIZE(sizeof(nan_sec_csid_e) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-
-	if (cmd_data->key.dlen) {
+	if (cmd_data->key.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->key.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->scid.dlen) {
+	if (cmd_data->scid.dlen)
 		*data_size += ALIGN_SIZE(cmd_data->scid.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->sde_control_config) {
+	if (cmd_data->sde_control_config)
 		*data_size += ALIGN_SIZE(sizeof(uint16) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->life_count) {
+	if (cmd_data->life_count)
 		*data_size += ALIGN_SIZE(sizeof(cmd_data->life_count) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->cookie.dlen) {
-		*data_size += ALIGN_SIZE(cmd_data->cookie.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->npba_info.dlen) {
-		*data_size += ALIGN_SIZE(cmd_data->npba_info.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->local_nik.dlen) {
-		*data_size += ALIGN_SIZE(cmd_data->local_nik.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	if (cmd_data->pairing_config.flags) {
-		*data_size += ALIGN_SIZE(sizeof(wl_nan_pairing_config_t) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
 	return ret;
 }
 
@@ -7831,49 +5862,15 @@ wl_cfgnan_aligned_data_size_of_opt_dp_params(struct bcm_cfg80211 *cfg, uint16 *d
 	if (cmd_data->csid) {
 		*data_size += ALIGN_SIZE(sizeof(nan_sec_csid_e) + NAN_XTLV_ID_LEN_SIZE, 4);
 	}
-
-	if (cmd_data->gtk_csid) {
-		*data_size += ALIGN_SIZE(sizeof(nan_sec_csid_e) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-
 	if (cmd_data->scid.dlen) {
 		*data_size += ALIGN_SIZE(cmd_data->scid.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
 	}
 
-	if (cmd_data->ndp_cfg.security_cfg) {
-		if ((cmd_data->svc_hash.dlen == WL_NAN_SVC_HASH_LEN) && (cmd_data->svc_hash.data)) {
-			*data_size += ALIGN_SIZE(WL_NAN_SVC_HASH_LEN + NAN_XTLV_ID_LEN_SIZE, 4);
-		} else {
-#ifdef WL_NAN_DISC_CACHE
-			*data_size += ALIGN_SIZE(WL_NAN_SVC_HASH_LEN + NAN_XTLV_ID_LEN_SIZE, 4);
-#endif /* WL_NAN_DISC_CACHE */
-		}
-	}
-
-	if (cmd_data->service_instance_id) {
-		/* Account for instance id */
-		*data_size += ALIGN_SIZE(sizeof(wl_nan_instance_id_t) + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-
+	*data_size += ALIGN_SIZE(WL_NAN_SVC_HASH_LEN + NAN_XTLV_ID_LEN_SIZE, 4);
 	return ret;
 }
 
-static int
-wl_cfgnan_aligned_data_size_of_opt_pairing_params(uint16 *data_size,
-	nan_pairing_bs_cmd_data_t *cmd_data)
-{
-	s32 ret = BCME_OK;
-	if (cmd_data->key.dlen) {
-		*data_size += ALIGN_SIZE(cmd_data->key.dlen + NAN_XTLV_ID_LEN_SIZE, 4);
-	}
-	/* For local NIK */
-	*data_size += ALIGN_SIZE(NAN_IDENTITY_KEY_LEN + NAN_XTLV_ID_LEN_SIZE, 4);
-	/* For XTLV_LIST */
-	*data_size += ALIGN_SIZE(NAN_XTLV_ID_LEN_SIZE, 4);
-	return ret;
-}
-
-static int
+int
 wl_cfgnan_svc_get_handler(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, uint16 cmd_id, nan_discover_cmd_data_t *cmd_data)
 {
@@ -7949,7 +5946,7 @@ fail:
 
 }
 
-static int
+int
 wl_cfgnan_svc_handler(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, uint16 cmd_id, nan_discover_cmd_data_t *cmd_data)
 {
@@ -7972,16 +5969,6 @@ wl_cfgnan_svc_handler(struct net_device *ndev,
 				WL_ERR(("Bad instance status, failed to update svc handler\n"));
 				goto fail;
 			}
-		}
-	}
-
-	/* Prepare NPBA advertise attr if bs_methods in present */
-	if (cmd_data->pairing_config.supported_bootstrapping_methods) {
-		ret = wl_cfgnan_bootstrapping_prep_npba_attr(cfg, cmd_data,
-				NAN_WIFI_SUBCMD_REQUEST_PUBLISH);
-		if (ret != BCME_OK) {
-			WL_ERR(("%s: Error in NPBA attr preparation \n", __FUNCTION__));
-			goto fail;
 		}
 	}
 
@@ -8104,8 +6091,6 @@ wl_cfgnan_subscribe_handler(struct net_device *ndev,
 	rtt_status_info_t *rtt_status = GET_RTTSTATE(dhd);
 #endif /* RTT_GEOFENCE_CONT */
 #endif /* RTT_SUPPORT */
-
-	cfg->nancfg->rng_subscribe_ts = OSL_LOCALTIME_NS();
 
 	NAN_DBG_ENTER();
 	NAN_MUTEX_LOCK();
@@ -8465,13 +6450,6 @@ wl_cfgnan_transmit_handler(struct net_device *ndev,
 			sd_xmit->flags = WL_NAN_FUP_SUPR_EVT_TXS;
 		}
 	}
-
-	if (cmd_data->flags & WL_NAN_FUP_ADD_SKDA) {
-		sd_xmit->flags |= WL_NAN_FUP_ADD_SKDA;
-	}
-	if (cmd_data->flags & WL_NAN_FUP_ADD_BIP_KDE) {
-		sd_xmit->flags |= WL_NAN_FUP_ADD_BIP_KDE;
-	}
 	/* Optional parameters: fill the sub_command block with service descriptor attr */
 	sub_cmd->id = htod16(WL_NAN_CMD_SD_TRANSMIT);
 	sub_cmd->len = sizeof(sub_cmd->u.options) +
@@ -8514,16 +6492,6 @@ wl_cfgnan_transmit_handler(struct net_device *ndev,
 			goto fail;
 		}
 	}
-	if (cmd_data->npba_info.data && cmd_data->npba_info.dlen) {
-		WL_TRACE(("optional npba_info, pack it\n"));
-		ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
-				WL_NAN_XTLV_CFG_NPBA_INFO, cmd_data->npba_info.dlen,
-				cmd_data->npba_info.data, BCM_XTLV_OPTION_ALIGN32);
-		if (unlikely(ret)) {
-			WL_ERR(("%s: fail to pack npba_info \n", __FUNCTION__));
-			goto fail;
-		}
-	}
 
 	/* Check if all mandatory params are provided */
 	if (is_lcl_id && is_dest_id && is_dest_mac) {
@@ -8552,42 +6520,6 @@ fail:
 	NAN_MUTEX_UNLOCK();
 	NAN_DBG_EXIT();
 	return ret;
-}
-
-/* Convert FW supported cipher suites masks to Android host supported cipher supported masks */
-static int
-wl_cfgnan_upd_cipher_supported_capabilities(struct bcm_cfg80211 *cfg,
-	nan_hal_capabilities_t *capabilities, uint8 fw_cipher_mask1, uint8 fw_cipher_mask2)
-{
-	uint16 fw_cipher_mask = (fw_cipher_mask1 | (fw_cipher_mask2 << 8));
-
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_SHARED_KEY_128_MASK) {
-		capabilities->cipher_suites_supported = NAN_CIPHER_SUITE_SHARED_KEY_128_MASK;
-	}
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_SHARED_KEY_256_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_SHARED_KEY_256_MASK;
-	}
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_PUBLIC_KEY_128_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_PUBLIC_KEY_128_MASK;
-	}
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_PUBLIC_KEY_256_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_PUBLIC_KEY_256_MASK;
-	}
-#ifdef WL_NAN_GAF_PROTECT
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_GROUP_KEY_128_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_GROUP_KEY_128_MASK;
-	}
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_GROUP_KEY_256_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_GROUP_KEY_256_MASK;
-	}
-#endif /* WL_NAN_GAF_PROTECT */
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_PK_PASN_128_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_PK_PASN_128_MASK;
-	}
-	if (fw_cipher_mask & WL_NAN_CIPHER_SUITE_PK_PASN_256_MASK) {
-		capabilities->cipher_suites_supported |= NAN_CIPHER_SUITE_PK_PASN_256_MASK;
-	}
-	return BCME_OK;
 }
 
 static int
@@ -8692,9 +6624,7 @@ wl_cfgnan_get_capability(struct net_device *ndev,
 	capabilities->max_subscribe_address = fw_cap->max_subscribe_address;
 	capabilities->is_ndp_security_supported = fw_cap->is_ndp_security_supported;
 	capabilities->ndp_supported_bands = fw_cap->ndp_supported_bands;
-	wl_cfgnan_upd_cipher_supported_capabilities(cfg, capabilities,
-			fw_cap->cipher_suites_supported_mask,
-			fw_cap->cipher_suites_supported_mask1);
+	capabilities->cipher_suites_supported = fw_cap->cipher_suites_supported_mask;
 #ifdef WL_NAN_INSTANT_MODE
 	if (fw_cap->flags1 & WL_NAN_FW_CAP_FLAG1_INSTANT_MODE) {
 		capabilities->is_instant_mode_supported = true;
@@ -8702,17 +6632,6 @@ wl_cfgnan_get_capability(struct net_device *ndev,
 #endif /* WL_NAN_INSTANT_MODE */
 	if (fw_cap->flags1 & WL_NAN_FW_CAP_FLAG1_NDPE) {
 		capabilities->ndpe_attr_supported = true;
-	}
-	if (fw_cap->flags1 & WL_NAN_FW_CAP_FLAG1_SUSPENSION) {
-		capabilities->is_suspension_supported = true;
-		cfg->nancfg->is_suspension_supported = true;
-	}
-	if (fw_cap->flags1 & WL_NAN_FW_CAP_FLAG1_6G) {
-		cfg->nancfg->is_6g_nan_supported = true;
-	}
-	if ((fw_cap->flags1 & WL_NAN_FW_CAP_FLAG1_PAIRING) &&
-			(nan_pairing_enable == TRUE)) {
-		capabilities->is_pairing_supported = true;
 	}
 
 fail:
@@ -8741,14 +6660,7 @@ wl_cfgnan_get_capablities_handler(struct net_device *ndev,
 		goto fail;
 	}
 
-	if (cfg->nancfg->nan_enable) {
-		ret = memcpy_s(capabilities, sizeof(*capabilities), &cfg->nancfg->capabilities,
-				sizeof(cfg->nancfg->capabilities));
-		if (ret != BCME_OK) {
-			WL_ERR(("NAN failed to copy capability info from DHD[%d]\n", ret));
-			goto exit;
-		}
-	} else if (cfg->nancfg->nan_init_state) {
+	if (cfg->nancfg->nan_init_state) {
 		ret = wl_cfgnan_get_capability(ndev, cfg, capabilities);
 		if (ret != BCME_OK) {
 			WL_ERR(("NAN init state: %d, failed to get capability from FW[%d]\n",
@@ -8862,22 +6774,11 @@ wl_cfgnan_init(struct bcm_cfg80211 *cfg)
 	cfg->nancfg->nan_disc_cache = MALLOCZ(cfg->osh,
 			NAN_MAX_CACHE_DISC_RESULT * sizeof(nan_disc_result_cache));
 	if (!cfg->nancfg->nan_disc_cache) {
-		WL_ERR(("memory allocation failed\n"));
+		WL_ERR(("%s: memory allocation failed\n", __func__));
 		ret = BCME_NOMEM;
 		goto fail;
 	}
 #endif /* WL_NAN_DISC_CACHE */
-
-	/* malloc for Bootstrapping entries */
-	cfg->nancfg->nan_bs_entries = MALLOCZ(cfg->osh,
-			NAN_MAX_BOOTSTRAPPING_ENTRIES * sizeof(nan_bootstrapping_entry_t));
-	if (!cfg->nancfg->nan_bs_entries) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto fail;
-	}
-	/* Generate random number for bs_entry */
-	cfg->nancfg->cur_bs_instance_id = (RANDOM32()%(NAN_ID_MAX/2)) + 1;
 	cfg->nancfg->nan_init_state = true;
 	return ret;
 fail:
@@ -8909,33 +6810,14 @@ wl_cfgnan_deinit_cleanup(struct bcm_cfg80211 *cfg)
 			NAN_MAX_CACHE_DISC_RESULT * sizeof(nan_disc_result_cache));
 		nancfg->nan_disc_cache = NULL;
 	}
-	wl_cfgnan_clear_pairing_timeout(cfg);
-	if (nancfg->nan_bs_entries) {
-		/* Reset bootstrapping entries cache info before freeing bs_entries */
-		wl_cfgnan_reset_bootstrapping_entries(cfg);
-
-		MFREE(cfg->osh, nancfg->nan_bs_entries,
-			(NAN_MAX_BOOTSTRAPPING_ENTRIES * sizeof(nan_bootstrapping_entry_t)));
-		nancfg->nan_bs_entries = NULL;
-	}
 	nancfg->nan_disc_count = 0;
 	bzero(nancfg->svc_info, NAN_MAX_SVC_INST * sizeof(nan_svc_info_t));
 	bzero(nancfg->nan_ranging_info, NAN_MAX_RANGING_INST * sizeof(nan_ranging_inst_t));
 #endif /* WL_NAN_DISC_CACHE */
-	if (nancfg->nan_ndp_peer_info) {
-		MFREE(cfg->osh, nancfg->nan_ndp_peer_info,
-			nancfg->max_ndp_count * sizeof(nan_ndp_peer_t));
-		nancfg->nan_ndp_peer_info = NULL;
-	}
-	if (nancfg->ndi) {
-		MFREE(cfg->osh, nancfg->ndi,
-			nancfg->max_ndi_supported * sizeof(*nancfg->ndi));
-		nancfg->ndi = NULL;
-	}
 	return;
 }
 
-int
+static int
 wl_cfgnan_deinit(struct bcm_cfg80211 *cfg, uint8 busstate)
 {
 	s32 ret = BCME_OK;
@@ -8980,8 +6862,52 @@ wl_cfgnan_deinit(struct bcm_cfg80211 *cfg, uint8 busstate)
 	wl_cfgnan_deinit_cleanup(cfg);
 
 fail:
+	if (!nancfg->mac_rand && !ETHER_ISNULLADDR(nancfg->nan_nmi_mac)) {
+		wl_release_vif_macaddr(cfg, nancfg->nan_nmi_mac, WL_IF_TYPE_NAN_NMI);
+	}
 	NAN_MUTEX_UNLOCK();
 	NAN_DBG_EXIT();
+	return ret;
+}
+
+static int
+wl_cfgnan_get_ndi_macaddr(struct bcm_cfg80211 *cfg, u8* mac_addr)
+{
+	int i = 0;
+	int ret = BCME_OK;
+	bool rand_mac = cfg->nancfg->mac_rand;
+	BCM_REFERENCE(i);
+
+	if (rand_mac) {
+		/* ensure nmi != ndi */
+		do {
+			RANDOM_BYTES(mac_addr, ETHER_ADDR_LEN);
+			/* restore mcast and local admin bits to 0 and 1 */
+			ETHER_SET_UNICAST(mac_addr);
+			ETHER_SET_LOCALADDR(mac_addr);
+			i++;
+			if (i == NAN_RAND_MAC_RETRIES) {
+				break;
+			}
+		} while (eacmp(cfg->nancfg->nan_nmi_mac, mac_addr) == 0);
+
+		if (i == NAN_RAND_MAC_RETRIES) {
+			if (eacmp(cfg->nancfg->nan_nmi_mac, mac_addr) == 0) {
+				WL_ERR(("\nCouldn't generate rand NDI which != NMI\n"));
+				ret = BCME_NORESOURCE;
+				goto fail;
+			}
+		}
+	} else {
+		if (wl_get_vif_macaddr(cfg, WL_IF_TYPE_NAN,
+			mac_addr) != BCME_OK) {
+			ret = -EINVAL;
+			WL_ERR(("Failed to get mac addr for NDI\n"));
+			goto fail;
+		}
+	}
+
+fail:
 	return ret;
 }
 
@@ -9004,7 +6930,7 @@ wl_cfgnan_data_path_iface_create_delete_handler(struct net_device *ndev,
 				goto fail;
 			}
 
-			ret = wl_get_vif_macaddr(cfg, WL_IF_TYPE_NAN, mac_addr);
+			ret = wl_cfgnan_get_ndi_macaddr(cfg, mac_addr);
 			if (ret != BCME_OK) {
 				WL_ERR(("Couldn't get mac addr for NDI ret %d\n", ret));
 				goto fail;
@@ -9019,13 +6945,18 @@ wl_cfgnan_data_path_iface_create_delete_handler(struct net_device *ndev,
 			/* Store the iface name to pub data so that it can be used
 			 * during NAN enable
 			 */
-			wl_cfgnan_add_ndi_data(cfg, idx, ifname, wdev);
+			wl_cfgnan_add_ndi_data(cfg, idx, ifname);
+			cfg->nancfg->ndi[idx].created = true;
+			/* Store nan ndev */
+			cfg->nancfg->ndi[idx].nan_ndev = wdev_to_ndev(wdev);
+
 		} else if (type == NAN_WIFI_SUBCMD_DATA_PATH_IFACE_DELETE) {
-			cfg->wiphy_lock_held = TRUE;
-			ret = wl_cfgvif_del_if(cfg, ndev, NULL, ifname);
-			cfg->wiphy_lock_held = FALSE;
+			ret = wl_cfg80211_del_if(cfg, ndev, NULL, ifname);
 			if (ret == BCME_OK) {
-				/* handled the post del ndi ops in _wl_cfg80211_del_if */
+				if (wl_cfgnan_del_ndi_data(cfg, ifname) < 0) {
+					WL_ERR(("Failed to find matching data for ndi:%s\n",
+					ifname));
+				}
 			} else if (ret == -ENODEV) {
 				WL_INFORM(("Already deleted: %s\n", ifname));
 				ret = BCME_OK;
@@ -9117,7 +7048,7 @@ end:
 }
 
 /* Adds peer to nan data peer list */
-static void
+void
 wl_cfgnan_data_add_peer(struct bcm_cfg80211 *cfg,
 		struct ether_addr *peer_addr)
 {
@@ -9235,6 +7166,13 @@ wl_cfgnan_data_path_request_handler(struct net_device *ndev,
 
 	mutex_lock(&cfg->if_sync);
 	NAN_MUTEX_LOCK();
+#ifdef WL_IFACE_MGMT
+	if ((ret = wl_cfg80211_handle_if_role_conflict(cfg, WL_IF_TYPE_NAN)) < 0) {
+		WL_ERR(("Conflicting iface found to be active\n"));
+		ret = BCME_UNSUPPORTED;
+		goto fail;
+	}
+#endif /* WL_IFACE_MGMT */
 
 #ifdef RTT_SUPPORT
 	/* cancel any ongoing RTT session with peer
@@ -9372,16 +7310,6 @@ wl_cfgnan_data_path_request_handler(struct net_device *ndev,
 		datareq->flags |= WL_NAN_DP_FLAG_SVC_INFO;
 	}
 
-	if (cmd_data->service_instance_id) {
-		ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
-				WL_NAN_XTLV_SD_INSTANCE_ID, sizeof(wl_nan_instance_id_t),
-				(uint8*)&cmd_data->service_instance_id, BCM_XTLV_OPTION_ALIGN32);
-		if (unlikely(ret)) {
-			WL_ERR(("%s: fail to pack on service_instance_id \n", __FUNCTION__));
-			goto fail;
-		}
-	}
-
 	/* Security elements */
 
 	if (cmd_data->csid) {
@@ -9395,14 +7323,6 @@ wl_cfgnan_data_path_request_handler(struct net_device *ndev,
 			goto fail;
 		}
 	}
-
-	if (cmd_data->csia_cap) {
-		if (wl_cfgnan_gtk_csid_handler(ndev, cfg, &pxtlv, &nan_buf_size,
-				cmd_data->gtk_csid, cmd_data->csia_cap) != BCME_OK) {
-			goto fail;
-		}
-	}
-
 	if (cmd_data->scid.dlen && cmd_data->scid.data) {
 		WL_TRACE(("SCID present, pack it\n"));
 #ifdef WL_NAN_DEBUG
@@ -9419,11 +7339,7 @@ wl_cfgnan_data_path_request_handler(struct net_device *ndev,
 	}
 
 	if (cmd_data->ndp_cfg.security_cfg) {
-		if ((cmd_data->csid == NAN_SEC_ALGO_NCS_PK_PASN_CCM_128) ||
-				(cmd_data->csid == NAN_SEC_ALGO_NCS_PK_PASN_GCM_256)) {
-			/* For Pairing CSID 7/8, we dont have to send PMK or Passphrase */
-			datareq->flags |= WL_NAN_DP_FLAG_SECURITY;
-		} else if ((cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) ||
+		if ((cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) ||
 			(cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PASSPHRASE)) {
 			if (cmd_data->key.data && cmd_data->key.dlen) {
 				WL_TRACE(("optional pmk present, pack it\n"));
@@ -9500,7 +7416,7 @@ wl_cfgnan_data_path_request_handler(struct net_device *ndev,
 
 	/* check the response buff */
 	if (ret == BCME_OK) {
-		ret = wl_cfgnan_process_resp_buf(resp_buf + WL_NAN_OBUF_DATA_OFFSET,
+		ret = process_resp_buf(resp_buf + WL_NAN_OBUF_DATA_OFFSET,
 				ndp_instance_id, WL_NAN_CMD_DATA_DATAREQ);
 		cmd_data->ndp_instance_id = *ndp_instance_id;
 	}
@@ -9552,6 +7468,13 @@ wl_cfgnan_data_path_response_handler(struct net_device *ndev,
 
 	mutex_lock(&cfg->if_sync);
 	NAN_MUTEX_LOCK();
+#ifdef WL_IFACE_MGMT
+	if ((ret = wl_cfg80211_handle_if_role_conflict(cfg, WL_IF_TYPE_NAN)) < 0) {
+		WL_ERR(("Conflicting iface found to be active\n"));
+		ret = BCME_UNSUPPORTED;
+		goto fail;
+	}
+#endif /* WL_IFACE_MGMT */
 
 	nan_buf = MALLOCZ(cfg->osh, data_size);
 	if (!nan_buf) {
@@ -9700,16 +7623,6 @@ wl_cfgnan_data_path_response_handler(struct net_device *ndev,
 		dataresp->flags |= WL_NAN_DP_FLAG_SVC_INFO;
 	}
 
-	if (cmd_data->service_instance_id) {
-		ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
-				WL_NAN_XTLV_SD_INSTANCE_ID, sizeof(wl_nan_instance_id_t),
-				(uint8*)&cmd_data->service_instance_id, BCM_XTLV_OPTION_ALIGN32);
-		if (unlikely(ret)) {
-			WL_ERR(("%s: fail to pack on service_instance_id \n", __FUNCTION__));
-			goto fail;
-		}
-	}
-
 	/* Security elements */
 	if (cmd_data->csid) {
 		WL_TRACE(("Cipher suite type is present, pack it\n"));
@@ -9722,14 +7635,6 @@ wl_cfgnan_data_path_response_handler(struct net_device *ndev,
 			goto fail;
 		}
 	}
-
-	if (cmd_data->csia_cap) {
-		if (wl_cfgnan_gtk_csid_handler(ndev, cfg, &pxtlv, &nan_buf_size,
-				cmd_data->gtk_csid, cmd_data->csia_cap) != BCME_OK) {
-			goto fail;
-		}
-	}
-
 	if (cmd_data->scid.dlen && cmd_data->scid.data) {
 		WL_ERR(("SCID present, pack it\n"));
 		ret = bcm_pack_xtlv_entry(&pxtlv, &nan_buf_size,
@@ -9743,11 +7648,7 @@ wl_cfgnan_data_path_response_handler(struct net_device *ndev,
 	}
 
 	if (cmd_data->ndp_cfg.security_cfg) {
-		if ((cmd_data->csid == NAN_SEC_ALGO_NCS_PK_PASN_CCM_128) ||
-				(cmd_data->csid == NAN_SEC_ALGO_NCS_PK_PASN_GCM_256)) {
-			/* For Pairing CSID 7/8, we dont have to send PMK or Passphrase */
-			dataresp->flags |= WL_NAN_DP_FLAG_SECURITY;
-		} else if ((cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) ||
+		if ((cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PMK) ||
 			(cmd_data->key_type == NAN_SECURITY_KEY_INPUT_PASSPHRASE)) {
 			if (cmd_data->key.data && cmd_data->key.dlen) {
 				WL_TRACE(("optional pmk present, pack it\n"));
@@ -9893,7 +7794,6 @@ int wl_cfgnan_data_path_end_handler(struct net_device *ndev,
 	}
 	WL_INFORM_MEM(("[NAN] DP end successfull (ndp_id:%d)\n",
 		dataend->lndp_id));
-
 fail:
 	if (nan_buf) {
 		MFREE(cfg->osh, nan_buf, NAN_IOCTL_BUF_SIZE);
@@ -10159,12 +8059,6 @@ wl_nan_dp_cmn_event_data(struct bcm_cfg80211 *cfg, void *event_data,
 	nan_ranging_inst_t *rng_inst = NULL;
 #endif /* RTT_SUPPORT */
 
-	if (!cfg->nancfg->nan_enable) {
-		WL_ERR(("nan is not enabled, stale dp events processing not allowed\n"));
-		ret = BCME_OK;
-		goto fail;
-	}
-
 	if (xtlv->id == WL_NAN_XTLV_DATA_DP_INFO) {
 		ev_dp = (wl_nan_ev_datapath_cmn_t *)xtlv->data;
 		NAN_DBG_ENTER();
@@ -10202,7 +8096,7 @@ wl_nan_dp_cmn_event_data(struct bcm_cfg80211 *cfg, void *event_data,
 				WL_ERR(("Failed to copy event's peer nmi\n"));
 				goto fail;
 			}
-		} else if (ev_dp->type == NAN_DP_SESSION_MULTICAST) {
+		} else {
 			/* type is multicast */
 			WL_INFORM_MEM(("MC ID: %d\n", ev_dp->mc_id));
 			nan_event_data->ndp_id = ev_dp->mc_id;
@@ -10215,9 +8109,6 @@ wl_nan_dp_cmn_event_data(struct bcm_cfg80211 *cfg, void *event_data,
 				WL_ERR(("Failed to copy event's peer nmi\n"));
 				goto fail;
 			}
-		} else {
-			WL_ERR(("Unknown ev_dp type %d\n", ev_dp->type));
-			goto fail;
 		}
 		*tlvs_offset = OFFSETOF(wl_nan_ev_datapath_cmn_t, opt_tlvs) +
 			OFFSETOF(bcm_xtlv_t, data);
@@ -10326,10 +8217,9 @@ wl_nan_dp_cmn_event_data(struct bcm_cfg80211 *cfg, void *event_data,
 			}
 #endif /* WL_NAN_DISC_CACHE */
 			/* Remove peer from data ndp peer list */
-			WL_INFORM_MEM(("DP_END for NDP ID %d REMOTE_NMI: " MACDBG " with %s,"
-				"ev_dp->event_cause %d\n",
+			WL_INFORM_MEM(("DP_END for NDP ID %d REMOTE_NMI: " MACDBG " with %s\n",
 				nan_event_data->ndp_id, MAC2STRDBG(&ev_dp->peer_nmi),
-				nan_event_cause_to_str(ev_dp->event_cause), ev_dp->event_cause));
+				nan_event_cause_to_str(ev_dp->event_cause)));
 			wl_cfgnan_data_remove_peer(cfg, &ev_dp->peer_nmi);
 			wl_cfgnan_update_dp_info(cfg, false, nan_event_data->ndp_id);
 #ifdef RTT_SUPPORT
@@ -10488,10 +8378,9 @@ wl_cfgnan_notify_disc_with_ranging(struct bcm_cfg80211 *cfg,
 					&ranging_ind, rng_inst->prev_distance_mm);
 				nan_event_data->ranging_ind = ranging_ind;
 			}
-			WL_INFORM_MEM(("Ranging notify for svc_id %d, notify %d and ind %d"
-				" distance_mm %d result_present %d ranging_required:%d \n",
-				svc_info->svc_id, notify_svc, ranging_ind, distance,
-				result_present, svc_info->ranging_required));
+			WL_DBG(("Ranging notify for svc_id %d, notify %d and ind %d"
+				" distance_mm %d result_present %d\n", svc_info->svc_id, notify_svc,
+				ranging_ind, distance, result_present));
 		} else {
 			continue;
 		}
@@ -10502,19 +8391,6 @@ wl_cfgnan_notify_disc_with_ranging(struct bcm_cfg80211 *cfg,
 					(svc_info->svc_id == disc_res[j].sub_id)) {
 					ret = wl_nan_cache_to_event_data(&disc_res[j],
 						nan_event_data, cfg->osh);
-
-					cfg->nancfg->rng_end_ts = OSL_LOCALTIME_NS();
-
-					WL_ERR(("latency in us: enab_time = %d  merge_time = %d "
-						"sub_match time = %d  rng_time = %d \n",
-						(uint32)((cfg->nancfg->rng_nan_enabled_ts -
-						cfg->nancfg->rng_nan_enab_start_ts)/1000),
-						(uint32)((cfg->nancfg->rng_nan_merge_ts -
-						cfg->nancfg->rng_nan_enabled_ts)/1000),
-						(uint32)((cfg->nancfg->rng_subscribe_match_ts -
-						cfg->nancfg->rng_subscribe_ts)/1000),
-						(uint32)((cfg->nancfg->rng_end_ts -
-						cfg->nancfg->rng_start_ts) / 1000)));
 					ret = wl_cfgnan_event_disc_result(cfg, nan_event_data);
 					/* If its not match once, clear it as the FW indicates
 					 * again.
@@ -10530,23 +8406,22 @@ wl_cfgnan_notify_disc_with_ranging(struct bcm_cfg80211 *cfg,
 	return ret;
 }
 
-int32
+static int32
 wl_cfgnan_handle_directed_rtt_report(struct bcm_cfg80211 *cfg,
 	nan_ranging_inst_t *rng_inst)
 {
 	int ret = BCME_OK;
-	dhd_pub_t *dhd = (struct dhd_pub *)(cfg->pub);
-
-#ifndef NAN_DIRECTED_RTT_TERM_OFFLOAD
 	uint32 status;
+	dhd_pub_t *dhd = (struct dhd_pub *)(cfg->pub);
 
 	ret = wl_cfgnan_cancel_ranging(bcmcfg_to_prmry_ndev(cfg), cfg,
 			&rng_inst->range_id, NAN_RNG_TERM_FLAG_IMMEDIATE, &status);
 	if (unlikely(ret) || unlikely(status)) {
 		WL_ERR(("nan range cancel failed ret = %d status = %d\n", ret, status));
 	}
-#endif
+	dhd_rtt_handle_nan_rtt_session_end(dhd, &rng_inst->peer_addr);
 	dhd_rtt_nan_update_directed_sessions_cnt(dhd, FALSE);
+
 	wl_cfgnan_reset_remove_ranging_instance(cfg, rng_inst);
 
 	WL_DBG(("Ongoing ranging session is cancelled \n"));
@@ -10593,7 +8468,7 @@ wl_cfgnan_process_range_report(struct bcm_cfg80211 *cfg,
 		goto exit;
 	}
 
-#if defined(NAN_RTT_DBG)
+#ifdef NAN_RTT_DBG
 	DUMP_NAN_RTT_INST(rng_inst);
 	DUMP_NAN_RTT_RPT(range_res);
 #endif
@@ -10699,41 +8574,6 @@ wl_cfgnan_clear_nan_event_data(struct bcm_cfg80211 *cfg,
 					nan_event_data->scid.dlen);
 			nan_event_data->scid.data = NULL;
 		}
-		if (nan_event_data->nira_tag.data) {
-			MFREE(cfg->osh, nan_event_data->nira_tag.data,
-					nan_event_data->nira_tag.dlen);
-			nan_event_data->nira_tag.data = NULL;
-		}
-		if (nan_event_data->nira_nonce.data) {
-			MFREE(cfg->osh, nan_event_data->nira_nonce.data,
-					nan_event_data->nira_nonce.dlen);
-			nan_event_data->nira_nonce.data = NULL;
-		}
-		if (nan_event_data->local_nik.data) {
-			MFREE(cfg->osh, nan_event_data->local_nik.data,
-					nan_event_data->local_nik.dlen);
-			nan_event_data->local_nik.data = NULL;
-		}
-		if (nan_event_data->peer_nik.data) {
-			MFREE(cfg->osh, nan_event_data->peer_nik.data,
-					nan_event_data->peer_nik.dlen);
-			nan_event_data->peer_nik.data = NULL;
-		}
-		if (nan_event_data->npk.data) {
-			MFREE(cfg->osh, nan_event_data->npk.data,
-					nan_event_data->npk.dlen);
-			nan_event_data->npk.data = NULL;
-		}
-		if (nan_event_data->cookie.data) {
-			MFREE(cfg->osh, nan_event_data->cookie.data,
-					nan_event_data->cookie.dlen);
-			nan_event_data->cookie.data = NULL;
-		}
-		if (nan_event_data->npba_info.data) {
-			MFREE(cfg->osh, nan_event_data->npba_info.data,
-					nan_event_data->npba_info.dlen);
-			nan_event_data->npba_info.data = NULL;
-		}
 		MFREE(cfg->osh, nan_event_data, sizeof(*nan_event_data));
 	}
 
@@ -10798,6 +8638,7 @@ wl_cfgnan_update_geofence_target_idx(struct bcm_cfg80211 *cfg)
 			DHD_RTT_INVALID_TARGET_INDEX);
 		WL_DBG(("Invalidated cur_idx, as either no target present, or all "
 			"target already running, target_cnt = %d\n", target_cnt));
+
 	}
 
 exit:
@@ -10825,7 +8666,7 @@ wl_cfgnan_reset_geofence_ranging(struct bcm_cfg80211 *cfg,
 		mutex_lock(&rtt_status->rtt_mutex);
 	}
 
-	WL_INFORM_MEM(("wl_cfgnan_reset_geofence_ranging: "
+	WL_MEM(("wl_cfgnan_reset_geofence_ranging: "
 		"sched_reason = %d, cur_idx = %d, target_cnt = %d\n",
 		sched_reason, rtt_status->geofence_cfg.cur_target_idx,
 		rtt_status->geofence_cfg.geofence_target_cnt));
@@ -10850,7 +8691,7 @@ wl_cfgnan_reset_geofence_ranging(struct bcm_cfg80211 *cfg,
 		}
 		/* Cancel pending retry timer if any */
 		if (delayed_work_pending(&rtt_status->rtt_retry_timer)) {
-			dhd_cancel_delayed_work(&rtt_status->rtt_retry_timer);
+			cancel_delayed_work(&rtt_status->rtt_retry_timer);
 		}
 
 		/* invalidate current index as there are no targets */
@@ -10896,22 +8737,11 @@ wl_cfgnan_reset_geofence_ranging(struct bcm_cfg80211 *cfg,
 	 */
 
 	/* schedule RTT */
-	cfg->nancfg->rng_start_ts = OSL_LOCALTIME_NS();
-
-	if ((sched_reason == RTT_SCHED_RNG_TERM) ||
-		(sched_reason == RTT_SCHED_RNG_RPT_DIRECTED)) {
-		rtt_status->rtt_sched_reason = sched_reason;
-		rtt_status->rtt_sched = TRUE;
-		WL_INFORM_MEM(("delay geofence rtt trigger \n"));
-		schedule_delayed_work(&rtt_status->dwork,
-			msecs_to_jiffies(NAN_GEOFENCE_RTT_START_DELAY));
-	} else {
-		dhd_rtt_schedule_rtt_work_thread(dhd, sched_reason);
-	}
+	dhd_rtt_schedule_rtt_work_thread(dhd, sched_reason);
 
 exit:
 	if (reset_req_drop) {
-		WL_INFORM_MEM(("reset geofence req dropped, reason = %d\n",
+		WL_MEM(("reset geofence req dropped, reason = %d\n",
 			reset_req_drop));
 	}
 	if (need_rtt_mutex == TRUE) {
@@ -10980,188 +8810,6 @@ wl_cfgnan_geofence_retry_check(nan_ranging_inst_t *rng_inst, uint8 reason_code)
 }
 #endif /* RTT_SUPPORT */
 
-static s32
-wl_cfgnan_restore_pairing_confirm_data_from_cache(struct bcm_cfg80211 *cfg,
-	nan_event_data_t *nan_event_data)
-{
-	nan_pairing_event_data_t *pairing_data = NULL;
-	wl_nancfg_t *nancfg = cfg->nancfg;
-	nan_bootstrapping_entry_t *bs_entry = NULL;
-	s32 ret = BCME_OK;
-
-	if (nancfg->pairing_cfm_pend_cnt) {
-		WL_INFORM_MEM(("Restoring cache for sending pairing confirm to peer:" MACDBG "\n",
-				MAC2STRDBG(&nan_event_data->remote_nmi)));
-		bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-				&nan_event_data->remote_nmi);
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find bs cache\n"));
-			/* return from here to keep pairing_cfm_pend_cnt active */
-			return BCME_NOTFOUND;
-		}
-		pairing_data = bs_entry->pairing;
-		if (!pairing_data) {
-			WL_ERR(("Pairing data is NULL\n"));
-			ret = BCME_NOTFOUND;
-			goto exit;
-		}
-	} else {
-		WL_ERR(("pairing_cfm_pend_cnt NULL\n"));
-		return BCME_NOTFOUND;
-	}
-
-	nan_event_data->type = pairing_data->type;
-	nan_event_data->pairing_id = pairing_data->pairing_id;
-	nan_event_data->status = pairing_data->status;
-	nan_event_data->peer_cipher_suite = pairing_data->csid;
-	nan_event_data->enable_pairing_cache = pairing_data->pairing_cache;
-	nan_event_data->nan_akm = pairing_data->akm;
-
-	bs_entry->txs_token = 0;
-	/* cache local nik */
-	nan_event_data->local_nik.data = MALLOCZ(cfg->osh, pairing_data->local_nik.dlen);
-	if (!nan_event_data->local_nik.data) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-	nan_event_data->local_nik.dlen = pairing_data->local_nik.dlen;
-	ret = memcpy_s(nan_event_data->local_nik.data, nan_event_data->local_nik.dlen,
-			pairing_data->local_nik.data, pairing_data->local_nik.dlen);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy local NIK\n"));
-		goto exit;
-	}
-
-	/* cache npk */
-	nan_event_data->npk.data = MALLOCZ(cfg->osh, pairing_data->npk.dlen);
-	if (!nan_event_data->npk.data) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-	nan_event_data->npk.dlen = pairing_data->npk.dlen;
-	ret = memcpy_s(nan_event_data->npk.data, nan_event_data->npk.dlen,
-			pairing_data->npk.data, pairing_data->npk.dlen);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy NPK\n"));
-		goto exit;
-	}
-exit:
-	if (bs_entry) {
-		wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-	}
-	nancfg->pairing_cfm_pend_cnt--;
-	return ret;
-}
-
-static s32
-wl_cfgnan_cache_pairing_confirm_data_n_send_fup(struct bcm_cfg80211 *cfg,
-	nan_event_data_t *nan_event_data)
-{
-	nan_pairing_event_data_t *pairing_data = NULL;
-	wl_nancfg_t *nancfg = cfg->nancfg;
-	nan_discover_cmd_data_t *cmd_data = NULL;
-	nan_bootstrapping_entry_t *bs_entry = NULL;
-	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
-	s32 ret = BCME_OK;
-
-	if (nancfg->pairing_cfm_pend_cnt) {
-		bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-				&nan_event_data->remote_nmi);
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find bs cache\n"));
-			ret = BCME_NOTFOUND;
-			goto exit;
-		}
-		pairing_data = bs_entry->pairing;
-		if (!pairing_data) {
-			WL_ERR(("Pairing data is NULL\n"));
-			ret = BCME_NOTFOUND;
-			goto exit;
-		}
-	} else {
-		WL_ERR(("pairing_cfm_pend_cnt NULL\n"));
-		return BCME_NOTFOUND;
-	}
-
-	/* cache local nik */
-	pairing_data->local_nik.data = MALLOCZ(cfg->osh, nan_event_data->local_nik.dlen);
-	if (!pairing_data->local_nik.data) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-	pairing_data->local_nik.dlen = nan_event_data->local_nik.dlen;
-	ret = memcpy_s(pairing_data->local_nik.data, pairing_data->local_nik.dlen,
-			nan_event_data->local_nik.data, nan_event_data->local_nik.dlen);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy local NIK\n"));
-		goto exit;
-	}
-
-	/* cache npk */
-	pairing_data->npk.data = MALLOCZ(cfg->osh, nan_event_data->npk.dlen);
-	if (!pairing_data->npk.data) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-	pairing_data->npk.dlen = nan_event_data->npk.dlen;
-	ret = memcpy_s(pairing_data->npk.data, pairing_data->npk.dlen,
-			nan_event_data->npk.data, nan_event_data->npk.dlen);
-	if (ret != BCME_OK) {
-		WL_ERR(("Failed to copy NPK\n"));
-		goto exit;
-	}
-
-	pairing_data->akm = nan_event_data->nan_akm;
-	pairing_data->pairing_cache = nan_event_data->enable_pairing_cache;
-	pairing_data->pairing_id = nan_event_data->pairing_id;
-
-	/* Prepare cmd_data for FUP */
-	pairing_data->cmd_data = (nan_discover_cmd_data_t *)MALLOCZ(cfg->osh,
-			sizeof(*pairing_data->cmd_data));
-	if (!pairing_data->cmd_data) {
-		WL_ERR(("memory allocation failed\n"));
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-
-	cmd_data = pairing_data->cmd_data;
-
-	cmd_data->local_id = bs_entry->local_inst_id;
-	cmd_data->remote_id = bs_entry->peer_inst_id;
-	cmd_data->flags = WL_NAN_FUP_ADD_SKDA;
-
-	if (bs_entry->setup_bip) {
-		cmd_data->flags |= WL_NAN_FUP_ADD_BIP_KDE;
-	}
-
-	eacopy(&bs_entry->peer_nmi, &cmd_data->mac_addr);
-
-	/* Use TxID/token of pairing command for TX-FUP */
-	cmd_data->token = bs_entry->txs_token;
-	cfg->nancfg->bs_txs_pend_token++;
-
-	ret = wl_cfgnan_transmit_handler(ndev, cfg, cmd_data);
-	if (ret) {
-		WL_ERR(("Transmit follow-up for Peer NIK failed \n"));
-		cfg->nancfg->bs_txs_pend_token--;
-
-		ret = BCME_NOMEM;
-		goto exit;
-	}
-	bs_entry->state = NAN_STATE_PAIRING_CONFIRM_FUP_SENT;
-	return ret;
-exit:
-	if (bs_entry) {
-		wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-	}
-	nancfg->pairing_cfm_pend_cnt--;
-	return ret;
-}
-
 s32
 wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 	bcm_struct_cfgdev *cfgdev, const wl_event_msg_t *event, void *event_data)
@@ -11179,8 +8827,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 	bcm_xtlv_opts_t xtlv_opt = BCM_IOV_CMD_OPT_ALIGN32;
 	uint32 status;
 	nan_svc_info_t *svc;
-	nan_bootstrapping_entry_t *bs_entry = NULL;
-	int bs_id = 0;
 #ifdef RTT_SUPPORT
 	dhd_pub_t *dhd = (struct dhd_pub *)(cfg->pub);
 	rtt_status_info_t *rtt_status = GET_RTTSTATE(dhd);
@@ -11243,7 +8889,7 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 #endif /* WL_NAN_DEBUG */
 
 	if (!cfg->nancfg->nan_init_state) {
-		WL_DBG(("nan is not in initialized state, dropping nan related event num: %d, "
+		WL_ERR(("nan is not in initialized state, dropping nan related event num: %d, "
 				"type: %d\n", event_num, event_type));
 		ret = BCME_OK;
 		goto exit;
@@ -11271,12 +8917,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		WL_DBG((">> Nan Mac Event Received: %s (num=%d, len=%d)\n",
 			nan_event_to_str(event_num), event_num, data_len));
 		WL_DBG(("Nan Device Role %s\n", nan_role_to_str(nstatus->role)));
-		if (event_num == WL_NAN_EVENT_MERGE) {
-			cfg->nancfg->rng_nan_merge_ts = OSL_LOCALTIME_NS();
-			WL_ERR(("NAN cluster merge latency = %d us \n",
-			(uint32)(cfg->nancfg->rng_nan_merge_ts -
-			cfg->nancfg->rng_nan_enabled_ts) / 1000u));
-		}
 		/* Mapping to common struct between DHD and HAL */
 		nan_event_data->enabled = nstatus->enabled;
 		ret = memcpy_s(&nan_event_data->local_nmi, ETHER_ADDR_LEN,
@@ -11365,24 +9005,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		break;
 	}
 
-	case WL_NAN_EVENT_SUSPENSION_IND: {
-		bcm_xtlv_t *xtlv = (bcm_xtlv_t *)event_data;
-		wl_nan_ev_suspension_t *suspension_ind = (wl_nan_ev_suspension_t *)xtlv->data;
-
-		nan_event_data->status = FALSE;
-		if (suspension_ind->status == WL_NAN_STATUS_SUSPENDED) {
-			nan_event_data->status = TRUE;
-		}
-		WL_DBG(("Suspension event status %d \n", nan_event_data->status));
-
-		if (ret != BCME_OK) {
-			WL_ERR(("Failed to copy nan_reason\n"));
-			goto exit;
-		}
-		hal_event_id = GOOGLE_NAN_EVENT_SUSPENSION_STATUS;
-		break;
-	}
-
 	case WL_NAN_EVENT_RECEIVE: {
 		nan_opts_len = data_len;
 		hal_event_id = GOOGLE_NAN_EVENT_FOLLOWUP;
@@ -11394,8 +9016,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		bcm_xtlv_t *xtlv = (bcm_xtlv_t *)event_data;
 		wl_nan_event_txs_t *txs = (wl_nan_event_txs_t *)xtlv->data;
 		wl_nan_event_sd_txs_t *txs_sd = NULL;
-		uint8 bs_state = 0;
-
 		if (txs->status == WL_NAN_TXS_SUCCESS) {
 			WL_INFORM_MEM(("TXS success for type %s(%d) token %d\n",
 				nan_frm_type_to_str(txs->type), txs->type, txs->host_seq));
@@ -11424,67 +9044,19 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 				WL_ERR(("Failed to copy nan_reason\n"));
 				goto exit;
 			}
-
-			/* TODO - Remove local bootstrapping entry when TXS fails */
 		}
 		nan_event_data->reason = txs->reason_code;
 		nan_event_data->token = txs->host_seq;
 		if (txs->type == WL_NAN_FRM_TYPE_FOLLOWUP) {
-			uint8 further_proc_txs = true;
-			/* Handle Bootstrapping FUP txs if pend txs token matches */
-			if (cfg->nancfg->bs_txs_pend_token) {
-				bs_entry = wl_cfgnan_get_bootstrapping_entry_by_txs_token(cfg,
-						txs->host_seq);
-				if (bs_entry) {
-					bs_state = bs_entry->state;
-					cfg->nancfg->bs_txs_pend_token--;
-					bs_entry->txs_token = 0;
-					bs_entry->state = 0;
-					further_proc_txs = false;
-
-					if (bs_state == NAN_STATE_BOOTSTRAPPING_RESP_SENT) {
-						hal_event_id =
-							GOOGLE_NAN_EVENT_BOOTSTRAPPING_CONFIRM;
-						bs_id = bs_entry->bs_inst_id;
-						if (bs_id <= 0) {
-							WL_ERR(("Couldn't find bs id:%d for resp\n",
-									bs_id));
-							ret = BCME_NOTFOUND;
-							goto exit;
-						}
-						nan_event_data->bootstrapping_id = bs_id;
-						nan_event_data->status = bs_entry->status;
-						WL_INFORM_MEM(("[NAN] BS RESP txs rcvd for BS"
-								" id:%d\n", bs_id));
-					} else if (bs_state == NAN_STATE_BOOTSTRAPPING_REQ_SENT) {
-						/* Just ignore TXS for BS req frame */
-						WL_INFORM_MEM(("[NAN] BS REQ txs rcvd for BS"
-								" id %d\n", bs_entry->bs_inst_id));
-						goto exit;
-					} else if (bs_state == NAN_STATE_PAIRING_CONFIRM_FUP_SENT) {
-						/* Just ignore TXS for FUP with NIK after Pairing
-						 * confirm
-						 */
-						WL_INFORM_MEM(("[NAN] Pairing NIK txs rcvd for BS"
-								"id: %d\n", bs_entry->bs_inst_id));
-						goto exit;
-					}
-				} else {
-					WL_ERR(("Could not find bs cache for txs_pend_token %d\n",
-							txs->host_seq));
-				}
-			}
-			if (further_proc_txs) {
-				hal_event_id = GOOGLE_NAN_EVENT_TRANSMIT_FOLLOWUP_IND;
-				xtlv = (bcm_xtlv_t *)(txs->opt_tlvs);
-				if (txs->opt_tlvs_len && xtlv->id == WL_NAN_XTLV_SD_TXS) {
-					txs_sd = (wl_nan_event_sd_txs_t*)xtlv->data;
-					nan_event_data->local_inst_id = txs_sd->inst_id;
-				} else {
-					WL_ERR(("Invalid params in TX status for transmit FUP"));
-					ret = -EINVAL;
-					goto exit;
-				}
+			hal_event_id = GOOGLE_NAN_EVENT_TRANSMIT_FOLLOWUP_IND;
+			xtlv = (bcm_xtlv_t *)(txs->opt_tlvs);
+			if (txs->opt_tlvs_len && xtlv->id == WL_NAN_XTLV_SD_TXS) {
+				txs_sd = (wl_nan_event_sd_txs_t*)xtlv->data;
+				nan_event_data->local_inst_id = txs_sd->inst_id;
+			} else {
+				WL_ERR(("Invalid params in TX status for trasnmit followup"));
+				ret = -EINVAL;
+				goto exit;
 			}
 #ifdef RTT_SUPPORT
 		} else if ((txs->type == WL_NAN_FRM_TYPE_RNG_RESP) ||
@@ -11547,7 +9119,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		wl_nan_ev_disc_cache_timeout_t *cache_data =
 				(wl_nan_ev_disc_cache_timeout_t *)xtlv->data;
 		wl_nan_disc_expired_cache_entry_t *cache_entry = NULL;
-		nan_ranging_inst_t *rng_inst = NULL;
 		uint16 xtlv_len = xtlv->len;
 		uint8 entry_idx = 0;
 
@@ -11565,25 +9136,10 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 				nan_event_data->pub_id = cache_entry->r_pub_id;
 				wl_cfgnan_event_disc_cache_timeout(cfg, nan_event_data);
 #ifdef RTT_SUPPORT
-				rng_inst = wl_cfgnan_check_for_ranging(cfg,
-					&cache_entry->r_nmi_addr);
-				if (rng_inst &&
-					(rng_inst->range_type == RTT_TYPE_NAN_DIRECTED)) {
-					dhd_rtt_handle_nan_rtt_session_end(dhd,
-						&rng_inst->peer_addr);
-					if (dhd_rtt_nan_is_directed_setup_in_prog_with_peer(dhd,
-						&rng_inst->peer_addr)) {
-						dhd_rtt_nan_update_directed_setup_inprog(dhd,
-							NULL, FALSE);
-					} else {
-						dhd_rtt_nan_update_directed_sessions_cnt(dhd,
-							FALSE);
-					}
-				} else {
-					wl_cfgnan_ranging_clear_publish(cfg,
-						&cache_entry->r_nmi_addr, cache_entry->l_sub_id);
-				}
-#endif /* RTT_SUPPORT */				/* Invalidate local cache info */
+				wl_cfgnan_ranging_clear_publish(cfg, &cache_entry->r_nmi_addr,
+					cache_entry->l_sub_id);
+#endif /* RTT_SUPPORT */
+				/* Invalidate local cache info */
 				wl_cfgnan_remove_disc_result(cfg, cache_entry->l_sub_id);
 				xtlv_len = xtlv_len - sizeof(*cache_entry);
 				entry_idx++;
@@ -11602,10 +9158,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		WL_INFORM_MEM(("Received WL_NAN_EVENT_RNG_REQ_IND range_id %d"
 			" peer:" MACDBG "\n", rng_ind->rng_id,
 			MAC2STRDBG(&rng_ind->peer_m_addr)));
-		if (delayed_work_pending(&rtt_status->dwork)) {
-			dhd_cancel_delayed_work_sync(&rtt_status->dwork);
-			rtt_status->rtt_sched = FALSE;
-		}
 		ret = wl_cfgnan_handle_ranging_ind(cfg, rng_ind);
 		/* no need to event to HAL */
 		goto exit;
@@ -11788,19 +9340,8 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		xtlv_opt = BCM_IOV_CMD_OPT_ALIGN_NONE;
 		break;
 	}
-	case WL_NAN_EVENT_PAIRING_IND:
-	case WL_NAN_EVENT_PAIRING_ESTBL:
-	case WL_NAN_EVENT_PAIRING_END: {
-		ret = wl_nan_pairing_cmn_event_data(cfg, event_data, data_len, &tlvs_offset,
-				&nan_opts_len, event_num, &hal_event_id, nan_event_data);
-		if (unlikely(ret)) {
-			WL_ERR(("nan pairing common event data parse failed\n"));
-			goto exit;
-		}
-		break;
-	}
 	default:
-		WL_DBG_MEM(("WARNING: unimplemented NAN EVENT = %d\n", event_num));
+		WL_ERR_RLMT(("WARNING: unimplemented NAN APP EVENT = %d\n", event_num));
 		ret = BCME_ERROR;
 		goto exit;
 	}
@@ -11886,108 +9427,6 @@ wl_cfgnan_notify_nan_status(struct bcm_cfg80211 *cfg,
 		}
 	}
 #endif /* WL_NAN_DISC_CACHE */
-	if ((hal_event_id == GOOGLE_NAN_EVENT_PAIRING_REQ_IND) &&
-			(nan_event_data->type == WL_NAN_PAIRING_TYPE_SETUP)) {
-		/* Need to store pairing_id in bs_entry cache */
-		bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-				&nan_event_data->remote_nmi);
-		if (bs_entry == NULL) {
-			WL_ERR(("Could not find BS cache entry for Pairing Ind event \n"));
-			ret = BCME_NOTFOUND;
-			goto exit;
-		}
-		if (!bs_entry->pairing) {
-			bs_entry->pairing = MALLOCZ(cfg->osh, sizeof(nan_pairing_event_data_t));
-			if (!bs_entry->pairing) {
-				WL_ERR(("memory allocation failed for bs_entry->pairing\n"));
-				ret = BCME_NOMEM;
-				goto exit;
-			}
-		}
-		bs_entry->pairing->pairing_id = nan_event_data->pairing_id;
-		bs_entry->pairing->akm = nan_event_data->nan_akm;
-		WL_INFORM_MEM(("GOOGLE_NAN_EVENT_PAIRING_REQ_IND, pid %d \n",
-				nan_event_data->pairing_id));
-	}
-
-	if (hal_event_id == GOOGLE_NAN_EVENT_PAIRING_CONFIRM) {
-		if ((nan_event_data->type == WL_NAN_PAIRING_TYPE_SETUP) &&
-				(nan_event_data->status == NAN_STATUS_SUCCESS)) {
-			/* Defer sending Pairing confirm event to HAL till FUP Rx is received
-			 * Store confirm data in BS cache
-			 * Mutex_unlock has to be done, as TxFup frame holds mutex lock inside
-			 */
-			NAN_MUTEX_UNLOCK();
-			wl_cfgnan_cache_pairing_confirm_data_n_send_fup(cfg, nan_event_data);
-			NAN_MUTEX_LOCK();
-			goto exit;
-		}
-	}
-	if (hal_event_id == GOOGLE_NAN_EVENT_FOLLOWUP) {
-		if (nan_event_data->type == NAN_BOOTSTRAPPING_REQUEST) {
-			bs_entry = wl_cfgnan_add_bootstrapping_entry(cfg,
-					(struct ether_addr *)cfg->nancfg->nan_nmi_mac,
-					&nan_event_data->remote_nmi, NAN_PAIRING_BS_ROLE_RESPONDER,
-					nan_event_data->requestor_id,
-					nan_event_data->local_inst_id,
-					&nan_event_data->npba_info);
-			if (bs_entry == NULL) {
-				WL_ERR(("Could not add BS cache entry for BS REQ event \n"));
-				ret = BCME_NOTFOUND;
-				goto exit;
-			}
-			bs_id = bs_entry->bs_inst_id;
-			if (bs_id <= 0) {
-				WL_ERR(("Could not add bs id: %d for BS REQ event\n", bs_id));
-				ret = BCME_NORESOURCE;
-				goto exit;
-			}
-			nan_event_data->bootstrapping_id = bs_id;
-			WL_INFORM_MEM(("[NAN] bs req rcvd id:%d, peer: " MACDBG " \n", bs_id,
-					MAC2STRDBG(&nan_event_data->remote_nmi)));
-			hal_event_id = GOOGLE_NAN_EVENT_BOOTSTRAPPING_REQ_IND;
-
-			wl_cfgnan_set_pairing_timeout(cfg, NAN_PAIRING_TIMEOUT);
-		} else if (nan_event_data->type == NAN_BOOTSTRAPPING_RESPONSE) {
-			hal_event_id = GOOGLE_NAN_EVENT_BOOTSTRAPPING_CONFIRM;
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-					&nan_event_data->remote_nmi);
-			if (bs_entry == NULL) {
-				WL_ERR(("Could not find bs cache: \n"));
-				ret = BCME_NOTFOUND;
-				goto exit;
-			}
-
-			bs_id = bs_entry->bs_inst_id;
-			if (bs_id <= 0) {
-				WL_ERR(("Could not find bs id: %d for response frame\n", bs_id));
-				ret = BCME_NOTFOUND;
-				goto exit;
-			}
-			nan_event_data->bootstrapping_id = bs_id;
-			WL_INFORM_MEM(("[NAN] bs resp rcvd id:%d, status %d peer: " MACDBG "\n",
-					bs_id, nan_event_data->status,
-					MAC2STRDBG(&nan_event_data->remote_nmi)));
-		} else if (cfg->nancfg->pairing_cfm_pend_cnt) {
-			/* Follow-up received, fill pairing confirm and send event to HAL */
-			WL_ERR(("Pairing setup, followed by FUP received \n"));
-			ret = wl_cfgnan_restore_pairing_confirm_data_from_cache(cfg,
-					nan_event_data);
-			if (ret != BCME_OK) {
-				WL_ERR(("Could not restore pairing confirm data \n"));
-				goto exit;
-			}
-			hal_event_id = GOOGLE_NAN_EVENT_PAIRING_CONFIRM;
-			wl_cfgnan_clear_pairing_timeout(cfg);
-		}
-	}
-	if ((hal_event_id == GOOGLE_NAN_EVENT_BOOTSTRAPPING_CONFIRM) &&
-			(nan_event_data->status != NAN_BOOTSTRAPPING_STATUS_ACCEPT)) {
-		/* remove BS entry cache if BS exchange is rejected */
-		if (bs_entry) {
-			wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-		}
-	}
 
 	WL_TRACE(("Send up %s (%d) data to HAL, hal_event_id=%d\n",
 		nan_event_to_str(event_num), event_num, hal_event_id));
@@ -12056,7 +9495,6 @@ wl_cfgnan_cache_disc_result(struct bcm_cfg80211 *cfg, void * data,
 		disc_res[add_index].valid = 1;
 		disc_res[add_index].pub_id = disc->pub_id;
 		disc_res[add_index].sub_id = disc->sub_id;
-		disc_res[add_index].csia_cap = disc->csia_cap;
 
 		eacopy(&disc->remote_nmi, &disc_res[add_index].peer);
 		eacopy(disc->svc_name, disc_res[add_index].svc_hash);
@@ -12198,8 +9636,6 @@ static int wl_cfgnan_remove_disc_result(struct bcm_cfg80211 *cfg,
 	int i;
 	int ret = BCME_NOTFOUND;
 	nan_disc_result_cache *disc_res = cfg->nancfg->nan_disc_cache;
-	nan_bootstrapping_entry_t *bs_entry;
-
 	if (!cfg->nancfg->nan_enable) {
 		WL_DBG(("nan not enabled\n"));
 		ret = BCME_NOTENABLED;
@@ -12216,13 +9652,6 @@ static int wl_cfgnan_remove_disc_result(struct bcm_cfg80211 *cfg,
 				MFREE(cfg->osh, disc_res[i].svc_info.data,
 					disc_res[i].svc_info.dlen);
 			}
-			/* Remove boostrapping entry corresponding to peer */
-			bs_entry = wl_cfgnan_get_bootstrapping_entry_by_peer_nmi(cfg,
-					&disc_res[i].peer);
-			if (bs_entry) {
-				wl_cfgnan_clear_bootstrapping_entry(cfg, bs_entry);
-			}
-
 			bzero(&disc_res[i], sizeof(disc_res[i]));
 			cfg->nancfg->nan_disc_count--;
 			ret = BCME_OK;
@@ -12313,20 +9742,17 @@ wl_cfgnan_update_dp_info(struct bcm_cfg80211 *cfg, bool add,
 		if (ndp_id) {
 			nancfg->nan_dp_count++;
 			nancfg->ndp_id[i] = ndp_id;
-			WL_INFORM_MEM(("%s:Added ndp id = [%d] at i = %d\n",
+			WL_DBG(("%s:Added ndp id = [%d] at i = %d\n",
 					__FUNCTION__, nancfg->ndp_id[i], i));
-			wl_cfgvif_roam_config(cfg,
-					bcmcfg_to_prmry_ndev(cfg), ROAM_CONF_NAN_ENABLE);
+			wl_cfg80211_concurrent_roam(cfg, true);
 		}
 	} else {
-#ifdef WL_NAN_DEBUG
 		ASSERT(nancfg->nan_dp_count);
-#endif /* WL_NAN_DEBUG */
 		if (ndp_id) {
 			for (i = 0; i < NAN_MAX_NDP_PEER; i++) {
 				if (nancfg->ndp_id[i] == ndp_id) {
 					nancfg->ndp_id[i] = 0;
-					WL_INFORM_MEM(("%s:Removed ndp id = [%d] from i = %d\n",
+					WL_DBG(("%s:Removed ndp id = [%d] from i = %d\n",
 						__FUNCTION__, ndp_id, i));
 					match_found = true;
 					if (nancfg->nan_dp_count) {
@@ -12342,8 +9768,7 @@ wl_cfgnan_update_dp_info(struct bcm_cfg80211 *cfg, bool add,
 				WL_ERR(("Received unsaved NDP Id = %d !!\n", ndp_id));
 			} else {
 				if (nancfg->nan_dp_count == 0) {
-					wl_cfgvif_roam_config(cfg,
-						bcmcfg_to_prmry_ndev(cfg), ROAM_CONF_NAN_DISABLE);
+					wl_cfg80211_concurrent_roam(cfg, false);
 					wl_cfgnan_immediate_nan_disable_pending(cfg);
 				}
 			}
@@ -12385,7 +9810,7 @@ wl_cfgnan_is_dp_active(struct net_device *ndev)
 	return nan_dp;
 }
 
-s32
+static s32
 wl_cfgnan_get_ndi_idx(struct bcm_cfg80211 *cfg)
 {
 	int i;
@@ -12399,14 +9824,13 @@ wl_cfgnan_get_ndi_idx(struct bcm_cfg80211 *cfg)
 	return WL_INVALID;
 }
 
-void
-wl_cfgnan_add_ndi_data(struct bcm_cfg80211 *cfg, s32 idx, char const *name,
-	struct wireless_dev *wdev)
+static s32
+wl_cfgnan_add_ndi_data(struct bcm_cfg80211 *cfg, s32 idx, char *name)
 {
 	u16 len;
 	wl_nancfg_t *nancfg = cfg->nancfg;
 	if (!name || (idx < 0) || (idx >= cfg->nancfg->max_ndi_supported)) {
-		return;
+		return -EINVAL;
 	}
 
 	/* Ensure ifname string size <= IFNAMSIZ including null termination */
@@ -12414,25 +9838,25 @@ wl_cfgnan_add_ndi_data(struct bcm_cfg80211 *cfg, s32 idx, char const *name,
 	strncpy(nancfg->ndi[idx].ifname, name, len);
 	nancfg->ndi[idx].ifname[len] = '\0';
 	nancfg->ndi[idx].in_use = true;
-	nancfg->ndi[idx].created = true;
-	/* Store nan ndev */
-	cfg->nancfg->ndi[idx].nan_ndev = wdev_to_ndev(wdev);
-	return;
+	nancfg->ndi[idx].created = false;
+
+	/* Don't have a free interface */
+	return WL_INVALID;
 }
 
-s32
+static s32
 wl_cfgnan_del_ndi_data(struct bcm_cfg80211 *cfg, char *name)
 {
 	u16 len;
 	int i;
 	wl_nancfg_t *nancfg = cfg->nancfg;
 
-	if (!name || !nancfg) {
+	if (!name) {
 		return -EINVAL;
 	}
 
 	len = MIN(strlen(name), IFNAMSIZ);
-	for (i = 0; i < nancfg->max_ndi_supported; i++) {
+	for (i = 0; i < cfg->nancfg->max_ndi_supported; i++) {
 		if (strncmp(nancfg->ndi[i].ifname, name, len) == 0) {
 			bzero(&nancfg->ndi[i].ifname, IFNAMSIZ);
 			nancfg->ndi[i].in_use = false;
@@ -12475,7 +9899,6 @@ wl_cfgnan_delete_ndp(struct bcm_cfg80211 *cfg,
 			}
 		}
 	}
-
 	return ret;
 }
 
@@ -12547,7 +9970,7 @@ fail:
 	return ret;
 }
 
-static s32
+s32
 wl_nan_print_avail_stats(const uint8 *data)
 {
 	int idx;
@@ -12656,7 +10079,6 @@ wl_cfgnan_get_stats(struct bcm_cfg80211 *cfg)
 	sub_cmd->len = sizeof(sub_cmd->u.options) + sizeof(*get_stat);
 	sub_cmd->u.options = htol32(BCM_XTLV_OPTION_ALIGN32);
 	nan_buf_size -= subcmd_len;
-
 	nan_buf->count = 1;
 	nan_buf->is_set = false;
 
@@ -12693,90 +10115,152 @@ fail:
 }
 
 #ifdef WL_NMI_IF
-static s32
-_wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg, u16 iftype, char *ifname)
+
+/* AWARE NMI interface name */
+#ifndef CUSTOM_NMI_IFNAME
+#define NMI_IFNAME              "aware_nmi0"
+#else
+#define NMI_IFNAME              CUSTOM_NMI_IFNAME
+#endif /* !CUSTOM_NMI_IFNAME */
+
+static int
+wl_cfgnan_nmi_if_dummy_open(struct net_device *net)
 {
-	struct net_device *ndev = NULL;
-	struct wireless_dev *wdev = NULL;
-	struct net_device *primary_ndev;
-#ifdef DHD_USE_RANDMAC
-	struct ether_addr ea_addr;
-#endif /* DHD_USE_RANDMAC */
-	s32 ret = BCME_OK;
-
-	BCM_REFERENCE(primary_ndev);
-	WL_INFORM_MEM(("Enter (%s) iftype:%d\n", ifname, iftype));
-	if (!cfg) {
-		WL_ERR(("cfg null\n"));
-		ret = -EINVAL;
-		goto exit;
-	}
-	primary_ndev = bcmcfg_to_prmry_ndev(cfg);
-#ifdef DHD_USE_RANDMAC
-	wl_cfg80211_generate_mac_addr(&ea_addr);
-#else
-	/* Use primary mac with locally admin bit set */
-	eacopy(primary_ndev->dev_addr, ea_addr.octet);
-	ea_addr.octet[0] |= 0x02;
-#endif /* DHD_USE_RANDMAC */
-	ndev = dhd_allocate_static_if(cfg->pub, ifname, ea_addr.octet, NULL, FALSE);
-	if (unlikely(!ndev)) {
-		WL_ERR(("Failed to allocate static_if\n"));
-		ret = -ENOMEM;
-		goto exit;
-	}
-	wdev = (struct wireless_dev *)MALLOCZ(cfg->osh, sizeof(*wdev));
-	if (unlikely(!wdev)) {
-		WL_ERR(("Failed to allocate wdev for static_if\n"));
-		ret = -ENOMEM;
-		goto exit;
-	}
-	wdev->wiphy = cfg->wdev->wiphy;
-	wdev->iftype = iftype;
-	ndev->ieee80211_ptr = wdev;
-	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
-	wdev->netdev = ndev;
-	if (dhd_register_static_if(cfg->pub, ndev,
-		TRUE) != BCME_OK) {
-		WL_ERR(("ndev registration failed!\n"));
-		ret = -ENODEV;
-		goto exit;
-	}
-	cfg->nmi_ndev = ndev;
-	cfg->nmi_wdev = ndev->ieee80211_ptr;
-	cfg->nmi_ndev_state = NDEV_STATE_OS_IF_CREATED;
-	WL_INFORM_MEM(("Static I/F (%s) Registered\n", ndev->name));
-exit:
-	if (ret) {
-		WL_INFORM_MEM(("Static I/F Registeration failed\n"));
-#ifdef WL_STATIC_IF
-		if (ndev) {
-			dhd_remove_static_if(cfg->pub, ndev, TRUE);
-		}
-#else
-#error Must defined WL_STATIC_IF for nan
-#endif /* WL_STATIC_IF */
-	}
-
-	return ret;
+	WL_DBG(("(%s) NMI aware iface open \n", __FUNCTION__));
+	return 0;
 }
 
-static s32
+static int
+wl_cfgnan_nmi_if_dummy_close(struct net_device *net)
+{
+	WL_DBG(("(%s) NMI aware iface close \n", __FUNCTION__));
+	return 0;
+}
+
+static netdev_tx_t
+wl_cfgnan_nmi_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+
+	if (skb)
+	{
+		WL_DBG(("(%s) is not used for data operations.Droping the packet.\n",
+			ndev->name));
+		dev_kfree_skb_any(skb);
+	}
+
+	return 0;
+}
+
+static int
+wl_cfgnan_nmi_if_dummy_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd)
+{
+	WL_DBG(("(%s) NMI aware iface do_ioctl cmd %d \n", __FUNCTION__, cmd));
+	return 0;
+}
+
+static const struct net_device_ops wl_cfgnan_nmi_if_ops = {
+	.ndo_open       = wl_cfgnan_nmi_if_dummy_open,
+	.ndo_stop       = wl_cfgnan_nmi_if_dummy_close,
+	.ndo_do_ioctl   = wl_cfgnan_nmi_if_dummy_do_ioctl,
+	.ndo_start_xmit = wl_cfgnan_nmi_start_xmit,
+};
+
+s32
 wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg)
 {
-	return _wl_cfgnan_register_nmi_ndev(cfg, NL80211_IFTYPE_STATION, NMI_IFNAME);
+	int ret = 0;
+	struct net_device* ndev = NULL;
+	struct wireless_dev *wdev = NULL;
+	uint8 temp_addr[ETHER_ADDR_LEN] = { 0x00, 0x90, 0x4c, 0x33, 0x22, 0x11 };
+	struct bcm_cfg80211 **priv;
+
+	if (cfg->nmi_ndev) {
+		WL_ERR(("nmi_ndev defined already.\n"));
+		return -EINVAL;
+	}
+
+	/* Allocate etherdev, including space for private structure */
+	if (!(ndev = alloc_etherdev(sizeof(struct bcm_cfg80211 *)))) {
+		WL_ERR(("%s: OOM - alloc_etherdev\n", __FUNCTION__));
+		return -ENODEV;
+	}
+
+	wdev = (struct wireless_dev *)MALLOCZ(cfg->osh, sizeof(*wdev));
+	if (unlikely(!wdev)) {
+		WL_ERR(("Could not allocate wireless device\n"));
+		free_netdev(ndev);
+		return -ENOMEM;
+	}
+
+	strlcpy(ndev->name, NMI_IFNAME, sizeof(ndev->name));
+
+	/* Copy the reference to bcm_cfg80211 */
+	priv = (struct bcm_cfg80211 **)netdev_priv(ndev);
+	*priv = cfg;
+
+	ASSERT(!ndev->netdev_ops);
+	ndev->netdev_ops = &wl_cfgnan_nmi_if_ops;
+
+	/* Register with a dummy MAC addr */
+	eacopy(temp_addr, ndev->dev_addr);
+
+	ndev->ieee80211_ptr = wdev;
+	wdev->netdev = ndev;
+	wdev->wiphy = bcmcfg_to_wiphy(cfg);
+	wdev->iftype = NL80211_IFTYPE_STATION;
+
+	ret = dhd_register_net(ndev, true);
+	if (ret) {
+		WL_ERR((" NMI register_netdevice failed (%d)\n", ret));
+		goto fail;
+	}
+
+	/* store nmi ndev ptr for further reference. Note that iflist won't have this
+	 * entry as there corresponding firmware interface is a "Hidden" interface.
+	 */
+	cfg->nmi_wdev = wdev;
+	cfg->nmi_ndev = ndev;
+
+	WL_MSG(ndev->name, "NMI Interface Registered\n");
+	return ret;
+fail:
+	free_netdev(ndev);
+	MFREE(cfg->osh, wdev, sizeof(*wdev));
+	return -ENODEV;
 }
 
 static s32
 wl_cfgnan_unregister_nmi_ndev(struct bcm_cfg80211 *cfg)
 {
-#ifdef WL_STATIC_IF
-	if (cfg->nmi_ndev) {
-		dhd_remove_static_if(cfg->pub, cfg->nmi_ndev, TRUE);
+	struct wireless_dev *wdev;
+
+	if (!cfg) {
+		WL_ERR(("NMI IF unreg, invalid cfg \n"));
+		return -EINVAL;
 	}
-#endif /* WL_STATIC_IF */
+	if (!cfg->nmi_ndev) {
+		WL_ERR(("NMI IF unreg, invalid nmi_ndev \n"));
+		goto free_wdev;
+	}
+
+	/* in unregister_netdev case, the interface gets freed by net->destructor
+         * (which is set to free_netdev)
+         */
+        if (cfg->nmi_ndev->reg_state == NETREG_UNINITIALIZED) {
+		free_netdev(cfg->nmi_ndev);
+	} else {
+		dhd_unregister_net(cfg->nmi_ndev, true);
+	}
 
 	cfg->nmi_ndev = NULL;
+
+free_wdev:
+	wdev = cfg->nmi_wdev;
+	if (!wdev) {
+		WL_ERR(("NMI IF unreg, invalid NMI Iface wdev ptr \n"));
+		return -EINVAL;
+	}
+	MFREE(cfg->osh, wdev, sizeof(*wdev));
 	cfg->nmi_wdev = NULL;
 	return BCME_OK;
 }
@@ -12811,7 +10295,6 @@ wl_cfgnan_attach(struct bcm_cfg80211 *cfg)
 	init_waitqueue_head(&nancfg->nan_event_wait);
 	INIT_DELAYED_WORK(&nancfg->nan_disable, wl_cfgnan_delayed_disable);
 	INIT_DELAYED_WORK(&nancfg->nan_nmi_rand, wl_cfgnan_periodic_nmi_rand_addr);
-	INIT_DELAYED_WORK(&nancfg->nan_pairing, wl_cfgnan_pairing_timeout_handler);
 	nancfg->nan_dp_state = NAN_DP_STATE_DISABLED;
 	init_waitqueue_head(&nancfg->ndp_if_change_event);
 
@@ -12827,15 +10310,11 @@ wl_cfgnan_detach(struct bcm_cfg80211 *cfg)
 		if (delayed_work_pending(&cfg->nancfg->nan_disable)) {
 			WL_DBG(("Cancel nan_disable work\n"));
 			DHD_NAN_WAKE_UNLOCK(cfg->pub);
-			dhd_cancel_delayed_work_sync(&cfg->nancfg->nan_disable);
+			cancel_delayed_work_sync(&cfg->nancfg->nan_disable);
 		}
 		if (delayed_work_pending(&cfg->nancfg->nan_nmi_rand)) {
 			WL_DBG(("Cancel nan_nmi_rand workq\n"));
-			dhd_cancel_delayed_work_sync(&cfg->nancfg->nan_nmi_rand);
-		}
-		if (delayed_work_pending(&cfg->nancfg->nan_pairing)) {
-			WL_DBG(("Cancel nan_pairing workq\n"));
-			dhd_cancel_delayed_work_sync(&cfg->nancfg->nan_pairing);
+			cancel_delayed_work_sync(&cfg->nancfg->nan_nmi_rand);
 		}
 
 #ifdef WL_NMI_IF
@@ -12930,7 +10409,6 @@ sched:
 	/* As FW is busy, retry NMI change after 60sec */
 	schedule_delayed_work(&cfg->nancfg->nan_nmi_rand, msecs_to_jiffies(60 * 1000));
 }
-
 #ifdef WL_NAN_INSTANT_MODE
 void wl_cfgnan_inst_chan_support(struct bcm_cfg80211 *cfg,
 	wl_chanspec_list_v1_t *chan_list, u32 band_mask,

@@ -5,26 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -49,247 +30,719 @@
 
 #if !defined(_LANGUAGE_ASSEMBLY) && !defined(__ASSEMBLY__)
 
-#include <typedefs.h>
+/* cpp contortions to concatenate w/arg prescan */
+#ifndef PAD
+#define	_PADLINE(line)	pad ## line
+#define	_XSTR(line)	_PADLINE(line)
+#define	PAD		_XSTR(__LINE__)
+#endif	/* PAD */
 
 #define BCM_MASK32(msb, lsb)	((~0u >> (32u - (msb) - 1u)) & (~0u << (lsb)))
-
-/* Include Regs from vlsi_xxx files only for Dongle FW builds */
-#if defined(DONGLEBUILD) || defined(COEX_CPU_BUILD)
-#include <vlsi_pmu_all_regs.h>
-
-#ifdef VLSI_CTRL_REGS
-#include <vlsi_control_regs.h>
-#endif /* VLSI_CTRL_REGS */
-
-#include <vlsi_pmu_resources.h>
-#endif /* DONGLEBUILD || COEX_CPU_BUILD */
-
-typedef volatile struct pmuregs pmuregs_t;
+#include <bcmutils.h>
+#ifdef WL_INITVALS
+#include <wl_initvals.h>
+#endif
 
 /**
- * A set of PMU registers is clocked in the ILP domain, which has an implication on register write
- * behavior: if such a register is written, it takes multiple ILP clocks for the PMU block to absorb
- * the write. During that time the 'SlowWritePending' bit in the PMUStatus register is set.
+ * In chipcommon rev 49 the pmu registers have been moved from chipc to the pmu core if the
+ * 'AOBPresent' bit of 'CoreCapabilitiesExt' is set. If this field is set, the traditional chipc to
+ * [pmu|gci|sreng] register interface is deprecated and removed. These register blocks would instead
+ * be assigned their respective chipc-specific address space and connected to the Always On
+ * Backplane via the APB interface.
  */
-#define PMUREGS_ILP_SENSITIVE(regoff) \
-	((regoff) == PMU_REG_OFF(PMUTimer) ||	\
-	 (regoff) == PMU_REG_OFF(PmuWatchdogCounter) || \
-	 (regoff) == PMU_REG_OFF(ResourceReqTimer0))
+typedef volatile struct {
+	uint32  PAD[384];
+	uint32  pmucontrol;             /* 0x600 */
+	uint32  pmucapabilities;        /* 0x604 */
+	uint32  pmustatus;              /* 0x608 */
+	uint32  res_state;              /* 0x60C */
+	uint32  res_pending;            /* 0x610 */
+	uint32  pmutimer;               /* 0x614 */
+	uint32  min_res_mask;           /* 0x618 */
+	uint32  max_res_mask;           /* 0x61C */
+	uint32  res_table_sel;          /* 0x620 */
+	uint32  res_dep_mask;
+	uint32  res_updn_timer;
+	uint32  res_timer;
+	uint32  clkstretch;
+	uint32  pmuwatchdog;
+	uint32  gpiosel;                /* 0x638, rev >= 1 */
+	uint32  gpioenable;             /* 0x63c, rev >= 1 */
+	uint32  res_req_timer_sel;      /* 0x640 */
+	uint32  res_req_timer;          /* 0x644 */
+	uint32  res_req_mask;           /* 0x648 */
+	uint32	core_cap_ext;           /* 0x64C */
+	uint32  chipcontrol_addr;       /* 0x650 */
+	uint32  chipcontrol_data;       /* 0x654 */
+	uint32  regcontrol_addr;
+	uint32  regcontrol_data;
+	uint32  pllcontrol_addr;
+	uint32  pllcontrol_data;
+	uint32  pmustrapopt;            /* 0x668, corerev >= 28 */
+	uint32  pmu_xtalfreq;           /* 0x66C, pmurev >= 10 */
+	uint32  retention_ctl;          /* 0x670 */
+	uint32  ILPPeriod;              /* 0x674 */
+	uint32  PAD[2];
+	uint32  retention_grpidx;       /* 0x680 */
+	uint32  retention_grpctl;       /* 0x684 */
+	uint32  mac_res_req_timer;      /* 0x688 */
+	uint32  mac_res_req_mask;       /* 0x68c */
+	uint32  spm_ctrl;		/* 0x690 */
+	uint32  spm_cap;		/* 0x694 */
+	uint32  spm_clk_ctrl;		/* 0x698 */
+	uint32  int_hi_status;		/* 0x69c */
+	uint32  int_lo_status;		/* 0x6a0 */
+	uint32  mon_table_addr;		/* 0x6a4 */
+	uint32  mon_ctrl_n;		/* 0x6a8 */
+	uint32  mon_status_n;		/* 0x6ac */
+	uint32  int_treshold_n;		/* 0x6b0 */
+	uint32  watermarks_n;		/* 0x6b4 */
+	uint32  spm_debug;		/* 0x6b8 */
+	uint32  PAD[1];
+	uint32  vtrim_ctrl;		/* 0x6c0 */
+	uint32  vtrim_status;		/* 0x6c4 */
+	uint32  usec_timer;		/* 0x6c8 */
+	uint32  usec_timer_frac;	/* 0x6cc */
+	uint32  pcie_tpower_on;		/* 0x6d0 */
+	uint32  pcie_tport_cnt;		/* 0x6d4 */
+	uint32  pmucontrol_ext;         /* 0x6d8 */
+	uint32  slowclkperiod;          /* 0x6dc */
+	uint32	pmu_statstimer_addr;	/* 0x6e0 */
+	uint32	pmu_statstimer_ctrl;	/* 0x6e4 */
+	uint32	pmu_statstimer_N;	/* 0x6e8 */
+	uint32	PAD[1];
+	uint32  mac_res_req_timer1;	/* 0x6f0 */
+	uint32  mac_res_req_mask1;	/* 0x6f4 */
+	uint32	PAD[2];
+	uint32  pmuintmask0;            /* 0x700 */
+	uint32  pmuintmask1;            /* 0x704 */
+	uint32  PAD[2];
+	uint32  fis_start_min_res_mask;	/* 0x710 */
+	uint32  PAD[3];
+	uint32  rsrc_event0;		/* 0x720 */
+	uint32  PAD[3];
+	uint32  slowtimer2;		/* 0x730 */
+	uint32  slowtimerfrac2;		/* 0x734 */
+	uint32  mac_res_req_timer2;	/* 0x738 */
+	uint32  mac_res_req_mask2;	/* 0x73c */
+	uint32  pmuintstatus;           /* 0x740 */
+	uint32  extwakeupstatus;        /* 0x744 */
+	uint32  watchdog_res_mask;      /* 0x748 */
+	uint32  PAD[1];                 /* 0x74C */
+	uint32  swscratch;              /* 0x750 */
+	uint32  PAD[3];                 /* 0x754-0x75C */
+	uint32	extwakemask0;		/* 0x760 */
+	uint32	extwakemask1;		/* 0x764 */
+	uint32  PAD[2];                 /* 0x768-0x76C */
+	uint32  extwakereqmask[2];      /* 0x770-0x774 */
+	uint32  PAD[2];                 /* 0x778-0x77C */
+	uint32  pmuintctrl0;            /* 0x780 */
+	uint32  pmuintctrl1;            /* 0x784 */
+	uint32  PAD[2];
+	uint32  extwakectrl[2];         /* 0x790 */
+	uint32	PAD[7];
+	uint32  fis_ctrl_status;	/* 0x7b4 */
+	uint32  fis_min_res_mask;	/* 0x7b8 */
+	uint32	PAD[1];
+	uint32	precision_tmr_ctrl_status;	/* 0x7c0 */
+	uint32	precision_tmr_capture_low;	/* 0x7c4 */
+	uint32	precision_tmr_capture_high;	/* 0x7c8 */
+	uint32	precision_tmr_capture_frac;	/* 0x7cc */
+	uint32	precision_tmr_running_low;	/* 0x7d0 */
+	uint32	precision_tmr_running_high;	/* 0x7d4 */
+	uint32	precision_tmr_running_frac;	/* 0x7d8 */
+	uint32  PAD[3];
+	uint32	core_cap_ext1;			/* 0x7e8 */
+	uint32	PAD[5];
+	uint32  rsrc_substate_ctl_sts;		/* 0x800 */
+	uint32  rsrc_substate_trans_tmr;	/* 0x804 */
+	uint32	PAD[2];
+	uint32  dvfs_ctrl1;			/* 0x810 */
+	uint32  dvfs_ctrl2;			/* 0x814 */
+	uint32  dvfs_voltage;			/* 0x818 */
+	uint32  dvfs_status;			/* 0x81c */
+	uint32  dvfs_core_table_address;	/* 0x820 */
+	uint32  dvfs_core_ctrl;			/* 0x824 */
+} pmuregs_t;
 
-/* Wait up to ten seconds for ILP sensitive PMU writes */
-#define PMU_ILP_WAIT_TIME 10000000u
+typedef struct eci_prerev35 {
+	uint32	eci_output;
+	uint32	eci_control;
+	uint32	eci_inputlo;
+	uint32	eci_inputmi;
+	uint32	eci_inputhi;
+	uint32	eci_inputintpolaritylo;
+	uint32	eci_inputintpolaritymi;
+	uint32	eci_inputintpolarityhi;
+	uint32	eci_intmasklo;
+	uint32	eci_intmaskmi;
+	uint32	eci_intmaskhi;
+	uint32	eci_eventlo;
+	uint32	eci_eventmi;
+	uint32	eci_eventhi;
+	uint32	eci_eventmasklo;
+	uint32	eci_eventmaskmi;
+	uint32	eci_eventmaskhi;
+	uint32	PAD[3];
+} eci_prerev35_t;
 
-#define PMU_REG_OFF(regname) \
-	pmu_##regname##_ADDR
+typedef struct eci_rev35 {
+	uint32	eci_outputlo;
+	uint32	eci_outputhi;
+	uint32	eci_controllo;
+	uint32	eci_controlhi;
+	uint32	eci_inputlo;
+	uint32	eci_inputhi;
+	uint32	eci_inputintpolaritylo;
+	uint32	eci_inputintpolarityhi;
+	uint32	eci_intmasklo;
+	uint32	eci_intmaskhi;
+	uint32	eci_eventlo;
+	uint32	eci_eventhi;
+	uint32	eci_eventmasklo;
+	uint32	eci_eventmaskhi;
+	uint32	eci_auxtx;
+	uint32	eci_auxrx;
+	uint32	eci_datatag;
+	uint32	eci_uartescvalue;
+	uint32	eci_autobaudctr;
+	uint32	eci_uartfifolevel;
+} eci_rev35_t;
 
-#define PMU_REG_FIELD_MASK(regname, regfield) \
-	pmu_##regname##__##regfield##_MASK
-#define PMU_REG_FIELD_SHIFT(regname, regfield) \
-	pmu_##regname##__##regfield##_SHIFT
+typedef struct flash_config {
+	uint32	PAD[19];
+	/* Flash struct configuration registers (0x18c) for BCM4706 (corerev = 31) */
+	uint32 flashstrconfig;
+} flash_config_t;
 
-#define PMU_REG_ADDR(regbase, regname) \
-	(volatile uint32 *)((uintptr)(regbase) + PMU_REG_OFF(regname))
+typedef volatile struct {
+	uint32	chipid;			/* 0x0 */
+	uint32	capabilities;
+	uint32	corecontrol;		/* corerev >= 1 */
+	uint32	bist;
 
-/* Force a compile error if any register is referenced that does not exist in the built pmu's
- * register set.
- */
-#undef INVALID_ADDRESS_pmu
-#define INVALID_ADDRESS_pmu hnd_invalid_reg_pmu()
-#undef INVALID_SHIFT_pmu
-#define INVALID_SHIFT_pmu hnd_invalid_reg_pmu()
+	/* OTP */
+	uint32	otpstatus;		/* 0x10, corerev >= 10 */
+	uint32	otpcontrol;
+	uint32	otpprog;
+	uint32	otplayout;		/* corerev >= 23 */
 
-/* registers missing from the new vlsi_pmu_all_regs.h */
-/* NOTE: opportunity to remove related code since these registers are old */
-#define pmu_ResourceReqTimerSel_ADDR		0x640U
+	/* Interrupt control */
+	uint32	intstatus;		/* 0x20 */
+	uint32	intmask;
 
-/* For DHD builds define only those registers that needs to be accessed from Host */
-#if !defined(DONGLEBUILD) && !defined(COEX_CPU_BUILD)
-#define pmu_RsrcState_ADDR                                                              0x60cu
-#define pmu_PMUTimer_ADDR                                                               0x614u
-#define pmu_MinResourceMask_ADDR                                                        0x618u
-#define pmu_MaxResourceMask_ADDR                                                        0x61cu
-#define pmu_CoreCapabilitiesExt_ADDR                                                    0x64cu
-#define pmu_ChipControlAddr_ADDR                                                        0x650u
-#define pmu_ChipControlData_ADDR                                                        0x654u
-#define pmu_XtalFreqRatio_ADDR                                                          0x66cu
-#define pmu_RetentionControl_ADDR                                                       0x670u
-#define pmu_SWScratch_ADDR                                                              0x750u
-#define pmu_FISCtrlStatus_ADDR                                                          0x7b4u
-#define pmu_FISTrigRsrcState_ADDR                                                       0x7bcu
+	/* Chip specific regs */
+	uint32	chipcontrol;		/* 0x28, rev >= 11 */
+	uint32	chipstatus;		/* 0x2c, rev >= 11 */
 
-#define pmu_CoreCapabilities_ADDR                                                       0x604u
-#define pmu_RegulatorControlAddr_ADDR                                                   0x658u
-#define pmu_RegulatorControlData_ADDR                                                   0x65cu
-#define pmu_PmuWatchdogCounter_ADDR                                                     0x634u
-#define pmu_PLLControlAddr_ADDR                                                         0x660u
-#define pmu_ResourceReqTimer0_ADDR                                                      0x644u
-#define pmu_PMUStatus_ADDR                                                              0x608u
-#define pmu_PLLControlData_ADDR                                                         0x664u
-#define pmu_PMUControlExt_ADDR                                                          0x6d8u
-#define pmu_WatchdogRsrcMask_ADDR                                                       0x748u
-#define pmu_PMUStatus_ADDR                                                              0x608u
-#define pmu_PMUControlExt_ADDR                                                          0x6d8u
-#define pmu_PmuWatchdogCounter_ADDR                                                     0x634u
-#define pmu_ResourceReqTimer0_ADDR                                                      0x644u
-#define pmu_FISMinRsrcMask_ADDR                                                         0x7b8u
+	/* Jtag Master */
+	uint32	jtagcmd;		/* 0x30, rev >= 10 */
+	uint32	jtagir;
+	uint32	jtagdr;
+	uint32	jtagctrl;
 
-#endif /* !DONGLEBUILD && !COEX_CPU_BUILD */
+	/* serial flash interface registers */
+	uint32	flashcontrol;		/* 0x40 */
+	uint32	flashaddress;
+	uint32	flashdata;
+	uint32	otplayoutextension;	/* rev >= 35 */
 
-/* Include Regs from vlsi_xxx files only for Dongle FW builds */
-#if defined(DONGLEBUILD) || defined(COEX_CPU_BUILD)
-#include <vlsi_chipcommon_all_regs.h>
+	/* Silicon backplane configuration broadcast control */
+	uint32	broadcastaddress;	/* 0x50 */
+	uint32	broadcastdata;
 
-/**
- * Get the width of a field in a register.
- * @param  _regname    The name register that the field is defined in.
- * @param  _fieldname  The name of the field.
- * @return             An unsigned integer.
- */
-#define CC_REG_FIELD_WIDTH(_regname, _fieldname) \
-	(chipcommon_## _regname ##__## _fieldname ##_WIDTH)
-#endif /* DONGLEBUILD || COEX_CPU_BUILD */
+	/* gpio - cleared only by power-on-reset */
+	uint32	gpiopullup;		/* 0x58, corerev >= 20 */
+	uint32	gpiopulldown;		/* 0x5c, corerev >= 20 */
+	uint32	gpioin;			/* 0x60 */
+	uint32	gpioout;		/* 0x64 */
+	uint32	gpioouten;		/* 0x68 */
+	uint32	gpiocontrol;		/* 0x6C */
+	uint32	gpiointpolarity;	/* 0x70 */
+	uint32	gpiointmask;		/* 0x74 */
 
-typedef volatile struct chipcregs chipcregs_t;
+	/* GPIO events corerev >= 11 */
+	uint32	gpioevent;
+	uint32	gpioeventintmask;
 
-#define CC_REG_OFF(regname) \
-	chipcommon_##regname##_ADDR
+	/* Watchdog timer */
+	uint32	watchdog;		/* 0x80 */
 
-#define CC_REG_FIELD_MASK(regname, regfield) \
-	chipcommon_##regname##__##regfield##_MASK
-#define CC_REG_FIELD_SHIFT(regname, regfield) \
-	chipcommon_##regname##__##regfield##_SHIFT
+	/* GPIO events corerev >= 11 */
+	uint32	gpioeventintpolarity;
 
-#define CC_REG_ADDR(regbase, regname) \
-	(volatile uint32 *)((uintptr)(regbase) + CC_REG_OFF(regname))
+	/* GPIO based LED powersave regs corerev >= 16 */
+	uint32  gpiotimerval;		/* 0x88 */         /* Obsolete and unused now */
+	uint32  gpiotimeroutmask;                          /* Obsolete and unused now */
 
-/* registers missing from the new vlsi_chipcommon_all_regs.h */
-/* NOTE: opportunity to remove related code since these registers are old */
-#define chipcommon_corecontrol_ADDR		0x8U
-#define chipcommon_broadcastaddress_ADDR	0x50U
-#define chipcommon_broadcastdata_ADDR		0x54U
-#define chipcommon_clockcontrol_n_ADDR		0x90U
-#define chipcommon_clockcontrol_sb_ADDR		0x94U
-#define chipcommon_clockcontrol_m2_ADDR		0x9cU
-#define chipcommon_clockcontrol_m3_ADDR		0xa0U
-#define chipcommon_pll_on_delay_ADDR		0xb0U
-#define chipcommon_fref_sel_delay_ADDR		0xb4U
-#define chipcommon_slow_clk_ctl_ADDR		0xb8U
-#define chipcommon_system_clk_ctl_ADDR		0xc0U
-#define chipcommon_clkstatestretch_ADDR		0xc4U
-#define chipcommon_uart0data_ADDR		0x300U
-#define chipcommon_uart0mcr_ADDR		0x310U
-#define chipcommon_rng_ctrl_0_ADDR		0x3c0U
-#define chipcommon_rng_rng_soft_reset_ADDR	0x3c4U
-#define chipcommon_rng_rbg_soft_reset_ADDR	0x3c8U
-#define chipcommon_rng_total_bit_cnt_ADDR	0x3ccU
-#define chipcommon_rng_total_bit_thrshld_ADDR	0x3d0U
-#define chipcommon_rng_rev_id_ADDR		0x3d4U
-#define chipcommon_rng_int_status_0_ADDR	0x3d8U
-#define chipcommon_rng_int_enable_0_ADDR	0x3dcU
-#define chipcommon_rng_fifo_data_ADDR		0x3e0U
-#define chipcommon_rng_fifo_cnt_ADDR		0x3e4U
-#define chipcommon_rng_int_status_0_ADDR	0x3d8U
-#define chipcommon_sr1_control0_ADDR		0x584U
-#define chipcommon_sr1_control1_ADDR		0x588U
-#define chipcommon_sromotp_ADDR			0x800U
+	/* clock control */
+	uint32	clockcontrol_n;		/* 0x90 */
+	uint32	clockcontrol_sb;	/* aka m0 */
+	uint32	clockcontrol_pci;	/* aka m1 */
+	uint32	clockcontrol_m2;	/* mii/uart/mipsref */
+	uint32	clockcontrol_m3;	/* cpu */
+	uint32	clkdiv;			/* corerev >= 3 */
+	uint32	gpiodebugsel;		/* corerev >= 28 */
+	uint32	capabilities_ext;	/* 0xac  */
 
-/* For DHD builds define only those registers that needs to be accessed from Host */
-#if !defined(DONGLEBUILD) && !defined(COEX_CPU_BUILD)
-#define chipcommon_ChipID_ADDR                                                          0x0u
-#define chipcommon_CoreCapabilities_ADDR                                                0x4u
-#define chipcommon_PowerControl_ADDR                                                    0x1e8u
-#define chipcommon_WorkAround_ADDR							0x1e4u
-#define chipcommon_SpromCtrl_ADDR                                                       0x190u
-#define chipcommon_SpromAddress_ADDR                                                    0x194u
-#define chipcommon_SpromData_ADDR                                                       0x198u
-#define chipcommon_SRMemRWAddr_ADDR                                                     0x4d0u
-#define chipcommon_SRMemRWData_ADDR                                                     0x4d4u
+	/* pll delay registers (corerev >= 4) */
+	uint32	pll_on_delay;		/* 0xb0 */
+	uint32	fref_sel_delay;
+	uint32	slow_clk_ctl;		/* 5 < corerev < 10 */
+	uint32	PAD;
 
-#define chipcommon_ChipStatus_ADDR                                                      0x2cu
-#define chipcommon_CapabilitiesExtension_ADDR                                           0xacu
-#define chipcommon_WatchdogCounter_ADDR                                                 0x80u
-#define chipcommon_EromPtrOffset_ADDR                                                   0xfcu
-#define chipcommon_IntStatus_ADDR                                                       0x20u
-#define chipcommon_ClkDiv2_ADDR                                                         0xf0u
-#define chipcommon_EromPtrOffset_ADDR                                                   0xfcu
-#define chipcommon_ClockCtlStatus_ADDR                                                  0x1e0u
-#define chipcommon_BackplaneAddrLow_ADDR                                                0xd0u
-#define chipcommon_BackplaneAddrHi_ADDR                                                 0xd4u
-#define chipcommon_BackplaneData_ADDR                                                   0xd8u
-#define chipcommon_BackplaneIndAccess_ADDR                                              0xe0u
-#define chipcommon_WatchdogCounter_ADDR                                                 0x80u
-#define chipcommon_IntMask_ADDR                                                         0x24u
-#define chipcommon_ChipControl_ADDR                                                     0x28u
-#define chipcommon_GPIOPullup_ADDR                                                      0x58u
-#define chipcommon_GPIOPulldown_ADDR                                                    0x5cu
-#define chipcommon_GPIOCtrl_ADDR                                                        0x6cu
-#define chipcommon_GPIOOutputEn_ADDR                                                    0x68u
-#define chipcommon_GPIOOutput_ADDR                                                      0x64u
-#define chipcommon_GPIOInput_ADDR                                                       0x60u
-#define chipcommon_GPIOIntPolarity_ADDR                                                 0x70u
-#define chipcommon_GPIOIntMask_ADDR                                                     0x74u
-#define chipcommon_GPIOEventIntMask_ADDR                                                0x7cu
-#define chipcommon_GPIOPullup_ADDR                                                      0x58u
-#define chipcommon_GPIOEventIntMask_ADDR                                                0x7cu
-#define chipcommon_GPIOEventIntPolarity_ADDR                                            0x84u
-#define chipcommon_GPIOEvent_ADDR                                                       0x78u
-#define chipcommon_JtagMasterCtrl_ADDR							0x3cu
-#endif /* !DONGLEBUILD && !COEX_CPU_BUILD */
+	/* Instaclock registers (corerev >= 10) */
+	uint32	system_clk_ctl;		/* 0xc0 */
+	uint32	clkstatestretch;
+	uint32	PAD[2];
 
-#ifndef USE_NEW_GCI_REG_OFF
-/* registers missing from the new vlsi_chipcommon_all_regs.h */
-/* NOTE: OTP registers are moved to GCI core */
-#define chipcommon_otpstatus_ADDR		0x10U
-#define chipcommon_otpcontrol_ADDR		0x14U
-#define chipcommon_otpprog_ADDR			0x18U
-#define chipcommon_otplayout_ADDR		0x1cU
-#define chipcommon_otplayoutextension_ADDR	0x4cU
-#define chipcommon_otpcontrol1_ADDR		0xf4U
-#define chipcommon_gci_corectrl_ADDR		0xc0cU
-#define chipcommon_gci_seciauxtx_ADDR		0xda0U
-#endif /* USE_NEW_GCI_REG_OFF */
+	/* Indirect backplane access (corerev >= 22) */
+	uint32	bp_addrlow;		/* 0xd0 */
+	uint32	bp_addrhigh;
+	uint32	bp_data;
+	uint32	PAD;
+	uint32	bp_indaccess;
+	/* SPI registers, corerev >= 37 */
+	uint32	gsioctrl;
+	uint32	gsioaddress;
+	uint32	gsiodata;
 
+	/* More clock dividers (corerev >= 32) */
+	uint32	clkdiv2;
+	/* FAB ID (corerev >= 40) */
+	uint32	otpcontrol1;
+	uint32	fabid;			/* 0xf8 */
+
+	/* In AI chips, pointer to erom */
+	uint32	eromptr;		/* 0xfc */
+
+	/* ExtBus control registers (corerev >= 3) */
+	uint32	pcmcia_config;		/* 0x100 */
+	uint32	pcmcia_memwait;
+	uint32	pcmcia_attrwait;
+	uint32	pcmcia_iowait;
+	uint32	ide_config;
+	uint32	ide_memwait;
+	uint32	ide_attrwait;
+	uint32	ide_iowait;
+	uint32	prog_config;
+	uint32	prog_waitcount;
+	uint32	flash_config;
+	uint32	flash_waitcount;
+	uint32  SECI_config;		/* 0x130 SECI configuration */
+	uint32	SECI_status;
+	uint32	SECI_statusmask;
+	uint32	SECI_rxnibchanged;
+
+#if !defined(BCMDONGLEHOST)
+	union {				/* 0x140 */
+		/* Enhanced Coexistence Interface (ECI) registers (corerev >= 21) */
+		struct eci_prerev35	lt35;
+		struct eci_rev35	ge35;
+		/* Other interfaces */
+		struct flash_config	flashconf;
+		uint32	PAD[20];
+	} eci;
 #else
+	uint32	PAD[20];
+#endif /* !defined(BCMDONGLEHOST) */
 
-/* Use these in assembly files only */
-#define	CC_CHIPID		0
-#define CC_BP_ADRLOW            0xd0
-#define CC_BP_ADRHI             0xd4
-#define	CC_EROMPTR		0xfc
-#define CC_SCR_DHD_TO_BL        CC_BP_ADRHI
-#define CC_SCR_BL_TO_DHD        CC_BP_ADRLOW
+	/* SROM interface (corerev >= 32) */
+	uint32	sromcontrol;		/* 0x190 */
+	uint32	sromaddress;
+	uint32	sromdata;
+	uint32	PAD[1];				/* 0x19C */
+	/* NAND flash registers for BCM4706 (corerev = 31) */
+	uint32  nflashctrl;         /* 0x1a0 */
+	uint32  nflashconf;
+	uint32  nflashcoladdr;
+	uint32  nflashrowaddr;
+	uint32  nflashdata;
+	uint32  nflashwaitcnt0;		/* 0x1b4 */
+	uint32  PAD[2];
+
+	uint32  seci_uart_data;		/* 0x1C0 */
+	uint32  seci_uart_bauddiv;
+	uint32  seci_uart_fcr;
+	uint32  seci_uart_lcr;
+	uint32  seci_uart_mcr;
+	uint32  seci_uart_lsr;
+	uint32  seci_uart_msr;
+	uint32  seci_uart_baudadj;
+	/* Clock control and hardware workarounds (corerev >= 20) */
+	uint32	clk_ctl_st;		/* 0x1e0 */
+	uint32	hw_war;
+	uint32  powerctl;		/* 0x1e8 */
+	uint32  powerctl2;		/* 0x1ec */
+	uint32  PAD[68];
+
+	/* UARTs */
+	uint8	uart0data;		/* 0x300 */
+	uint8	uart0imr;
+	uint8	uart0fcr;
+	uint8	uart0lcr;
+	uint8	uart0mcr;
+	uint8	uart0lsr;
+	uint8	uart0msr;
+	uint8	uart0scratch;
+	uint8	PAD[184];		/* corerev >= 65 */
+	uint32	rng_ctrl_0;		/* 0x3c0 */
+	uint32	rng_rng_soft_reset;	/* 0x3c4 */
+	uint32	rng_rbg_soft_reset;	/* 0x3c8 */
+	uint32	rng_total_bit_cnt;	/* 0x3cc */
+	uint32	rng_total_bit_thrshld;	/* 0x3d0 */
+	uint32	rng_rev_id;		/* 0x3d4 */
+	uint32	rng_int_status_0;	/* 0x3d8 */
+	uint32	rng_int_enable_0;	/* 0x3dc */
+	uint32	rng_fifo_data;		/* 0x3e0 */
+	uint32	rng_fifo_cnt;		/* 0x3e4 */
+	uint8	PAD[24];		/* corerev >= 65 */
+
+	uint8	uart1data;		/* 0x400 */
+	uint8	uart1imr;
+	uint8	uart1fcr;
+	uint8	uart1lcr;
+	uint8	uart1mcr;
+	uint8	uart1lsr;
+	uint8	uart1msr;
+	uint8	uart1scratch;		/* 0x407 */
+	uint32	PAD[50];
+	uint32	sr_memrw_addr;		/* 0x4d0 */
+	uint32	sr_memrw_data;		/* 0x4d4 */
+	uint32	etbmemctrl;		/* 0x4d8 */
+	uint32	PAD[9];
+
+	/* save/restore, corerev >= 48 */
+	uint32	sr_capability;		/* 0x500 */
+	uint32	sr_control0;		/* 0x504 */
+	uint32	sr_control1;		/* 0x508 */
+	uint32  gpio_control;		/* 0x50C */
+	uint32	PAD[29];
+	/* 2 SR engines case */
+	uint32	sr1_control0;		/* 0x584 */
+	uint32	sr1_control1;		/* 0x588 */
+	uint32	PAD[29];
+	/* PMU registers (corerev >= 20) */
+	/* Note: all timers driven by ILP clock are updated asynchronously to HT/ALP.
+	 * The CPU must read them twice, compare, and retry if different.
+	 */
+	uint32	pmucontrol;		/* 0x600 */
+	uint32	pmucapabilities;
+	uint32	pmustatus;
+	uint32	res_state;
+	uint32	res_pending;
+	uint32	pmutimer;
+	uint32	min_res_mask;
+	uint32	max_res_mask;
+	uint32	res_table_sel;
+	uint32	res_dep_mask;
+	uint32	res_updn_timer;
+	uint32	res_timer;
+	uint32	clkstretch;
+	uint32	pmuwatchdog;
+	uint32	gpiosel;		/* 0x638, rev >= 1 */
+	uint32	gpioenable;		/* 0x63c, rev >= 1 */
+	uint32	res_req_timer_sel;
+	uint32	res_req_timer;
+	uint32	res_req_mask;
+	uint32	core_cap_ext;		/* 0x64c */
+	uint32	chipcontrol_addr;	/* 0x650 */
+	uint32	chipcontrol_data;	/* 0x654 */
+	uint32	regcontrol_addr;
+	uint32	regcontrol_data;
+	uint32	pllcontrol_addr;
+	uint32	pllcontrol_data;
+	uint32	pmustrapopt;		/* 0x668, corerev >= 28 */
+	uint32	pmu_xtalfreq;		/* 0x66C, pmurev >= 10 */
+	uint32  retention_ctl;		/* 0x670 */
+	uint32	ILPPeriod;		/* 0x674 */
+	uint32  PAD[2];
+	uint32  retention_grpidx;	/* 0x680 */
+	uint32  retention_grpctl;	/* 0x684 */
+	uint32  mac_res_req_timer;	/* 0x688 */
+	uint32  mac_res_req_mask;	/* 0x68c */
+	uint32  PAD[18];
+	uint32	pmucontrol_ext;		/* 0x6d8 */
+	uint32	slowclkperiod;		/* 0x6dc */
+	uint32	pmu_statstimer_addr;	/* 0x6e0 */
+	uint32	pmu_statstimer_ctrl;	/* 0x6e4 */
+	uint32	pmu_statstimer_N;	/* 0x6e8 */
+	uint32	PAD[1];
+	uint32  mac_res_req_timer1;	/* 0x6f0 */
+	uint32  mac_res_req_mask1;	/* 0x6f4 */
+	uint32	PAD[2];
+	uint32	pmuintmask0;		/* 0x700 */
+	uint32	pmuintmask1;		/* 0x704 */
+	uint32  PAD[14];
+	uint32  pmuintstatus;		/* 0x740 */
+	uint32  extwakeupstatus;	/* 0x744 */
+	uint32	PAD[6];
+	uint32  extwakemask0;		/* 0x760 */
+	uint32	extwakemask1;		/* 0x764 */
+	uint32	PAD[2];			/* 0x768-0x76C */
+	uint32	extwakereqmask[2];	/* 0x770-0x774 */
+	uint32	PAD[2];			/* 0x778-0x77C */
+	uint32  pmuintctrl0;		/* 0x780 */
+	uint32  PAD[3];			/* 0x784 - 0x78c */
+	uint32  extwakectrl[1];		/* 0x790 */
+	uint32  PAD[PADSZ(0x794u, 0x7b0u)];	/* 0x794 - 0x7b0 */
+	uint32  fis_ctrl_status;	/* 0x7b4 */
+	uint32  fis_min_res_mask;	/* 0x7b8 */
+	uint32  PAD[PADSZ(0x7bcu, 0x7bcu)];	/* 0x7bc */
+	uint32	precision_tmr_ctrl_status;	/* 0x7c0 */
+	uint32	precision_tmr_capture_low;	/* 0x7c4 */
+	uint32	precision_tmr_capture_high;	/* 0x7c8 */
+	uint32	precision_tmr_capture_frac;	/* 0x7cc */
+	uint32	precision_tmr_running_low;	/* 0x7d0 */
+	uint32	precision_tmr_running_high;	/* 0x7d4 */
+	uint32	precision_tmr_running_frac;	/* 0x7d8 */
+	uint32  PAD[PADSZ(0x7dcu, 0x7e4u)];	/* 0x7dc - 0x7e4 */
+	uint32  core_cap_ext1;			/* 0x7e8 */
+	uint32  PAD[PADSZ(0x7ecu, 0x7fcu)];	/* 0x7ec - 0x7fc */
+
+	uint16	sromotp[512];		/* 0x800 */
+#ifdef CCNFLASH_SUPPORT
+	/* Nand flash MLC controller registers (corerev >= 38) */
+	uint32	nand_revision;		/* 0xC00 */
+	uint32	nand_cmd_start;
+	uint32	nand_cmd_addr_x;
+	uint32	nand_cmd_addr;
+	uint32	nand_cmd_end_addr;
+	uint32	nand_cs_nand_select;
+	uint32	nand_cs_nand_xor;
+	uint32	PAD;
+	uint32	nand_spare_rd0;
+	uint32	nand_spare_rd4;
+	uint32	nand_spare_rd8;
+	uint32	nand_spare_rd12;
+	uint32	nand_spare_wr0;
+	uint32	nand_spare_wr4;
+	uint32	nand_spare_wr8;
+	uint32	nand_spare_wr12;
+	uint32	nand_acc_control;
+	uint32	PAD;
+	uint32	nand_config;
+	uint32	PAD;
+	uint32	nand_timing_1;
+	uint32	nand_timing_2;
+	uint32	nand_semaphore;
+	uint32	PAD;
+	uint32	nand_devid;
+	uint32	nand_devid_x;
+	uint32	nand_block_lock_status;
+	uint32	nand_intfc_status;
+	uint32	nand_ecc_corr_addr_x;
+	uint32	nand_ecc_corr_addr;
+	uint32	nand_ecc_unc_addr_x;
+	uint32	nand_ecc_unc_addr;
+	uint32	nand_read_error_count;
+	uint32	nand_corr_stat_threshold;
+	uint32	PAD[2];
+	uint32	nand_read_addr_x;
+	uint32	nand_read_addr;
+	uint32	nand_page_program_addr_x;
+	uint32	nand_page_program_addr;
+	uint32	nand_copy_back_addr_x;
+	uint32	nand_copy_back_addr;
+	uint32	nand_block_erase_addr_x;
+	uint32	nand_block_erase_addr;
+	uint32	nand_inv_read_addr_x;
+	uint32	nand_inv_read_addr;
+	uint32	PAD[2];
+	uint32	nand_blk_wr_protect;
+	uint32	PAD[3];
+	uint32	nand_acc_control_cs1;
+	uint32	nand_config_cs1;
+	uint32	nand_timing_1_cs1;
+	uint32	nand_timing_2_cs1;
+	uint32	PAD[20];
+	uint32	nand_spare_rd16;
+	uint32	nand_spare_rd20;
+	uint32	nand_spare_rd24;
+	uint32	nand_spare_rd28;
+	uint32	nand_cache_addr;
+	uint32	nand_cache_data;
+	uint32	nand_ctrl_config;
+	uint32	nand_ctrl_status;
+#endif /* CCNFLASH_SUPPORT */
+	/* Note: there is a clash between GCI and NFLASH. So,
+	* we decided to  have it like below. the functions accessing following
+	* have to be protected with NFLASH_SUPPORT. The functions will
+	* assert in case the clash happens.
+	*/
+	uint32  gci_corecaps0; /* GCI starting at 0xC00 */
+	uint32  gci_corecaps1;
+	uint32  gci_corecaps2;
+	uint32  gci_corectrl;
+	uint32  gci_corestat; /* 0xC10 */
+	uint32  gci_intstat; /* 0xC14 */
+	uint32  gci_intmask; /* 0xC18 */
+	uint32  gci_wakemask; /* 0xC1C */
+	uint32  gci_levelintstat; /* 0xC20 */
+	uint32  gci_eventintstat; /* 0xC24 */
+	uint32  PAD[6];
+	uint32  gci_indirect_addr; /* 0xC40 */
+	uint32  gci_gpioctl; /* 0xC44 */
+	uint32	gci_gpiostatus;
+	uint32  gci_gpiomask; /* 0xC4C */
+	uint32  gci_eventsummary; /* 0xC50 */
+	uint32  gci_miscctl; /* 0xC54 */
+	uint32	gci_gpiointmask;
+	uint32	gci_gpiowakemask;
+	uint32  gci_input[32]; /* C60 */
+	uint32  gci_event[32]; /* CE0 */
+	uint32  gci_output[4]; /* D60 */
+	uint32  gci_control_0; /* 0xD70 */
+	uint32  gci_control_1; /* 0xD74 */
+	uint32  gci_intpolreg; /* 0xD78 */
+	uint32  gci_levelintmask; /* 0xD7C */
+	uint32  gci_eventintmask; /* 0xD80 */
+	uint32  PAD[3];
+	uint32  gci_inbandlevelintmask; /* 0xD90 */
+	uint32  gci_inbandeventintmask; /* 0xD94 */
+	uint32  PAD[2];
+	uint32  gci_seciauxtx; /* 0xDA0 */
+	uint32  gci_seciauxrx; /* 0xDA4 */
+	uint32  gci_secitx_datatag; /* 0xDA8 */
+	uint32  gci_secirx_datatag; /* 0xDAC */
+	uint32  gci_secitx_datamask; /* 0xDB0 */
+	uint32  gci_seciusef0tx_reg; /* 0xDB4 */
+	uint32  gci_secif0tx_offset; /* 0xDB8 */
+	uint32  gci_secif0rx_offset; /* 0xDBC */
+	uint32  gci_secif1tx_offset; /* 0xDC0 */
+	uint32	gci_rxfifo_common_ctrl; /* 0xDC4 */
+	uint32	gci_rxfifoctrl; /* 0xDC8 */
+	uint32	gci_uartreadid; /* DCC */
+	uint32  gci_seciuartescval; /* DD0 */
+	uint32	PAD;
+	uint32	gci_secififolevel; /* DD8 */
+	uint32	gci_seciuartdata; /* DDC */
+	uint32  gci_secibauddiv; /* DE0 */
+	uint32  gci_secifcr; /* DE4 */
+	uint32  gci_secilcr; /* DE8 */
+	uint32  gci_secimcr; /* DEC */
+	uint32	gci_secilsr; /* DF0 */
+	uint32	gci_secimsr; /* DF4 */
+	uint32  gci_baudadj; /* DF8 */
+	uint32  PAD;
+	uint32  gci_chipctrl; /* 0xE00 */
+	uint32  gci_chipsts; /* 0xE04 */
+	uint32	gci_gpioout; /* 0xE08 */
+	uint32	gci_gpioout_read; /* 0xE0C */
+	uint32	gci_mpwaketx; /* 0xE10 */
+	uint32	gci_mpwakedetect; /* 0xE14 */
+	uint32	gci_seciin_ctrl; /* 0xE18 */
+	uint32	gci_seciout_ctrl; /* 0xE1C */
+	uint32	gci_seciin_auxfifo_en; /* 0xE20 */
+	uint32	gci_seciout_txen_txbr; /* 0xE24 */
+	uint32	gci_seciin_rxbrstatus; /* 0xE28 */
+	uint32	gci_seciin_rxerrstatus; /* 0xE2C */
+	uint32	gci_seciin_fcstatus; /* 0xE30 */
+	uint32	gci_seciout_txstatus; /* 0xE34 */
+	uint32	gci_seciout_txbrstatus; /* 0xE38 */
+
+} chipcregs_t;
 
 #endif /* !_LANGUAGE_ASSEMBLY && !__ASSEMBLY__ */
 
-#define GPIO_SEL_0	0x00001111
-#define GPIO_SEL_1	0x11110000
-#define GPIO_SEL_8	0x00001111
-#define GPIO_SEL_9	0x11110000
+#if !defined(IL_BIGENDIAN)
+#define	CC_CHIPID		0
+#define	CC_CAPABILITIES		4
+#define	CC_CHIPST		0x2c
+#define	CC_EROMPTR		0xfc
+#endif	/* IL_BIGENDIAN */
 
-#if defined(VLSI_CTRL_REGS) && defined(SKIP_LEGACY_CC_API)
-#define CHIPCTRLREG0	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG1	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG2	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG3	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG4	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG5	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG6	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG13	SI_CTRLREGS_INVALID
-#define CHIPCTRLREG16	SI_CTRLREGS_INVALID
-#else /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
-#define CHIPCTRLREG0	0x0u
-#define CHIPCTRLREG1	0x1u
-#define CHIPCTRLREG2	0x2u
-#define CHIPCTRLREG3	0x3u
-#define CHIPCTRLREG4	0x4u
-#define CHIPCTRLREG5	0x5u
-#define CHIPCTRLREG6	0x6u
-#define CHIPCTRLREG13	0xdu
-#define CHIPCTRLREG16	0x10u
-#endif /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
+#define	CC_OTPST		0x10
+#define	CC_INTSTATUS		0x20
+#define	CC_INTMASK		0x24
+#define	CC_JTAGCMD		0x30
+#define	CC_JTAGIR		0x34
+#define	CC_JTAGDR		0x38
+#define	CC_JTAGCTRL		0x3c
+#define	CC_GPIOPU		0x58
+#define	CC_GPIOPD		0x5c
+#define	CC_GPIOIN		0x60
+#define	CC_GPIOOUT		0x64
+#define	CC_GPIOOUTEN		0x68
+#define	CC_GPIOCTRL		0x6c
+#define	CC_GPIOPOL		0x70
+#define	CC_GPIOINTM		0x74
+#define	CC_GPIOEVENT		0x78
+#define	CC_GPIOEVENTMASK	0x7c
+#define	CC_WATCHDOG		0x80
+#define	CC_GPIOEVENTPOL		0x84
+#define	CC_CLKC_N		0x90
+#define	CC_CLKC_M0		0x94
+#define	CC_CLKC_M1		0x98
+#define	CC_CLKC_M2		0x9c
+#define	CC_CLKC_M3		0xa0
+#define	CC_CLKDIV		0xa4
+#define	CC_CAP_EXT		0xac
+#define	CC_SYS_CLK_CTL		0xc0
+#define CC_BP_ADRLOW            0xd0
+#define CC_BP_ADRHI             0xd4
+#define CC_BP_DATA              0xd8
+#define CC_SCR_DHD_TO_BL        CC_BP_ADRHI
+#define CC_SCR_BL_TO_DHD        CC_BP_ADRLOW
+#define	CC_CLKDIV2		0xf0
+#define	CC_CLK_CTL_ST		SI_CLK_CTL_ST
+#define	PMU_CTL			0x600
+#define	PMU_CAP			0x604
+#define	PMU_ST			0x608
+#define PMU_RES_STATE		0x60c
+#define PMU_RES_PENDING		0x610
+#define PMU_TIMER		0x614
+#define	PMU_MIN_RES_MASK	0x618
+#define	PMU_MAX_RES_MASK	0x61c
+#define CC_CHIPCTL_ADDR         0x650
+#define CC_CHIPCTL_DATA         0x654
+#define PMU_REG_CONTROL_ADDR	0x658
+#define PMU_REG_CONTROL_DATA	0x65C
+#define PMU_PLL_CONTROL_ADDR	0x660
+#define PMU_PLL_CONTROL_DATA	0x664
+#define PMU_RSRC_CONTROL_MASK   0x7B0
 
-#define EXT_LPO_AVAIL	0x100
-#define LPO_SEL		(1 << 0)
+#define CC_SROM_CTRL		0x190
+#define CC_SROM_ADDRESS		0x194u
+#define CC_SROM_DATA		0x198u
+#define	CC_SROM_OTP		0x0800
+#define CC_GCI_INDIRECT_ADDR_REG	0xC40
+#define CC_GCI_CHIP_CTRL_REG	0xE00
+#define CC_GCI_CC_OFFSET_2	2
+#define CC_GCI_CC_OFFSET_5	5
+#define CC_SWD_CTRL		0x380
+#define CC_SWD_REQACK		0x384
+#define CC_SWD_DATA		0x388
+#define GPIO_SEL_0					0x00001111
+#define GPIO_SEL_1					0x11110000
+#define GPIO_SEL_8					0x00001111
+#define GPIO_SEL_9					0x11110000
+
+#define CHIPCTRLREG0 0x0
+#define CHIPCTRLREG1 0x1
+#define CHIPCTRLREG2 0x2
+#define CHIPCTRLREG3 0x3
+#define CHIPCTRLREG4 0x4
+#define CHIPCTRLREG5 0x5
+#define CHIPCTRLREG6 0x6
+#define CHIPCTRLREG13 0xd
+#define CHIPCTRLREG16 0x10
+#define REGCTRLREG4 0x4
+#define REGCTRLREG5 0x5
+#define REGCTRLREG6 0x6
+#define MINRESMASKREG 0x618
+#define MAXRESMASKREG 0x61c
+#define CHIPCTRLADDR 0x650
+#define CHIPCTRLDATA 0x654
+#define RSRCTABLEADDR 0x620
+#define PMU_RES_DEP_MASK 0x624
+#define RSRCUPDWNTIME 0x628
+#define PMUREG_RESREQ_MASK 0x68c
+#define PMUREG_RESREQ_TIMER 0x688
+#define PMUREG_RESREQ_MASK1 0x6f4
+#define PMUREG_RESREQ_TIMER1 0x6f0
+#define EXT_LPO_AVAIL 0x100
+#define LPO_SEL					(1 << 0)
 #define CC_EXT_LPO_PU 0x200000
 #define GC_EXT_LPO_PU 0x2
 #define CC_INT_LPO_PU 0x100000
@@ -329,19 +782,12 @@ typedef volatile struct chipcregs chipcregs_t;
 
 #define LHL_CLK_DET_CTL_AD_CNTR_CLK_SEL	0x3
 
-/*
- * SW states for lpo select
- * All the states can be overidden except LHL_LPO_HWDEFAULT_NO_OVERRIDE
- * 1. PMU Status EXT_LPOAvail
- * 2. NVRAM override
- */
-#define LHL_LPO_AUTO		0x0	/* 0 - Auto remaps to OSC_32 */
-#define LHL_LPO1_ENAB		0x1	/* 1 - Internal LPO 1 */
-#define LHL_LPO2_ENAB		0x2	/* 2 - Internal LPO 2 */
-#define LHL_OSC_32k_ENAB	0x3	/* 3 - OSC_32k */
-#define LHL_EXT_LPO_ENAB	0x4	/* 4 - EXT LPO */
-#define RADIO_LPO_ENAB		0x5	/* 5 - Used only for Power Down */
-#define LHL_LPO_HWDEFAULT	0x6	/* 6 - Use HW default */
+#define LHL_LPO_AUTO	0x0
+#define LHL_LPO1_ENAB	0x1
+#define LHL_LPO2_ENAB	0x2
+#define LHL_OSC_32k_ENAB	0x3
+#define LHL_EXT_LPO_ENAB	0x4
+#define RADIO_LPO_ENAB 0x5
 
 #define LHL_CLK_DET_CTL_ADR_LHL_CNTR_EN	0x4
 #define LHL_CLK_DET_CTL_ADR_LHL_CNTR_CLR	0x8
@@ -546,21 +992,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define MONCTRLN_MONEN_SHIFT			0u
 #define MONCTRLN_MONEN_MASK			(0x1u << MONCTRLN_MONENEXT_SHIFT)
 
-/* 4388B0 RO index defines */
-#define MONCTRLN_TARGETROMAX_CCREV_GE_72			(76u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_0		(2u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_1		(3u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_2		(4u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_3		(5u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_4		(6u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_BBPLL_CLKOUT_5		(7u)
-#define MONCTRLN_TARGETRO_CCREV_GE_72_ARMPLL_CLKOUT_DIV4	(8u)
-
-/* 4397B0 RO Index defines */
-#define MONCTRLN_TARGETROMAX_4397				(119u)
-#define MONCTRLN_TARGETRO_4397_ARMPLL_CLKOUT_DIV8		(15u)
-#define MONCTRLN_4397_ARMPLL_CLKOUT_DIV8			(8u)
-
 /* DvfsCoreCtrlN
  * Bits 10 Request_override_PDn
  *   When set, the dvfs_request logic for this core is overridden with the
@@ -599,11 +1030,9 @@ typedef volatile struct chipcregs chipcregs_t;
 #define DVFS_CORE_BT_MAIN		6u
 #define DVFS_CORE_BT_SCAN		7u
 #define DVFS_CORE_HWA			8u
-#define DVFS_CORE_D11_SAQM		9u
-#define DVFS_CORE_GCI			10u
-
 #define DVFS_CORE_SYSMEM		((PMUREV((sih)->pmurev) < 43u) ? \
 						9u : 8u)
+#define DVFS_CORE_MASK			0xFu
 
 #define DVFS_CORE_INVALID_IDX		0xFFu
 
@@ -644,37 +1073,36 @@ typedef volatile struct chipcregs chipcregs_t;
  *   Specifies the target LDV voltage in 10mv units
  */
 #define DVFS_VOLTAGE_XDV		0u	/* Reserved */
+#ifdef WL_INITVALS
+#define DVFS_VOLTAGE_HDV		(wliv_pmu_dvfs_voltage_hdv)	/* 0.72V */
+#define DVFS_VOLTAGE_HDV_MAX		(wliv_pmu_dvfs_voltage_hdv_max)	/* 0.80V */
+#else
 #define DVFS_VOLTAGE_HDV		72u	/* 0.72V */
 #define DVFS_VOLTAGE_HDV_MAX		80u	/* 0.80V */
+#endif
 #define DVFS_VOLTAGE_HDV_PWR_OPT	68u	/* 0.68V */
 #define DVFS_VOLTAGE_HDV_SHIFT		16u
 #define DVFS_VOLTAGE_HDV_MASK		(0x7Fu << DVFS_VOLTAGE_HDV_SHIFT)
+#ifdef WL_INITVALS
+#define DVFS_VOLTAGE_NDV		(wliv_pmu_dvfs_voltage_ndv)		/* 0.72V */
+#define DVFS_VOLTAGE_NDV_NON_LVM	(wliv_pmu_dvfs_voltage_ndv_non_lvm)	/* 0.76V */
+#define DVFS_VOLTAGE_NDV_MAX		(wliv_pmu_dvfs_voltage_ndv_max)		/* 0.80V */
+#else
 #define DVFS_VOLTAGE_NDV		72u	/* 0.72V */
 #define DVFS_VOLTAGE_NDV_NON_LVM	76u	/* 0.76V */
 #define DVFS_VOLTAGE_NDV_MAX		80u	/* 0.80V */
+#endif
 #define DVFS_VOLTAGE_NDV_PWR_OPT	68u	/* 0.68V */
-
-#ifdef BCMDVFS_NDV_CBUCK_98B0_WAR
-#define DVFS_VOLTAGE_NDV_DEF_CBUCK	83u	/* 0.83V */
-#define DVFS_VOLTAGE_NDV_MLO_CBUCK	83u	/* 0.83V */
-#define DVFS_VOLTAGE_NDV_DEF_CLDO	71u	/* 0.71V */
-#define DVFS_VOLTAGE_NDV_MLO_CLDO	71u	/* 0.71V */
-#else
-#define DVFS_VOLTAGE_NDV_DEF_CBUCK	67u	/* 0.67V */
-#define DVFS_VOLTAGE_NDV_MLO_CBUCK	71u	/* 0.71V */
-#define DVFS_VOLTAGE_NDV_DEF_CLDO	60u	/* 0.60V */
-#define DVFS_VOLTAGE_NDV_MLO_CLDO	67u	/* 0.67V */
-#endif /* BCMDVFS_NDV_CBUCK_98B0_WAR */
-
 #define DVFS_VOLTAGE_NDV_SHIFT		8u
 #define DVFS_VOLTAGE_NDV_MASK		(0x7Fu << DVFS_VOLTAGE_NDV_SHIFT)
+#ifdef WL_INITVALS
+#define DVFS_VOLTAGE_LDV		(wliv_pmu_dvfs_voltage_ldv)	/* 0.65V */
+#else
 #define DVFS_VOLTAGE_LDV		65u	/* 0.65V */
+#endif
 #define DVFS_VOLTAGE_LDV_PWR_OPT	65u	/* 0.65V */
 #define DVFS_VOLTAGE_LDV_SHIFT		0u
 #define DVFS_VOLTAGE_LDV_MASK		(0x7Fu << DVFS_VOLTAGE_LDV_SHIFT)
-
-#define DVFS_VOLTAGE_CBUCK		0u
-#define DVFS_VOLTAGE_CLDO		1u
 
 /* DVFS_Status (PMU_BASE + 0x81C)
  * Bits 27:26 Raw_Core_Reqn
@@ -716,30 +1144,14 @@ typedef volatile struct chipcregs chipcregs_t;
 #if defined(BCM_FASTLPO) && !defined(BCM_FASTLPO_DISABLED)
 #define DVFS_DELAY	DVFS_FASTLPO_DELAY
 #define DVFS_NDV_DELAY	DVFS_NDV_FASTLPO_DELAY
-#define DVFS_SWITCH_TIMEOUT	(200)
 #else
 #define DVFS_DELAY	DVFS_LPO_DELAY
 #define DVFS_NDV_DELAY	DVFS_NDV_LPO_DELAY
-#define DVFS_SWITCH_TIMEOUT	(10000)
 #endif /* BCM_FASTLPO && !BCM_FASTLPO_DISABLED */
 
 #define DVFS_LDV	0u
 #define DVFS_NDV	1u
-#define DVFS_HDV	3u
-
-#define DVFS_CTRL1_DUR_EVENT_SHIFT	(13u)
-#define DVFS_CTRL1_DUR_EVENT_MASK	(1u << DVFS_CTRL1_DUR_EVENT_SHIFT)
-
-#define	DVFS_STAT_CTRL1_MODE_HDV	(0u)
-#define	DVFS_STAT_CTRL1_MODE_NDV	(1u)
-#define	DVFS_STAT_CTRL1_MODE_LDV	(2u)
-
-/* 4388B0 LDV frequency WAR */
-#define	DVFS_LDV_FREQ_4388B0		(160u)
-/* if bit-15 "1 cnt" == 1 us; otherwise "1 cnt" == 30.5us */
-#define	DVFS_CTRL1_DUR_COUNT_PERIOD_US(ctrl, cnt)	\
-		((ctrl & PMU_REG_FIELD_MASK(DVFSControl1, DvfsDurationctrPeriod)) ? \
-		(cnt) : ((cnt * 305)/10u))
+#define DVFS_HDV	2u
 
 /* PowerControl2 (Core Offset 0x1EC)
  * Bits 17:16 DVFSStatus
@@ -758,41 +1170,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define DVFS_STATUS_SHIFT	16u
 #define DVFS_STATUS_MASK	(0x3u << DVFS_STATUS_SHIFT)
 
-/* GCI Chip Control 14 Register
- * Bits
- * 24:0 - RF_SW_CTRL Override Value
- * 27:25 -Drive strength select for RFFE0 pads (package_option/jtag_sel)  (default 010 6mA)
- * 30:28 -Drive strength select for RFFE1 pads (package_option/jtag_sel)  (default 010 6mA)
- * 31 -Enable CNCB clock. Once enabled CNCB clock will only run if RFFE request/Radio ON
- */
-#define GCI_CC14_RFFE_DRIVE_STRENGTH_MASK	0x7E000000u
-#define GCI_CC14_RFFE0_DRIVE_STRENGTH_MASK	0x0E000000u
-#define GCI_CC14_RFFE1_DRIVE_STRENGTH_MASK	0x70000000u
-
-#define RFFE_CNTRLR_0			0u
-#define RFFE_CNTRLR_1			1u
-#define RF_SW_CTRL_DRIVE_STRENGTH_2MA	0x00u
-#define RF_SW_CTRL_DRIVE_STRENGTH_4MA	0x01u
-#define RF_SW_CTRL_DRIVE_STRENGTH_6MA	0x02u
-#define RF_SW_CTRL_DRIVE_STRENGTH_8MA	0x03u
-#define RF_SW_CTRL_DRIVE_STRENGTH_10MA	0x04u
-#define RF_SW_CTRL_DRIVE_STRENGTH_12MA	0x05u
-#define RF_SW_CTRL_DRIVE_STRENGTH_14MA	0x06u
-#define RF_SW_CTRL_DRIVE_STRENGTH_16MA	0x07u
-#define RF_SW_CTRL_DRIVE_STRENGTH_MAX	(RF_SW_CTRL_DRIVE_STRENGTH_16MA)
-
-/* GCI Chip Control 15 Register
- * Bits
- * 24:0 - RF_SW_CTRL Override Enable
- * 27:25 -wl2bt_derst_dly_sel
- * 28 -Force RFFE clock to run at 80Mhz. Default is 106.7MHz
- * 29 -Enable RFFE clock. Once enabled RFFE clock will only run if RFFE request/Radio ON
- * 30 -Force RFFE clock to run always regardless of Radio ON or RFFE request
- * 31 -DVFS
- */
-#define GCI_CC15_RFFE_CLK_EN		(0x1u << 29u)
-#define GCI_CC15_RFFE_CLK_ALWAYS_ON	(0x1u << 30u)
-
 /* GCI Chip Control 16 Register
  * Bits 0 CB Clock sel
  *   0 - 160MHz
@@ -803,13 +1180,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define GCI_CC16_CB_CLOCK_SEL_SHIFT	0u
 #define GCI_CC16_CB_CLOCK_SEL_MASK	(0x1u << GCI_CC16_CB_CLOCK_SEL_SHIFT)
 #define GCI_CHIPCTRL_16_PRISEL_ANT_MASK_PSM_OVR	(1 << 8)
-
-/* GCI Chip Control 23 Register
- * Bits
- * 30:29 -When set, enables pull down on IO pads rf_sw_ctr15 and 7, respectively (sdata pins).
- * Only applies if the function select for rf_sw_ctrl15 and 7 are set for RFFE.
- */
-#define GCI_CC23_RF_SW_CTRL_PULL_DOWN	(0x3u << 29u)
 
 /* WL Channel Info to BT via GCI - bits 40 - 47 */
 #define GCI_WL_CHN_INFO_MASK	(0xFF00)
@@ -828,9 +1198,6 @@ typedef volatile struct chipcregs chipcregs_t;
 /* WLAN is awake Indicate to BT */
 #define GCI_WL2BT_2G_AWAKE_MASK	  (1u << 28u)
 
-/* WLAN in low latency mode indicate to BT */
-#define GCI_WL2BT_LL_IND_MASK	  (1u << 20u)
-
 /* WL inidcation of Aux Core 2G hibernate status - bit 50 */
 #define GCI_WL2BT_2G_HIB_STATE_MASK	(0x0040000u)
 
@@ -840,9 +1207,7 @@ typedef volatile struct chipcregs chipcregs_t;
 
 /* WL Strobe to BT */
 #define GCI_WL_STROBE_BIT_MASK	(0x0020)
-/* bit [51] - BT alternate antenna configuration indication */
-#define GCI_WL_BT_SHARED_ANT_BIT	(19)
-#define GCI_WL_BT_SHARED_ANT_MASK	(1 << GCI_WL_BT_SHARED_ANT_BIT)
+/* bits [51:48] - reserved for wlan TX pwr index */
 /* bits [55:52] btc mode indication */
 #define GCI_WL_BTC_MODE_SHIFT	(20)
 #define GCI_WL_BTC_MODE_MASK	(0xF << GCI_WL_BTC_MODE_SHIFT)
@@ -1103,15 +1468,10 @@ typedef volatile struct chipcregs chipcregs_t;
 #define JCMD_DRW_MASK		0x0000003f
 
 /* jtagctrl */
-#define JCTRL_FORCE_CLK			4u		/**< Force clock */
-#define JCTRL_EXT_EN			2u		/**< Enable external targets */
-#define JCTRL_EN			1u		/**< Enable Jtag master */
-#define JCTRL_TAPSEL_BIT		0x00000008u	/**< JtagMasterCtrl tap_sel bit */
-#define JCTRL_ATCLK160_EN		0x00000040u	/**< Enable ATCLK on 160 MHz */
-#define JCTRL_DAPCLK_ALP_EN		0x00000010u	/**< Enable ALP as DAP CLK source */
-#define JCTRL_SDTC_ATCLK_EN		0x00000020u	/**< Enable SDTC STCLK */
-#define JCTRL_ATB_SOFT_RESET		(1u << 8u)	/**< ATB_SOFT_RESET */
-#define JCTRL_SDTC_DAP_TRACE_COMP	(1u << 9u)	/**< Program trace components */
+#define JCTRL_FORCE_CLK		4		/**< Force clock */
+#define JCTRL_EXT_EN		2		/**< Enable external targets */
+#define JCTRL_EN		1		/**< Enable Jtag master */
+#define JCTRL_TAPSEL_BIT	0x00000008	/**< JtagMasterCtrl tap_sel bit */
 
 /* swdmasterctrl */
 #define SWDCTRL_INT_EN		8		/**< Enable internal targets */
@@ -1613,7 +1973,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PCAP5_PC_SHIFT	17
 #define PCAP5_VC_MASK	0x07c00000
 #define PCAP5_VC_SHIFT	22
-#define PCAP5_CC_MASK	0xf8000000	/**< PMU ChipControlCnt (PMUREV < 43) */
+#define PCAP5_CC_MASK	0xf8000000
 #define PCAP5_CC_SHIFT	27
 
 /* pmucapabilities ext */
@@ -1625,10 +1985,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PCAP_EXT_MAC_RSRC_REQ_TMR_CNT_MASK	(7u << PCAP_EXT_MAC_RSRC_REQ_TMR_CNT_SHIFT)
 #define PCAP_EXT_PMU_INTR_RCVR_CNT_SHIFT	(23u)	/* pmu int rcvr cnt */
 #define PCAP_EXT_PMU_INTR_RCVR_CNT_MASK		(7u << PCAP_EXT_PMU_INTR_RCVR_CNT_SHIFT)
-
-/* pmucapabilities ext1 */
-#define PCAP_EXT1_CC_CNT_SHIFT			13u	/* PMU ChipControlCnt (PMUREV >= 43) */
-#define PCAP_EXT1_CC_CNT_MASK			(0x3f << PCAP_EXT1_CC_CNT_SHIFT)
 
 /* pmustattimer ctrl */
 #define PMU_ST_SRC_SHIFT	(0)	/* stat timer source number */
@@ -1670,9 +2026,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define RSRC_INTR_MASK_TIMER_INT_0 1
 #define PMU_INTR_MASK_EXTWAKE_REQ_ACTIVE_0 (1 << 20)
 
-/* bit 1 of the PMU interrupt vector is asserted if this mask is enabled */
-#define RSRC_INTR_MASK_TIMER_INT_1		0x00000002
-
 #define PMU_INT_STAT_RSRC_EVENT_INT0_SHIFT	(8u)
 #define PMU_INT_STAT_RSRC_EVENT_INT0_MASK	(1u << PMU_INT_STAT_RSRC_EVENT_INT0_SHIFT)
 
@@ -1692,73 +2045,39 @@ typedef volatile struct chipcregs chipcregs_t;
 /* PMU resource number limit */
 #define PMURES_MAX_RESNUM	30
 
-#if defined(VLSI_CTRL_REGS) && defined(SKIP_LEGACY_CC_API)
-#define	PMU_CHIPCTL0		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL1		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL2		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL3		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL4		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL5		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL6		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL7		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL8		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL9		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL10		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL11		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL12		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL13		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL14		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL15		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL16		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL17		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL18		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL19		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL20		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL21		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL22		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL23		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL24		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL25		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL26		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL27		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL28		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL29		SI_CTRLREGS_INVALID
-#define	PMU_CHIPCTL30		SI_CTRLREGS_INVALID
-#else /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
-#define	PMU_CHIPCTL0		0u
-#define	PMU_CHIPCTL1		1u
-#define	PMU_CHIPCTL2		2u
-#define	PMU_CHIPCTL3		3u
-#define	PMU_CHIPCTL4		4u
-#define	PMU_CHIPCTL5		5u
-#define	PMU_CHIPCTL6		6u
-#define	PMU_CHIPCTL7		7u
-#define	PMU_CHIPCTL8		8u
-#define	PMU_CHIPCTL9		9u
-#define	PMU_CHIPCTL10		10u
-#define	PMU_CHIPCTL11		11u
-#define	PMU_CHIPCTL12		12u
-#define	PMU_CHIPCTL13		13u
-#define	PMU_CHIPCTL14		14u
-#define	PMU_CHIPCTL15		15u
-#define	PMU_CHIPCTL16		16u
-#define	PMU_CHIPCTL17		17u
-#define	PMU_CHIPCTL18		18u
-#define	PMU_CHIPCTL19		19u
-#define	PMU_CHIPCTL20		20u
-#define	PMU_CHIPCTL21		21u
-#define	PMU_CHIPCTL22		22u
-#define	PMU_CHIPCTL23		23u
-#define	PMU_CHIPCTL24		24u
-#define	PMU_CHIPCTL25		25u
-#define	PMU_CHIPCTL26		26u
-#define	PMU_CHIPCTL27		27u
-#define	PMU_CHIPCTL28		28u
-#define	PMU_CHIPCTL29		29u
-#define	PMU_CHIPCTL30		30u
-#endif /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
-
 /* PMU chip control0 register */
+#define	PMU_CHIPCTL0		0
+
+#define PMU_CC0_4369_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x20 << 0)
+#define PMU_CC0_4369_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3F << 0)
+#define PMU_CC0_4369_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0xF << 6)
+#define PMU_CC0_4369B0_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x1A << 6)
+#define PMU_CC0_4369_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3F << 6)
+#define PMU_CC0_4369_XTAL_RES_BYPASS_START_VAL			(0 << 12)
+#define PMU_CC0_4369_XTAL_RES_BYPASS_START_MASK			(0x7 << 12)
+#define PMU_CC0_4369_XTAL_RES_BYPASS_NORMAL_VAL			(0x1 << 15)
+#define PMU_CC0_4369_XTAL_RES_BYPASS_NORMAL_MASK		(0x7 << 15)
+
+// This is not used. so retains reset value
+#define PMU_CC0_4362_XTALCORESIZE_BIAS_ADJ_START_VAL		(0x20u << 0u)
+
+#define PMU_CC0_4362_XTALCORESIZE_BIAS_ADJ_START_MASK		(0x3Fu << 0u)
+#define PMU_CC0_4362_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL		(0x1Au << 6u)
+#define PMU_CC0_4362_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK		(0x3Fu << 6u)
+#define PMU_CC0_4362_XTAL_RES_BYPASS_START_VAL			(0x00u << 12u)
+#define PMU_CC0_4362_XTAL_RES_BYPASS_START_MASK			(0x07u << 12u)
+#define PMU_CC0_4362_XTAL_RES_BYPASS_NORMAL_VAL			(0x02u << 15u)
+#define PMU_CC0_4362_XTAL_RES_BYPASS_NORMAL_MASK		(0x07u << 15u)
+
+#define PMU_CC0_4378_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x20 << 0)
+#define PMU_CC0_4378_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3F << 0)
+#define PMU_CC0_4378_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x1A << 6)
+#define PMU_CC0_4378_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3F << 6)
+#define PMU_CC0_4378_XTAL_RES_BYPASS_START_VAL			(0 << 12)
+#define PMU_CC0_4378_XTAL_RES_BYPASS_START_MASK			(0x7 << 12)
+#define PMU_CC0_4378_XTAL_RES_BYPASS_NORMAL_VAL			(0x2 << 15)
+#define PMU_CC0_4378_XTAL_RES_BYPASS_NORMAL_MASK		(0x7 << 15)
+
 #define PMU_CC0_4387_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x20 << 0)
 #define PMU_CC0_4387_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3F << 0)
 #define PMU_CC0_4387_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x1A << 6)
@@ -1782,6 +2101,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PWRCTL_AUTO_MEM_STBYRET			28
 
 /* PMU chip control1 register */
+#define	PMU_CHIPCTL1			1
 #define	PMU_CC1_RXC_DLL_BYPASS		0x00010000
 #define PMU_CC1_ENABLE_BBPLL_PWR_DOWN	0x00000010
 
@@ -1812,6 +2132,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC2_RFLDO3P3_PU_CLEAR		0x00000000u
 
 #define PMU_CC2_WL2CDIG_I_PMU_SLEEP		(1u << 16u)
+#define	PMU_CHIPCTL2		2u
 #define PMU_CC2_FORCE_SUBCORE_PWR_SWITCH_ON	(1u << 18u)
 #define PMU_CC2_FORCE_PHY_PWR_SWITCH_ON		(1u << 19u)
 #define PMU_CC2_FORCE_VDDM_PWR_SWITCH_ON	(1u << 20u)
@@ -1820,15 +2141,71 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC2_INV_GPIO_POLARITY_PMU_WAKE   (1u << 25u)
 #define PMU_CC2_GCI2_WAKE                    (1u << 31u)
 
+#define PMU_CC2_4369_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x3u << 26u)
+#define PMU_CC2_4369_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3u << 26u)
+#define PMU_CC2_4369_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x0u << 28u)
+#define PMU_CC2_4369_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3u << 28u)
+
+#define PMU_CC2_4362_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x3u << 26u)
+#define PMU_CC2_4362_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3u << 26u)
+#define PMU_CC2_4362_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x0u << 28u)
+#define PMU_CC2_4362_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3u << 28u)
+
+#define PMU_CC2_4378_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x3u << 26u)
+#define PMU_CC2_4378_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3u << 26u)
+#define PMU_CC2_4378_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x0u << 28u)
+#define PMU_CC2_4378_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3u << 28u)
+
 #define PMU_CC2_4387_XTALCORESIZE_BIAS_ADJ_START_VAL	(0x3u << 26u)
 #define PMU_CC2_4387_XTALCORESIZE_BIAS_ADJ_START_MASK	(0x3u << 26u)
 #define PMU_CC2_4387_XTALCORESIZE_BIAS_ADJ_NORMAL_VAL	(0x0u << 28u)
 #define PMU_CC2_4387_XTALCORESIZE_BIAS_ADJ_NORMAL_MASK	(0x3u << 28u)
 
 /* PMU chip control3 register */
+#define	PMU_CHIPCTL3		3u
 #define PMU_CC3_ENABLE_SDIO_WAKEUP_SHIFT  19u
 #define PMU_CC3_ENABLE_RF_SHIFT           22u
 #define PMU_CC3_RF_DISABLE_IVALUE_SHIFT   23u
+
+#define PMU_CC3_4369_XTALCORESIZE_PMOS_START_VAL	(0x3Fu << 0u)
+#define PMU_CC3_4369_XTALCORESIZE_PMOS_START_MASK	(0x3Fu << 0u)
+#define PMU_CC3_4369_XTALCORESIZE_PMOS_NORMAL_VAL	(0x3Fu << 15u)
+#define PMU_CC3_4369_XTALCORESIZE_PMOS_NORMAL_MASK	(0x3Fu << 15u)
+#define PMU_CC3_4369_XTALCORESIZE_NMOS_START_VAL	(0x3Fu << 6u)
+#define PMU_CC3_4369_XTALCORESIZE_NMOS_START_MASK	(0x3Fu << 6u)
+#define PMU_CC3_4369_XTALCORESIZE_NMOS_NORMAL_VAL	(0x3Fu << 21)
+#define PMU_CC3_4369_XTALCORESIZE_NMOS_NORMAL_MASK	(0x3Fu << 21)
+#define PMU_CC3_4369_XTALSEL_BIAS_RES_START_VAL		(0x2u << 12u)
+#define PMU_CC3_4369_XTALSEL_BIAS_RES_START_MASK	(0x7u << 12u)
+#define PMU_CC3_4369_XTALSEL_BIAS_RES_NORMAL_VAL	(0x2u << 27u)
+#define PMU_CC3_4369_XTALSEL_BIAS_RES_NORMAL_MASK	(0x7u << 27u)
+
+#define PMU_CC3_4362_XTALCORESIZE_PMOS_START_VAL	(0x3Fu << 0u)
+#define PMU_CC3_4362_XTALCORESIZE_PMOS_START_MASK	(0x3Fu << 0u)
+#define PMU_CC3_4362_XTALCORESIZE_PMOS_NORMAL_VAL	(0x3Fu << 15u)
+#define PMU_CC3_4362_XTALCORESIZE_PMOS_NORMAL_MASK	(0x3Fu << 15u)
+#define PMU_CC3_4362_XTALCORESIZE_NMOS_START_VAL	(0x3Fu << 6u)
+#define PMU_CC3_4362_XTALCORESIZE_NMOS_START_MASK	(0x3Fu << 6u)
+#define PMU_CC3_4362_XTALCORESIZE_NMOS_NORMAL_VAL	(0x3Fu << 21u)
+#define PMU_CC3_4362_XTALCORESIZE_NMOS_NORMAL_MASK	(0x3Fu << 21u)
+#define PMU_CC3_4362_XTALSEL_BIAS_RES_START_VAL		(0x02u << 12u)
+#define PMU_CC3_4362_XTALSEL_BIAS_RES_START_MASK	(0x07u << 12u)
+/* Changed from 6 to 4 for wlan PHN and to 2 for BT PER issues */
+#define PMU_CC3_4362_XTALSEL_BIAS_RES_NORMAL_VAL	(0x02u << 27u)
+#define PMU_CC3_4362_XTALSEL_BIAS_RES_NORMAL_MASK	(0x07u << 27u)
+
+#define PMU_CC3_4378_XTALCORESIZE_PMOS_START_VAL	(0x3F << 0)
+#define PMU_CC3_4378_XTALCORESIZE_PMOS_START_MASK	(0x3F << 0)
+#define PMU_CC3_4378_XTALCORESIZE_PMOS_NORMAL_VAL	(0x3F << 15)
+#define PMU_CC3_4378_XTALCORESIZE_PMOS_NORMAL_MASK	(0x3F << 15)
+#define PMU_CC3_4378_XTALCORESIZE_NMOS_START_VAL	(0x3F << 6)
+#define PMU_CC3_4378_XTALCORESIZE_NMOS_START_MASK	(0x3F << 6)
+#define PMU_CC3_4378_XTALCORESIZE_NMOS_NORMAL_VAL	(0x3F << 21)
+#define PMU_CC3_4378_XTALCORESIZE_NMOS_NORMAL_MASK	(0x3F << 21)
+#define PMU_CC3_4378_XTALSEL_BIAS_RES_START_VAL		(0x2 << 12)
+#define PMU_CC3_4378_XTALSEL_BIAS_RES_START_MASK	(0x7 << 12)
+#define PMU_CC3_4378_XTALSEL_BIAS_RES_NORMAL_VAL	(0x2 << 27)
+#define PMU_CC3_4378_XTALSEL_BIAS_RES_NORMAL_MASK	(0x7 << 27)
 
 #define PMU_CC3_4387_XTALCORESIZE_PMOS_START_VAL	(0x3F << 0)
 #define PMU_CC3_4387_XTALCORESIZE_PMOS_START_MASK	(0x3F << 0)
@@ -1842,6 +2219,9 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC3_4387_XTALSEL_BIAS_RES_START_MASK	(0x7 << 12)
 #define PMU_CC3_4387_XTALSEL_BIAS_RES_NORMAL_VAL	(0x5 << 27)
 #define PMU_CC3_4387_XTALSEL_BIAS_RES_NORMAL_MASK	(0x7 << 27)
+
+/* PMU chip control4 register */
+#define PMU_CHIPCTL4                    4
 
 /* 53537 series moved switch_type and gmac_if_type to CC4 [15:14] and [13:12] */
 #define PMU_CC4_IF_TYPE_MASK		0x00003000
@@ -1859,12 +2239,27 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC4_4369_MAIN_PD_CBUCK2VDDB_ON	(1u << 15u)
 #define PMU_CC4_4369_MAIN_PD_CBUCK2VDDRET_ON	(1u << 16u)
 #define PMU_CC4_4369_MAIN_PD_MEMLPLDO2VDDB_ON	(1u << 17u)
-#define PMU_CC4_4369_MAIN_PD_MEMLPLDO2VDDRET_ON	(1u << 18u)
+#define PMU_CC4_4369_MAIN_PD_MEMLPDLO2VDDRET_ON	(1u << 18u)
 
 #define PMU_CC4_4369_AUX_PD_CBUCK2VDDB_ON	(1u << 21u)
 #define PMU_CC4_4369_AUX_PD_CBUCK2VDDRET_ON	(1u << 22u)
 #define PMU_CC4_4369_AUX_PD_MEMLPLDO2VDDB_ON	(1u << 23u)
 #define PMU_CC4_4369_AUX_PD_MEMLPLDO2VDDRET_ON	(1u << 24u)
+
+#define PMU_CC4_4362_PD_CBUCK2VDDB_ON		(1u << 15u)
+#define PMU_CC4_4362_PD_CBUCK2VDDRET_ON		(1u << 16u)
+#define PMU_CC4_4362_PD_MEMLPLDO2VDDB_ON	(1u << 17u)
+#define PMU_CC4_4362_PD_MEMLPDLO2VDDRET_ON	(1u << 18u)
+
+#define PMU_CC4_4378_MAIN_PD_CBUCK2VDDB_ON	(1u << 15u)
+#define PMU_CC4_4378_MAIN_PD_CBUCK2VDDRET_ON	(1u << 16u)
+#define PMU_CC4_4378_MAIN_PD_MEMLPLDO2VDDB_ON	(1u << 17u)
+#define PMU_CC4_4378_MAIN_PD_MEMLPDLO2VDDRET_ON	(1u << 18u)
+
+#define PMU_CC4_4378_AUX_PD_CBUCK2VDDB_ON	(1u << 21u)
+#define PMU_CC4_4378_AUX_PD_CBUCK2VDDRET_ON	(1u << 22u)
+#define PMU_CC4_4378_AUX_PD_MEMLPLDO2VDDB_ON	(1u << 23u)
+#define PMU_CC4_4378_AUX_PD_MEMLPLDO2VDDRET_ON	(1u << 24u)
 
 #define PMU_CC4_4387_MAIN_PD_CBUCK2VDDB_ON	(1u << 15u)
 #define PMU_CC4_4387_MAIN_PD_CBUCK2VDDRET_ON	(1u << 16u)
@@ -1877,10 +2272,22 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC4_4387_AUX_PD_MEMLPLDO2VDDRET_ON	(1u << 24u)
 
 /* PMU chip control5 register */
+#define PMU_CHIPCTL5                    5
+
 #define PMU_CC5_4369_SUBCORE_CBUCK2VDDB_ON	(1u << 9u)
 #define PMU_CC5_4369_SUBCORE_CBUCK2VDDRET_ON	(1u << 10u)
 #define PMU_CC5_4369_SUBCORE_MEMLPLDO2VDDB_ON	(1u << 11u)
 #define PMU_CC5_4369_SUBCORE_MEMLPLDO2VDDRET_ON	(1u << 12u)
+
+#define PMU_CC5_4362_SUBCORE_CBUCK2VDDB_ON	(1u << 9u)
+#define PMU_CC5_4362_SUBCORE_CBUCK2VDDRET_ON	(1u << 10u)
+#define PMU_CC5_4362_SUBCORE_MEMLPLDO2VDDB_ON	(1u << 11u)
+#define PMU_CC5_4362_SUBCORE_MEMLPLDO2VDDRET_ON	(1u << 12u)
+
+#define PMU_CC5_4378_SUBCORE_CBUCK2VDDB_ON	(1u << 9u)
+#define PMU_CC5_4378_SUBCORE_CBUCK2VDDRET_ON	(1u << 10u)
+#define PMU_CC5_4378_SUBCORE_MEMLPLDO2VDDB_ON	(1u << 11u)
+#define PMU_CC5_4378_SUBCORE_MEMLPLDO2VDDRET_ON	(1u << 12u)
 
 #define PMU_CC5_4387_SUBCORE_CBUCK2VDDB_ON	(1u << 9u)
 #define PMU_CC5_4387_SUBCORE_CBUCK2VDDRET_ON	(1u << 10u)
@@ -1894,17 +2301,18 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC5_4389_SUBCORE_SDTCCLK1_ON	(1u << 4u)
 
 /* PMU chip control6 register */
+#define PMU_CHIPCTL6                    6
 #define PMU_CC6_RX4_CLK_SEQ_SELECT_MASK	BCM_MASK32(1u, 0u)
-#define PMU_CC6_ENABLE_DMN1_WAKEUP		(1 << 3)
-#define PMU_CC6_ENABLE_CLKREQ_WAKEUP		(1 << 4)
-#define PMU_CC6_ENABLE_PMU_WAKEUP_ALP		(1 << 6)
-#define PMU_CC6_ENABLE_PCIE_RETENTION		(1 << 12)
-#define PMU_CC6_ENABLE_CMN_SUBCORE_RETENTION	(1 << 12)
-#define PMU_CC6_ENABLE_PMU_EXT_PERST		(1 << 13)
-#define PMU_CC6_ENABLE_PMU_WAKEUP_PERST		(1 << 14)
-#define PMU_CC6_ENABLE_LEGACY_WAKEUP		(1 << 16)
+#define PMU_CC6_ENABLE_DMN1_WAKEUP      (1 << 3)
+#define PMU_CC6_ENABLE_CLKREQ_WAKEUP    (1 << 4)
+#define PMU_CC6_ENABLE_PMU_WAKEUP_ALP   (1 << 6)
+#define PMU_CC6_ENABLE_PCIE_RETENTION	(1 << 12)
+#define PMU_CC6_ENABLE_PMU_EXT_PERST	(1 << 13)
+#define PMU_CC6_ENABLE_PMU_WAKEUP_PERST	(1 << 14)
+#define PMU_CC6_ENABLE_LEGACY_WAKEUP	(1 << 16)
 
 /* PMU chip control7 register */
+#define PMU_CHIPCTL7				7
 #define PMU_CC7_ENABLE_L2REFCLKPAD_PWRDWN	(1 << 25)
 #define PMU_CC7_ENABLE_MDIO_RESET_WAR		(1 << 27)
 /* 53537 series have gmca1 gmac_if_type in cc7 [7:6](defalut 0b01) */
@@ -1913,6 +2321,10 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC7_IF_TYPE_MII		0x00000040
 #define PMU_CC7_IF_TYPE_RGMII		0x00000080
 
+#define PMU_CHIPCTL8			8
+#define PMU_CHIPCTL9			9
+
+#define PMU_CHIPCTL10			10
 #define PMU_CC10_PCIE_PWRSW_RESET0_CNT_SHIFT		0
 #define PMU_CC10_PCIE_PWRSW_RESET0_CNT_MASK		0x000000ff
 #define PMU_CC10_PCIE_PWRSW_RESET1_CNT_SHIFT		8
@@ -1934,10 +2346,15 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC10_PCIE_RESET0_CNT_SLOW_MASK	(0xFu << 4u)
 #define PMU_CC10_PCIE_RESET1_CNT_SLOW_MASK	(0xFu << 12u)
 
+#define PMU_CHIPCTL11			11
+
 /* PMU chip control12 register */
+#define PMU_CHIPCTL12			12
 #define PMU_CC12_DISABLE_LQ_CLK_ON	(1u << 31u) /* HW4387-254 */
 
 /* PMU chip control13 register */
+#define PMU_CHIPCTL13			13
+
 #define PMU_CC13_SUBCORE_CBUCK2VDDB_OFF		(1u << 0u)
 #define PMU_CC13_SUBCORE_CBUCK2VDDRET_OFF	(1u << 1u)
 #define PMU_CC13_SUBCORE_MEMLPLDO2VDDB_OFF	(1u << 2u)
@@ -1962,29 +2379,21 @@ typedef volatile struct chipcregs chipcregs_t;
 
 #define PMU_CC13_LHL_TIMER_SELECT		(1u << 23u)
 
+#define PMU_CC13_4369_LHL_TIMER_SELECT		(1u << 23u)
+#define PMU_CC13_4378_LHL_TIMER_SELECT		(1u << 23u)
+
 #define PMU_CC13_4387_ENAB_RADIO_REG_CLK	(1u << 9u)
 #define PMU_CC13_4387_LHL_TIMER_SELECT		(1u << 23u)
 
-#define PMU_CC13_4397_ENAB_RADIO_REG_CLK	(1u << 9u)
-#define PMU_CC13_4397_LHL_TIMER_SELECT		(1u << 11u)
-#define PMU_CC13_ENABLE_PCIE_RETENTION		(1 << 30)
-
-/* PMU chip control14 register */
-#define PMU_CC14_MAIN_VDDB2VDDRET_UP_DLY_MASK		(0xFu)
-#define PMU_CC14_MAIN_VDDB2VDD_UP_DLY_MASK		(0xFu << 4u)
-#define PMU_CC14_AUX_VDDB2VDDRET_UP_DLY_MASK		(0xFu << 8u)
-#define PMU_CC14_AUX_VDDB2VDD_UP_DLY_MASK		(0xFu << 12u)
-#define PMU_CC14_PCIE_VDDB2VDDRET_UP_DLY_MASK		(0xFu << 16u)
-#define PMU_CC14_PCIE_VDDB2VDD_UP_DLY_MASK		(0xFu << 20u)
-
-/* PMU chip control15 register */
-#define PMU_CC15_PCIE_VDDB_CURRENT_LIMIT_DELAY_MASK	(0xFu << 4u)
-#define PMU_CC15_PCIE_VDDB_FORCE_RPS_PWROK_DELAY_MASK	(0xFu << 8u)
-
-#define PMU_CC16_CLK4M_DIS		(1u << 4u)
-#define PMU_CC16_FF_ZERO_ADJ		(4u << 5u)
+#define PMU_CHIPCTL14			14
+#define PMU_CHIPCTL15			15
+#define PMU_CHIPCTL16			16
+#define PMU_CC16_CLK4M_DIS		(1 << 4)
+#define PMU_CC16_FF_ZERO_ADJ		(4 << 5)
 
 /* PMU chip control17 register */
+#define PMU_CHIPCTL17				17u
+
 #define PMU_CC17_SCAN_DIG_SR_CLK_SHIFT		(2u)
 #define PMU_CC17_SCAN_DIG_SR_CLK_MASK		(3u << 2u)
 #define PMU_CC17_SCAN_CBUCK2VDDB_OFF		(1u << 8u)
@@ -1998,6 +2407,9 @@ typedef volatile struct chipcregs chipcregs_t;
 #define SCAN_DIG_SR_CLK_53P35_MHZ	(1u)	/* 53.35 MHz */
 #define SCAN_DIG_SR_CLK_40_MHZ		(2u)	/* 40 MHz */
 
+/* PMU chip control18 register */
+#define PMU_CHIPCTL18				18u
+
 /* Expiry time for wl_SSReset if P channel sleep handshake is not through */
 #define PMU_CC18_WL_P_CHAN_TIMER_SEL_OFF	(1u << 1u)
 #define PMU_CC18_WL_P_CHAN_TIMER_SEL_MASK	(7u << 1u)
@@ -2008,21 +2420,27 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_CC18_WL_BOOKER_FORCEPWRDWN_EN	(1u << 4u)
 
 /* PMU chip control 19 register */
+#define PMU_CHIPCTL19			19u
+
 #define PMU_CC19_ASYNC_ATRESETMN	(1u << 9u)
 
-/* PMU chip control 23 register */
+#define PMU_CHIPCTL23			23
 #define PMU_CC23_MACPHYCLK_MASK		(1u << 31u)
 
 #define PMU_CC23_AT_CLK0_ON		(1u << 14u)
 #define PMU_CC23_AT_CLK1_ON		(1u << 15u)
 
-/* PMU chip control 30 register */
-#define PMU_CC30_PTM_OR_PREC_SELECT_SHIFT	(11u)
-#define PMU_CC30_PTM_OR_PREC_SELECT_MASK	(0x800u)
-#define PMU_CC30_BBPLL_DIVCLK_GATE_CTRL_SHIFT	(13u)
-#define PMU_CC30_BBPLL_DIVCLK_GATE_CTRL_MASK	(0x7FFFu << \
-							PMU_CC30_BBPLL_DIVCLK_GATE_CTRL_SHIFT)
-#define PMU_CC30_CLK_GATE_CTRL_BIT_UNKNOWN	(0xFFu)
+/* PMU chip control14 register */
+#define PMU_CC14_MAIN_VDDB2VDDRET_UP_DLY_MASK		(0xF)
+#define PMU_CC14_MAIN_VDDB2VDD_UP_DLY_MASK		(0xF << 4)
+#define PMU_CC14_AUX_VDDB2VDDRET_UP_DLY_MASK		(0xF << 8)
+#define PMU_CC14_AUX_VDDB2VDD_UP_DLY_MASK		(0xF << 12)
+#define PMU_CC14_PCIE_VDDB2VDDRET_UP_DLY_MASK		(0xF << 16)
+#define PMU_CC14_PCIE_VDDB2VDD_UP_DLY_MASK		(0xF << 20)
+
+/* PMU chip control15 register */
+#define PMU_CC15_PCIE_VDDB_CURRENT_LIMIT_DELAY_MASK	(0xFu << 4u)
+#define PMU_CC15_PCIE_VDDB_FORCE_RPS_PWROK_DELAY_MASK	(0xFu << 8u)
 
 /* PMU corerev and chip specific PLL controls.
  * PMU<rev>_PLL<num>_XX where <rev> is PMU corerev and <num> is an arbitrary number
@@ -2136,6 +2554,64 @@ typedef volatile struct chipcregs chipcregs_t;
 
 #define PMU1_PLL0_PLLCTL10		10
 
+/* PMU rev 2 control words */
+#define PMU2_PHY_PLL_PLLCTL		4
+#define PMU2_SI_PLL_PLLCTL		10
+
+/* PMU rev 2 */
+/* pllcontrol registers */
+/* ndiv_pwrdn, pwrdn_ch<x>, refcomp_pwrdn, dly_ch<x>, p1div, p2div, _bypass_sdmod */
+#define PMU2_PLL_PLLCTL0		0
+#define PMU2_PLL_PC0_P1DIV_MASK		0x00f00000
+#define PMU2_PLL_PC0_P1DIV_SHIFT	20
+#define PMU2_PLL_PC0_P2DIV_MASK		0x0f000000
+#define PMU2_PLL_PC0_P2DIV_SHIFT	24
+
+/* m<x>div */
+#define PMU2_PLL_PLLCTL1		1
+#define PMU2_PLL_PC1_M1DIV_MASK		0x000000ff
+#define PMU2_PLL_PC1_M1DIV_SHIFT	0
+#define PMU2_PLL_PC1_M2DIV_MASK		0x0000ff00
+#define PMU2_PLL_PC1_M2DIV_SHIFT	8
+#define PMU2_PLL_PC1_M3DIV_MASK		0x00ff0000
+#define PMU2_PLL_PC1_M3DIV_SHIFT	16
+#define PMU2_PLL_PC1_M4DIV_MASK		0xff000000
+#define PMU2_PLL_PC1_M4DIV_SHIFT	24
+
+/* m<x>div, ndiv_dither_mfb, ndiv_mode, ndiv_int */
+#define PMU2_PLL_PLLCTL2		2
+#define PMU2_PLL_PC2_M5DIV_MASK		0x000000ff
+#define PMU2_PLL_PC2_M5DIV_SHIFT	0
+#define PMU2_PLL_PC2_M6DIV_MASK		0x0000ff00
+#define PMU2_PLL_PC2_M6DIV_SHIFT	8
+#define PMU2_PLL_PC2_NDIV_MODE_MASK	0x000e0000
+#define PMU2_PLL_PC2_NDIV_MODE_SHIFT	17
+#define PMU2_PLL_PC2_NDIV_INT_MASK	0x1ff00000
+#define PMU2_PLL_PC2_NDIV_INT_SHIFT	20
+
+/* ndiv_frac */
+#define PMU2_PLL_PLLCTL3		3
+#define PMU2_PLL_PC3_NDIV_FRAC_MASK	0x00ffffff
+#define PMU2_PLL_PC3_NDIV_FRAC_SHIFT	0
+
+/* pll_ctrl */
+#define PMU2_PLL_PLLCTL4		4
+
+/* pll_ctrl, vco_rng, clkdrive_ch<x> */
+#define PMU2_PLL_PLLCTL5		5
+#define PMU2_PLL_PC5_CLKDRIVE_CH1_MASK	0x00000f00
+#define PMU2_PLL_PC5_CLKDRIVE_CH1_SHIFT	8
+#define PMU2_PLL_PC5_CLKDRIVE_CH2_MASK	0x0000f000
+#define PMU2_PLL_PC5_CLKDRIVE_CH2_SHIFT	12
+#define PMU2_PLL_PC5_CLKDRIVE_CH3_MASK	0x000f0000
+#define PMU2_PLL_PC5_CLKDRIVE_CH3_SHIFT	16
+#define PMU2_PLL_PC5_CLKDRIVE_CH4_MASK	0x00f00000
+#define PMU2_PLL_PC5_CLKDRIVE_CH4_SHIFT	20
+#define PMU2_PLL_PC5_CLKDRIVE_CH5_MASK	0x0f000000
+#define PMU2_PLL_PC5_CLKDRIVE_CH5_SHIFT	24
+#define PMU2_PLL_PC5_CLKDRIVE_CH6_MASK	0xf0000000
+#define PMU2_PLL_PC5_CLKDRIVE_CH6_SHIFT	28
+
 /* PMU rev 5 (& 6) */
 #define	PMU5_PLL_P1P2_OFF		0
 #define	PMU5_PLL_P1_MASK		0x0f000000
@@ -2170,6 +2646,145 @@ typedef volatile struct chipcregs chipcregs_t;
 #define	PMU5_MAINPLL_MEM		2
 #define	PMU5_MAINPLL_SI			3
 
+#define PMU7_PLL_PLLCTL7                7
+#define PMU7_PLL_CTL7_M4DIV_MASK	0xff000000
+#define PMU7_PLL_CTL7_M4DIV_SHIFT	24
+#define PMU7_PLL_CTL7_M4DIV_BY_6	6
+#define PMU7_PLL_CTL7_M4DIV_BY_12	0xc
+#define PMU7_PLL_CTL7_M4DIV_BY_24	0x18
+#define PMU7_PLL_PLLCTL8                8
+#define PMU7_PLL_CTL8_M5DIV_MASK	0x000000ff
+#define PMU7_PLL_CTL8_M5DIV_SHIFT	0
+#define PMU7_PLL_CTL8_M5DIV_BY_8	8
+#define PMU7_PLL_CTL8_M5DIV_BY_12	0xc
+#define PMU7_PLL_CTL8_M5DIV_BY_24	0x18
+#define PMU7_PLL_CTL8_M6DIV_MASK	0x0000ff00
+#define PMU7_PLL_CTL8_M6DIV_SHIFT	8
+#define PMU7_PLL_CTL8_M6DIV_BY_12	0xc
+#define PMU7_PLL_CTL8_M6DIV_BY_24	0x18
+#define PMU7_PLL_PLLCTL11		11
+#define PMU7_PLL_PLLCTL11_MASK		0xffffff00
+#define PMU7_PLL_PLLCTL11_VAL		0x22222200
+
+/* PMU rev 15 */
+#define PMU15_PLL_PLLCTL0		0
+#define PMU15_PLL_PC0_CLKSEL_MASK	0x00000003
+#define PMU15_PLL_PC0_CLKSEL_SHIFT	0
+#define PMU15_PLL_PC0_FREQTGT_MASK	0x003FFFFC
+#define PMU15_PLL_PC0_FREQTGT_SHIFT	2
+#define PMU15_PLL_PC0_PRESCALE_MASK	0x00C00000
+#define PMU15_PLL_PC0_PRESCALE_SHIFT	22
+#define PMU15_PLL_PC0_KPCTRL_MASK	0x07000000
+#define PMU15_PLL_PC0_KPCTRL_SHIFT	24
+#define PMU15_PLL_PC0_FCNTCTRL_MASK	0x38000000
+#define PMU15_PLL_PC0_FCNTCTRL_SHIFT	27
+#define PMU15_PLL_PC0_FDCMODE_MASK	0x40000000
+#define PMU15_PLL_PC0_FDCMODE_SHIFT	30
+#define PMU15_PLL_PC0_CTRLBIAS_MASK	0x80000000
+#define PMU15_PLL_PC0_CTRLBIAS_SHIFT	31
+
+#define PMU15_PLL_PLLCTL1			1
+#define PMU15_PLL_PC1_BIAS_CTLM_MASK		0x00000060
+#define PMU15_PLL_PC1_BIAS_CTLM_SHIFT		5
+#define PMU15_PLL_PC1_BIAS_CTLM_RST_MASK	0x00000040
+#define PMU15_PLL_PC1_BIAS_CTLM_RST_SHIFT	6
+#define PMU15_PLL_PC1_BIAS_SS_DIVR_MASK		0x0001FF80
+#define PMU15_PLL_PC1_BIAS_SS_DIVR_SHIFT	7
+#define PMU15_PLL_PC1_BIAS_SS_RSTVAL_MASK	0x03FE0000
+#define PMU15_PLL_PC1_BIAS_SS_RSTVAL_SHIFT	17
+#define PMU15_PLL_PC1_BIAS_INTG_BW_MASK		0x0C000000
+#define PMU15_PLL_PC1_BIAS_INTG_BW_SHIFT	26
+#define PMU15_PLL_PC1_BIAS_INTG_BYP_MASK	0x10000000
+#define PMU15_PLL_PC1_BIAS_INTG_BYP_SHIFT	28
+#define PMU15_PLL_PC1_OPENLP_EN_MASK		0x40000000
+#define PMU15_PLL_PC1_OPENLP_EN_SHIFT		30
+
+#define PMU15_PLL_PLLCTL2			2
+#define PMU15_PLL_PC2_CTEN_MASK			0x00000001
+#define PMU15_PLL_PC2_CTEN_SHIFT		0
+
+#define PMU15_PLL_PLLCTL3			3
+#define PMU15_PLL_PC3_DITHER_EN_MASK		0x00000001
+#define PMU15_PLL_PC3_DITHER_EN_SHIFT		0
+#define PMU15_PLL_PC3_DCOCTLSP_MASK		0xFE000000
+#define PMU15_PLL_PC3_DCOCTLSP_SHIFT		25
+#define PMU15_PLL_PC3_DCOCTLSP_DIV2EN_MASK	0x01
+#define PMU15_PLL_PC3_DCOCTLSP_DIV2EN_SHIFT	0
+#define PMU15_PLL_PC3_DCOCTLSP_CH0EN_MASK	0x02
+#define PMU15_PLL_PC3_DCOCTLSP_CH0EN_SHIFT	1
+#define PMU15_PLL_PC3_DCOCTLSP_CH1EN_MASK	0x04
+#define PMU15_PLL_PC3_DCOCTLSP_CH1EN_SHIFT	2
+#define PMU15_PLL_PC3_DCOCTLSP_CH0SEL_MASK	0x18
+#define PMU15_PLL_PC3_DCOCTLSP_CH0SEL_SHIFT	3
+#define PMU15_PLL_PC3_DCOCTLSP_CH1SEL_MASK	0x60
+#define PMU15_PLL_PC3_DCOCTLSP_CH1SEL_SHIFT	5
+#define PMU15_PLL_PC3_DCOCTLSP_CHSEL_OUTP_DIV1	0
+#define PMU15_PLL_PC3_DCOCTLSP_CHSEL_OUTP_DIV2	1
+#define PMU15_PLL_PC3_DCOCTLSP_CHSEL_OUTP_DIV3	2
+#define PMU15_PLL_PC3_DCOCTLSP_CHSEL_OUTP_DIV5	3
+
+#define PMU15_PLL_PLLCTL4			4
+#define PMU15_PLL_PC4_FLLCLK1_DIV_MASK		0x00000007
+#define PMU15_PLL_PC4_FLLCLK1_DIV_SHIFT		0
+#define PMU15_PLL_PC4_FLLCLK2_DIV_MASK		0x00000038
+#define PMU15_PLL_PC4_FLLCLK2_DIV_SHIFT		3
+#define PMU15_PLL_PC4_FLLCLK3_DIV_MASK		0x000001C0
+#define PMU15_PLL_PC4_FLLCLK3_DIV_SHIFT		6
+#define PMU15_PLL_PC4_DBGMODE_MASK		0x00000E00
+#define PMU15_PLL_PC4_DBGMODE_SHIFT		9
+#define PMU15_PLL_PC4_FLL480_CTLSP_LK_MASK	0x00001000
+#define PMU15_PLL_PC4_FLL480_CTLSP_LK_SHIFT	12
+#define PMU15_PLL_PC4_FLL480_CTLSP_MASK		0x000FE000
+#define PMU15_PLL_PC4_FLL480_CTLSP_SHIFT	13
+#define PMU15_PLL_PC4_DINPOL_MASK		0x00100000
+#define PMU15_PLL_PC4_DINPOL_SHIFT		20
+#define PMU15_PLL_PC4_CLKOUT_PD_MASK		0x00200000
+#define PMU15_PLL_PC4_CLKOUT_PD_SHIFT		21
+#define PMU15_PLL_PC4_CLKDIV2_PD_MASK		0x00400000
+#define PMU15_PLL_PC4_CLKDIV2_PD_SHIFT		22
+#define PMU15_PLL_PC4_CLKDIV4_PD_MASK		0x00800000
+#define PMU15_PLL_PC4_CLKDIV4_PD_SHIFT		23
+#define PMU15_PLL_PC4_CLKDIV8_PD_MASK		0x01000000
+#define PMU15_PLL_PC4_CLKDIV8_PD_SHIFT		24
+#define PMU15_PLL_PC4_CLKDIV16_PD_MASK		0x02000000
+#define PMU15_PLL_PC4_CLKDIV16_PD_SHIFT		25
+#define PMU15_PLL_PC4_TEST_EN_MASK		0x04000000
+#define PMU15_PLL_PC4_TEST_EN_SHIFT		26
+
+#define PMU15_PLL_PLLCTL5			5
+#define PMU15_PLL_PC5_FREQTGT_MASK		0x000FFFFF
+#define PMU15_PLL_PC5_FREQTGT_SHIFT		0
+#define PMU15_PLL_PC5_DCOCTLSP_MASK		0x07F00000
+#define PMU15_PLL_PC5_DCOCTLSP_SHIFT		20
+#define PMU15_PLL_PC5_PRESCALE_MASK		0x18000000
+#define PMU15_PLL_PC5_PRESCALE_SHIFT		27
+
+#define PMU15_PLL_PLLCTL6		6
+#define PMU15_PLL_PC6_FREQTGT_MASK	0x000FFFFF
+#define PMU15_PLL_PC6_FREQTGT_SHIFT	0
+#define PMU15_PLL_PC6_DCOCTLSP_MASK	0x07F00000
+#define PMU15_PLL_PC6_DCOCTLSP_SHIFT	20
+#define PMU15_PLL_PC6_PRESCALE_MASK	0x18000000
+#define PMU15_PLL_PC6_PRESCALE_SHIFT	27
+
+#define PMU15_FREQTGT_480_DEFAULT	0x19AB1
+#define PMU15_FREQTGT_492_DEFAULT	0x1A4F5
+#define PMU15_ARM_96MHZ			96000000	/**< 96 Mhz */
+#define PMU15_ARM_98MHZ			98400000	/**< 98.4 Mhz */
+#define PMU15_ARM_97MHZ			97000000	/**< 97 Mhz */
+
+#define PMU17_PLLCTL2_NDIVTYPE_MASK		0x00000070
+#define PMU17_PLLCTL2_NDIVTYPE_SHIFT		4
+
+#define PMU17_PLLCTL2_NDIV_MODE_INT		0
+#define PMU17_PLLCTL2_NDIV_MODE_INT1B8		1
+#define PMU17_PLLCTL2_NDIV_MODE_MASH111		2
+#define PMU17_PLLCTL2_NDIV_MODE_MASH111B8	3
+
+#define PMU17_PLLCTL0_BBPLL_PWRDWN		0
+#define PMU17_PLLCTL0_BBPLL_DRST		3
+#define PMU17_PLLCTL0_BBPLL_DISBL_CLK		8
+
 /* PLL usage in 4716/47162 */
 #define	PMU4716_MAINPLL_PLL0		12
 
@@ -2185,6 +2800,38 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU4368_PLL1_PC5_NDIV_INT_SHIFT		2
 #define PMU4368_PLL1_PC5_NDIV_FRAC_MASK		0xfffff000
 #define PMU4368_PLL1_PC5_NDIV_FRAC_SHIFT	12
+
+/* PLL usage in 4369 */
+#define PMU4369_PLL0_PC2_PDIV_MASK		0x000f0000
+#define PMU4369_PLL0_PC2_PDIV_SHIFT		16
+#define PMU4369_PLL0_PC2_NDIV_INT_MASK		0x3ff00000
+#define PMU4369_PLL0_PC2_NDIV_INT_SHIFT		20
+#define PMU4369_PLL0_PC3_NDIV_FRAC_MASK		0x000fffff
+#define PMU4369_PLL0_PC3_NDIV_FRAC_SHIFT	0
+#define PMU4369_PLL1_PC5_P1DIV_MASK		0xc0000000
+#define PMU4369_PLL1_PC5_P1DIV_SHIFT		30
+#define PMU4369_PLL1_PC6_P1DIV_MASK		0x00000003
+#define PMU4369_PLL1_PC6_P1DIV_SHIFT		0
+#define PMU4369_PLL1_PC6_NDIV_INT_MASK		0x00000ffc
+#define PMU4369_PLL1_PC6_NDIV_INT_SHIFT		2
+#define PMU4369_PLL1_PC6_NDIV_FRAC_MASK		0xfffff000
+#define PMU4369_PLL1_PC6_NDIV_FRAC_SHIFT	12
+
+#define PMU4369_P1DIV_LO_SHIFT		0
+#define PMU4369_P1DIV_HI_SHIFT		2
+
+#define PMU4369_PLL6VAL_P1DIV			4
+#define PMU4369_PLL6VAL_P1DIV_BIT3_2		1
+#define PMU4369_PLL6VAL_PRE_SCALE		(1 << 17)
+#define PMU4369_PLL6VAL_POST_SCALE		(1 << 3)
+
+/* PLL usage in 4378
+* Temporay setting, update is needed.
+*/
+#define PMU4378_PLL0_PC2_P1DIV_MASK		0x000f0000
+#define PMU4378_PLL0_PC2_P1DIV_SHIFT		16
+#define PMU4378_PLL0_PC2_NDIV_INT_MASK		0x3ff00000
+#define PMU4378_PLL0_PC2_NDIV_INT_SHIFT		20
 
 /* PLL usage in 4387 */
 #define PMU4387_PLL0_PC1_ICH2_MDIV_SHIFT	18
@@ -2205,13 +2852,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU4389_ARMPLL_I_NDIV_INT_MASK		0x01ff8000u
 #define PMU4389_ARMPLL_I_NDIV_INT_SHIFT		15u
 
-#ifndef PMU_ARMPLL_PDIV
-#define PMU_ARMPLL_PDIV				0xFFFFFFFFu
-#endif /* PMU_ARMPLL_PDIV */
-
-#define PMU_ARMPLL_NDIV_P_MASK			0xFFC00000u
-#define PMU_ARMPLL_NDIV_Q_MASK			0x003FF000u
-
 /* 5357 Chip specific ChipControl register bits */
 #define CCTRL5357_EXTPA                 (1<<14) /* extPA in ChipControl 1, bit 14 */
 #define CCTRL5357_ANT_MUX_2o3		(1<<15) /* 2o3 in ChipControl 1, bit 15 */
@@ -2230,7 +2870,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_VREG0_I_SR_CNTL_EN_SHIFT		0
 #define PMU_VREG0_DISABLE_PULLD_BT_SHIFT	2
 #define PMU_VREG0_DISABLE_PULLD_WL_SHIFT	3
-#define PMU_VREG0_CBUCKFSW_ADJ_SHIFT		8
+#define PMU_VREG0_CBUCKFSW_ADJ_SHIFT		7
 #define PMU_VREG0_CBUCKFSW_ADJ_MASK			0x1F
 #define PMU_VREG0_RAMP_SEL_SHIFT			13
 #define PMU_VREG0_RAMP_SEL_MASK				0x7
@@ -2277,6 +2917,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define	CST43228_OTP_PRESENT		0x2
 
 /* 4360 Chip specific ChipControl register bits */
+/* 43602 uses these ChipControl definitions as well */
 #define CCTRL4360_I2C_MODE			(1 << 0)
 #define CCTRL4360_UART_MODE			(1 << 1)
 #define CCTRL4360_SECI_MODE			(1 << 2)
@@ -2292,6 +2933,42 @@ typedef volatile struct chipcregs chipcregs_t;
 
 /* 4360 Chip specific Regulator Control register bits */
 #define RCTRL4360_RFLDO_PWR_DOWN		(1 << 1)
+
+/*
+* 4383 PMU Resources
+*/
+#define RES4383_DUMMY			0
+#define RES4383_FAST_LPO_AVAIL		1
+#define RES4383_PMU_LP			2
+#define RES4383_MISC_LDO		3
+#define RES4383_SERDES_AFE_RET		4
+#define RES4383_XTAL_HQ			5
+#define RES4383_XTAL_PU			6
+#define RES4383_XTAL_STABLE		7
+#define RES4383_PWRSW_DIG		8
+#define RES4383_CORE_RDY_BTMAIN		9
+#define RES4383_CORE_RDY_BTSC		10
+#define RES4383_PWRSW_AUX		11
+#define RES4383_PWRSW_SCAN		12
+#define RES4383_CORE_RDY_SCAN		13
+#define RES4383_PWRSW_MAIN		14
+#define RES4383_USBLDO_PU		15
+#define RES4383_USBPHY_RDY		16
+#define RES4383_CORE_RDY_DIG		17
+#define RES4383_CORE_RDY_AUX		18
+#define RES4383_ALP_AVAIL		19
+#define RES4383_RADIO_PU_AUX		20
+#define RES4383_RADIO_PU_SCAN		21
+#define RES4383_CORE_RDY_MAIN		22
+#define RES4383_RADIO_PU_MAIN		23
+#define RES4383_MACPHY_CLK_SCAN		24
+#define RES4383_CORE_RDY_CB		25
+#define RES4383_PWRSW_CB		26
+#define RES4383_ARMCLK_AVAIL		27
+#define RES4383_HT_AVAIL		28
+#define RES4383_MACPHY_CLK_AUX		29
+#define RES4383_MACPHY_CLK_MAIN		30
+#define RES4383_RESERVED_31		31
 
 /* 4360 PMU resources and chip status bits */
 #define RES4360_REGULATOR          0
@@ -2331,6 +3008,62 @@ typedef volatile struct chipcregs chipcregs_t;
 
 #define PMU4360_CC1_GPIO7_OVRD          (1<<23) /* GPIO7 override */
 
+/* 43602 PMU resources based on pmu_params.xls version v0.95 */
+#define RES43602_LPLDO_PU		0
+#define RES43602_REGULATOR		1
+#define RES43602_PMU_SLEEP		2
+#define RES43602_RSVD_3			3
+#define RES43602_XTALLDO_PU		4
+#define RES43602_SERDES_PU		5
+#define RES43602_BBPLL_PWRSW_PU		6
+#define RES43602_SR_CLK_START		7
+#define RES43602_SR_PHY_PWRSW		8
+#define RES43602_SR_SUBCORE_PWRSW	9
+#define RES43602_XTAL_PU		10
+#define	RES43602_PERST_OVR		11
+#define RES43602_SR_CLK_STABLE		12
+#define RES43602_SR_SAVE_RESTORE	13
+#define RES43602_SR_SLEEP		14
+#define RES43602_LQ_START		15
+#define RES43602_LQ_AVAIL		16
+#define RES43602_WL_CORE_RDY		17
+#define RES43602_ILP_REQ		18
+#define RES43602_ALP_AVAIL		19
+#define RES43602_RADIO_PU		20
+#define RES43602_RFLDO_PU		21
+#define RES43602_HT_START		22
+#define RES43602_HT_AVAIL		23
+#define RES43602_MACPHY_CLKAVAIL	24
+#define RES43602_PARLDO_PU		25
+#define RES43602_RSVD_26		26
+
+/* 43602 chip status bits */
+#define CST43602_SPROM_PRESENT             (1<<1)
+#define CST43602_SPROM_SIZE                (1<<10) /* 0 = 16K, 1 = 4K */
+#define CST43602_BBPLL_LOCK                (1<<11)
+#define CST43602_RF_LDO_OUT_OK             (1<<15) /* RF LDO output OK */
+
+#define PMU43602_CC1_GPIO12_OVRD           (1<<28) /* GPIO12 override */
+
+#define PMU43602_CC2_PCIE_CLKREQ_L_WAKE_EN (1<<1)  /* creates gated_pcie_wake, pmu_wakeup logic */
+#define PMU43602_CC2_PCIE_PERST_L_WAKE_EN  (1<<2)  /* creates gated_pcie_wake, pmu_wakeup logic */
+#define PMU43602_CC2_ENABLE_L2REFCLKPAD_PWRDWN (1<<3)
+#define PMU43602_CC2_PMU_WAKE_ALP_AVAIL_EN (1<<5)  /* enable pmu_wakeup to request for ALP_AVAIL */
+#define PMU43602_CC2_PERST_L_EXTEND_EN     (1<<9)  /* extend perst_l until rsc PERST_OVR comes up */
+#define PMU43602_CC2_FORCE_EXT_LPO         (1<<19) /* 1=ext LPO clock is the final LPO clock */
+#define PMU43602_CC2_XTAL32_SEL            (1<<30) /* 0=ext_clock, 1=xtal */
+
+#define CC_SR1_43602_SR_ASM_ADDR	(0x0)
+
+/* PLL CTL register values for open loop, used during S/R operation */
+#define PMU43602_PLL_CTL6_VAL		0x68000528
+#define PMU43602_PLL_CTL7_VAL		0x6
+
+#define PMU43602_CC3_ARMCR4_DBG_CLK	(1 << 29)
+
+#define CC_SR0_43602_SR_ENG_EN_MASK		0x1
+#define CC_SR0_43602_SR_ENG_EN_SHIFT             0
+
 /* GCI function sel values */
 #define CC_FNSEL_HWDEF		(0u)
 #define CC_FNSEL_SAMEASPIN	(1u)
@@ -2349,36 +3082,13 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_FNSEL_PUP		(14u)
 #define CC_FNSEL_TRI		(15u)
 
-#define CC_FNSEL_LAST	CC_FNSEL_TRI
-
 /* 4387 GCI function sel values */
 #define CC4387_FNSEL_FUART		(3u)
 #define CC4387_FNSEL_DBG_UART		(6u)
 #define CC4387_FNSEL_SPI		(7u)
-
-/* FNSEL_8  corresponds to SFLASH for 4387/4388 */
-#define CC_FNSEL_8		(8u)
+#define CC4387_FNSEL_SFLASH		(8u)
 
 /* Indices of PMU voltage regulator registers */
-#if defined(VLSI_CTRL_REGS) && defined(SKIP_LEGACY_CC_API)
-#define PMU_VREG_0	SI_CTRLREGS_INVALID
-#define PMU_VREG_1	SI_CTRLREGS_INVALID
-#define PMU_VREG_2	SI_CTRLREGS_INVALID
-#define PMU_VREG_3	SI_CTRLREGS_INVALID
-#define PMU_VREG_4	SI_CTRLREGS_INVALID
-#define PMU_VREG_5	SI_CTRLREGS_INVALID
-#define PMU_VREG_6	SI_CTRLREGS_INVALID
-#define PMU_VREG_7	SI_CTRLREGS_INVALID
-#define PMU_VREG_8	SI_CTRLREGS_INVALID
-#define PMU_VREG_9	SI_CTRLREGS_INVALID
-#define PMU_VREG_10	SI_CTRLREGS_INVALID
-#define PMU_VREG_11	SI_CTRLREGS_INVALID
-#define PMU_VREG_12	SI_CTRLREGS_INVALID
-#define PMU_VREG_13	SI_CTRLREGS_INVALID
-#define PMU_VREG_14	SI_CTRLREGS_INVALID
-#define PMU_VREG_15	SI_CTRLREGS_INVALID
-#define PMU_VREG_16	SI_CTRLREGS_INVALID
-#else /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
 #define PMU_VREG_0	(0u)
 #define PMU_VREG_1	(1u)
 #define PMU_VREG_2	(2u)
@@ -2396,7 +3106,20 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_VREG_14	(14u)
 #define PMU_VREG_15	(15u)
 #define PMU_VREG_16	(16u)
-#endif /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
+
+/* 43012 Chipcommon ChipStatus bits */
+#define CST43012_FLL_LOCK	(1 << 13)
+/* 43012 resources - End */
+
+/* 43012 related Cbuck modes */
+#define PMU_43012_VREG8_DYNAMIC_CBUCK_MODE0 0x00001c03
+#define PMU_43012_VREG9_DYNAMIC_CBUCK_MODE0 0x00492490
+#define PMU_43012_VREG8_DYNAMIC_CBUCK_MODE1 0x00001c03
+#define PMU_43012_VREG9_DYNAMIC_CBUCK_MODE1 0x00490410
+
+/* 43012 related dynamic cbuck mode mask */
+#define PMU_43012_VREG8_DYNAMIC_CBUCK_MODE_MASK  0xFFFFFC07
+#define PMU_43012_VREG9_DYNAMIC_CBUCK_MODE_MASK  0xFFFFFFFF
 
 /* 4369 related VREG masks */
 #define PMU_4369_VREG_5_MISCLDO_POWER_UP_MASK		(1u << 11u)
@@ -2417,9 +3140,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_4369_VREG_7_WL_PMU_LP_MODE_SHIFT		28u
 #define PMU_4369_VREG_7_WL_PMU_LV_MODE_MASK		(1u << 29u)
 #define PMU_4369_VREG_7_WL_PMU_LV_MODE_SHIFT		29u
-
-#define PMU_4388_VREG_7_ASR_PFM_FDWD_ZERO_ADJ_MASK	(0xfu << 27u)
-#define PMU_4388_VREG_7_ASR_PFM_FDWD_ZERO_ADJ_SHIFT	27u
 
 #define PMU_4369_VREG8_ASR_OVADJ_LPPFM_MASK		BCM_MASK32(4, 0)
 #define PMU_4369_VREG8_ASR_OVADJ_LPPFM_SHIFT		0u
@@ -2443,10 +3163,59 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_4369_VREG16_RSRC2_ABUCK_MODE_MASK		BCM_MASK32(23, 21)
 #define PMU_4369_VREG16_RSRC2_ABUCK_MODE_SHIFT		21u
 
+/* 4362 related VREG masks */
+#define PMU_4362_VREG_5_MISCLDO_POWER_UP_MASK		(1u << 11u)
+#define PMU_4362_VREG_5_MISCLDO_POWER_UP_SHIFT		(11u)
+#define PMU_4362_VREG_5_LPLDO_POWER_UP_MASK		(1u << 27u)
+#define PMU_4362_VREG_5_LPLDO_POWER_UP_SHIFT		(27u)
+#define PMU_4362_VREG_5_MEMLPLDO_OP_VLT_ADJ_CTRL_MASK	BCM_MASK32(31, 28)
+#define PMU_4362_VREG_5_MEMLPLDO_OP_VLT_ADJ_CTRL_SHIFT	(28u)
+#define PMU_4362_VREG_6_MEMLPLDO_POWER_UP_MASK		(1u << 3u)
+#define PMU_4362_VREG_6_MEMLPLDO_POWER_UP_SHIFT		(3u)
+
+#define PMU_4362_VREG_7_PMU_FORCE_HP_MODE_MASK		(1u << 27u)
+#define PMU_4362_VREG_7_PMU_FORCE_HP_MODE_SHIFT		(27u)
+#define PMU_4362_VREG_7_WL_PMU_LP_MODE_MASK		(1u << 28u)
+#define PMU_4362_VREG_7_WL_PMU_LP_MODE_SHIFT		(28u)
+#define PMU_4362_VREG_7_WL_PMU_LV_MODE_MASK		(1u << 29u)
+#define PMU_4362_VREG_7_WL_PMU_LV_MODE_SHIFT		(29u)
+
+#define PMU_4362_VREG8_ASR_OVADJ_LPPFM_MASK		BCM_MASK32(4, 0)
+#define PMU_4362_VREG8_ASR_OVADJ_LPPFM_SHIFT		(0u)
+
+#define PMU_4362_VREG8_ASR_OVADJ_PFM_MASK		BCM_MASK32(9, 5)
+#define PMU_4362_VREG8_ASR_OVADJ_PFM_SHIFT		(5u)
+
+#define PMU_4362_VREG8_ASR_OVADJ_PWM_MASK		BCM_MASK32(14, 10)
+#define PMU_4362_VREG8_ASR_OVADJ_PWM_SHIFT		(10u)
+
+#define PMU_4362_VREG13_RSRC_EN0_ASR_MASK		BCM_MASK32(9, 9)
+#define PMU_4362_VREG13_RSRC_EN0_ASR_SHIFT		9u
+#define PMU_4362_VREG13_RSRC_EN1_ASR_MASK		BCM_MASK32(10, 10)
+#define PMU_4362_VREG13_RSRC_EN1_ASR_SHIFT		10u
+#define PMU_4362_VREG13_RSRC_EN2_ASR_MASK		BCM_MASK32(11, 11)
+#define PMU_4362_VREG13_RSRC_EN2_ASR_SHIFT		11u
+
+#define PMU_4362_VREG14_RSRC_EN_CSR_MASK0_MASK		(1u << 23u)
+#define PMU_4362_VREG14_RSRC_EN_CSR_MASK0_SHIFT		(23u)
+
+#define PMU_4362_VREG16_RSRC0_CBUCK_MODE_MASK		BCM_MASK32(2, 0)
+#define PMU_4362_VREG16_RSRC0_CBUCK_MODE_SHIFT		(0u)
+#define PMU_4362_VREG16_RSRC0_ABUCK_MODE_MASK		BCM_MASK32(17, 15)
+#define PMU_4362_VREG16_RSRC0_ABUCK_MODE_SHIFT		(15u)
+#define PMU_4362_VREG16_RSRC1_ABUCK_MODE_MASK		BCM_MASK32(20, 18)
+#define PMU_4362_VREG16_RSRC1_ABUCK_MODE_SHIFT		(18u)
+#define PMU_4362_VREG16_RSRC2_ABUCK_MODE_MASK		BCM_MASK32(23, 21)
+#define PMU_4362_VREG16_RSRC2_ABUCK_MODE_SHIFT		21u
+
 #define VREG0_4378_CSR_VOLT_ADJ_PWM_MASK		0x00001F00u
 #define VREG0_4378_CSR_VOLT_ADJ_PWM_SHIFT		8u
-
-// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
+#define VREG0_4378_CSR_VOLT_ADJ_PFM_MASK		0x0003E000u
+#define VREG0_4378_CSR_VOLT_ADJ_PFM_SHIFT		13u
+#define VREG0_4378_CSR_VOLT_ADJ_LP_PFM_MASK		0x007C0000u
+#define VREG0_4378_CSR_VOLT_ADJ_LP_PFM_SHIFT		18u
+#define VREG0_4378_CSR_OUT_VOLT_TRIM_ADJ_MASK		0x07800000u
+#define VREG0_4378_CSR_OUT_VOLT_TRIM_ADJ_SHIFT		23u
 
 #define PMU_4387_VREG1_CSR_OVERI_DIS_MASK		(1u << 22u)
 #define PMU_4387_VREG6_WL_PMU_LV_MODE_MASK		(0x00000002u)
@@ -2463,38 +3232,38 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PMU_4389_VREG6_MEMLDO_PU_SHIFT			(3u)
 #define PMU_4389_VREG6_MEMLDO_PU_MASK			(1u << PMU_4389_VREG6_MEMLDO_PU_SHIFT)
 
-#define PMU_4389_VREG1_CSR_OVERI_DIS_MASK		(1u << 22u)
-#define PMU_4389_VREG8_ASR_OVERI_DIS_MASK		(1u << 13u)
-
-#define PMU_4397_VREG7_ASR_OVADJ_PWM_SHIFT		(20u)
-#define PMU_4397_VREG7_ASR_OVADJ_PWM_MASK		(31u << PMU_4397_VREG7_ASR_OVADJ_PWM_SHIFT)
-#define PMU_4397_VREG6_MEMLDO_PU_SHIFT			(3u)
-#define PMU_4397_VREG6_MEMLDO_PU_MASK			(1u << PMU_4397_VREG6_MEMLDO_PU_SHIFT)
-
 #define PMU_VREG13_ASR_OVADJ_PWM_MASK			(0x001F0000u)
 #define PMU_VREG13_ASR_OVADJ_PWM_SHIFT			(16u)
 
 #define PMU_VREG14_RSRC_EN_ASR_PWM_PFM_MASK		(1u << 18u)
 #define PMU_VREG14_RSRC_EN_ASR_PWM_PFM_SHIFT		(18u)
 
+#define CSR_VOLT_ADJ_PWM_4378				(0x17u)
+#define CSR_VOLT_ADJ_PFM_4378				(0x17u)
+#define CSR_VOLT_ADJ_LP_PFM_4378			(0x17u)
+#define CSR_OUT_VOLT_TRIM_ADJ_4378			(0xEu)
+
+#ifdef WL_INITVALS
+#define ABUCK_VOLT_SW_DEFAULT_4387			(wliv_pmu_abuck_volt) /* 1.00V */
+#define CBUCK_VOLT_SW_DEFAULT_4387			(wliv_pmu_cbuck_volt) /* 0.68V */
+#define CBUCK_VOLT_NON_LVM				(wliv_pmu_cbuck_volt_non_lvm) /* 0.76V */
+#else
 #define ABUCK_VOLT_SW_DEFAULT_4387			(0x1Fu) /* 1.00V */
 #define CBUCK_VOLT_SW_DEFAULT_4387			(0xFu)  /* 0.68V */
 #define CBUCK_VOLT_NON_LVM				(0x13u) /* 0.76V */
-
-#define CBUCK_VOLT_HW_DEFAULT				(0x11u)	/* 0.72V */
-
-/* TODO: 4397 Add InitVal approach for 4397 as well */
-#define ABUCK_VOLT_SW_DEFAULT_4397_p92		(0x5u) /* 0.92V */
-#define ABUCK_VOLT_SW_DEFAULT_4397			(0x0u) /* 0.87V */
-#define CBUCK_VOLT_SW_DEFAULT_4397			(0x15u) /* 0.83V */
+#endif
 
 #define CC_GCI1_REG					(0x1)
 
 #define FORCE_CLK_ON                                                    1
 #define FORCE_CLK_OFF                                                   0
 
-#define RES4381_ARMCLK_AVAIL		0x8000000	/* #27 bit */
-#define RES4381_HT_AVAIL		0x10000000	/* #28 bit */
+#define PMU1_PLL0_SWITCH_MACCLOCK_120MHZ			(0)
+#define PMU1_PLL0_SWITCH_MACCLOCK_160MHZ			(1)
+#define PMU1_PLL0_PC1_M2DIV_VALUE_120MHZ			8
+#define PMU1_PLL0_PC1_M2DIV_VALUE_160MHZ			6
+
+/* 4369 Related */
 
 /*
  * PMU VREG Definitions:
@@ -2513,11 +3282,221 @@ typedef volatile struct chipcregs chipcregs_t;
 #define RES4347_CORE_RDY_AUX		18
 #define RES4347_CORE_RDY_MAIN		22
 
-// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
+/* 4369 PMU Resources */
+#define RES4369_DUMMY			0
+#define RES4369_ABUCK			1
+#define RES4369_PMU_SLEEP		2
+#define RES4369_MISCLDO			3
+#define RES4369_LDO3P3			4
+#define RES4369_FAST_LPO_AVAIL		5
+#define RES4369_XTAL_PU			6
+#define RES4369_XTAL_STABLE		7
+#define RES4369_PWRSW_DIG		8
+#define RES4369_SR_DIG			9
+#define RES4369_SLEEP_DIG		10
+#define RES4369_PWRSW_AUX		11
+#define RES4369_SR_AUX			12
+#define RES4369_SLEEP_AUX		13
+#define RES4369_PWRSW_MAIN		14
+#define RES4369_SR_MAIN			15
+#define RES4369_SLEEP_MAIN		16
+#define RES4369_DIG_CORE_RDY		17
+#define RES4369_CORE_RDY_AUX		18
+#define RES4369_ALP_AVAIL		19
+#define RES4369_RADIO_AUX_PU		20
+#define RES4369_MINIPMU_AUX_PU		21
+#define RES4369_CORE_RDY_MAIN		22
+#define RES4369_RADIO_MAIN_PU		23
+#define RES4369_MINIPMU_MAIN_PU		24
+#define RES4369_PCIE_EP_PU		25
+#define RES4369_COLD_START_WAIT		26
+#define RES4369_ARMHTAVAIL		27
+#define RES4369_HT_AVAIL		28
+#define RES4369_MACPHY_AUX_CLK_AVAIL	29
+#define RES4369_MACPHY_MAIN_CLK_AVAIL	30
+
+/*
+* 4378 PMU Resources
+*/
+#define RES4378_DUMMY			0
+#define RES4378_ABUCK			1
+#define RES4378_PMU_SLEEP		2
+#define RES4378_MISC_LDO		3
+#define RES4378_LDO3P3_PU		4
+#define RES4378_FAST_LPO_AVAIL		5
+#define RES4378_XTAL_PU		6
+#define RES4378_XTAL_STABLE		7
+#define RES4378_PWRSW_DIG		8
+#define RES4378_SR_DIG			9
+#define RES4378_SLEEP_DIG		10
+#define RES4378_PWRSW_AUX		11
+#define RES4378_SR_AUX			12
+#define RES4378_SLEEP_AUX		13
+#define RES4378_PWRSW_MAIN		14
+#define RES4378_SR_MAIN		15
+#define RES4378_SLEEP_MAIN		16
+#define RES4378_CORE_RDY_DIG		17
+#define RES4378_CORE_RDY_AUX		18
+#define RES4378_ALP_AVAIL		19
+#define RES4378_RADIO_AUX_PU		20
+#define RES4378_MINIPMU_AUX_PU		21
+#define RES4378_CORE_RDY_MAIN		22
+#define RES4378_RADIO_MAIN_PU		23
+#define RES4378_MINIPMU_MAIN_PU	24
+#define RES4378_CORE_RDY_CB		25
+#define RES4378_PWRSW_CB		26
+#define RES4378_ARMHTAVAIL		27
+#define RES4378_HT_AVAIL		28
+#define RES4378_MACPHY_AUX_CLK_AVAIL	29
+#define RES4378_MACPHY_MAIN_CLK_AVAIL	30
+#define RES4378_RESERVED_31		31
+
+/*
+* 4387 PMU Resources
+*/
+#define RES4387_DUMMY			0
+#define RES4387_RESERVED_1		1
+#define RES4387_FAST_LPO_AVAIL		1	/* C0 */
+#define RES4387_PMU_SLEEP		2
+#define RES4387_PMU_LP			2	/* C0 */
+#define RES4387_MISC_LDO		3
+#define RES4387_RESERVED_4		4
+#define RES4387_SERDES_AFE_RET		4	/* C0 */
+#define RES4387_XTAL_HQ			5
+#define RES4387_XTAL_PU			6
+#define RES4387_XTAL_STABLE		7
+#define RES4387_PWRSW_DIG		8
+#define RES4387_CORE_RDY_BTMAIN		9
+#define RES4387_CORE_RDY_BTSC		10
+#define RES4387_PWRSW_AUX		11
+#define RES4387_PWRSW_SCAN		12
+#define RES4387_CORE_RDY_SCAN		13
+#define RES4387_PWRSW_MAIN		14
+#define RES4387_RESERVED_15		15
+#define RES4387_XTAL_PM_CLK		15	/* C0 */
+#define RES4387_RESERVED_16		16
+#define RES4387_CORE_RDY_DIG		17
+#define RES4387_CORE_RDY_AUX		18
+#define RES4387_ALP_AVAIL		19
+#define RES4387_RADIO_PU_AUX		20
+#define RES4387_RADIO_PU_SCAN		21
+#define RES4387_CORE_RDY_MAIN		22
+#define RES4387_RADIO_PU_MAIN		23
+#define RES4387_MACPHY_CLK_SCAN		24
+#define RES4387_CORE_RDY_CB		25
+#define RES4387_PWRSW_CB		26
+#define RES4387_ARMCLK_AVAIL		27
+#define RES4387_HT_AVAIL		28
+#define RES4387_MACPHY_CLK_AUX		29
+#define RES4387_MACPHY_CLK_MAIN		30
+#define RES4387_RESERVED_31		31
+
+/* 4388 PMU Resources */
+#define RES4388_DUMMY			0u
+#define RES4388_FAST_LPO_AVAIL		1u
+#define RES4388_PMU_LP			2u
+#define RES4388_MISC_LDO		3u
+#define RES4388_SERDES_AFE_RET		4u
+#define RES4388_XTAL_HQ			5u
+#define RES4388_XTAL_PU			6u
+#define RES4388_XTAL_STABLE		7u
+#define RES4388_PWRSW_DIG		8u
+#define RES4388_BTMC_TOP_RDY		9u
+#define RES4388_BTSC_TOP_RDY		10u
+#define RES4388_PWRSW_AUX		11u
+#define RES4388_PWRSW_SCAN		12u
+#define RES4388_CORE_RDY_SCAN		13u
+#define RES4388_PWRSW_MAIN		14u
+#define RES4388_RESERVED_15		15u
+#define RES4388_RESERVED_16		16u
+#define RES4388_CORE_RDY_DIG		17u
+#define RES4388_CORE_RDY_AUX		18u
+#define RES4388_ALP_AVAIL		19u
+#define RES4388_RADIO_PU_AUX		20u
+#define RES4388_RADIO_PU_SCAN		21u
+#define RES4388_CORE_RDY_MAIN		22u
+#define RES4388_RADIO_PU_MAIN		23u
+#define RES4388_MACPHY_CLK_SCAN		24u
+#define RES4388_CORE_RDY_CB		25u
+#define RES4388_PWRSW_CB		26u
+#define RES4388_ARMCLKAVAIL		27u
+#define RES4388_HT_AVAIL		28u
+#define RES4388_MACPHY_CLK_AUX		29u
+#define RES4388_MACPHY_CLK_MAIN		30u
+#define RES4388_RESERVED_31		31u
+
+/* 4389 PMU Resources */
+#define RES4389_DUMMY			0u
+#define RES4389_FAST_LPO_AVAIL		1u
+#define RES4389_PMU_LP			2u
+#define RES4389_MISC_LDO		3u
+#define RES4389_SERDES_AFE_RET		4u
+#define RES4389_XTAL_HQ			5u
+#define RES4389_XTAL_PU			6u
+#define RES4389_XTAL_STABLE		7u
+#define RES4389_PWRSW_DIG		8u
+#define RES4389_BTMC_TOP_RDY		9u
+#define RES4389_BTSC_TOP_RDY		10u
+#define RES4389_PWRSW_AUX		11u
+#define RES4389_PWRSW_SCAN		12u
+#define RES4389_CORE_RDY_SCAN		13u
+#define RES4389_PWRSW_MAIN		14u
+#define RES4389_RESERVED_15		15u
+#define RES4389_RESERVED_16		16u
+#define RES4389_CORE_RDY_DIG		17u
+#define RES4389_CORE_RDY_AUX		18u
+#define RES4389_ALP_AVAIL		19u
+#define RES4389_RADIO_PU_AUX		20u
+#define RES4389_RADIO_PU_SCAN		21u
+#define RES4389_CORE_RDY_MAIN		22u
+#define RES4389_RADIO_PU_MAIN		23u
+#define RES4389_MACPHY_CLK_SCAN		24u
+#define RES4389_CORE_RDY_CB		25u
+#define RES4389_PWRSW_CB		26u
+#define RES4389_ARMCLKAVAIL		27u
+#define RES4389_HT_AVAIL		28u
+#define RES4389_MACPHY_CLK_AUX		29u
+#define RES4389_MACPHY_CLK_MAIN		30u
+#define RES4389_RESERVED_31		31u
+
+/* 4397 PMU Resources */
+#define RES4397_DUMMY			0u
+#define RES4397_FAST_LPO_AVAIL		1u
+#define RES4397_PMU_LP			2u
+#define RES4397_MISC_LDO		3u
+#define RES4397_SERDES_AFE_RET		4u
+#define RES4397_XTAL_HQ			5u
+#define RES4397_XTAL_PU			6u
+#define RES4397_XTAL_STABLE		7u
+#define RES4397_PWRSW_DIG		8u
+#define RES4397_BTMC_TOP_RDY		9u
+#define RES4397_BTSC_TOP_RDY		10u
+#define RES4397_PWRSW_AUX		11u
+#define RES4397_PWRSW_SCAN		12u
+#define RES4397_CORE_RDY_SCAN		13u
+#define RES4397_PWRSW_MAIN		14u
+#define RES4397_XTAL_PM_CLK		15u
+#define RES4397_PWRSW_DRR2		16u
+#define RES4397_CORE_RDY_DIG		17u
+#define RES4397_CORE_RDY_AUX		18u
+#define RES4397_ALP_AVAIL		19u
+#define RES4397_RADIO_PU_AUX		20u
+#define RES4397_RADIO_PU_SCAN		21u
+#define RES4397_CORE_RDY_MAIN		22u
+#define RES4397_RADIO_PU_MAIN		23u
+#define RES4397_MACPHY_CLK_SCAN		24u
+#define RES4397_CORE_RDY_CB		25u
+#define RES4397_PWRSW_CB		26u
+#define RES4397_ARMCLKAVAIL		27u
+#define RES4397_HT_AVAIL		28u
+#define RES4397_MACPHY_CLK_AUX		29u
+#define RES4397_MACPHY_CLK_MAIN		30u
+#define RES4397_RESERVED_31		31u
 
 /* 0: BToverPCIe, 1: BToverUART */
 #define CST4378_CHIPMODE_BTOU(cs)	(((cs) & (1 << 6)) != 0)
 #define CST4378_CHIPMODE_BTOP(cs)	(((cs) & (1 << 6)) == 0)
+#define CST4378_SPROM_PRESENT		0x00000010
 
 #define CST_SFLASH_PRESENT		0x00000010U
 
@@ -2526,6 +3505,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CST4387_SPROM_PRESENT		0x00000010
 
 /* GCI chip status */
+#define GCI_CS_4369_FLL1MHZ_LOCK_MASK	(1 << 1)
 #define GCI_CS_4387_FLL1MHZ_LOCK_MASK	(1 << 1)
 
 #define GCI_CS_4387_FLL1MHZ_DAC_OUT_SHIFT	(16u)
@@ -2537,14 +3517,33 @@ typedef volatile struct chipcregs chipcregs_t;
 #define GCI_CC7_AAON_BYPASS_PWRSW_SEL          13
 #define GCI_CC7_AAON_BYPASS_PWRSW_SEQ_ON       14
 
-#define GCI_CC11_PRISEL_SHIFT			(26u)
-
 /* 4368 GCI chip control registers */
 #define GCI_CC7_PRISEL_MASK			(1 << 8 | 1 << 9)
 #define GCI_CC12_PRISEL_MASK			(1 << 0 | 1 << 1)
 #define GCI_CC12_PRISEL_SHIFT			0
 #define GCI_CC12_DMASK_MASK			(0x3ff << 10)
 #define GCI_CC16_ANT_SHARE_MASK		(1 << 16 | 1 << 17)
+
+#define CC2_4362_SDIO_AOS_WAKEUP_MASK			(1u << 24u)
+#define CC2_4362_SDIO_AOS_WAKEUP_SHIFT			24u
+
+#define CC2_4378_MAIN_MEMLPLDO_VDDB_OFF_MASK		(1u << 12u)
+#define CC2_4378_MAIN_MEMLPLDO_VDDB_OFF_SHIFT		12u
+#define CC2_4378_AUX_MEMLPLDO_VDDB_OFF_MASK		(1u << 13u)
+#define CC2_4378_AUX_MEMLPLDO_VDDB_OFF_SHIFT		13u
+#define CC2_4378_MAIN_VDDRET_ON_MASK			(1u << 15u)
+#define CC2_4378_MAIN_VDDRET_ON_SHIFT			15u
+#define CC2_4378_AUX_VDDRET_ON_MASK			(1u << 16u)
+#define CC2_4378_AUX_VDDRET_ON_SHIFT			16u
+#define CC2_4378_GCI2WAKE_MASK				(1u << 31u)
+#define CC2_4378_GCI2WAKE_SHIFT				31u
+#define CC2_4378_SDIO_AOS_WAKEUP_MASK			(1u << 24u)
+#define CC2_4378_SDIO_AOS_WAKEUP_SHIFT			24u
+#define CC4_4378_LHL_TIMER_SELECT			(1u << 0u)
+#define CC6_4378_PWROK_WDT_EN_IN_MASK			(1u << 6u)
+#define CC6_4378_PWROK_WDT_EN_IN_SHIFT			6u
+#define CC6_4378_SDIO_AOS_CHIP_WAKEUP_MASK		(1u << 24u)
+#define CC6_4378_SDIO_AOS_CHIP_WAKEUP_SHIFT		24u
 
 #define CC2_4378_USE_WLAN_BP_CLK_ON_REQ_MASK		(1u << 15u)
 #define CC2_4378_USE_WLAN_BP_CLK_ON_REQ_SHIFT		15u
@@ -2624,6 +3623,11 @@ typedef volatile struct chipcregs chipcregs_t;
 #define PCIE_PERST_GPIO_PIN	CC_GCI_GPIO_1
 #define PCIE_CLKREQ_GPIO_PIN	CC_GCI_GPIO_2
 
+#define VREG5_4378_MEMLPLDO_ADJ_MASK				0xF0000000
+#define VREG5_4378_MEMLPLDO_ADJ_SHIFT				28
+#define VREG5_4378_LPLDO_ADJ_MASK				0x00F00000
+#define VREG5_4378_LPLDO_ADJ_SHIFT				20
+
 #define VREG5_4387_MISCLDO_PU_MASK				(0x00000800u)
 #define VREG5_4387_MISCLDO_PU_SHIFT				(11u)
 
@@ -2672,7 +3676,301 @@ typedef volatile struct chipcregs chipcregs_t;
 #define	PMU_VREG5_LPLDO_VOLT_0_92	0x1	/* 0.92v */
 #define	PMU_VREG5_LPLDO_VOLT_0_90	0x0	/* 0.90v */
 
+/* Save/Restore engine */
+
+/* 512 bytes block */
+#define SR_ASM_ADDR_BLK_SIZE_SHIFT	(9u)
+
+#define BM_ADDR_TO_SR_ADDR(bmaddr)	((bmaddr) >> SR_ASM_ADDR_BLK_SIZE_SHIFT)
+#define SR_ADDR_TO_BM_ADDR(sraddr)	((sraddr) << SR_ASM_ADDR_BLK_SIZE_SHIFT)
+
+/* Txfifo is 512KB for main core and 128KB for aux core
+ * We use first 12kB (0x3000) in BMC buffer for template in main core and
+ * 6.5kB (0x1A00) in aux core, followed by ASM code
+ */
+#define SR_ASM_ADDR_MAIN_4369		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4369		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_DIG_4369		(0x0)
+
+#define SR_ASM_ADDR_MAIN_4362		BM_ADDR_TO_SR_ADDR(0xc00u)
+#define SR_ASM_ADDR_DIG_4362		(0x0u)
+
+#define SR_ASM_ADDR_MAIN_4378		(0x18)
+#define SR_ASM_ADDR_AUX_4378		(0xd)
+/* backplane address, use last 16k of BTCM for s/r */
+#define SR_ASM_ADDR_DIG_4378A0		(0x51c000)
+
+/* backplane address, use last 32k of BTCM for s/r */
+#define SR_ASM_ADDR_DIG_4378B0		(0x518000)
+
+#define SR_ASM_ADDR_MAIN_4387		(0x18)
+#define SR_ASM_ADDR_AUX_4387		(0xd)
+#define SR_ASM_ADDR_SCAN_4387		(0)
+/* backplane address */
+#define SR_ASM_ADDR_DIG_4387		(0x800000)
+
+#define SR_ASM_ADDR_MAIN_4387C0		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4387C0		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_DIG_4387C0		(0x931000)
+#define SR_ASM_ADDR_DIG_4387_C0		(0x931000)
+
+#define SR_ASM_ADDR_MAIN_4388		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4388		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_SCAN_4388		BM_ADDR_TO_SR_ADDR(0)
+#define SR_ASM_ADDR_DIG_4388		(0x18520000)
+#define SR_ASM_SIZE_DIG_4388		(65536u)
+#define FIS_CMN_SUBCORE_ADDR_4388	(0x1640u)
+
+#define SR_ASM_ADDR_MAIN_4389C0		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4389C0		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_SCAN_4389C0		BM_ADDR_TO_SR_ADDR(0x000)
+#define SR_ASM_ADDR_DIG_4389C0		(0x18520000)
+#define SR_ASM_SIZE_DIG_4389C0		(8192u * 8u)
+
+#define SR_ASM_ADDR_MAIN_4389		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4389		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_SCAN_4389		BM_ADDR_TO_SR_ADDR(0x000)
+#define SR_ASM_ADDR_DIG_4389		(0x18520000)
+#define SR_ASM_SIZE_DIG_4389		(8192u * 8u)
+#define FIS_CMN_SUBCORE_ADDR_4389	(0x1640u)
+
+#define SR_ASM_ADDR_DIG_4397		(0x18520000)
+
+/* Txfifo is 512KB for main core and 128KB for aux core
+ * We use first 12kB (0x3000) in BMC buffer for template in main core and
+ * 6.5kB (0x1A00) in aux core, followed by ASM code
+ */
+#define SR_ASM_ADDR_MAIN_4383A0		BM_ADDR_TO_SR_ADDR(0xC00)
+#define SR_ASM_ADDR_AUX_4383A0		BM_ADDR_TO_SR_ADDR(0xC00)
+
+/*
+ * LAst 32K of (B)TCM Memory is used for DIG SR ASM
+ * => 0X900000 - 0X8000 (2176KB from 0x6E0000)
+ */
+#define SR_ASM_ADDR_DIG_4383A0		(0x8F8000)
+
+/* srcontrol2 reg has to be programmed with asm download address
+ * It is 14 bit address but with RAM address range in 0x8yyyyy
+ * additionally bit 15 also gets set when address is derived as
+ * addr >> 9 in sr_asm_addr. This by default enables sr self test
+ * feature which is not yet ready for 4383. Hence masking it
+ */
+#define SR_ASM_ADDR_DIG_4381A0_SRCTRL2	(0x0b8000)
+#define SR_ASM_ADDR_DIG_4382A0_SRCTRL2	(0x0f8000)
+#define SR_ASM_ADDR_DIG_4383A0_SRCTRL2	(0x0b8000)
+
+/* TODO: Update the right value after confirmation with RTL, Ucode.
+*/
+/* SR Control0 bits for 4383 */
+#define SR0_4383_SR_ENG_EN_MASK		0x1
+#define SR0_4383_SR_ENG_EN_SHIFT	0
+#define SR0_4383_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_4383_RSRC_TRIGGER		(0xC << 2)
+#define SR0_4383_WD_MEM_MIN_DIV		(0x2 << 6)
+#define SR0_4383_WD_MEM_MIN_DIV_AUX	(0x4 << 6)
+#define SR0_4383_INVERT_SR_CLK		(1 << 11)
+#define SR0_4383_MEM_STBY_ALLOW		(1 << 16)
+#define SR0_4383_ENABLE_SR_ILP		(1 << 17)
+#define SR0_4383_ENABLE_SR_ALP		(1 << 18)
+#define SR0_4383_ENABLE_SR_HT		(1 << 19)
+#define SR0_4383_ALLOW_PIC		(3 << 20)
+#define SR0_4383_ENB_PMU_MEM_DISABLE	(1 << 30)
+
+/* SR Control0 bits */
+#define SR0_SR_ENG_EN_MASK		0x1
+#define SR0_SR_ENG_EN_SHIFT		0
+#define SR0_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_RSRC_TRIGGER		(0xC << 2)
+#define SR0_WD_MEM_MIN_DIV		(0x3 << 6)
+#define SR0_INVERT_SR_CLK		(1 << 11)
+#define SR0_MEM_STBY_ALLOW		(1 << 16)
+#define SR0_ENABLE_SR_ILP		(1 << 17)
+#define SR0_ENABLE_SR_ALP		(1 << 18)
+#define SR0_ENABLE_SR_HT		(1 << 19)
+#define SR0_ALLOW_PIC			(3 << 20)
+#define SR0_ENB_PMU_MEM_DISABLE		(1 << 30)
+
+/* SR Control0 bits for 4369 */
+#define SR0_4369_SR_ENG_EN_MASK		0x1
+#define SR0_4369_SR_ENG_EN_SHIFT	0
+#define SR0_4369_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_4369_RSRC_TRIGGER		(0xC << 2)
+#define SR0_4369_WD_MEM_MIN_DIV		(0x2 << 6)
+#define SR0_4369_INVERT_SR_CLK		(1 << 11)
+#define SR0_4369_MEM_STBY_ALLOW		(1 << 16)
+#define SR0_4369_ENABLE_SR_ILP		(1 << 17)
+#define SR0_4369_ENABLE_SR_ALP		(1 << 18)
+#define SR0_4369_ENABLE_SR_HT		(1 << 19)
+#define SR0_4369_ALLOW_PIC		(3 << 20)
+#define SR0_4369_ENB_PMU_MEM_DISABLE	(1 << 30)
+
+/* SR Control0 bits for 4378 */
+#define SR0_4378_SR_ENG_EN_MASK	0x1
+#define SR0_4378_SR_ENG_EN_SHIFT	0
+#define SR0_4378_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_4378_RSRC_TRIGGER		(0xC << 2)
+#define SR0_4378_WD_MEM_MIN_DIV	(0x2 << 6)
+#define SR0_4378_INVERT_SR_CLK		(1 << 11)
+#define SR0_4378_MEM_STBY_ALLOW	(1 << 16)
+#define SR0_4378_ENABLE_SR_ILP		(1 << 17)
+#define SR0_4378_ENABLE_SR_ALP		(1 << 18)
+#define SR0_4378_ENABLE_SR_HT		(1 << 19)
+#define SR0_4378_ALLOW_PIC		(3 << 20)
+#define SR0_4378_ENB_PMU_MEM_DISABLE	(1 << 30)
+
+/* SR Control0 bits for 4387 */
+#define SR0_4387_SR_ENG_EN_MASK		0x1
+#define SR0_4387_SR_ENG_EN_SHIFT	0
+#define SR0_4387_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_4387_RSRC_TRIGGER		(0xC << 2)
+#define SR0_4387_WD_MEM_MIN_DIV		(0x2 << 6)
+#define SR0_4387_WD_MEM_MIN_DIV_AUX	(0x4 << 6)
+#define SR0_4387_INVERT_SR_CLK		(1 << 11)
+#define SR0_4387_MEM_STBY_ALLOW		(1 << 16)
+#define SR0_4387_ENABLE_SR_ILP		(1 << 17)
+#define SR0_4387_ENABLE_SR_ALP		(1 << 18)
+#define SR0_4387_ENABLE_SR_HT		(1 << 19)
+#define SR0_4387_ALLOW_PIC		(3 << 20)
+#define SR0_4387_ENB_PMU_MEM_DISABLE	(1 << 30)
+
+/* SR Control0 bits for 4388 */
+#define SR0_4388_SR_ENG_EN_MASK		0x1u
+#define SR0_4388_SR_ENG_EN_SHIFT	0
+#define SR0_4388_SR_ENG_CLK_EN		(1u << 1u)
+#define SR0_4388_RSRC_TRIGGER		(0xCu << 2u)
+#define SR0_4388_WD_MEM_MIN_DIV		(0x2u << 6u)
+#define SR0_4388_INVERT_SR_CLK		(1u << 11u)
+#define SR0_4388_MEM_STBY_ALLOW		(1u << 16u)
+#define SR0_4388_ENABLE_SR_ILP		(1u << 17u)
+#define SR0_4388_ENABLE_SR_ALP		(1u << 18u)
+#define SR0_4388_ENABLE_SR_HT		(1u << 19u)
+#define SR0_4388_ALLOW_PIC		(3u << 20u)
+#define SR0_4388_ENB_PMU_MEM_DISABLE	(1u << 30u)
+
+/* SR Control0 bits for 4389 */
+#define SR0_4389_SR_ENG_EN_MASK		0x1
+#define SR0_4389_SR_ENG_EN_SHIFT	0
+#define SR0_4389_SR_ENG_CLK_EN		(1 << 1)
+#define SR0_4389_RSRC_TRIGGER		(0xC << 2)
+#define SR0_4389_WD_MEM_MIN_DIV		(0x2 << 6)
+#define SR0_4389_INVERT_SR_CLK		(1 << 11)
+#define SR0_4389_MEM_STBY_ALLOW		(1 << 16)
+#define SR0_4389_ENABLE_SR_ILP		(1 << 17)
+#define SR0_4389_ENABLE_SR_ALP		(1 << 18)
+#define SR0_4389_ENABLE_SR_HT		(1 << 19)
+#define SR0_4389_ALLOW_PIC		(3 << 20)
+#define SR0_4389_ENB_PMU_MEM_DISABLE	(1 << 30)
+
+/* SR Control1 bits */
+#define SR1_INIT_ADDR_MASK			(0x000003FFu)
+#define SR1_SELFTEST_ENB_MASK			(0x00004000u)
+#define SR1_SELFTEST_ERR_INJCT_ENB_MASK		(0x00008000u)
+#define SR1_SELFTEST_ERR_INJCT_PRD_MASK		(0xFFFF0000u)
+#define SR1_SELFTEST_ERR_INJCT_PRD_SHIFT	(16u)
+
+/* SR Control2 bits */
+#define SR2_INIT_ADDR_LONG_MASK			(0x00003FFFu)
+
+#define SR_SELFTEST_ERR_INJCT_PRD		(0x10u)
+
+/* SR Status1 bits */
+#define SR_STS1_SR_ERR_MASK			(0x00000001u)
+
 /* =========== LHL regs =========== */
+/* 4369 LHL register settings */
+#define LHL4369_UP_CNT			0
+#define LHL4369_DN_CNT			2
+#define LHL4369_PWRSW_EN_DWN_CNT	(LHL4369_DN_CNT + 2)
+#define LHL4369_ISO_EN_DWN_CNT		(LHL4369_PWRSW_EN_DWN_CNT + 3)
+#define LHL4369_SLB_EN_DWN_CNT		(LHL4369_ISO_EN_DWN_CNT + 1)
+#define LHL4369_ASR_CLK4M_DIS_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_ASR_LPPFM_MODE_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_ASR_MODE_SEL_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_ASR_MANUAL_MODE_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_ASR_ADJ_DWN_CNT		(LHL4369_DN_CNT)
+#define LHL4369_ASR_OVERI_DIS_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_ASR_TRIM_ADJ_DWN_CNT	(LHL4369_DN_CNT)
+#define LHL4369_VDDC_SW_DIS_DWN_CNT	(LHL4369_SLB_EN_DWN_CNT + 1)
+#define LHL4369_VMUX_ASR_SEL_DWN_CNT	(LHL4369_VDDC_SW_DIS_DWN_CNT + 1)
+#define LHL4369_CSR_ADJ_DWN_CNT		(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_CSR_MODE_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_CSR_OVERI_DIS_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_HPBG_CHOP_DIS_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_SRBG_REF_SEL_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_PFM_PWR_SLICE_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_CSR_TRIM_ADJ_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_CSR_VOLTAGE_DWN_CNT	(LHL4369_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4369_HPBG_PU_EN_DWN_CNT	(LHL4369_CSR_MODE_DWN_CNT + 1)
+
+#define LHL4369_HPBG_PU_EN_UP_CNT	(LHL4369_UP_CNT + 1)
+#define LHL4369_CSR_ADJ_UP_CNT		(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_CSR_MODE_UP_CNT		(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_CSR_OVERI_DIS_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_HPBG_CHOP_DIS_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_SRBG_REF_SEL_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_PFM_PWR_SLICE_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_CSR_TRIM_ADJ_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_CSR_VOLTAGE_UP_CNT	(LHL4369_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4369_VMUX_ASR_SEL_UP_CNT	(LHL4369_CSR_MODE_UP_CNT + 1)
+#define LHL4369_VDDC_SW_DIS_UP_CNT	(LHL4369_VMUX_ASR_SEL_UP_CNT + 1)
+#define LHL4369_SLB_EN_UP_CNT		(LHL4369_VDDC_SW_DIS_UP_CNT + 8)
+#define LHL4369_ISO_EN_UP_CNT		(LHL4369_SLB_EN_UP_CNT + 1)
+#define LHL4369_PWRSW_EN_UP_CNT		(LHL4369_ISO_EN_UP_CNT + 3)
+#define LHL4369_ASR_ADJ_UP_CNT		(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_CLK4M_DIS_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_LPPFM_MODE_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_MODE_SEL_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_MANUAL_MODE_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_OVERI_DIS_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+#define LHL4369_ASR_TRIM_ADJ_UP_CNT	(LHL4369_PWRSW_EN_UP_CNT + 1)
+
+/* 4362 LHL register settings */
+#define LHL4362_UP_CNT			(0u)
+#define LHL4362_DN_CNT			(2u)
+#define LHL4362_PWRSW_EN_DWN_CNT	(LHL4362_DN_CNT + 2)
+#define LHL4362_ISO_EN_DWN_CNT		(LHL4362_PWRSW_EN_DWN_CNT + 3)
+#define LHL4362_SLB_EN_DWN_CNT		(LHL4362_ISO_EN_DWN_CNT + 1)
+#define LHL4362_ASR_CLK4M_DIS_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_ASR_LPPFM_MODE_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_ASR_MODE_SEL_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_ASR_MANUAL_MODE_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_ASR_ADJ_DWN_CNT		(LHL4362_DN_CNT)
+#define LHL4362_ASR_OVERI_DIS_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_ASR_TRIM_ADJ_DWN_CNT	(LHL4362_DN_CNT)
+#define LHL4362_VDDC_SW_DIS_DWN_CNT	(LHL4362_SLB_EN_DWN_CNT + 1)
+#define LHL4362_VMUX_ASR_SEL_DWN_CNT	(LHL4362_VDDC_SW_DIS_DWN_CNT + 1)
+#define LHL4362_CSR_ADJ_DWN_CNT		(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_CSR_MODE_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_CSR_OVERI_DIS_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_HPBG_CHOP_DIS_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_SRBG_REF_SEL_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_PFM_PWR_SLICE_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_CSR_TRIM_ADJ_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_CSR_VOLTAGE_DWN_CNT	(LHL4362_VMUX_ASR_SEL_DWN_CNT + 1)
+#define LHL4362_HPBG_PU_EN_DWN_CNT	(LHL4362_CSR_MODE_DWN_CNT + 1)
+
+#define LHL4362_HPBG_PU_EN_UP_CNT	(LHL4362_UP_CNT + 1)
+#define LHL4362_CSR_ADJ_UP_CNT		(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_CSR_MODE_UP_CNT		(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_CSR_OVERI_DIS_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_HPBG_CHOP_DIS_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_SRBG_REF_SEL_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_PFM_PWR_SLICE_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_CSR_TRIM_ADJ_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_CSR_VOLTAGE_UP_CNT	(LHL4362_HPBG_PU_EN_UP_CNT + 1)
+#define LHL4362_VMUX_ASR_SEL_UP_CNT	(LHL4362_CSR_MODE_UP_CNT + 1)
+#define LHL4362_VDDC_SW_DIS_UP_CNT	(LHL4362_VMUX_ASR_SEL_UP_CNT + 1)
+#define LHL4362_SLB_EN_UP_CNT		(LHL4362_VDDC_SW_DIS_UP_CNT + 8)
+#define LHL4362_ISO_EN_UP_CNT		(LHL4362_SLB_EN_UP_CNT + 1)
+#define LHL4362_PWRSW_EN_UP_CNT		(LHL4362_ISO_EN_UP_CNT + 3)
+#define LHL4362_ASR_ADJ_UP_CNT		(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_CLK4M_DIS_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_LPPFM_MODE_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_MODE_SEL_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_MANUAL_MODE_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_OVERI_DIS_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+#define LHL4362_ASR_TRIM_ADJ_UP_CNT	(LHL4362_PWRSW_EN_UP_CNT + 1)
+
 /* 4378 LHL register settings */
 #define LHL4378_CSR_OVERI_DIS_DWN_CNT		5u
 #define LHL4378_CSR_MODE_DWN_CNT		5u
@@ -2792,27 +4090,123 @@ typedef volatile struct chipcregs chipcregs_t;
 #define MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT	29
 
 /* for pmu rev32 and higher */
-#define PMU32_MAC_MAIN_RSRC_REQ_TIMER	((1u << MAC_RSRC_REQ_TIMER_INT_ENAB_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_ALP_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HT_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HQ_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
+#define PMU32_MAC_MAIN_RSRC_REQ_TIMER	((1 << MAC_RSRC_REQ_TIMER_INT_ENAB_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_ALP_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_HT_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_HQ_SHIFT) |	\
+					 (0 << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
 
-#define PMU32_MAC_AUX_RSRC_REQ_TIMER	((1u << MAC_RSRC_REQ_TIMER_INT_ENAB_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_ALP_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HT_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HQ_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
+#define PMU32_MAC_AUX_RSRC_REQ_TIMER	((1 << MAC_RSRC_REQ_TIMER_INT_ENAB_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_ALP_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_HT_SHIFT) |	\
+					 (1 << MAC_RSRC_REQ_TIMER_FORCE_HQ_SHIFT) |	\
+					 (0 << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
 
 /* for pmu rev38 and higher */
 #define PMU32_MAC_SCAN_RSRC_REQ_TIMER	((1u << MAC_RSRC_REQ_TIMER_INT_ENAB_SHIFT) |	\
 					 (1u << MAC_RSRC_REQ_TIMER_FORCE_ALP_SHIFT) |	\
 					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HT_SHIFT) |	\
 					 (1u << MAC_RSRC_REQ_TIMER_FORCE_HQ_SHIFT) |	\
-					 (1u << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
+					 (0u << MAC_RSRC_REQ_TIMER_CLKREQ_GRP_SEL_SHIFT))
+
+/* 4369 related: 4369 parameters
+ * http://www.sj.broadcom.com/projects/BCM4369/gallery_backend.RC6.0/design/backplane/pmu_params.xls
+ */
+#define RES4369_DUMMY				0
+#define RES4369_ABUCK				1
+#define RES4369_PMU_SLEEP			2
+#define RES4369_MISCLDO_PU			3
+#define RES4369_LDO3P3_PU			4
+#define RES4369_FAST_LPO_AVAIL			5
+#define RES4369_XTAL_PU				6
+#define RES4369_XTAL_STABLE			7
+#define RES4369_PWRSW_DIG			8
+#define RES4369_SR_DIG				9
+#define RES4369_SLEEP_DIG			10
+#define RES4369_PWRSW_AUX			11
+#define RES4369_SR_AUX				12
+#define RES4369_SLEEP_AUX			13
+#define RES4369_PWRSW_MAIN			14
+#define RES4369_SR_MAIN				15
+#define RES4369_SLEEP_MAIN			16
+#define RES4369_DIG_CORE_RDY			17
+#define RES4369_CORE_RDY_AUX			18
+#define RES4369_ALP_AVAIL			19
+#define RES4369_RADIO_AUX_PU			20
+#define RES4369_MINIPMU_AUX_PU			21
+#define RES4369_CORE_RDY_MAIN			22
+#define RES4369_RADIO_MAIN_PU			23
+#define RES4369_MINIPMU_MAIN_PU			24
+#define RES4369_PCIE_EP_PU			25
+#define RES4369_COLD_START_WAIT			26
+#define RES4369_ARMHTAVAIL			27
+#define RES4369_HT_AVAIL			28
+#define RES4369_MACPHY_AUX_CLK_AVAIL		29
+#define RES4369_MACPHY_MAIN_CLK_AVAIL		30
+#define RES4369_RESERVED_31			31
+
+#define CST4369_CHIPMODE_SDIOD(cs)	(((cs) & (1 << 6)) != 0)	/* SDIO */
+#define CST4369_CHIPMODE_PCIE(cs)	(((cs) & (1 << 7)) != 0)	/* PCIE */
+#define CST4369_SPROM_PRESENT		0x00000010
+
+#define PMU_4369_MACCORE_0_RES_REQ_MASK			0x3FCBF7FF
+#define PMU_4369_MACCORE_1_RES_REQ_MASK			0x7FFB3647
+
+/* 4362 related */
+/* 4362 resource_table
+ * http://www.sj.broadcom.com/projects/BCM4362/gallery_backend.RC1.mar_15_2017/design/backplane/
+ * pmu_params.xls
+ */
+#define RES4362_DUMMY				(0u)
+#define RES4362_ABUCK				(1u)
+#define RES4362_PMU_SLEEP			(2u)
+#define RES4362_MISCLDO_PU			(3u)
+#define RES4362_LDO3P3_PU			(4u)
+#define RES4362_FAST_LPO_AVAIL			(5u)
+#define RES4362_XTAL_PU				(6u)
+#define RES4362_XTAL_STABLE			(7u)
+#define RES4362_PWRSW_DIG			(8u)
+#define RES4362_SR_DIG				(9u)
+#define RES4362_SLEEP_DIG			(10u)
+#define RES4362_PWRSW_AUX			(11u)
+#define RES4362_SR_AUX				(12u)
+#define RES4362_SLEEP_AUX			(13u)
+#define RES4362_PWRSW_MAIN			(14u)
+#define RES4362_SR_MAIN				(15u)
+#define RES4362_SLEEP_MAIN			(16u)
+#define RES4362_DIG_CORE_RDY			(17u)
+#define RES4362_CORE_RDY_AUX			(18u)
+#define RES4362_ALP_AVAIL			(19u)
+#define RES4362_RADIO_AUX_PU			(20u)
+#define RES4362_MINIPMU_AUX_PU			(21u)
+#define RES4362_CORE_RDY_MAIN			(22u)
+#define RES4362_RADIO_MAIN_PU			(23u)
+#define RES4362_MINIPMU_MAIN_PU			(24u)
+#define RES4362_PCIE_EP_PU			(25u)
+#define RES4362_COLD_START_WAIT			(26u)
+#define RES4362_ARMHTAVAIL			(27u)
+#define RES4362_HT_AVAIL			(28u)
+#define RES4362_MACPHY_AUX_CLK_AVAIL		(29u)
+#define RES4362_MACPHY_MAIN_CLK_AVAIL		(30u)
+#define RES4362_RESERVED_31			(31u)
+
+#define CST4362_CHIPMODE_SDIOD(cs)		(((cs) & (1 << 6)) != 0)	/* SDIO */
+#define CST4362_CHIPMODE_PCIE(cs)		(((cs) & (1 << 7)) != 0)	/* PCIE */
+#define CST4362_SPROM_PRESENT			(0x00000010u)
+
+#define PMU_4362_MACCORE_0_RES_REQ_MASK		(0x3FCBF7FFu)
+#define PMU_4362_MACCORE_1_RES_REQ_MASK		(0x7FFB3647u)
+
+/* 4381 related */
+#define CST4381_CHIPMODE_PCIE(cs)               (((cs) & (1 << 7)) != 0)        /* PCIE */
+#define CST4381_CHIPMODE_SDIO(cs)               (((cs) & (1 << 31)) != 0)       /* SDIO */
+#define CST4381_CHIPMODE_USB(cs)               (((cs) & (1 << 20)) != 0)        /* USB */
 
 #define PMU_MACCORE_0_RES_REQ_TIMER		0x1d000000
 #define PMU_MACCORE_0_RES_REQ_MASK		0x5FF2364F
+
+#define PMU43012_MAC_RES_REQ_TIMER		0x1D000000
+#define PMU43012_MAC_RES_REQ_MASK		0x3FBBF7FF
 
 #define PMU_MACCORE_1_RES_REQ_TIMER		0x1d000000
 #define PMU_MACCORE_1_RES_REQ_MASK		0x5FF2364F
@@ -2825,6 +4219,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CHIP_HOSTIF_USB(sih)	(si_chip_hostif(sih) == CHIP_HOSTIF_USBMODE)
 #define CHIP_HOSTIF_SDIO(sih)	(si_chip_hostif(sih) == CHIP_HOSTIF_SDIOMODE)
 
+#define PATCHTBL_SIZE			(0x800)
 #define CR4_4335_RAM_BASE                    (0x180000)
 #define CR4_4345_LT_C0_RAM_BASE              (0x1b0000)
 #define CR4_4345_GE_C0_RAM_BASE              (0x198000)
@@ -2833,6 +4228,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CR4_4350_RAM_BASE                    (0x180000)
 #define CR4_4360_RAM_BASE                    (0x0)
 #define CR4_43602_RAM_BASE                   (0x180000)
+
 #define CR4_4347_RAM_BASE                    (0x170000)
 #define CR4_4362_RAM_BASE                    (0x170000)
 #define CR4_4364_RAM_BASE                    (0x160000)
@@ -2846,25 +4242,11 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CR4_4378_RAM_BASE                    (0x352000)
 #define CR4_4381_RAM_BASE                    (0x740000)
 #define CR4_4382_RAM_BASE                    (0x700000)
-// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
-/* Based on the 4383 BackPlane Acrhitecture, RAM address base updated as 0x6E_0000 */
-#define CR4_4381_RAM_BASE                    (0x740000)
-#define CR4_4383_RAM_BASE                    (0x6E0000)
-#define CR4_4384_RAM_BASE                    (0x700000)
 #define CR4_4387_RAM_BASE                    (0x740000)
 #define CR4_4385_RAM_BASE                    (0x740000)
-#define CA7_4385_RAM_BASE                    (0x200000)
 #define CA7_4388_RAM_BASE                    (0x200000)
 #define CA7_4389_RAM_BASE                    (0x200000)
-#define CA7_4390_RAM_BASE                    (0x2A0000)
-#define CA7_4399_RAM_BASE                    (0x2A0000)
-
-/* Coex CPU memory geometry */
-#define CXCPU_4390_ITCM_BASE			(0x1a000000u)
-#define CXCPU_4390_ITCM_SIZE			(98304u)
-#define CXCPU_4390_DTCM_BASE			(0x1a018000u)
-#define CXCPU_4390_DTCM_SIZE			(24576u)
-// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
+#define CA7_4385_RAM_BASE                    (0x200000)
 
 /* Physical memory in 4388a0 HWA is 64KB (8192 x 64 bits) even though
  * the memory space allows 192KB (0x1850_0000 - 0x1852_FFFF)
@@ -2872,36 +4254,160 @@ typedef volatile struct chipcregs chipcregs_t;
 #define HWA_MEM_BASE_4388			(0x18520000u)
 #define HWA_MEM_SIZE_4388			(0x10000u)
 
-// Please leave this UNRELEASEDCHIP MOG wrapper in place even if there is nothing inside it
+/* 43012 PMU resources based on pmu_params.xls  - Start */
+#define RES43012_MEMLPLDO_PU			0
+#define RES43012_PMU_SLEEP			1
+#define RES43012_FAST_LPO			2
+#define RES43012_BTLPO_3P3			3
+#define RES43012_SR_POK				4
+#define RES43012_DUMMY_PWRSW			5
+#define RES43012_DUMMY_LDO3P3			6
+#define RES43012_DUMMY_BT_LDO3P3		7
+#define RES43012_DUMMY_RADIO			8
+#define RES43012_VDDB_VDDRET			9
+#define RES43012_HV_LDO3P3			10
+#define RES43012_OTP_PU				11
+#define RES43012_XTAL_PU			12
+#define RES43012_SR_CLK_START			13
+#define RES43012_XTAL_STABLE			14
+#define RES43012_FCBS				15
+#define RES43012_CBUCK_MODE			16
+#define RES43012_CORE_READY			17
+#define RES43012_ILP_REQ			18
+#define RES43012_ALP_AVAIL			19
+#define RES43012_RADIOLDO_1P8			20
+#define RES43012_MINI_PMU			21
+#define RES43012_UNUSED				22
+#define RES43012_SR_SAVE_RESTORE		23
+#define RES43012_PHY_PWRSW			24
+#define RES43012_VDDB_CLDO			25
+#define RES43012_SUBCORE_PWRSW			26
+#define RES43012_SR_SLEEP			27
+#define RES43012_HT_START			28
+#define RES43012_HT_AVAIL			29
+#define RES43012_MACPHY_CLK_AVAIL		30
+#define CST43012_SPROM_PRESENT        0x00000010
 
-/* TODO: Update the right value after confirmation with RTL, Ucode.
-*/
-/* SR Control0 bits for 4383 */
-#define SR0_4383_SR_ENG_EN_MASK		0x1
-#define SR0_4383_SR_ENG_EN_SHIFT	0
-#define SR0_4383_SR_ENG_CLK_EN		(1 << 1)
-#define SR0_4383_RSRC_TRIGGER		(0xC << 2)
-#define SR0_4383_WD_MEM_MIN_DIV		(0x2 << 6)
-#define SR0_4383_WD_MEM_MIN_DIV_AUX	(0x4 << 6)
-#define SR0_4383_INVERT_SR_CLK		(1 << 11)
-#define SR0_4383_MEM_STBY_ALLOW		(1 << 16)
-#define SR0_4383_ENABLE_SR_ILP		(1 << 17)
-#define SR0_4383_ENABLE_SR_ALP		(1 << 18)
-#define SR0_4383_ENABLE_SR_HT		(1 << 19)
-#define SR0_4383_ALLOW_PIC		(3 << 20)
-#define SR0_4383_ENB_PMU_MEM_DISABLE	(1 << 30)
+/* SR Control0 bits */
+#define SR0_43012_SR_ENG_EN_MASK             0x1u
+#define SR0_43012_SR_ENG_EN_SHIFT            0u
+#define SR0_43012_SR_ENG_CLK_EN              (1u << 1u)
+#define SR0_43012_SR_RSRC_TRIGGER            (0xCu << 2u)
+#define SR0_43012_SR_WD_MEM_MIN_DIV          (0x3u << 6u)
+#define SR0_43012_SR_MEM_STBY_ALLOW_MSK      (1u << 16u)
+#define SR0_43012_SR_MEM_STBY_ALLOW_SHIFT    16u
+#define SR0_43012_SR_ENABLE_ILP              (1u << 17u)
+#define SR0_43012_SR_ENABLE_ALP              (1u << 18u)
+#define SR0_43012_SR_ENABLE_HT               (1u << 19u)
+#define SR0_43012_SR_ALLOW_PIC               (3u << 20u)
+#define SR0_43012_SR_PMU_MEM_DISABLE         (1u << 30u)
+#define CC_43012_VDDM_PWRSW_EN_MASK          (1u << 20u)
+#define CC_43012_VDDM_PWRSW_EN_SHIFT         (20u)
+#define CC_43012_SDIO_AOS_WAKEUP_MASK        (1u << 24u)
+#define CC_43012_SDIO_AOS_WAKEUP_SHIFT       (24u)
 
-/* srcontrol2 reg has to be programmed with asm download address
- * It is a 14 bit address but with RAM address range in 0x8yyyyy
- * additionally bit 15 gets set when address is derived as
- * addr >> 9 in sr_asm_addr. This by default enables sr self test
- * feature which is not yet ready for 4383. Hence masking it
- */
-#define SR_ASM_ADDR_DIG_4383A0_SRCTRL2	(0x0b8000)
+/* 43012 - offset at 5K */
+#define SR1_43012_SR_INIT_ADDR_MASK          0x3ffu
+#define SR1_43012_SR_ASM_ADDR                0xAu
+
+/* PLL usage in 43012 */
+#define PMU43012_PLL0_PC0_NDIV_INT_MASK			0x0000003fu
+#define PMU43012_PLL0_PC0_NDIV_INT_SHIFT		0u
+#define PMU43012_PLL0_PC0_NDIV_FRAC_MASK		0xfffffc00u
+#define PMU43012_PLL0_PC0_NDIV_FRAC_SHIFT		10u
+#define PMU43012_PLL0_PC3_PDIV_MASK			0x00003c00u
+#define PMU43012_PLL0_PC3_PDIV_SHIFT			10u
+#define PMU43012_PLL_NDIV_FRAC_BITS			20u
+#define PMU43012_PLL_P_DIV_SCALE_BITS			10u
+
+#define CCTL_43012_ARM_OFFCOUNT_MASK			0x00000003u
+#define CCTL_43012_ARM_OFFCOUNT_SHIFT			0u
+#define CCTL_43012_ARM_ONCOUNT_MASK			0x0000000cu
+#define CCTL_43012_ARM_ONCOUNT_SHIFT			2u
 
 /* PMU Rev >= 30 */
 #define PMU30_ALPCLK_ONEMHZ_ENAB			0x80000000u
-#define PMU30_ALPCLK_ONEMHZ_FPGAMOD_ENAB    0x80022222u
+
+/* 43012 PMU Chip Control Registers */
+#define PMUCCTL02_43012_SUBCORE_PWRSW_FORCE_ON		0x00000010u
+#define PMUCCTL02_43012_PHY_PWRSW_FORCE_ON		0x00000040u
+#define PMUCCTL02_43012_LHL_TIMER_SELECT		0x00000800u
+#define PMUCCTL02_43012_RFLDO3P3_PU_FORCE_ON		0x00008000u
+#define PMUCCTL02_43012_WL2CDIG_I_PMU_SLEEP_ENAB	0x00010000u
+#define PMUCCTL02_43012_BTLDO3P3_PU_FORCE_OFF		(1u << 12u)
+
+#define PMUCCTL04_43012_BBPLL_ENABLE_PWRDN			0x00100000u
+#define PMUCCTL04_43012_BBPLL_ENABLE_PWROFF			0x00200000u
+#define PMUCCTL04_43012_FORCE_BBPLL_ARESET			0x00400000u
+#define PMUCCTL04_43012_FORCE_BBPLL_DRESET			0x00800000u
+#define PMUCCTL04_43012_FORCE_BBPLL_PWRDN			0x01000000u
+#define PMUCCTL04_43012_FORCE_BBPLL_ISOONHIGH			0x02000000u
+#define PMUCCTL04_43012_FORCE_BBPLL_PWROFF			0x04000000u
+#define PMUCCTL04_43012_DISABLE_LQ_AVAIL			0x08000000u
+#define PMUCCTL04_43012_DISABLE_HT_AVAIL			0x10000000u
+#define PMUCCTL04_43012_USE_LOCK				0x20000000u
+#define PMUCCTL04_43012_OPEN_LOOP_ENABLE			0x40000000u
+#define PMUCCTL04_43012_FORCE_OPEN_LOOP				0x80000000u
+#define PMUCCTL05_43012_DISABLE_SPM_CLK				(1u << 8u)
+#define PMUCCTL05_43012_RADIO_DIG_CLK_GATING_EN			(1u << 14u)
+#define PMUCCTL06_43012_GCI2RDIG_USE_ASYNCAPB			(1u << 31u)
+#define PMUCCTL08_43012_XTAL_CORE_SIZE_PMOS_NORMAL_MASK		0x00000FC0u
+#define PMUCCTL08_43012_XTAL_CORE_SIZE_PMOS_NORMAL_SHIFT	6u
+#define PMUCCTL08_43012_XTAL_CORE_SIZE_NMOS_NORMAL_MASK		0x00FC0000u
+#define PMUCCTL08_43012_XTAL_CORE_SIZE_NMOS_NORMAL_SHIFT	18u
+#define PMUCCTL08_43012_XTAL_SEL_BIAS_RES_NORMAL_MASK		0x07000000u
+#define PMUCCTL08_43012_XTAL_SEL_BIAS_RES_NORMAL_SHIFT		24u
+#define PMUCCTL09_43012_XTAL_CORESIZE_BIAS_ADJ_NORMAL_MASK	0x0003F000u
+#define PMUCCTL09_43012_XTAL_CORESIZE_BIAS_ADJ_NORMAL_SHIFT	12u
+#define PMUCCTL09_43012_XTAL_CORESIZE_RES_BYPASS_NORMAL_MASK	0x00000038u
+#define PMUCCTL09_43012_XTAL_CORESIZE_RES_BYPASS_NORMAL_SHIFT	3u
+
+#define PMUCCTL09_43012_XTAL_CORESIZE_BIAS_ADJ_STARTUP_MASK	0x00000FC0u
+#define PMUCCTL09_43012_XTAL_CORESIZE_BIAS_ADJ_STARTUP_SHIFT	6u
+/* during normal operation normal value is reduced for optimized power */
+#define PMUCCTL09_43012_XTAL_CORESIZE_BIAS_ADJ_STARTUP_VAL	0x1Fu
+
+#define PMUCCTL13_43012_FCBS_UP_TRIG_EN				0x00000400
+
+#define PMUCCTL14_43012_ARMCM3_RESET_INITVAL			0x00000001
+#define PMUCCTL14_43012_DOT11MAC_CLKEN_INITVAL			0x00000020
+#define PMUCCTL14_43012_DOT11MAC_PHY_CLK_EN_INITVAL		0x00000080
+#define PMUCCTL14_43012_DOT11MAC_PHY_CNTL_EN_INITVAL		0x00000200
+#define PMUCCTL14_43012_SDIOD_RESET_INIVAL			0x00000400
+#define PMUCCTL14_43012_SDIO_CLK_DMN_RESET_INITVAL		0x00001000
+#define PMUCCTL14_43012_SOCRAM_CLKEN_INITVAL			0x00004000
+#define PMUCCTL14_43012_M2MDMA_RESET_INITVAL			0x00008000
+#define PMUCCTL14_43012_DISABLE_LQ_AVAIL			0x08000000
+
+#define VREG6_43012_MEMLPLDO_ADJ_MASK				0x0000F000
+#define VREG6_43012_MEMLPLDO_ADJ_SHIFT				12
+
+#define VREG6_43012_LPLDO_ADJ_MASK				0x000000F0
+#define VREG6_43012_LPLDO_ADJ_SHIFT				4
+
+#define VREG7_43012_PWRSW_1P8_PU_MASK				0x00400000
+#define VREG7_43012_PWRSW_1P8_PU_SHIFT				22
+
+/* 4378 PMU Chip Control Registers */
+#define PMUCCTL03_4378_XTAL_CORESIZE_PMOS_NORMAL_MASK		0x001F8000
+#define PMUCCTL03_4378_XTAL_CORESIZE_PMOS_NORMAL_SHIFT		15
+#define PMUCCTL03_4378_XTAL_CORESIZE_PMOS_NORMAL_VAL		0x3F
+
+#define PMUCCTL03_4378_XTAL_CORESIZE_NMOS_NORMAL_MASK		0x07E00000
+#define PMUCCTL03_4378_XTAL_CORESIZE_NMOS_NORMAL_SHIFT		21
+#define PMUCCTL03_4378_XTAL_CORESIZE_NMOS_NORMAL_VAL		0x3F
+
+#define PMUCCTL03_4378_XTAL_SEL_BIAS_RES_NORMAL_MASK		0x38000000
+#define PMUCCTL03_4378_XTAL_SEL_BIAS_RES_NORMAL_SHIFT		27
+#define PMUCCTL03_4378_XTAL_SEL_BIAS_RES_NORMAL_VAL			0x0
+
+#define PMUCCTL00_4378_XTAL_CORESIZE_BIAS_ADJ_NORMAL_MASK	0x00000FC0
+#define PMUCCTL00_4378_XTAL_CORESIZE_BIAS_ADJ_NORMAL_SHIFT	6
+#define PMUCCTL00_4378_XTAL_CORESIZE_BIAS_ADJ_NORMAL_VAL	0x5
+
+#define PMUCCTL00_4378_XTAL_RES_BYPASS_NORMAL_MASK			0x00038000
+#define PMUCCTL00_4378_XTAL_RES_BYPASS_NORMAL_SHIFT			15
+#define PMUCCTL00_4378_XTAL_RES_BYPASS_NORMAL_VAL			0x7
 
 /* 4387 PMU Chip Control Registers */
 #define PMUCCTL03_4387_XTAL_CORESIZE_PMOS_NORMAL_MASK		0x001F8000
@@ -2962,50 +4468,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_PIN_GPIO_LAST CC_PIN_GPIO_31
 
 /* GCI chipcontrol register indices */
-#if defined(VLSI_CTRL_REGS) && defined(SKIP_LEGACY_CC_API)
-#define CC_GCI_CHIPCTRL_00	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_01	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_02	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_03	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_04	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_05	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_06	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_07	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_08	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_09	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_10	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_10	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_11	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_12	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_13	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_14	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_15	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_16	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_17	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_18	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_19	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_20	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_21	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_22	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_23	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_24	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_25	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_26	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_27	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_28	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_29	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_30	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_31	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_32	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_33	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_34	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_35	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_36	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_37	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_38	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_39	SI_CTRLREGS_INVALID
-#define CC_GCI_CHIPCTRL_40	SI_CTRLREGS_INVALID
-#else /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
 #define CC_GCI_CHIPCTRL_00	(0)
 #define CC_GCI_CHIPCTRL_01	(1)
 #define CC_GCI_CHIPCTRL_02	(2)
@@ -3016,6 +4478,7 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_GCI_CHIPCTRL_07	(7)
 #define CC_GCI_CHIPCTRL_08	(8)
 #define CC_GCI_CHIPCTRL_09	(9)
+#define CC_GCI_CHIPCTRL_10	(10)
 #define CC_GCI_CHIPCTRL_10	(10)
 #define CC_GCI_CHIPCTRL_11	(11)
 #define CC_GCI_CHIPCTRL_12	(12)
@@ -3035,20 +4498,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_GCI_CHIPCTRL_26	(26)
 #define CC_GCI_CHIPCTRL_27	(27)
 #define CC_GCI_CHIPCTRL_28	(28)
-#define CC_GCI_CHIPCTRL_29	(29)
-#define CC_GCI_CHIPCTRL_30	(30)
-#define CC_GCI_CHIPCTRL_31	(31)
-#define CC_GCI_CHIPCTRL_32	(32)
-#define CC_GCI_CHIPCTRL_33	(33)
-#define CC_GCI_CHIPCTRL_34	(34)
-#define CC_GCI_CHIPCTRL_35	(35)
-#define CC_GCI_CHIPCTRL_36	(36)
-#define CC_GCI_CHIPCTRL_37	(37)
-#define CC_GCI_CHIPCTRL_38	(38)
-#define CC_GCI_CHIPCTRL_39	(39)
-#define CC_GCI_CHIPCTRL_40	(40)
-#define CC_GCI_CHIPCTRL_41	(41)
-#endif /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
 
 /* GCI chip ctrl SDTC Soft reset */
 #define GCI_CHIP_CTRL_SDTC_SOFT_RESET       (1 << 31)
@@ -3080,44 +4529,6 @@ typedef volatile struct chipcregs chipcregs_t;
 
 #define CC_GCI_CHIPCTRL_19_BTDEF_ANT1_NBIT		10u
 #define CC_GCI_CHIPCTRL_19_BTDEF_ANT1_MASK		0x7u
-
-#ifdef VLSI_CTRL_REGS
-
-#define CLB_PRISEL_WLSC_RFEM_DISABLE_MASK	0x100u
-
-#define RF_SW_CTRL_ELNABYP_ANT_MASK	0xC0C00C0C00ull
-
-/* These are the outputs to the rfem which go out via the CLB */
-#define RF_SW_CTRL_ELNABYP_2G0_MASK     0x0000000400ull
-#define RF_SW_CTRL_ELNABYP_5G0_MASK     0x0000000800ull
-#define RF_SW_CTRL_ELNABYP_2G1_MASK     0x0040000000ull
-#define RF_SW_CTRL_ELNABYP_5G1_MASK     0x0080000000ull
-
-/* Feedback values go into the phy from CLB output
- * The polarity of the feedback is opposite to the elnabyp signal going out to the rfem
- */
-#define RF_SW_CTRL_ELNABYP_2G0_MASK_FB  0x0000040000ull
-#define RF_SW_CTRL_ELNABYP_5G0_MASK_FB  0x0000080000ull
-#define RF_SW_CTRL_ELNABYP_2G1_MASK_FB  0x4000000000ull
-#define RF_SW_CTRL_ELNABYP_5G1_MASK_FB  0x8000000000ull
-
-#endif /* VLSI_CTRL_REGS */
-
-#define CC_GCI_CHIPCTRL_21_WLSC_ANT0_2G_RFEM_DISABLE_NBIT	24u
-#define CC_GCI_CHIPCTRL_21_WLSC_ANT0_2G_RFEM_DISABLE_MASK (1u <<\
-				CC_GCI_CHIPCTRL_21_WLSC_ANT0_2G_RFEM_DISABLE_NBIT)
-
-#define CC_GCI_CHIPCTRL_22_WLSC_ANT1_2G_RFEM_DISABLE_NBIT	24u
-#define CC_GCI_CHIPCTRL_22_WLSC_ANT1_2G_RFEM_DISABLE_MASK (1u <<\
-				CC_GCI_CHIPCTRL_22_WLSC_ANT1_2G_RFEM_DISABLE_NBIT)
-
-#define CC_GCI_CHIPCTRL_28_WLSC_ANT0_5G_RFEM_DISABLE_NBIT	8u
-#define CC_GCI_CHIPCTRL_28_WLSC_ANT0_5G_RFEM_DISABLE_MASK (1u <<\
-				CC_GCI_CHIPCTRL_28_WLSC_ANT0_5G_RFEM_DISABLE_NBIT)
-
-#define CC_GCI_CHIPCTRL_29_WLSC_ANT1_5G_RFEM_DISABLE_NBIT	8u
-#define CC_GCI_CHIPCTRL_29_WLSC_ANT1_5G_RFEM_DISABLE_MASK (1u <<\
-				CC_GCI_CHIPCTRL_29_WLSC_ANT1_5G_RFEM_DISABLE_NBIT)
 
 #define CC_GCI_CHIPCTRL_23_MAIN_WLSC_PRISEL_FORCE_NBIT		16u
 #define CC_GCI_CHIPCTRL_23_MAIN_WLSC_PRISEL_VAL_NBIT		17u
@@ -3154,63 +4565,6 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_GCI_CHIPCTRL_23_LVM_MODE_DISABLE_MASK	(1u <<\
 				CC_GCI_CHIPCTRL_23_LVM_MODE_DISABLE_NBIT)
 
-#define CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_FORCE_NBIT		23u
-#define CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_VAL_NBIT		24u
-#define CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_FORCE_MASK	(1u <<\
-				CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_FORCE_NBIT)
-#define CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_VAL_MASK	(1u <<\
-				CC_GCI_CHIPCTRL_30_BTMN_5GSC_PRISEL_VAL_NBIT)
-
-#define CLB_LOWER_10BITS_MASK                  0x3FFu
-#define CLB_UPPER_10BITS_MASK                  0xFFC00u
-#define CLB_10BITS_MASK                        0x3FFu
-#define CLB_LOWER_10BITS_WIDTH                 10u
-#define CLB_SWCTRL_SMASK_CORESEL_ANT0_EN_SHIFT 29u
-#define CLB_SWCTRL_SMASK_CORESEL_ANT1_EN_SHIFT 30u
-#define CLB_SWCTRL_DMASK_BT_ANT0_L_SHIFT       17u
-#define CLB_SWCTRL_DMASK_BT_ANT1_L_SHIFT       10u
-#define CLB_SWCTRL_DMASK_BT_ANT0_H_SHIFT       20u
-#define CLB_SWCTRL_DMASK_BT_ANT1_H_SHIFT       0u
-#define CLB_SWCTRL_BTAOA_OVR_SHIFT             18u
-#define CLB_SWCTRL_SMASK_WLAN_ANT0_L_SHIFT     20u
-#define CLB_SWCTRL_SMASK_WLAN_ANT1_L_SHIFT     0u
-#define CLB_SWCTRL_SMASK_WLAN_ANT0_H_SHIFT     10u
-#define CLB_SWCTRL_SMASK_WLAN_ANT1_H_SHIFT     20u
-#define CLB_SWCTRL_BTC_PRISEL_MASK_SHIFT       27u
-#define CLB_SWCTRL_BTC_PRISEL_MASK             0x3u
-#define CLB_SWCTRL_BTC_PRISEL_ANT_MASK_SHIFT   26u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_10_SHIFT     15u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_10_MASK      0x1u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_10_LSB       10u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_16TO11_SHIFT 26u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_16TO11_MASK  0x3Fu
-#define CLB_SWCTRL_BT_DEFAULT_VAL_16TO11_LSB   11u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_19TO17_SHIFT 10u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_19TO17_MASK  0x7u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_19TO17_LSB   17u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_22TO20_SHIFT 13u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_22TO20_MASK  0x7u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_22TO20_LSB   0u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_24TO23_SHIFT 26u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_24TO23_MASK  0x3u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_24TO23_LSB   3u
-#define CLB_SWCTRL_BT_DEFAULT_VAL_39TO25_MASK  0x7FFFu
-#define CLB_SWCTRL_BT_DEFAULT_VAL_39TO25_LSB   5u
-#define CLB_RFEM_VIO_CTRL_MUX_MASK             0xFu
-#define CLB_RFEM_VIO_CTRL_MUX_CFEM_VAL         0u
-#define CLB_SWCTRL_SMASK_SCAN_CORE0SEL_H_SHIFT 20u
-#define CLB_SWCTRL_SMASK_BTSC_SHIFT            10u
-#define CLB_SWCTRL_SMASK_FPRIME0_H_SHIFT       10u
-#define CLB_SWCTRL_SMASK_FPRIME1_H_SHIFT       20u
-#define CLB_SWCTRL_SMASK_FSCAN1_H_SHIFT        10u
-#define CLB_SWCTRL_BTCX_5G_PRISEL_SHIFT        14u
-#define CLB_SWCTRL_DMASK_BT5G_ANT0_L_SHIFT     16u
-#define CLB_SWCTRL_DMASK_BT5G_ANT1_L_SHIFT     0u
-#define CLB_SWCTRL_DMASK_BT5G_ANT0_H_SHIFT     0u
-#define CLB_SWCTRL_DMASK_BT5G_ANT1_H_SHIFT     10u
-#define CLB_SCAN5G_HW_PRISEL_EVAL_LUT_MASK     0xFFFFFFFFu
-#define CLB_SCAN5G_HW_PRISEL_EVAL_LUT_VAL      0xCDCDCCCCu
-
 /*	2G core0/core1 Pulse width register (offset : 0x47C)
 *	wl_rx_long_pulse_width_2g_core0 [4:0];
 *	wl_rx_short_pulse_width_2g_core0 [9:5];
@@ -3222,119 +4576,34 @@ typedef volatile struct chipcregs chipcregs_t;
 #define CC_GCI_CNCB_RESET_PULSE_WIDTH_2G_CORE1_MASK	(0x1Fu <<\
 				CC_GCI_CNCB_RESET_PULSE_WIDTH_2G_CORE1_NBIT)
 
-#if !defined(BCMDONGLEHOST)
-#if BCMGCIREV >= 24
-/*	2G core0/core1 Pulse width register (offset : 0x47C)
-*	wl_rx_long_pulse_width_2g_core0 [7:0];
-*	wl_rx_short_pulse_width_2g_core0 [15:8];
-*/
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_NBIT   8u
-/*    wl_rx_long_pulse_width_2g_core1  [23:16]; */
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_NBIT    16u
-/*    wl_rx_short_pulse_width_2g_core1 [31:24]; */
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_NBIT   24u
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_NBIT	(5u)
+#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_NBIT	(16u)
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_NBIT	(21u)
 
-/*    5G core0/Core1 (offset : 0x480)
-*    wl_rx_long_pulse_width_5g[7:0];
-*    wl_rx_short_pulse_width_5g[15:8]
-*/
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_NBIT         8u
-
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_MASK             0xFFu
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_MASK            0xFFu
-
-/*    Setting the wl_rx_long_pulse_width generated
- *    by CNCB used when more than one slice is up
- *    to a duration of 120 cycles which is 2us
- *    wl_rx_short_pulse_width is set to 118 cycles.
- *    A delta of ~ 20 ns or more
- *    between the long_pulse and short pulse is
- *    required as per the design spec
- *    1 cycle == 16.676 ns
- */
-#define CC_GCI_CNCB_LONG_RESET_PULSE_VAL                    120u
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_VAL                   118u
-#else
-/*    2G core0/core1 Pulse width register (offset : 0x47C)
-*    wl_rx_long_pulse_width_2g_core0 [4:0];
-*    wl_rx_short_pulse_width_2g_core0 [9:5];
-*/
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_NBIT   5u
-/*    wl_rx_long_pulse_width_2g_core1  [20:16]; */
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_NBIT    16u
-/*    wl_rx_short_pulse_width_2g_core1 [25:21]; */
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_NBIT   21u
-
-/*    5G core0/Core1 (offset : 0x480)
-*    wl_rx_long_pulse_width_5g[4:0];
-*    wl_rx_short_pulse_width_5g[9:5]
-*/
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_NBIT         5u
-
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_MASK             0x1Fu
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_MASK            0x1Fu
-
-/*    Setting the wl_rx_long_pulse_width generated
- *    by CNCB used when more than one slice is up
- *    to max duration of 31 cycles
- *    wl_rx_short_pulse_width is set to 29 cycles.
- *    A delta of ~ 20 ns or more
- *    between the long_pulse and short pulse is
- *    required as per the design spec
- *    1 cycle == 16.676 ns
- */
-#define CC_GCI_CNCB_LONG_RESET_PULSE_VAL                    0x1Fu
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_VAL                   0x1Du
-#endif /* BCMGCIREV */
-#endif /* !defined(BCMDONGLEHOST) */
-
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE0_MASK    CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_MASK
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_MASK    (\
-			CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_MASK <<\
-			CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_NBIT)
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_MASK   (\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_MASK <<\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_NBIT)
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_MASK   (\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_MASK <<\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_NBIT)
+#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE0_MASK	(0x1Fu)
+#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_MASK	(0x1Fu <<\
+				CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_2G_CORE1_NBIT)
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_MASK	(0x1Fu <<\
+				CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE0_NBIT)
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_MASK	(0x1Fu <<\
+				CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_2G_CORE1_NBIT)
 
 /*	5G core0/Core1 (offset : 0x480)
 *	wl_rx_long_pulse_width_5g[4:0];
 *	wl_rx_short_pulse_width_5g[9:5]
 */
 
-#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_5G_MASK          CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_MASK
-#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_MASK         (\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_MASK <<\
-			CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_NBIT)
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_NBIT	(5u)
+
+#define CC_GCI_CNCB_LONG_RESET_PULSE_WIDTH_5G_MASK	(0x1Fu)
+#define CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_MASK	(0x1Fu <<\
+				CC_GCI_CNCB_SHORT_RESET_PULSE_WIDTH_5G_NBIT)
 
 #define CC_GCI_CNCB_GLITCH_FILTER_WIDTH_MASK	(0xFFu)
 
 #define CC_GCI_RESET_OVERRIDE_NBIT	0x1u
 #define CC_GCI_RESET_OVERRIDE_MASK	(0x1u << \
 				CC_GCI_RESET_OVERRIDE_NBIT)
-
-/*	2G core0/core1  register (offset : 0x81C) */
-/*
-cncb2rdig_scan2G_dedicated_path_en_core0_ovr	10
-cncb2rdig_scan2G_dedicated_path_en_core0_ovr_en	11
-cncb2rdig_scan2G_dedicated_path_en_core1_ovr	12
-cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
-*/
-
-#define CC_GCI_dedicated_path_en_core0_ovr_NBIT (10u)
-#define CC_GCI_dedicated_path_en_core0_ovr_MASK (1u <<\
-		CC_GCI_dedicated_path_en_core0_ovr_NBIT)
-#define CC_GCI_dedicated_path_en_core0_ovr_en_NBIT (11u)
-#define CC_GCI_dedicated_path_en_core0_ovr_en_MASK (1u <<\
-		CC_GCI_dedicated_path_en_core0_ovr_en_NBIT)
-#define CC_GCI_dedicated_path_en_core1_ovr_NBIT (12u)
-#define CC_GCI_dedicated_path_en_core1_ovr_MASK (1u <<\
-		CC_GCI_dedicated_path_en_core1_ovr_NBIT)
-#define CC_GCI_dedicated_path_en_core1_ovr_en_NBIT (13u)
-#define CC_GCI_dedicated_path_en_core1_ovr_en_MASK (1u <<\
-		CC_GCI_dedicated_path_en_core1_ovr_en_NBIT)
 
 #define CC_GCI_06_JTAG_SEL_SHIFT	4u
 #define CC_GCI_06_JTAG_SEL_MASK		(1u << 4u)
@@ -3353,8 +4622,13 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define GPIO_CTRL_REG_DISABLE_INTERRUPT		(3u << 9u)
 #define GPIO_CTRL_REG_COUNT			40
 
+#ifdef WL_INITVALS
+#define XTAL_HQ_SETTING_4387	(wliv_pmu_xtal_HQ)
+#define XTAL_LQ_SETTING_4387	(wliv_pmu_xtal_LQ)
+#else
 #define XTAL_HQ_SETTING_4387	(0xFFF94D30u)
 #define XTAL_LQ_SETTING_4387	(0xFFF94380u)
+#endif
 
 #define CC_GCI_16_BBPLL_CH_CTRL_GRP_PD_TRIG_1_MASK		(0x00000200u)
 #define CC_GCI_16_BBPLL_CH_CTRL_GRP_PD_TRIG_1_SHIFT		(9u)
@@ -3372,28 +4646,6 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define GCI_CC28_IHRP_SEL_MASK			(7 << 24)
 #define GCI_CC28_IHRP_SEL_SHIFT			(24u)
 
-#define GCI_CC27_BAND_MODE_SEL_SHIFT            (19u)
-#define GCI_CC27_BAND_MODE_SEL_MASK             (1u << GCI_CC27_BAND_MODE_SEL_SHIFT)
-
-#define GCI_CC27_IHRP_ACCESS_SEL_SHIFT          (23u)
-#define GCI_CC27_IHRP_ACCESS_SEL_MASK           (0x1FFu << GCI_CC27_IHRP_ACCESS_SEL_SHIFT)
-
-/* xtal_rst_delay_hw MASK and SHIFT */
-#define GCI_CC27_XTAL_RST_DLY_HQ_SHFT	(26u)
-#define GCI_CC27_XTAL_RST_DLY_HQ_MASK	(0x3u << GCI_CC27_XTAL_RST_DLY_HQ_SHFT)
-
-/* xtal_vbuck_ctrl_Rladder_startup MASK and SHIFT */
-#define GCI_CC27_XTAL_VBUCK_RLAD_STUP_SHFT	(28u)
-#define GCI_CC27_XTAL_VBUCK_RLAD_STUP_MASK	(0xF << GCI_CC27_XTAL_VBUCK_RLAD_STUP_SHFT)
-
-/* xtal_vbuck_ctrl_Rladder_normal_LQ MASK and SHIFT */
-#define GCI_CC27_VBUCK_RLADDER_LQ_SEL_SHIFT	(20u)
-#define GCI_CC27_VBUCK_RLADDER_LQ_SEL_MASK	(0xF << GCI_CC27_VBUCK_RLADDER_LQ_SEL_SHIFT)
-
-/* xtal_vbuck_ctrl_Rladder_normal_HQ MASK and SHIFT */
-#define GCI_CC28_VBUCK_RLADDER_HQ_SEL_SHIFT	(3u)
-#define GCI_CC28_VBUCK_RLADDER_HQ_SEL_MASK	(0xF << GCI_CC28_VBUCK_RLADDER_HQ_SEL_SHIFT)
-
 /* 30=MACPHY_CLK_MAIN, 29=MACPHY_CLK_AUX, 23=RADIO_PU_MAIN, 22=CORE_RDY_MAIN
  * 20=RADIO_PU_AUX, 18=CORE_RDY_AUX, 14=PWRSW_MAIN, 11=PWRSW_AUX
  */
@@ -3405,66 +4657,37 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define CC_GCI_CHIPCTRL_11_2x2_ANT_MASK		0x03
 #define CC_GCI_CHIPCTRL_11_SHIFT_ANT_MASK	26
 
-/* primary slice<>scan slice antmask configuration */
-#define CC_GCI_CC41_SC_ANTMASK_NBIT		0x7u
-#define CC_GCI_CC41_MAIN_SC_VAL_ANTMASK_MASK	0x3u
-#define CC_GCI_CC41_AUX_SC_VAL_ANTMASK_MASK	0xCu
-#define CC_GCI_CC41_BT2G_SC_VAL_ANTMASK_MASK	0x30u
-#define CC_GCI_CC41_BT5G_SC_VAL_ANTMASK_MASK	0xC0u
-
 /* GCI chipstatus register indices */
-#if defined(VLSI_CTRL_REGS) && defined(SKIP_LEGACY_CC_API)
-#define GCI_CHIPSTATUS_00	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_01	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_02	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_03	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_04	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_05	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_06	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_07	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_08	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_09	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_10	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_11	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_12	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_13	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_14	SI_CTRLREGS_INVALID
-#define GCI_CHIPSTATUS_15	SI_CTRLREGS_INVALID
-#else /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
-#define GCI_CHIPSTATUS_00	(0u)
-#define GCI_CHIPSTATUS_01	(1u)
-#define GCI_CHIPSTATUS_02	(2u)
-#define GCI_CHIPSTATUS_03	(3u)
-#define GCI_CHIPSTATUS_04	(4u)
-#define GCI_CHIPSTATUS_05	(5u)
-#define GCI_CHIPSTATUS_06	(6u)
-#define GCI_CHIPSTATUS_07	(7u)
-#define GCI_CHIPSTATUS_08	(8u)
-#define GCI_CHIPSTATUS_09	(9u)
-#define GCI_CHIPSTATUS_10	(10u)
-#define GCI_CHIPSTATUS_11	(11u)
-#define GCI_CHIPSTATUS_12	(12u)
-#define GCI_CHIPSTATUS_13	(13u)
-#define GCI_CHIPSTATUS_14	(14u)
-#define GCI_CHIPSTATUS_15	(15u)
-#endif /* !VLSI_CTRL_REGS || !SKIP_LEGACY_CC_API */
-#define GCI_CHIPSTATUS_16	(16)
-#define GCI_CHIPSTATUS_17	(17)
+#define GCI_CHIPSTATUS_00	(0)
+#define GCI_CHIPSTATUS_01	(1)
+#define GCI_CHIPSTATUS_02	(2)
+#define GCI_CHIPSTATUS_03	(3)
+#define GCI_CHIPSTATUS_04	(4)
+#define GCI_CHIPSTATUS_05	(5)
+#define GCI_CHIPSTATUS_06	(6)
+#define GCI_CHIPSTATUS_07	(7)
+#define GCI_CHIPSTATUS_08	(8)
+#define GCI_CHIPSTATUS_09	(9)
+#define GCI_CHIPSTATUS_10	(10)
+#define GCI_CHIPSTATUS_11	(11)
+#define GCI_CHIPSTATUS_12	(12)
+#define GCI_CHIPSTATUS_13	(13)
+#define GCI_CHIPSTATUS_15	(15)
+
+/* 43021 GCI chipstatus registers */
+#define GCI43012_CHIPSTATUS_07_BBPLL_LOCK_MASK	(1 << 3)
 
 /* GCI Core Control Reg */
-#define	GCI_CORECTRL_SR_MASK			(1 << 0)	/**< SECI block Reset */
-#define	GCI_CORECTRL_RSL_MASK			(1 << 1)	/**< ResetSECILogic */
-#define	GCI_CORECTRL_ES_MASK			(1 << 2)	/**< EnableSECI */
-#define	GCI_CORECTRL_FSL_MASK			(1 << 3)	/**< Force SECI Out Low */
-#define	GCI_CORECTRL_SOM_MASK			(7 << 4)	/**< SECI Op Mode */
-#define	GCI_CORECTRL_US_MASK			(1 << 7)	/**< Update SECI */
-#define	GCI_CORECTRL_BOS_MASK			(1 << 8)	/**< Break On Sleep */
-#define GCI_CORECTRL_SPMI_UART_MASK		(1 << 13)	/* 1- spmi 0- uart mode */
-/* LTE GCI Bus Mapping: 1-Both SPMI and Legacy 0-Legacy LTE Coex Only */
-#define GCI_CORECTRL_SPMI_UART_MODE_SEL2	(1 << 14)
-#define	GCI_CORECTRL_FORCEREGCLK_MASK		(1 << 18)	/* ForceRegClk */
+#define	GCI_CORECTRL_SR_MASK	(1 << 0)	/**< SECI block Reset */
+#define	GCI_CORECTRL_RSL_MASK	(1 << 1)	/**< ResetSECILogic */
+#define	GCI_CORECTRL_ES_MASK	(1 << 2)	/**< EnableSECI */
+#define	GCI_CORECTRL_FSL_MASK	(1 << 3)	/**< Force SECI Out Low */
+#define	GCI_CORECTRL_SOM_MASK	(7 << 4)	/**< SECI Op Mode */
+#define	GCI_CORECTRL_US_MASK	(1 << 7)	/**< Update SECI */
+#define	GCI_CORECTRL_BOS_MASK	(1 << 8)	/**< Break On Sleep */
+#define	GCI_CORECTRL_FORCEREGCLK_MASK	(1 << 18)	/* ForceRegClk */
 
-/* 4387 GCI AVS function */
+/* 4378 & 4387 GCI AVS function */
 #define GCI6_AVS_ENAB			1u
 #define GCI6_AVS_ENAB_SHIFT		31u
 #define GCI6_AVS_ENAB_MASK		(1u << GCI6_AVS_ENAB_SHIFT)
@@ -3491,6 +4714,19 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 
 /* indicates Invalid GPIO, e.g. when PAD GPIO doesn't map to GCI GPIO */
 #define CC_GCI_GPIO_INVALID		0xFF
+
+/* 4378 LHL GPIO configuration */
+#define	LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_SHIFT	(3u)
+#define LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_MASK	(1u << LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_SHIFT)
+
+/* 4378 LHL SPMI bit definitions */
+#define LHL_LP_CTL5_SPMI_DATA_SEL_SHIFT		(8u)
+#define	LHL_LP_CTL5_SPMI_DATA_SEL_MASK		(0x3u << LHL_LP_CTL5_SPMI_CLK_DATA_SHIFT)
+#define LHL_LP_CTL5_SPMI_CLK_SEL_SHIFT		(6u)
+#define	LHL_LP_CTL5_SPMI_CLK_SEL_MASK		(0x3u << LHL_LP_CTL5_SPMI_CLK_SEL_SHIFT)
+#define	LHL_LP_CTL5_SPMI_CLK_DATA_GPIO0		(0u)
+#define	LHL_LP_CTL5_SPMI_CLK_DATA_GPIO1		(1u)
+#define	LHL_LP_CTL5_SPMI_CLK_DATA_GPIO2		(2u)
 
 /* Plese do not these following defines */
 /* find the 4 bit mask given the bit position */
@@ -3525,11 +4761,9 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define GCI_INTSTATUS_SRFAF	(1 << 12)	/**< SECI Rx FIFO Almost Full */
 #define GCI_INTSTATUS_SRFNE	(1 << 14)	/**< SECI Rx FIFO Not Empty */
 #define GCI_INTSTATUS_SRFOF	(1 << 15)	/**< SECI Rx FIFO Not Empty Timeout */
-#define GCI_INTSTATUS_SRXFIFO	(1 << 16)	/**< SPMI coex rx fifo interrupt */
-#define GCI_INTSTATUS_EVENT	(1 << 21)	/* GCI Event Interrupt */
-#define GCI_INTSTATUS_LEVELWAKE (1 << 22)	/* GCI Wake Level Interrupt */
-#define GCI_INTSTATUS_EVENTWAKE (1 << 23)	/* GCI Wake Event Interrupt */
-#define GCI_INTSTATUS_SEMAPHORE (1 << 24)	/* HW Semaphore Interrupt */
+#define GCI_INTSTATUS_EVENT  (1 << 21)   /* GCI Event Interrupt */
+#define GCI_INTSTATUS_LEVELWAKE (1 << 22)   /* GCI Wake Level Interrupt */
+#define GCI_INTSTATUS_EVENTWAKE (1 << 23)   /* GCI Wake Event Interrupt */
 #define GCI_INTSTATUS_GPIOINT	(1 << 25)	/**< GCIGpioInt */
 #define GCI_INTSTATUS_GPIOWAKE	(1 << 26)	/**< GCIGpioWake */
 #define GCI_INTSTATUS_LHLWLWAKE	(1 << 30)	/* LHL WL wake */
@@ -3545,11 +4779,9 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define GCI_INTMASK_SRFAF	(1 << 12)	/**< SECI Rx FIFO Almost Full */
 #define GCI_INTMASK_SRFNE	(1 << 14)	/**< SECI Rx FIFO Not Empty */
 #define GCI_INTMASK_SRFOF	(1 << 15)	/**< SECI Rx FIFO Not Empty Timeout */
-#define GCI_INTMASK_SRXFIFO	(1 << 16)	/**< SPMI coex rx fifo interrupt */
-#define GCI_INTMASK_EVENT	(1 << 21)	/* GCI Event Interrupt */
-#define GCI_INTMASK_LEVELWAKE   (1 << 22)	/* GCI Wake Level Interrupt */
-#define GCI_INTMASK_EVENTWAKE   (1 << 23)	/* GCI Wake Event Interrupt */
-#define GCI_INTMASK_SEMAPHORE   (1 << 24)	/* HW Semaphore Interrupt */
+#define GCI_INTMASK_EVENT (1 << 21)   /* GCI Event Interrupt */
+#define GCI_INTMASK_LEVELWAKE   (1 << 22)   /* GCI Wake Level Interrupt */
+#define GCI_INTMASK_EVENTWAKE   (1 << 23)   /* GCI Wake Event Interrupt */
 #define GCI_INTMASK_GPIOINT	(1 << 25)	/**< GCIGpioInt */
 #define GCI_INTMASK_GPIOWAKE	(1 << 26)	/**< GCIGpioWake */
 #define GCI_INTMASK_LHLWLWAKE	(1 << 30)	/* LHL WL wake */
@@ -3584,6 +4816,8 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 
 #define	PMU_EXT_WAKE_MASK_0_SDIO		(1u << 2u)
 #define	PMU_EXT_WAKE_MASK_0_PCIE_PERST		(1u << 5u)
+
+#define PMU_4362_EXT_WAKE_MASK_0_SDIO		(1u << 1u | 1u << 2u)
 
 /* =========== LHL regs =========== */
 #define LHL_PWRSEQCTL_SLEEP_EN			(1 << 0)
@@ -3670,14 +4904,7 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define LHL_WL_ARMTIM0_INTRP_EDGE_TRIGGER	0x00000002
 
 /* WL ARM Timer0 Interrupt Status (lhl_wl_armtim0_st_adr) */
-#define LHL_WL_ARMTIM0_ST_WL_ARMTIM_INT_ST	0x00000001u
-
-/* WL ARM Timer1 Interrupt Mask (lhl_wl_armtim1_intrp_adr) */
-#define LHL_WL_ARMTIM1_INTRP_EN			0x00000001
-#define LHL_WL_ARMTIM1_INTRP_EDGE_TRIGGER	0x00000002
-
-/* WL ARM Timer1 Interrupt Status (lhl_wl_armtim1_st_adr) */
-#define LHL_WL_ARMTIM1_ST_WL_ARMTIM_INT_ST	0x00000001
+#define LHL_WL_ARMTIM0_ST_WL_ARMTIM_INT_ST	0x00000001
 
 /* WL MAC TimerX Interrupt Mask (lhl_wl_mactimX_intrp_adr) */
 #define LHL_WL_MACTIM_INTRP_EN			0x00000001
@@ -3688,40 +4915,9 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 
 /* LHL Wakeup Status (lhl_wkup_status_adr) */
 #define LHL_WKUP_STATUS_WR_PENDING_ARMTIM0	0x00100000
-#define LHL_WKUP_STATUS_WR_PENDING_ARMTIM1	0x00200000
-
-/* LHL Wakeup Status (regon_intrp_st_adr) */
-#define LHL_WL_REG_ON_INTR_ST			0x00000004
 
 #define LHL_PS_MODE_0	0
 #define LHL_PS_MODE_1	1
-
-/* IOCFG_P_ADDR register bits */
-#define LHL_IOCFG_P_ADDR_EDGE_TRIGGER_SHIFT           (0u)
-#define LHL_IOCFG_P_ADDR_EDGE_TRIGGER_MASK            (1u << IOCFG_P_ADDR_EDGE_TRIGGER_SHIFT)
-#define LHL_IOCFG_P_ADDR_NEG_EDGE_SHIFT               (1u)
-#define LHL_IOCFG_P_ADDR_NEG_EDGE_MASK                (1u << LHL_IOCFG_P_ADDR_NEG_EDGE_SHIFT)
-#define LHL_IOCFG_P_ADDR_DUAL_EDGE_SHIFT              (2u)
-#define LHL_IOCFG_P_ADDR_DUAL_EDGE_MASK               (1u << LHL_IOCFG_P_ADDR_DUAL_EDGE_SHIFT)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_SHIFT      (3u)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_MASK \
-	(0x1u << LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SEL_SHIFT)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SHIFT          (4u)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_MASK           (1u << LHL_IOCFG_P_ADDR_LHL_GPIO_DOUT_SHIFT)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_OE_SHIFT            (5u)
-#define LHL_IOCFG_P_ADDR_LHL_GPIO_OE_MASK             (1u << LHL_IOCFG_P_ADDR_LHL_GPIO_OE_SHIFT)
-#define LHL_IOCFG_P_ADDR_SET_WL_DIN_AS_WAKE_SRC_SHIFT (6u)
-#define LHL_IOCFG_P_ADDR_SET_WL_DIN_AS_WAKE_SRC_MASK \
-	(1u << LHL_IOCFG_P_ADDR_SET_WL_DIN_AS_WAKE_SRC_SHIFT)
-#define LHL_IOCFG_P_ADDR_PUP_PDN_SHIFT                (9u)
-#define LHL_IOCFG_P_ADDR_PUP_PDN_MASK                 (3u << LHL_IOCFG_P_ADDR_PUP_PDN_SHIFT)
-#define LHL_IOCFG_P_ADDR_DRIVE_STRENGTH_SEL_SHIFT     (11u)
-#define LHL_IOCFG_P_ADDR_DRIVE_STRENGTH_SEL_MASK \
-	(7u << LHL_IOCFG_P_ADDR_DRIVE_STRENGTH_SEL_SHIFT)
-#define LHL_IOCFG_P_ADDR_SLEW_SHIFT                   (14u)
-#define LHL_IOCFG_P_ADDR_SLEW_MASK                    (1u << LHL_IOCFG_P_ADDR_SLEW_SHIFT)
-#define LHL_IOCFG_P_ADDR_HYSTERESIS_SHIFT             (15u)
-#define LHL_IOCFG_P_ADDR_HYSTERESIS_MASK              (1u << LHL_IOCFG_P_ADDR_HYSTERESIS_SHIFT)
 
 /* GCI EventIntMask Register SW bits */
 #define GCI_MAILBOXDATA_TOWLAN	(1 << 0)
@@ -3745,11 +4941,15 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define GCI_SECIOUT_TXSTATUS_TXHALT		(1 << 0)
 #define GCI_SECIOUT_TXSTATUS_TI			(1 << 16)
 
+/* 43012 MUX options */
+#define MUXENAB43012_HOSTWAKE_MASK	(0x00000001)
+#define MUXENAB43012_GETIX(val, name) (val - 1)
+
 /*
 * Maximum delay for the PMU state transition in us.
 * This is an upper bound intended for spinwaits etc.
 */
-#if defined(BCMQT)
+#if defined(BCMQT) && defined(BCMDONGLEHOST)
 #define PMU_MAX_TRANSITION_DLY	1500000
 #else
 #define PMU_MAX_TRANSITION_DLY	15000
@@ -3817,16 +5017,18 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 /* Information from WLAN to BT over eci_output register. */
 /* Fields in eci_output register - [0:31] */
 #define ECI48_OUT_MASKMAGIC_HIWORD 0x55550000
-#define ECI_OUT_CHANNEL_MASK(ccrev) (ECI48_OUT_MASKMAGIC_HIWORD | 0xf000)
-#define ECI_OUT_CHANNEL_SHIFT(ccrev) (12)
-#define ECI_OUT_BW_MASK(ccrev) (ECI48_OUT_MASKMAGIC_HIWORD | 0xe00)
-#define ECI_OUT_BW_SHIFT(ccrev) (9)
-#define ECI_OUT_ANTENNA_MASK(ccrev) (ECI48_OUT_MASKMAGIC_HIWORD | 0x100)
-#define ECI_OUT_ANTENNA_SHIFT(ccrev) (8)
-#define ECI_OUT_SIMUL_TXRX_MASK(ccrev) (ECI48_OUT_MASKMAGIC_HIWORD | 0x80)
-#define ECI_OUT_SIMUL_TXRX_SHIFT(ccrev) (7)
-#define ECI_OUT_FM_DISABLE_MASK(ccrev) (ECI48_OUT_MASKMAGIC_HIWORD | 0x40)
-#define ECI_OUT_FM_DISABLE_SHIFT(ccrev) (6)
+#define ECI_OUT_CHANNEL_MASK(ccrev) ((ccrev) < 35 ? 0xf : (ECI48_OUT_MASKMAGIC_HIWORD | 0xf000))
+#define ECI_OUT_CHANNEL_SHIFT(ccrev) ((ccrev) < 35 ? 0 : 12)
+#define ECI_OUT_BW_MASK(ccrev) ((ccrev) < 35 ? 0x70 : (ECI48_OUT_MASKMAGIC_HIWORD | 0xe00))
+#define ECI_OUT_BW_SHIFT(ccrev) ((ccrev) < 35 ? 4 : 9)
+#define ECI_OUT_ANTENNA_MASK(ccrev) ((ccrev) < 35 ? 0x80 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x100))
+#define ECI_OUT_ANTENNA_SHIFT(ccrev) ((ccrev) < 35 ? 7 : 8)
+#define ECI_OUT_SIMUL_TXRX_MASK(ccrev) \
+	((ccrev) < 35 ? 0x10000 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x80))
+#define ECI_OUT_SIMUL_TXRX_SHIFT(ccrev) ((ccrev) < 35 ? 16 : 7)
+#define ECI_OUT_FM_DISABLE_MASK(ccrev) \
+	((ccrev) < 35 ? 0x40000 : (ECI48_OUT_MASKMAGIC_HIWORD | 0x40))
+#define ECI_OUT_FM_DISABLE_SHIFT(ccrev) ((ccrev) < 35 ? 18 : 6)
 
 /* Indicate control of ECI bits between s/w and dot11mac.
  * 0 => FW control, 1=> MAC/ucode control
@@ -3838,6 +5040,14 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
  * 40 - Num antennas (wl)
  * 43:41 - WLAN channel exclusion BW (wl)
  * 47:44 - WLAN channel (wl)
+ *
+ * (ccrev < 35)
+ * 15:0 - wl
+ * 16 -
+ * 18 - FM disable
+ * 30 - wl interrupt
+ * 31 - ucode interrupt
+ * others - unassigned (presumed to be with dot11mac/ucode)
  */
 #define ECI_MACCTRL_BITS	0xbffb0000
 #define ECI_MACCTRLLO_BITS	0x1
@@ -4020,32 +5230,28 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define ECI_INLO_PKTDUR_SHIFT	4
 
 /* gci chip control bits */
-#define GCI_GPIO_CHIPCTRL_ENAB_IN_BIT		0u
-#define GCI_GPIO_CHIPCTRL_ENAB_OP_BIT		1u
-#define GCI_GPIO_CHIPCTRL_INVERT_BIT		2u
-#define GCI_GPIO_CHIPCTRL_PULLUP_BIT		3u
-#define GCI_GPIO_CHIPCTRL_PULLDN_BIT		4u
-#define GCI_GPIO_CHIPCTRL_ENAB_BTSIG_BIT	5u
-#define GCI_GPIO_CHIPCTRL_ENAB_OD_OP_BIT	6u
-#define GCI_GPIO_CHIPCTRL_ENAB_EXT_GPIO_BIT	7u
+#define GCI_GPIO_CHIPCTRL_ENAB_IN_BIT		0
+#define GCI_GPIO_CHIPCTRL_ENAB_OP_BIT		1
+#define GCI_GPIO_CHIPCTRL_INVERT_BIT		2
+#define GCI_GPIO_CHIPCTRL_PULLUP_BIT		3
+#define GCI_GPIO_CHIPCTRL_PULLDN_BIT		4
+#define GCI_GPIO_CHIPCTRL_ENAB_BTSIG_BIT	5
+#define GCI_GPIO_CHIPCTRL_ENAB_OD_OP_BIT	6
+#define GCI_GPIO_CHIPCTRL_ENAB_EXT_GPIO_BIT	7
 
 /* gci GPIO input status bits */
-#define GCI_GPIO_STS_VALUE_BIT			0u
-#define GCI_GPIO_STS_POS_EDGE_BIT		1u
-#define GCI_GPIO_STS_NEG_EDGE_BIT		2u
-#define GCI_GPIO_STS_FAST_EDGE_BIT		3u
+#define GCI_GPIO_STS_VALUE_BIT			0
+#define GCI_GPIO_STS_POS_EDGE_BIT		1
+#define GCI_GPIO_STS_NEG_EDGE_BIT		2
+#define GCI_GPIO_STS_FAST_EDGE_BIT		3
 #define GCI_GPIO_STS_CLEAR			0xF
-#define GCI_GPIO_STS_MASK			0xF
 
-#define GCI_GPIO_STS_EDGE_TRIG_BIT		0u
-#define GCI_GPIO_STS_NEG_EDGE_TRIG_BIT		1u
-#define GCI_GPIO_STS_DUAL_EDGE_TRIG_BIT		2u
-#define GCI_GPIO_STS_WL_DIN_SELECT		6u
-#define GCI_GPIO_STS_TRANSPARENT_MODE		7u
+#define GCI_GPIO_STS_EDGE_TRIG_BIT			0
+#define GCI_GPIO_STS_NEG_EDGE_TRIG_BIT		1
+#define GCI_GPIO_STS_DUAL_EDGE_TRIG_BIT		2
+#define GCI_GPIO_STS_WL_DIN_SELECT		6
 
-#define GCI_GPIO_STS_VALUE			(1u << GCI_GPIO_STS_VALUE_BIT)
-#define GCI_GPIO_STS_POS_EDGE_VALUE		(1u << GCI_GPIO_STS_POS_EDGE_BIT)
-#define GCI_GPIO_STS_NEG_EDGE_VALUE		(1u << GCI_GPIO_STS_NEG_EDGE_BIT)
+#define GCI_GPIO_STS_VALUE	(1 << GCI_GPIO_STS_VALUE_BIT)
 
 /* SR Power Control */
 #define SRPWR_DMN0_PCIE			(0)				/* PCIE */
@@ -4065,14 +5271,7 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define SRPWR_DMN4_MACSCAN_SHIFT	(SRPWR_DMN4_MACSCAN)		/* MAC/Phy Scan */
 #define SRPWR_DMN4_MACSCAN_MASK		(1 << SRPWR_DMN4_MACSCAN_SHIFT)	/* MAC/Phy Scan */
 
-#define SRPWR_DMN5_BT			(5)				/* BT */
-
-#define SRPWR_DMN6_SAQM			(6)				/* sAQM */
-#define SRPWR_DMN6_SAQM_SHIFT		(SRPWR_DMN6_SAQM)		/* sAQM */
-#define SRPWR_DMN6_SAQM_MASK		(1 << SRPWR_DMN6_SAQM_SHIFT)	/* sAQM */
-
-#define SRPWR_DMN_MAX			(7)	/* Domains 0-6 */
-
+#define SRPWR_DMN_MAX		(5)
 /* all power domain mask */
 #define SRPWR_DMN_ALL_MASK(sih)		si_srpwr_domain_all_mask(sih)
 
@@ -4099,16 +5298,12 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define	CC_RNG_CTRL_0_RBG_EN_SHIFT		(0u)
 #define	CC_RNG_CTRL_0_RBG_EN_MASK		(0x1FFFu << CC_RNG_CTRL_0_RBG_EN_SHIFT)
 #define	CC_RNG_CTRL_0_RBG_EN			(0x1FFFu)
-#define CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT	(13u)
+#define CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT	(12u)
 #define CC_RNG_CTRL_0_RBG_DEV_CTRL_MASK		(0x3u << CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT)
 #define CC_RNG_CTRL_0_RBG_DEV_CTRL_1MHz		(0x3u << CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT)
 #define CC_RNG_CTRL_0_RBG_DEV_CTRL_2MHz		(0x2u << CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT)
 #define CC_RNG_CTRL_0_RBG_DEV_CTRL_4MHz		(0x1u << CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT)
 #define CC_RNG_CTRL_0_RBG_DEV_CTRL_8MHz		(0x0u << CC_RNG_CTRL_0_RBG_DEV_CTRL_SHIFT)
-
-/* RNG_SOFT_RESET */
-#define CC_RNG_SOFT_RESET_SHIFT		(0u)
-#define CC_RNG_SOFT_RESET_MASK		(0x1u << CC_RNG_FIFO_COUNT_RFC_SHIFT)
 
 /* RNG_FIFO_COUNT */
 /* RFC - RNG FIFO COUNT */
@@ -4145,8 +5340,8 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define PMU_FIS_DN_TIMER_VAL_SHIFT	16u
 #define PMU_FIS_DN_TIMER_VAL_MASK	0x7FFF0000u
 
+#define PMU_FIS_DN_TIMER_VAL_4378	0x2f80u	/* micro second */
 #define PMU_FIS_DN_TIMER_VAL_4388	0x3f80u	/* micro second */
-#define PMU_FIS_DN_TIMER_VAL_4397	0x3f80u	/* micro second */
 #define PMU_FIS_DN_TIMER_VAL_4389	0x3f80u	/* micro second */
 
 #define PMU_FIS_PCIE_SAVE_EN_SHIFT	5u
@@ -4169,291 +5364,5 @@ cncb2rdig_scan2G_dedicated_path_en_core1_ovr_en	13
 #define BCM4387_SSSR_DUMP_AUX_SIZE		160000u
 #define BCM4387_SSSR_DUMP_AXI_SCAN		0xE9400000u
 #define BCM4387_SSSR_DUMP_SCAN_SIZE		32768u
-
-#define BCM4388_SSSR_DUMP_AXI_MAIN		0xE8C00000u
-#define BCM4388_SSSR_DUMP_MAIN_SIZE		0x40000u
-#define BCM4388_SSSR_DUMP_AXI_AUX		0xE8400000u
-#define BCM4388_SSSR_DUMP_AUX_SIZE		0x30000u
-#define BCM4388_SSSR_DUMP_AXI_SCAN		0xE9400000u
-#define BCM4388_SSSR_DUMP_SCAN_SIZE		0xE000u
-
-#define BCM4387_WLAN_SYS_MEMDOWN_FORCE_PMU	0x444
-#define BCM4378_WLAN_SYS_MEMDOWN_FORCE_PMU	0x133
-
-#define CC_GCI_scan5G_dedicated_path_en_core0_ovr_NBIT (14u)
-#define CC_GCI_scan5G_dedicated_path_en_core0_ovr_MASK (1u <<\
-		CC_GCI_scan5G_dedicated_path_en_core0_ovr_NBIT)
-
-#define CC_GCI_scan5G_dedicated_path_en_core1_ovr_NBIT (16u)
-#define CC_GCI_scan5G_dedicated_path_en_core1_ovr_MASK (1u <<\
-		CC_GCI_scan5G_dedicated_path_en_core1_ovr_NBIT)
-
-#define CC_GCI_scan5G_dedicated_path_en_core0_ovr_en_NBIT (15u)
-#define CC_GCI_scan5G_dedicated_path_en_core0_ovr_en_MASK (1u <<\
-		CC_GCI_scan5G_dedicated_path_en_core0_ovr_en_NBIT)
-
-#define CC_GCI_scan5G_dedicated_path_en_core1_ovr_en_NBIT (17u)
-#define CC_GCI_scan5G_dedicated_path_en_core1_ovr_en_MASK (1u <<\
-		CC_GCI_scan5G_dedicated_path_en_core1_ovr_en_NBIT)
-
-#ifndef BCMCHIPID
-/* Enable linker error only when BCMCHIPID is defined.
- * This is to avoid compile error in 43xx build.
- */
-#define SI_CTRLREGS_INVALID			0xFFFFFFFFu
-#else /* BCMCHIPID */
-#define SI_CTRLREGS_INVALID			hnd_invalid_ctrlreg()
-#endif /* BCMCHIPID */
-
-#ifdef VLSI_CTRL_REGS
-
-#define VLSI2SW_CTRLREGS()	TRUE
-
-#undef INVALID_REG_gci_chip_cntrl
-#undef INVALID_MASK_gci_chip_cntrl
-#undef INVALID_REG_gci_chip_status
-#undef INVALID_MASK_gci_chip_status
-#undef INVALID_REG_pmu_chip_cntrl
-#undef INVALID_MASK_pmu_chip_cntrl
-#undef INVALID_REG_pmu_pll_cntrl
-#undef INVALID_MASK_pmu_pll_cntrl
-#undef INVALID_REG_pmu_vreg_cntrl
-#undef INVALID_MASK_pmu_vreg_cntrl
-
-/* Force a compile error if any register is referenced that does not exist in the built ctrl
- * register set.
- */
-#define INVALID_REG_gci_chip_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_MASK_gci_chip_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_REG_gci_chip_status		SI_CTRLREGS_INVALID
-#define INVALID_MASK_gci_chip_status            SI_CTRLREGS_INVALID
-#define INVALID_REG_pmu_chip_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_MASK_pmu_chip_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_REG_pmu_pll_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_MASK_pmu_pll_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_REG_pmu_vreg_cntrl		SI_CTRLREGS_INVALID
-#define INVALID_MASK_pmu_vreg_cntrl		SI_CTRLREGS_INVALID
-
-/* GCI Chipstatus doesn't use last two arguments for read as this API is read only. */
-#define _si_gci_chipstatus_rd(a, b, c, d)	si_gci_chipstatus(a, b)
-
-#define CTRL_REG_NUM_SLICES(regtype, name) \
-		regtype##_##name##_SLICES
-
-#define CTRL_REG_NUM(regtype, name, slicenum) \
-		regtype##_##name##_##slicenum##_REG
-
-#define CTRL_REG_MASK(regtype, name, slicenum) \
-		regtype##_##name##_##slicenum##_REG_MASK
-
-#define CTRL_REG_SHIFT(regtype, name, slicenum) \
-		regtype##_##name##_##slicenum##_REG_SHIFT
-
-#define CTRL_FIELD_MASK(regtype, name, slicenum) \
-		regtype##_##name##_##slicenum##_FIELD_MASK
-
-#define CTRL_FIELD_SHIFT(regtype, name, slicenum) \
-		regtype##_##name##_##slicenum##_FIELD_SHIFT
-
-#define CTRL_WR_VALUE(regtype, name, value, slice) \
-	((((value) >> CTRL_FIELD_SHIFT(regtype, name, slice)) & \
-	 CTRL_FIELD_MASK(regtype, name, slice)) << CTRL_REG_SHIFT(regtype, name, slice))
-
-#define _SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, slicenum) do { \
-		if (CTRL_REG_NUM_SLICES(regtype, name) > (slicenum - 1)) { \
-			si_fn(sih, CTRL_REG_NUM(regtype, name, slicenum), \
-				CTRL_REG_MASK(regtype, name, slicenum), \
-				CTRL_WR_VALUE(regtype, name, value, slicenum)); \
-		} \
-	} while (0)
-
-#define _SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, slicenum)  do { \
-		if (CTRL_REG_NUM_SLICES(regtype, name) > (slicenum - 1)) { \
-			si_fn(sih, CTRL_REG_NUM(regtype, name, slicenum), \
-				CTRL_WR_VALUE(regtype, name, mask, slicenum), \
-				CTRL_WR_VALUE(regtype, name, value, slicenum)); \
-		} \
-	} while (0)
-
-#define _SI_REG_READ_SLICE_FIELD(si_fn, sih, regtype, name, slice) \
-	((si_fn(sih, CTRL_REG_NUM(regtype, name, slice), 0, 0) & \
-	  CTRL_REG_MASK(regtype, name, slice)) >> CTRL_REG_SHIFT(regtype, name, slice))
-
-#define _SI_REG_READ_SLICE(si_fn, sih, regtype, name, ret, slicenum) \
-	do { \
-		if (CTRL_REG_NUM_SLICES(regtype, name) > (slicenum - 1)) { \
-			ret |= ((_SI_REG_READ_SLICE_FIELD(si_fn, sih, regtype, name, \
-				slicenum) & CTRL_FIELD_MASK(regtype, name, slicenum)) << \
-				 CTRL_FIELD_SHIFT(regtype, name, slicenum)); \
-		} \
-	} while (0)
-
-#define _SI_REG_READ_SLICE64(si_fn, sih, regtype, name, ret, slicenum) \
-	do { \
-		if (CTRL_REG_NUM_SLICES(regtype, name) > (slicenum - 1)) { \
-			ret |= (((uint64) (_SI_REG_READ_SLICE_FIELD(si_fn, sih, regtype, name, \
-				slicenum) & CTRL_FIELD_MASK(regtype, name, slicenum))) << \
-				 CTRL_FIELD_SHIFT(regtype, name, slicenum)); \
-		} \
-	} while (0)
-
-#define _SI_CHECK_MIN_SLICES(regtype, name) \
-	do { \
-		if ((int)CTRL_REG_NUM_SLICES(regtype, name) < 0) { \
-			SI_CTRLREGS_INVALID; \
-		} \
-	} while (0)
-
-#define _SI_CHECK_MAX_SLICES(regtype, name, slicenum) \
-	do { \
-		if (CTRL_REG_NUM_SLICES(regtype, name) > (slicenum - 1)) { \
-			SI_CTRLREGS_INVALID; \
-		} \
-	} while (0)
-
-#define _SI_CTRL_REG_WRITE(si_fn, regtype, sih, name, value) \
-	do { \
-		_SI_CHECK_MIN_SLICES(regtype, name); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 1); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 2); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 3); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 4); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 5); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 6); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 7); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 8); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 9); \
-		_SI_REG_WRITE_SLICE(si_fn, sih, regtype, name, value, 10); \
-		_SI_CHECK_MAX_SLICES(regtype, name, 11); \
-	} while (0)
-
-#define _SI_CTRL_REG_READ(si_fn, regtype, sih, name) \
-	({ \
-		uint32 __retval__ = 0; \
-		_SI_CHECK_MIN_SLICES(regtype, name); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 1); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 2); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 3); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 4); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 5); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 6); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 7); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 8); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 9); \
-		_SI_REG_READ_SLICE(si_fn, sih, regtype, name, __retval__, 10); \
-		_SI_CHECK_MAX_SLICES(regtype, name, 11); \
-		__retval__; \
-	})
-
-#define _SI_CTRL_REG_READ64(si_fn, regtype, sih, name) \
-	({ \
-		uint64 __retval__ = 0; \
-		_SI_CHECK_MIN_SLICES(regtype, name); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 1); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 2); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 3); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 4); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 5); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 6); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 7); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 8); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 9); \
-		_SI_REG_READ_SLICE64(si_fn, sih, regtype, name, __retval__, 10); \
-		_SI_CHECK_MAX_SLICES(regtype, name, 11); \
-		__retval__; \
-	})
-
-#define _SI_CTRL_REG_MOD(si_fn, regtype, sih, name, mask, value) \
-	({ \
-		_SI_CHECK_MIN_SLICES(regtype, name); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 1); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 2); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 3); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 4); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 5); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 6); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 7); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 8); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 9); \
-		_SI_REG_MOD_SLICE(si_fn, sih, regtype, name, mask, value, 10); \
-		_SI_CHECK_MAX_SLICES(regtype, name, 11); \
-	})
-
-#define SI_PMU_CC_WRITE(sih, name, value) \
-	_SI_CTRL_REG_WRITE(si_pmu_chipcontrol, pmu_chip_cntrl, sih, name, value)
-#define SI_PMU_CC_READ(sih, name) \
-	_SI_CTRL_REG_READ(si_pmu_chipcontrol, pmu_chip_cntrl, sih, name)
-
-#define SI_PMU_PLL_WRITE(sih, name, value) \
-	_SI_CTRL_REG_WRITE(si_pmu_pllcontrol, pmu_pll_cntrl, sih, name, value)
-#define SI_PMU_PLL_READ(sih, name) \
-	_SI_CTRL_REG_READ(si_pmu_pllcontrol, pmu_pll_cntrl, sih, name)
-
-#define SI_GCI_CC_WRITE(sih, name, value) \
-	_SI_CTRL_REG_WRITE(si_gci_chipcontrol, gci_chip_cntrl, sih, name, value)
-#define SI_GCI_CC_READ(sih, name) \
-	_SI_CTRL_REG_READ(si_gci_chipcontrol, gci_chip_cntrl, sih, name)
-#define SI_GCI_CC_READ64(sih, name) \
-	_SI_CTRL_REG_READ64(si_gci_chipcontrol, gci_chip_cntrl, sih, name)
-#define SI_GCI_CC_MOD(sih, name, mask, value) \
-	_SI_CTRL_REG_MOD(si_gci_chipcontrol, gci_chip_cntrl, sih, name, mask, value)
-
-#define SI_GCI_CS_READ(sih, name) \
-	_SI_CTRL_REG_READ(_si_gci_chipstatus_rd, gci_chip_status, sih, name)
-
-#define SI_VREG_WRITE(sih, name, value) \
-	_SI_CTRL_REG_WRITE(si_pmu_vreg_control, pmu_vreg_cntrl, sih, name, value)
-#define SI_VREG_READ(sih, name) \
-	_SI_CTRL_REG_READ(si_pmu_vreg_control, pmu_vreg_cntrl, sih, name)
-
-#else /* VLSI_CTRL_REGS */
-
-#define VLSI2SW_CTRLREGS()	FALSE
-
-#ifdef BCMCHIPID
-/* This is aplicable only for chips which do not support vlsi2sw flow:
- * BCM4387, BCM4389. This code needs to be deleted once
- * the trunk support for these chips gets deprecated. The below macro
- * provides a switch between vlsi2sw flow v/s legacy flow
- */
-#define SI_GCI_CC_WRITE(sih, field, value) si_gci_chipcontrol_wr_api(sih, field, value)
-#define SI_GCI_CC_READ(sih, field) si_gci_chipcontrol_rd_api(sih, field)
-#else
-#define SI_GCI_CC_WRITE(sih, name, value)	{ \
-		BCM_REFERENCE(value); \
-		(void)SI_CTRLREGS_INVALID; \
-	}
-#define SI_GCI_CC_MOD(sih, name, mask, value)	{ \
-		BCM_REFERENCE(mask); \
-		BCM_REFERENCE(value); \
-		(void)SI_CTRLREGS_INVALID; \
-	}
-#define SI_GCI_CC_READ(sih, name)		SI_CTRLREGS_INVALID
-#endif /* BCMCHIPID */
-
-/* Use extern only for C file compile.
- * extern definitions doesn't work for assembly file compilation.
- */
-#ifndef _LANGUAGE_ASSEMBLY
-extern uint16 hnd_invalid_ctrlreg(void); // Note: this function must not be defined anywhere
-#endif /* _LANGUAGE_ASSEMBLY */
-#define SI_PMU_CC_WRITE(sih, name, value)	{ \
-		BCM_REFERENCE(value); \
-		(void)SI_CTRLREGS_INVALID; \
-	}
-#define SI_PMU_CC_READ(sih, name)		SI_CTRLREGS_INVALID
-#define SI_PMU_PLL_WRITE(sih, name, value)	{ \
-		BCM_REFERENCE(value); \
-		(void)SI_CTRLREGS_INVALID; \
-	}
-#define SI_PMU_PLL_READ(sih, name)		SI_CTRLREGS_INVALID
-#define SI_GCI_CC_READ64(sih, name)		SI_CTRLREGS_INVALID
-#define SI_GCI_CS_READ(sih, name)               SI_CTRLREGS_INVALID
-#define SI_VREG_WRITE(sih, name, value)		{ \
-		BCM_REFERENCE(value); \
-		(void)SI_CTRLREGS_INVALID; \
-	}
-#define SI_VREG_READ(sih, name)			SI_CTRLREGS_INVALID
-#endif /* VLSI_CTRL_REGS */
 
 #endif	/* _SBCHIPC_H */

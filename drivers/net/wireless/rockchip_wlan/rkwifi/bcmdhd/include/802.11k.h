@@ -8,26 +8,7 @@
  * RM - same as RRM?
  * NGBR - Neighbor Report
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -250,15 +231,12 @@ typedef struct dot11_rmrep_bcn dot11_rmrep_bcn_t;
 #define DOT11_RMREQ_BCN_TABLE	2
 
 /* Sub-element IDs for Beacon Request */
-#define DOT11_RMREQ_BCN_SSID_ID		0
-#define DOT11_RMREQ_BCN_REPINFO_ID	1
-#define DOT11_RMREQ_BCN_REPDET_ID	2
-#define DOT11_RMREQ_BCN_REQUEST_ID	10
-#define DOT11_RMREQ_BCN_EXT_REQ_ID	11
-#define DOT11_RMREQ_BCN_APCHREP_ID	DOT11_MNG_AP_CHREP_ID
-#define DOT11_RMREQ_BCN_WIDE_BWCS_ID	163u	/* Wide Bandwidth Channel Switch */
+#define DOT11_RMREQ_BCN_SSID_ID 0
+#define DOT11_RMREQ_BCN_REPINFO_ID  1
+#define DOT11_RMREQ_BCN_REPDET_ID   2
+#define DOT11_RMREQ_BCN_REQUEST_ID  10
+#define DOT11_RMREQ_BCN_APCHREP_ID  DOT11_MNG_AP_CHREP_ID
 #define DOT11_RMREQ_BCN_LAST_RPT_IND_REQ_ID 164
-#define DOT11_RMREQ_BCN_BW_IND_ID	165u	/* Bandwidth Indication P802.11be D3.0 */
 
 /* Reporting Detail element definition */
 #define DOT11_RMREQ_BCN_REPDET_FIXED	0	/* Fixed length fields only */
@@ -281,11 +259,9 @@ typedef struct dot11_rmrep_last_bcn_rpt_ind_req dot11_rmrep_last_bcn_rpt_ind_req
 
 /* Sub-element IDs for Beacon Report */
 #define DOT11_RMREP_BCN_FRM_BODY	1
-#define DOT11_RMREP_BCN_FRM_BODY_FRAG_ID 2
-#define DOT11_RMREP_BCN_LAST_RPT_IND	164
-#define DOT11_RMREP_BCN_BW_IND_ID	165u	/* Bandwidth Indication P802.11be D3.0 */
-
-#define DOT11_RMREP_BCN_FRM_BODY_LEN_MAX 224	/* 802.11k-2008 7.3.2.22.6 */
+#define DOT11_RMREP_BCN_FRM_BODY_FRAG_ID	2
+#define DOT11_RMREP_BCN_LAST_RPT_IND 164
+#define DOT11_RMREP_BCN_FRM_BODY_LEN_MAX	224 /* 802.11k-2008 7.3.2.22.6 */
 
 /* Refer IEEE P802.11-REVmd/D1.0 9.4.2.21.7 Beacon report */
 BWL_PRE_PACKED_STRUCT struct dot11_rmrep_bcn_frm_body_fragmt_id {
@@ -294,6 +270,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmrep_bcn_frm_body_fragmt_id {
 	/* More fragments(B15), fragment Id(B8-B14), Bcn rpt instance ID (B0 - B7) */
 	uint16 frag_info_rpt_id;
 } BWL_POST_PACKED_STRUCT;
+
 typedef struct dot11_rmrep_bcn_frm_body_fragmt_id dot11_rmrep_bcn_frm_body_fragmt_id_t;
 
 BWL_PRE_PACKED_STRUCT struct dot11_rmrep_bcn_frm_body_frag_id {
@@ -302,17 +279,8 @@ BWL_PRE_PACKED_STRUCT struct dot11_rmrep_bcn_frm_body_frag_id {
 	uint8 bcn_rpt_id;               /* Bcn rpt instance ID */
 	uint8 frag_info;                /* fragment Id(7 bits) | More fragments(1 bit) */
 } BWL_POST_PACKED_STRUCT;
+
 typedef struct dot11_rmrep_bcn_frm_body_frag_id dot11_rmrep_bcn_frm_body_frag_id_t;
-
-/* Bandwidth Indication subelement in Beacon Request/Report P802.11be D3.0 */
-typedef BWL_PRE_PACKED_STRUCT struct dot11_rm_bw_ind_se {
-	uint8	id;
-	uint8	len;
-	uint8	bw_ind_parms;		/* Bandwidth Indication Parameters */
-	uint8	bw_ind_info[];		/* Bandwidth Indication Information */
-	/* see EHT Operation Information field */
-} BWL_POST_PACKED_STRUCT dot11_rm_bw_ind_se_t;
-
 #define DOT11_RMREP_BCNRPT_FRAG_ID_DATA_LEN  2u
 #define DOT11_RMREP_BCNRPT_FRAG_ID_SE_LEN sizeof(dot11_rmrep_bcn_frm_body_frag_id_t)
 #define DOT11_RMREP_BCNRPT_FRAG_ID_NUM_SHIFT  1u
@@ -800,12 +768,11 @@ typedef struct dot11_rmreq_ftm_range dot11_rmreq_ftm_range_t;
 #define DOT11_RMREQ_FTM_RANGE_LEN 8
 
 #define DOT11_FTM_RANGE_LEN		3
-/* From IEEE Std 802.11-2020 spec section: 9.4.2.21.18 */
 BWL_PRE_PACKED_STRUCT struct dot11_ftm_range_entry {
 	uint32 start_tsf;		/* 4 lsb of tsf */
 	struct ether_addr bssid;
 	uint8 range[DOT11_FTM_RANGE_LEN];
-	uint8 max_err_exp;
+	uint8 max_err[DOT11_FTM_RANGE_LEN];
 	uint8  rsvd;
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_ftm_range_entry dot11_ftm_range_entry_t;
@@ -865,11 +832,6 @@ typedef struct dot11_rmreq_pause_time dot11_rmreq_pause_time_t;
 #define DOT11_NGBR_BSS_TERM_DUR_SE_ID	4
 #define DOT11_NGBR_BEARING_SE_ID	5
 #define DOT11_NGBR_WIDE_BW_CHAN_SE_ID	6 /* proposed */
-/* Last subelement in Neighbor Report is SSID Subelemt 197 80211ax-2021 */
-/* From Draft P802.11be_D2.2.pdf */
-#define DOT11_NGBR_EHT_CAP_SE_ID		198
-#define DOT11_NGBR_EHT_OP_SE_ID			199
-#define DOT11_NGBR_BASIC_MULTI_LINK_SE_ID	201
 
 /** Neighbor Report, BSS Transition Candidate Preference subelement */
 BWL_PRE_PACKED_STRUCT struct dot11_ngbr_bsstrans_pref_se {
@@ -892,16 +854,6 @@ BWL_PRE_PACKED_STRUCT struct dot11_ngbr_bss_term_dur_se {
 typedef struct dot11_ngbr_bss_term_dur_se dot11_ngbr_bss_term_dur_se_t;
 #define DOT11_NGBR_BSS_TERM_DUR_SE_LEN	10
 
-/* 11BE Draft version2.2 */
-/** Neighbor Report, MultiLink subelement */
-BWL_PRE_PACKED_STRUCT struct dot11_ngbr_multi_link_se {
-	uint8 sub_id;
-	uint8 len;
-	uint16	ml_ctrl;		/* Multi-Link Control */
-	uint8	cmn_info[];
-} BWL_POST_PACKED_STRUCT;
-typedef struct dot11_ngbr_multi_link_se dot11_ngbr_multi_link_se_t;
-
 /* Neighbor Report BSSID Information Field */
 #define DOT11_NGBR_BI_REACHABILTY_UNKN	0x0002
 #define DOT11_NGBR_BI_REACHABILTY	0x0003
@@ -918,14 +870,6 @@ typedef struct dot11_ngbr_multi_link_se dot11_ngbr_multi_link_se_t;
 #define DOT11_NGBR_BI_HT		0x0800
 #define DOT11_NGBR_BI_VHT		0x1000
 #define DOT11_NGBR_BI_FTM		0x2000
-#define DOT11_NGBR_BI_HE		0x4000
-#define DOT11_NGBR_BI_ERBSS		0x8000
-#define DOT11_NGBR_BI_COLOC		0x10000
-#define DOT11_NGBR_BI_UPR		0x20000
-#define DOT11_NGBR_BI_MEM_ESS		0x40000
-#define DOT11_NGBR_BI_OCT_SUP		0x80000
-#define DOT11_NGBR_BI_COLOC_6GHZ	0x100000
-#define DOT11_NGBR_BI_EHT		0x200000
 
 /** Neighbor Report element (11k & 11v) */
 BWL_PRE_PACKED_STRUCT struct dot11_neighbor_rep_ie {

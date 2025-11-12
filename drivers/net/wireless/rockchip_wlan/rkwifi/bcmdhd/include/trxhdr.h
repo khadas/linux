@@ -1,26 +1,7 @@
 /*
  * TRX image file header format.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2023, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -71,14 +52,14 @@
  * is defined.
  */
 struct trx_header {
-	uint32 magic;			/* "HDR0" */
-	uint32 len;			/* Length of file including header */
-	uint32 crc32;			/* 32-bit CRC from flag_version to end of file */
-	uint32 flag_version;		/* 0:15 flags, 16:31 version */
+	uint32 magic;		/* "HDR0" */
+	uint32 len;		/* Length of file including header */
+	uint32 crc32;		/* 32-bit CRC from flag_version to end of file */
+	uint32 flag_version;	/* 0:15 flags, 16:31 version */
 #ifndef BCMTRXV2
 	uint32 offsets[TRX_MAX_OFFSET];	/* Offsets of partitions from start of header */
 #else
-	uint32 offsets[BCM_FLEX_ARRAY];	/* Offsets of partitions from start of header */
+	uint32 offsets[];	/* Offsets of partitions from start of header */
 #endif
 };
 
@@ -92,7 +73,7 @@ struct trx_header {
  */
 #define TRX_V2_MAX_OFFSETS	5
 #define SIZEOF_TRXHDR_V1	(sizeof(struct trx_header)+(TRX_V1_MAX_OFFSETS-1)*sizeof(uint32))
-#define SIZEOF_TRXHDR_V2	(sizeof(struct trx_header)+(TRX_V2_MAX_OFFSETS-1)*sizeof(uint32))
+#define SIZEOF_TRXHDR_V2	(sizeof(struct trx_header)+(TRX_V2_MAX_OFFSETS)*sizeof(uint32))
 #ifdef IL_BIGENDIAN
 #define TRX_VER(trx)		(ltoh32((trx)->flag_version>>16))
 #else
@@ -101,9 +82,9 @@ struct trx_header {
 #define ISTRX_V1(trx)		(TRX_VER(trx) == TRX_V1)
 #define ISTRX_V2(trx)		(TRX_VER(trx) == TRX_V2)
 /* For V2, return size of V2 size: others, return V1 size */
-#define SIZEOF_TRX(trx)	(ISTRX_V2(trx) ? SIZEOF_TRXHDR_V2 : SIZEOF_TRXHDR_V1)
+#define SIZEOF_TRX(trx)	    (ISTRX_V2(trx) ? SIZEOF_TRXHDR_V2: SIZEOF_TRXHDR_V1)
 #else
-#define SIZEOF_TRX(trx)	(sizeof(struct trx_header))
+#define SIZEOF_TRX(trx)	    (sizeof(struct trx_header))
 #endif /* BCMTRXV2 */
 
 /* Compatibility */

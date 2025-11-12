@@ -2,26 +2,7 @@
  * Broadcom Dongle Host Driver (DHD),
  * Linux-specific network interface for transmit(tx) path
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -38,8 +19,9 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Dual:>>
+ * <<Broadcom-WL-IPTag/Open:>>
  *
+ * $Id$
  */
 
 #include <typedefs.h>
@@ -81,11 +63,7 @@
 #include <linux/rtc.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
-#include <linux/unaligned.h>
-#else
 #include <asm/unaligned.h>
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <dhd_linux_priv.h>
 
 #include <epivers.h>
@@ -104,7 +82,6 @@
 #include <dhd_linux_wq.h>
 #include <dhd.h>
 #include <dhd_linux.h>
-#include <dhd_linux_tx.h>
 #include <dhd_linux_pktdump.h>
 #ifdef DHD_WET
 #include <dhd_wet.h>
@@ -119,6 +96,9 @@
 #include <dhd_debug.h>
 #if defined(WL_CFG80211)
 #include <wl_cfg80211.h>
+#ifdef WL_BAM
+#include <wl_bam.h>
+#endif	/* WL_BAM */
 #endif	/* WL_CFG80211 */
 #ifdef PNO_SUPPORT
 #include <dhd_pno.h>
@@ -126,11 +106,6 @@
 #ifdef RTT_SUPPORT
 #include <dhd_rtt.h>
 #endif
-#ifdef DHD_TIMESYNC
-#include <dhd_timesync.h>
-#include <linux/ip.h>
-#include <net/icmp.h>
-#endif /* DHD_TIMESYNC */
 
 #include <dhd_linux_sock_qos.h>
 
@@ -153,7 +128,7 @@
 #endif /* DHD_PSTA */
 
 #ifdef AMPDU_VO_ENABLE
-/* Enabling VO AMPDU to reduce FER */
+/* XXX: Enabling VO AMPDU to reduce FER */
 #include <802.1d.h>
 #endif /* AMPDU_VO_ENABLE */
 
@@ -181,28 +156,16 @@
 #include <dhd_wlfc.h>
 #endif
 
+#if defined(OEM_ANDROID)
 #include <wl_android.h>
+#endif
 #include <dhd_config.h>
 
-#include <ethernet.h>
-#include <bcmevent.h>
-#include <vlan.h>
-#include <802.3.h>
-
 #define WME_PRIO2AC(prio)  wme_fifo2ac[prio2fifo[(prio)]]
-extern int dhd_low_latency;
 
 void
 dhd_tx_stop_queues(struct net_device *net)
 {
-	/* No point in stopping the queue when the interface is not yet registered.
-	 * May be alloc_etherdev() for this interface is done and register_netdevice() is
-	 * yet to happen.
-	 */
-	if (net->reg_state != NETREG_REGISTERED) {
-		return;
-	}
-
 #ifdef DHD_MQ
 	netif_tx_stop_all_queues(net);
 #else
@@ -213,16 +176,6 @@ dhd_tx_stop_queues(struct net_device *net)
 void
 dhd_tx_start_queues(struct net_device *net)
 {
-	/* No point in starting the queue when the interface is not yet registered.
-	 * May be alloc_etherdev() for this interface is done and register_netdevice() is
-	 * yet to happen. Trying to start the queue without
-	 * register_netdevice()(which sets the net_device state as NETREG_REGISTERED)
-	 * will result in kernel panic when the interface wake is executed.
-	 */
-	if (net->reg_state != NETREG_REGISTERED) {
-		return;
-	}
-
 #ifdef DHD_MQ
 	netif_tx_wake_all_queues(net);
 #else
@@ -267,19 +220,6 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 	}
 #endif /* PCIE_FULL_DONGLE */
 
-#ifdef DHD_VALIDATE_PKT_ADDRESS
-	{
-		struct sk_buff *skb = PKTTONATIVE(dhdp->osh, pktbuf);
-		skb = (struct sk_buff *)dhd_validate_packet_address(dhdp, skb);
-		/* if NULL, pkt is already dropped, return OK */
-		if (skb == NULL) {
-			dhdp->tx_dropped++;
-			return NETDEV_TX_OK;
-		}
-		pktbuf = PKTFRMNATIVE(dhdp->osh, skb);
-	}
-#endif /* DHD_VALIDATE_PKT_ADDRESS */
-
 	/* Reject if pktlen > MAX_MTU_SZ */
 	if (PKTLEN(dhdp->osh, pktbuf) > MAX_MTU_SZ) {
 		/* free the packet here since the caller won't */
@@ -294,8 +234,8 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 	/* if dhcp_unicast is enabled, we need to convert the */
 	/* broadcast DHCP ACK/REPLY packets to Unicast. */
 	if (ifp->dhcp_unicast) {
-	    uint8 *mac_addr;
-	    uint8 *ehptr = NULL;
+	    uint8* mac_addr;
+	    uint8* ehptr = NULL;
 	    int ret;
 	    ret = bcm_l2_filter_get_mac_addr_dhcp_pkt(dhdp->osh, pktbuf, ifidx, &mac_addr);
 	    if (ret == BCME_OK) {
@@ -348,9 +288,9 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 			wl_handle_wps_states(dhd_idx2net(dhdp, ifidx),
 				pktdata, PKTLEN(dhdp->osh, pktbuf), TRUE);
 #endif /* WL_CFG80211 && WL_WPS_SYNC */
-		} else if (dhd_low_latency &&
-			ntoh16(eh->ether_type) == ETHER_TYPE_ARP) {
-				PKTSETPRIO(pktbuf, PRIO_8021D_VO);
+#ifdef EAPOL_RESEND
+			wl_ext_backup_eapol_txpkt(dhdp, ifidx, pktbuf);
+#endif /* EAPOL_RESEND */
 		}
 		dhd_dump_pkt(dhdp, ifidx, pktdata,
 			(uint32)PKTLEN(dhdp->osh, pktbuf), TRUE, NULL, NULL);
@@ -362,12 +302,13 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 #if (defined(BCM_ROUTER_DHD) && defined(QOS_MAP_SET))
 	if (ifp->qosmap_up_table_enable) {
 		pktsetprio_qms(pktbuf, ifp->qosmap_up_table, FALSE);
-	} else
+	}
+	else
 #endif
 	{
 		/* Look into the packet and update the packet priority */
 #ifndef PKTPRIO_OVERRIDE
-		/* RB:6270 Ignore skb->priority from TCP/IP stack */
+		/* XXX RB:6270 Ignore skb->priority from TCP/IP stack */
 		if (PKTPRIO(pktbuf) == 0)
 #endif /* !PKTPRIO_OVERRIDE */
 		{
@@ -434,6 +375,7 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		PKTSETPRIO(pktbuf, PRIO_8021D_VO);
 	}
 #endif /* defined(DHD_TX_PROFILE) */
+
 	if (PKTPRIO(pktbuf) > MAXPRIO) {
 		DHD_ERROR_RLMT(("Wrong user prio:%d ifidx:%d\n", PKTPRIO(pktbuf), ifidx));
 		/* non-assert build, print ratelimit error, free packet and exit */
@@ -450,17 +392,13 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		return ret;
 	}
 #endif /* PCIE_FULL_DONGLE */
+	/* terence 20150901: Micky add to ajust the 802.1X priority */
+	/* Set the 802.1X packet with the highest priority 7 */
+	if (dhdp->conf->pktprio8021x >= 0)
+		pktset8021xprio(pktbuf, dhdp->conf->pktprio8021x);
 
 #ifdef PROP_TXSTATUS
 	if (dhd_wlfc_is_supported(dhdp)) {
-		DHD_GENERAL_LOCK(dhdp, flags);
-		if (ifp->del_in_progress) {
-			DHD_GENERAL_UNLOCK(dhdp, flags);
-			PKTCFREE(dhdp->osh, pktbuf, TRUE);
-			return -ENODEV;
-		}
-		DHD_GENERAL_UNLOCK(dhdp, flags);
-
 		/* store the interface ID */
 		DHD_PKTTAG_SETIF(PKTTAG(pktbuf), ifidx);
 
@@ -480,12 +418,6 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 		dhd_prot_hdrpush(dhdp, ifidx, pktbuf);
 	}
 
-	if (dhd_low_latency && ntoh16(eh->ether_type) == ETHER_TYPE_IP) {
-		struct iphdr *ipheader = (struct iphdr*)((uint8 *)eh + ETHER_HDR_LEN);
-		if (ipheader && ipheader->protocol == IPPROTO_ICMP) {
-			PKTSETPRIO(pktbuf, PRIO_8021D_VO);
-		}
-	}
 	/* Use bus module to send data frame */
 #ifdef PROP_TXSTATUS
 	{
@@ -509,20 +441,21 @@ BCMFASTPATH(__dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 
 	/* Update the packet counters here, as it is called for LB Tx and non-LB Tx too */
 	if (ret) {
+#ifdef BCMDBUS
+		PKTCFREE(dhdp->osh, pktbuf, TRUE);
+#endif /* BCMDBUS */
 		ifp->stats.tx_dropped++;
 		dhdp->tx_dropped++;
 	} else {
 #ifdef PROP_TXSTATUS
 		/* tx_packets counter can counted only when wlfc is disabled */
 		if (!dhd_wlfc_is_supported(dhdp))
-#endif /* PROP_TXSTATUS */
+#endif
 		{
 			dhdp->tx_packets++;
 			dhdp->tx_bytes += datalen;
 			ifp->stats.tx_packets++;
-			ifp->tx_pkts++;
 			ifp->stats.tx_bytes += datalen;
-			dhd_plat_tx_pktcount(dhdp->plat_info, dhdp->tx_packets);
 		}
 		dhdp->actual_tx_pkts++;
 	}
@@ -557,15 +490,6 @@ BCMFASTPATH(dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 	DHD_BUS_BUSY_SET_IN_SEND_PKT(dhdp);
 	DHD_GENERAL_UNLOCK(dhdp, flags);
 
-#ifdef DHD_PCIE_RUNTIMEPM
-	if (dhdpcie_runtime_bus_wake(dhdp, FALSE, __builtin_return_address(0))) {
-		DHD_ERROR(("%s : pcie is still in suspend state!!\n", __FUNCTION__));
-		PKTCFREE(dhdp->osh, pktbuf, TRUE);
-		ret = -EBUSY;
-		goto exit;
-	}
-#endif /* DHD_PCIE_RUNTIMEPM */
-
 	DHD_GENERAL_LOCK(dhdp, flags);
 	if (DHD_BUS_CHECK_SUSPEND_OR_SUSPEND_IN_PROGRESS(dhdp)) {
 		DHD_ERROR(("%s: bus is in suspend(%d) or suspending(0x%x) state!!\n",
@@ -582,9 +506,6 @@ BCMFASTPATH(dhd_sendpkt)(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 
 	ret = __dhd_sendpkt(dhdp, ifidx, pktbuf);
 
-#ifdef DHD_PCIE_RUNTIMEPM
-exit:
-#endif
 	DHD_GENERAL_LOCK(dhdp, flags);
 	DHD_BUS_BUSY_CLEAR_IN_SEND_PKT(dhdp);
 	DHD_IF_CLR_TX_ACTIVE(ifp, DHD_TX_SEND_PKT);
@@ -598,7 +519,7 @@ exit:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 static uint16
 BCMFASTPATH(dhd_select_queue)(struct net_device *net, struct sk_buff *skb,
-	void *accel_priv, select_queue_fallback_t fallback)
+       void *accel_priv, select_queue_fallback_t fallback)
 #else
 static uint16
 BCMFASTPATH(dhd_select_queue)(struct net_device *net, struct sk_buff *skb)
@@ -667,7 +588,8 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 	*/
 	if (!CAN_SLEEP()) {
 		cpuid = smp_processor_id();
-	} else {
+	}
+	else {
 		cpuid = get_cpu();
 		put_cpu();
 	}
@@ -687,22 +609,8 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 	DHD_BUS_BUSY_SET_IN_TX(&dhd->pub);
 	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
 
-#ifdef DHD_PCIE_RUNTIMEPM
-	if (dhdpcie_runtime_bus_wake(&dhd->pub, FALSE, dhd_start_xmit)) {
-		/* In order to avoid pkt loss. Return NETDEV_TX_BUSY until run-time resumed. */
-		/* stop the network queue temporarily until resume done */
-		DHD_GENERAL_LOCK(&dhd->pub, flags);
-		if (!dhdpcie_is_resume_done(&dhd->pub)) {
-			dhd_bus_stop_queue(dhd->pub.bus);
-		}
-		DHD_BUS_BUSY_CLEAR_IN_TX(&dhd->pub);
-		dhd_os_busbusy_wake(&dhd->pub);
-		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		return NETDEV_TX_BUSY;
-	}
-#endif /* DHD_PCIE_RUNTIMEPM */
-
 	DHD_GENERAL_LOCK(&dhd->pub, flags);
+#ifdef BCMPCIE
 	if (DHD_BUS_CHECK_SUSPEND_OR_SUSPEND_IN_PROGRESS(&dhd->pub)) {
 		DHD_ERROR_RLMT(("%s: bus is in suspend(%d) or suspending(0x%x) state!!\n",
 			__FUNCTION__, dhd->pub.busstate, dhd->pub.dhd_bus_busy_state));
@@ -719,32 +627,38 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
 		return NETDEV_TX_BUSY;
 	}
+#else
+	if (DHD_BUS_CHECK_SUSPEND_OR_SUSPEND_IN_PROGRESS(&dhd->pub)) {
+		DHD_ERROR(("%s: bus is in suspend(%d) or suspending(0x%x) state!!\n",
+			__FUNCTION__, dhd->pub.busstate, dhd->pub.dhd_bus_busy_state));
+	}
+#endif
 
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 
 #if defined(DHD_HANG_SEND_UP_TEST)
 	if (dhd->pub.req_hang_type == HANG_REASON_BUS_DOWN) {
-		DHD_PRINT(("%s: making DHD_BUS_DOWN\n", __FUNCTION__));
+		DHD_ERROR(("%s: making DHD_BUS_DOWN\n", __FUNCTION__));
 		dhd->pub.busstate = DHD_BUS_DOWN;
 	}
 #endif /* DHD_HANG_SEND_UP_TEST */
 
 	/* Reject if down */
-	/* kernel panic issue when first bootup time,
+	/* XXX kernel panic issue when first bootup time,
 	 *	 rmmod without interface down make unnecessary hang event.
 	 */
 	if (dhd->pub.hang_was_sent || DHD_BUS_CHECK_DOWN_OR_DOWN_IN_PROGRESS(&dhd->pub)) {
-		DHD_PRINT(("%s: xmit rejected pub.up=%d busstate=%d \n",
+		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d \n",
 			__FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		dhd_tx_stop_queues(net);
-
+#if defined(OEM_ANDROID)
 		/* Send Event when bus down detected during data session */
-		if (dhd->pub.up && !dhd->pub.hang_was_sent) {
-			DHD_PRINT(("%s: Event HANG sent up\n", __FUNCTION__));
+		if (dhd->pub.up && !dhd->pub.hang_was_sent && !DHD_BUS_CHECK_REMOVE(&dhd->pub)) {
+			DHD_ERROR(("%s: Event HANG sent up\n", __FUNCTION__));
 			dhd->pub.hang_reason = HANG_REASON_BUS_DOWN;
 			net_os_send_hang_message(net);
 		}
-
+#endif /* OEM_ANDROID */
 		DHD_BUS_BUSY_CLEAR_IN_TX(&dhd->pub);
 		dhd_os_busbusy_wake(&dhd->pub);
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
@@ -769,7 +683,7 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 #ifdef RPM_FAST_TRIGGER
 	/* Xmit is running reset RPM fast trigger */
 	if (dhd->pub.rpm_fast_trigger) {
-		DHD_PRINT(("%s: Reset RPM fast trigger\n", __FUNCTION__));
+		DHD_ERROR(("%s: Reset RPM fast trigger\n", __FUNCTION__));
 		dhd->pub.rpm_fast_trigger = FALSE;
 	}
 #endif /* RPM_FAST_TRIGGER */
@@ -785,25 +699,6 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 
 	bcm_object_trace_opr(skb, BCM_OBJDBG_ADD_PKT, __FUNCTION__, __LINE__);
 
-#ifdef HOST_SFH_LLC
-	/* if upper layer has cloned the skb, ex:- packet filter
-	 * unclone the skb, otherwise due to host sfh llc insertion
-	 * the upper layer packet capture will show wrong ethernet DA/SA
-	 */
-	if (unlikely(skb_cloned(skb))) {
-		int res = 0;
-		gfp_t gfp_flags = CAN_SLEEP() ? GFP_KERNEL : GFP_ATOMIC;
-		res = skb_unclone(skb, gfp_flags);
-		if (res) {
-			DHD_ERROR_RLMT(("%s: sbk_unclone fails ! err = %d\n",
-				__FUNCTION__, res));
-#ifdef CUSTOMER_HW2_DEBUG
-			return -ENOMEM;
-#endif /* CUSTOMER_HW2_DEBUG */
-		}
-	}
-#endif /* HOST_SFH_LLC */
-
 	/* re-align socket buffer if "skb->data" is odd address */
 	if (((unsigned long)(skb->data)) & 0x1) {
 		unsigned char *data = skb->data;
@@ -813,6 +708,18 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 		PKTSETLEN(dhd->pub.osh, skb, length);
 	}
 
+#ifdef TPUT_MONITOR
+	if (dhd->pub.conf->tput_monitor_ms) {
+		dhd_os_sdlock_txq(&dhd->pub);
+		dhd->pub.conf->net_len += PKTLEN(dhd->pub.osh, skb);
+		dhd_os_sdunlock_txq(&dhd->pub);
+		if ((dhd->pub.conf->data_drop_mode == XMIT_DROP) &&
+				(PKTLEN(dhd->pub.osh, skb) > 500)) {
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+	}
+#endif
 	/* Make sure there's enough room for any header */
 #if !defined(BCM_ROUTER_DHD)
 	if (skb_cow(skb, (dhd->pub.hdrlen + htsfdlystat_sz))) {
@@ -826,10 +733,9 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 #endif /* !BCM_ROUTER_DHD */
 
 	/* Convert to packet */
-	pktbuf = PKTFRMNATIVE(dhd->pub.osh, skb);
-	if (!pktbuf) {
+	if (!(pktbuf = PKTFRMNATIVE(dhd->pub.osh, skb))) {
 		DHD_ERROR(("%s: PKTFRMNATIVE failed\n",
-			dhd_ifname(&dhd->pub, ifidx)));
+		           dhd_ifname(&dhd->pub, ifidx)));
 		bcm_object_trace_opr(skb, BCM_OBJDBG_REMOVE, __FUNCTION__, __LINE__);
 		dev_kfree_skb_any(skb);
 		ret = -ENOMEM;
@@ -895,8 +801,7 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 				if (sta->psta_prim != NULL && !ifp->wmf_psta_disable) {
 					continue;
 				}
-				sdu_clone = PKTDUP(dhd->pub.osh, pktbuf);
-				if (sdu_clone == NULL) {
+				if ((sdu_clone = PKTDUP(dhd->pub.osh, pktbuf)) == NULL) {
 					ret = WMF_NOP;
 					break;
 				}
@@ -970,9 +875,15 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 	skb_orphan(skb);
 #endif /* LINUX_VERSION_CODE >= 4.19.0 && DHD_TCP_PACING_SHIFT */
 
+	/* move from dhdsdio_sendfromq(), try to orphan skb early */
+	if (dhd->pub.conf->orphan_move == 2)
+		PKTORPHAN(skb, dhd->pub.conf->tsq);
+	else if (dhd->pub.conf->orphan_move == 3)
+		skb_orphan(skb);
+
 #ifdef DHDTCPSYNC_FLOOD_BLK
 	if (dhd_tcpdata_get_flag(&dhd->pub, pktbuf) == FLAG_SYNCACK) {
-		ifp->tsyncack_txed++;
+		ifp->tsyncack_txed ++;
 	}
 #endif /* DHDTCPSYNC_FLOOD_BLK */
 
@@ -1018,6 +929,33 @@ done:
 	return NETDEV_TX_OK;
 }
 
+static void
+__dhd_txflowcontrol(dhd_pub_t *dhdp, struct net_device *net, bool state)
+{
+
+	if (net->reg_state != NETREG_REGISTERED) {
+		return;
+	}
+
+	if (state == ON) {
+		if (!netif_queue_stopped(net)) {
+			DHD_TXFLOWCTL(("%s: Stop Netif Queue\n", __FUNCTION__));
+			netif_stop_queue(net);
+		} else {
+			DHD_INFO(("%s: Netif Queue already stopped\n", __FUNCTION__));
+		}
+	}
+
+	if (state == OFF) {
+		if (netif_queue_stopped(net)) {
+			DHD_TXFLOWCTL(("%s: Start Netif Queue\n", __FUNCTION__));
+			netif_wake_queue(net);
+		} else {
+			DHD_INFO(("%s: Netif Queue already started\n", __FUNCTION__));
+		}
+	}
+}
+
 void
 dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 {
@@ -1032,8 +970,8 @@ dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 
 #ifdef DHD_LOSSLESS_ROAMING
 	/* block flowcontrol during roaming */
-	if ((dhdp->dequeue_prec_map == (1 << dhdp->flow_prio_map[PRIO_8021D_NC])) &&
-		(state == ON)) {
+	if ((dhdp->dequeue_prec_map == (1 << dhdp->flow_prio_map[PRIO_8021D_NC])) && (state == ON))
+	{
 		DHD_ERROR_RLMT(("%s: Roaming in progress, cannot stop network queue (0x%x:%d)\n",
 			__FUNCTION__, dhdp->dequeue_prec_map, dhdp->flow_prio_map[PRIO_8021D_NC]));
 		return;
@@ -1042,26 +980,19 @@ dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 
 	flags = dhd_os_sdlock_txoff(&dhd->pub);
 	if (ifidx == ALL_INTERFACES) {
-		/* Flow control on all active interfaces */
-		dhdp->txoff = state;
 		for (i = 0; i < DHD_MAX_IFS; i++) {
-			if (dhd->iflist[i] && !dhd->iflist[i]->mgmt_if) {
+			if (dhd->iflist[i]) {
 				net = dhd->iflist[i]->net;
-				if (state == ON)
-					dhd_tx_stop_queues(net);
-				else
-					dhd_tx_start_queues(net);
+				__dhd_txflowcontrol(dhdp, net, state);
 			}
 		}
 	} else {
-		if (dhd->iflist[ifidx] && !dhd->iflist[ifidx]->mgmt_if) {
+		if (dhd->iflist[ifidx]) {
 			net = dhd->iflist[ifidx]->net;
-			if (state == ON)
-				dhd_tx_stop_queues(net);
-			else
-				dhd_tx_start_queues(net);
+			__dhd_txflowcontrol(dhdp, net, state);
 		}
 	}
+	dhdp->txoff = state;
 	dhd_os_sdunlock_txoff(&dhd->pub, flags);
 }
 
@@ -1091,11 +1022,10 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 			dhd_os_tput_test_wake(dhdp);
 		}
 	}
-
-	/* where does this stuff belong to? */
+	/* XXX where does this stuff belong to? */
 	dhd_prot_hdrpull(dhdp, NULL, txp, NULL, NULL);
 
-	/* Use packet tag when it is available to identify its type */
+	/* XXX Use packet tag when it is available to identify its type */
 
 	eh = (struct ether_header *)PKTDATA(dhdp->osh, txp);
 	type  = ntoh16(eh->ether_type);
@@ -1113,18 +1043,15 @@ dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
 				dhd->pub.tx_packets++;
 				dhd->pub.tx_bytes += datalen;
 				ifp->stats.tx_packets++;
-				ifp->tx_pkts++;
 				ifp->stats.tx_bytes += datalen;
 			} else {
 				ifp->stats.tx_dropped++;
 			}
 		}
 	}
-#endif /* PROP_TXSTATUS */
+#endif
 	if (success) {
 		dhd->pub.tot_txcpl++;
-	} else {
-		dhd->pub.tx_errors++;
 	}
 }
 
@@ -1134,6 +1061,53 @@ dhd_os_tx_completion_wake(dhd_pub_t *dhd)
 	/* Call wmb() to make sure before waking up the other event value gets updated */
 	OSL_SMP_WMB();
 	wake_up(&dhd->tx_completion_wait);
+}
+
+void
+dhd_os_sdlock_txq(dhd_pub_t *pub)
+{
+	dhd_info_t *dhd;
+
+	dhd = (dhd_info_t *)(pub->info);
+#ifdef BCMDBUS
+	spin_lock_irqsave(&dhd->txqlock, dhd->txqlock_flags);
+#else
+	spin_lock_bh(&dhd->txqlock);
+#endif
+}
+
+void
+dhd_os_sdunlock_txq(dhd_pub_t *pub)
+{
+	dhd_info_t *dhd;
+
+	dhd = (dhd_info_t *)(pub->info);
+#ifdef BCMDBUS
+	spin_unlock_irqrestore(&dhd->txqlock, dhd->txqlock_flags);
+#else
+	spin_unlock_bh(&dhd->txqlock);
+#endif
+}
+
+unsigned long
+dhd_os_sdlock_txoff(dhd_pub_t *pub)
+{
+	dhd_info_t *dhd;
+	unsigned long flags = 0;
+
+	dhd = (dhd_info_t *)(pub->info);
+	spin_lock_irqsave(&dhd->txoff_lock, flags);
+
+	return flags;
+}
+
+void
+dhd_os_sdunlock_txoff(dhd_pub_t *pub, unsigned long flags)
+{
+	dhd_info_t *dhd;
+
+	dhd = (dhd_info_t *)(pub->info);
+	spin_unlock_irqrestore(&dhd->txoff_lock, flags);
 }
 
 void
@@ -1148,203 +1122,6 @@ dhd_txfl_wake_lock_timeout(dhd_pub_t *pub, int val)
 #endif /* CONFIG_HAS_WAKE_LOCK */
 }
 
-#ifdef TX_CSO
-void
-dhd_fill_cso_info(dhd_pub_t *dhd, void *pktbuf, void *txdesc, uint32 item_len)
-{
-	struct iphdr *ip4hdr = NULL;
-	struct ipv6hdr *ip6hdr = NULL;
-	txpost_wi_cso_info_t *cso_info;
-	bool istcp = FALSE, isudp = FALSE;
-	struct sk_buff *skb = PKTTONATIVE(dhd->osh, pktbuf);
-	struct ether_header *eh = (struct ether_header *)skb->data;
-	uint16 offset_len = H2DRING_TXPOST_BASE_ITEMSIZE; /* workitem base size */
-
-	if (!dhd_bus_get_txcso_supported(dhd->bus)) {
-		DHD_TRACE(("%s: txcso not supported !\n", __func__));
-		dhd->tx_nocso_cnt++;
-		return;
-	}
-
-	if (item_len >= (offset_len + TXPOST_EXT_TAG_LEN_CSO)) {
-		cso_info = (txpost_wi_cso_info_t *) (((uint8 *)txdesc) + offset_len);
-
-		*cso_info = (txpost_wi_cso_info_t) {0};
-
-		if (skb->ip_summed != CHECKSUM_PARTIAL) {
-#if defined(RESET_TCP_CSUM) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)) && \
-	(LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0))
-			/* For linux ver 4.17 onwards, tcp stack always does GSO.
-			 * But due to an oversight in kernel code, it does not offload csum
-			 * if network driver announces only NETIF_F_HWCSUM but not NETIF_F_SG.
-			 * The kernel fix to offload csum even if NETIF_F_SG is not announced
-			 * and if tcp stack in kernel is doing GSO, is present in kernel
-			 * ver 5.7 onwards. Hence for kernels not having this fix,
-			 * for validating tcp CSO in hw, reset the tcp csum here.
-			 * Note:- Making tcp->check = 0, means the pseudohdr csum
-			 * is also lost, so we need to indicate to hw that pseudohdr
-			 * csum also needs to be offloaded
-			 */
-			if (eh->ether_type == hton16(ETHER_TYPE_IP)) {
-				ip4hdr = ip_hdr(skb);
-				istcp = (ip4hdr->protocol == IPPROTO_TCP);
-			} else if (eh->ether_type == hton16(ETHER_TYPE_IPV6)) {
-				ip6hdr = (struct ipv6hdr *)ipv6_hdr(skb);
-				istcp = (ip6hdr->nexthdr == IPPROTO_TCP);
-			}
-
-			if (istcp) {
-				struct tcphdr *tcp = NULL;
-				tcp = tcp_hdr(skb);
-				tcp->check = 0;
-				cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_PSEUDOHDR_CSUM_SHIFT;
-			} else {
-				DHD_TRACE(("%s: not doing cso due to skb->ip_summed=%u\n",
-						__func__, skb->ip_summed));
-				dhd->tx_nocso_cnt++;
-				return;
-			}
-#else /* RESET_TCP_CSUM && LINUX_VERSION_CODE */
-			DHD_TRACE(("%s: not doing cso due to skb->ip_summed=%u\n",
-					__func__, skb->ip_summed));
-			dhd->tx_nocso_cnt++;
-			return;
-#endif /* RESET_TCP_CSUM */
-		}
-
-		if (eh->ether_type == hton16(ETHER_TYPE_IP)) {
-			ip4hdr = ip_hdr(skb);
-			istcp = (ip4hdr->protocol == IPPROTO_TCP);
-			isudp = (ip4hdr->protocol == IPPROTO_UDP);
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_IPV4_SHIFT;
-		} else if (eh->ether_type == hton16(ETHER_TYPE_IPV6)) {
-			ip6hdr = (struct ipv6hdr *)ipv6_hdr(skb);
-			istcp = (ip6hdr->nexthdr == IPPROTO_TCP);
-			isudp = (ip6hdr->nexthdr == IPPROTO_UDP);
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_IPV6_SHIFT;
-		} else {
-			DHD_TRACE(("%s: csum offload is supported only for"
-						" IPV4/V6 pkts (ethertype = 0x%x)!\n",
-						__func__, hton16(eh->ether_type)));
-			dhd->tx_nocso_cnt++;
-			return;
-		}
-
-		/* ip header len */
-		cso_info->nwk_hdr_len = skb_network_header_len(skb);
-
-		if (!istcp && !isudp) {
-			DHD_TRACE(("%s: csum offload is supported only for tcp/udp\n", __func__));
-			dhd->tx_nocso_cnt++;
-			return;
-		}
-
-		if (istcp) {
-			struct tcphdr *tcp = NULL;
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_TCP_SHIFT;
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_TRANS_CSUM_SHIFT;
-			/* TCP header 'data offset' field specifies header length
-			 * in terms of 32 bit words, so need to multiply by 4 to
-			 * get the length in bytes
-			 */
-			tcp = tcp_hdr(skb);
-			cso_info->trans_hdr_len = tcp->doff << 2u;
-		} else {
-			struct udphdr *udp = udp_hdr(skb);
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_UDP_SHIFT;
-			cso_info->pkt_csum_type |= 1u << PKT_CSUM_TYPE_TRANS_CSUM_SHIFT;
-			cso_info->trans_hdr_len = sizeof(*udp);
-		}
-
-		/* set the ext tag as cso */
-		cso_info->ext_tag = TXPOST_EXT_TAG_TYPE_CSO;
-		dhd->tx_cso_cnt++;
-	}
-}
-#endif /* TX_CSO */
-
-#ifdef RX_CSO_TEST
-#define BAD_TXCSUM_DELAY 5000000 /* after 5 sec */
-#define BAD_TXCSUM_INTERMITTENT_CNT 100 /* every 100 pkts */
-typedef enum {
-	BAD_TXCSUM_TYPE_DISABLED = 0,
-	BAD_TXCSUM_TYPE_INTERMITTENT = 1,
-	BAD_TXCSUM_TYPE_DELAYED = 2,
-	BAD_TXCSUM_TYPE_ALL = 3,
-	BAD_TXCSUM_TYPE_ICMP = 4
-} bad_txcsum_type_t;
-
-void
-dhd_rxcso_test_inject_bad_txcsum(dhd_pub_t *dhd, void *pktbuf, int badcsum_type)
-{
-	struct ether_header *eh = NULL;
-	struct sk_buff *skb = PKTTONATIVE(dhd->osh, pktbuf);
-	struct iphdr *ip4hdr = NULL;
-	struct ipv6hdr *ip6hdr = NULL;
-	bool istcp = FALSE, isudp = FALSE, isicmp = FALSE;
-	static uint32 cnt;
-	static uint64 startts;
-	static uint64 curts;
-	bool insert_badcsum = FALSE;
-
-	eh = (struct ether_header *)skb->data;
-	if (eh->ether_type == hton16(ETHER_TYPE_IP)) {
-		ip4hdr = ip_hdr(skb);
-		istcp = (ip4hdr->protocol == IPPROTO_TCP);
-		isudp = (ip4hdr->protocol == IPPROTO_UDP);
-		isicmp = (ip4hdr->protocol == IPPROTO_ICMP);
-	} else if (eh->ether_type == hton16(ETHER_TYPE_IPV6)) {
-		ip6hdr = (struct ipv6hdr *)ipv6_hdr(skb);
-		istcp = (ip6hdr->nexthdr == IPPROTO_TCP);
-		isudp = (ip6hdr->nexthdr == IPPROTO_UDP);
-	} else {
-		return;
-	}
-
-	if (!istcp && !isudp && !isicmp) {
-		return;
-	}
-
-	if (badcsum_type == BAD_TXCSUM_TYPE_ALL) {
-		DHD_ERROR_RLMT(("%s: insert bad tx csum all\n", __FUNCTION__));
-		insert_badcsum = 1;
-	} else if (badcsum_type == BAD_TXCSUM_TYPE_INTERMITTENT) {
-		++cnt;
-		if (cnt >= BAD_TXCSUM_INTERMITTENT_CNT &&
-			cnt % BAD_TXCSUM_INTERMITTENT_CNT == 0) {
-			DHD_ERROR_RLMT(("%s: insert bad tx csum intmtnt\n", __FUNCTION__));
-			insert_badcsum = 1;
-			cnt = 0;
-		}
-	} else if (badcsum_type == BAD_TXCSUM_TYPE_DELAYED) {
-		if (startts == 0) {
-			curts = startts = OSL_SYSUPTIME_US();
-		} else {
-			if (curts - startts >= (uint64)BAD_TXCSUM_DELAY) {
-				DHD_ERROR_RLMT(("%s: insert bad tx csum delay\n", __FUNCTION__));
-				insert_badcsum = 1;
-			} else {
-				curts = OSL_SYSUPTIME_US();
-			}
-		}
-	}
-
-	if (istcp && insert_badcsum) {
-		struct tcphdr *tcp = NULL;
-		tcp = tcp_hdr(skb);
-		tcp->check = 0;
-	} else if (isudp && insert_badcsum) {
-		struct udphdr *udp = udp_hdr(skb);
-		/* if udp hdr csum is set to 0, kernel will ignore csum
-		 * validation of udp hdr (as per spec), so set it to 0xffff
-		 */
-		udp->check = 0xffff;
-	} else if (isicmp && badcsum_type == BAD_TXCSUM_TYPE_ICMP) {
-		ip4hdr->check = 0;
-	}
-}
-#endif /* RX_CSO_TEST */
-
 #ifdef DHD_4WAYM4_FAIL_DISCONNECT
 void
 dhd_eap_txcomplete(dhd_pub_t *dhdp, void *txp, bool success, int ifidx)
@@ -1353,10 +1130,10 @@ dhd_eap_txcomplete(dhd_pub_t *dhdp, void *txp, bool success, int ifidx)
 	struct ether_header *eh;
 	uint16 type;
 
-	/* where does this stuff belong to? */
+	/* XXX where does this stuff belong to? */
 	dhd_prot_hdrpull(dhdp, NULL, txp, NULL, NULL);
 
-	/* Use packet tag when it is available to identify its type */
+	/* XXX Use packet tag when it is available to identify its type */
 	eh = (struct ether_header *)PKTDATA(dhdp->osh, txp);
 	type  = ntoh16(eh->ether_type);
 	if (type == ETHER_TYPE_802_1X) {
@@ -1368,13 +1145,13 @@ dhd_eap_txcomplete(dhd_pub_t *dhdp, void *txp, bool success, int ifidx)
 			}
 			if (!success) {
 				DHD_INFO(("%s: M4 TX failed on %d.\n",
-					__FUNCTION__, ifidx));
+						__FUNCTION__, ifidx));
 
 				OSL_ATOMIC_SET(dhdp->osh, &ifp->m4state, M4_TXFAILED);
 				schedule_delayed_work(&ifp->m4state_work,
-					msecs_to_jiffies(MAX_4WAY_TIMEOUT_MS));
+						msecs_to_jiffies(MAX_4WAY_TIMEOUT_MS));
 			} else {
-				dhd_cancel_delayed_work(&ifp->m4state_work);
+				cancel_delayed_work(&ifp->m4state_work);
 			}
 		}
 	}
@@ -1394,8 +1171,7 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 	bool verbose_logging = FALSE;
 	dhd_dbg_ring_t *ring;
 	ring = &dhdp->dbg->dbg_rings[PACKET_LOG_RING_ID];
-
-	BCM_REFERENCE(verbose_logging);
+	UNUSED_PARAMETER(verbose_logging);
 #endif /* DHD_PKT_LOGGING_DBGRING */
 
 	if (!pktdata || pktlen < ETHER_HDR_LEN) {
@@ -1414,12 +1190,8 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 		} else if (dhd_check_dns(pktdata)) {
 			pkt_type = PKT_TYPE_DNS;
 		}
-#ifdef IGMP_OFFLOAD_SUPPORT
-		else if (dhdp->igmpo_enable && dhd_check_igmp(pktdata)) {
-			pkt_type = PKT_TYPE_IGMP;
-		}
-#endif /* IGMP_OFFLOAD_SUPPORT */
-	} else if (ether_type == ETHER_TYPE_IPV6) {
+	}
+	else if (ether_type == ETHER_TYPE_IPV6) {
 		if (dhd_check_icmpv6(pktdata, pktlen)) {
 			pkt_type = PKT_TYPE_ICMPV6;
 		}
@@ -1430,9 +1202,11 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 			pkt_type = PKT_TYPE_DNS6;
 		}
 #endif
-	} else if (dhd_check_arp(pktdata, ether_type)) {
+	}
+	else if (dhd_check_arp(pktdata, ether_type)) {
 		pkt_type = PKT_TYPE_ARP;
-	} else if (ether_type == ETHER_TYPE_802_1X) {
+	}
+	else if (ether_type == ETHER_TYPE_802_1X) {
 		pkt_type = PKT_TYPE_EAP;
 	}
 #ifdef DHD_PKT_LOGGING_DBGRING
@@ -1474,12 +1248,6 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 		}
 #endif /* DHD_SBN */
 
-#ifdef IGMP_OFFLOAD_SUPPORT
-		if (dhd_igmp && (pkt_type == PKT_TYPE_IGMP)) {
-			*dhd_igmp = TRUE;
-		}
-#endif /* IGMP_OFFLOAD_SUPPORT */
-
 #ifdef DHD_PKT_LOGGING
 #ifdef DHD_SKIP_PKTLOGGING_FOR_DATA_PKTS
 		if (pkt_type != PKT_TYPE_DATA)
@@ -1502,9 +1270,9 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 				} else {
 					struct sk_buff *skb = (struct sk_buff *)pkt;
 					if (pkt_wake) {
-						DHD_PKTLOG_WAKERX(dhdp, skb, pktdata, ether_type);
+						DHD_PKTLOG_WAKERX(dhdp, skb, pktdata);
 					} else {
-						DHD_PKTLOG_RX(dhdp, skb, pktdata, ether_type);
+						DHD_PKTLOG_RX(dhdp, skb, pktdata);
 					}
 				}
 			}
@@ -1538,52 +1306,4 @@ dhd_handle_pktdata(dhd_pub_t *dhdp, int ifidx, void *pkt, uint8 *pktdata, uint32
 		default:
 			break;
 	}
-}
-
-void
-dhd_print_if_stats(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
-{
-	dhd_info_t *dhd = dhdp->info;
-	dhd_if_t *ifp = NULL;
-	int i = 0;
-
-	if (!strbuf) {
-		return;
-	}
-
-	if (dhd_net_if_lock_islocked_local(dhd) == TRUE) {
-		bcm_bprintf(strbuf, "\nPer interface TX/RX stats: Not Available(locked)\n");
-		DHD_ERROR(("Per interface TX/RX stats: Not Available(locked)\n"));
-		return;
-	}
-
-	bcm_bprintf(strbuf, "\nPer interface TX/RX stats:\n");
-	bcm_bprintf(strbuf, "%9s %9s %9s", "Interface", "TxPkts", "RxPkts\n");
-	bcm_bprintf(strbuf, "%9s %9s %9s", "=========", "======", "======\n");
-	dhd_net_if_lock_local(dhd);
-	for (i = 0; i < DHD_MAX_IFS; i++) {
-		ifp = dhd->iflist[i];
-		if (ifp && ifp->net && ifp->net->name[0]) {
-			bcm_bprintf(strbuf, "%9s %9llu %9llu\n", ifp->net->name,
-				ifp->tx_pkts, ifp->rx_pkts);
-		}
-	}
-	dhd_net_if_unlock_local(dhd);
-}
-
-void
-dhd_clear_if_stats(dhd_pub_t *dhdp)
-{
-	dhd_info_t *dhd = dhdp->info;
-	dhd_if_t *ifp = NULL;
-	int i = 0;
-
-	dhd_net_if_lock_local(dhd);
-	for (i = 0; i < DHD_MAX_IFS; i++) {
-		ifp = dhd->iflist[i];
-		if (ifp && ifp->net && ifp->name[0]) {
-			ifp->tx_pkts = ifp->rx_pkts = 0;
-		}
-	}
-	dhd_net_if_unlock_local(dhd);
 }

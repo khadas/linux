@@ -1,26 +1,7 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -37,7 +18,9 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Dual:>>
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 /**
@@ -64,7 +47,6 @@ extern void dhdsdio_isr(void * args);
 #include <linux/platform_data/gpio-odin.h>
 #endif /* defined(CONFIG_ARCH_ODIN) */
 #include <dhd_linux.h>
-#include <bcmsdbus.h>
 
 /* driver info, initialized when bcmsdh_register is called */
 static bcmsdh_driver_t drvinfo = {NULL, NULL, NULL, NULL};
@@ -261,6 +243,26 @@ int bcmsdh_set_get_wake(bcmsdh_info_t *bcmsdh, int flag)
 #endif
 	return ret;
 }
+
+int bcmsdh_get_wake(bcmsdh_info_t *bcmsdh)
+{
+#if defined(OOB_INTR_ONLY)
+	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
+	unsigned long flags;
+#endif
+	int ret;
+
+#if defined(OOB_INTR_ONLY)
+	spin_lock_irqsave(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+#endif
+
+	ret = bcmsdh->pkt_wake;
+
+#if defined(OOB_INTR_ONLY)
+	spin_unlock_irqrestore(&bcmsdh_osinfo->oob_irq_spinlock, flags);
+#endif
+	return ret;
+}
 #endif /* DHD_WAKE_STATUS */
 
 int bcmsdh_suspend(bcmsdh_info_t *bcmsdh)
@@ -280,26 +282,6 @@ int bcmsdh_resume(bcmsdh_info_t *bcmsdh)
 		return drvinfo.resume(bcmsdh_osinfo->context);
 	return 0;
 }
-
-#ifdef DEVICE_PM_CALLBACK
-int bcmsdh_prepare(bcmsdh_info_t *bcmsdh)
-{
-	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
-
-	if (drvinfo.prepare && drvinfo.prepare(bcmsdh_osinfo->context))
-		return -EBUSY;
-	return 0;
-}
-
-int bcmsdh_complete(bcmsdh_info_t *bcmsdh)
-{
-	bcmsdh_os_info_t *bcmsdh_osinfo = bcmsdh->os_cxt;
-
-	if (drvinfo.complete)
-		return drvinfo.complete(bcmsdh_osinfo->context);
-	return 0;
-}
-#endif /* DEVICE_PM_CALLBACK */
 
 extern int bcmsdh_register_client_driver(void);
 extern void bcmsdh_unregister_client_driver(void);
@@ -513,7 +495,7 @@ void bcmsdh_oob_intr_unregister(bcmsdh_info_t *bcmsdh)
 #endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 
 /* Module parameters specific to each host-controller driver */
-/* Need to move these to where they really belong! */
+/* XXX Need to move these to where they really belong! */
 
 extern uint sd_msglevel;	/* Debug message level */
 module_param(sd_msglevel, uint, 0);

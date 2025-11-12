@@ -4,26 +4,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -40,7 +21,9 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Dual:>>
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 #ifndef _dhd_proto_h_
@@ -50,10 +33,6 @@
 #include <wlioctl.h>
 #ifdef BCMPCIE
 #include <dhd_flowring.h>
-#endif
-
-#ifdef DHD_FWTRACE
-#include <bcm_fwtrace.h>
 #endif
 
 #define DEFAULT_IOCTL_RESP_TIMEOUT	(5 * 1000) /* 5 seconds */
@@ -86,7 +65,7 @@
 #define D3_ACK_RESP_TIMEOUT		DEFAULT_D3_ACK_RESP_TIMEOUT
 #endif /* D3_ACK_RESP_TIMEOUT */
 
-#define DEFAULT_DHD_BUS_BUSY_TIMEOUT	(IOCTL_RESP_TIMEOUT * 6)
+#define DEFAULT_DHD_BUS_BUSY_TIMEOUT	(IOCTL_RESP_TIMEOUT + 1000)
 #ifndef DHD_BUS_BUSY_TIMEOUT
 #define DHD_BUS_BUSY_TIMEOUT	DEFAULT_DHD_BUS_BUSY_TIMEOUT
 #endif /* DEFAULT_DHD_BUS_BUSY_TIMEOUT */
@@ -136,15 +115,19 @@ extern uint dhd_prot_hdrlen(dhd_pub_t *, void *txp);
 /* Remove any protocol-specific data header. */
 extern int dhd_prot_hdrpull(dhd_pub_t *, int *ifidx, void *rxp, uchar *buf, uint *len);
 
+#ifdef DHD_LOSSLESS_ROAMING
+extern int dhd_update_sdio_data_prio_map(dhd_pub_t *dhdp);
+#endif // DHD_LOSSLESS_ROAMING
+
 /* Use protocol to issue ioctl to dongle */
-extern int dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len);
+extern int dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len);
 
 /* Handles a protocol control response asynchronously */
 extern int dhd_prot_ctl_complete(dhd_pub_t *dhd);
 
 /* Check for and handle local prot-specific iovar commands */
 extern int dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
-	void *params, int plen, void *arg, int len, bool set);
+                             void *params, int plen, void *arg, int len, bool set);
 
 /* Add prot dump output to a buffer */
 extern void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
@@ -157,7 +140,7 @@ extern int dhd_prot_dump_extended_trap(dhd_pub_t *dhdp, struct bcmstrbuf *b, boo
 /* Update local copy of dongle statistics */
 extern void dhd_prot_dstats(dhd_pub_t *dhdp);
 
-extern int dhd_ioctl(dhd_pub_t *dhd_pub, int ifidx, dhd_ioctl_t *ioc, void *buf, uint buflen);
+extern int dhd_ioctl(dhd_pub_t * dhd_pub, dhd_ioctl_t *ioc, void * buf, uint buflen);
 
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
@@ -177,17 +160,13 @@ void dhd_prot_set_tx_cpl_bound(dhd_pub_t *dhd, uint32 val);
 void dhd_prot_set_rx_cpl_post_bound(dhd_pub_t *dhd, uint32 val);
 void dhd_prot_set_tx_post_bound(dhd_pub_t *dhd, uint32 val);
 void dhd_prot_set_ctrl_cpl_post_bound(dhd_pub_t *dhd, uint32 val);
-#ifdef BTLOG
-extern bool dhd_prot_process_msgbuf_btlogcpl(dhd_pub_t *dhd, uint bound);
-#endif	/* BTLOG */
-extern bool dhd_prot_process_ctrlbuf(dhd_pub_t *dhd, uint32 *ctrlcpl_items);
-extern int dhd_prot_process_trapbuf(dhd_pub_t *dhd);
-extern bool dhd_prot_dtohsplit(dhd_pub_t *dhd);
+extern bool dhd_prot_process_ctrlbuf(dhd_pub_t * dhd, uint32 *ctrlcpl_items);
+extern int dhd_prot_process_trapbuf(dhd_pub_t * dhd);
+extern bool dhd_prot_dtohsplit(dhd_pub_t * dhd);
 extern int dhd_post_dummy_msg(dhd_pub_t *dhd);
 extern int dhdmsgbuf_lpbk_req(dhd_pub_t *dhd, uint len);
 extern void dhd_prot_rx_dataoffset(dhd_pub_t *dhd, uint32 offset);
 extern int dhd_prot_txdata(dhd_pub_t *dhd, void *p, uint8 ifidx);
-extern void dhd_msgbuf_rxbuf_post(dhd_pub_t *dhd, bool use_rsv_pktid);
 extern void dhd_prot_schedule_aggregate_h2d_db(dhd_pub_t *dhd, uint16 flow_id);
 extern int dhdmsgbuf_dmaxfer_req(dhd_pub_t *dhd,
 	uint len, uint srcdelay, uint destdelay, uint d11_lpbk, uint core_num,
@@ -203,16 +182,13 @@ extern int dhd_post_tx_ring_item(dhd_pub_t *dhd, void *PKTBUF, uint8 ifindex);
 extern int dhd_prot_flow_ring_delete(dhd_pub_t *dhd, flow_ring_node_t *flow_ring_node);
 extern int dhd_prot_flow_ring_flush(dhd_pub_t *dhd, flow_ring_node_t *flow_ring_node);
 extern int dhd_prot_ringupd_dump(dhd_pub_t *dhd, struct bcmstrbuf *b);
-extern bool dhd_prot_is_ctrl_cpln_wr_ahead(dhd_pub_t *dhd, uint16 dma_idx_rd, uint16 dma_idx_wr);
-extern bool dhd_prot_is_wait_for_isr(dhd_pub_t *dhd);
 extern uint32 dhd_prot_metadata_dbg_set(dhd_pub_t *dhd, bool val);
 extern uint32 dhd_prot_metadata_dbg_get(dhd_pub_t *dhd);
 extern uint32 dhd_prot_metadatalen_set(dhd_pub_t *dhd, uint32 val, bool rx);
 extern uint32 dhd_prot_metadatalen_get(dhd_pub_t *dhd, bool rx);
 extern void dhd_prot_print_flow_ring(dhd_pub_t *dhd, void *msgbuf_flow_info, bool h2d,
-	struct bcmstrbuf *strbuf, const char *fmt);
+	struct bcmstrbuf *strbuf, const char * fmt);
 extern void dhd_prot_print_info(dhd_pub_t *dhd, struct bcmstrbuf *strbuf);
-extern void dhd_prot_print_traces(dhd_pub_t *dhd, struct bcmstrbuf *strbuf);
 extern bool dhd_prot_update_txflowring(dhd_pub_t *dhdp, uint16 flow_id, void *msgring_info);
 extern void dhd_prot_txdata_write_flush(dhd_pub_t *dhd, uint16 flow_id);
 extern uint32 dhd_prot_txp_threshold(dhd_pub_t *dhd, bool set, uint32 val);
@@ -224,12 +200,8 @@ extern int dhd_prot_flow_ring_batch_suspend_request(dhd_pub_t *dhd, uint16 *ring
 extern int dhd_prot_flow_ring_resume(dhd_pub_t *dhd, flow_ring_node_t *flow_ring_node);
 #endif /* IDLE_TX_FLOW_MGMT */
 extern int dhd_prot_init_info_rings(dhd_pub_t *dhd);
-#ifdef BTLOG
-extern int dhd_prot_init_btlog_rings(dhd_pub_t *dhd);
-#endif	/* BTLOG */
-#ifdef DHD_MESH
-extern int dhd_prot_init_mesh_rings(dhd_pub_t *dhd);
-#endif /* DHD_MESH */
+extern int dhd_prot_init_md_rings(dhd_pub_t *dhd);
+extern int dhd_prot_check_tx_resource(dhd_pub_t *dhd);
 #else /* BCMPCIE */
 static INLINE uint32 dhd_prot_get_tx_post_bound(dhd_pub_t *dhd) { return 0; }
 static INLINE uint32 dhd_prot_get_ctrl_cpl_post_bound(dhd_pub_t *dhd) { return 0; }
@@ -249,33 +221,20 @@ extern void dhd_lb_rx_process_handler(unsigned long data);
 extern int dhd_prot_h2d_mbdata_send_ctrlmsg(dhd_pub_t *dhd, uint32 mb_data);
 
 #ifdef BCMPCIE
-#ifdef DHD_TIMESYNC
 extern int dhd_prot_send_host_timestamp(dhd_pub_t *dhdp, uchar *tlv, uint16 tlv_len,
 	uint16 seq, uint16 xt_id);
-#endif /* DHD_TIMESYNC */
 extern bool dhd_prot_data_path_tx_timestamp_logging(dhd_pub_t *dhd,  bool enable, bool set);
 extern bool dhd_prot_data_path_rx_timestamp_logging(dhd_pub_t *dhd,  bool enable, bool set);
 extern bool dhd_prot_pkt_noretry(dhd_pub_t *dhd, bool enable, bool set);
 extern bool dhd_prot_pkt_noaggr(dhd_pub_t *dhd, bool enable, bool set);
 extern bool dhd_prot_pkt_fixed_rate(dhd_pub_t *dhd, bool enable, bool set);
-extern bool dhd_prot_pkt_rts_protect(dhd_pub_t *dhd, bool enable, bool set);
 #else /* BCMPCIE */
-#ifdef DHD_TIMESYNC
 #define dhd_prot_send_host_timestamp(a, b, c, d, e)		0
-#endif /* DHD_TIMESYNC */
 #define dhd_prot_data_path_tx_timestamp_logging(a, b, c)	0
 #define dhd_prot_data_path_rx_timestamp_logging(a, b, c)	0
 #endif /* BCMPCIE */
 
 extern void dhd_prot_dma_indx_free(dhd_pub_t *dhd);
-
-#ifdef SNAPSHOT_UPLOAD
-/* send request to take snapshot */
-int dhd_prot_send_snapshot_request(dhd_pub_t *dhdp, uint8 snapshot_type, uint8 snapshot_param);
-/* get uploaded snapshot */
-int dhd_prot_get_snapshot(dhd_pub_t *dhdp, uint8 snapshot_type, uint32 offset,
-	uint32 dst_buf_size, uint8 *dst_buf, uint32 *dst_size, bool *is_more);
-#endif	/* SNAPSHOT_UPLOAD */
 
 #ifdef EWP_EDL
 int dhd_prot_init_edl_rings(dhd_pub_t *dhd);
@@ -299,29 +258,15 @@ void dhd_local_buf_reset(char *buf, uint32 len);
 #define DHD_PROTOCOL "unknown"
 #endif /* proto */
 
-int dhd_get_hscb_info(dhd_pub_t *dhd, void **va, uint32 *len);
-int dhd_get_hscb_buff(dhd_pub_t *dhd, uint32 offset, uint32 length, void *buff);
+int dhd_get_hscb_info(dhd_pub_t *dhd, void ** va, uint32 *len);
+int dhd_get_hscb_buff(dhd_pub_t *dhd, uint32 offset, uint32 length, void * buff);
 
 extern int dhd_prot_mdring_link_unlink(dhd_pub_t *dhd, int idx, bool link);
 extern int dhd_prot_mdring_linked_ring(dhd_pub_t *dhd);
-extern int dhd_prot_init_md_rings(dhd_pub_t *dhd);
 
 #ifdef DHD_MAP_LOGGING
 extern void dhd_prot_smmu_fault_dump(dhd_pub_t *dhdp);
 #endif /* DHD_MAP_LOGGING */
 
-uint16 dhd_prot_get_h2d_txpost_size(dhd_pub_t *dhd);
 void dhd_prot_set_ring_size_ver(dhd_pub_t *dhd, int version);
-void dhd_prot_clearcounts(dhd_pub_t *dhd);
-
-#ifdef TX_FLOW_RING_INDICES_TRACE
-void dhd_tx_flowring_indices_trace_dump(dhd_pub_t *dhdp);
-#else
-static INLINE void dhd_tx_flowring_indices_trace_dump(dhd_pub_t *dhdp)
-{ return; }
-#endif /* TX_FLOW_RING_INDICES_TRACE */
-
-extern void dhd_prot_ptm_stats_dump(dhd_pub_t *dhd, struct bcmstrbuf *b);
-extern void dhd_prot_ptm_stats_clr(dhd_pub_t *dhd);
-
 #endif /* _dhd_proto_h_ */
