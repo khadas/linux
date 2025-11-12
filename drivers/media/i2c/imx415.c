@@ -245,13 +245,6 @@ struct imx415 {
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct v4l2_fwnode_endpoint bus_cfg;
 	struct cam_sw_info *cam_sw_inf;
-	int			rhs1_old;
-	int			rhs2_old;
-	u32			cur_exposure[3];
-	u32			cur_gain[3];
-	u32			pclk;
-	u32			tline;
-	bool			is_tline_init;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -1070,6 +1063,241 @@ static __maybe_unused const struct regval imx415_linear_12bit_1284x720_2376M_reg
 	{REG_NULL, 0x00},
 };
 
+static __maybe_unused const struct regval imx415_linear_12bit_3864x2192_891M_regs_4lane_4k60[] = {
+	{ 0x3008, 0x7F},
+	{ 0x300A, 0x5B},
+	{ 0x3050, 0x08},
+	{ 0x30C1, 0x00},
+	{ 0x3116, 0x24},
+	{ 0x311E, 0x24},
+	{ 0x32D4, 0x21},
+	{ 0x32EC, 0xA1},
+	{ 0x344C, 0x2B},
+	{ 0x344D, 0x01},
+	{ 0x344E, 0xED},
+	{ 0x344F, 0x01},
+	{ 0x3450, 0xF6},
+	{ 0x3451, 0x02},
+	{ 0x3452, 0x7F},
+	{ 0x3453, 0x03},
+	{ 0x358A, 0x04},
+	{ 0x35A1, 0x02},
+	{ 0x35EC, 0x27},
+	{ 0x35EE, 0x8D},
+	{ 0x35F0, 0x8D},
+	{ 0x35F2, 0x29},
+	{ 0x36BC, 0x0C},
+	{ 0x36CC, 0x53},
+	{ 0x36CD, 0x00},
+	{ 0x36CE, 0x3C},
+	{ 0x36D0, 0x8C},
+	{ 0x36D1, 0x00},
+	{ 0x36D2, 0x71},
+	{ 0x36D4, 0x3C},
+	{ 0x36D6, 0x53},
+	{ 0x36D7, 0x00},
+	{ 0x36D8, 0x71},
+	{ 0x36DA, 0x8C},
+	{ 0x36DB, 0x00},
+	{ 0x3720, 0x00},
+	{ 0x3724, 0x02},
+	{ 0x3726, 0x02},
+	{ 0x3732, 0x02},
+	{ 0x3734, 0x03},
+	{ 0x3736, 0x03},
+	{ 0x3742, 0x03},
+	{ 0x3862, 0xE0},
+	{ 0x38CC, 0x30},
+	{ 0x38CD, 0x2F},
+	{ 0x395C, 0x0C},
+	{ 0x39A4, 0x07},
+	{ 0x39A8, 0x32},
+	{ 0x39AA, 0x32},
+	{ 0x39AC, 0x32},
+	{ 0x39AE, 0x32},
+	{ 0x39B0, 0x32},
+	{ 0x39B2, 0x2F},
+	{ 0x39B4, 0x2D},
+	{ 0x39B6, 0x28},
+	{ 0x39B8, 0x30},
+	{ 0x39BA, 0x30},
+	{ 0x39BC, 0x30},
+	{ 0x39BE, 0x30},
+	{ 0x39C0, 0x30},
+	{ 0x39C2, 0x2E},
+	{ 0x39C4, 0x2B},
+	{ 0x39C6, 0x25},
+	{ 0x3A42, 0xD1},
+	{ 0x3A4C, 0x77},
+	{ 0x3AE0, 0x02},
+	{ 0x3AEC, 0x0C},
+	{ 0x3B00, 0x2E},
+	{ 0x3B06, 0x29},
+	{ 0x3B98, 0x25},
+	{ 0x3B99, 0x21},
+	{ 0x3B9B, 0x13},
+	{ 0x3B9C, 0x13},
+	{ 0x3B9D, 0x13},
+	{ 0x3B9E, 0x13},
+	{ 0x3BA1, 0x00},
+	{ 0x3BA2, 0x06},
+	{ 0x3BA3, 0x0B},
+	{ 0x3BA4, 0x10},
+	{ 0x3BA5, 0x14},
+	{ 0x3BA6, 0x18},
+	{ 0x3BA7, 0x1A},
+	{ 0x3BA8, 0x1A},
+	{ 0x3BA9, 0x1A},
+	{ 0x3BAC, 0xED},
+	{ 0x3BAD, 0x01},
+	{ 0x3BAE, 0xF6},
+	{ 0x3BAF, 0x02},
+	{ 0x3BB0, 0xA2},
+	{ 0x3BB1, 0x03},
+	{ 0x3BB2, 0xE0},
+	{ 0x3BB3, 0x03},
+	{ 0x3BB4, 0xE0},
+	{ 0x3BB5, 0x03},
+	{ 0x3BB6, 0xE0},
+	{ 0x3BB7, 0x03},
+	{ 0x3BB8, 0xE0},
+	{ 0x3BBA, 0xE0},
+	{ 0x3BBC, 0xDA},
+	{ 0x3BBE, 0x88},
+	{ 0x3BC0, 0x44},
+	{ 0x3BC2, 0x7B},
+	{ 0x3BC4, 0xA2},
+	{ 0x3BC8, 0xBD},
+	{ 0x3BCA, 0xBD},
+	{ 0x4004, 0x48},
+	{ 0x4005, 0x09},
+	{REG_NULL, 0x00},
+};
+
+/*
+ * Xclk 27Mhz
+ * 30fps
+ * CSI-2_2lane
+ * AD:10bit Output:10bit
+ * 2376Mbps
+ * Master Mode
+ * Time 9.999ms Gain:6dB
+ * 3840x2160 2/2-line binning & Window cropping
+ */
+static __maybe_unused const struct regval imx415_linear_10bit_3840x2160_2376M_regs_2lane[] = {
+	{0x3008, 0x7F},
+	{0x300A, 0x5B},
+	{0x3028, 0x4C},
+	{0x3029, 0x04},
+	{0x3050, 0x08},
+	{0x30C1, 0x00},
+	{0x3116, 0x24},
+	{0x311E, 0x24},
+	{0x32D4, 0x21},
+	{0x32EC, 0xA1},
+	{0x344C, 0x2B},
+	{0x344D, 0x01},
+	{0x344E, 0xED},
+	{0x344F, 0x01},
+	{0x3450, 0xF6},
+	{0x3451, 0x02},
+	{0x3452, 0x7F},
+	{0x3453, 0x03},
+	{0x358A, 0x04},
+	{0x35A1, 0x02},
+	{0x35EC, 0x27},
+	{0x35EE, 0x8D},
+	{0x35F0, 0x8D},
+	{0x35F2, 0x29},
+	{0x36BC, 0x0C},
+	{0x36CC, 0x53},
+	{0x36CD, 0x00},
+	{0x36CE, 0x3C},
+	{0x36D0, 0x8C},
+	{0x36D1, 0x00},
+	{0x36D2, 0x71},
+	{0x36D4, 0x3C},
+	{0x36D6, 0x53},
+	{0x36D7, 0x00},
+	{0x36D8, 0x71},
+	{0x36DA, 0x8C},
+	{0x36DB, 0x00},
+	{0x3720, 0x00},
+	{0x3724, 0x02},
+	{0x3726, 0x02},
+	{0x3732, 0x02},
+	{0x3734, 0x03},
+	{0x3736, 0x03},
+	{0x3742, 0x03},
+	{0x3862, 0xE0},
+	{0x38CC, 0x30},
+	{0x38CD, 0x2F},
+	{0x395C, 0x0C},
+	{0x39A4, 0x07},
+	{0x39A8, 0x32},
+	{0x39AA, 0x32},
+	{0x39AC, 0x32},
+	{0x39AE, 0x32},
+	{0x39B0, 0x32},
+	{0x39B2, 0x2F},
+	{0x39B4, 0x2D},
+	{0x39B6, 0x28},
+	{0x39B8, 0x30},
+	{0x39BA, 0x30},
+	{0x39BC, 0x30},
+	{0x39BE, 0x30},
+	{0x39C0, 0x30},
+	{0x39C2, 0x2E},
+	{0x39C4, 0x2B},
+	{0x39C6, 0x25},
+	{0x3A42, 0xD1},
+	{0x3A4C, 0x77},
+	{0x3AE0, 0x02},
+	{0x3AEC, 0x0C},
+	{0x3B00, 0x2E},
+	{0x3B06, 0x29},
+	{0x3B98, 0x25},
+	{0x3B99, 0x21},
+	{0x3B9B, 0x13},
+	{0x3B9C, 0x13},
+	{0x3B9D, 0x13},
+	{0x3B9E, 0x13},
+	{0x3BA1, 0x00},
+	{0x3BA2, 0x06},
+	{0x3BA3, 0x0B},
+	{0x3BA4, 0x10},
+	{0x3BA5, 0x14},
+	{0x3BA6, 0x18},
+	{0x3BA7, 0x1A},
+	{0x3BA8, 0x1A},
+	{0x3BA9, 0x1A},
+	{0x3BAC, 0xED},
+	{0x3BAD, 0x01},
+	{0x3BAE, 0xF6},
+	{0x3BAF, 0x02},
+	{0x3BB0, 0xA2},
+	{0x3BB1, 0x03},
+	{0x3BB2, 0xE0},
+	{0x3BB3, 0x03},
+	{0x3BB4, 0xE0},
+	{0x3BB5, 0x03},
+	{0x3BB6, 0xE0},
+	{0x3BB7, 0x03},
+	{0x3BB8, 0xE0},
+	{0x3BBA, 0xE0},
+	{0x3BBC, 0xDA},
+	{0x3BBE, 0x88},
+	{0x3BC0, 0x44},
+	{0x3BC2, 0x7B},
+	{0x3BC4, 0xA2},
+	{0x3BC8, 0xBD},
+	{0x3BCA, 0xBD},
+	{0x4001, 0x01},
+	{0x4004, 0x48},
+	{0x4005, 0x09},
+	{REG_NULL, 0x00},
+};
+
 /*
  * The width and height must be configured to be
  * the same as the current output resolution of the sensor.
@@ -1089,17 +1317,17 @@ static const struct imx415_mode supported_modes[] = {
 	 */
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
+			.denominator = 600000,
 		},
 		.exp_def = 0x08ca - 0x08,
 		.hts_def = 0x044c * IMX415_4LANES * 2,
 		.vts_def = 0x08ca,
 		.global_reg_list = imx415_global_10bit_3864x2192_regs,
-		.reg_list = imx415_linear_10bit_3864x2192_891M_regs,
+		.reg_list = imx415_linear_12bit_3864x2192_891M_regs_4lane_4k60,
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 1,
 		.bpp = 10,
@@ -1108,8 +1336,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -1134,8 +1362,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 200000,
@@ -1160,8 +1388,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 200000,
@@ -1187,8 +1415,8 @@ static const struct imx415_mode supported_modes[] = {
 	{
 		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -1206,8 +1434,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -1232,8 +1460,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3864,
-		.height = 2192,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 200000,
@@ -1258,8 +1486,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1944,
-		.height = 1097,
+		.width = 1920,
+		.height = 1080,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -1277,8 +1505,8 @@ static const struct imx415_mode supported_modes[] = {
 	},
 	{
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1944,
-		.height = 1097,
+		.width = 1920,
+		.height = 1080,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
@@ -1306,28 +1534,28 @@ static const struct imx415_mode supported_modes[] = {
 static const struct imx415_mode supported_modes_2lane[] = {
 	{
 		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3864,
-		.height = 2192,
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3840,
+		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 150000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x08ca - 0x08,
 		.hts_def = 0x0898 * IMX415_2LANES * 2,
 		.vts_def = 0x08ca,
-		.global_reg_list = NULL,
-		.reg_list = imx415_linear_12bit_3864x2192_891M_regs_2lane,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs,
+		.reg_list = imx415_linear_10bit_3840x2160_2376M_regs_2lane,
 		.hdr_mode = NO_HDR,
 		.mipi_freq_idx = 1,
-		.bpp = 12,
+		.bpp = 10,
 		.vc[PAD0] = 0,
-		.xvclk = IMX415_XVCLK_FREQ_27M,
+		.xvclk = IMX415_XVCLK_FREQ_37M,
 	},
 	{
 		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
 		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1284,
+		.width = 1280,
 		.height = 720,
 		.max_fps = {
 			.numerator = 10000,
@@ -1625,127 +1853,10 @@ static void imx415_get_module_inf(struct imx415 *imx415,
 				  struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
-	strscpy(inf->base.sensor, IMX415_NAME, sizeof(inf->base.sensor));
-	strscpy(inf->base.module, imx415->module_name,
+	strlcpy(inf->base.sensor, IMX415_NAME, sizeof(inf->base.sensor));
+	strlcpy(inf->base.module, imx415->module_name,
 		sizeof(inf->base.module));
-	strscpy(inf->base.lens, imx415->len_name, sizeof(inf->base.lens));
-}
-
-static void imx415_get_pclk_and_tline(struct imx415 *imx415)
-{
-	const struct imx415_mode *mode = imx415->cur_mode;
-
-	imx415->pclk = (u32)div_u64((u64)mode->hts_def * mode->vts_def *
-		mode->max_fps.denominator, mode->max_fps.numerator);
-	imx415->tline = (u32)div_u64((u64)mode->hts_def * 1000000000, imx415->pclk);
-}
-
-static void imx415_hdr_exposure_readback(struct imx415 *imx415)
-{
-	u32 shr, shr_l, shr_m, shr_h;
-	u32 rhs, rhs_l, rhs_m, rhs_h;
-	u32 gain, gain_l, gain_h;
-	int ret = 0;
-
-	if (!imx415->is_tline_init) {
-		imx415_get_pclk_and_tline(imx415);
-		imx415->is_tline_init = true;
-	}
-
-	ret = imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_L,
-			      IMX415_REG_VALUE_08BIT, &shr_l);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_M,
-			       IMX415_REG_VALUE_08BIT, &shr_m);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_H,
-			       IMX415_REG_VALUE_08BIT, &shr_h);
-	if (!ret) {
-		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
-		imx415->cur_exposure[0] = (imx415->cur_vts - shr) * imx415->tline;
-	} else {
-		dev_err(&imx415->client->dev,
-			"imx415 get exposure of long frame failed!\n");
-	}
-	ret = imx415_read_reg(imx415->client, IMX415_LF_GAIN_REG_H,
-		IMX415_REG_VALUE_08BIT, &gain_h);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_GAIN_REG_L,
-		IMX415_REG_VALUE_08BIT, &gain_l);
-	if (!ret) {
-		gain = (gain_h << 8) | gain_l;
-		imx415->cur_gain[0] = gain * 300;//step=0.3db,factor=1000
-	} else {
-		dev_err(&imx415->client->dev,
-			"imx415 get gain of long frame failed!\n");
-	}
-
-	ret = imx415_read_reg(imx415->client, IMX415_SF1_EXPO_REG_L,
-			      IMX415_REG_VALUE_08BIT, &shr_l);
-	ret |= imx415_read_reg(imx415->client, IMX415_SF1_EXPO_REG_M,
-			       IMX415_REG_VALUE_08BIT, &shr_m);
-	ret |= imx415_read_reg(imx415->client, IMX415_SF1_EXPO_REG_H,
-			       IMX415_REG_VALUE_08BIT, &shr_h);
-	ret |= imx415_read_reg(imx415->client, IMX415_RHS1_REG_L,
-			      IMX415_REG_VALUE_08BIT, &rhs_l);
-	ret |= imx415_read_reg(imx415->client, IMX415_RHS1_REG_M,
-			       IMX415_REG_VALUE_08BIT, &rhs_m);
-	ret |= imx415_read_reg(imx415->client, IMX415_RHS1_REG_H,
-			       IMX415_REG_VALUE_08BIT, &rhs_h);
-	if (!ret) {
-		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
-		rhs = (rhs_h << 16) | (rhs_m << 8) | rhs_l;
-		imx415->cur_exposure[1] = (rhs - shr) * imx415->tline;
-	} else {
-		dev_err(&imx415->client->dev,
-			"imx415 get exposure of %s frame failed!\n",
-			imx415->cur_mode->hdr_mode == HDR_X2 ?
-			"short" : "middle");
-	}
-	ret = imx415_read_reg(imx415->client, IMX415_SF1_GAIN_REG_H,
-		IMX415_REG_VALUE_08BIT, &gain_h);
-	ret |= imx415_read_reg(imx415->client, IMX415_SF1_GAIN_REG_L,
-		IMX415_REG_VALUE_08BIT, &gain_l);
-	if (!ret) {
-		gain = (gain_h << 8) | gain_l;
-		imx415->cur_gain[1] = gain * 300;//step=0.3db,factor=1000
-	} else {
-		dev_err(&imx415->client->dev,
-			"imx415 get gain of %s frame failed!\n",
-			imx415->cur_mode->hdr_mode == HDR_X2 ?
-			"short" : "middle");
-	}
-
-	if (imx415->cur_mode->hdr_mode == HDR_X3) {
-		ret = imx415_read_reg(imx415->client, IMX415_SF2_EXPO_REG_L,
-			      IMX415_REG_VALUE_08BIT, &shr_l);
-		ret |= imx415_read_reg(imx415->client, IMX415_SF2_EXPO_REG_M,
-				       IMX415_REG_VALUE_08BIT, &shr_m);
-		ret |= imx415_read_reg(imx415->client, IMX415_SF2_EXPO_REG_H,
-				       IMX415_REG_VALUE_08BIT, &shr_h);
-		ret |= imx415_read_reg(imx415->client, IMX415_RHS2_REG_L,
-				      IMX415_REG_VALUE_08BIT, &rhs_l);
-		ret |= imx415_read_reg(imx415->client, IMX415_RHS2_REG_M,
-				       IMX415_REG_VALUE_08BIT, &rhs_m);
-		ret |= imx415_read_reg(imx415->client, IMX415_RHS2_REG_H,
-				       IMX415_REG_VALUE_08BIT, &rhs_h);
-		if (!ret) {
-			shr = (shr_h << 16) | (shr_m << 8) | shr_l;
-			rhs = (rhs_h << 16) | (rhs_m << 8) | rhs_l;
-			imx415->cur_exposure[2] = (rhs - shr) * imx415->tline;
-		} else {
-			dev_err(&imx415->client->dev,
-				"imx415 get exposure of short frame failed!\n");
-		}
-		ret = imx415_read_reg(imx415->client, IMX415_SF2_GAIN_REG_H,
-			IMX415_REG_VALUE_08BIT, &gain_h);
-		ret |= imx415_read_reg(imx415->client, IMX415_SF2_GAIN_REG_L,
-			IMX415_REG_VALUE_08BIT, &gain_l);
-		if (!ret) {
-			gain = (gain_h << 8) | gain_l;
-			imx415->cur_gain[2] = gain * 300;//step=0.3db,factor=1000
-		} else {
-			dev_err(&imx415->client->dev,
-				"imx415 get gain of short frame failed!\n");
-		}
-	}
+	strlcpy(inf->base.lens, imx415->len_name, sizeof(inf->base.lens));
 }
 
 static int imx415_set_hdrae_3frame(struct imx415 *imx415,
@@ -1756,6 +1867,8 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	int shr2, shr1, shr0, rhs2, rhs1 = 0;
 	int rhs1_change_limit, rhs2_change_limit = 0;
+	static int rhs1_old = IMX415_RHS1_DEFAULT;
+	static int rhs2_old = IMX415_RHS2_DEFAULT;
 	int ret = 0;
 	u32 fsc;
 	int rhs1_max = 0;
@@ -1835,7 +1948,7 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 		__LINE__, shr0, l_exp_time, fsc);
 
 	rhs1 = (SHR1_MIN_X3 + m_exp_time + 5) / 6 * 6 + 1;
-	if (imx415->cur_mode->height == 2192)
+	if (imx415->cur_mode->height == 2160)
 		rhs1_max = RHS1_MAX_X3(BRL_ALL);
 	else
 		rhs1_max = RHS1_MAX_X3(BRL_BINNING);
@@ -1845,13 +1958,13 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 		rhs1 = rhs1_max;
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, m_exp_time %d rhs1_old %d\n",
-		__LINE__, rhs1, m_exp_time, imx415->rhs1_old);
+		__LINE__, rhs1, m_exp_time, rhs1_old);
 
 	//Dynamic adjustment rhs2 must meet the following conditions
-	if (imx415->cur_mode->height == 2192)
-		rhs1_change_limit = imx415->rhs1_old + 3 * BRL_ALL - fsc + 3;
+	if (imx415->cur_mode->height == 2160)
+		rhs1_change_limit = rhs1_old + 3 * BRL_ALL - fsc + 3;
 	else
-		rhs1_change_limit = imx415->rhs1_old + 3 * BRL_BINNING - fsc + 3;
+		rhs1_change_limit = rhs1_old + 3 * BRL_BINNING - fsc + 3;
 	rhs1_change_limit = (rhs1_change_limit < 25) ? 25 : rhs1_change_limit;
 	rhs1_change_limit = (rhs1_change_limit + 5) / 6 * 6 + 1;
 	if (rhs1_max < rhs1_change_limit) {
@@ -1865,9 +1978,9 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 
 	dev_dbg(&client->dev,
 		"line(%d) m_exp_time %d rhs1_old %d, rhs1_new %d\n",
-		__LINE__, m_exp_time, imx415->rhs1_old, rhs1);
+		__LINE__, m_exp_time, rhs1_old, rhs1);
 
-	imx415->rhs1_old = rhs1;
+	rhs1_old = rhs1;
 
 	/* shr1 = rhs1 - s_exp_time */
 	if (rhs1 - m_exp_time <= SHR1_MIN_X3) {
@@ -1885,13 +1998,13 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 		rhs2 = 50;
 	dev_dbg(&client->dev,
 		"line(%d) rhs2 %d, s_exp_time %d, rhs2_old %d\n",
-		__LINE__, rhs2, s_exp_time, imx415->rhs2_old);
+		__LINE__, rhs2, s_exp_time, rhs2_old);
 
 	//Dynamic adjustment rhs2 must meet the following conditions
-	if (imx415->cur_mode->height == 2192)
-		rhs2_change_limit = imx415->rhs2_old + 3 * BRL_ALL - fsc + 3;
+	if (imx415->cur_mode->height == 2160)
+		rhs2_change_limit = rhs2_old + 3 * BRL_ALL - fsc + 3;
 	else
-		rhs2_change_limit = imx415->rhs2_old + 3 * BRL_BINNING - fsc + 3;
+		rhs2_change_limit = rhs2_old + 3 * BRL_BINNING - fsc + 3;
 	rhs2_change_limit = (rhs2_change_limit < 50) ?  50 : rhs2_change_limit;
 	rhs2_change_limit = (rhs2_change_limit + 5) / 6 * 6 + 2;
 	if ((shr0 - 13) < rhs2_change_limit) {
@@ -1903,7 +2016,7 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 	if (rhs2 < rhs2_change_limit)
 		rhs2 = rhs2_change_limit;
 
-	imx415->rhs2_old = rhs2;
+	rhs2_old = rhs2;
 
 	/* shr2 = rhs2 - s_exp_time */
 	if (rhs2 - s_exp_time <= shr2_min) {
@@ -1999,7 +2112,6 @@ static int imx415_set_hdrae_3frame(struct imx415 *imx415,
 
 	ret |= imx415_write_reg(client, IMX415_GROUP_HOLD_REG,
 		IMX415_REG_VALUE_08BIT, IMX415_GROUP_HOLD_END);
-	imx415_hdr_exposure_readback(imx415);
 	return ret;
 }
 
@@ -2010,6 +2122,7 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	int shr1, shr0, rhs1, rhs1_max, rhs1_min;
+	static int rhs1_old = IMX415_RHS1_DEFAULT;
 	int ret = 0;
 	u32 fsc;
 
@@ -2073,12 +2186,12 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	fsc = imx415->cur_vts;
 	shr0 = fsc - l_exp_time;
 
-	if (imx415->cur_mode->height == 2192) {
+	if (imx415->cur_mode->height == 2160) {
 		rhs1_max = min(RHS1_MAX_X2(BRL_ALL), ((shr0 - 9u) / 4 * 4 + 1));
-		rhs1_min = max(SHR1_MIN_X2 + 8u, imx415->rhs1_old + 2 * BRL_ALL - fsc + 2);
+		rhs1_min = max(SHR1_MIN_X2 + 8u, rhs1_old + 2 * BRL_ALL - fsc + 2);
 	} else {
 		rhs1_max = min(RHS1_MAX_X2(BRL_BINNING), ((shr0 - 9u) / 4 * 4 + 1));
-		rhs1_min = max(SHR1_MIN_X2 + 8u, imx415->rhs1_old + 2 * BRL_BINNING - fsc + 2);
+		rhs1_min = max(SHR1_MIN_X2 + 8u, rhs1_old + 2 * BRL_BINNING - fsc + 2);
 	}
 	rhs1_min = (rhs1_min + 3) / 4 * 4 + 1;
 	rhs1 = (SHR1_MIN_X2 + s_exp_time + 3) / 4 * 4 + 1;/* shall be 4n + 1 */
@@ -2094,9 +2207,9 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 	rhs1 = clamp(rhs1, rhs1_min, rhs1_max);
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d\n",
-		__LINE__, rhs1, s_exp_time, imx415->rhs1_old, rhs1);
+		__LINE__, rhs1, s_exp_time, rhs1_old, rhs1);
 
-	imx415->rhs1_old = rhs1;
+	rhs1_old = rhs1;
 
 	/* shr1 = rhs1 - s_exp_time */
 	if (rhs1 - s_exp_time <= SHR1_MIN_X2) {
@@ -2158,7 +2271,6 @@ static int imx415_set_hdrae(struct imx415 *imx415,
 
 	ret |= imx415_write_reg(client, IMX415_GROUP_HOLD_REG,
 		IMX415_REG_VALUE_08BIT, IMX415_GROUP_HOLD_END);
-	imx415_hdr_exposure_readback(imx415);
 	return ret;
 }
 
@@ -2184,9 +2296,6 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u64 pixel_rate = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	u8 lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
-	struct rkmodule_exp_delay *exp_delay;
-	struct rkmodule_exp_info *exp_info;
-	int idx_max = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -2261,7 +2370,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				IMX415_REG_VALUE_08BIT, IMX415_MODE_SW_STANDBY);
 		break;
 	case RKMODULE_GET_SONY_BRL:
-		if (imx415->cur_mode->width == 3864 && imx415->cur_mode->height == 2192)
+		if (imx415->cur_mode->width == 3840 && imx415->cur_mode->height == 2160)
 			*((u32 *)arg) = BRL_ALL;
 		else
 			*((u32 *)arg) = BRL_BINNING;
@@ -2278,30 +2387,6 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				 "get sensor dphy param\n");
 		} else
 			ret = -EINVAL;
-		break;
-	case RKMODULE_GET_EXP_DELAY:
-		exp_delay = (struct rkmodule_exp_delay *)arg;
-		exp_delay->exp_delay = 2;
-		exp_delay->gain_delay = 2;
-		exp_delay->vts_delay = 1;
-		break;
-	case RKMODULE_GET_EXP_INFO:
-		exp_info = (struct rkmodule_exp_info *)arg;
-		if (imx415->cur_mode->hdr_mode == NO_HDR)
-			idx_max = 1;
-		else if (imx415->cur_mode->hdr_mode == HDR_X2)
-			idx_max = 2;
-		else
-			idx_max = 3;
-		for (i = 0; i < idx_max; i++) {
-			exp_info->exp[i] = imx415->cur_exposure[i];
-			exp_info->gain[i] = imx415->cur_gain[i];
-		}
-		exp_info->hts = imx415->cur_mode->hts_def;
-		exp_info->vts = imx415->cur_vts;
-		exp_info->pclk = imx415->pclk;
-		exp_info->gain_mode.gain_mode = RKMODULE_GAIN_MODE_DB;
-		exp_info->gain_mode.factor = 1000;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2325,8 +2410,6 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	u32  stream;
 	u32 brl = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
-	struct rkmodule_exp_delay *exp_delay;
-	struct rkmodule_exp_info *exp_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -2445,36 +2528,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(dphy_param);
 		break;
-	case RKMODULE_GET_EXP_DELAY:
-		exp_delay = kzalloc(sizeof(*exp_delay), GFP_KERNEL);
-		if (!exp_delay) {
-			ret = -ENOMEM;
-			return ret;
-		}
 
-		ret = imx415_ioctl(sd, cmd, exp_delay);
-		if (!ret) {
-			ret = copy_to_user(up, exp_delay, sizeof(*exp_delay));
-			if (ret)
-				ret = -EFAULT;
-		}
-		kfree(exp_delay);
-		break;
-	case RKMODULE_GET_EXP_INFO:
-		exp_info = kzalloc(sizeof(*exp_info), GFP_KERNEL);
-		if (!exp_info) {
-			ret = -ENOMEM;
-			return ret;
-		}
-
-		ret = imx415_ioctl(sd, cmd, exp_info);
-		if (!ret) {
-			ret = copy_to_user(up, exp_info, sizeof(*exp_info));
-			if (ret)
-				ret = -EFAULT;
-		}
-		kfree(exp_info);
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2483,6 +2537,7 @@ static long imx415_compat_ioctl32(struct v4l2_subdev *sd,
 	return ret;
 }
 #endif
+
 
 static int __imx415_start_stream(struct imx415 *imx415)
 {
@@ -2496,15 +2551,12 @@ static int __imx415_start_stream(struct imx415 *imx415)
 		if (ret)
 			return ret;
 	}
-	imx415_get_pclk_and_tline(imx415);
 
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&imx415->ctrl_handler);
 	if (ret)
 		return ret;
 	if (imx415->has_init_exp && imx415->cur_mode->hdr_mode != NO_HDR) {
-		imx415->rhs1_old = IMX415_RHS1_DEFAULT;
-		imx415->rhs2_old = IMX415_RHS2_DEFAULT;
 		ret = imx415_ioctl(&imx415->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx415->init_hdrae_exp);
 		if (ret) {
@@ -2522,7 +2574,6 @@ static int __imx415_stop_stream(struct imx415 *imx415)
 	imx415->has_init_exp = false;
 	if (imx415->is_thunderboot)
 		imx415->is_first_streamoff = true;
-	imx415->is_tline_init = false;
 	return imx415_write_reg(imx415->client, IMX415_REG_CTRL_MODE,
 				IMX415_REG_VALUE_08BIT, 1);
 }
@@ -2647,6 +2698,11 @@ int __imx415_power_on(struct imx415 *imx415)
 		goto err_pinctrl;
 	}
 
+	/* export gpio */
+	if (!IS_ERR(imx415->reset_gpio))
+		gpiod_export(imx415->reset_gpio, false);
+	if (!IS_ERR(imx415->power_gpio))
+		gpiod_export(imx415->power_gpio, false);
 	/* At least 20us between XCLR and I2C communication */
 	usleep_range(20*1000, 30*1000);
 
@@ -2818,7 +2874,7 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 	struct imx415 *imx415 = to_imx415(sd);
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
-		if (imx415->cur_mode->width == 3864) {
+		if (imx415->cur_mode->width == 3840) {
 			sel->r.left = CROP_START(imx415->cur_mode->width, DST_WIDTH_3840);
 			sel->r.width = DST_WIDTH_3840;
 			sel->r.top = CROP_START(imx415->cur_mode->height, DST_HEIGHT_2160);
@@ -2880,48 +2936,6 @@ static const struct v4l2_subdev_ops imx415_subdev_ops = {
 	.pad	= &imx415_pad_ops,
 };
 
-static void imx415_exposure_readback(struct imx415 *imx415)
-{
-	u32 shr, shr_l, shr_m, shr_h;
-	int ret = 0;
-
-	if (!imx415->is_tline_init) {
-		imx415_get_pclk_and_tline(imx415);
-		imx415->is_tline_init = true;
-	}
-
-	ret = imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_L,
-			      IMX415_REG_VALUE_08BIT, &shr_l);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_M,
-			       IMX415_REG_VALUE_08BIT, &shr_m);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_EXPO_REG_H,
-			       IMX415_REG_VALUE_08BIT, &shr_h);
-	if (!ret) {
-		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
-		imx415->cur_exposure[0] = (imx415->cur_vts - shr) * imx415->tline;
-	}
-}
-
-static void imx415_gain_readback(struct imx415 *imx415)
-{
-	int ret = 0;
-	u32 gain, gain_l, gain_h;
-
-	if (!imx415->is_tline_init) {
-		imx415_get_pclk_and_tline(imx415);
-		imx415->is_tline_init = true;
-	}
-
-	ret = imx415_read_reg(imx415->client, IMX415_LF_GAIN_REG_H,
-			      IMX415_REG_VALUE_08BIT,
-			      &gain_h);
-	ret |= imx415_read_reg(imx415->client, IMX415_LF_GAIN_REG_L,
-			       IMX415_REG_VALUE_08BIT,
-			       &gain_l);
-	gain = (gain_h << 8) | gain_l;
-	imx415->cur_gain[0] = gain * 300;//step=0.3db,factor=1000
-}
-
 static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx415 *imx415 = container_of(ctrl->handler,
@@ -2963,7 +2977,6 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx415_write_reg(imx415->client, IMX415_LF_EXPO_REG_H,
 				       IMX415_REG_VALUE_08BIT,
 				       IMX415_FETCH_EXP_H(shr0));
-		imx415_exposure_readback(imx415);
 		dev_dbg(&client->dev, "set exposure(shr0) %d = cur_vts(%d) - val(%d)\n",
 			shr0, imx415->cur_vts, ctrl->val);
 		break;
@@ -2976,7 +2989,6 @@ static int imx415_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret |= imx415_write_reg(imx415->client, IMX415_LF_GAIN_REG_L,
 				       IMX415_REG_VALUE_08BIT,
 				       IMX415_FETCH_GAIN_L(ctrl->val));
-		imx415_gain_readback(imx415);
 		dev_dbg(&client->dev, "set analog gain 0x%x\n",
 			ctrl->val);
 		break;
@@ -3098,10 +3110,12 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 				V4L2_CID_EXPOSURE, IMX415_EXPOSURE_MIN,
 				exposure_max, IMX415_EXPOSURE_STEP,
 				mode->exp_def);
+
 	imx415->anal_a_gain = v4l2_ctrl_new_std(handler, &imx415_ctrl_ops,
 				V4L2_CID_ANALOGUE_GAIN, IMX415_GAIN_MIN,
 				IMX415_GAIN_MAX, IMX415_GAIN_STEP,
 				IMX415_GAIN_DEFAULT);
+
 	v4l2_ctrl_new_std(handler, &imx415_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(handler, &imx415_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
 
@@ -3114,7 +3128,6 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 
 	imx415->subdev.ctrl_handler = handler;
 	imx415->has_init_exp = false;
-	imx415->is_tline_init = false;
 
 	return 0;
 
