@@ -4,26 +4,7 @@
  * To be used in firmware and host apps or dhd - reducing code size,
  * duplication, and maintenance overhead.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -185,17 +166,11 @@ struct bcm_iov_batch_subcmd {
 	uint8 data[BCM_FLEX_ARRAY];
 };
 
-BCM_EXTENSION	/* struct containing flexible array member is the last field. */
 struct bcm_iov_batch_buf {
 	uint16 version;
 	uint8 count;
 	uint8 is_set;   /* obsolete */
-#ifdef BCM_NON_ISO_C
 	struct bcm_iov_batch_subcmd cmds[0];
-#else
-	/* NOTE: array of structs that contains a flexible array member is non-ISO C compliant. */
-	struct bcm_iov_batch_subcmd cmds[];
-#endif
 };
 
 /* Non-Batched commands will have the following memory layout
@@ -424,15 +399,11 @@ int bcm_iov_pack_xtlvs(const bcm_iov_cmd_digest_t *dig,  bcm_xtlv_opts_t xtlv_op
  * during attach.
  */
 struct wlc_if;
-struct wlc_bsscfg;
-
-#ifdef LDEV_IOCTL_BSSCFG
-int bcm_iov_doiovar(void *parse_ctx, uint32 id, void *params, uint params_len, void *arg,
-	uint arg_len, uint vsize, struct wlc_if *intf, struct wlc_bsscfg *cfg);
-#else
-int bcm_iov_doiovar(void *parse_ctx, uint32 id, void *params, uint params_len, void *arg,
-	uint arg_len, uint vsize, struct wlc_if *intf);
-#endif /* LDEV_IOCTL_BSSCFG */
+struct wlc_info;
+extern struct wlc_bsscfg *bcm_iov_bsscfg_find_from_wlcif(struct wlc_info *wlc,
+	struct wlc_if *wlcif);
+int bcm_iov_doiovar(void *parse_ctx, uint32 id, void *params, uint params_len,
+    void *arg, uint arg_len, uint vsize, struct wlc_if *intf);
 #endif /* BCMDRIVER */
 
 /* parsing context helpers */

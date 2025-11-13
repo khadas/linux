@@ -1,26 +1,7 @@
 /*
  * HND SiliconBackplane PMU support.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -44,11 +25,8 @@
 #define _hndlhl_h_
 
 enum {
-	LHL_MAC_TIMER		= 0u,
-	LHL_ARM_TIMER		= 1u,
-#if defined(COEX_CPU)
-	LHL_COEX_ARM_TIMER	= 2u
-#endif
+	LHL_MAC_TIMER = 0,
+	LHL_ARM_TIMER = 1
 };
 
 typedef struct {
@@ -61,25 +39,24 @@ typedef struct {
 
 extern void si_lhl_timer_config(si_t *sih, osl_t *osh, int timer_type);
 extern void si_lhl_timer_enable(si_t *sih);
-#if defined(COEX_CPU)
-void si_lhl_coex_timer_enable(si_t *sih);
-#endif
 extern void si_lhl_timer_reset(si_t *sih, uint coreid, uint coreunit);
-extern void si_lhl_clkreq_enable(si_t *sih, bool enab);
 
 extern void si_lhl_setup(si_t *sih, osl_t *osh);
 extern void si_lhl_enable(si_t *sih, osl_t *osh, bool enable);
+extern void si_lhl_ilp_config(si_t *sih, osl_t *osh, uint32 ilp_period);
 extern void si_lhl_enable_sdio_wakeup(si_t *sih, osl_t *osh);
 extern void si_lhl_disable_sdio_wakeup(si_t *sih);
 extern int si_lhl_set_lpoclk(si_t *sih, osl_t *osh, uint32 lpo_force);
-extern int si_lhl_inittbl_get(si_t *sih, lhl_reg_set_t **regs, uint *regs_size);
-extern void si_set_lv_sleep_mode_lhl_config(si_t *sih);
-extern void si_set_lv_sleep_mode_lhl_config_chip(si_t *sih);
+extern void si_set_lv_sleep_mode_lhl_config_4369(si_t *sih);
+extern void si_set_lv_sleep_mode_lhl_config_4362(si_t *sih);
+extern void si_set_lv_sleep_mode_lhl_config_4378(si_t *sih);
+extern void si_set_lv_sleep_mode_lhl_config_4387(si_t *sih);
+extern void si_set_lv_sleep_mode_lhl_config_4389(si_t *sih);
 
 #define HIB_EXT_WAKEUP_CAP(sih)  (PMUREV(sih->pmurev) >= 33)
 
 #ifdef BCM_BOOTLOADER
-#define LHL_IS_PSMODE_0(sih)  (1u)
+#define LHL_IS_PSMODE_0(sih)  (1)
 #define LHL_IS_PSMODE_1(sih)  (0)
 #else
 #define LHL_IS_PSMODE_0(sih)  (si_lhl_ps_mode(sih) == LHL_PS_MODE_0)
@@ -87,30 +64,23 @@ extern void si_set_lv_sleep_mode_lhl_config_chip(si_t *sih);
 #endif /* BCM_BOOTLOADER */
 
 /* LHL revid in capabilities register */
-#define	LHL_CAP_REV_MASK	0x000000ffu
-
-#define LHL_CLK_STATUS_EXT_LPO		(1u << 21u)
-#define LHL_CLK_STATUS_OSC_32_XTAL	(1u << 20u)
-#define LHL_CLK_STATUS_INT_LPO2		(1u << 19u)
-#define LHL_CLK_STATUS_INT_LPO1		(1u << 18u)
+#define	LHL_CAP_REV_MASK	0x000000ff
 
 /* LHL rev 6 requires this bit to be set first */
-#define LHL_PWRSEQCTL_WL_FLLPU_EN	(1u << 7u)
+#define LHL_PWRSEQCTL_WL_FLLPU_EN	(1 << 7)
 
 #define LHL_CBUCK_VOLT_SLEEP_SHIFT	12u
-#define LHL_CBUCK_VOLT_SLEEP_MASK	0x0000F000u
+#define LHL_CBUCK_VOLT_SLEEP_MASK	0x0000F000
 
 #define LHL_ABUCK_VOLT_SLEEP_SHIFT	0u
-#define LHL_ABUCK_VOLT_SLEEP_MASK	0x0000000Fu
+#define LHL_ABUCK_VOLT_SLEEP_MASK	0x0000000F
 
 extern void si_lhl_mactim0_set(si_t *sih, uint32 val);
 
 /* LHL Chip Control 1 Register */
-#define LHL_1MHZ_FLL_FORCE_DAC_MASK	(1u << 8u)
 #define LHL_1MHZ_FLL_DAC_EXT_SHIFT	(9u)
 #define LHL_1MHZ_FLL_DAC_EXT_MASK	(0xffu << 9u)
 #define LHL_1MHZ_FLL_PRELOAD_MASK	(1u << 17u)
-#define LHL_1MHZ_FLL_MODE_1P8V_MASK	(1u << 23u)
 
 /* LHL Top Level Power Sequence Control Register */
 #define LHL_TOP_PWRSEQ_SLEEP_ENAB_MASK		(1u << 0)
@@ -118,13 +88,7 @@ extern void si_lhl_mactim0_set(si_t *sih, uint32 val);
 #define LHL_TOP_PWRSEQ_TOP_SLB_EN_MASK		(1u << 4u)
 #define LHL_TOP_PWRSEQ_TOP_PWRSW_EN_MASK	(1u << 5u)
 #define LHL_TOP_PWRSEQ_MISCLDO_PU_EN_MASK	(1u << 6u)
-#define LHL_TOP_PWRSEQ_VMUX_ASR_SEL_MASK	(1u << 8u)
 #define LHL_TOP_PWRSEQ_SERDES_SLB_EN_MASK	(1u << 9u)
 #define LHL_TOP_PWRSEQ_SERDES_CLK_DIS_EN_MASK	(1u << 10u)
-
-/* LHL GPIO Interrupt regissters */
-#define LHL_GPIO0		(0u)
-#define LHL_GPIO0_INT_SHIFT	(0u)
-#define	LHL_GPIO0_INT_MASK	(0x1u << LHL_GPIO0_INT_SHIFT)
 
 #endif /* _hndlhl_h_ */

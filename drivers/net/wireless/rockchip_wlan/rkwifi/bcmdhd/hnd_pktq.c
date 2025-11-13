@@ -1,26 +1,7 @@
 /*
  * HND generic pktq operation primitives
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -149,7 +130,7 @@ BCMFASTPATH(spktq_enq_chain)(struct spktq *dspq, struct spktq *sspq)
  * osl simple, non-priority packet queue
  */
 void *
-BCMPOSTTRAPFASTPATH(spktq_enq)(struct spktq *spq, void *p)
+BCMFASTPATH(spktq_enq)(struct spktq *spq, void *p)
 {
 	struct pktq_prec *q;
 
@@ -288,7 +269,7 @@ done:
 }
 
 void *
-BCMPOSTTRAPFASTPATH(spktq_deq)(struct spktq *spq)
+BCMFASTPATH(spktq_deq)(struct spktq *spq)
 {
 	struct pktq_prec *q;
 	void *p;
@@ -878,7 +859,7 @@ done:
 }
 
 static void
-BCMPOSTTRAPFN(_pktq_pfilter)(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
+_pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
               defer_free_pkt_fn_t defer, void *defer_ctx)
 {
 	struct pktq_prec wq;
@@ -947,7 +928,7 @@ BCMPOSTTRAPFN(_pktq_pfilter)(struct pktq *pq, int prec, pktq_filter_t fltr, void
 }
 
 void
-BCMPOSTTRAPFN(pktq_pfilter)(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
+pktq_pfilter(struct pktq *pq, int prec, pktq_filter_t fltr, void* fltr_ctx,
 	defer_free_pkt_fn_t defer, void *defer_ctx, flush_free_pkt_fn_t flush, void *flush_ctx)
 {
 	_pktq_pfilter(pq, prec, fltr, fltr_ctx, defer, defer_ctx);
@@ -1089,7 +1070,7 @@ pktq_init(struct pktq *pq, uint num_prec, uint max_pkts)
 }
 
 bool
-BCMPOSTTRAPFN(spktq_init)(struct spktq *spq, uint max_pkts)
+spktq_init(struct spktq *spq, uint max_pkts)
 {
 	bzero(spq, sizeof(struct spktq));
 
@@ -1325,7 +1306,7 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
 }
 
 void
-BCMPOSTTRAPFN(spktq_flush_ext)(osl_t *osh, struct spktq *spq, bool dir,
+spktq_flush_ext(osl_t *osh, struct spktq *spq, bool dir,
 	void (*pktq_flush_cb)(void *ctx, void *pkt), void *pktq_flush_ctx)
 {
 	void *pkt;
@@ -1359,19 +1340,19 @@ static spktq_suppress_cbinfo_t *spktq_suppress_cbinfo_get(void);
 
 /* Accessor function forced into RAM to keep spktq_cbinfo out of shdat */
 static spktq_cbinfo_t*
-BCMACCESSOR_RAMFN(spktq_cbinfo_get)(void)
+BCMRAMFN(spktq_cbinfo_get)(void)
 {
 	return (&spktq_cbinfo);
 }
 
 static spktq_suppress_cbinfo_t*
-BCMACCESSOR_RAMFN(spktq_suppress_cbinfo_get)(void)
+BCMRAMFN(spktq_suppress_cbinfo_get)(void)
 {
 	return (&spktq_suppress_cbinfo);
 }
 
 void
-BCMATTACHFN(spktq_free_register)(spktq_cb_t cb, void *arg)
+spktq_free_register(spktq_cb_t cb, void *arg)
 {
 	spktq_cbinfo_t *cbinfop = spktq_cbinfo_get();
 	cbinfop->cb = cb;
@@ -1388,7 +1369,7 @@ spktq_cb(void *spq)
 }
 
 void
-BCMATTACHFN(spktq_suppress_register)(spktq_suppress_cb_t cb, void *arg)
+spktq_suppress_register(spktq_suppress_cb_t cb, void *arg)
 {
 	spktq_suppress_cbinfo_t *cbinfop = spktq_suppress_cbinfo_get();
 	cbinfop->cb = cb;
@@ -1526,6 +1507,12 @@ BCMPOSTTRAPFASTPATH(pktq_mdeq)(struct pktq *pq, uint prec_bmp, int *prec_out)
 		q->tail = NULL;
 
 	q->n_pkts--;
+
+	// terence 20150308: fix for non-null pointer of skb->prev sent from ndo_start_xmit
+	if (q->n_pkts == 0) {
+		q->head = NULL;
+		q->tail = NULL;
+	}
 
 #ifdef WL_TXQ_STALL
 	q->dequeue_count++;

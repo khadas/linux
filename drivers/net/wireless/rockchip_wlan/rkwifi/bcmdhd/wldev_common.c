@@ -1,26 +1,7 @@
 /*
  * Common function shared by Linux WEXT, cfg80211 and p2p drivers
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -47,9 +28,7 @@
 #include <linux/netdevice.h>
 
 #include <wldev_common.h>
-#include <bcmstdlib_s.h>
 #include <bcmutils.h>
-#include <bcmstdlib_s.h>
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
 #include <wl_cfgscan.h>
@@ -76,11 +55,7 @@
 #endif
 
 #if defined(CUSTOMER_DBG_PREFIX_ENABLE)
-#ifdef CUSTOM_PREFIX_NORTCTIME
-#define USER_PREFIX_WLDEV		CUSTOM_PREFIX_NORTCTIME"[wldev][wlan] "
-#else
 #define USER_PREFIX_WLDEV		"[wldev][wlan] "
-#endif /* CUSTOM_PREFIX_NORTCTIME */
 #define WLDEV_ERROR_TEXT		USER_PREFIX_WLDEV
 #define WLDEV_INFO_TEXT			USER_PREFIX_WLDEV
 #else
@@ -99,9 +74,6 @@
 		printf(WLDEV_INFO_TEXT x, ## args);	\
 	} while (0)
 #define WLDEV_INFO(x) WLDEV_INFO_MSG x
-
-#define LINK_PREFIX_STR "link:"
-#define IOCTL_PREFIX_STR "ioc"
 
 extern int dhd_ioctl_entry_local(struct net_device *net, wl_ioctl_t *ioc, int cmd);
 
@@ -133,11 +105,11 @@ s32 wldev_ioctl(
 	ifr.ifr_data = (caddr_t)&ioc;
 
 	GETFS_AND_SETFS_TO_KERNEL_DS(fs);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
-	ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
+	ret = dev->do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
 #else
-	ret = dev->netdev_ops->ndo_siocdevprivate(dev, &ifr, ifr.ifr_data, SIOCDEVPRIVATE);
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0) */
+	ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31) */
 	SETFS(fs);
 
 	ret = 0;
@@ -270,284 +242,6 @@ s32 wldev_iovar_getint(
 		*pval = dtoh32(*pval);
 	}
 	return err;
-}
-
-/* Link specific iovar get/set calls */
-static uint
-wldev_link_mkiovar(u8 link_id, const char *name, const char *data, uint datalen,
-	char *buf, uint buflen)
-{
-	uint len = 0;
-	uint prefix_len = 0;
-	uint name_len = 0;
-	int link_idx;
-
-	/* Expected format "link:<iovar_name> \0 <link_idx><params>" */
-	/* Update link id in the iovar buffer */
-	prefix_len = strlen(LINK_PREFIX_STR);
-	if (memcpy_s(buf, buflen, LINK_PREFIX_STR, prefix_len)) {
-		return BCME_BUFTOOSHORT;
-	}
-	buf += prefix_len;
-	len += prefix_len;
-
-	/* Update the command name */
-	strlcpy(buf, name, (buflen - len));
-	name_len = (strlen(name) + 1);
-	buf += name_len;
-	len += name_len;
-
-	/* Update the linkid value */
-	link_idx = htod32(link_id);
-	if (memcpy_s(buf, (buflen - len), &link_idx, sizeof(int32))) {
-		return BCME_BUFTOOSHORT;
-	}
-	buf += sizeof(int32);
-	len += sizeof(int32);
-
-	/* append data onto the end of the name string */
-	if (data && datalen != 0) {
-		if (memcpy_s(buf, (buflen - len), data, datalen)) {
-			return BCME_BUFTOOSHORT;
-		}
-		len += datalen;
-	}
-
-	return len;
-}
-
-s32
-wldev_link_iovar_getbuf(struct net_device *dev, u8 link_idx, s8 *iovar_name,
-	const void *param, u32 paramlen, void *buf, u32 buflen, struct mutex* buf_sync)
-{
-	s32 ret = 0;
-	s32 iovar_len;
-
-	if (buf_sync) {
-		mutex_lock(buf_sync);
-	}
-
-	if (buf && (buflen > 0)) {
-		/* initialize the response buffer */
-		bzero(buf, buflen);
-	} else {
-		ret = BCME_BADARG;
-		goto exit;
-	}
-
-	if (link_idx == NON_ML_LINK) {
-		iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
-	} else {
-		iovar_len = wldev_link_mkiovar(link_idx, iovar_name, param, paramlen, buf, buflen);
-	}
-	if (iovar_len > 0) {
-		ret = wldev_ioctl_get(dev, WLC_GET_VAR, buf, buflen);
-	} else {
-		ret = BCME_BUFTOOSHORT;
-	}
-exit:
-	if (buf_sync) {
-		mutex_unlock(buf_sync);
-	}
-
-	return ret;
-}
-
-s32
-wldev_link_iovar_setbuf(struct net_device *dev, u8 link_idx, s8 *iovar_name,
-	const void *param, s32 paramlen, void *buf, s32 buflen, struct mutex* buf_sync)
-{
-	s32 ret = 0;
-	s32 iovar_len;
-
-	if (buf_sync) {
-		mutex_lock(buf_sync);
-	}
-
-	if (link_idx == NON_ML_LINK) {
-		iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
-	} else {
-		iovar_len = wldev_link_mkiovar(link_idx, iovar_name, param, paramlen, buf, buflen);
-	}
-	if (iovar_len > 0) {
-		ret = wldev_ioctl_set(dev, WLC_SET_VAR, buf, iovar_len);
-	} else {
-		ret = BCME_BUFTOOSHORT;
-	}
-
-	if (buf_sync) {
-		mutex_unlock(buf_sync);
-	}
-
-	return ret;
-}
-
-s32
-wldev_link_iovar_setint(struct net_device *dev, u8 link_idx, s8 *iovar, s32 val)
-{
-	s8 iovar_buf[WLC_IOCTL_SMLEN];
-
-	val = htod32(val);
-	bzero(iovar_buf, sizeof(iovar_buf));
-
-	return wldev_link_iovar_setbuf(dev, link_idx, iovar, &val, sizeof(val), iovar_buf,
-		sizeof(iovar_buf), NULL);
-}
-
-s32
-wldev_link_iovar_getint(struct net_device *dev, u8 link_idx, s8 *iovar, s32 *pval)
-{
-	s8 iovar_buf[WLC_IOCTL_SMLEN];
-	s32 err;
-
-	bzero(iovar_buf, sizeof(iovar_buf));
-	err = wldev_link_iovar_getbuf(dev, link_idx, iovar, pval, sizeof(*pval), iovar_buf,
-		sizeof(iovar_buf), NULL);
-	if (err == 0) {
-		(void)memcpy_s(pval, sizeof(*pval), iovar_buf, sizeof(*pval));
-		*pval = dtoh32(*pval);
-	}
-
-	return err;
-}
-
-/* IOCTL get/set per link */
-static uint
-wldev_link_mkioctl(u32 cmd, u8 link_id, const char *data, uint datalen,
-	char *buf, uint buflen)
-{
-	uint len = 0;
-	uint prefix_len = 0;
-	uint name_len = 0;
-	int link_idx;
-	int32 ioctl_cmd;
-
-	/* Expected format "link:ioc\0<link_idx><ioctl_id><param>" */
-	/* Update link id in the iovar buffer */
-	prefix_len = strlen(LINK_PREFIX_STR);
-	if (memcpy_s(buf, buflen, LINK_PREFIX_STR, prefix_len)) {
-		return BCME_BUFTOOSHORT;
-	}
-	buf += prefix_len;
-	len += prefix_len;
-
-	/* Update the command name */
-	strlcpy(buf, IOCTL_PREFIX_STR, (buflen - len));
-	name_len = (strlen(IOCTL_PREFIX_STR) + 1);
-	buf += name_len;
-	len += name_len;
-
-	/* Update the linkid value */
-	link_idx = htod32(link_id);
-	if (memcpy_s(buf, (buflen - len), &link_idx, sizeof(int32))) {
-		return BCME_BUFTOOSHORT;
-	}
-	buf += sizeof(int32);
-	len += sizeof(int32);
-
-	/* Update ioctl cmd */
-	ioctl_cmd = htod32(cmd);
-	if (memcpy_s(buf, (buflen - len), &ioctl_cmd, sizeof(int32))) {
-		return BCME_BUFTOOSHORT;
-	}
-	buf += sizeof(int32);
-	len += sizeof(int32);
-
-	/* append data onto the end of the name string */
-	if (data && datalen != 0) {
-		if (memcpy_s(&buf[len], (buflen - len), data, datalen)) {
-			return BCME_BUFTOOSHORT;
-		}
-		len += datalen;
-	}
-
-	return len;
-}
-
-static s32
-wldev_per_link_ioctl_set(
-	struct net_device *dev, u8 link_idx, u32 cmd, const void *arg, u32 len)
-{
-	s8 *iovar_buf = NULL;
-	s32 ret = 0;
-	s32 iovar_len;
-	s32 alloc_len = 0;
-
-	alloc_len = WLC_IOCTL_SMLEN + len;
-	iovar_buf = (s8 *)kzalloc(alloc_len, GFP_KERNEL);
-	if (unlikely(!iovar_buf)) {
-		WL_ERR(("iovar_buf alloc failed\n"));
-		return BCME_NOMEM;
-	}
-
-	iovar_len = wldev_link_mkioctl(cmd, link_idx, arg, len, iovar_buf, alloc_len);
-	if (iovar_len > 0) {
-		ret = wldev_ioctl_set(dev, WLC_SET_VAR, iovar_buf, iovar_len);
-	} else {
-		ret = BCME_BUFTOOSHORT;
-	}
-
-	kfree(iovar_buf);
-
-	return ret;
-}
-
-static s32
-wldev_per_link_ioctl_get(struct net_device *dev, u8 link_idx, u32 cmd, void *arg, u32 len)
-{
-	s8 *iovar_buf = NULL;
-	s32 ret = 0;
-	s32 iovar_len;
-	s32 alloc_len = 0;
-
-	alloc_len = WLC_IOCTL_SMLEN + len;
-	iovar_buf = (s8 *)kzalloc(alloc_len, GFP_KERNEL);
-	if (unlikely(!iovar_buf)) {
-		WL_ERR(("iovar_buf alloc failed\n"));
-		return BCME_NOMEM;
-	}
-
-	iovar_len = wldev_link_mkioctl(cmd, link_idx, arg, len, iovar_buf, alloc_len);
-	if (iovar_len > 0) {
-		ret = wldev_ioctl_get(dev, WLC_GET_VAR, iovar_buf, iovar_len);
-		if (ret == 0) {
-			(void)memcpy_s(arg, len, iovar_buf, len);
-		}
-	} else {
-		ret = BCME_BUFTOOSHORT;
-	}
-
-	kfree(iovar_buf);
-
-	return ret;
-}
-
-s32
-wldev_link_ioctl_set(struct net_device *dev, u8 link_idx, u32 cmd, const void *arg, u32 len)
-{
-	s32 ret = 0;
-
-	if (link_idx == NON_ML_LINK) {
-		ret = wldev_ioctl_set(dev, cmd, arg, len);
-	} else {
-		ret = wldev_per_link_ioctl_set(dev, link_idx, cmd, arg, len);
-	}
-
-	return ret;
-}
-
-s32
-wldev_link_ioctl_get(struct net_device *dev, u8 link_idx, u32 cmd, void *arg, u32 len)
-{
-	s32 ret = 0;
-
-	if (link_idx == NON_ML_LINK) {
-		ret = wldev_ioctl_get(dev, cmd, arg, len);
-	} else {
-		ret = wldev_per_link_ioctl_get(dev, link_idx, cmd, arg, len);
-	}
-
-	return ret;
 }
 
 /** Format a bsscfg indexed iovar buffer. The bsscfg index will be
@@ -777,22 +471,6 @@ int wldev_get_rssi(
 	return error;
 }
 
-int wldev_link_get_rssi(
-	struct net_device *dev, u8 link_id, scb_val_t *scb_val)
-{
-	int error = BCME_OK;
-
-	if (!scb_val)
-		return -ENOMEM;
-	bzero(scb_val, sizeof(scb_val_t));
-	error = wldev_link_ioctl_get(dev, link_id, WLC_GET_RSSI, scb_val, sizeof(scb_val_t));
-	if (unlikely(error)) {
-		return error;
-	}
-
-	return error;
-}
-
 int wldev_get_ssid(
 	struct net_device *dev, wlc_ssid_t *pssid)
 {
@@ -848,6 +526,7 @@ int wldev_get_datarate(struct net_device *dev, int *datarate)
 #ifdef WL_CFG80211
 extern chanspec_t
 wl_chspec_driver_to_host(chanspec_t chanspec);
+#define WL_EXTRA_BUF_MAX 2048
 int wldev_get_mode(
 	struct net_device *dev, uint8 *cap, uint8 caplen)
 {
@@ -905,7 +584,7 @@ int wldev_get_mode(
 	buf = NULL;
 	return error;
 }
-#endif /* WL_CFG80211 */
+#endif
 
 int wldev_set_country(
 	struct net_device *dev, char *country_code, bool notify, int revinfo)

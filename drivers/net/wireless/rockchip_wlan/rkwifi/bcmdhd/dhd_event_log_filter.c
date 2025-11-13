@@ -1,26 +1,7 @@
 /*
  * Wifi dongle status Filter and Report
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -37,7 +18,9 @@
  * modifications of the software.
  *
  *
- * <<Broadcom-WL-IPTag/Dual:>>
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id$
  */
 
 /*
@@ -239,7 +222,8 @@ typedef struct {
 #define SLICE_INFO_UNION(a) EWPF_IDX_TYPE_SLICE, EWPF_MAX_SLICE, OFFSETOF(EWPF_slc_elem_t, a)
 #define NONE_INFO(a) 0, 0, a, 0
 /* XTLV TBL for WL_SLICESTATS_XTLV_PERIODIC_STATE */
-static EWPF_tbl_t EWPF_periodic[] = {
+static EWPF_tbl_t EWPF_periodic[] =
+{
 	{
 		WL_STATE_COMPACT_COUNTERS,
 		evt_xtlv_copy_cb,
@@ -255,7 +239,8 @@ static EWPF_tbl_t EWPF_periodic[] = {
 	{EWPF_XTLV_INVALID, NULL, NONE_INFO(0), NULL}
 };
 
-static EWPF_tbl_t EWPF_if_periodic[] = {
+static EWPF_tbl_t EWPF_if_periodic[] =
+{
 	{
 		WL_STATE_IF_COMPACT_STATE,
 		evt_xtlv_copy_cb,
@@ -277,7 +262,8 @@ static EWPF_tbl_t EWPF_if_periodic[] = {
 	{EWPF_XTLV_INVALID, NULL, NONE_INFO(0), NULL}
 };
 
-static EWPF_tbl_t EWPF_roam[] = {
+static EWPF_tbl_t EWPF_roam[] =
+{
 	{
 		WL_IFSTATS_XTLV_ROAM_STATS_EVENT,
 		evt_xtlv_print_cb,
@@ -294,7 +280,8 @@ static EWPF_tbl_t EWPF_roam[] = {
 };
 
 /* XTLV TBL for EVENT_LOG_TAG_STATS */
-static EWPF_tbl_t EWPF_main[] = {
+static EWPF_tbl_t EWPF_main[] =
+{
 	/* MAIN XTLV */
 	{
 		WL_IFSTATS_XTLV_WL_SLICE,
@@ -415,7 +402,8 @@ static EWPF_tbl_t EWPF_main[] = {
 #define EWP_DHD_STAT_SIZE 2
 
 uint8
-dhd_statlog_filter[] = {
+dhd_statlog_filter[] =
+{
 	ST(WLAN_POWER_ON),	/* Wi-Fi Power on */
 	ST(WLAN_POWER_OFF),	/* Wi-Fi Power off */
 	ST(ASSOC_START),	/* connect to the AP triggered by upper layer */
@@ -547,7 +535,7 @@ dhd_event_log_filter_init(dhd_pub_t *dhdp, uint8 *buf, uint32 buf_size)
 	buf_ptr += sizeof(EWP_filter_t);
 
 	/* initialize control block */
-	bzero(filter, sizeof(EWP_filter_t));
+	memset(filter, 0, sizeof(EWP_filter_t));
 
 	filter->idx_type = EWPF_INVALID;
 	filter->xtlv_idx = EWPF_INVALID;
@@ -607,11 +595,11 @@ dhd_event_log_filter_init(dhd_pub_t *dhdp, uint8 *buf, uint32 buf_size)
 	 */
 	ctx.dhdp = dhdp;
 	ctx.tbl = EWPF_main;
-	bzero(&dummy_event_stat, sizeof(dummy_event_stat));
+	memset(&dummy_event_stat, 0x00, sizeof(dummy_event_stat));
 	evt_xtlv_copy_cb(&ctx, (uint8 *)&dummy_event_stat, WL_IFSTATS_XTLV_IF_EVENT_STATS,
 		sizeof(wl_event_based_statistics_v4_t));
 
-	bzero(&dummy_key_update_info, sizeof(dummy_key_update_info));
+	memset(&dummy_key_update_info, 0x00, sizeof(dummy_key_update_info));
 	evt_xtlv_copy_cb(&ctx, (uint8 *)&dummy_key_update_info, WL_IFSTATS_XTLV_KEY_PLUMB_INFO,
 		sizeof(key_update_info_v1_t));
 
@@ -637,16 +625,16 @@ dhd_event_log_filter_deinit(dhd_pub_t *dhdp)
 
 	if (dhdp->event_log_filter) {
 		filter = (EWP_filter_t *)dhdp->event_log_filter;
-		for (idx = 0; idx < EWPF_MAX_SLICE; idx++) {
+		for (idx = 0; idx < EWPF_MAX_SLICE; idx ++) {
 			dhd_ring_deinit(dhdp, filter->s_ring[idx]);
 		}
-		for (idx = 0; idx < EWPF_MAX_IFACE; idx++) {
+		for (idx = 0; idx < EWPF_MAX_IFACE; idx ++) {
 			dhd_ring_deinit(dhdp, filter->i_ring[idx]);
 		}
-		for (idx = 0; idx < EWPF_MAX_EVENT; idx++) {
+		for (idx = 0; idx < EWPF_MAX_EVENT; idx ++) {
 			dhd_ring_deinit(dhdp, filter->e_ring[idx]);
 		}
-		for (idx = 0; idx < EWPF_MAX_KEY_INFO; idx++) {
+		for (idx = 0; idx < EWPF_MAX_KEY_INFO; idx ++) {
 			dhd_ring_deinit(dhdp, filter->k_ring[idx]);
 		}
 		dhdp->event_log_filter = NULL;
@@ -896,7 +884,7 @@ evt_get_last_toss_hist(uint8 *ptr, const uint8 *data, uint16 len)
 	/*
 	 * Need to get largest count of toss reasons
 	 */
-	for (idx = 0; idx < WLC_HIST_TOSS_LEN; idx++) {
+	for (idx = 0; idx < WLC_HIST_TOSS_LEN; idx ++) {
 		cur_rccnt = (uint16)(ewp_stats->htr_rc[idx].toss_cnt);
 		DHD_FILTER_TRACE(("%s: idx %d htr_rc %04x cur_rccnt %d\n",
 			__FUNCTION__, idx, ewp_stats->htr_rc[idx].toss_reason, cur_rccnt));
@@ -910,20 +898,20 @@ evt_get_last_toss_hist(uint8 *ptr, const uint8 *data, uint16 len)
 		}
 	}
 
-	bzero(&bidata_stats, sizeof(bidata_stats));
+	memset(&bidata_stats, 0x00, sizeof(bidata_stats));
 	bidata_stats.version = ewp_stats->version;
 	bidata_stats.htr_type = ewp_stats->htr_type;
 	bidata_stats.htr_num = ewp_stats->htr_num;
-	bidata_stats.htr_rn_last = *(uint32 *)(&ewp_stats->htr_running[cur_rnidx]);
+	bidata_stats.htr_rn_last = *(uint32*)(&ewp_stats->htr_running[cur_rnidx]);
 	bidata_stats.htr_rn_ts_last = ewp_stats->htr_rn_ts[cur_rnidx];
-	bidata_stats.htr_rn_prev = *(uint32 *)(&ewp_stats->htr_running[prev_rnidx]);
+	bidata_stats.htr_rn_prev = *(uint32*)(&ewp_stats->htr_running[prev_rnidx]);
 	bidata_stats.htr_rn_ts_prev = ewp_stats->htr_rn_ts[prev_rnidx];
 	if (max_rcidx != EWPF_INVALID) {
-		bidata_stats.htr_rc_max = *(uint32 *)(&ewp_stats->htr_rc[max_rcidx]);
+		bidata_stats.htr_rc_max = *(uint32*)(&ewp_stats->htr_rc[max_rcidx]);
 		bidata_stats.htr_rc_ts_max = ewp_stats->htr_rc_ts[max_rcidx];
 	}
 	if (secnd_rcidx != EWPF_INVALID) {
-		bidata_stats.htr_rc_secnd = *(uint32 *)(&ewp_stats->htr_rc[secnd_rcidx]);
+		bidata_stats.htr_rc_secnd = *(uint32*)(&ewp_stats->htr_rc[secnd_rcidx]);
 		bidata_stats.htr_rc_ts_secnd = ewp_stats->htr_rc_ts[secnd_rcidx];
 	}
 	DHD_FILTER_TRACE(("%s: ver %d type %d num %d "
@@ -1036,7 +1024,7 @@ evt_xtlv_copy_cb(void *ctx, const uint8 *data, uint16 type, uint16 len)
 
 		/* clean up target */
 		armcycle = (uint32 *)target;
-		bzero(target, elem_size);
+		memset(target, 0, elem_size);
 		memcpy(armcycle, &filter->tmp_armcycle, sizeof(*armcycle));
 	}
 
@@ -1077,7 +1065,7 @@ evt_xtlv_copy_cb(void *ctx, const uint8 *data, uint16 type, uint16 len)
 	} else
 #endif /* DHD_EWPR_VER2 */
 	{
-		/* multiversion shall be use same structure of old version */
+		/* XXX multiversion shall be use same structure of old version */
 		if (len > cur_ctx->tbl[tbl_idx].member_length) {
 			DHD_FILTER_TRACE(("data Length is too big to save: (alloc = %d), "
 				"(data = %d)\n", cur_ctx->tbl[tbl_idx].member_length, len));
@@ -1225,7 +1213,7 @@ dhd_event_log_filter_event_handler(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_h
 	}
 
 	if (!plog_hdr || !data) {
-		/* Validation check is done by caller */
+		/* XXX Validation check is done by caller */
 		DHD_FILTER_ERR(("INVALID PARAMETER\n"));
 		return;
 	}
@@ -1246,14 +1234,14 @@ dhd_event_log_filter_event_handler(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_h
 		char buf[EWPF_DEBUG_BUF_LEN];
 		int idx;
 
-		bzero(buf, sizeof(buf));
+		memset(buf, 0, sizeof(buf));
 		DHD_FILTER_ERR(("tag %d(%x) count %d(%x)\n",
 			plog_hdr->tag, plog_hdr->tag, plog_hdr->count, plog_hdr->count));
 		for (idx = 0; idx < plog_hdr->count; idx++) {
 			sprintf(&buf[strlen(buf)], "%08x ", data[idx]);
 			if ((idx + 1) % EWPF_VAL_CNT_PLINE == 0) {
 				DHD_FILTER_ERR(("%s\n", buf));
-				bzero(buf, sizeof(buf));
+				memset(buf, 0, sizeof(buf));
 			}
 		}
 		if (strlen(buf) > 0) {
@@ -1264,17 +1252,18 @@ dhd_event_log_filter_event_handler(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_h
 
 	ctx.dhdp = dhdp;
 	ctx.tbl = EWPF_main;
-	err = bcm_unpack_xtlv_buf(&ctx, (const uint8 *)data,
-		(plog_hdr->count - 1) * sizeof(uint32),	BCM_XTLV_OPTION_ALIGN32,
-		filter_main_cb);
-	if (err) {
+	if ((err = bcm_unpack_xtlv_buf(
+		&ctx,
+		(const uint8 *)data,
+		(plog_hdr->count - 1) * sizeof(uint32),
+		BCM_XTLV_OPTION_ALIGN32,
+		filter_main_cb))) {
 		DHD_FILTER_ERR(("FAIL TO UNPACK XTLV: err(%d)\n", err));
 	}
 }
-
 /* ========= Private Command(Serialize) ============= */
-/* REPORT MODULE will be done after discuss with customer */
-/* Current implementation is temporal to verify FILTER MODULE works */
+/* XXX REPORT MODULE will be done after discuss with customer */
+/* XXX Current implementation is temporal to verify FILTER MODULE works */
 //#define EWPR_DEBUG
 #ifdef EWPR_DEBUG
 #undef DHD_FILTER_TRACE
@@ -1629,7 +1618,7 @@ ewpr_bit_pack_basic(char *buf, int buf_len, uint32 data, int32 format,
 	int32 display_type, int32 display_bit_length, int32 bit_offset);
 
 static char*
-ewpr_base64_encode(dhd_pub_t *dhdp, char *input, int32 length);
+ewpr_base64_encode(dhd_pub_t *dhdp, char* input, int32 length);
 #endif /* DHD_EWPR_VER2 */
 
 ewpr_serial_info_t
@@ -2036,52 +2025,52 @@ int ewpr_diff_serial(ewpr_serial_info_t *info, char *buf,
 	int buf_len, void *_f_op, void *_s_op, char del);
 int ewpr_single_serial(ewpr_serial_info_t *info, char *buf, int buf_len, void *ptr, char del);
 
-static int
+int
 ewpr_serial_basic(char *buf, int buf_len, uint32 data, int format, int display_type, char del)
 {
 	if (format == EWP_HEX) {
 		switch (display_type) {
-		case EWP_INT8:
-		case EWP_UINT8:
-			return scnprintf(buf, buf_len, "%c%02x", del, data & 0xff);
-		case EWP_INT16:
-		case EWP_UINT16:
-			return scnprintf(buf, buf_len, "%c%04x", del, data & 0xffff);
-		case EWP_INT32:
-		case EWP_UINT32:
-			return scnprintf(buf, buf_len, "%c%08x", del, data & 0xffffffff);
-		default:
-			DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
-			return 0;
+			case EWP_INT8:
+			case EWP_UINT8:
+				return scnprintf(buf, buf_len, "%c%02x", del, data & 0xff);
+			case EWP_INT16:
+			case EWP_UINT16:
+				return scnprintf(buf, buf_len, "%c%04x", del, data & 0xffff);
+			case EWP_INT32:
+			case EWP_UINT32:
+				return scnprintf(buf, buf_len, "%c%08x", del, data & 0xffffffff);
+			default:
+				DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
+				return 0;
 		}
 	}
 
 	if (format == EWP_DEC) {
 		int32 sdata = (int32) data;
 		switch (display_type) {
-		case EWP_INT8:
-		case EWP_UINT8:
-			return scnprintf(buf, buf_len, "%c%04d", del, sdata);
-		case EWP_INT16:
-		case EWP_UINT16:
-			return scnprintf(buf, buf_len, "%c%06d", del, sdata);
-		case EWP_INT32:
-		case EWP_UINT32:
-			return scnprintf(buf, buf_len, "%c%011d", del, sdata);
-		default:
-			DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
-			return 0;
+			case EWP_INT8:
+			case EWP_UINT8:
+				return scnprintf(buf, buf_len, "%c%04d", del, sdata);
+			case EWP_INT16:
+			case EWP_UINT16:
+				return scnprintf(buf, buf_len, "%c%06d", del, sdata);
+			case EWP_INT32:
+			case EWP_UINT32:
+				return scnprintf(buf, buf_len, "%c%011d", del, sdata);
+			default:
+				DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
+				return 0;
 		}
 	}
 
 	if (format == EWP_BIN) {
 		int32 sdata = (int32) data;
 		switch (display_type) {
-		case EWP_BIT:
-			return scnprintf(buf, buf_len, "%c%011d", del, sdata);
-		default:
-			DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
-			return 0;
+			case EWP_BIT:
+				return scnprintf(buf, buf_len, "%c%011d", del, sdata);
+			default:
+				DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
+				return 0;
 		}
 	}
 
@@ -2097,7 +2086,7 @@ ewpr_get_multi_offset(uint16 looking_version, ewpr_serial_info_t *info)
 
 	DHD_FILTER_TRACE(("FINDING MULTI OFFSET: type = %s version = %d\n",
 		info->name, looking_version));
-	for (idx = 0; idx < MAX_MULTI_VER; idx++) {
+	for (idx = 0; idx < MAX_MULTI_VER; idx ++) {
 		opv = &(info->v_info.opv[idx]);
 
 		/* END OF MULTI VERSION */
@@ -2111,7 +2100,6 @@ ewpr_get_multi_offset(uint16 looking_version, ewpr_serial_info_t *info)
 	/* return first version if no version is found */
 	return info->v_info.opv[0].offset;
 }
-
 int
 ewpr_single_serial(ewpr_serial_info_t *info, char *buf, int buf_len, void *_ptr, char del)
 {
@@ -2135,34 +2123,34 @@ ewpr_single_serial(ewpr_serial_info_t *info, char *buf, int buf_len, void *_ptr,
 	ptr += offset;
 
 	switch (info->data_type) {
-	case EWP_INT8:
-		sval = *(int8 *)ptr;
-		break;
-	case EWP_UINT8:
-		sval = *(uint8 *)ptr;
-		break;
-	case EWP_INT16:
-		sval = *(int16 *)ptr;
-		break;
-	case EWP_UINT16:
-		sval = *(uint16 *)ptr;
-		break;
-	case EWP_INT32:
-		sval = *(int32 *)ptr;
-		break;
-	case EWP_UINT32:
-		sval = *(uint32 *)ptr;
-		break;
-	/* UINT64 is used only for debug */
+		case EWP_INT8:
+			sval = *(int8 *)ptr;
+			break;
+		case EWP_UINT8:
+			sval = *(uint8 *)ptr;
+			break;
+		case EWP_INT16:
+			sval = *(int16 *)ptr;
+			break;
+		case EWP_UINT16:
+			sval = *(uint16 *)ptr;
+			break;
+		case EWP_INT32:
+			sval = *(int32 *)ptr;
+			break;
+		case EWP_UINT32:
+			sval = *(uint32 *)ptr;
+			break;
+		/* XXX UINT64 is used only for debug */
 #ifdef EWPR_DEBUG
-	case EWP_UINT64:
-		sval = (uint32)(*(uint64 *)ptr);
-		break;
+		case EWP_UINT64:
+			sval = (uint32)(*(uint64 *)ptr);
+			break;
 #endif /* EWPR_DEBUG */
-	case EWP_BIT:
-	default:
-		DHD_FILTER_ERR(("INVALID TYPE for Single Serial:%d", info->data_type));
-		return 0;
+		case EWP_BIT:
+		default:
+			DHD_FILTER_ERR(("INVALID TYPE for Single Serial:%d", info->data_type));
+			return 0;
 	}
 
 	return ewpr_serial_basic(buf, buf_len, sval, info->display_format, info->display_type, del);
@@ -2194,25 +2182,25 @@ ewpr_diff_serial(ewpr_serial_info_t *info,
 	s_op = s_op + offset;
 
 	switch (info->data_type) {
-	case EWP_INT8:
-	case EWP_UINT8:
-		diff = *(uint8 *)f_op - *(uint8 *)s_op;
-		break;
-	case EWP_INT16:
-	case EWP_UINT16:
-		diff = *(uint16 *)f_op - *(uint16 *)s_op;
-		break;
-	case EWP_INT32:
-	case EWP_UINT32:
-		diff = *(uint32 *)f_op - *(uint32 *)s_op;
-		break;
-	case EWP_UINT64:
-		diff = (uint32)(*(uint64 *)f_op - *(uint64 *)s_op);
-		break;
-	case EWP_BIT:
-	default:
-		DHD_FILTER_ERR(("INVALID TYPE to DIFF:%d", info->data_type));
-		return 0;
+		case EWP_INT8:
+		case EWP_UINT8:
+			diff = *(uint8 *)f_op - *(uint8 *)s_op;
+			break;
+		case EWP_INT16:
+		case EWP_UINT16:
+			diff = *(uint16 *)f_op - *(uint16 *)s_op;
+			break;
+		case EWP_INT32:
+		case EWP_UINT32:
+			diff = *(uint32 *)f_op - *(uint32 *)s_op;
+			break;
+		case EWP_UINT64:
+			diff = (uint32)(*(uint64 *)f_op - *(uint64 *)s_op);
+			break;
+		case EWP_BIT:
+		default:
+			DHD_FILTER_ERR(("INVALID TYPE to DIFF:%d", info->data_type));
+			return 0;
 	}
 
 	return ewpr_serial_basic(buf, buf_len, diff, info->display_format, info->display_type, del);
@@ -2237,7 +2225,7 @@ ewpr_debug_dump(ewpr_serial_info_t *tbl, void **ring)
 			break;
 		}
 #endif /* DHD_EWPR_VER2 */
-		bzero(buf, sizeof(buf));
+		memset(buf, 0, sizeof(buf));
 		lock_cnt = dhd_ring_lock_get_count(ring[info->ring_type - 1]);
 		elem = dhd_ring_lock_get_first(ring[info->ring_type - 1]);
 		bytes_written = scnprintf(buf, EWPR_DEBUG_BUF_LEN, "%s:", info->name);
@@ -2289,7 +2277,7 @@ dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, in
 	/* Configure common LOCK parameter */
 	lock_param.max_armcycle = (uint32)EWPF_INVALID;
 	lock_param.min_armcycle = filter->last_armcycle;
-	lock_param.max_period = (EWPR_ARRAY_CNT - 1) * EWPR_INTERVAL;
+	lock_param.max_period = (EWPR_ARRAY_CNT - 1)* EWPR_INTERVAL;
 	lock_param.max_period *= EWPF_MSEC_TO_SEC * EWPF_ARM_TO_MSEC;
 	lock_param.delta_cnt = ARRAYSIZE(delta_list);
 	lock_param.delta_list = delta_list;
@@ -2298,8 +2286,8 @@ dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, in
 	delta_list[EWPR_DELTA2_POS] = EWPR_DELTA2_CNT;
 	delta_list[EWPR_DELTA1_POS] = EWPR_DELTA1_CNT;
 	delta_list[EWPR_NOW_POS] = 0;
-	lock_param.ring = ring[EWPF_IDX_TYPE_IFACE - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_IFACE - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_IFACE -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_IFACE -1];
 	lock_cnt = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET IFACE LOCK: %d\n", iface_id));
@@ -2311,8 +2299,8 @@ dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, in
 	delta_list[EWPR_DELTA2_POS] = EWPR_DELTA2_CNT;
 	delta_list[EWPR_DELTA1_POS] = EWPR_DELTA1_CNT;
 	delta_list[EWPR_NOW_POS] = 0;
-	lock_param.ring = ring[EWPF_IDX_TYPE_SLICE - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_SLICE - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_SLICE -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_SLICE -1];
 	lock_cnt2 = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt2 <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET SLICE LOCK: %d\n", slice_id));
@@ -2331,12 +2319,12 @@ dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, in
 	ewpr_debug_dump(ewpr_serial_CSDCLIENT_array_tbl, ring);
 #endif /* EWPR_DEBUG */
 
-	bzero(ret_buf, tot_len);
-	bzero(cookie_str, DEBUG_DUMP_TIME_BUF_LEN);
+	memset(ret_buf, 0, tot_len);
+	memset(cookie_str, 0, DEBUG_DUMP_TIME_BUF_LEN);
 	bytes_written = 0;
 	last_print = ret_buf;
 
-	/* Counters BIG DATA not matched to file yet */
+	/* XXX Counters BIG DATA not matched to file yet */
 	get_debug_dump_time(cookie_str);
 #ifdef DHD_LOG_DUMP
 	dhd_logdump_cookie_save(dhdp, cookie_str, "ECNT");
@@ -2369,7 +2357,7 @@ dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, in
 	}
 
 	/* RAW DATA */
-	/* FIRST data shall use space:KEY delimiter */
+	/* XXX FIRST data shall use space:KEY delimiter */
 	bytes_written += scnprintf(&ret_buf[bytes_written],
 		tot_len - bytes_written, "%c%08x", KEY_DEL, EWP_REPORT_VERSION);
 	bytes_written += scnprintf(&ret_buf[bytes_written],
@@ -2565,7 +2553,7 @@ ewpr_set_period_lock(ewpr_lock_param_t *param)
 
 		if (idx2 >= param->delta_list[delta_idx]) {
 			param->elem_list[delta_idx] = cur;
-			delta_idx++;
+			delta_idx ++;
 		}
 	}
 
@@ -2579,8 +2567,8 @@ ewpr_set_period_lock(ewpr_lock_param_t *param)
 
 #ifdef DHD_EWPR_VER2
 static int
-ewpr_single_bit_pack(ewpr_serial_info_t *info, char *buf, int buf_len,
-	void *_ptr, int bit_offset)
+ewpr_single_bit_pack(ewpr_serial_info_t * info, char * buf, int buf_len,
+	void * _ptr, int bit_offset)
 {
 	int32 sval = 0;
 	char *ptr = (char *)_ptr;
@@ -2603,35 +2591,35 @@ ewpr_single_bit_pack(ewpr_serial_info_t *info, char *buf, int buf_len,
 	ptr += offset;
 
 	switch (info->data_type) {
-	case EWP_INT8:
-		sval = *(int8 *)ptr;
-		is_signed = TRUE;
-		break;
-	case EWP_UINT8:
-		sval = *(uint8 *)ptr;
-		break;
-	case EWP_INT16:
-		sval = *(int16 *)ptr;
-		is_signed = TRUE;
-		break;
-	case EWP_UINT16:
-		sval = *(uint16 *)ptr;
-		break;
-	case EWP_INT32:
-		sval = *(int32 *)ptr;
-		is_signed = TRUE;
-		break;
-	case EWP_UINT32:
-		sval = *(uint32 *)ptr;
-		break;
+		case EWP_INT8:
+			sval = *(int8 *)ptr;
+			is_signed = TRUE;
+			break;
+		case EWP_UINT8:
+			sval = *(uint8 *)ptr;
+			break;
+		case EWP_INT16:
+			sval = *(int16 *)ptr;
+			is_signed = TRUE;
+			break;
+		case EWP_UINT16:
+			sval = *(uint16 *)ptr;
+			break;
+		case EWP_INT32:
+			sval = *(int32 *)ptr;
+			is_signed = TRUE;
+			break;
+		case EWP_UINT32:
+			sval = *(uint32 *)ptr;
+			break;
 #ifdef EWPR_DEBUG
-	case EWP_UINT64:
-		sval = (int32)(*(uint64 *)ptr);
-		break;
+		case EWP_UINT64:
+			sval = (int32)(*(uint64 *)ptr);
+			break;
 #endif /* EWPR_DEBUG */
-	default:
-		DHD_FILTER_ERR(("INVALID TYPE for Single Serial:%d", info->data_type));
-		return 0;
+		default:
+			DHD_FILTER_ERR(("INVALID TYPE for Single Serial:%d", info->data_type));
+			return 0;
 	}
 
 	/* convert negative value to positive before bit packing */
@@ -2685,24 +2673,24 @@ ewpr_diff_bit_pack(ewpr_serial_info_t *info, char *buf, int buf_len,
 	s_op = s_op + offset;
 
 	switch (info->data_type) {
-	case EWP_INT8:
-	case EWP_UINT8:
-		diff = *(uint8 *)f_op - *(uint8 *)s_op;
-		break;
-	case EWP_INT16:
-	case EWP_UINT16:
-		diff = *(uint16 *)f_op - *(uint16 *)s_op;
-		break;
-	case EWP_INT32:
-	case EWP_UINT32:
-		diff = *(uint32 *)f_op - *(uint32 *)s_op;
-		break;
-	case EWP_UINT64:
-		diff = (uint32)(*(uint64 *)f_op - *(uint64 *)s_op);
-		break;
-	default:
-		DHD_FILTER_ERR(("INVALID TYPE to DIFF:%d", info->data_type));
-		return 0;
+		case EWP_INT8:
+		case EWP_UINT8:
+			diff = *(uint8 *)f_op - *(uint8 *)s_op;
+			break;
+		case EWP_INT16:
+		case EWP_UINT16:
+			diff = *(uint16 *)f_op - *(uint16 *)s_op;
+			break;
+		case EWP_INT32:
+		case EWP_UINT32:
+			diff = *(uint32 *)f_op - *(uint32 *)s_op;
+			break;
+		case EWP_UINT64:
+			diff = (uint32)(*(uint64 *)f_op - *(uint64 *)s_op);
+			break;
+		default:
+			DHD_FILTER_ERR(("INVALID TYPE to DIFF:%d", info->data_type));
+			return 0;
 	}
 
 	if (diff < 0) {
@@ -2728,13 +2716,13 @@ ewpr_bit_pack_basic(char *buf, int buf_len, uint32 data, int format, int display
 	if (format == EWP_BIN) {
 		uint32 sdata = (uint32) data;
 		switch (display_type) {
-		case EWP_BIT:
-			/* call bit packing */
-			return dhd_bit_pack(buf, buf_len, bit_offset,
-				sdata, display_bit_length);
-		default:
-			DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
-			return 0;
+			case EWP_BIT:
+				/* call bit packing */
+				return dhd_bit_pack(buf, buf_len, bit_offset,
+					sdata, display_bit_length);
+			default:
+				DHD_FILTER_ERR(("INVALID TYPE for Serial:%d", display_type));
+				return 0;
 		}
 	}
 
@@ -2767,7 +2755,7 @@ ewpr_find_context_info(int index1, int index2, int index3)
 }
 
 static int
-ewpr_find_context_type(ewpr_serial_info_t *context_info)
+ewpr_find_context_type(ewpr_serial_info_t* context_info)
 {
 	int idx = 0;
 	int context_type = BCME_ERROR;
@@ -2837,7 +2825,7 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 	stat_elem_t dhd_stat[EWP_DHD_STAT_SIZE];
 	stat_query_t query;
 
-	bzero(&dhd_stat[0], sizeof(stat_elem_t) * EWP_DHD_STAT_SIZE);
+	memset(&dhd_stat[0], 0x00, sizeof(stat_elem_t) * EWP_DHD_STAT_SIZE);
 #endif /* DHD_STATUS_LOGGING */
 
 	context_info = ewpr_find_context_info(index1, index2, index3);
@@ -2867,7 +2855,7 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 	/* Configure common LOCK parameter */
 	lock_param.max_armcycle = (uint32)EWPF_INVALID;
 	lock_param.min_armcycle = filter->last_armcycle;
-	lock_param.max_period = (EWPR_ARRAY_CNT - 1) * EWPR_INTERVAL;
+	lock_param.max_period = (EWPR_ARRAY_CNT - 1)* EWPR_INTERVAL;
 	lock_param.max_period *= EWPF_MSEC_TO_SEC * EWPF_ARM_TO_MSEC;
 	lock_param.delta_cnt = ARRAYSIZE(delta_list);
 	lock_param.delta_list = delta_list;
@@ -2876,8 +2864,8 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 		delta_list[idx] = idx * EWPR_DELTA_CNT;
 	}
 
-	lock_param.ring = ring[EWPF_IDX_TYPE_IFACE - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_IFACE - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_IFACE -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_IFACE -1];
 	lock_cnt = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET IFACE LOCK: %d\n", iface_id));
@@ -2889,8 +2877,8 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 		delta_list[idx] = idx * EWPR_DELTA_CNT;
 	}
 
-	lock_param.ring = ring[EWPF_IDX_TYPE_SLICE - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_SLICE - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_SLICE -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_SLICE -1];
 	lock_cnt2 = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt2 <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET SLICE LOCK: %d\n", slice_id));
@@ -2906,8 +2894,8 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 		delta_list[idx] = idx * EWPR_DELTA_CNT;
 	}
 
-	lock_param.ring = ring[EWPF_IDX_TYPE_EVENT - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_EVENT - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_EVENT -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_EVENT -1];
 	lock_cnt = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET EVENT ECNT LOCK: %d\n", iface_id));
@@ -2919,8 +2907,8 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 		delta_list[idx] = idx * EWPR_DELTA_CNT;
 	}
 
-	lock_param.ring = ring[EWPF_IDX_TYPE_KEY_INFO - 1];
-	lock_param.elem_list = elem[EWPF_IDX_TYPE_KEY_INFO - 1];
+	lock_param.ring = ring[EWPF_IDX_TYPE_KEY_INFO -1];
+	lock_param.elem_list = elem[EWPF_IDX_TYPE_KEY_INFO -1];
 	lock_cnt = ewpr_set_period_lock(&lock_param);
 	if (lock_cnt <= 0) {
 		DHD_FILTER_ERR(("FAIL TO GET KEY INFO LOCK: %d\n", iface_id));
@@ -2932,12 +2920,12 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 	ewpr_debug_dump(context_info, ring);
 #endif /* EWPR_DEBUG */
 
-	bzero(ret_buf, tot_len);
-	bzero(cookie_str, DEBUG_DUMP_TIME_BUF_LEN);
+	memset(ret_buf, 0, tot_len);
+	memset(cookie_str, 0, DEBUG_DUMP_TIME_BUF_LEN);
 	bytes_written = 0;
 	bits_written = 0;
 
-	/* Counters BIG DATA not matched to file yet */
+	/* XXX Counters BIG DATA not matched to file yet */
 	get_debug_dump_time(cookie_str);
 #ifdef DHD_LOG_DUMP
 	dhd_logdump_cookie_save(dhdp, cookie_str, "ECNT");
@@ -3001,136 +2989,136 @@ dhd_event_log_filter_serialize_bit(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len
 		elem_list = elem[info->ring_type - 1];
 		DHD_FILTER_TRACE(("%s : array_size: %d\n", info->name, info->display_array_size));
 		switch (info->info_type) {
-		case EWPF_INFO_VER:
-			DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
-				EWP_REPORT_VERSION));
-			bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE, bits_written,
-				EWP_REPORT_VERSION, info->display_bit_length);
-			break;
-		case EWPF_INFO_TYPE:
-			context_type = ewpr_find_context_type(context_info);
-			if (context_type < 0) {
-				DHD_FILTER_ERR(("fail to get context_type - %d\n",
-					context_type));
+			case EWPF_INFO_VER:
+				DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
+					EWP_REPORT_VERSION));
+				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE, bits_written,
+					EWP_REPORT_VERSION, info->display_bit_length);
 				break;
-			}
-			DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
-				(uint32)context_type));
-			bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE, bits_written,
-				(uint32)context_type, info->display_bit_length);
-			break;
-		case EWPF_INFO_DHDSTAT:
-			if (strcmp("dhdstat_last_ts", info->name) == 0) {
-#ifdef DHD_STATUS_LOGGING
-				if (info->unit_convert > 1) {
-					conv_cnt = dhd_stat[0].ts_tz / info->unit_convert;
-				} else {
-					conv_cnt = dhd_stat[0].ts_tz;
+			case EWPF_INFO_TYPE:
+				context_type = ewpr_find_context_type(context_info);
+				if (context_type < 0) {
+					DHD_FILTER_ERR(("fail to get context_type - %d\n",
+						context_type));
+					break;
 				}
-				DHD_FILTER_TRACE(("DHD status last timestamp:"
-					" %llu, %u", dhd_stat[0].ts_tz,
-					conv_cnt));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, conv_cnt,
-					info->display_bit_length);
-#else
-				DHD_FILTER_TRACE(("No DHD status log timestamp\n"));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, 0x00, info->display_bit_length);
-#endif /* DHD_STATUS_LOGGING */
-			} else if (strcmp("dhdstat_last", info->name) == 0) {
+				DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
+					(uint32)context_type));
+				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE, bits_written,
+					(uint32)context_type, info->display_bit_length);
+				break;
+			case EWPF_INFO_DHDSTAT:
+				if (strcmp("dhdstat_last_ts", info->name) == 0) {
 #ifdef DHD_STATUS_LOGGING
-				DHD_FILTER_TRACE(("DHD status last stat: %d(0x%02x)",
-					dhd_stat[0].stat, dhd_stat[0].stat));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, (uint32)dhd_stat[0].stat,
-					info->display_bit_length);
+					if (info->unit_convert > 1) {
+						conv_cnt = dhd_stat[0].ts_tz / info->unit_convert;
+					} else {
+						conv_cnt = dhd_stat[0].ts_tz;
+					}
+					DHD_FILTER_TRACE(("DHD status last timestamp:"
+						" %llu, %u", dhd_stat[0].ts_tz,
+						conv_cnt));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, conv_cnt,
+						info->display_bit_length);
 #else
-				DHD_FILTER_TRACE(("No DHD status log value\n"));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, 0x00, info->display_bit_length);
+					DHD_FILTER_TRACE(("No DHD status log timestamp\n"));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, 0x00, info->display_bit_length);
 #endif /* DHD_STATUS_LOGGING */
-			} else if (strcmp("dhdstat_prev_ts", info->name) == 0) {
+				} else if (strcmp("dhdstat_last", info->name) == 0) {
 #ifdef DHD_STATUS_LOGGING
-				if (info->unit_convert > 1) {
-					conv_cnt = dhd_stat[1].ts_tz / info->unit_convert;
+					DHD_FILTER_TRACE(("DHD status last stat: %d(0x%02x)",
+						dhd_stat[0].stat, dhd_stat[0].stat));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, (uint32)dhd_stat[0].stat,
+						info->display_bit_length);
+#else
+					DHD_FILTER_TRACE(("No DHD status log value\n"));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, 0x00, info->display_bit_length);
+#endif /* DHD_STATUS_LOGGING */
+				} else if (strcmp("dhdstat_prev_ts", info->name) == 0) {
+#ifdef DHD_STATUS_LOGGING
+					if (info->unit_convert > 1) {
+						conv_cnt = dhd_stat[1].ts_tz / info->unit_convert;
+					} else {
+						conv_cnt = dhd_stat[1].ts_tz;
+					}
+					DHD_FILTER_TRACE(("DHD status prev timestamp:"
+						" %llu, %u", dhd_stat[1].ts_tz,
+						conv_cnt));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, conv_cnt,
+						info->display_bit_length);
+#else
+					DHD_FILTER_TRACE(("No DHD status log timestamp\n"));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, 0x00, info->display_bit_length);
+#endif /* DHD_STATUS_LOGGING */
+				} else if (strcmp("dhdstat_prev", info->name) == 0) {
+#ifdef DHD_STATUS_LOGGING
+					DHD_FILTER_TRACE(("DHD status prev stat: %d(0x%02x)",
+						dhd_stat[1].stat, dhd_stat[1].stat));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, (uint32)dhd_stat[1].stat,
+						info->display_bit_length);
+#else
+					DHD_FILTER_TRACE(("No DHD status log value\n"));
+					bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+						bits_written, 0x00, info->display_bit_length);
+#endif /* DHD_STATUS_LOGGING */
 				} else {
-					conv_cnt = dhd_stat[1].ts_tz;
+					DHD_FILTER_ERR(("unknown dhdstat name - %s\n",
+						info->name));
 				}
-				DHD_FILTER_TRACE(("DHD status prev timestamp:"
-					" %llu, %u", dhd_stat[1].ts_tz,
-					conv_cnt));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, conv_cnt,
-					info->display_bit_length);
-#else
-				DHD_FILTER_TRACE(("No DHD status log timestamp\n"));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, 0x00, info->display_bit_length);
-#endif /* DHD_STATUS_LOGGING */
-			} else if (strcmp("dhdstat_prev", info->name) == 0) {
-#ifdef DHD_STATUS_LOGGING
-				DHD_FILTER_TRACE(("DHD status prev stat: %d(0x%02x)",
-					dhd_stat[1].stat, dhd_stat[1].stat));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, (uint32)dhd_stat[1].stat,
-					info->display_bit_length);
-#else
-				DHD_FILTER_TRACE(("No DHD status log value\n"));
-				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-					bits_written, 0x00, info->display_bit_length);
-#endif /* DHD_STATUS_LOGGING */
-			} else {
-				DHD_FILTER_ERR(("unknown dhdstat name - %s\n",
-					info->name));
-			}
-			break;
-		case EWPF_INFO_ECNT:
-			for (idx2 = 0; idx2 < info->display_array_size; idx2++) {
-				if (info->display_method == EWPR_DISPLAY_METHOD_SINGLE) {
-					bits_written = ewpr_single_bit_pack(info, raw_buf,
-						RAW_BUFFER_SIZE, elem_list[idx2],
-						bits_written);
-				} else {
-					bits_written = ewpr_diff_bit_pack(info, raw_buf,
-						RAW_BUFFER_SIZE, elem_list[idx2],
-						elem_list[idx2+1], bits_written);
+				break;
+			case EWPF_INFO_ECNT:
+				for (idx2 = 0; idx2 < info->display_array_size; idx2++) {
+					if (info->display_method == EWPR_DISPLAY_METHOD_SINGLE) {
+						bits_written = ewpr_single_bit_pack(info, raw_buf,
+							RAW_BUFFER_SIZE, elem_list[idx2],
+							bits_written);
+					} else {
+						bits_written = ewpr_diff_bit_pack(info, raw_buf,
+							RAW_BUFFER_SIZE, elem_list[idx2],
+							elem_list[idx2+1], bits_written);
+					}
 				}
-			}
-			break;
-		case EWPF_INFO_IOVAR:
-			if (dhd_iovar(dhdp, 0, info->name, NULL, 0, iov_buf,
-					ARRAYSIZE(iov_buf), FALSE) < 0) {
-				DHD_FILTER_ERR(("fail to get auth\n"));
-				*(uint32 *)iov_buf = EWPF_INVALID;
-			}
-			DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
-				*(uint8 *)iov_buf));
-			bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
-				bits_written, *(uint8 *)iov_buf,
-				info->display_bit_length);
-			break;
-		case EWPF_INFO_CPLOG:
-			DHD_FILTER_TRACE(("write compact packt log\n"));
-			ret = 0;
+				break;
+			case EWPF_INFO_IOVAR:
+				if (dhd_iovar(dhdp, 0, info->name, NULL, 0, iov_buf,
+						ARRAYSIZE(iov_buf), FALSE) < 0) {
+					DHD_FILTER_ERR(("fail to get auth\n"));
+					*(uint32 *)iov_buf = EWPF_INVALID;
+				}
+				DHD_FILTER_TRACE(("write %s - value: %d\n", info->name,
+					*(uint8 *)iov_buf));
+				bits_written = dhd_bit_pack(raw_buf, RAW_BUFFER_SIZE,
+					bits_written, *(uint8 *)iov_buf,
+					info->display_bit_length);
+				break;
+			case EWPF_INFO_CPLOG:
+				DHD_FILTER_TRACE(("write compact packt log\n"));
+				ret = 0;
 #if defined(DHD_PKT_LOGGING) && defined(DHD_COMPACT_PKT_LOG)
-			ret = dhd_cpkt_log_proc(dhdp, raw_buf, RAW_BUFFER_SIZE,
-				bits_written, info->display_array_size);
+				ret = dhd_cpkt_log_proc(dhdp, raw_buf, RAW_BUFFER_SIZE,
+					bits_written, info->display_array_size);
 #endif /* DHD_PKT_LOGGING && DHD_COMPACT_PKT_LOG */
-			if (ret < 0) {
-				DHD_FILTER_ERR(("fail to get compact packet log - %d\n",
-					ret));
+				if (ret < 0) {
+					DHD_FILTER_ERR(("fail to get compact packet log - %d\n",
+						ret));
+					break;
+				}
+				/* update bit offset */
+				DHD_FILTER_TRACE(("%d bits written\n", ret));
+				if (ret > 0) {
+					bits_written = ret;
+				}
 				break;
-			}
-			/* update bit offset */
-			DHD_FILTER_TRACE(("%d bits written\n", ret));
-			if (ret > 0) {
-				bits_written = ret;
-			}
-			break;
-		default:
-			DHD_FILTER_ERR(("unsupported info type\n"));
-			break;
+			default:
+				DHD_FILTER_ERR(("unsupported info type\n"));
+				break;
 		}
 		DHD_FILTER_TRACE(("%d bits written\n", bits_written));
 	}
@@ -3182,7 +3170,7 @@ ewpr_print_byte_as_bits(char val)
 #endif /* EWPR_DEBUG */
 
 static char*
-ewpr_base64_encode(dhd_pub_t *dhdp, char *input, int32 length)
+ewpr_base64_encode(dhd_pub_t *dhdp, char* input, int32 length)
 {
 	/* set up a destination buffer large enough to hold the encoded data */
 	char *output = MALLOCZ(dhdp->osh, BASE64_BUFFER_SIZE);
@@ -3211,14 +3199,10 @@ dhd_calculate_adps_energy_gain(wl_adps_energy_gain_v1_t *data)
 	int energy_gain = 0;
 
 	/* energy unit: (uAh * 10^-2)/sec */
-	int pm0_idle_energy[MAX_BANDS] = {
-		ADPS_GAIN_2G_PM0_IDLE,
-		ADPS_GAIN_5G_PM0_IDLE
-	};
-	int txpspoll_energy[MAX_BANDS] = {
-		ADPS_GAIN_2G_TX_PSPOLL,
-		ADPS_GAIN_5G_TX_PSPOLL
-	};
+	int pm0_idle_energy[MAX_BANDS] =
+		{ADPS_GAIN_2G_PM0_IDLE, ADPS_GAIN_5G_PM0_IDLE};
+	int txpspoll_energy[MAX_BANDS] =
+		{ADPS_GAIN_2G_TX_PSPOLL, ADPS_GAIN_5G_TX_PSPOLL};
 
 	if (data->version == 0 || data->length != sizeof(*data)) {
 		DHD_FILTER_ERR(("%s - invalid adps_energy_gain data\n", __FUNCTION__));

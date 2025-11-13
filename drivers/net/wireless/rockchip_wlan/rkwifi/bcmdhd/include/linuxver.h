@@ -2,26 +2,7 @@
  * Linux-specific abstractions to gain some independence from linux kernel versions.
  * Pave over some 2.2 versus 2.4 versus 2.6 kernel differences.
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -39,8 +20,6 @@
  *
  *
  * <<Broadcom-WL-IPTag/Dual:>>
- *
- * Edited with the help of GENAI.
  */
 
 #ifndef _linuxver_h_
@@ -63,10 +42,6 @@
 
 #include <typedefs.h>
 #include <linux/version.h>
-
-#define KERNEL_MAJOR	(LINUX_VERSION_CODE >> 16)
-#define KERNEL_MINOR	((LINUX_VERSION_CODE >> 8) & 0xFF)
-#define KERNEL_PATCH	(LINUX_VERSION_CODE & 0xFF)
 
 #ifndef RHEL_RELEASE_CODE
 #define RHEL_RELEASE_CODE	(0)
@@ -120,6 +95,9 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
+#include <net/netdev_rx_queue.h>
+#endif
 #include <linux/time.h>
 #include <linux/rtc.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
@@ -220,12 +198,10 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #include <linux/sched/rt.h>
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0) */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
-#include <linux/sched/clock.h>
 #include <uapi/linux/sched/types.h>
 #endif /* LINUX_VERS >= 4.11.0 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29) && (LINUX_VERSION_CODE < \
-	KERNEL_VERSION(6, 13, 0))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #include <net/lib80211.h>
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
@@ -408,7 +384,7 @@ typedef struct timer_list timer_list_compat_t;
 #define init_timer_compat(timer_compat, cb, priv) \
 	init_timer(timer_compat); \
 	(timer_compat)->data = (ulong)priv; \
-	(timer_compat)->function = (void (*)(ulong arg))cb
+	(timer_compat)->function = cb
 #define timer_set_private(timer_compat, priv) (timer_compat)->data = (ulong)priv
 #define timer_expires(timer_compat) (timer_compat)->expires
 
@@ -417,7 +393,7 @@ typedef struct timer_list timer_list_compat_t;
 typedef struct timer_list_compat {
 	struct timer_list timer;
 	void *arg;
-	void (*callback)(void *arg);
+	void (*callback)(ulong arg);
 } timer_list_compat_t;
 
 extern void timer_cb_compat(struct timer_list *tl);
@@ -430,7 +406,9 @@ extern void timer_cb_compat(struct timer_list *tl);
 #define timer_expires(timer_compat) (timer_compat)->timer.expires
 
 #define del_timer(t) del_timer(&((t)->timer))
+#ifndef del_timer_sync
 #define del_timer_sync(t) del_timer_sync(&((t)->timer))
+#endif
 #define timer_pending(t) timer_pending(&((t)->timer))
 #define add_timer(t) add_timer(&((t)->timer))
 #define mod_timer(t, j) mod_timer(&((t)->timer), j)
@@ -672,11 +650,6 @@ typedef struct {
 	int		up_cnt;
 } tsk_ctl_t;
 
-/* Temporary change till CUSTOM_PREFIX is removed from all src */
-#if defined(CUSTOM_PREFIX) && !defined(LOG_CUSTOM_PREFIX_AND_RTC)
-#define LOG_CUSTOM_PREFIX_AND_RTC
-#endif /* CUSTOM_PREFIX && !LOG_CUSTOM_PREFIX_AND_RTC */
-
 /* ANDREY: new MACROs to start stop threads(OLD kthread API STYLE) */
 /* requires  tsk_ctl_t tsk  argument, the caller's priv data is passed in owner ptr */
 /* note this macro assumes there may be only one context waiting on thread's completion */
@@ -699,18 +672,18 @@ extern char* dhd_dbg_get_system_timestamp(void);
 #endif
 #define DHD_LOG_PREFIXS DHD_LOG_PREFIX" "
 #ifdef DHD_DEBUG
-#ifndef LOG_CUSTOM_PREFIX_AND_RTC
+#ifndef CUSTOM_PREFIX
 #define	printf_thr(fmt, args...)	printk(PERCENT_S DHD_LOG_PREFIXS fmt, PRINTF_SYSTEM_TIME, ## args)
 #define DBG_THR(args)		do {printf_thr args;} while (0)
 #else
 extern char* osl_get_rtctime(void);
-#define DBG_THR_PREFIX "[%s]"LOG_CUSTOM_PREFIX_AND_RTC, osl_get_rtctime()
+#define DBG_THR_PREFIX "[%s]"CUSTOM_PREFIX, osl_get_rtctime()
 #define DBG_THR(x)	\
 do {	\
 	pr_cont(DBG_THR_PREFIX);	\
 	pr_cont x;			\
 } while (0)
-#endif /* !LOG_CUSTOM_PREFIX_AND_RTC */
+#endif /* !CUSTOM_PREFIX */
 #else
 #define DBG_THR(x)
 #endif /* DHD_DEBUG */
@@ -767,24 +740,17 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
 #endif
 
-#ifdef BCMPCIE
-#define NAME_SUFFIX "_pcie"
-#else
-#define NAME_SUFFIX "_sdio"
-#endif
-
 #define PROC_START(thread_func, owner, tsk_ctl, flags, name) \
 { \
 	sema_init(&((tsk_ctl)->sema), 0); \
 	init_completion(&((tsk_ctl)->completed)); \
 	init_completion(&((tsk_ctl)->flushed)); \
 	(tsk_ctl)->parent = owner; \
-	(tsk_ctl)->proc_name = name NAME_SUFFIX;  \
+	(tsk_ctl)->proc_name = name;  \
 	(tsk_ctl)->terminated = FALSE; \
 	(tsk_ctl)->flush_ind = FALSE; \
 	(tsk_ctl)->up_cnt = 0; \
-	(tsk_ctl)->p_task  = kthread_run(thread_func, \
-		tsk_ctl, "%s%s", (char*)(name), NAME_SUFFIX); \
+	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
 	if (IS_ERR((tsk_ctl)->p_task)) { \
 		(tsk_ctl)->thr_pid = -1; \
 		DBG_THR(("%s(): thread:%s create failed\n", __FUNCTION__, \
@@ -797,29 +763,6 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	}; \
 }
 
-#define PROC_START_ON(thread_func, owner, tsk_ctl, flags, name, cpu_on) \
-{ \
-	sema_init(&((tsk_ctl)->sema), 0); \
-	init_completion(&((tsk_ctl)->completed)); \
-	init_completion(&((tsk_ctl)->flushed)); \
-	(tsk_ctl)->parent = owner; \
-	(tsk_ctl)->proc_name = name;  \
-	(tsk_ctl)->terminated = FALSE; \
-	(tsk_ctl)->flush_ind = FALSE; \
-	(tsk_ctl)->up_cnt = 0; \
-	(tsk_ctl)->p_task  = kthread_create_on_cpu(thread_func, tsk_ctl, cpu_on, (char *)name); \
-	if (IS_ERR((tsk_ctl)->p_task)) { \
-		(tsk_ctl)->thr_pid = -1; \
-		DBG_THR(("%s(): thread:%s create failed\n", __FUNCTION__, \
-			(tsk_ctl)->proc_name)); \
-	} else { \
-		(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
-		spin_lock_init(&((tsk_ctl)->spinlock)); \
-		wake_up_process((tsk_ctl)->p_task); \
-		DBG_THR(("%s(): thread:%s:%lx started on cpu %d\n", __FUNCTION__, \
-			(tsk_ctl)->proc_name, (tsk_ctl)->thr_pid, cpu_on)); \
-	}; \
-}
 #define PROC_WAIT_TIMEOUT_MSEC	5000 /* 5 seconds */
 
 #define PROC_STOP(tsk_ctl) \
@@ -947,8 +890,8 @@ do {									\
 	remove_wait_queue(&wq, &__wait);				\
 } while (0)
 
-#define wait_event_interruptible_timeout(wq, condition, timeout)	 BCM_EXTENSION \
-	({									\
+#define wait_event_interruptible_timeout(wq, condition, timeout)	\
+({									\
 	long __ret = timeout;						\
 	if (!(condition))						\
 		__wait_event_interruptible_timeout(wq, condition, __ret); \
@@ -987,7 +930,7 @@ not match our unaligned address for < 2.6.24
 
 #define KMALLOC_FLAG (CAN_SLEEP() ? GFP_KERNEL: GFP_ATOMIC)
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
 #define RANDOM32		get_random_u32
 #define RANDOM_BYTES		get_random_bytes
 #define SRANDOM32(entropy)	do { uint _entropy = (entropy); \
@@ -1022,6 +965,7 @@ not match our unaligned address for < 2.6.24
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0))
+#include <linux/fs.h>
 static inline struct inode *file_inode(const struct file *f)
 {
 	return f->f_dentry->d_inode;
@@ -1032,6 +976,11 @@ static inline struct inode *file_inode(const struct file *f)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+// New google android GKI not allow kernel_write/kernel_read, and use
+// below for temporary overcome, and waiting for get rid of that for future
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif // LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #define vfs_write(fp, buf, len, pos) kernel_write(fp, buf, len, pos)
 #define vfs_read(fp, buf, len, pos) kernel_read(fp, buf, len, pos)
 int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count);
@@ -1073,21 +1022,15 @@ static inline void do_gettimeofday(struct timeval *tv)
 }
 
 #define SETFS(fs) set_fs(fs)
-#define MM_SEGMENT_T mm_segment_t
 #else
 /* From 5.10 kernel get/set_fs are obsolete and direct kernel_read/write operations can be used */
 #define GETFS_AND_SETFS_TO_KERNEL_DS(fs) BCM_REFERENCE(fs)
 #define SETFS(fs) BCM_REFERENCE(fs)
-#define MM_SEGMENT_T void *
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
-#define NETDEV_ADDR_SET(net, dst_len, addr, src_len) \
-	__dev_addr_set(net, addr, dst_len)
-#else
-#define NETDEV_ADDR_SET(net, dst_len, addr, src_len) \
-	(void)memcpy_s(net->dev_addr, dst_len, addr, src_len)
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0) */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+#include <linux/sched/clock.h>
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
 #define PDE_DATA(inode)		pde_data(inode)
@@ -1100,42 +1043,37 @@ static inline void do_gettimeofday(struct timeval *tv)
 #ifdef ANDROID_BKPORT
 #if (ANDROID_VERSION >= 13) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41))
 #define ANDROID13_KERNEL515_BKPORT
-#define WL_MLO_BKPORT
+#define CFG80211_BKPORT_MLO
 #endif /* ANDROID_VERSION >= 13 && KERNEL >= 5.15.41 */
 #endif /* ANDROID_BKPORT */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2) || defined(WL_MLO_BKPORT)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2) || defined(CFG80211_BKPORT_MLO)
 #define	WDEV_CLIENT(wdev, field)	(wdev->u.client.field)
 #else
 #define	WDEV_CLIENT(wdev, field)	(wdev->field)
-#endif /* LINUX_VER >= 5.19.2 || WL_MLO_BKPORT */
+#endif /* LINUX_VER >= 5.19.2 || CFG80211_BKPORT_MLO */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
-#define KTHREAD_COMPLETE_AND_EXIT(comp, code) kthread_complete_and_exit(comp, code)
-#else
-#define KTHREAD_COMPLETE_AND_EXIT(comp, code) complete_and_exit(comp, code)
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0) */
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
+#define netdev_tx_t int
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
-#define DHD_DMA_FREE_COHERENT(pdev, size, va, paddr) \
-	dma_free_coherent(&((struct pci_dev *)pdev)->dev, size, va, paddr)
-#define DHD_DMA_SET_MASK(pdev, mask) \
-	dma_set_mask(&((struct pci_dev *)pdev)->dev, mask)
-#define DHD_DMA_SET_COHERENT_MASK(pdev, mask) \
-	dma_set_coherent_mask(&((struct pci_dev *)pdev)->dev, mask)
-#define DHD_DMA_MAPPING_ERROR(pdev, addr) \
-	dma_mapping_error(&((struct pci_dev *)pdev)->dev, addr)
-#define DHD_DMA_MAP_SINGLE(pdev, size, m_addr, dir) \
-	dma_map_single(&((struct pci_dev *)pdev)->dev, size, m_addr, dir)
-#define DHD_DMA_UNMAP_SINGLE(pdev, size, m_addr, dir) \
-	dma_unmap_single(&((struct pci_dev *)pdev)->dev, size, m_addr, dir)
+#define netif_rx_ni(skb) netif_rx(skb)
+#define pci_free_consistent(a, b, c, d) dma_free_coherent(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_map_single(a, b, c, d) dma_map_single(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_unmap_single(a, b, c, d) dma_unmap_single(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_dma_mapping_error(a, b) dma_mapping_error(&((struct pci_dev *)a)->dev, b)
+#ifndef PCI_DMA_TODEVICE
+#define	PCI_DMA_TODEVICE	1
+#define	PCI_DMA_FROMDEVICE	2
+#endif
+#endif
+
+#if !defined(FREEBSD) && !defined(MACOSX) && !defined(BCM_USE_PLATFORM_STRLCPY)
+#include <bcmstdlib_s.h>
 #else
-#define DHD_DMA_FREE_COHERENT(pdev, size, va, paddr)	pci_free_consistent(pdev, size, va, paddr)
-#define DHD_DMA_SET_MASK(pdev, mask)			pci_set_dma_mask(pdev, mask)
-#define DHD_DMA_SET_COHERENT_MASK(pdev, mask)		pci_set_consistent_dma_mask(pdev, mask)
-#define DHD_DMA_MAPPING_ERROR(pdev, addr)		pci_dma_mapping_error(pdev, addr)
-#define DHD_DMA_MAP_SINGLE(pdev, size, m_addr, dir)	pci_map_single(pdev, size, m_addr, dir)
-#define DHD_DMA_UNMAP_SINGLE(pdev, size, m_addr, dir)	pci_unmap_single(pdev, size, m_addr, dir)
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0))
+#define strlcpy(a, b, c)	strscpy(a, b, c)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 7, 0) */
+#endif /* !defined(FREEBSD) && !defined(MACOSX) && !defined(BCM_USE_PLATFORM_STRLCPY) */
 
 #endif /* _linuxver_h_ */

@@ -1,26 +1,7 @@
 /*
  * HND generic packet pool operation primitives
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -70,12 +51,10 @@ extern "C" {
 #define PKTPOOL_CB_MAX		3
 #define PKTPOOL_CB_MAX_AVL	4
 
-/* rxcpl operation type for pktpool callback function pciedev_manage_haddr */
-typedef enum {
-	RXCPLID_POST = 1u, /* Post rx buffer */
-	RXCPLID_REMOVE = 2u, /* puts back rxcplid and and host addr associated with the rxfrag */
-	RXCPLID_AUDIT_PKTID = 3u, /* Audit the pktids from the rxpkt of non first MSDUs */
-} rxcpl_op_t;
+/* REMOVE_RXCPLID is an arg for pktpool callback function for removing rxcplID
+ * and host addr associated with the rxfrag or shared pool buffer during pktpool_reclaim().
+ */
+#define REMOVE_RXCPLID            2
 
 #define FREE_ALL_PKTS		0
 #define FREE_ALL_FRAG_PKTS	1
@@ -97,25 +76,19 @@ typedef struct {
 	uint8 refcnt;
 } pktpool_cbinfo_t;
 
-typedef void (*pktpool_rxurb_cb_t)(struct pktpool *pool, void *arg, void *head, uint32 count);
-
+typedef void (*pktpool_rxurb_cb_t)(struct pktpool *pool, void *arg, uint8 *addr, uint16 len);
 typedef struct {
 	pktpool_rxurb_cb_t cb;
 	void *arg;
 } pktpool_rxurb_cbinfo_t;
 
 /** PCIe SPLITRX related: call back fn extension to populate host address in pool pkt */
-typedef int (*pktpool_cb_extn_t)(struct pktpool *pool, rxcpl_op_t op, void *arg1, void *arg2,
-		void *arg3);
+typedef int (*pktpool_cb_extn_t)(struct pktpool *pool, void *arg1, void* pkt, int arg2,
+	uint *pktcnt);
 typedef struct {
 	pktpool_cb_extn_t cb;
 	void *arg;
 } pktpool_cbextn_info_t;
-
-#define PKTPOOL_RESV_MODE_OFF	(0)	/* resv mode is not enabled */
-#define PKTPOOL_RESV_MODE_ON	(1u)	/* Use resv resource if ran out of regular resource */
-#define PKTPOOL_RESV_MODE_CRIT	(2u)	/* Only critical reserve resources are available */
-#define PKTPOOL_RESV_MODE_DROP	(3u)	/* If resv resource are critcally low, use it & drop pkts */
 
 #ifdef BCMDBG_POOL
 /* pkt pool debug states */
@@ -178,7 +151,6 @@ typedef struct pktpool {
 	bool is_heap_pool;	/* Whether this pool can be used as heap */
 	bool release_active;
 	uint8 mem_handle;
-	uint8 resv_mode;	/* reserve mode for using reserved rx host address for rxpool */
 
 	struct resv_info *resv_info; /* Resv frag pool info */
 	uint resv_pool_idx;
@@ -220,7 +192,6 @@ extern uint16 pktpool_reclaim(osl_t *osh, pktpool_t *pktp, uint16 free_cnt, uint
 void pktpool_update_freelist(pktpool_t *pktp, void *p, uint pkts_consumed);
 extern void* pktpool_get_ext(pktpool_t *pktp, uint8 type, uint *pktcnt);
 extern void pktpool_free(pktpool_t *pktp, void *p);
-extern void pktpool_free_cb(pktpool_t *pktp, void *p, uint num_pkts);
 void pktpool_nfree(pktpool_t *pktp, void *head, void *tail, uint count);
 extern int pktpool_add(pktpool_t *pktp, void *p);
 extern int pktpool_avail_notify_normal(osl_t *osh, pktpool_t *pktp);
@@ -239,7 +210,6 @@ extern void pktpool_invoke_dmarxfill(pktpool_t *pktp);
 extern int pkpool_haddr_avail_register_cb(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
 extern int pkpool_rxurb_register_cb(pktpool_t *pktp, pktpool_rxurb_cb_t cb, void *arg);
 extern int pktpool_avail(pktpool_t *pktpool);
-bool pktpool_validate_freelist(pktpool_t *pktp);
 
 #define POOLPTR(pp)         ((pktpool_t *)(pp))
 #define POOLID(pp)          (POOLPTR(pp)->id)
@@ -268,17 +238,17 @@ bool pktpool_validate_freelist(pktpool_t *pktp);
 
 /* Registry of pktpool(s) */
 /* Pool ID to/from Pool Pointer converters */
-#define PKTPOOL_ID2PTR(id)		(get_pktpools_registry(id))
-#define PKTPOOL_PTR2ID(pp)		(POOLID(pp))
+#define PKTPOOL_ID2PTR(id)          (get_pktpools_registry(id))
+#define PKTPOOL_PTR2ID(pp)          (POOLID(pp))
 
 /* Registry size is one larger than max pools, as slot #0 is reserved */
-#define PKTPOOLREG_RSVD_ID		(0U)
-#define PKTPOOLREG_RSVD_PTR		(POOLPTR(0xdeaddead))
-#define PKTPOOLREG_FREE_PTR		(POOLPTR(NULL))
+#define PKTPOOLREG_RSVD_ID				(0U)
+#define PKTPOOLREG_RSVD_PTR				(POOLPTR(0xdeaddead))
+#define PKTPOOLREG_FREE_PTR				(POOLPTR(NULL))
 
 #ifndef PKTID_POOL
 /* max pktids reserved for pktpool is updated properly in Makeconf */
-#define PKTID_POOL			(PKT_MAXIMUM_ID - 32u)
+#define PKTID_POOL		    (PKT_MAXIMUM_ID - 32u)
 #endif /* PKTID_POOL */
 extern uint32 total_pool_pktid_count;
 
@@ -303,8 +273,6 @@ extern pktpool_t *pktpool_shared_lfrag;
 extern pktpool_t *pktpool_shared_alfrag;
 #define SHARED_ALFRAG_DATA_POOL	(pktpool_shared_alfrag_data)
 extern pktpool_t *pktpool_shared_alfrag_data;
-#define SHARED_ALFRAG_MDATA_POOL	(pktpool_shared_alfrag_mdata)
-extern pktpool_t *pktpool_shared_alfrag_mdata;
 #endif /* BCMFRAGPOOL */
 
 #ifdef BCMRESVFRAGPOOL
@@ -320,9 +288,6 @@ extern pktpool_t *pktpool_shared_alfrag_mdata;
 /** PCIe SPLITRX related */
 #define SHARED_RXFRAG_POOL	(pktpool_shared_rxlfrag)
 extern pktpool_t *pktpool_shared_rxlfrag;
-/* Pool to allow dma_rxreclaim() to complete even if SHARED_RXFRAG_POOL is empty. */
-#define SHARED_RXRECLAIM_POOL	(pktpool_rxlfrag_reclaim)
-extern pktpool_t *pktpool_rxlfrag_reclaim;
 
 #define SHARED_RXDATA_POOL	(pktpool_shared_rxdata)
 extern pktpool_t *pktpool_shared_rxdata;

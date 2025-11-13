@@ -3,26 +3,7 @@
  *     export functions to client drivers
  *     abstract OS and BUS specific details of SDIO
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -87,7 +68,8 @@ extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *sdioh, ulong *regsva);
 /**
  * BCMSDH API context
  */
-struct bcmsdh_info {
+struct bcmsdh_info
+{
 	bool	init_success;	/* underlying driver successfully attached */
 	void	*sdioh;		/* handler for sdioh */
 	uint32  vendevid;	/* Target Vendor and Device ID on SD bus */
@@ -182,11 +164,11 @@ extern bool bcmsdh_regfail(void *sdh);
 
 typedef void (*bcmsdh_cmplt_fn_t)(void *handle, int status, bool sync_waiting);
 extern int bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
-	uint8 *buf, uint nbytes, void *pkt,
-	bcmsdh_cmplt_fn_t complete_fn, void *handle);
+                           uint8 *buf, uint nbytes, void *pkt,
+                           bcmsdh_cmplt_fn_t complete_fn, void *handle);
 extern int bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
-	uint8 *buf, uint nbytes, void *pkt,
-	bcmsdh_cmplt_fn_t complete_fn, void *handle);
+                           uint8 *buf, uint nbytes, void *pkt,
+                           bcmsdh_cmplt_fn_t complete_fn, void *handle);
 
 extern void bcmsdh_glom_post(void *sdh, uint8 *frame, void *pkt, uint len);
 extern void bcmsdh_glom_clear(void *sdh);
@@ -238,7 +220,7 @@ extern uint bcmsdh_query_iofnum(void *sdh);
 
 /* Miscellaneous knob tweaker. */
 extern int bcmsdh_iovar_op(void *sdh, const char *name,
-	void *params, uint plen, void *arg, uint len, bool set);
+                           void *params, uint plen, void *arg, uint len, bool set);
 
 /* Reset and reinitialize the device */
 extern int bcmsdh_reset(bcmsdh_info_t *sdh);
@@ -249,34 +231,28 @@ extern int bcmsdh_reset(bcmsdh_info_t *sdh);
 typedef struct {
 	/* probe the device */
 	void *(*probe)(uint16 vend_id, uint16 dev_id, uint16 bus, uint16 slot,
-		uint16 func, uint bustype, void *regsva, osl_t *osh,
-		void *param);
+	                uint16 func, uint bustype, void * regsva, osl_t * osh,
+	                void * param);
 	/* remove the device */
 	void (*remove)(void *context);
 	/* can we suspend now */
 	int (*suspend)(void *context);
 	/* resume from suspend */
 	int (*resume)(void *context);
-#ifdef DEVICE_PM_CALLBACK
-	/* prepare before suspend */
-	int (*prepare)(void *context);
-	/* complete after resume */
-	int (*complete)(void *context);
-#endif /* DEVICE_PM_CALLBACK */
 } bcmsdh_driver_t;
 
 /* platform specific/high level functions */
 extern int bcmsdh_register(bcmsdh_driver_t *driver);
 extern void bcmsdh_unregister(void);
 extern bool bcmsdh_chipmatch(uint16 vendor, uint16 device);
-extern void bcmsdh_device_remove(void *sdh);
+extern void bcmsdh_device_remove(void * sdh);
 
-extern int bcmsdh_reg_sdio_notify(void *semaphore);
+extern int bcmsdh_reg_sdio_notify(void* semaphore);
 extern void bcmsdh_unreg_sdio_notify(void);
 
 #if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 extern int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handler,
-	void *oob_irq_handler_context);
+	void* oob_irq_handler_context);
 extern void bcmsdh_oob_intr_unregister(bcmsdh_info_t *sdh);
 extern void bcmsdh_oob_intr_set(bcmsdh_info_t *sdh, bool enable);
 extern int bcmsdh_get_oob_intr_num(bcmsdh_info_t *bcmsdh);
@@ -288,10 +264,6 @@ extern bool bcmsdh_dev_pm_enabled(bcmsdh_info_t *sdh);
 
 int bcmsdh_suspend(bcmsdh_info_t *bcmsdh);
 int bcmsdh_resume(bcmsdh_info_t *bcmsdh);
-#ifdef DEVICE_PM_CALLBACK
-int bcmsdh_prepare(bcmsdh_info_t *bcmsdh);
-int bcmsdh_complete(bcmsdh_info_t *bcmsdh);
-#endif /* DEVICE_PM_CALLBACK */
 
 /* Function to pass device-status bits to DHD. */
 extern uint32 bcmsdh_get_dstatus(void *sdh);
@@ -320,6 +292,7 @@ extern int bcmsdh_gpioout(void *sd, uint32 gpio, bool enab);
 #ifdef DHD_WAKE_STATUS
 extern int bcmsdh_get_total_wake(bcmsdh_info_t *bcmsdh);
 extern int bcmsdh_set_get_wake(bcmsdh_info_t *bcmsdh, int flag);
+
 #endif /* DHD_WAKE_STATUS */
 
-#endif	/* _bcmsdh_h_ */
+#endif /* _bcmsdh_h_ */

@@ -1,26 +1,7 @@
 /*
  * Firmware package defines
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -42,24 +23,11 @@
 
 #ifndef _fwpkg_utils_h_
 #define _fwpkg_utils_h_
-#include <linux/firmware.h>
 
 enum {
-	FWPKG_TAG_ZERO	= 0,
 	FWPKG_TAG_FW	= 1,
 	FWPKG_TAG_SIG	= 2,
 	FWPKG_TAG_INFO	= 3,
-#ifdef SHOW_LOGTRACE
-	FWPKG_TAG_LOGSTRS	= 4,
-	FWPKG_TAG_RAM_MAP	= 5,
-	FWPKG_TAG_ROM	= 6,
-	FWPKG_TAG_ROM_MAP	= 7,
-#ifdef COEX_CPU
-	FWPKG_TAG_COEX_CODE	= 8,
-	FWPKG_TAG_COEX_LOGSTRS	= 9,
-	FWPKG_TAG_COEX_MAP	= 10,
-#endif /* COEX_CPU */
-#endif /* SHOW_LOGTRACE */
 	FWPKG_TAG_LAST
 };
 #define NBR_OF_FWPKG_UNITS	(FWPKG_TAG_LAST-1)
@@ -97,22 +65,16 @@ typedef struct fwpkg_info
 #define IS_FWPKG_COMBND(fwpkg)	\
 	((fwpkg->status == FWPKG_COMBND_FLG) ? TRUE : FALSE)
 
-#ifdef DHD_LINUX_STD_FW_API
-#define FWPKG_FILE	const struct firmware
-#else
 #ifdef BCMDRIVER
-#define FWPKG_FILE	struct file
+#define FWPKG_FILE	void
 #else
 #define FWPKG_FILE	FILE
 #endif /* BCMDRIVER */
-#endif
 
-void fwpkg_deinit(fwpkg_info_t *fwpkg);
-int fwpkg_open_firmware_img(FWPKG_FILE **fp, fwpkg_info_t *fwpkg,
-	uint32 unit_type, char *fname, const char *caller);
-void fwpkg_close_firmware_img(FWPKG_FILE *fp);
-int fwpkg_get_firmware_img_block(FWPKG_FILE *fp, fwpkg_info_t *fwpkg,
-	uint32 unit_type, char *buf, int size, int offset);
-bool fwpkg_unit_inside(fwpkg_info_t *fwpkg, uint32 unit_type);
+int fwpkg_init(fwpkg_info_t *fwpkg, char *fname);
+int fwpkg_open_firmware_img(fwpkg_info_t *fwpkg, char *fname, FWPKG_FILE **fp);
+int fwpkg_open_signature_img(fwpkg_info_t *fwpkg, char *fname, FWPKG_FILE **fp);
+uint32 fwpkg_get_firmware_img_size(fwpkg_info_t *fwpkg);
+uint32 fwpkg_get_signature_img_size(fwpkg_info_t *fwpkg);
 
 #endif /* _fwpkg_utils_h_ */

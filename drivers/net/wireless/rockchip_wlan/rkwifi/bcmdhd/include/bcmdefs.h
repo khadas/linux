@@ -1,26 +1,7 @@
 /*
  * Misc system wide definitions
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -38,26 +19,24 @@
  *
  *
  * <<Broadcom-WL-IPTag/Dual:>>
- *
- * Edited with the help of GENAI.
  */
 
 #ifndef	_bcmdefs_h_
 #define	_bcmdefs_h_
 
-#ifdef CONFIG_UBSAN
 /* Redefine the BCM_FLEX_ARRAY as empty for Linux Undefined Behavior Sanitizer
  * checking. (CONFIG_UBSAN)
  */
+#ifdef CONFIG_UBSAN
 #ifdef BCM_FLEX_ARRAY
 #undef BCM_FLEX_ARRAY
 #endif /* BCM_FLEX_ARRAY */
 #define BCM_FLEX_ARRAY
 #else
 #ifndef BCM_FLEX_ARRAY
-#define BCM_FLEX_ARRAY  (1)
+#define BCM_FLEX_ARRAY  1
 #endif /* BCM_FLEX_ARRAY */
-#endif /* CONFIG_UBSAN */
+#endif
 
 /*
  * One doesn't need to include this file explicitly, gets included automatically if
@@ -81,31 +60,12 @@
 #define BCM_UNUSED_VAR
 #endif
 
-/* Allow for suppressing pedantic warnings. */
-#ifdef __GNUC__
-#define BCM_EXTENSION	__extension__
-#else
-#define BCM_EXTENSION
-#endif
-
 /* Allow for suppressing a warning for a switch case without break */
 #ifdef __GNUC__
 #define GCC_SUPPRESS_FALLTHROUGH_WARNING     __attribute__ ((fallthrough))
 #else
 #define GCC_SUPPRESS_FALLTHROUGH_WARNING
 #endif
-
-/* Linux kenrel already defined "fallthrough" as macro
- * so, GCC_SUPPRESS_FALLTHROUGH_WARNIN macro could not be used in driver
- * GCC supports the __fallthrough__ attribute since 7.1.
- * Clang supports the __fallthrough__ Statement Attributes since 10.0.0
- */
-#if (defined(__GNUC__) && (__GNUC__ > 7 || (__GNUC__ == 7 && __GNUC_MINOR__ >= 1)) || \
-	(defined(__clang__) && __clang_major__ >= 10))
-#define BCM_FALLTHROUGH __attribute__ ((__fallthrough__))
-#else
-#define BCM_FALLTHROUGH
-#endif /* __GNUC__ */
 
 /* GNU GCC 4.6+ supports selectively turning off a warning.
  * Define these diagnostic macros to help suppress cast-qual warning
@@ -115,12 +75,21 @@
 	4 && __GNUC_MINOR__ >= 6)) || defined(__clang__))
 
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()              \
-	_Pragma("GCC diagnostic push")			\
+	_Pragma("GCC diagnostic push")			 \
 	_Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
 
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()	\
-	_Pragma("GCC diagnostic push")			\
+#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()	 \
+	_Pragma("GCC diagnostic push")			 \
 	_Pragma("GCC diagnostic ignored \"-Wnull-dereference\"")
+
+#if !defined(__clang__) || __clang_major__ >= 13
+#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
+	_Pragma("GCC diagnostic push")			 \
+	_Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")
+#else
+#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
+	_Pragma("GCC diagnostic push")
+#endif // !__clang__ || __clang_major__ >= 13
 
 #define GCC_DIAGNOSTIC_POP()                             \
 	_Pragma("GCC diagnostic pop")
@@ -130,34 +99,17 @@
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()              \
 	__pragma(warning(push))                          \
 	__pragma(warning(disable:4090))
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()	\
+#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()	 \
+	__pragma(warning(push))
+#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
 	__pragma(warning(push))
 #define GCC_DIAGNOSTIC_POP()                             \
 	__pragma(warning(pop))
 #else
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST()
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_NULL_DEREF()
-#define GCC_DIAGNOSTIC_POP()
-#endif   /* Diagnostic macros not defined */
-
-#if (defined(__GNUC__) && defined(STRICT_GCC_WARNINGS) && (__GNUC__ > 8 || (__GNUC__ == \
-	8 && __GNUC_MINOR__ >= 1)) || defined(__clang__))
-
-#if !defined(__clang__) || __clang_major__ >= 13
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
-	_Pragma("GCC diagnostic push")			\
-	_Pragma("GCC diagnostic ignored \"-Wcast-function-type\"")
-#else
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
-	_Pragma("GCC diagnostic push")
-#endif // !__clang__ || __clang_major__ >= 13
-
-#elif defined(_MSC_VER)
-
-#define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()           \
-	__pragma(warning(push))
-#else
 #define GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE()
+#define GCC_DIAGNOSTIC_POP()
 #endif   /* Diagnostic macros not defined */
 
 /* Macros to allow Coverity modeling contructs in source code */
@@ -192,17 +144,12 @@
 /* Compile-time assert can be used in place of ASSERT if the expression evaluates
  * to a constant at compile time.
  */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-/* _Static_assert() is supported in ISO C from C11. */
-#define STATIC_ASSERT(expr) _Static_assert(expr, "Static ASSERT failure")
-#else
 #define STATIC_ASSERT(expr) { \
 	/* Make sure the expression is constant. */ \
 	typedef enum { _STATIC_ASSERT_NOT_CONSTANT = (expr) } _static_assert_e BCM_UNUSED_VAR; \
 	/* Make sure the expression is true. */ \
 	typedef char STATIC_ASSERT_FAIL[(expr) ? 1 : -1] BCM_UNUSED_VAR; \
 }
-#endif /* __STDC_VERSION__ >= 201112L */
 
 /* Reclaiming text and data :
  * The following macros specify special linker sections that can be reclaimed
@@ -223,8 +170,8 @@ extern bool bcm_postattach_part_reclaimed;
 #define POSTATTACH_PART_RECLAIMED()	(bcm_postattach_part_reclaimed)
 
 /* Place _fn/_data symbols in various reclaimed output sections */
-#define BCMATTACHDATA(_data)	__attribute__ ((__section__ (".dataini2." #_data))) _data
-#define BCMATTACHFN(_fn)	__attribute__ ((__section__ (".textini2." #_fn), noinline)) _fn
+#define _data	__attribute__ ((__section__ (".dataini2." #_data))) _data
+#define _fn	__attribute__ ((__section__ (".textini2." #_fn), noinline)) _fn
 #define BCMPREATTACHDATA(_data)	__attribute__ ((__section__ (".dataini3." #_data))) _data
 #define BCMPREATTACHFN(_fn)	__attribute__ ((__section__ (".textini3." #_fn), noinline)) _fn
 #define BCMPOSTATTACHDATA(_data)	__attribute__ ((__section__ (".dataini5." #_data))) _data
@@ -237,6 +184,12 @@ extern bool bcm_postattach_part_reclaimed;
 /* Explicitly place data in .rodata section so it can be write-protected after attach */
 #define BCMRODATA(_data)	__attribute__ ((__section__ (".shrodata." #_data))) _data
 
+#ifdef _WIN32
+#define BCMSIZEOFDATA(_data)	_data
+#else
+#define BCMSIZEOFDATA(_data)	__attribute__ ((__section__ (".shrodata." #_data))) _data
+#endif
+
 #ifdef BCMDBG_SR
 /*
  * Don't reclaim so we can compare SR ASM
@@ -248,8 +201,8 @@ extern bool bcm_postattach_part_reclaimed;
 #else
 #define BCMPREATTACHDATASR(_data)	BCMPREATTACHDATA(_data)
 #define BCMPREATTACHFNSR(_fn)		BCMPREATTACHFN(_fn)
-#define BCMATTACHDATASR(_data)		BCMATTACHDATA(_data)
-#define BCMATTACHFNSR(_fn)		BCMATTACHFN(_fn)
+#define BCMATTACHDATASR(_data)		_data
+#define BCMATTACHFNSR(_fn)		_fn
 #endif
 
 /* In case of coex cpu reinit, we should not relcaim the functions that are needed for reinit */
@@ -259,22 +212,22 @@ extern bool bcm_postattach_part_reclaimed;
 #define BCMCOEXCPUPREATTACHDATA(_data)	_data
 #define BCMCOEXCPUPREATTACHFN(_fn)	_fn
 #else
-#define BCMCOEXCPUATTACHDATA(_data)	BCMATTACHDATA(_data)
-#define BCMCOEXCPUATTACHFN(_fn)		BCMATTACHFN(_fn)
+#define BCMCOEXCPUATTACHDATA(_data)	_data
+#define BCMCOEXCPUATTACHFN(_fn)		_fn
 #define BCMCOEXCPUPREATTACHDATA(_data)	BCMPREATTACHDATA(_data)
 #define BCMCOEXCPUPREATTACHFN(_fn)	BCMPREATTACHFN(_fn)
 #endif /* COEX_CPU_REINIT && !COEX_CPU_REINIT_DISABLED */
 
-#define BCMINITDATA(_data)	_data
-#define BCMINITFN(_fn)		_fn
+#define _data	_data
+#define _fn		_fn
 #ifndef CONST
 #define CONST	const
 #endif
 
 /* Non-manufacture or internal attach function/dat */
 #if !(defined(WLTEST) || defined(ATE_BUILD))
-#define	BCMNMIATTACHFN(_fn)	BCMATTACHFN(_fn)
-#define	BCMNMIATTACHDATA(_data)	BCMATTACHDATA(_data)
+#define	BCMNMIATTACHFN(_fn)	_fn
+#define	BCMNMIATTACHDATA(_data)	_data
 #else
 #define	BCMNMIATTACHFN(_fn)	_fn
 #define	BCMNMIATTACHDATA(_data)	_data
@@ -305,7 +258,7 @@ extern bool bcm_postattach_part_reclaimed;
 #define	BCMSROMCISDUMPATTACHDATA(_data)	BCMSROMATTACHDATA(_data)
 #endif /* BCM_CISDUMP_NO_RECLAIM */
 
-#define BCMUNINITFN(_fn)	_fn
+#define _fn	_fn
 
 #else /* BCM_RECLAIM */
 
@@ -313,19 +266,24 @@ extern bool bcm_postattach_part_reclaimed;
 #define bcm_attach_part_reclaimed	(TRUE)
 #define bcm_preattach_part_reclaimed	(TRUE)
 #define bcm_postattach_part_reclaimed	(TRUE)
-#define BCMATTACHDATA(_data)		_data
-#define BCMATTACHFN(_fn)		_fn
+#define _data		_data
+#define _fn		_fn
 #define BCM_SRM_ATTACH_DATA(_data)	_data
 #define BCM_SRM_ATTACH_FN(_fn)		_fn
 /* BCMRODATA data is written into at attach time so it cannot be in .rodata */
 #define BCMRODATA(_data)	__attribute__ ((__section__ (".data." #_data))) _data
+#ifdef _WIN32
+#define BCMSIZEOFDATA(_data)	_data
+#else
+#define BCMSIZEOFDATA(_data)	__attribute__ ((__section__ (".data." #_data))) _data
+#endif
 #define BCMPREATTACHDATA(_data)		_data
 #define BCMPREATTACHFN(_fn)		_fn
 #define BCMPOSTATTACHDATA(_data)	_data
 #define BCMPOSTATTACHFN(_fn)		_fn
-#define BCMINITDATA(_data)		_data
-#define BCMINITFN(_fn)			_fn
-#define BCMUNINITFN(_fn)		_fn
+#define _data		_data
+#define _fn			_fn
+#define _fn		_fn
 #define	BCMNMIATTACHFN(_fn)		_fn
 #define	BCMNMIATTACHDATA(_data)		_data
 #define	BCMSROMATTACHFN(_fn)		_fn
@@ -349,13 +307,13 @@ extern bool bcm_postattach_part_reclaimed;
 
 #endif /* BCM_RECLAIM */
 
-#define BCMUCODEDATA(_data)		BCMINITDATA(_data)
+#define BCMUCODEDATA(_data)		_data
 
 #if defined(BCM_AQM_DMA_DESC) && !defined(BCM_AQM_DMA_DESC_DISABLED) && \
 	!defined(DONGLEBUILD)
-#define BCMUCODEFN(_fn)			BCMINITFN(_fn)
+#define BCMUCODEFN(_fn)			_fn
 #else
-#define BCMUCODEFN(_fn)			BCMATTACHFN(_fn)
+#define BCMUCODEFN(_fn)			_fn
 #endif /* BCM_AQM_DMA_DESC */
 
 /* This feature is for dongle builds only.
@@ -402,23 +360,8 @@ extern bool bcm_postattach_part_reclaimed;
 	#define BCMRAMDATA(_data)	_data
 #endif /* ROMBUILD */
 
-/* This will be used by the accessor functions and other helper functions which are required
- * to ROM a given function. This function will always remain in RAM. Also a separate modifier
- * will help to differentiate these functions from standard RAM functions.
- */
-#define BCMACCESSOR_RAMFN(_fn) BCMRAMFN(_fn)
-
 /* Use BCMSPECSYM() macro to tag symbols going to a special output section in the binary. */
 #define BCMSPECSYM(_sym)	__attribute__ ((__section__ (".special." #_sym))) _sym
-
-#ifdef BCMFUZZ
-#define BCM_UNROLL_LOOPS
-#else
-/** Use on functions with small loops with boundaries known at compile time to trade increased
- * memory usage for a few saved cycles by avoiding the branch statement caused by the loop.
- */
-#define BCM_UNROLL_LOOPS	__attribute__ ((optimize("unroll-loops")))
-#endif /* BCMFUZZ */
 
 #define STATIC	static
 
@@ -614,7 +557,7 @@ typedef uint32 dmaaddr_t;
 /* One physical DMA segment */
 typedef struct  {
 	dmaaddr_t addr;
-	uint32	length;
+	uint32	  length;
 } hnddma_seg_t;
 
 #if defined(__linux__)
@@ -699,7 +642,7 @@ typedef struct {
 		(((val) >> field ## _S) & field ## _M)
 #define SFIELD(val, field, bits) \
 		(((val) & (~(field ## _M << field ## _S))) | \
-		((unsigned)(bits) << field ## _S))
+		 ((unsigned)(bits) << field ## _S))
 
 /* define BCMSMALL to remove misc features for memory-constrained environments */
 #ifdef BCMSMALL
@@ -781,8 +724,7 @@ typedef struct {
 
 #ifdef BCMLFRAG /* BCMLFRAG support enab macros  */
 	extern bool _bcmlfrag;
-#if (defined(ROM_ENAB_RUNTIME_CHECK) && !defined(BCMLFRAG_NO_RUNTIME_CHECK)) || \
-	!defined(DONGLEBUILD)
+#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMLFRAG_ENAB() (_bcmlfrag)
 #elif defined(BCMLFRAG_DISABLED)
 	#define BCMLFRAG_ENAB()	(FALSE)
@@ -795,7 +737,7 @@ typedef struct {
 
 #ifdef BCMPCIEDEV /* BCMPCIEDEV support enab macros */
 extern bool _pciedevenab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) && !defined(BCMPCIEDEV_NO_RUNTIME_CHECK)
+#if defined(ROM_ENAB_RUNTIME_CHECK)
 	#define BCMPCIEDEV_ENAB() (_pciedevenab)
 #elif defined(BCMPCIEDEV_ENABLED)
 	#define BCMPCIEDEV_ENAB() (TRUE)
@@ -863,19 +805,6 @@ extern bool _dvfsenab;
 	#define BCMDVFS_ENAB() (FALSE)
 #endif /* BCMDVFS */
 
-#ifdef BCM_HW_SFHLLC
-extern bool _hw_sfhllc_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK)
-	#define BCM_HW_SFHLLC_ENAB() (_hw_sfhllc_enab)
-#elif !defined(BCM_HW_SFHLLC_DISABLED)
-	#define BCM_HW_SFHLLC_ENAB() (TRUE)
-#else
-	#define BCM_HW_SFHLLC_ENAB() (FALSE)
-#endif
-#else
-	#define BCM_HW_SFHLLC_ENAB() (FALSE)
-#endif /* BCMDVFS */
-
 /* Max size for reclaimable NVRAM array */
 #ifndef ATE_BUILD
 #ifdef DL_NVRAM
@@ -889,19 +818,7 @@ extern bool _hw_sfhllc_enab;
 
 extern uint32 gFWID;
 
-#ifdef BCMFRWDPKT /* BCMFRWDPKT support enab macros  */
-	extern bool _bcmfrwdpkt;
-#if (defined(ROM_ENAB_RUNTIME_CHECK) && !defined(BCMFRWDPKT_NO_RUNTIME_CHECK)) || \
-	!defined(DONGLEBUILD)
-	#define BCMFRWDPKT_ENAB() (_bcmfrwdpkt)
-#elif defined(BCMFRWDPKT_DISABLED)
 	#define BCMFRWDPKT_ENAB() (FALSE)
-#else
-	#define BCMFRWDPKT_ENAB() (TRUE)
-#endif
-#else
-	#define BCMFRWDPKT_ENAB() (FALSE)
-#endif /* BCMFRWDPKT */
 
 #ifdef BCMFRWDPOOLREORG /* BCMFRWDPOOLREORG support enab macros  */
 	extern bool _bcmfrwdpoolreorg;
@@ -931,10 +848,9 @@ extern uint32 gFWID;
 
 #ifdef BCMRXDATAPOOL /* BCMRXDATAPOOL support enab macros  */
 	extern bool _bcmrxdatapool;
-#if (defined(ROM_ENAB_RUNTIME_CHECK) && !defined(BCMRXDATAPOOL_NO_RUNTIME_CHECK)) || \
-	!defined(DONGLEBUILD)
+#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define BCMRXDATAPOOL_ENAB() (_bcmrxdatapool)
-#elif defined(BCMRXDATAPOOL_DISABLED) && defined(DONGLEBUILD)
+#elif defined(BCMRXDATAPOOL_DISABLED)
 	#define BCMRXDATAPOOL_ENAB() (FALSE)
 #else
 	#define BCMRXDATAPOOL_ENAB() (TRUE)
@@ -945,8 +861,7 @@ extern uint32 gFWID;
 
 #ifdef URB /* URB support enab macros  */
 	extern bool _urb_enab;
-#if (defined(ROM_ENAB_RUNTIME_CHECK) && !defined(URB_NO_RUNTIME_CHECK)) || \
-	!defined(DONGLEBUILD)
+#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
 	#define URB_ENAB() (_urb_enab)
 #elif defined(URB_DISABLED)
 	#define URB_ENAB() (FALSE)
@@ -956,45 +871,6 @@ extern uint32 gFWID;
 #else
 	#define URB_ENAB() (FALSE)
 #endif /* URB */
-
-#ifdef UDCC /* UDCC support enab macros  */
-	extern bool _udcc_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
-	#define UDCC_ENAB() (_udcc_enab)
-#elif defined(UDCC_DISABLED)
-	#define UDCC_ENAB() (FALSE)
-#else
-	#define UDCC_ENAB() (TRUE)
-#endif
-#else
-	#define UDCC_ENAB() (FALSE)
-#endif /* UDCC */
-
-#ifdef URB_DBG_BUS /* URB DBG BUS enab macros  */
-	extern bool _urb_dbg_bus_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
-	#define URB_DBG_BUS_ENAB() (_urb_dbg_bus_enab)
-#elif defined(URB_DBG_BUS_DISABLED)
-	#define URB_DBG_BUS_ENAB() (FALSE)
-#else
-	#define URB_DBG_BUS_ENAB() (TRUE)
-#endif
-#else
-	#define URB_DBG_BUS_ENAB() (FALSE)
-#endif /* URB_DBG_BUS */
-
-#ifdef URB_MON_GIANT_PKT /* URB Mon giant packet enab macro  */
-	extern bool _urb_giantpkt_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
-	#define URB_MON_GIANTPKT_ENAB() (_urb_giantpkt_enab)
-#elif defined(URB_MON_GIANT_PKT_DISABLED)
-	#define URB_MON_GIANTPKT_ENAB() (FALSE)
-#else
-	#define URB_MON_GIANTPKT_ENAB() (TRUE)
-#endif
-#else
-	#define URB_MON_GIANTPKT_ENAB() (FALSE)
-#endif /* URB_MON_GIANT_PKT */
 
 #ifdef TX_HISTOGRAM
 extern bool _tx_histogram_enabled;
@@ -1008,45 +884,6 @@ extern bool _tx_histogram_enabled;
 #else
 	#define TX_HISTOGRAM_ENAB() (FALSE)
 #endif /* TX_HISTOGRAM */
-
-#ifdef SMBM /* URB DBG BUS enab macros  */
-	extern bool _smbm_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK) || !defined(DONGLEBUILD)
-	#define SMBM_ENAB()	(_smbm_enab)
-#elif defined(SMBM_DISABLED)
-	#define SMBM_ENAB()	(FALSE)
-#else
-	#define SMBM_ENAB()	(TRUE)
-#endif
-#else
-	#define SMBM_ENAB()	(FALSE)
-#endif /* SMBM */
-
-#ifdef BCM_8021X_RXCPLRING /* BCM_8021X_RXCPLRING support enab macros */
-extern bool _bcm_8021x_rxcpl_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK)
-	#define BCM_8021X_RXCPLRING_ENAB() (_bcm_8021x_rxcpl_enab)
-#elif defined(BCM_8021X_RXCPLRING_DISABLED)
-	#define BCM_8021X_RXCPLRING_ENAB() (FALSE)
-#else
-	#define BCM_8021X_RXCPLRING_ENAB() (TRUE)
-#endif
-#else
-	#define BCM_8021X_RXCPLRING_ENAB() (FALSE)
-#endif /* BCM_8021X_RXCPLRING */
-
-#ifdef BCM_ARP_RXCPLRING /* BCM_ARP_RXCPLRING support enab macros */
-extern bool _bcm_arp_rxcpl_enab;
-#if defined(ROM_ENAB_RUNTIME_CHECK)
-	#define BCM_ARP_RXCPLRING_ENAB() (_bcm_arp_rxcpl_enab)
-#elif defined(BCM_ARP_RXCPLRING_DISABLED)
-	#define BCM_ARP_RXCPLRING_ENAB() (FALSE)
-#else
-	#define BCM_ARP_RXCPLRING_ENAB() (TRUE)
-#endif
-#else
-	#define BCM_ARP_RXCPLRING_ENAB() (FALSE)
-#endif /* BCM_ARP_RXCPLRING */
 
 /* Chip related low power flags (lpflags) */
 
@@ -1110,7 +947,6 @@ extern bool _bcm_arp_rxcpl_enab;
 #if defined(BCMROMBUILD)
 #define BCMPOSTTRAPFN(_fn)		_fn
 #define BCMPOSTTRAPRAMFN(_fn)	__attribute__ ((__section__ (".text_ram." #_fn))) _fn
-#define BCMPOSTTRAP_ACCESSOR_RAMFN(fn)	BCMPOSTTRAPRAMFN(fn)
 #if defined(BCMFASTPATH_EXCLUDE_FROM_ROM)
 #define BCMPOSTTRAPFASTPATH(_fn)	__attribute__ ((__section__ (".text_ram." #_fn))) _fn
 #else /* BCMFASTPATH_EXCLUDE_FROM_ROM */
@@ -1125,7 +961,6 @@ extern bool _bcm_arp_rxcpl_enab;
 #define BCMPOSTTRAPFASTPATH(_fn)	_fn
 #endif /* DONGLEBUILD */
 #define BCMPOSTTRAPRAMFN(fn)	BCMPOSTTRAPFN(fn)
-#define BCMPOSTTRAP_ACCESSOR_RAMFN(fn)	BCMPOSTTRAPRAMFN(fn)
 #endif /* ROMBUILD */
 
 typedef struct bcm_rng * bcm_rng_handle_t;
@@ -1147,12 +982,10 @@ void* BCM_ASLR_CODE_FNPTR_RELOCATOR(void *func_ptr);
 	/* 'func_ptr_err_chk' performs a compile time error check to ensure that only a constant
 	 * function name is passed as an argument to BCM_FUNC_PTR(). This ensures that the macro is
 	 * only used for function pointer references, and not for function pointer invocations.
-	 *
-	 * Cast function ptr arg to avoid warnings related to conversion of function ptr to void*.
 	 */
-	#define BCM_FUNC_PTR(fn)  BCM_EXTENSION \
-		({ static void *func_ptr_err_chk __attribute__ ((unused)) = (void *)(uintptr)(fn); \
-		(__typeof__(&fn))(uintptr)BCM_ASLR_CODE_FNPTR_RELOCATOR((void *)(uintptr)(fn)); })
+	#define BCM_FUNC_PTR(func) \
+		({ static void *func_ptr_err_chk __attribute__ ((unused)) = (func); \
+		BCM_ASLR_CODE_FNPTR_RELOCATOR(func); })
 #else
 	#define BCM_FUNC_PTR(func)         (func)
 #endif /* BCM_ASLR_CODE_FNPTR_RELOC */
@@ -1177,8 +1010,8 @@ void* BCM_ASLR_CODE_FNPTR_RELOCATOR(void *func_ptr);
 #define WLBANDINITDATA(_data)	_data
 #define WLBANDINITFN(_fn)	_fn
 #else
-#define WLBANDINITDATA(_data)	BCMINITDATA(_data)
-#define WLBANDINITFN(_fn)	BCMINITFN(_fn)
+#define WLBANDINITDATA(_data)	_data
+#define WLBANDINITFN(_fn)	_fn
 #endif
 
 /* Tag struct members to make it explicitly clear that they are physical addresses. These are
@@ -1191,8 +1024,29 @@ void* BCM_ASLR_CODE_FNPTR_RELOCATOR(void *func_ptr);
 	#define PHYS_ADDR_N(name) name
 #endif
 
+/* As we modify struct sizes during the natural course of development, existing
+ * ROM functions that malloc, memset, bzero or memcpy such structs using the
+ * sizeof operator are invalidated. Such functions are rarely patchable. Here we
+ * mitigate this. A struct's size, computed at compile time, is to be stored in
+ * a constant to which a macro then refers.
+ */
+#ifdef ROM_ENAB_RUNTIME_CHECK
+#define SIZEOF_MACRO_USE
+#endif /* ROM_ENAB_RUNTIME_CHECK */
+#ifdef SIZEOF_MACRO_USE
+#define VAR_SIZEOF(t)	static uint16 BCMSIZEOFDATA(sizeof_##t) = sizeof(t)
+#define VAR_SIZEOF_STRUCT(t)	static uint16 BCMSIZEOFDATA(sizeof_##t) = sizeof(struct t)
+#define SIZEOF_DYN(t)	(sizeof_##t)
+#define SIZEOF_STRUCT_DYN(t)	SIZEOF_DYN(t)
+#else /* SIZEOF_MACRO_USE */
+#define VAR_SIZEOF(t)
+#define VAR_SIZEOF_STRUCT(t)
+#define SIZEOF_DYN(t)	(sizeof(t))
+#define SIZEOF_STRUCT_DYN(t)	(sizeof(struct t))
+#endif /* SIZEOF_MACRO_USE */
+
 /* Disable function inlining. */
-#define BCM_NOINLINE	__attribute__ ((__noinline__))
+#define BCM_NOINLINE	__attribute__ ((noinline))
 
 /* Disable compiler optimizations for a function. */
 #define BCM_NO_OPTIMIZE	__attribute__ ((optimize(0)))
@@ -1201,72 +1055,19 @@ void* BCM_ASLR_CODE_FNPTR_RELOCATOR(void *func_ptr);
  * A compact form for a list of valid register address offsets.
  * Used for when dumping the contents of the register set for the user.
  *
- * Note: bmp_cnt is logically a single 32-bit word but it's
- * represented as an array of uint8 to avoid padding. A uint32
- * type would lead to 2 bytes of padding which would consume
- * ~20% more space per table.
- *
- * The MSB of these 32 bits is used as a flag: "count" if set, "bitmap" if not.
- * The two bits following the MSB are effectively an enum as below:
- *
- *     #define REGLIST_BMP_SIZE_1BYTE        0x0
- *     #define REGLIST_BMP_SIZE_2BYTES       0x1
- *     #define REGLIST_BMP_SIZE_4BYTES       0x2
- *     #define REGLIST_BMP_SIZE_UNUSED       0x3
- *
- * The remaining 29 bits are either a bitmap or a count. If the
- * MSB is set they're a count, i.e the number of valid same-size
- * registers whose values are contiguous from "addr".
- * If the MSB is zero they should be considered as a bitmap
- * of 29 discrete addresses counting from "addr".
- * Whether bitmap or count, each set of registers in a given
- * bmp_cnt set must have the same width as given by the enum.
+ * bmp_cnt has either bitmap or count. If the MSB (bit 31) is set, then
+ * bmp_cnt[30:0] has count, i.e, number of valid registers whose values are
+ * contigous from the start address. If MSB is zero, then the value
+ * should be considered as a bitmap of 31 discreet addresses from the base addr.
+ * Note: the data type for bmp_cnt is chosen as an array of uint8 to avoid padding.
  */
 typedef struct _regs_bmp_list {
 	uint16 addr;		/* start address offset */
-
-	/* bit[31] count if set, else bitmap.
-	 * bit[30:29] enum describing register size.
-	 * Remaining 29 bits represent count if bit[31] is set or bitmap if unset.
-	 */
-	uint8 bmp_cnt[4u];
+	uint8 bmp_cnt[4];	/* bit[31]=1, bit[30:0] is count else it is a bitmap */
 } regs_list_t;
 
-#define REGLIST_BMP_SIZE_1BYTE		0x0
-#define REGLIST_BMP_SIZE_2BYTES		0x1u
-#define REGLIST_BMP_SIZE_4BYTES		0x2u
-#define REGLIST_BMP_SIZE_UNUSED		0x3u
-
-#define REGLIST_SIZE_SHIFT		29
-#define REGLIST_SIZE_MASK		(3u << REGLIST_SIZE_SHIFT)
-#define REGLIST_COUNT_MASK		(1u << 31)
-#define REGLIST_LOAD_BMP32(_reglist)	((_reglist)->bmp_cnt[0] << 24 | \
-					((_reglist)->bmp_cnt[1u] << 16) | \
-					((_reglist)->bmp_cnt[2u] << 8) | \
-					((_reglist)->bmp_cnt[3u]))
-
-#define REGLIST_STORE_BMP32(_reglist, bitmap) { \
-					(_reglist)->bmp_cnt[3u] = (uint8)bitmap; \
-					(_reglist)->bmp_cnt[2u] = (uint8)(bitmap >> 8); \
-					(_reglist)->bmp_cnt[1u] = (uint8)(bitmap >> 16); \
-					(_reglist)->bmp_cnt[0u] = (uint8)(bitmap >> 24); \
-}
-
-#define REGLIST_WIDTH(rlst)		(((REGLIST_LOAD_BMP32((rlst)) & REGLIST_SIZE_MASK) >> \
-					REGLIST_SIZE_SHIFT))
-
-#define REGLIST_SIZE(rlst)		((REGLIST_WIDTH(rlst) == REGLIST_BMP_SIZE_1BYTE) ? \
-						sizeof(uint8) : REGLIST_WIDTH(rlst) << 1u)
-
-#define REGLIST_BMP_IS_COUNT(rlst)	((REGLIST_LOAD_BMP32((rlst)) & REGLIST_COUNT_MASK) != 0)
-
-#define REGLIST_GET_REG_BITMAP(rlst)	(!REGLIST_BMP_IS_COUNT(rlst) ? (REGLIST_LOAD_BMP32(rlst) \
-						& ~(REGLIST_SIZE_MASK | REGLIST_COUNT_MASK)) : 0)
-
-#define REGLIST_GET_REG_COUNT(rlst)	(REGLIST_BMP_IS_COUNT(rlst) ? (REGLIST_LOAD_BMP32(rlst) \
-						& ~(REGLIST_SIZE_MASK | REGLIST_COUNT_MASK)) : 0)
 #ifndef WL_UNITTEST
-typedef struct d11rxhdr d11rxhdr_t;
+typedef union d11rxhdr d11rxhdr_t;
 #endif /* WL_UNITTEST */
 
 #endif /* _bcmdefs_h_ */

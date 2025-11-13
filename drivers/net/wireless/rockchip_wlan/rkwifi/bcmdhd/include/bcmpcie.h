@@ -3,26 +3,7 @@
  * Software-specific definitions shared between device and host side
  * Explains the shared area between host and dongle
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -48,8 +29,8 @@
 #include <typedefs.h>
 
 #define ADDR_64(x)			(x.addr)
-#define HIGH_ADDR_32(sh_addr)		((sh_addr).high_addr)
-#define LOW_ADDR_32(sh_addr)		((sh_addr).low_addr)
+#define HIGH_ADDR_32(x)     ((uint32) (((sh_addr_t) x).high_addr))
+#define LOW_ADDR_32(x)      ((uint32) (((sh_addr_t) x).low_addr))
 
 typedef struct {
 	uint32 low_addr;
@@ -61,7 +42,6 @@ typedef struct {
 #define BCMPCIE_MAX_TX_FLOWS	40
 #endif /* ! BCMPCIE_MAX_TX_FLOWS */
 
-#define PCIE_SHARED_VERSION_10		0x0000A
 #define PCIE_SHARED_VERSION_9		0x00009
 #define PCIE_SHARED_VERSION_8		0x00008
 #define PCIE_SHARED_VERSION_7		0x00007
@@ -179,22 +159,10 @@ typedef struct {
 #define PCIE_SHARED2_LPM_SUPPORT	0x08000000u	/* LPM mode support */
 #define PCIE_SHARED2_METADATA_RING	0x10000000u	/* Metadata Ring support */
 
-#define PCIE_SHARED2_D2H_D11_TX_STATUS	0x40000000u
-#define PCIE_SHARED2_H2D_D11_TX_STATUS	0x80000000u
+#define PCIE_SHARED2_D2H_D11_TX_STATUS	0x40000000
+#define PCIE_SHARED2_H2D_D11_TX_STATUS	0x80000000
 
-#define PCIE_SHARED3_CFG_TRAP_SUPPORT   0x00000001u	/* spl trap sig supported in cfg space */
-#define PCIE_SHARED3_TXDESC_ATTR_SUPPORT  0x00000002u	/* txdesc.ext_flags supported */
-#define PCIE_SHARED3_TXDESC_ETH_HDR	0x00000004u	/* host addr will point to ether header */
-#define PCIE_SHARED3_RXBUF_CMPL_CHAIN	0x00000008u	/* Chained RxCompletion support */
-#define PCIE_SHARED3_TXDESC_AMSDU	0x00000010u	/* Host A-MSDU Aggregation Support */
-
-#define PCIE_SHARED3_FW_DARDB15_TRAP	0x00000020u /* FW trap on Host writes to DB15(0xA5C) */
-
-#define PCIE_SHARED3_8021X_FLOWRING	0x00000040u /* supports separate 8021x flowring */
-
-#define PCIE_SHARED3_FW_8021X_RXCPL	0x00000080u /* supports separate 8021x RXCPL Ring */
-#define PCIE_SHARED3_FW_ARP_RXCPL	0x00000100u /* supports separate ARP RXCPL ring  */
-#define PCIE_SHARED3_H2D_MULTI_DB	0x00000200u /* supports Multiple H2D DB */
+#define PCIE_SHARED3_CFG_TRAP_SUPPORT   0x00000001 /* special trap sig supported in config space */
 
 #define PCIE_SHARED_D2H_MAGIC		0xFEDCBA09
 #define PCIE_SHARED_H2D_MAGIC		0x12345678
@@ -241,8 +209,6 @@ typedef uint16			pcie_hwa_db_index_t;	/* 16 bit HWA index (IPC Rev 7) */
 #define BCMPCIE_D2H_RING_TYPE_HPP_RX_CPL                0x9
 #define BCMPCIE_D2H_RING_TYPE_MESH_RX_CPL               0xA
 #define BCMPCIE_D2H_RING_TYPE_MDATA_CPL                 0xB
-#define BCMPCIE_D2H_RING_TYPE_8021X_RX_CPL		0xC
-#define BCMPCIE_D2H_RING_TYPE_ARP_RX_CPL		0xD
 
 /**
  * H2D and D2H, WR and RD index, are maintained in the following arrays:
@@ -382,10 +348,7 @@ typedef struct {
 	uint8	rxpost_max;	/* max aggregated work items in rxpost, filled by host */
 	uint8	txcpl_max;	/* max aggregated work items in txcpl, filled by dongle */
 	uint8	rxcpl_max;	/* max aggregated work items in rxcpl, filled by dongle */
-	union {
-		uint16  resvd;		/* reserved in rev9   */
-		uint16	rxbuf_len;	/* host rxbuf_post_len in rev10 */
-	};
+	uint16	resvd;		/* reserved */
 } pcie_aggr_sh_t;
 
 /**
@@ -465,7 +428,7 @@ typedef struct {
 	/* Pointer to ewp_info_t data structure [ipc v9] */
 	uint32		PHYS_ADDR_N(ewp_info_addr);
 
-	/* aggregated work item shared information [ipc v9 & v10] */
+	/* aggregated work item shared information [ipc v9] */
 	pcie_aggr_sh_t	aggr_sh_info;
 } pciedev_shared_t;
 
@@ -500,12 +463,10 @@ typedef struct {
 #define HOSTCAP_EDL_RING			0x10000000
 #define HOSTCAP_PKT_TIMESTAMP			0x20000000
 #define HOSTCAP_PKT_HP2P			0x40000000
-#define HOSTCAP_TXDESC_ETH_HDR			0x80000000
+#define HOSTCAP_HWA				0x80000000
 
 #define HOSTCAP2_DURATION_SCALE_MASK            0x0000003Fu
 #define HOSTCAP2_PCIE_PTM			0x00000100u
-#define HOSTCAP2_TRAP_ON_BAD_RECOVERY		0x00000200u
-#define HOSTCAP2_RXBUF_CMPL_CHAIN		0x00000400u	/* Chained RxCompletion support */
 
 /* extended trap debug buffer allocation sizes. Note that this buffer can be used for
  * other trap related purposes also.
@@ -575,11 +536,6 @@ typedef struct {
 #define D2H_DEV_TRAP_HMAP_WRITE				0x04000000
 #define D2H_DEV_TRAP_PING_HOST_FAILURE			0x08000000
 #define D2H_DEV_TRAP_DS_ACK_TIMEOUT			0x00100000u
-#define D2H_DEV_TRAP_FATAL				0x00200000u
-/* Indication of coex-CPU trap */
-#define D2H_DEV_COEX_CPU_TRAP				0x00400000u
-/* Indication of dump request for coex-CPU trap */
-#define D2H_DEV_COEX_CPU_DUMP_REQ			0x00800000u
 #define D2H_FWTRAP_MASK		0x0000001F	/* Adding maskbits for TRAP information */
 
 #define D2HMB_FWHALT                    D2H_DEV_FWHALT
@@ -618,8 +574,28 @@ typedef struct {
 					       ((r_new) > (w) || (r_new) < (r) ? FALSE : TRUE) : \
 					       ((r_new) < (r) && (r_new) > (w) ? FALSE : TRUE))
 
-// This is a host side macro and should be moved to the host!!!
+#ifndef PRIV_PCIE_RING_MACROS
+/* These should be moved into pciedev.h --- */
+#define WRT_PEND(x)	((x)->wr_pending)
+#define DNGL_RING_WPTR(msgbuf)		(*((msgbuf)->tcm_rs_w_ptr)) /**< advanced by producer */
+#define BCMMSGBUF_RING_SET_W_PTR(msgbuf, a)	(DNGL_RING_WPTR(msgbuf) = (a))
+
+#define DNGL_RING_RPTR(msgbuf)		(*((msgbuf)->tcm_rs_r_ptr)) /**< advanced by consumer */
+#define BCMMSGBUF_RING_SET_R_PTR(msgbuf, a)	(DNGL_RING_RPTR(msgbuf) = (a))
+
+#define MODULO_RING_IDX(x, y)	((x) % (y)->bitmap_size)
+
+#define  RING_READ_PTR(x)	((x)->ringstate->r_offset)
+#define  RING_WRITE_PTR(x)	((x)->ringstate->w_offset)
+#define  RING_START_PTR(x)	((x)->ringmem->base_addr.low_addr)
+#define  RING_MAX_ITEM(x)	((x)->ringmem->max_item)
+#define  RING_LEN_ITEMS(x)	((x)->ringmem->len_items)
 #define	 HOST_RING_BASE(x)	((x)->dma_buf.va)
+#define	 HOST_RING_END(x)	((uint8 *)HOST_RING_BASE((x)) + \
+					((RING_MAX_ITEM((x))-1)*RING_LEN_ITEMS((x))))
+
+#define RING_MESH(x)	(((x)->txpost_ext_cap_flags) & PCIE_SHARED2_DEV_TXPOST_EXT_TAG_CAP_MESH)
+#endif /* PRIV_PCIE_RING_MACROS */
 
 /* Trap types copied in the pciedev_shared.trap_addr */
 #define	FW_INITIATED_TRAP_TYPE	(0x1 << 7)

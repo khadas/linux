@@ -1,26 +1,7 @@
 /*
  * EVENT_LOG system definitions
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -267,10 +248,6 @@
 #define EVENT_LOG_TAG_SB_SCHED_DBG_SYNC		233
 #define EVENT_LOG_TAG_ENHANCED_TS		234
 #define EVENT_LOG_TAG_PHY_OBSS_INFO		235
-#define EVENT_LOG_TAG_SBI_SC_INFO		236
-#define EVENT_LOG_TAG_SBI_SC_ERR		237
-#define EVENT_LOG_TAG_DUO_INFO			238
-#define EVENT_LOG_TAG_DUO_ERR			239
 
 /* Available space for new tags for Dingo, Iguana and branches
  * prior to Koala only. From Koala onwards, new tags must be greater
@@ -517,10 +494,6 @@
 #define	EVENT_LOG_TAG_SPMI_ERROR		396
 #define	EVENT_LOG_TAG_SPMI_TRACE		397
 
-/* xrapi err,info tags (398-399) unused */
-#define	EVENT_LOG_TAG_UNUSED_398		398
-#define	EVENT_LOG_TAG_UNUSED_399		399
-
 #define EVENT_LOG_TAG_PROXD_DBG			400
 #define EVENT_LOG_TAG_RXOVFL			401
 
@@ -540,13 +513,6 @@
 #define EVENT_LOG_TAG_EWP_HW			410
 
 #define EVENT_LOG_TAG_COEXCPU_ERROR		413
-
-#ifdef CHRE
-#define EVENT_LOG_TAG_CHRE_ERR                  414
-#define EVENT_LOG_TAG_CHRE_WARN                 415
-#define EVENT_LOG_TAG_CHRE_INFO                 416
-#define EVENT_LOG_TAG_CHRE_DBG                  417
-#endif /* CHRE */
 
 /* QoS and SCS (Stream Classification Service) */
 #define EVENT_LOG_TAG_RAV_QOS_ERROR		418
@@ -618,112 +584,8 @@
 /* Channel Switch Function Runtime Profiling */
 #define EVENT_LOG_TAG_CHANSW_PROFILING		460
 
-/* Event throttling logs */
-#define EVENT_LOG_TAG_THROTTLE			461
-
-/* Additional tags for bcmhal */
-#define EVENT_LOG_TAG_FCBS_ERROR		462
-#define EVENT_LOG_TAG_GCISEM_ERROR		463
-#define EVENT_LOG_TAG_HNDARM_ERROR		464
-#define EVENT_LOG_TAG_OOBR_ERROR		465
-
-/* Additional RRM logs for 802.11k/v/r */
-#define EVENT_LOG_TAG_RRM_11KVR_RPT		466
-
-/* Tx power mitigation */
-#define EVENT_LOG_TAG_TXPWR_MITIGATION		467
-
-#define EVENT_LOG_TAG_PHY_AZ_INFO_BASIC		468
-#define EVENT_LOG_TAG_PHY_AZ_INFO_MIMO		469
-#define EVENT_LOG_TAG_PHY_AZ_INFO_PT		470
-#define EVENT_LOG_TAG_PHY_AZ_INFO_OUTLIER	471
-
-/* Rate and rate selection (for both TX/RX) tags */
-#define EVENT_LOG_TAG_RATE_ERROR		472
-#define EVENT_LOG_TAG_RATE			473
-#define EVENT_LOG_TAG_RATE_INFO			474
-#define EVENT_LOG_TAG_RATE_TRACE		475
-
-#define EVENT_LOG_TAG_WL_EMLSR			476
-
-#define EVENT_LOG_TAG_SAQM_MGR_TRACE		477
-#define EVENT_LOG_TAG_SAQM_MGR_INFO		478
-#define EVENT_LOG_TAG_SAQM_MGR_ERROR		479
-
-#define EVENT_LOG_TAG_PERIODIC_CNTRS_SEC	480
-#define EVENT_LOG_TAG_BI_LINK_SCORE		481
-#define EVENT_LOG_TAG_BI_LINK_SCORE_INFO	482
-
-/* datapath log dump */
-#define EVENT_LOG_TAG_DP_DUMP			483
-/* per link infra sta software stats at the time of preferred link off chan activity */
-#define EVENT_LOG_TAG_STA_MLO_SLOT_SW_STATS	484
-/* KM INFO LOG					*/
-#define EVENT_LOG_TAG_KM_INFO			485
-#define EVENT_LOG_TAG_PHY_CAL_DATA		486
-/* MFP scan (motion triggered scan) */
-#define EVENT_LOG_TAG_MPF_SCAN_ERR		487
-#define	EVENT_LOG_TAG_MPF_SCAN_INFO		488
-
-/* URB */
-#define	EVENT_LOG_TAG_URB			489
-
-/* Datapath debugging. */
-/* General datapath debugging. */
-#define	EVENT_LOG_TAG_DATAPATH			490
-/* For rxdatapath. */
-#define	EVENT_LOG_TAG_RX_DATAPATH		491
-/* For txdatapath. */
-#define	EVENT_LOG_TAG_TX_DATAPATH		492
-
-/* FILS Discovery */
-#define EVENT_LOG_TAG_FILS_DISC_DBG		493
-#define EVENT_LOG_TAG_FILS_DISC_INFO		494
-#define EVENT_LOG_TAG_FILS_DISC_ERROR		495
-#define EVENT_LOG_TAG_MCNX_IDX_LOG		496
-
-/* AOP triggered scan (AOP request WiFi FW to scan) */
-#define EVENT_LOG_TAG_AOP_SCAN_ERR		497
-#define EVENT_LOG_TAG_AOP_SCAN_INFO		498
-
-#define EVENT_LOG_TAG_PER_PKT_INFO              499
-#define EVENT_LOG_TAG_PER_PKT_ERROR             500
-
-/* UHR EVENT_LOG_TAG */
-#define EVENT_LOG_TAG_WL_UHR_INFO		501
-#define EVENT_LOG_TAG_WL_UHR_TRACE		502
-#define EVENT_LOG_TAG_WL_UHR_WARN		503
-#define EVENT_LOG_TAG_WL_UHR_ERROR		504
-
-#define EVENT_LOG_TAG_WL_MLO_SS_MGMT		505
-
-#define EVENT_LOG_TAG_MSCH_DEBUG_STATE		506
-
-/* SBM logging */
-#define EVENT_LOG_TAG_SBM_ERR			507
-#define EVENT_LOG_TAG_SBM_INFO			508
-#define EVENT_LOG_TAG_SBM_TRACE			509
-
-/* HSM logging */
-#define EVENT_LOG_TAG_HSM_ERROR			510
-#define EVENT_LOG_TAG_HSM_INFO			511
-
-/* DPS EVENT_LOG_TAG */
-#define EVENT_LOG_TAG_WL_DPS_INFO		512
-#define EVENT_LOG_TAG_WL_DPS_TRACE		513
-#define EVENT_LOG_TAG_WL_DPS_ERROR		514
-
-/* SMBM EVENT_LOG_TAG */
-#define EVENT_LOG_TAG_WL_SMBM_INFO		515
-#define EVENT_LOG_TAG_WL_SMBM_TRACE		516
-#define EVENT_LOG_TAG_WL_SMBM_ERROR		517
-
-/* QoS Mgmt DAR (Dynamic Analytics Report) */
-#define EVENT_LOG_TAG_QOS_DAR_ERROR		518
-#define EVENT_LOG_TAG_QOS_DAR_INFO		519
-
 /* EVENT_LOG_TAG_MAX	= Set to the same value of last tag, not last tag + 1 */
-#define EVENT_LOG_TAG_MAX			519
+#define EVENT_LOG_TAG_MAX			460
 
 typedef enum wl_el_set_type_def {
 	EVENT_LOG_SET_TYPE_DEFAULT = 0, /* flush the log buffer when it is full - Default option */

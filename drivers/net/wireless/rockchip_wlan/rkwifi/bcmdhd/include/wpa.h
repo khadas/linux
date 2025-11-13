@@ -1,26 +1,7 @@
 /*
  * Fundamental types and constants relating to WPA
  *
- * Copyright (C) 2025 Synaptics Incorporated. All rights reserved.
- *
- * This software is licensed to you under the terms of the
- * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
- *
- * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
- * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
- * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
- * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
- * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
- * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
- * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
- * EXCEED ONE HUNDRED U.S. DOLLARS
- *
- * Copyright (C) 2025, Broadcom.
+ * Copyright (C) 2022, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -128,36 +109,30 @@ typedef BWL_PRE_PACKED_STRUCT struct
 } BWL_POST_PACKED_STRUCT wpa_pmkid_list_t;
 
 /* WPA cipher suites */
-enum wpa_cipher_suites {
-	WPA_CIPHER_NONE		=0,	/* None */
-	WPA_CIPHER_WEP_40	=1,	/* WEP (40-bit) */
-	WPA_CIPHER_TKIP		=2,	/* TKIP: default for WPA */
-	WPA_CIPHER_AES_OCB	=3,	/* AES (OCB) */
-	WPA_CIPHER_AES_CCM	=4,	/* AES (CCM) */
-	WPA_CIPHER_WEP_104	=5,	/* WEP (104-bit) */
-	WPA_CIPHER_BIP		=6,	/* WEP (104-bit) */
-	WPA_CIPHER_TPK		=7,	/* Group addressed traffic not allowed */
-	WPA_CIPHER_AES_GCM	=8,	/* AES (GCM) */
-	WPA_CIPHER_AES_GCM256	=9,	/* AES (GCM256) */
-	WPA_CIPHER_CCMP_256	=10,	/* CCMP-256 */
-	WPA_CIPHER_BIP_GMAC_128	=11,	/* BIP_GMAC_128 */
-	WPA_CIPHER_BIP_GMAC_256	=12,	/* BIP_GMAC_256 */
-	WPA_CIPHER_BIP_CMAC_256	=13,	/* BIP_CMAC_256 */
-};
-typedef enum wpa_cipher_suites wpa_cipher_suites_t;
-
+#define WPA_CIPHER_NONE		0	/* None */
+#define WPA_CIPHER_WEP_40	1	/* WEP (40-bit) */
+#define WPA_CIPHER_TKIP		2	/* TKIP: default for WPA */
+#define WPA_CIPHER_AES_OCB	3	/* AES (OCB) */
+#define WPA_CIPHER_AES_CCM	4	/* AES (CCM) */
+#define WPA_CIPHER_WEP_104	5	/* WEP (104-bit) */
+#define WPA_CIPHER_BIP		6	/* WEP (104-bit) */
+#define WPA_CIPHER_TPK		7	/* Group addressed traffic not allowed */
 #ifdef BCMCCX
-	/* KP with no MIC */
-#define WPA_CIPHER_CKIP		WPA_CIPHER_AES_GCM
-	/* KP with MIC ("CKIP/MMH", "CKIP+CMIC") */
-#define WPA_CIPHER_CKIP_MMH	WPA_CIPHER_AES_GCM256
-	/* MIC with no KP ("WEP/MMH", "CMIC") */
-#define WPA_CIPHER_WEP_MMH	WPA_CIPHER_CCMP_256
+#define WPA_CIPHER_CKIP		8	/* KP with no MIC */
+#define WPA_CIPHER_CKIP_MMH	9	/* KP with MIC ("CKIP/MMH", "CKIP+CMIC") */
+#define WPA_CIPHER_WEP_MMH	10	/* MIC with no KP ("WEP/MMH", "CMIC") */
 
 #define IS_CCX_CIPHER(cipher)	((cipher) == WPA_CIPHER_CKIP || \
 				 (cipher) == WPA_CIPHER_CKIP_MMH || \
 				 (cipher) == WPA_CIPHER_WEP_MMH)
 #endif /* BCMCCX */
+
+#define WPA_CIPHER_AES_GCM	8	/* AES (GCM) */
+#define WPA_CIPHER_AES_GCM256	9	/* AES (GCM256) */
+#define WPA_CIPHER_CCMP_256	10	/* CCMP-256 */
+#define WPA_CIPHER_BIP_GMAC_128	11	/* BIP_GMAC_128 */
+#define WPA_CIPHER_BIP_GMAC_256 12	/* BIP_GMAC_256 */
+#define WPA_CIPHER_BIP_CMAC_256 13	/* BIP_CMAC_256 */
 
 #define IS_WPA_CIPHER(cipher)	((cipher) == WPA_CIPHER_NONE || \
 				 (cipher) == WPA_CIPHER_WEP_40 || \
@@ -185,8 +160,6 @@ typedef enum wpa_cipher_suites wpa_cipher_suites_t;
 			(akm) == RSN_AKM_SHA256_1X || \
 			(akm) == RSN_AKM_SHA256_PSK || \
 			(akm) == RSN_AKM_TPK || \
-			(akm) == RSN_AKM_SAE_EXT_PSK || \
-			(akm) == RSN_AKM_SAE_EXT_FBT || \
 			(akm) == RSN_AKM_SAE_PSK || \
 			(akm) == RSN_AKM_SAE_FBT || \
 			(akm) == RSN_AKM_FILS_SHA256 || \
@@ -265,12 +238,6 @@ typedef uint32 rsn_ciphers_t;			/* mask of rsn_cipher_t */
 typedef uint8 rsn_akm_t;
 typedef uint8 auth_ie_type_mask_t;
 
-typedef struct _rsnxe_tlv {
-	uint8 type;
-	uint8 len;
-	uint8 val[3];
-} rsnxe_tlv_t;
-
 /* Old location for this structure. Moved to bcmwpa.h */
 #ifndef RSN_IE_INFO_STRUCT_RELOCATED
 typedef struct rsn_ie_info {
@@ -299,13 +266,11 @@ typedef struct rsn_ie_info {
 	uint8 ptk_len;				/* EAPOL PTK */
 	uint8 kck2_len;				/* EAPOL KCK2 */
 	uint8 kek2_len;				/* EAPOL KEK2 */
-	uint8 unused1;				/* unused */
-	uint8 *unused2;				/* unused */
+	uint8 rsnxe_len;			/* RSNXE IE from assoc request */
+	uint8 *rsnxe;				/* RSNXE IE length */
 	uint8 kdk_len;				/* EAPOL KDK */
 	uint8 pad[3];
 	uint32 rsnxe_cap;			/* RSNXE IE cap flag, refer to 802.11.h */
-	uint32 ref_count;			/* ref count to keep track of rsn_info alloc */
-	rsnxe_tlv_t rsnxe_tlv;			/* RSNXE TLV used instead of RSNXE pointer */
 } rsn_ie_info_t;
 #endif /* RSN_IE_INFO_STRUCT_RELOCATED */
 
