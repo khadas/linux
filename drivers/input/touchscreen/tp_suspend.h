@@ -68,6 +68,7 @@ static inline int fb_notifier_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+extern void epd_tp_into_suspend(void);
 static int ebc_notifier_callback(struct notifier_block *self,
 		unsigned long action, void *data)
 {
@@ -77,8 +78,11 @@ static int ebc_notifier_callback(struct notifier_block *self,
 
 	mutex_lock(&tp->ops_lock);
 
-	if (action == EBC_FB_BLANK)
+	if (action == EBC_FB_BLANK){
 		tp->tp_suspend(tp);
+		printk("hlm epd_tp_into_suspend\n");
+		epd_tp_into_suspend();
+	}
 	else if (action == EBC_FB_UNBLANK)
 		tp->tp_resume(tp);
 

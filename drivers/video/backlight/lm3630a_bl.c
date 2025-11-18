@@ -92,11 +92,11 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 	/* set Cofig. register */
 	rval |= lm3630a_update(pchip, REG_CONFIG, 0x07, pdata->pwm_ctrl);
 	/* set boost control */
-	rval |= lm3630a_write(pchip, REG_BOOST, 0x38);
+	rval |= lm3630a_write(pchip, REG_BOOST, 0x58);
 	/* set current A */
-	rval |= lm3630a_update(pchip, REG_I_A, 0x1F, 0x1F);
+	rval |= lm3630a_update(pchip, REG_I_A, 0x1F, 0x0e);
 	/* set current B */
-	rval |= lm3630a_write(pchip, REG_I_B, 0x1F);
+	rval |= lm3630a_write(pchip, REG_I_B, 0x0e);
 	/* set control */
 	rval |= lm3630a_update(pchip, REG_CTRL, 0x14, pdata->leda_ctrl);
 	rval |= lm3630a_update(pchip, REG_CTRL, 0x0B, pdata->ledb_ctrl);
@@ -256,6 +256,7 @@ static const struct backlight_ops lm3630a_bank_a_ops = {
 };
 
 /* update and get brightness */
+extern void epd_tp_into_suspend(void);
 static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 {
 	int ret;
@@ -281,6 +282,10 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 				      LM3630A_LEDB_ENABLE, LM3630A_LEDB_ENABLE);
 	if (ret < 0)
 		goto out_i2c_err;
+    printk("bl->props.brightness=%d\n",bl->props.brightness);
+	if(0 == bl->props.brightness){
+		epd_tp_into_suspend();
+	}
 	return 0;
 
 out_i2c_err:
