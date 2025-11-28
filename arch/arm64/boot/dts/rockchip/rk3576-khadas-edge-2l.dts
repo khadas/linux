@@ -696,7 +696,7 @@
 };
 
 &spi1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1m0_csn0 &spi1m0_pins>;
 
@@ -704,7 +704,7 @@
 	#size-cells = <0>;
 
 	spidev@0 {
-		status = "okay";
+		status = "disabled";
 		compatible = "linux,spidev";
 		/* spi default max clock 100Mhz */
 		spi-max-frequency = <100000000>;
@@ -712,7 +712,7 @@
 	};
 };
 
- &sfc1 {
+&sfc1 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&fspi1m1_pins>;
