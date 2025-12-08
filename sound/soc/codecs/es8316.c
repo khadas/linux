@@ -1256,10 +1256,11 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	} else {
 		INIT_DELAYED_WORK(&es8316->work, hp_work);
 		es8316->hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
-		ret = devm_gpio_request_one(&i2c->dev, es8316->hp_det_gpio,
-					    GPIOF_IN, "hp det");
-		if (ret < 0)
+		ret = gpiod_direction_input(gpio_to_desc(es8316->hp_det_gpio));
+		if (ret < 0){
+			dev_err(&i2c->dev, "Failed to set hp_det_gpio as input\n");
 			return ret;
+		}
 		hp_irq = gpio_to_irq(es8316->hp_det_gpio);
 		ret = devm_request_threaded_irq(&i2c->dev, hp_irq, NULL,
 						es8316_irq_handler,
@@ -1272,7 +1273,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 			return ret;
 		}
 		schedule_delayed_work(&es8316->work,
-				      msecs_to_jiffies(es8316->debounce_time));
+				      msecs_to_jiffies(es8316->debounce_time + 100));
 	}
 	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
 						       "spk-con-gpio",
@@ -1283,8 +1284,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 		es8316->spk_ctl_gpio = INVALID_GPIO;
 	} else {
 		es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
-		ret = devm_gpio_request_one(&i2c->dev, es8316->spk_ctl_gpio,
-					    GPIOF_DIR_OUT, NULL);
+		ret = gpiod_direction_output_raw(gpio_to_desc(es8316->spk_ctl_gpio), 0);
 		if (ret) {
 			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
 			return ret;
