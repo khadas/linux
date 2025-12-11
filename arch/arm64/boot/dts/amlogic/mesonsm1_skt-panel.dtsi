@@ -71,7 +71,7 @@
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
-				131648400>; /*pixel_clk(unit in Hz)*/
+				120000000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				1000 /*bit_rate_max(MHz)*/
 				0 /*factor(*100, default 0 for auto)*/
@@ -653,7 +653,7 @@
 			clk_attr = <0xff /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
-				152346840>; /*pixel_clk(unit in Hz)*/
+				137112156>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				1000 /*bit_rate_max(MHz)*/
 				0 /*factor(*100, default 0 for auto)*/
@@ -684,15 +684,15 @@
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
-				4 0 1 100
-				4 1 0 10
-				4 1 1 20
+				0 0 1 100
+				0 1 0 10
+				0 1 1 20
 				2 0 0 0
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
 				2 0 0 50
-				4 1 0 10
-				4 0 0 100
+				0 1 0 10
+				0 0 0 100
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0>;
 
@@ -720,7 +720,7 @@
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
-				129897600>; /*pixel_clk(unit in Hz)*/
+				120000000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				1000 /*bit_rate_max(MHz)*/
 				0 /*factor(*100, default 0 for auto)*/
