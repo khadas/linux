@@ -222,7 +222,7 @@
 		power-domains = <&power RK3576_PD_VI>;
 		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
 		port {
@@ -243,8 +243,8 @@
 		rockchip,vcm-start-current = <0>;
 		rockchip,vcm-rated-current = <65>;
 		rockchip,vcm-step-mode = <4>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
 	};
 
 	imx415_1: imx415-1@1a {
@@ -259,7 +259,7 @@
 		reset-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
 		lens-focus = <&dw9714_1>;
@@ -283,7 +283,7 @@
 		power-domains = <&power RK3576_PD_VI>;
 		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-IMX585-PX1";
 		rockchip,camera-module-lens-name = "FH34SRJ-30SCK0";
 		port {
@@ -305,7 +305,7 @@
 		power-domains = <&power RK3576_PD_VI>;
 		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "FH34SRJ-30S";
 		rockchip,camera-module-lens-name = "YG4118";
 		port {
