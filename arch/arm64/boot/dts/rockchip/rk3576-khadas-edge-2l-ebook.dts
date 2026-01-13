@@ -302,7 +302,7 @@
 	epd_gt9xx: epd-gt9xx@14 {
 		compatible = "goodix,epd_gt9xx";
 		reg = <0x14>;
-		touch-gpio = <&gpio1 RK_PC0 IRQ_TYPE_LEVEL_LOW>;
+		touch-gpio = <&gpio0 RK_PB4 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpio = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&epd_touch_gpio>;
 		pinctrl-names = "default";
@@ -316,11 +316,11 @@
 	led-controller@36 {
 		compatible = "ti,lm3630a";
 		reg = <0x36>;
-		enable-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&backlight_hwen_h>;
 		pinctrl-names = "default";
 		pwm-names = "lm3630a-pwm";
-		pwms = <&pwm1_6ch_5 0 25000 0>;
+		pwms = <&pwm1_6ch_1 0 25000 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -344,9 +344,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tps65185_gpio>;
 		int-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
-		wakeup-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
+		wakeup-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
 		vcomctl-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
-		poweren-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+		poweren-gpios = <&gpio0 RK_PD1 GPIO_ACTIVE_HIGH>;
 		powerup-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 	};
 };
@@ -385,9 +385,9 @@
 	usbc0: fusb302@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PB4 IRQ_TYPE_LEVEL_LOW>;
-		int-n-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC2 IRQ_TYPE_LEVEL_LOW>;
+		int-n-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usbc0_int>;
 		vbus-supply = <&vbus5v0_typec>;
@@ -532,14 +532,14 @@
 &pinctrl {
 	backlight {
 		backlight_hwen_h: backlight-hwen-h {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	tp {
 		epd_touch_gpio: ebc-touch-gpio {
 			rockchip,pins =
-				<1 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none_smt>,
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none_smt>,
 				<2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
@@ -563,7 +563,7 @@
 		};
 
 		usbc0_int: usbc0-int {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -571,7 +571,6 @@
 		tps65185_gpio: tps65185-gpio {
 			rockchip,pins =
 				<0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>,
 				<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>,
 				<2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>,
@@ -609,11 +608,6 @@
 &pwm1_6ch_1 {
 	status = "okay";
 	pinctrl-0 = <&pwm1m0_ch1>;
-};
-
-&pwm1_6ch_5 {
-	status = "okay";
-	pinctrl-0 = <&pwm1m3_ch5>;
 };
 
 &rga2_core0 {

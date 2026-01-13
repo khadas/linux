@@ -5810,7 +5810,7 @@
 				/* vo_ebc_sddo14 */
 				<3 RK_PB5 2 &pcfg_pull_none>,
 				/* vo_ebc_sddo15 */
-				/*<3 RK_PB4 2 &pcfg_pull_none>, */
+				<3 RK_PB4 2 &pcfg_pull_none>,
 				/* vo_ebc_sdle */
 				<3 RK_PD4 2 &pcfg_pull_none>,
 				/* vo_ebc_sdoe */
@@ -5861,7 +5861,7 @@
 				/* vo_ebc_sddo14 */
 				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>,
 				/* vo_ebc_sddo15 */
-				/*<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>,*/
+				<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_down>,
 				/* vo_ebc_sdle */
 				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>,
 				/* vo_ebc_sdoe */
