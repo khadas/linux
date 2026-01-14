@@ -157,7 +157,7 @@ static void wake_system(void)
        input_sync(wake_key_dev);
        input_event(wake_key_dev, EV_KEY, 116, 0);
        input_sync(wake_key_dev);
-       printk("hlm wake system...\n");
+       GTP_INFO("hlm wake system...\n");
    }
 }
 
@@ -168,7 +168,7 @@ void epd_tp_into_suspend(void)
 	if(NULL != ts){
 		ts->epd_gtp_is_suspend = 1;
 		is_sleeped = true;
-		printk("hlm epd_tp_into_suspend=1\n");
+		GTP_INFO("hlm epd_tp_into_suspend=1\n");
 	}
 }
 EXPORT_SYMBOL(epd_tp_into_suspend);
@@ -1044,7 +1044,7 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 	if(is_sleeped){
 		if(ts->epd_gtp_is_suspend == 1){
-			printk("hlm wake dev\n");
+			GTP_INFO("hlm wake dev\n");
 			ts->epd_gtp_is_suspend = 0;
 			wake_system();
 		   is_sleeped=false;
@@ -2907,7 +2907,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
         }
         device_init_wakeup(&client->dev, 1);
         enable_irq_wake(ts->irq);
-		printk("hlm ts101 wakeup-source");
+		printk("epd ts101 wakeup-source");
     }
 
 #if GTP_CREATE_WR_NODE

@@ -486,8 +486,8 @@ static void papyrus_pm_sleep(struct ebc_pmic *pmic)
 	mutex_lock(&s->power_lock);
 	gpiod_direction_output(s->vcom_ctl_pin, 0);
 	gpiod_direction_output(s->wake_up_pin, 0);
-	if (!IS_ERR_OR_NULL(s->pwr_en_pin))
-		gpiod_direction_output(s->pwr_en_pin, 0);
+	//if (!IS_ERR_OR_NULL(s->pwr_en_pin))
+	//	gpiod_direction_output(s->pwr_en_pin, 0);
 	papyrus_need_reconfig = true;
 	mutex_unlock(&s->power_lock);
 }
@@ -497,10 +497,10 @@ static void papyrus_pm_resume(struct ebc_pmic *pmic)
 	struct papyrus_sess *s = (struct papyrus_sess *)pmic->drvpar;
 
 	mutex_lock(&s->power_lock);
-	if (!IS_ERR_OR_NULL(s->pwr_en_pin)) {
-		gpiod_direction_output(s->pwr_en_pin, 1);
-		usleep_range(2 * 1000, 3 * 1000);
-	}
+	//if (!IS_ERR_OR_NULL(s->pwr_en_pin)) {
+	//	gpiod_direction_output(s->pwr_en_pin, 1);
+	//	usleep_range(2 * 1000, 3 * 1000);
+	//}
 	gpiod_direction_output(s->wake_up_pin, 1);
 	gpiod_direction_output(s->vcom_ctl_pin, 1);
 	usleep_range(2 * 1000, 3 * 1000);
