@@ -57,7 +57,7 @@
 		pinctrl-0 = <&cam_clk1m0_clk1>, <&cam0_gpio>;
 		power-domains = <&power RK3576_PD_VI>;
 		reset-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
+		ircut-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
@@ -293,7 +293,7 @@
 		pinctrl-0 = <&cam_clk2m0_clk2>, <&cam1_gpio>;
 		power-domains = <&power RK3576_PD_VI>;
 		reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		ircut-gpios = <&gpio2 RK_PB3 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
@@ -509,13 +509,13 @@
 		cam0_gpio: cam0-gpios {
 			rockchip,pins =
 				<2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		cam1_gpio: cam1-gpios {
 			rockchip,pins =
 				<2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
-				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		focus_gpio_1: focus-gpio-0 {
