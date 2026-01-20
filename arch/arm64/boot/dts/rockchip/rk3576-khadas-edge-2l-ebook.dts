@@ -539,7 +539,7 @@
 	tp {
 		epd_touch_gpio: ebc-touch-gpio {
 			rockchip,pins =
-				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none_smt>,
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
