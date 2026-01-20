@@ -217,11 +217,9 @@
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		bt_port = "/dev/ttyS5";
-		clocks = <&pt7c4363>;
-		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart5m1_rtsn>;
+		pinctrl-0 = <&uart5m1_rtsn>, <&bt_gpio>;
 		pinctrl-1 = <&uart5_gpios>;
 		BT,reset_gpio    = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -233,7 +231,7 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6275p";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>;
+		pinctrl-0 = <&wifi_host_wake_irq>, <&wifi_poweren_gpio>, <&clk_32k_pins>;
 		WIFI,host_wake_irq = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		WIFI,poweren_gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
@@ -1510,6 +1508,13 @@
 	wireless-bluetooth {
 		uart5_gpios: uart5-gpios {
 			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_gpio: bt-gpio {
+			rockchip,pins =
+				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
