@@ -121,14 +121,14 @@
 		pinctrl-names = "default";
 
 		red_led {
-			gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
 			label = "red_led";
 			linux,default-trigger = "off";
 			default-state = "on";
 		};
 
 		green_led {
-			gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
 			label = "green_led";
 			linux,default-trigger = "off";
 			default-state = "on";
