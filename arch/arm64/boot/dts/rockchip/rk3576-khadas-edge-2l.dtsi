@@ -187,6 +187,7 @@
 		BT,reset_gpio    = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+		power_down_disable = <1>;
 		status = "okay";
 	};
 
