@@ -1291,15 +1291,15 @@
 		disp_timings0: display-timings {
 			native-mode = <&dsi0_timing0>;
 			dsi0_timing0: timing0 {
-				clock-frequency = <152198100>;
+				clock-frequency = <132696000>;
 				hactive = <1080>;
 				vactive = <1920>;
-				hfront-porch = <104>;
-				hsync-len = <4>;
-				hback-porch = <127>;
-				vfront-porch = <4>;
-				vsync-len = <3>;
-				vback-porch = <2>;
+				hfront-porch = <24>;
+				hsync-len = <6>;
+				hback-porch = <30>;
+				vfront-porch = <10>;
+				vsync-len = <6>;
+				vback-porch = <4>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -1310,12 +1310,12 @@
 		disp_timings01: display-timings1 {
 			native-mode = <&dsi0_timing01>;
 			dsi0_timing01: timing01 {
-				clock-frequency = <152350000>;
+				clock-frequency = <142465680>;
 				hactive = <1920>;
 				vactive = <1200>;
-				hfront-porch = <110>;
+				hfront-porch = <4>;
 				hsync-len = <4>;
-				hback-porch = <32>;
+				hback-porch = <4>;
 				vfront-porch = <11>;
 				vsync-len = <4>;
 				vback-porch = <14>;
@@ -1329,15 +1329,15 @@
 		disp_timings02: display-timings2 {
 			native-mode = <&dsi0_timing02>;
 			dsi0_timing02: timing02 {
-				clock-frequency = <152200000>;
+				clock-frequency = <132696000>;
 				hactive = <1080>;
 				vactive = <1920>;
-				hfront-porch = <104>;
+				hfront-porch = <24>;
 				hsync-len = <6>;
-				hback-porch = <127>;
-				vfront-porch = <12>;
+				hback-porch = <30>;
+				vfront-porch = <10>;
 				vsync-len = <6>;
-				vback-porch = <10>;
+				vback-porch = <4>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
@@ -1348,13 +1348,13 @@
 		disp_timings03: display-timings3 {
 			native-mode = <&dsi0_timing03>;
 			dsi0_timing03: timing01 {
-				clock-frequency = <153976320>;
+				clock-frequency = <146733120>;
 				hactive = <1200>;
 				vactive = <1920>;
-				hfront-porch = <38>;
-				hsync-len = <24>;
+				hfront-porch = <4>;
+				hsync-len = <4>;
 				hback-porch = <50>;
-				vfront-porch = <16>;
+				vfront-porch = <4>;
 				vsync-len = <4>;
 				vback-porch = <16>;
 				hsync-active = <0>;
@@ -1415,11 +1415,11 @@
 };
 
 &dsi_in_vp1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi_in_vp2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi_in_vopl {
@@ -1613,7 +1613,7 @@
 
 &route_dsi {
 	status = "okay";
-	connect = <&vp1_out_dsi>;
+	connect = <&vp2_out_dsi>;
 };
 
 &sai6 {
