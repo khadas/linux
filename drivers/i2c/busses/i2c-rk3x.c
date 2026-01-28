@@ -1506,6 +1506,7 @@ static void rk3x_i2c_reset_controller(struct rk3x_i2c *i2c)
 	}
 }
 
+int need_reset_mcu_flag = 0;
 static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 				struct i2c_msg *msgs, int num, bool polling)
 {
@@ -1620,6 +1621,7 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 			rk3x_i2c_reset_controller(i2c);
 			dev_err(i2c->dev, "2ac50000.i2c timeout with ipd 0x00, reset controller\n");
 			rk3x_i2c_adapt_div(i2c, clk_get_rate(i2c->clk));
+			need_reset_mcu_flag = 1;
 		}
 	}
 	return ret < 0 ? ret : num;

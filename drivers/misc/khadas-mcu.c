@@ -22,6 +22,8 @@
 #include <linux/of_address.h>
 #include <linux/wakelock.h>
 #include <linux/delay.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 
 #define MCU_AGEING_TEST	0x16
 #define MCU_USID        0x06
@@ -113,6 +115,7 @@ struct mcu_data {
 	enum khadas_board board;
 	enum khadas_board_hwver hwver;
 	struct mcu_fan_data fan_data;
+	int reset_gpio;
 };
 
 struct mcu_data *g_mcu_data;
@@ -678,7 +681,6 @@ static ssize_t show_ageing_test(struct class *cls,
 	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_AGEING_TEST, addr, 1);
 	if (ret < 0)
 		printk("%s: AGEING_TEST failed (%d)",__func__, ret);
-
 	return sprintf(buf, "%d\n", addr[0]);
 }
 
@@ -896,8 +898,12 @@ static int mcu_parse_dt(struct device *dev)
 	return ret;
 }
 
+extern int need_reset_mcu_flag;
 static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	enum of_gpio_flags flags;
+	struct device_node *np = client->dev.of_node;
+
 	printk("%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -920,6 +926,24 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	mcu_fan_level_set(&g_mcu_data->fan_data, 0);
 	schedule_delayed_work(&g_mcu_data->fan_data.work, MCU_FAN_LOOP_SECS);
 	create_mcu_attrs();
+
+	g_mcu_data->reset_gpio = of_get_named_gpio_flags(np,
+						       "reset-gpio",
+						       0,
+						       &flags);
+	if (g_mcu_data->reset_gpio < 0) {
+		dev_info(&client->dev, "Can not read property reset_gpio\n");
+	}else if(need_reset_mcu_flag){
+		if (gpio_is_valid(g_mcu_data->reset_gpio)) {
+			int ret = gpiod_direction_output_raw(gpio_to_desc(g_mcu_data->reset_gpio), 0);
+			if (ret) {
+				dev_err(&g_mcu_data->client->dev, "Failed to request mcu reset_gpio\n");
+			}
+		}
+		gpio_set_value(g_mcu_data->reset_gpio, 1);
+		msleep(100);
+		gpio_set_value(g_mcu_data->reset_gpio, 0);
+	}
 
 	return 0;
 }

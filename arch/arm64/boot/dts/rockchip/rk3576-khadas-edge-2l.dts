@@ -295,6 +295,9 @@
 		fan,trig_temp_level3 = <70>;
 		fan,trig_temp_level4 = <75>;
 		fan,trig_temp_level5 = <80>;
+		pinctrl-0 = <&reset_gpio>;
+		pinctrl-names = "default";
+		reset-gpio = <&gpio1 RK_PC0 GPIO_ACTIVE_HIGH>;
 		hwver = "EDGE2L.V11";
 
 	};
@@ -489,6 +492,12 @@
 
 		usbc0_int: usbc0-int {
 			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	mcu {
+		reset_gpio: reset-gpio {
+			rockchip,pins = <1 RK_PC0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };
