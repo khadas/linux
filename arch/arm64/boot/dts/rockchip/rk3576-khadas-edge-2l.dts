@@ -272,6 +272,8 @@
 	cec-enable;
 	enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 	rockchip,sda-falling-delay-ns = <360>;
+	ddc-i2c-scl-high-time-ns = <10000>;
+	ddc-i2c-scl-low-time-ns = <10000>;
 };
 
 &hdmi_in_vp0 {
