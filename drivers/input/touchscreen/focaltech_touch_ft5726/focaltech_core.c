@@ -85,13 +85,38 @@ int fts_tp_5946=0;
 * Global variable or extern global variabls/functions
 *****************************************************************************/
 struct fts_ts_data *fts_data;
-
+static struct input_dev *wake_key_dev = NULL;
+static bool is_sleeped;
+struct i2c_client * epd_gtp_i2c_connect_client = NULL;
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
 
+static void wake_system(void)
+{
+   if(wake_key_dev!=NULL)
+   {
+       input_event(wake_key_dev, EV_KEY, 116, 1);
+       input_sync(wake_key_dev);
+       input_event(wake_key_dev, EV_KEY, 116, 0);
+       input_sync(wake_key_dev);
+       printk("hlm wake system...\n");
+   }
+}
+
+void epd_tp_into_suspend(void)
+{
+	struct fts_ts_data *ts = NULL;
+    ts = i2c_get_clientdata(epd_gtp_i2c_connect_client);
+	if(NULL != ts){
+		ts->suspended = 1;
+		is_sleeped = true;
+		printk("hlm epd_tp_into_suspend=1\n");
+	}
+}
+EXPORT_SYMBOL(epd_tp_into_suspend);
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
 *  Brief: Read chip id until TP FW become valid(Timeout: TIMEOUT_READ_REG),
@@ -150,7 +175,7 @@ int fts_reset_proc(int hdelayms)
 {
     FTS_DEBUG("tp reset");
     gpio_direction_output(fts_data->pdata->reset_gpio, 0);
-    msleep(10);
+    msleep(1);
     gpio_direction_output(fts_data->pdata->reset_gpio, 1);
     if (hdelayms) {
         msleep(hdelayms);
@@ -577,9 +602,10 @@ static int fts_input_report_b(struct fts_ts_data *data)
             if (events[i].area <= 0) {
                 events[i].area = 0x09;
             }
-
-            events[i].x = data->pdata->y_max - events[i].x;
-            events[i].y = data->pdata->x_max - events[i].y;
+			//printk("hlm test TP P%d (%d, %d)\n",i,events[i].x,events[i].y);
+            events[i].x = ((1023 - events[i].x)*TPD_RES_X)/1023;
+            events[i].y = ((events[i].y)*TPD_RES_Y)/757;
+			GTP_SWAP(events[i].x, events[i].y);
 
             input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, events[i].area);
             input_report_abs(data->input_dev, ABS_MT_POSITION_X, events[i].x);
@@ -590,10 +616,10 @@ static int fts_input_report_b(struct fts_ts_data *data)
 
             if ((data->log_level >= 2) ||
                 ((1 == data->log_level) && (FTS_TOUCH_DOWN == events[i].flag))) {
-                FTS_DEBUG("[B]P%d(%d, %d)[p:%d,tm:%d] DOWN!\n",
+                FTS_DEBUG("[B]P%d(%d, %d)[p:%d,tm:%d] data->pdata->x_max=%d, data->pdata->y_max=%d DOWN!\n",
                           events[i].id,
                           events[i].x, events[i].y,
-                          events[i].p, events[i].area);
+                          events[i].p, events[i].area, data->pdata->x_max,data->pdata->y_max);
             }
         } else {
             uppoint++;
@@ -638,6 +664,17 @@ static int fts_input_report_b(struct fts_ts_data *data)
     }
 
     input_sync(data->input_dev);
+
+	if(is_sleeped){
+		if(data->suspended == 1){
+			printk("hlm wake dev\n");
+			data->suspended = 0;
+			wake_system();
+		   is_sleeped=false;
+		}
+	}else{
+		is_sleeped=false;
+	}
     return 0;
 }
 
@@ -703,6 +740,7 @@ static int fts_input_report_a(struct fts_ts_data *data)
     }
 
     input_sync(data->input_dev);
+
     return 0;
 }
 #endif
@@ -725,7 +763,7 @@ static int fts_read_touchdata(struct fts_ts_data *data)
 
     ret = fts_read(buf, 1, buf + 1, data->pnt_buf_size - 1);
     if (ret < 0) {
-        FTS_ERROR("read touchdata failed, ret:%d", ret);
+        //FTS_ERROR("read touchdata failed, ret:%d", ret);
         return ret;
     }
 
@@ -752,6 +790,7 @@ static int fts_read_parse_touchdata(struct fts_ts_data *data)
     }
 
     data->point_num = buf[FTS_TOUCH_POINT_NUM] & 0x0F;
+	//printk("hlm test TP data->point_num=%d\n",data->point_num);
     data->touch_point = 0;
 
     if (data->ic_info.is_incell) {
@@ -788,7 +827,7 @@ static int fts_read_parse_touchdata(struct fts_ts_data *data)
         events[i].id = buf[FTS_TOUCH_ID_POS + base] >> 4;
         events[i].area = buf[FTS_TOUCH_AREA_POS + base] >> 4;
         events[i].p =  buf[FTS_TOUCH_PRE_POS + base];
-
+		//printk("hlm test TP P%d (%d, %d)\n",i,events[i].x,events[i].y);
         if (EVENT_DOWN(events[i].flag) && (data->point_num == 0)) {
             FTS_INFO("abnormal touch data from fw");
             return -EIO;
@@ -1618,6 +1657,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 {
     int ret = 0;
     int pdata_size = sizeof(struct fts_ts_platform_data);
+    struct device_node *np = ts_data->dev->of_node;
 
     FTS_FUNC_ENTER();
     FTS_INFO("%s", FTS_DRIVER_VERSION);
@@ -1788,6 +1828,22 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
     register_early_suspend(&ts_data->early_suspend);
 #endif
 
+    if (of_property_read_bool(np, "wakeup-source"))
+    {
+        wake_key_dev = input_allocate_device();
+        wake_key_dev->name = "touch_key";
+        wake_key_dev->evbit[0] = BIT(EV_KEY);
+        set_bit(116,  wake_key_dev->keybit);
+        ret = input_register_device(wake_key_dev);
+        if (ret)
+        {
+            return -ENODEV;
+        }
+        device_init_wakeup(&epd_gtp_i2c_connect_client->dev, 1);
+        enable_irq_wake(ts_data->irq);
+		printk("epd tp wakeup-source");
+    }
+
     FTS_FUNC_EXIT();
     return 0;
 
@@ -1908,6 +1964,12 @@ static int fts_ts_suspend(struct device *dev)
     int ret = 0;
     struct fts_ts_data *ts_data = fts_data;
 
+	if (device_may_wakeup(&ts_data->client->dev)){
+		printk("hlm System suspend.");
+		enable_irq_wake(ts_data->irq);
+	}
+return 0;
+
     FTS_FUNC_ENTER();
     if (ts_data->suspended) {
         FTS_INFO("Already in suspend state");
@@ -1953,6 +2015,12 @@ static int fts_ts_resume(struct device *dev)
 {
     struct fts_ts_data *ts_data = fts_data;
 
+	ts_data->suspended = 0;
+	if (device_may_wakeup(&ts_data->client->dev)){
+		printk("hlm System resume.");
+		disable_irq_wake(ts_data->irq);
+	}
+return 0;
     FTS_FUNC_ENTER();
     if (!ts_data->suspended) {
         FTS_DEBUG("Already in awake state");
@@ -2022,6 +2090,8 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
     int ret = 0;
     struct fts_ts_data *ts_data = NULL;
 
+	epd_gtp_i2c_connect_client = client;
+
     FTS_INFO("Touch Screen(I2C BUS) driver prboe...");
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
         FTS_ERROR("I2C not supported");
@@ -2054,9 +2124,9 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
     ts_data->tp.tp_suspend = fts_ts_ebc_suspend;
     tp_register_fb(&ts_data->tp);
 
-    ret = device_init_wakeup(&ts_data->client->dev, 1);
-    if (ret < 0)
-        printk( "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
+    //ret = device_init_wakeup(&ts_data->client->dev, 1);
+    //if (ret < 0)
+    //    printk( "%s: Error, device_init_wakeup rc:%d\n", __func__, ret);
 	
     FTS_INFO("Touch Screen(I2C BUS) driver prboe successfully");
     return 0;

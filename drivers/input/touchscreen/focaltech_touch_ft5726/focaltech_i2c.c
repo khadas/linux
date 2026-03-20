@@ -101,7 +101,7 @@ int fts_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
     for (i = 0; i < I2C_RETRY_NUMBER; i++) {
         ret = i2c_transfer(ts_data->client->adapter, msg, msg_num);
         if (ret < 0) {
-            FTS_ERROR("i2c_transfer(read) fail,ret:%d", ret);
+            //FTS_ERROR("i2c_transfer(read) fail,ret:%d", ret);
         } else {
             memcpy(data, ts_data->bus_rx_buf, datalen);
             break;

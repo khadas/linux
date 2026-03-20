@@ -89,8 +89,8 @@
 #define FTS_COORDS_ARR_SIZE                 4
 #define FTS_X_MIN_DISPLAY_DEFAULT           0
 #define FTS_Y_MIN_DISPLAY_DEFAULT           0
-#define FTS_X_MAX_DISPLAY_DEFAULT           720
-#define FTS_Y_MAX_DISPLAY_DEFAULT           1280
+#define FTS_X_MAX_DISPLAY_DEFAULT           1072
+#define FTS_Y_MAX_DISPLAY_DEFAULT           1448
 
 #define FTS_TOUCH_DOWN                      0
 #define FTS_TOUCH_UP                        1
@@ -108,8 +108,8 @@
 *****************************************************************************/
 
 #define FTS_MAX_TOUCHNUM 		5
-#define TPD_RES_X 						1404
-#define TPD_RES_Y 						1872
+#define TPD_RES_X 						1072
+#define TPD_RES_Y 						1448
 #define FTS_ROTATE_90			0
 
 /*
@@ -223,6 +223,11 @@ enum _FTS_BUS_TYPE {
     BUS_TYPE_SPI_V2,
 };
 
+#define GTP_SWAP(x, y)                 do{\
+                                         typeof(x) z = x;\
+                                         x = y;\
+                                         y = z;\
+                                       }while (0)
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/

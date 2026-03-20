@@ -297,18 +297,19 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m2_xfer>;
 
-	epd_gt9xx: epd-gt9xx@14 {
-		compatible = "goodix,epd_gt9xx";
-		reg = <0x14>;
-		touch-gpio = <&gpio0 RK_PB4 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&epd_touch_gpio>;
-		pinctrl-names = "default";
-		max-x = <1072>;
-		max-y = <1448>;
-		tp-size = <911>;
-		wakeup-source = <1>;
-		status = "okay";
+	epd_focaltech: epd-focaltech@38 {
+			compatible = "rockchip,fts_ts";
+			reg = <0x38>;
+			interrupt-parent = <&gpio0>;
+			interrupts = <RK_PB4 IRQ_TYPE_EDGE_FALLING>;
+			t_irq_gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_LOW>;
+			t_rst_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&epd_touch_gpio>;
+			focaltech,max-touch-number = <5>;
+			focaltech,display-coords =  <0 0 1072 1448>;
+			wakeup-source = <1>;
+			status = "okay";
 	};
 
 	led-controller@36 {
