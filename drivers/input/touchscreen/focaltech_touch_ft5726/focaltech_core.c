@@ -1434,13 +1434,24 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
          gpio_direction_output(pdata->power_gpio,1);
 	msleep(50);
     }
-	 power_supply = devm_regulator_get(dev, "power");
-	if (power_supply) {
-		dev_info(dev, "fts power supply = %dmv\n", regulator_get_voltage(power_supply));
-		ret = regulator_enable(power_supply);
-		if (ret < 0)
-			dev_err(dev, "failed to enable fts power supply\n");
-	}
+    power_supply = devm_regulator_get_optional(dev, "power");
+    if (IS_ERR(power_supply)) {
+        int err = PTR_ERR(power_supply);
+        if (err == -ENODEV) {
+            dev_info(dev, "No power regulator, assume always on\n");
+            power_supply = NULL;
+        } else {
+            dev_err(dev, "Failed to get power regulator: %d\n", err);
+            if (err == -EPROBE_DEFER)
+                return err;
+            power_supply = NULL;
+        }
+    } else {
+        dev_info(dev, "fts power supply = %dmv\n", regulator_get_voltage(power_supply));
+        ret = regulator_enable(power_supply);
+        if (ret < 0)
+            dev_err(dev, "failed to enable fts power supply\n");
+    }
 
     ret = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
     if (ret < 0) {
@@ -2196,7 +2207,7 @@ static struct i2c_driver fts_ts_driver = {
         .pm = &fts_dev_pm_ops,
 #endif
 
-#if 1//def CONFIG_IDLE
+#if 0//def CONFIG_IDLE
 	.pm = &fts_pm_ops,
 #endif
 
