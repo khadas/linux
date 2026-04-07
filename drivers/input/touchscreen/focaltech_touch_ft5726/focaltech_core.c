@@ -102,7 +102,7 @@ static void wake_system(void)
        input_sync(wake_key_dev);
        input_event(wake_key_dev, EV_KEY, 116, 0);
        input_sync(wake_key_dev);
-       printk("hlm wake system...\n");
+       //printk("hlm wake system...\n");
    }
 }
 
@@ -113,7 +113,7 @@ void epd_tp_into_suspend(void)
 	if(NULL != ts){
 		ts->suspended = 1;
 		is_sleeped = true;
-		printk("hlm epd_tp_into_suspend=1\n");
+		//printk("hlm epd_tp_into_suspend=1\n");
 	}
 }
 EXPORT_SYMBOL(epd_tp_into_suspend);
@@ -665,16 +665,6 @@ static int fts_input_report_b(struct fts_ts_data *data)
 
     input_sync(data->input_dev);
 
-	if(is_sleeped){
-		if(data->suspended == 1){
-			printk("hlm wake dev\n");
-			data->suspended = 0;
-			wake_system();
-		   is_sleeped=false;
-		}
-	}else{
-		is_sleeped=false;
-	}
     return 0;
 }
 
@@ -873,6 +863,17 @@ static void fts_irq_read_report(void)
 
 static irqreturn_t fts_irq_handler(int irq, void *data)
 {
+	//printk("is_sleeped=%d  fts_data->suspended=%d\n", is_sleeped, fts_data->suspended);
+	if(is_sleeped){
+		if(fts_data->suspended == 1){
+			//printk("hlm wake system\n");
+			fts_data->suspended = 0;
+			wake_system();
+		   is_sleeped=false;
+		}
+	}else{
+		is_sleeped=false;
+	}
 #if defined(CONFIG_PM) && FTS_PATCH_COMERR_PM
     int ret = 0;
     struct fts_ts_data *ts_data = fts_data;
@@ -899,7 +900,7 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
     struct fts_ts_platform_data *pdata = ts_data->pdata;
 
     ts_data->irq = gpio_to_irq(pdata->irq_gpio);
-    pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_NO_SUSPEND;
+    pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
     FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
     ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
                                pdata->irq_gpio_flags,
@@ -1976,7 +1977,7 @@ static int fts_ts_suspend(struct device *dev)
     struct fts_ts_data *ts_data = fts_data;
 
 	if (device_may_wakeup(&ts_data->client->dev)){
-		printk("hlm System suspend.");
+		//printk("hlm tp suspend.");
 		enable_irq_wake(ts_data->irq);
 	}
 return 0;
@@ -2028,7 +2029,7 @@ static int fts_ts_resume(struct device *dev)
 
 	ts_data->suspended = 0;
 	if (device_may_wakeup(&ts_data->client->dev)){
-		printk("hlm System resume.");
+		//printk("hlm tp resume.");
 		disable_irq_wake(ts_data->irq);
 	}
 return 0;

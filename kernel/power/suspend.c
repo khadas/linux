@@ -643,6 +643,7 @@ static int enter_state(suspend_state_t state)
  * Check if the value of @state represents one of the supported states,
  * execute enter_state() and update system suspend statistics.
  */
+bool is_lite_mode = 0;
 int pm_suspend(suspend_state_t state)
 {
 	int error;
@@ -651,6 +652,9 @@ int pm_suspend(suspend_state_t state)
 		return -EINVAL;
 
 	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
+	if (strcmp(mem_sleep_labels[state], "lite") == 0) {
+		is_lite_mode = 1;
+	}
 #ifdef CONFIG_ROCKCHIP_LITE_ULTRA_SUSPEND
 	if (state == PM_SUSPEND_MEM_LITE || state == PM_SUSPEND_MEM_ULTRA)
 		state = PM_SUSPEND_MEM;
@@ -663,6 +667,7 @@ int pm_suspend(suspend_state_t state)
 		suspend_stats.success++;
 	}
 	pr_info("suspend exit\n");
+	is_lite_mode = 0;
 	return error;
 }
 EXPORT_SYMBOL(pm_suspend);

@@ -80,7 +80,7 @@ static int ebc_notifier_callback(struct notifier_block *self,
 
 	if (action == EBC_FB_BLANK){
 		tp->tp_suspend(tp);
-		printk("hlm epd_tp_into_suspend\n");
+		//printk("hlm EBC_FB_BLANK\n");
 		epd_tp_into_suspend();
 	}
 	else if (action == EBC_FB_UNBLANK)

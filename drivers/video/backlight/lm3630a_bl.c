@@ -183,6 +183,8 @@ static int lm3630a_pwm_ctrl(struct lm3630a_chip *pchip, int br, int br_max)
 	return pwm_apply_state(pchip->pwmd, &pchip->pwmd_state);
 }
 
+extern bool is_lite_mode;
+extern void epd_tp_into_suspend(void);
 /* update and get brightness */
 static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 {
@@ -190,6 +192,10 @@ static int lm3630a_bank_a_update_status(struct backlight_device *bl)
 	struct lm3630a_chip *pchip = bl_get_data(bl);
 	enum lm3630a_pwm_ctrl pwm_ctrl = pchip->pdata->pwm_ctrl;
 
+        printk("brightness=%d\n",bl->props.brightness);
+	if(!is_lite_mode && (1 == bl->props.brightness || 0 == bl->props.brightness)){
+		epd_tp_into_suspend();
+	}
 	/* pwm control */
 	if ((pwm_ctrl & LM3630A_PWM_BANK_A) != 0)
 		return lm3630a_pwm_ctrl(pchip, bl->props.brightness,
@@ -256,7 +262,6 @@ static const struct backlight_ops lm3630a_bank_a_ops = {
 };
 
 /* update and get brightness */
-extern void epd_tp_into_suspend(void);
 static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 {
 	int ret;
@@ -282,7 +287,7 @@ static int lm3630a_bank_b_update_status(struct backlight_device *bl)
 				      LM3630A_LEDB_ENABLE, LM3630A_LEDB_ENABLE);
 	if (ret < 0)
 		goto out_i2c_err;
-    printk("bl->props.brightness=%d\n",bl->props.brightness);
+        printk("bl->props.brightness=%d\n",bl->props.brightness);
 	if(0 == bl->props.brightness){
 		epd_tp_into_suspend();
 	}
