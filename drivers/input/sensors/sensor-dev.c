@@ -625,24 +625,39 @@ static void sensor_resume(struct early_suspend *h)
 #ifdef CONFIG_PM
 static int __maybe_unused sensor_of_suspend(struct device *dev)
 {
-	struct sensor_private_data *sensor = dev_get_drvdata(dev);
-
-	if (sensor->ops->suspend)
-		sensor->ops->suspend(sensor->client);
-
-	return 0;
+    struct sensor_private_data *sensor = dev_get_drvdata(dev);
+    if (sensor->status_cur == SENSOR_ON) {
+        if (sensor->pdata->irq_enable)
+            disable_irq_nosync(sensor->client->irq);
+        else
+            cancel_delayed_work_sync(&sensor->delaywork);
+    }
+    if (sensor->ops->suspend)
+        sensor->ops->suspend(sensor->client);
+    return 0;
 }
 
 static int __maybe_unused sensor_of_resume(struct device *dev)
 {
-	struct sensor_private_data *sensor = dev_get_drvdata(dev);
-
-	if (sensor->ops->resume)
-		sensor->ops->resume(sensor->client);
-	if (sensor->pdata->power_off_in_suspend)
-		sensor_initial(sensor->client);
-
-	return 0;
+    struct sensor_private_data *sensor = dev_get_drvdata(dev);
+    if (sensor->ops->resume) {
+        sensor->ops->resume(sensor->client);
+    }
+    else if (sensor->status_cur == SENSOR_ON) {
+        dev_info(dev, "resume: reactivating sensor (like start ioctl)\n");
+        sensor->ops->active(sensor->client, SENSOR_ON, sensor->pdata->poll_delay_ms);
+        if (!sensor->pdata->irq_enable) {
+            sensor->stop_work = 0;
+            schedule_delayed_work(&sensor->delaywork,
+                msecs_to_jiffies(sensor->pdata->poll_delay_ms));
+        } else {
+            enable_irq(sensor->client->irq);
+        }
+    }
+    if (sensor->pdata->power_off_in_suspend && !sensor->ops->resume) {
+        sensor_initial(sensor->client);
+    }
+    return 0;
 }
 
 const struct dev_pm_ops sensor_pm_ops = {
