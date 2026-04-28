@@ -70,6 +70,10 @@
 #define	ANALOG_GAIN_DEFAULT		1024
 
 #define OS08A10_REG_GROUP	0x3208
+#define OS08A10_REG_FLIP	0x3820
+#define OS08A10_REG_MIRROR	0x3821
+#define MIRROR_BIT_MASK			BIT(2)
+#define FLIP_BIT_MASK			BIT(2)
 
 #define OS08A10_REG_TEST_PATTERN		0x5081
 #define	OS08A10_TEST_PATTERN_ENABLE	0x08
@@ -84,7 +88,8 @@
 #define OS08A10_REG_VALUE_16BIT		2
 #define OS08A10_REG_VALUE_24BIT		3
 
-#define OS08A10_LANES			4
+#define OS08A10_4LANES			4
+#define OS08A10_2LANES			2
 #define OS08A10_BITS_PER_SAMPLE		10
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
@@ -125,6 +130,7 @@ struct os08a10_mode {
 	u32 vts_def;
 	u32 exp_def;
 	const struct regval *reg_list;
+	u8 hdr_mode;
 };
 
 struct os08a10 {
@@ -174,7 +180,7 @@ struct os08a10_id_name {
  * Xclk 24Mhz
  * grabwindow_width 3840
  * grabwindow_height 2160
- * max_framerate 30fps
+ * max_framerate 60fps
  * mipi_datarate per lane 960Mbps
  */
 static const struct regval os08a10_global_regs[] = {
@@ -196,9 +202,17 @@ static const struct regval os08a10_global_regs[] = {
 	{0x3103, 0x92},
 	{0x3104, 0x01},
 	{0x3106, 0x10},
+	// {0x3400, 0x04},
+	{0x3025, 0x03},
+	{0x3425, 0x01},
+	{0x3428, 0x01},
+	{0x3406, 0x08},
+	{0x3408, 0x03},
 	{0x340c, 0xff},
 	{0x340d, 0xff},
 	{0x031e, 0x09},
+	{0x3501, 0x08},
+	{0x3502, 0xe5},
 	{0x3505, 0x83},
 	{0x3508, 0x00},
 	{0x3509, 0x80},
@@ -213,7 +227,6 @@ static const struct regval os08a10_global_regs[] = {
 	{0x3605, 0x50},
 	{0x3609, 0xb5},
 	{0x3610, 0x39},
-	{0x3762, 0x11},
 	{0x360c, 0x01},
 	{0x3628, 0xa4},
 	{0x362d, 0x10},
@@ -254,6 +267,7 @@ static const struct regval os08a10_global_regs[] = {
 	{0x3788, 0x01},
 	{0x3789, 0x01},
 	{0x3797, 0x04},
+	{0x3762, 0x11},
 	{0x3800, 0x00},
 	{0x3801, 0x00},
 	{0x3802, 0x00},
@@ -326,6 +340,7 @@ static const struct regval os08a10_global_regs[] = {
 	{0x4813, 0x90},
 	{0x4817, 0x04},
 	{0x4833, 0x18},
+	{0x4837, 0x0b},
 	{0x483b, 0x00},
 	{0x484b, 0x03},
 	{0x4850, 0x7c},
@@ -351,12 +366,206 @@ static const struct regval os08a10_global_regs[] = {
 	{0x4d03, 0xc6},
 	{0x4d04, 0x4a},
 	{0x4d05, 0x25},
-
-	//{0x0100, 0x01},
-
 	{REG_NULL, 0x00},
 };
 
+static const struct regval os08a10_global_regs_2lane[] = {
+	{0x0100, 0x00},
+	{0x0103, 0x01},
+	{0x0303, 0x01},
+	{0x0305, 0x5a},
+	{0x0306, 0x00},
+	{0x0308, 0x03},
+	{0x0309, 0x04},
+	{0x032a, 0x00},
+	{0x300f, 0x11},
+	{0x3010, 0x01},
+	{0x3011, 0x04},
+	{0x3012, 0x21},
+	{0x3016, 0xf0},
+	{0x301e, 0x98},
+	{0x3031, 0xa9},
+	{0x3103, 0x92},
+	{0x3104, 0x01},
+	{0x3106, 0x10},
+	{0x3400, 0x04},
+	{0x3025, 0x03},
+	{0x3425, 0x01},
+	{0x3428, 0x01},
+	{0x3406, 0x08},
+	{0x3408, 0x03},
+	{0x340c, 0xff},
+	{0x340d, 0xff},
+	{0x031e, 0x09},
+	{0x3501, 0x08},
+	{0x3502, 0xe5},
+	{0x3505, 0x83},
+	{0x3508, 0x00},
+	{0x3509, 0x80},
+	{0x350a, 0x04},
+	{0x350b, 0x00},
+	{0x350c, 0x00},
+	{0x350d, 0x80},
+	{0x350e, 0x04},
+	{0x350f, 0x00},
+	{0x3600, 0x00},
+	{0x3603, 0x2c},
+	{0x3605, 0x50},
+	{0x3609, 0xb5},
+	{0x3610, 0x39},
+	{0x360c, 0x01},
+	{0x3628, 0xa4},
+	{0x362d, 0x10},
+	{0x3660, 0x43},
+	{0x3661, 0x06},
+	{0x3662, 0x00},
+	{0x3663, 0x28},
+	{0x3664, 0x0d},
+	{0x366a, 0x38},
+	{0x366b, 0xa0},
+	{0x366d, 0x00},
+	{0x366e, 0x00},
+	{0x3680, 0x00},
+	{0x36c0, 0x00},
+	{0x3701, 0x02},
+	{0x373b, 0x02},
+	{0x373c, 0x02},
+	{0x3736, 0x02},
+	{0x3737, 0x02},
+	{0x3705, 0x00},
+	{0x3706, 0x39},
+	{0x370a, 0x00},
+	{0x370b, 0x98},
+	{0x3709, 0x49},
+	{0x3714, 0x21},
+	{0x371c, 0x00},
+	{0x371d, 0x08},
+	{0x3740, 0x1b},
+	{0x3741, 0x04},
+	{0x375e, 0x0b},
+	{0x3760, 0x10},
+	{0x3776, 0x10},
+	{0x3781, 0x02},
+	{0x3782, 0x04},
+	{0x3783, 0x02},
+	{0x3784, 0x08},
+	{0x3785, 0x08},
+	{0x3788, 0x01},
+	{0x3789, 0x01},
+	{0x3797, 0x04},
+	{0x3762, 0x11},
+	{0x3800, 0x00},
+	{0x3801, 0x00},
+	{0x3802, 0x00},
+	{0x3803, 0x0c},
+	{0x3804, 0x0e},
+	{0x3805, 0xff},
+	{0x3806, 0x08},
+	{0x3807, 0x6f},
+	{0x3808, 0x0f},
+	{0x3809, 0x00},
+	{0x380a, 0x08},
+	{0x380b, 0x70},
+	{0x380c, 0x08},
+	{0x380d, 0x18},
+	{0x380e, 0x09},
+	{0x380f, 0x0a},
+	{0x3813, 0x10},
+	{0x3814, 0x01},
+	{0x3815, 0x01},
+	{0x3816, 0x01},
+	{0x3817, 0x01},
+	{0x381c, 0x00},
+	{0x3820, 0x00},
+	{0x3821, 0x04},
+	{0x3823, 0x08},
+	{0x3826, 0x00},
+	{0x3827, 0x08},
+	{0x382d, 0x08},
+	{0x3832, 0x02},
+	{0x3833, 0x00},
+	{0x383c, 0x48},
+	{0x383d, 0xff},
+	{0x3d85, 0x0b},
+	{0x3d84, 0x40},
+	{0x3d8c, 0x63},
+	{0x3d8d, 0xd7},
+	{0x4000, 0xf8},
+	{0x4001, 0x2b},
+	{0x4004, 0x00},
+	{0x4005, 0x40},
+	{0x400a, 0x01},
+	{0x400f, 0xa0},
+	{0x4010, 0x12},
+	{0x4018, 0x00},
+	{0x4008, 0x02},
+	{0x4009, 0x0d},
+	{0x401a, 0x58},
+	{0x4050, 0x00},
+	{0x4051, 0x01},
+	{0x4028, 0x2f},
+	{0x4052, 0x00},
+	{0x4053, 0x80},
+	{0x4054, 0x00},
+	{0x4055, 0x80},
+	{0x4056, 0x00},
+	{0x4057, 0x80},
+	{0x4058, 0x00},
+	{0x4059, 0x80},
+	{0x430b, 0xff},
+	{0x430c, 0xff},
+	{0x430d, 0x00},
+	{0x430e, 0x00},
+	{0x4501, 0x18},
+	{0x4502, 0x00},
+	{0x4643, 0x00},
+	{0x4640, 0x01},
+	{0x4641, 0x04},
+	{0x4800, 0x64},
+	{0x4809, 0x2b},
+	{0x4813, 0x90},
+	{0x4817, 0x04},
+	{0x4833, 0x18},
+	{0x4837, 0x0b},
+	{0x483b, 0x00},
+	{0x484b, 0x03},
+	{0x4850, 0x7c},
+	{0x4852, 0x06},
+	{0x4856, 0x58},
+	{0x4857, 0xaa},
+	{0x4862, 0x0a},
+	{0x4869, 0x18},
+	{0x486a, 0xaa},
+	{0x486e, 0x03},
+	{0x486f, 0x55},
+	{0x4875, 0xf0},
+	{0x5000, 0x89},
+	{0x5001, 0x42},
+	{0x5004, 0x40},
+	{0x5005, 0x00},
+	{0x5180, 0x00},
+	{0x5181, 0x10},
+	{0x580b, 0x03},
+	{0x4d00, 0x03},
+	{0x4d01, 0xc9},
+	{0x4d02, 0xbc},
+	{0x4d03, 0xc6},
+	{0x4d04, 0x4a},
+	{0x4d05, 0x25},
+	{REG_NULL, 0x00},
+};
+
+static const struct regval os08a10_3840x2160_regs_2lane[] = {
+	{0x4700, 0x2b},
+	{0x4e00, 0x2b},
+	{0x3501, 0x09},
+	{0x3502, 0x01},
+	{0x0100, 0x01},
+	{0x0100, 0x01},
+	{0x0100, 0x01},
+	{0x0100, 0x01},
+	{REG_NULL, 0x00},
+};
 /*
  * Xclk 24Mhz
  * Pclk 210Mhz
@@ -364,27 +573,17 @@ static const struct regval os08a10_global_regs[] = {
  * framelength 2250(0x7f6)
  * grabwindow_width 3840
  * grabwindow_height 2160
- * max_framerate 30fps
+ * max_framerate 60fps
  * mipi_datarate per lane 960Mbps
  */
 static const struct regval os08a10_3840x2160_regs_4lane[] = {
-	// Sysclk 148Mhz, MIPI4_960Mbps/Lane, 30Fps.
+	// Sysclk 148Mhz, MIPI4_960Mbps/Lane, 60Fps.
 	//Line_length =2200, Frame_length =2250
 	{0x4700, 0x2b},
 	{0x4e00, 0x2b},
-	{0x0305, 0x3c},
-	{0x0323, 0x07},
-	{0x0324, 0x01},
-	{0x0325, 0x29},
-	{0x380c, 0x08},
-	{0x380d, 0x98},
-	{0x380e, 0x08},
-	{0x380f, 0xca},
-	{0x3501, 0x06},
-	{0x3502, 0xca},
-	{0x4837, 0x10},
-	//{0x0100, 0x01},
-
+	{0x3501, 0x09},
+	{0x3502, 0x01},
+	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
@@ -395,12 +594,29 @@ static const struct os08a10_mode supported_modes_4lane[] = {
 		.height = 2160,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 300000,
+			.denominator = 309000,
 		},
 		.exp_def = 0x08b0,
 		.hts_def = 0x898 * 2,
 		.vts_def = 0x08c6,
 		.reg_list = os08a10_3840x2160_regs_4lane,
+		.hdr_mode = NO_HDR,
+	},
+};
+
+static const struct os08a10_mode supported_modes_2lane[] = {
+	{
+		.width = 3840,
+		.height = 2160,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x08f6-8,
+		.hts_def = 0x898 * 2,
+		.vts_def = 0x08f6,
+		.reg_list = os08a10_3840x2160_regs_2lane,
+		.hdr_mode = NO_HDR,
 	},
 };
 
@@ -711,12 +927,23 @@ static void os08a10_set_awb_cfg(struct os08a10 *os08a10,
 static long os08a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct os08a10 *os08a10 = to_os08a10(sd);
+	struct rkmodule_hdr_cfg *hdr;
 	long ret = 0;
 	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
 		os08a10_get_module_inf(os08a10, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		hdr->esp.mode = HDR_NORMAL_VC;
+		hdr->hdr_mode = os08a10->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		if (hdr->hdr_mode != 0)
+			ret = -1;
 		break;
 	case RKMODULE_AWB_CFG:
 		os08a10_set_awb_cfg(os08a10, (struct rkmodule_awb_cfg *)arg);
@@ -747,6 +974,7 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *awb_cfg;
+	struct rkmodule_hdr_cfg *hdr;
 	long ret;
 	u32 stream = 0;
 
@@ -759,9 +987,42 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = os08a10_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, hdr);
+		if (!ret) {
+			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(hdr);
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, hdr);
+		kfree(hdr);
 		break;
 	case RKMODULE_AWB_CFG:
 		awb_cfg = kzalloc(sizeof(*awb_cfg), GFP_KERNEL);
@@ -770,15 +1031,19 @@ static long os08a10_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(awb_cfg, up, sizeof(*awb_cfg));
-		if (!ret)
-			ret = os08a10_ioctl(sd, cmd, awb_cfg);
+		if (copy_from_user(awb_cfg, up, sizeof(*awb_cfg))) {
+			kfree(awb_cfg);
+			return -EFAULT;
+		}
+
+		ret = os08a10_ioctl(sd, cmd, awb_cfg);
 		kfree(awb_cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = os08a10_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = os08a10_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -881,7 +1146,7 @@ static int os08a10_s_power(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = os08a10->client;
 	int ret = 0;
 
-	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
+	dev_dbg(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
 
 	mutex_lock(&os08a10->mutex);
 
@@ -895,24 +1160,30 @@ static int os08a10_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-
-		ret = os08a10_write_array(os08a10->client, os08a10_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
+		if(os08a10->lane_num == 4){
+			ret = os08a10_write_array(os08a10->client, os08a10_global_regs);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
+		} else if (os08a10->lane_num == 2) {
+			ret = os08a10_write_array(os08a10->client, os08a10_global_regs_2lane);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
 		}
 
 		os08a10->power_on = true;
 		/* export gpio */
 		if (!IS_ERR(os08a10->reset_gpio))
 			gpiod_export(os08a10->reset_gpio, false);
-		if (!IS_ERR(os08a10->pwdn_gpio))
-			gpiod_export(os08a10->pwdn_gpio, false);
-	} else {
-		pm_runtime_put(&client->dev);
-		os08a10->power_on = false;
-	}
+		} else {
+			pm_runtime_put(&client->dev);
+			os08a10->power_on = false;
+		}
 
 unlock_and_return:
 	mutex_unlock(&os08a10->mutex);
@@ -963,14 +1234,9 @@ static int __os08a10_power_on(struct os08a10 *os08a10)
 	if (!IS_ERR(os08a10->reset_gpio))
 		gpiod_set_value_cansleep(os08a10->reset_gpio, 1);
 
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os08a10->pwdn_gpio, 1);
-
 	/* export gpio */
 	if (!IS_ERR(os08a10->reset_gpio))
 		gpiod_export(os08a10->reset_gpio, false);
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_export(os08a10->pwdn_gpio, false);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = os08a10_cal_delay(8192);
@@ -989,11 +1255,9 @@ static void __os08a10_power_off(struct os08a10 *os08a10)
 	int ret;
 	struct device *dev = &os08a10->client->dev;
 
-	if (!IS_ERR(os08a10->pwdn_gpio))
-		gpiod_set_value_cansleep(os08a10->pwdn_gpio, 0);
 	clk_disable_unprepare(os08a10->xvclk);
 	if (!IS_ERR(os08a10->reset_gpio))
-		gpiod_set_value_cansleep(os08a10->reset_gpio, 0);
+		gpiod_set_value_cansleep(os08a10->reset_gpio, 1);
 	if (!IS_ERR_OR_NULL(os08a10->pins_sleep)) {
 		ret = pinctrl_select_state(os08a10->pinctrl,
 					   os08a10->pins_sleep);
@@ -1057,12 +1321,11 @@ static int os08a10_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= os08a10->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != OS08A10_MEDIA_BUS_FMT)
-		return -EINVAL;
-
+	fie->code = OS08A10_MEDIA_BUS_FMT;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
+	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
 	return 0;
 }
 
@@ -1070,9 +1333,31 @@ static int os08a10_g_mbus_config(struct v4l2_subdev *sd,
 				unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
-	config->type = V4L2_MBUS_CSI2_DPHY;
-	config->bus.mipi_csi2.num_data_lanes = OS08A10_LANES;
+	struct os08a10 *os08a10 = to_os08a10(sd);
+	struct device *dev = &os08a10->client->dev;
+	struct device_node *endpoint;
+	struct fwnode_handle *fwnode;
+	int rval;
 
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+	fwnode = of_fwnode_handle(endpoint);
+	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	if (rval <= 0) {
+		dev_warn(dev, " Get mipi lane num failed!\n");
+		return -1;
+	}
+
+	os08a10->lane_num = rval;
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	if (4 == os08a10->lane_num) {
+		config->bus.mipi_csi2.num_data_lanes = OS08A10_4LANES;
+	} else {
+		config->bus.mipi_csi2.num_data_lanes = OS08A10_2LANES;
+	}
 	return 0;
 }
 
@@ -1121,6 +1406,7 @@ static int os08a10_set_ctrl(struct v4l2_ctrl *ctrl)
 					       struct os08a10, ctrl_handler);
 	struct i2c_client *client = os08a10->client;
 	s64 max;
+	u32 val = 0;
 	int ret = 0;
 
 	/* Propagate change of current control to all related controls */
@@ -1153,13 +1439,36 @@ static int os08a10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 OS08A10_GAIN_H_MASK);
 		break;
 	case V4L2_CID_VBLANK:
-
 		ret = os08a10_write_reg(os08a10->client, OS08A10_REG_VTS,
 					OS08A10_REG_VALUE_16BIT,
 					ctrl->val + os08a10->cur_mode->height);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = os08a10_enable_test_pattern(os08a10, ctrl->val);
+		break;
+	case V4L2_CID_HFLIP:
+		ret = os08a10_read_reg(os08a10->client, OS08A10_REG_MIRROR,
+				       OS08A10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= MIRROR_BIT_MASK;
+		else
+			val &= ~MIRROR_BIT_MASK;
+		ret |= os08a10_write_reg(os08a10->client, OS08A10_REG_MIRROR,
+					OS08A10_REG_VALUE_08BIT,
+					val);
+		break;
+	case V4L2_CID_VFLIP:
+		ret = os08a10_read_reg(os08a10->client, OS08A10_REG_FLIP,
+				       OS08A10_REG_VALUE_08BIT,
+				       &val);
+		if (ctrl->val)
+			val |= FLIP_BIT_MASK;
+		else
+			val &= ~FLIP_BIT_MASK;
+		ret |= os08a10_write_reg(os08a10->client, OS08A10_REG_FLIP,
+					OS08A10_REG_VALUE_08BIT,
+					val);
 		break;
 	default:
 		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
@@ -1300,15 +1609,20 @@ static int os08a10_parse_of(struct os08a10 *os08a10)
 		os08a10->cur_mode = &supported_modes_4lane[0];
 		supported_modes = supported_modes_4lane;
 		os08a10->cfg_num = ARRAY_SIZE(supported_modes_4lane);
-
-		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 		os08a10->pixel_rate = MIPI_FREQ * 2U * os08a10->lane_num / 8U;
-		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
-			 os08a10->lane_num, os08a10->pixel_rate);
+	} else if (2 == os08a10->lane_num) {
+		os08a10->cur_mode = &supported_modes_2lane[0];
+		supported_modes = supported_modes_2lane;
+		os08a10->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+		os08a10->pixel_rate = MIPI_FREQ * 2U * os08a10->lane_num / 4U;
 	} else {
 		dev_err(dev, "unsupported lane_num(%d)\n", os08a10->lane_num);
 		return -1;
 	}
+
+	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+	dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
+		 os08a10->lane_num, os08a10->pixel_rate);
 
 	return 0;
 }
@@ -1357,17 +1671,12 @@ static int os08a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	os08a10->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	os08a10->power_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(os08a10->power_gpio))
-		dev_warn(dev, "Failed to get power-gpios, maybe no use\n");
-
-	os08a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+		dev_warn(dev, "Failed to get pwdn-gpios, maybe no use\n");
+	os08a10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(os08a10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios, maybe no use\n");
-
-	os08a10->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(os08a10->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
 	ret = os08a10_configure_regulators(os08a10);
 	if (ret) {
@@ -1407,7 +1716,7 @@ static int os08a10_probe(struct i2c_client *client,
 
 	ret = os08a10_check_sensor_id(os08a10, client);
 	if (ret < 0) {
-		dev_info(&client->dev, "%s(%d) Check id  failed,\n"
+		dev_err(&client->dev, "%s(%d) Check id  failed,\n"
 			  "check following information:\n"
 			  "Power/PowerDown/Reset/Mclk/I2cBus !!\n",
 			  __func__, __LINE__);

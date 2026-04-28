@@ -85,12 +85,12 @@
 #define IMX585_RHS1_REG_H		0x3062
 #define IMX585_RHS1_REG_M		0x3061
 #define IMX585_RHS1_REG_L		0x3060
-#define IMX585_RHS1_DEFAULT		0x004D
+#define IMX585_RHS1_DEFAULT		0x0116
 
 #define IMX585_RHS2_REG_H		0x3066
 #define IMX585_RHS2_REG_M		0x3065
 #define IMX585_RHS2_REG_L		0x3064
-#define IMX585_RHS2_DEFAULT		0x004D
+#define IMX585_RHS2_DEFAULT		0x0CC4
 
 #define	IMX585_EXPOSURE_MIN		4
 #define	IMX585_EXPOSURE_STEP		1
@@ -138,9 +138,9 @@
 /* Basic Readout Lines. Number of necessary readout lines in sensor */
 #define BRL_ALL				2228u
 #define BRL_BINNING			1115u
-/* Readout timing setting of SEF1(DOL2): RHS1 < 2 * BRL and should be 4n + 1 */
-#define RHS1_MAX_X2(VAL)		(((VAL) * 2 - 1) / 4 * 4 + 1)
-#define SHR1_MIN_X2			9u
+/* Readout timing setting of SEF1(DOL2): RHS1 < 2 * BRL and should be 4n + 2 */
+#define RHS1_MAX_X2(VAL)		(((VAL) * 2 - 2) / 4 * 4 + 2)
+#define SHR1_MIN_X2			10u
 
 /* Readout timing setting of SEF1(DOL3): RHS1 < 3 * BRL and should be 6n + 1 */
 #define RHS1_MAX_X3(VAL)		(((VAL) * 3 - 1) / 6 * 6 + 1)
@@ -227,8 +227,36 @@ struct imx585 {
 	u32			cur_gain[3];
 	u32			pclk;
 	u32			tline;
-	bool			is_tline_init;
+	bool		is_tline_init;
 };
+
+static inline u32 imx585_align_up_to_step(u32 val, u32 step, u32 offset)
+{
+	if (val <= offset)
+		return offset;
+
+    return DIV_ROUND_UP(val - offset, step) * step + offset;
+}
+
+static inline u32 imx585_align_down_to_step(u32 val, u32 step, u32 offset)
+{
+	if (val <= offset)
+		return offset;
+
+	return ((val - offset) / step) * step + offset;
+}
+
+static inline u32 imx585_get_brl(const struct imx585_mode *mode)
+{
+	/*
+	 * Current IMX585 HDR modes in this driver are either cropped all-pixel
+	 * readout around 3864x2192 or 2/2 binning around 1944x1097.
+	 */
+	if (mode->width > 1944 || mode->height > 1097)
+		return BRL_ALL;
+
+	return BRL_BINNING;
+}
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
@@ -1617,6 +1645,332 @@ static __maybe_unused const struct regval imx585_linear_12bit_3840x2160_1782M_re
 	{REG_NULL, 0x00},
 };
 
+static __maybe_unused const struct regval imx585_slave_hdr2_12bit_3840x2160_891M_regs[] = {
+	{0x3000,0x01},  // STANDBY
+	{0x3001,0x00},  // REGHOLD
+	{0x3002,0x01},  // XMSTA
+	{0x3014,0x01},  // INCK_SEL[3:0]
+	{0x3015,0x02},  // DATARATE_SEL[3:0]
+	{0x3018,0x10},  // WINMODE[4:0]
+	{0x3019,0x00},  // CFMODE[2:0]
+	{0x301A,0x01},  // WDMODE
+	{0x301B,0x00},  // ADDMODE[1:0]
+	{0x301C,0x01},  // THIN_V_EN
+	{0x301E,0x01},  // VCMODE
+	{0x3020,0x01},  // HREVERSE
+	{0x3021,0x01},  // VREVERSE
+	{0x3022,0x02},  // ADBIT[1:0]
+	{0x3023,0x01},  // MDBIT[1:0]
+	{0x3024,0x00},  // COMBI_EN
+	{0x3028,0xCA},  // VMAX[19:0]
+	{0x3029,0x08},  // VMAX[19:0]
+	{0x302A,0x00},  // VMAX[19:0]
+	{0x302C,0x26},  // HMAX[15:0]
+	{0x302D,0x02},  // HMAX[15:0]
+	{0x3030,0x00},  // FDG_SEL0[1:0]
+	{0x3031,0x00},  // FDG_SEL1[1:0]
+	{0x3032,0x00},  // FDG_SEL2[1:0]
+	{0x303C,0x00},  // PIX_HST[12:0]
+	{0x303D,0x00},  // PIX_HST[12:0]
+	{0x303E,0x10},  // PIX_HWIDTH[12:0]
+	{0x303F,0x0F},  // PIX_HWIDTH[12:0]
+	{0x3040,0x03},  // LANEMODE[2:0]
+	{0x3042,0x00},  // XSIZE_OVERLAP[10:0]
+	{0x3043,0x00},  // XSIZE_OVERLAP[10:0]
+	{0x3044,0x00},  // PIX_VST[11:0]
+	{0x3045,0x00},  // PIX_VST[11:0]
+	{0x3046,0x84},  // PIX_VWIDTH[11:0]
+	{0x3047,0x08},  // PIX_VWIDTH[11:0]
+	{0x3050,0xC4},  // SHR0[19:0]
+	{0x3051,0x01},  // SHR0[19:0]
+	{0x3052,0x00},  // SHR0[19:0]
+	{0x3054,0x0A},  // SHR1[19:0]
+	{0x3055,0x00},  // SHR1[19:0]
+	{0x3056,0x00},  // SHR1[19:0]
+	{0x3058,0x8A},  // SHR2[19:0]
+	{0x3059,0x01},  // SHR2[19:0]
+	{0x305A,0x00},  // SHR2[19:0]
+	{0x3060,0x4E},  // RHS1[19:0]
+	{0x3061,0x00},  // RHS1[19:0]
+	{0x3062,0x00},  // RHS1[19:0]
+	{0x3064,0xC4},  // RHS2[19:0]
+	{0x3065,0x0C},  // RHS2[19:0]
+	{0x3066,0x00},  // RHS2[19:0]
+	{0x3069,0x00},  // -
+	{0x306A,0x00},  // CHDR_GAIN_EN
+	{0x306C,0x00},  // GAIN[10:0]
+	{0x306D,0x00},  // GAIN[10:0]
+	{0x306E,0x00},  // GAIN_1[10:0]
+	{0x306F,0x00},  // GAIN_1[10:0]
+	{0x3070,0x00},  // GAIN_2[10:0]
+	{0x3071,0x00},  // GAIN_2[10:0]
+	{0x3074,0x64},  // -
+	{0x3081,0x00},  // EXP_GAIN
+	{0x308C,0x00},  // CHDR_DGAIN0_HG[15:0]
+	{0x308D,0x01},  // CHDR_DGAIN0_HG[15:0]
+	{0x3094,0x00},  // CHDR_AGAIN0_LG[10:0]
+	{0x3095,0x00},  // CHDR_AGAIN0_LG[10:0]
+	{0x3096,0x00},  // CHDR_AGAIN1[10:0]
+	{0x3097,0x00},  // CHDR_AGAIN1[10:0]
+	{0x309C,0x00},  // CHDR_AGAIN0_HG[10:0]
+	{0x309D,0x00},  // CHDR_AGAIN0_HG[10:0]
+	{0x30A4,0xAA},  // XVSOUTSEL[1:0]
+	{0x30A6,0x00},  // XVS_DRV[1:0]
+	{0x30CC,0x00},  // -
+	{0x30CD,0x00},  // -
+	{0x30D5,0x04},  // DIG_CLP_VSTART[4:0]
+	{0x30DC,0x32},  // BLKLEVEL[15:0]
+	{0x30DD,0x00},  // BLKLEVEL[15:0]
+	{0x3400,0x01},  // GAIN_PGC_FIDMD
+	{0x3460,0x21},  // -
+	{0x3478,0xA1},  // -
+	{0x347C,0x01},  // -
+	{0x3480,0x01},  // -
+	{0x36D0,0x00},  // EXP_TH_H
+	{0x36D1,0x10},  // EXP_TH_H
+	{0x36D4,0x00},  // EXP_TH_L
+	{0x36D5,0x10},  // EXP_TH_L
+	{0x36E2,0x00},  // EXP_BK
+	{0x36E4,0x00},  // CCMP2_EXP
+	{0x36E5,0x00},  // CCMP2_EXP
+	{0x36E6,0x00},  // CCMP2_EXP
+	{0x36E8,0x00},  // CCMP1_EXP
+	{0x36E9,0x00},  // CCMP1_EXP
+	{0x36EA,0x00},  // CCMP1_EXP
+	{0x36EC,0x00},  // ACMP2_EXP
+	{0x36EE,0x00},  // ACMP1_EXP
+	{0x36EF,0x00},  // CCMP_EN
+	{0x3930,0x0C},  // DUR
+	{0x3931,0x01},  // DUR
+	{0x3A4C,0x39},  // WAIT_ST0
+	{0x3A4D,0x01},  // WAIT_ST0
+	{0x3A4E,0x14},  // -
+	{0x3A50,0x48},  // WAIT_ST1
+	{0x3A51,0x01},  // WAIT_ST1
+	{0x3A52,0x14},  // -
+	{0x3A56,0x00},  // -
+	{0x3A5A,0x00},  // -
+	{0x3A5E,0x00},  // -
+	{0x3A62,0x00},  // -
+	{0x3A6A,0x20},  // -
+	{0x3A6C,0x42},  // -
+	{0x3A6E,0xA0},  // -
+	{0x3B2C,0x0C},  // -
+	{0x3B30,0x1C},  // -
+	{0x3B34,0x0C},  // -
+	{0x3B38,0x1C},  // -
+	{0x3BA0,0x0C},  // -
+	{0x3BA4,0x1C},  // -
+	{0x3BA8,0x0C},  // -
+	{0x3BAC,0x1C},  // -
+	{0x3D3C,0x11},  // -
+	{0x3D46,0x0B},  // -
+	{0x3DE0,0x3F},  // -
+	{0x3DE1,0x08},  // -
+	{0x3E10,0x10},  // ADTHEN[2:0]
+	{0x3E14,0x87},  // -
+	{0x3E16,0x91},  // -
+	{0x3E18,0x91},  // -
+	{0x3E1A,0x87},  // -
+	{0x3E1C,0x78},  // -
+	{0x3E1E,0x50},  // -
+	{0x3E20,0x50},  // -
+	{0x3E22,0x50},  // -
+	{0x3E24,0x87},  // -
+	{0x3E26,0x91},  // -
+	{0x3E28,0x91},  // -
+	{0x3E2A,0x87},  // -
+	{0x3E2C,0x78},  // -
+	{0x3E2E,0x50},  // -
+	{0x3E30,0x50},  // -
+	{0x3E32,0x50},  // -
+	{0x3E34,0x87},  // -
+	{0x3E36,0x91},  // -
+	{0x3E38,0x91},  // -
+	{0x3E3A,0x87},  // -
+	{0x3E3C,0x78},  // -
+	{0x3E3E,0x50},  // -
+	{0x3E40,0x50},  // -
+	{0x3E42,0x50},  // -
+	{0x4054,0x64},  // -
+	{0x4148,0xFE},  // -
+	{0x4149,0x05},  // -
+	{0x414A,0xFF},  // -
+	{0x414B,0x05},  // -
+	{0x420A,0x03},  // -
+	{0x4231,0x08},  // -
+	{0x423D,0x9C},  // -
+	{0x4242,0xB4},  // -
+	{0x4246,0xB4},  // -
+	{0x424E,0xB4},  // -
+	{0x425C,0xB4},  // -
+	{0x425E,0xB6},  // -
+	{0x426C,0xB4},  // -
+	{0x426E,0xB6},  // -
+	{0x428C,0xB4},  // -
+	{0x428E,0xB6},  // -
+	{0x4708,0x00},  // -
+	{0x4709,0x00},  // -
+	{0x470A,0xFF},  // -
+	{0x470B,0x03},  // -
+	{0x470C,0x00},  // -
+	{0x470D,0x00},  // -
+	{0x470E,0xFF},  // -
+	{0x470F,0x03},  // -
+	{0x47EB,0x1C},  // -
+	{0x47F0,0xA6},  // -
+	{0x47F2,0xA6},  // -
+	{0x47F4,0xA0},  // -
+	{0x47F6,0x96},  // -
+	{0x4808,0xA6},  // -
+	{0x480A,0xA6},  // -
+	{0x480C,0xA0},  // -
+	{0x480E,0x96},  // -
+	{0x492C,0xB2},  // -
+	{0x4930,0x03},  // -
+	{0x4932,0x03},  // -
+	{0x4936,0x5B},  // -
+	{0x4938,0x82},  // -
+	{0x493C,0x23},  // WAIT_10_SHF
+	{0x493E,0x23},  // -
+	{0x4940,0x23},  // WAIT_12_SHF
+	{0x4BA8,0x1C},  // -
+	{0x4BA9,0x03},  // -
+	{0x4BAC,0x1C},  // -
+	{0x4BAD,0x1C},  // -
+	{0x4BAE,0x1C},  // -
+	{0x4BAF,0x1C},  // -
+	{0x4BB0,0x1C},  // -
+	{0x4BB1,0x1C},  // -
+	{0x4BB2,0x1C},  // -
+	{0x4BB3,0x1C},  // -
+	{0x4BB4,0x1C},  // -
+	{0x4BB8,0x03},  // -
+	{0x4BB9,0x03},  // -
+	{0x4BBA,0x03},  // -
+	{0x4BBB,0x03},  // -
+	{0x4BBC,0x03},  // -
+	{0x4BBD,0x03},  // -
+	{0x4BBE,0x03},  // -
+	{0x4BBF,0x03},  // -
+	{0x4BC0,0x03},  // -
+	{0x4C14,0x87},  // -
+	{0x4C16,0x91},  // -
+	{0x4C18,0x91},  // -
+	{0x4C1A,0x87},  // -
+	{0x4C1C,0x78},  // -
+	{0x4C1E,0x50},  // -
+	{0x4C20,0x50},  // -
+	{0x4C22,0x50},  // -
+	{0x4C24,0x87},  // -
+	{0x4C26,0x91},  // -
+	{0x4C28,0x91},  // -
+	{0x4C2A,0x87},  // -
+	{0x4C2C,0x78},  // -
+	{0x4C2E,0x50},  // -
+	{0x4C30,0x50},  // -
+	{0x4C32,0x50},  // -
+	{0x4C34,0x87},  // -
+	{0x4C36,0x91},  // -
+	{0x4C38,0x91},  // -
+	{0x4C3A,0x87},  // -
+	{0x4C3C,0x78},  // -
+	{0x4C3E,0x50},  // -
+	{0x4C40,0x50},  // -
+	{0x4C42,0x50},  // -
+	{0x4D12,0x1F},  // -
+	{0x4D13,0x1E},  // -
+	{0x4D26,0x33},  // -
+	{0x4E0E,0x59},  // -
+	{0x4E14,0x55},  // -
+	{0x4E16,0x59},  // -
+	{0x4E1E,0x3B},  // -
+	{0x4E20,0x47},  // -
+	{0x4E22,0x54},  // -
+	{0x4E26,0x81},  // -
+	{0x4E2C,0x7D},  // -
+	{0x4E2E,0x81},  // -
+	{0x4E36,0x63},  // -
+	{0x4E38,0x6F},  // -
+	{0x4E3A,0x7C},  // -
+	{0x4F3A,0x3C},  // -
+	{0x4F3C,0x46},  // -
+	{0x4F3E,0x59},  // -
+	{0x4F42,0x64},  // -
+	{0x4F44,0x6E},  // -
+	{0x4F46,0x81},  // -
+	{0x4F4A,0x82},  // -
+	{0x4F5A,0x81},  // -
+	{0x4F62,0xAA},  // -
+	{0x4F72,0xA9},  // -
+	{0x4F78,0x36},  // -
+	{0x4F7A,0x41},  // -
+	{0x4F7C,0x61},  // -
+	{0x4F7D,0x01},  // -
+	{0x4F7E,0x7C},  // -
+	{0x4F7F,0x01},  // -
+	{0x4F80,0x77},  // -
+	{0x4F82,0x7B},  // -
+	{0x4F88,0x37},  // -
+	{0x4F8A,0x40},  // -
+	{0x4F8C,0x62},  // -
+	{0x4F8D,0x01},  // -
+	{0x4F8E,0x76},  // -
+	{0x4F8F,0x01},  // -
+	{0x4F90,0x5E},  // -
+	{0x4F91,0x02},  // -
+	{0x4F92,0x69},  // -
+	{0x4F93,0x02},  // -
+	{0x4F94,0x89},  // -
+	{0x4F95,0x02},  // -
+	{0x4F96,0xA4},  // -
+	{0x4F97,0x02},  // -
+	{0x4F98,0x9F},  // -
+	{0x4F99,0x02},  // -
+	{0x4F9A,0xA3},  // -
+	{0x4F9B,0x02},  // -
+	{0x4FA0,0x5F},  // -
+	{0x4FA1,0x02},  // -
+	{0x4FA2,0x68},  // -
+	{0x4FA3,0x02},  // -
+	{0x4FA4,0x8A},  // -
+	{0x4FA5,0x02},  // -
+	{0x4FA6,0x9E},  // -
+	{0x4FA7,0x02},  // -
+	{0x519E,0x79},  // -
+	{0x51A6,0xA1},  // -
+	{0x51F0,0xAC},  // -
+	{0x51F2,0xAA},  // -
+	{0x51F4,0xA5},  // -
+	{0x51F6,0xA0},  // -
+	{0x5200,0x9B},  // -
+	{0x5202,0x91},  // -
+	{0x5204,0x87},  // -
+	{0x5206,0x82},  // -
+	{0x5208,0xAC},  // -
+	{0x520A,0xAA},  // -
+	{0x520C,0xA5},  // -
+	{0x520E,0xA0},  // -
+	{0x5210,0x9B},  // -
+	{0x5212,0x91},  // -
+	{0x5214,0x87},  // -
+	{0x5216,0x82},  // -
+	{0x5218,0xAC},  // -
+	{0x521A,0xAA},  // -
+	{0x521C,0xA5},  // -
+	{0x521E,0xA0},  // -
+	{0x5220,0x9B},  // -
+	{0x5222,0x91},  // -
+	{0x5224,0x87},  // -
+	{0x5226,0x82},  // -
+	{0x5B3C,0x07},  // -
+	{0x3002,0x00},
+	{0xffff,0x10},
+	{0x3000,0x00},
+	{0x0100,0x01},
+	{REG_NULL, 0x00},
+};
+
 /*
  * Xclk 37.125Mhz
  * 60fps
@@ -1991,217 +2345,25 @@ static const struct imx585_mode supported_modes[] = {
 		.xvclk = IMX585_XVCLK_FREQ_37M,
 	},
 	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3856,
-		.height = 2192,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 600000,
-		},
-		.exp_def = 0x08ca - 0x08,
-		.hts_def = 0x044c * IMX585_4LANES * 2,
-		.vts_def = 0x08ca,
-		.global_reg_list = imx585_global_10bit_3864x2192_regs,
-		.reg_list = imx585_linear_12bit_3864x2192_891M_regs_4lane_4k60,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 1,
-		.bpp = 10,
-		.vc[PAD0] = 0,
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.width = 3856,
 		.height = 2180,
 		.max_fps = {
 			.numerator = 10000,
 			.denominator = 300000,
 		},
-		.exp_def = 0x08fc * 2 - 0x0da8,
+		.exp_def = 0x08ca * 2 - 0x0314,
 		.hts_def = 0x0226 * IMX585_4LANES * 2,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double to workaround.
-		 */
-		.vts_def = 0x08fc * 2,
-		.global_reg_list = imx585_global_10bit_3864x2192_regs,
-		.reg_list = imx585_hdr2_10bit_3864x2192_1485M_regs,
-		.hdr_mode = HDR_X2,
-		.mipi_freq_idx = 2,
-		.bpp = 10,
-		.vc[PAD0] = 1,
-		.vc[PAD1] = 0,//L->csi wr0
-		.vc[PAD2] = 1,
-		.vc[PAD3] = 1,//M->csi wr2
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 200000,
-		},
-		.exp_def = 0x13e,
-		.hts_def = 0x021A * IMX585_4LANES * 2,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double to workaround.
-		 */
-		.vts_def = 0x06BD * 4,
-		.global_reg_list = imx585_global_10bit_3864x2192_regs,
-		.reg_list = imx585_hdr3_10bit_3864x2192_1485M_regs,
-		.hdr_mode = HDR_X3,
-		.mipi_freq_idx = 2,
-		.bpp = 10,
-		.vc[PAD0] = 2,
-		.vc[PAD1] = 1,//M->csi wr0
-		.vc[PAD2] = 0,//L->csi wr0
-		.vc[PAD3] = 2,//S->csi wr2
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 200000,
-		},
-		.exp_def = 0x13e,
-		.hts_def = 0x01ca * IMX585_4LANES * 2,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double to workaround.
-		 */
-		.vts_def = 0x07ea * 4,
-		.global_reg_list = imx585_global_10bit_3864x2192_regs,
-		.reg_list = imx585_hdr3_10bit_3864x2192_1782M_regs,
-		.hdr_mode = HDR_X3,
-		.mipi_freq_idx = 3,
-		.bpp = 10,
-		.vc[PAD0] = 2,
-		.vc[PAD1] = 1,//M->csi wr0
-		.vc[PAD2] = 0,//L->csi wr0
-		.vc[PAD3] = 2,//S->csi wr2
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08ca - 0x08,
-		.hts_def = 0x044c * IMX585_4LANES * 2,
-		.vts_def = 0x08ca,
-		.global_reg_list = imx585_global_12bit_3864x2192_regs,
-		.reg_list = imx585_linear_12bit_3864x2192_891M_regs,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 1,
-		.bpp = 12,
-		.vc[PAD0] = 0,
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08CA * 2 - 0x0d90,
-		.hts_def = 0x0226 * IMX585_4LANES * 2,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double(that is FSC) to workaround.
-		 */
-		.vts_def = 0x08CA * 2,
-		.global_reg_list = imx585_global_12bit_3864x2192_regs,
-		.reg_list = imx585_hdr2_12bit_3864x2192_1782M_regs,
+		.vts_def = 0x08ca * 2,
+		.global_reg_list = NULL,
+		.reg_list = imx585_slave_hdr2_12bit_3840x2160_891M_regs,
 		.hdr_mode = HDR_X2,
 		.mipi_freq_idx = 3,
 		.bpp = 12,
-		.vc[PAD0] = 1,
-		.vc[PAD1] = 0,//L->csi wr0
-		.vc[PAD2] = 1,
-		.vc[PAD3] = 1,//M->csi wr2
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 200000,
-		},
-		.exp_def = 0x114,
-		.hts_def = 0x0226 * IMX585_4LANES * 2,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double(that is FSC) to workaround.
-		 */
-		.vts_def = 0x0696 * 4,
-		.global_reg_list = imx585_global_12bit_3864x2192_regs,
-		.reg_list = imx585_hdr3_12bit_3864x2192_1782M_regs,
-		.hdr_mode = HDR_X3,
-		.mipi_freq_idx = 3,
-		.bpp = 12,
-		.vc[PAD0] = 2,
-		.vc[PAD1] = 1,//M->csi wr0
-		.vc[PAD2] = 0,//L->csi wr0
-		.vc[PAD3] = 2,//S->csi wr2
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1944,
-		.height = 1097,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x05dc - 0x08,
-		.hts_def = 0x030e * 3,
-		.vts_def = 0x0c5d,
-		.global_reg_list = imx585_global_12bit_3864x2192_regs,
-		.reg_list = imx585_linear_12bit_1932x1096_594M_regs,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 0,
-		.bpp = 12,
 		.vc[PAD0] = 0,
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1944,
-		.height = 1097,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08FC / 4,
-		.hts_def = 0x021A * 4,
-		/*
-		 * IMX585 HDR mode T-line is half of Linear mode,
-		 * make vts double(that is FSC) to workaround.
-		 */
-		.vts_def = 0x08FC * 2,
-		.global_reg_list = imx585_global_12bit_3864x2192_regs,
-		.reg_list = imx585_hdr2_12bit_1932x1096_891M_regs,
-		.hdr_mode = HDR_X2,
-		.mipi_freq_idx = 1,
-		.bpp = 12,
-		.vc[PAD0] = 1,
-		.vc[PAD1] = 0,//L->csi wr0
+		.vc[PAD1] = 1,
 		.vc[PAD2] = 1,
-		.vc[PAD3] = 1,//M->csi wr2
+		.vc[PAD3] = 1,
 		.xvclk = IMX585_XVCLK_FREQ_37M,
 	},
 };
@@ -2226,46 +2388,6 @@ static const struct imx585_mode supported_modes_2lane[] = {
 		.vc[PAD0] = 0,
 		.xvclk = IMX585_XVCLK_FREQ_37M,
 
-	},
-	{
-		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
-		.width = 3856,
-		.height = 2180,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 300000,
-		},
-		.exp_def = 0x08ca - 0x08,
-		.hts_def = 0x0898 * IMX585_2LANES * 2,
-		.vts_def = 0x08ca,
-		.global_reg_list = imx585_global_10bit_3864x2192_regs,
-		.reg_list = imx585_linear_10bit_3840x2160_2376M_regs_2lane,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 1,
-		.bpp = 10,
-		.vc[PAD0] = 0,
-		.xvclk = IMX585_XVCLK_FREQ_37M,
-	},
-	{
-		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
-		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
-		.width = 1284,
-		.height = 720,
-		.max_fps = {
-			.numerator = 10000,
-			.denominator = 900000,
-		},
-		.exp_def = 0x07AB-8,
-		.hts_def = 0x01A4 * IMX585_2LANES * 2,
-		.vts_def = 0x07AB,
-		.global_reg_list = NULL,
-		.reg_list = imx585_linear_12bit_1284x720_2376M_regs_2lane,
-		.hdr_mode = NO_HDR,
-		.mipi_freq_idx = 4,
-		.bpp = 12,
-		.vc[PAD0] = 0,
-		.xvclk = IMX585_XVCLK_FREQ_27M,
 	},
 };
 
@@ -2556,119 +2678,119 @@ static void imx585_get_module_inf(struct imx585 *imx585,
 
 static void imx585_get_pclk_and_tline(struct imx585 *imx585)
 {
-	const struct imx585_mode *mode = imx585->cur_mode;
+    const struct imx585_mode *mode = imx585->cur_mode;
 
-	imx585->pclk = (u32)div_u64((u64)mode->hts_def * mode->vts_def *
-		mode->max_fps.denominator, mode->max_fps.numerator);
-	imx585->tline = (u32)div_u64((u64)mode->hts_def * 1000000000, imx585->pclk);
+    imx585->pclk = (u32)div_u64((u64)mode->hts_def * mode->vts_def *
+	mode->max_fps.denominator, mode->max_fps.numerator);
+    imx585->tline = (u32)div_u64((u64)mode->hts_def * 1000000000, imx585->pclk);
 }
 
 static void imx585_hdr_exposure_readback(struct imx585 *imx585)
 {
-	u32 shr, shr_l, shr_m, shr_h;
-	u32 rhs, rhs_l, rhs_m, rhs_h;
-	u32 gain, gain_l, gain_h;
-	int ret = 0;
+    u32 shr, shr_l, shr_m, shr_h;
+    u32 rhs, rhs_l, rhs_m, rhs_h;
+    u32 gain, gain_l, gain_h;
+    int ret = 0;
 
-	if (!imx585->is_tline_init) {
+    if (!imx585->is_tline_init) {
 		imx585_get_pclk_and_tline(imx585);
 		imx585->is_tline_init = true;
-	}
+    }
 
-	ret = imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_L,
-			      IMX585_REG_VALUE_08BIT, &shr_l);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_M,
-			       IMX585_REG_VALUE_08BIT, &shr_m);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_H,
-			       IMX585_REG_VALUE_08BIT, &shr_h);
-	if (!ret) {
+    ret = imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_L,
+				IMX585_REG_VALUE_08BIT, &shr_l);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_M,
+				IMX585_REG_VALUE_08BIT, &shr_m);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_H,
+				IMX585_REG_VALUE_08BIT, &shr_h);
+    if (!ret) {
 		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
 		imx585->cur_exposure[0] = (imx585->cur_vts - shr) * imx585->tline;
-	} else {
+    } else {
 		dev_err(&imx585->client->dev,
 			"imx585 get exposure of long frame failed!\n");
-	}
-	ret = imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_H,
-		IMX585_REG_VALUE_08BIT, &gain_h);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_L,
-		IMX585_REG_VALUE_08BIT, &gain_l);
-	if (!ret) {
+    }
+    ret = imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_H,
+				IMX585_REG_VALUE_08BIT, &gain_h);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_L,
+				IMX585_REG_VALUE_08BIT, &gain_l);
+    if (!ret) {
 		gain = (gain_h << 8) | gain_l;
 		imx585->cur_gain[0] = gain * 300;//step=0.3db,factor=1000
-	} else {
+    } else {
 		dev_err(&imx585->client->dev,
-			"imx585 get gain of long frame failed!\n");
-	}
+		"imx585 get gain of long frame failed!\n");
+    }
 
-	ret = imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_L,
-			      IMX585_REG_VALUE_08BIT, &shr_l);
-	ret |= imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_M,
-			       IMX585_REG_VALUE_08BIT, &shr_m);
-	ret |= imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_H,
-			       IMX585_REG_VALUE_08BIT, &shr_h);
-	ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_L,
-			      IMX585_REG_VALUE_08BIT, &rhs_l);
-	ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_M,
-			       IMX585_REG_VALUE_08BIT, &rhs_m);
-	ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_H,
-			       IMX585_REG_VALUE_08BIT, &rhs_h);
-	if (!ret) {
+    ret = imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_L,
+				IMX585_REG_VALUE_08BIT, &shr_l);
+    ret |= imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_M,
+				IMX585_REG_VALUE_08BIT, &shr_m);
+    ret |= imx585_read_reg(imx585->client, IMX585_SF1_EXPO_REG_H,
+				IMX585_REG_VALUE_08BIT, &shr_h);
+    ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_L,
+				IMX585_REG_VALUE_08BIT, &rhs_l);
+    ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_M,
+				IMX585_REG_VALUE_08BIT, &rhs_m);
+    ret |= imx585_read_reg(imx585->client, IMX585_RHS1_REG_H,
+				IMX585_REG_VALUE_08BIT, &rhs_h);
+    if (!ret) {
 		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
 		rhs = (rhs_h << 16) | (rhs_m << 8) | rhs_l;
 		imx585->cur_exposure[1] = (rhs - shr) * imx585->tline;
-	} else {
+    } else {
 		dev_err(&imx585->client->dev,
-			"imx585 get exposure of %s frame failed!\n",
-			imx585->cur_mode->hdr_mode == HDR_X2 ?
-			"short" : "middle");
-	}
-	ret = imx585_read_reg(imx585->client, IMX585_SF1_GAIN_REG_H,
-		IMX585_REG_VALUE_08BIT, &gain_h);
-	ret |= imx585_read_reg(imx585->client, IMX585_SF1_GAIN_REG_L,
-		IMX585_REG_VALUE_08BIT, &gain_l);
-	if (!ret) {
+				"imx585 get exposure of %s frame failed!\n",
+				imx585->cur_mode->hdr_mode == HDR_X2 ?
+				"short" : "middle");
+    }
+    ret = imx585_read_reg(imx585->client, IMX585_SF1_GAIN_REG_H,
+				IMX585_REG_VALUE_08BIT, &gain_h);
+    ret |= imx585_read_reg(imx585->client, IMX585_SF1_GAIN_REG_L,
+				IMX585_REG_VALUE_08BIT, &gain_l);
+    if (!ret) {
 		gain = (gain_h << 8) | gain_l;
 		imx585->cur_gain[1] = gain * 300;//step=0.3db,factor=1000
-	} else {
+    } else {
 		dev_err(&imx585->client->dev,
-			"imx585 get gain of %s frame failed!\n",
-			imx585->cur_mode->hdr_mode == HDR_X2 ?
-			"short" : "middle");
-	}
+				"imx585 get gain of %s frame failed!\n",
+				imx585->cur_mode->hdr_mode == HDR_X2 ?
+				"short" : "middle");
+    }
 
-	if (imx585->cur_mode->hdr_mode == HDR_X3) {
+    if (imx585->cur_mode->hdr_mode == HDR_X3) {
 		ret = imx585_read_reg(imx585->client, IMX585_SF2_EXPO_REG_L,
-			IMX585_REG_VALUE_08BIT, &shr_l);
+					IMX585_REG_VALUE_08BIT, &shr_l);
 		ret |= imx585_read_reg(imx585->client, IMX585_SF2_EXPO_REG_M,
-			IMX585_REG_VALUE_08BIT, &shr_m);
+					IMX585_REG_VALUE_08BIT, &shr_m);
 		ret |= imx585_read_reg(imx585->client, IMX585_SF2_EXPO_REG_H,
-			IMX585_REG_VALUE_08BIT, &shr_h);
+					IMX585_REG_VALUE_08BIT, &shr_h);
 		ret |= imx585_read_reg(imx585->client, IMX585_RHS2_REG_L,
-			IMX585_REG_VALUE_08BIT, &rhs_l);
+					IMX585_REG_VALUE_08BIT, &rhs_l);
 		ret |= imx585_read_reg(imx585->client, IMX585_RHS2_REG_M,
-			IMX585_REG_VALUE_08BIT, &rhs_m);
+					IMX585_REG_VALUE_08BIT, &rhs_m);
 		ret |= imx585_read_reg(imx585->client, IMX585_RHS2_REG_H,
-			IMX585_REG_VALUE_08BIT, &rhs_h);
+					IMX585_REG_VALUE_08BIT, &rhs_h);
 		if (!ret) {
 			shr = (shr_h << 16) | (shr_m << 8) | shr_l;
 			rhs = (rhs_h << 16) | (rhs_m << 8) | rhs_l;
 			imx585->cur_exposure[2] = (rhs - shr) * imx585->tline;
 		} else {
 			dev_err(&imx585->client->dev,
-				"imx585 get exposure of short frame failed!\n");
+					"imx585 get exposure of short frame failed!\n");
 		}
 		ret = imx585_read_reg(imx585->client, IMX585_SF2_GAIN_REG_H,
-			IMX585_REG_VALUE_08BIT, &gain_h);
+					IMX585_REG_VALUE_08BIT, &gain_h);
 		ret |= imx585_read_reg(imx585->client, IMX585_SF2_GAIN_REG_L,
-			IMX585_REG_VALUE_08BIT, &gain_l);
+					IMX585_REG_VALUE_08BIT, &gain_l);
 		if (!ret) {
 			gain = (gain_h << 8) | gain_l;
 			imx585->cur_gain[2] = gain * 300;//step=0.3db,factor=1000
 		} else {
 			dev_err(&imx585->client->dev,
-				"imx585 get gain of short frame failed!\n");
+					"uimx585 get gain of short frame failed!\n");
 		}
-	}
+    }
 }
 
 static int imx585_set_hdrae_3frame(struct imx585 *imx585,
@@ -2679,6 +2801,8 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 	u32 l_a_gain, m_a_gain, s_a_gain;
 	int shr2, shr1, shr0, rhs2, rhs1 = 0;
 	int rhs1_change_limit, rhs2_change_limit = 0;
+	static int rhs1_old = IMX585_RHS1_DEFAULT;
+	static int rhs2_old = IMX585_RHS2_DEFAULT;
 	int ret = 0;
 	u32 fsc;
 	int rhs1_max = 0;
@@ -2758,7 +2882,7 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 		__LINE__, shr0, l_exp_time, fsc);
 
 	rhs1 = (SHR1_MIN_X3 + m_exp_time + 5) / 6 * 6 + 1;
-	if (imx585->cur_mode->height == 2180)
+	if (imx585->cur_mode->height == 2192)
 		rhs1_max = RHS1_MAX_X3(BRL_ALL);
 	else
 		rhs1_max = RHS1_MAX_X3(BRL_BINNING);
@@ -2768,13 +2892,13 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 		rhs1 = rhs1_max;
 	dev_dbg(&client->dev,
 		"line(%d) rhs1 %d, m_exp_time %d rhs1_old %d\n",
-		__LINE__, rhs1, m_exp_time, imx585->rhs1_old);
+		__LINE__, rhs1, m_exp_time, rhs1_old);
 
 	//Dynamic adjustment rhs2 must meet the following conditions
-	if (imx585->cur_mode->height == 2180)
-		rhs1_change_limit = imx585->rhs1_old + 3 * BRL_ALL - fsc + 3;
+	if (imx585->cur_mode->height == 2192)
+		rhs1_change_limit = rhs1_old + 3 * BRL_ALL - fsc + 3;
 	else
-		rhs1_change_limit = imx585->rhs1_old + 3 * BRL_BINNING - fsc + 3;
+		rhs1_change_limit = rhs1_old + 3 * BRL_BINNING - fsc + 3;
 	rhs1_change_limit = (rhs1_change_limit < 25) ? 25 : rhs1_change_limit;
 	rhs1_change_limit = (rhs1_change_limit + 5) / 6 * 6 + 1;
 	if (rhs1_max < rhs1_change_limit) {
@@ -2788,9 +2912,9 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 
 	dev_dbg(&client->dev,
 		"line(%d) m_exp_time %d rhs1_old %d, rhs1_new %d\n",
-		__LINE__, m_exp_time, imx585->rhs1_old, rhs1);
+		__LINE__, m_exp_time, rhs1_old, rhs1);
 
-		imx585->rhs1_old = rhs1;
+	rhs1_old = rhs1;
 
 	/* shr1 = rhs1 - s_exp_time */
 	if (rhs1 - m_exp_time <= SHR1_MIN_X3) {
@@ -2808,13 +2932,13 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 		rhs2 = 50;
 	dev_dbg(&client->dev,
 		"line(%d) rhs2 %d, s_exp_time %d, rhs2_old %d\n",
-		__LINE__, rhs2, s_exp_time, imx585->rhs2_old);
+		__LINE__, rhs2, s_exp_time, rhs2_old);
 
 	//Dynamic adjustment rhs2 must meet the following conditions
-	if (imx585->cur_mode->height == 2180)
-		rhs2_change_limit = imx585->rhs2_old + 3 * BRL_ALL - fsc + 3;
+	if (imx585->cur_mode->height == 2192)
+		rhs2_change_limit = rhs2_old + 3 * BRL_ALL - fsc + 3;
 	else
-		rhs2_change_limit = imx585->rhs2_old + 3 * BRL_BINNING - fsc + 3;
+		rhs2_change_limit = rhs2_old + 3 * BRL_BINNING - fsc + 3;
 	rhs2_change_limit = (rhs2_change_limit < 50) ?  50 : rhs2_change_limit;
 	rhs2_change_limit = (rhs2_change_limit + 5) / 6 * 6 + 2;
 	if ((shr0 - 13) < rhs2_change_limit) {
@@ -2826,7 +2950,7 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 	if (rhs2 < rhs2_change_limit)
 		rhs2 = rhs2_change_limit;
 
-	imx585->rhs2_old = rhs2;
+	rhs2_old = rhs2;
 
 	/* shr2 = rhs2 - s_exp_time */
 	if (rhs2 - s_exp_time <= shr2_min) {
@@ -2922,7 +3046,6 @@ static int imx585_set_hdrae_3frame(struct imx585 *imx585,
 
 	ret |= imx585_write_reg(client, IMX585_GROUP_HOLD_REG,
 		IMX585_REG_VALUE_08BIT, IMX585_GROUP_HOLD_END);
-	imx585_hdr_exposure_readback(imx585);
 	return ret;
 }
 
@@ -2932,6 +3055,7 @@ static int imx585_set_hdrae(struct imx585 *imx585,
 	struct i2c_client *client = imx585->client;
 	u32 l_exp_time, m_exp_time, s_exp_time;
 	u32 l_a_gain, m_a_gain, s_a_gain;
+	u32 brl;
 	int shr1, shr0, rhs1, rhs1_max, rhs1_min;
 	int ret = 0;
 	u32 fsc;
@@ -2972,42 +3096,37 @@ static int imx585_set_hdrae(struct imx585 *imx585,
 
 	/* Restrictions
 	 *   FSC = 2 * VMAX and FSC should be 4n;
-	 *   exp_l = FSC - SHR0 + Toffset;
-	 *   exp_l should be even value;
+	 *   exp_l = FSC - SHR0;
+	 *   SHR0 should be 4n;
+	 *   RHS1 + 10 <= SHR0 <= FSC - 4;
 	 *
-	 *   SHR0 = FSC - exp_l + Toffset;
-	 *   SHR0 <= (FSC -8);
-	 *   SHR0 >= RHS1 + 9;
-	 *   SHR0 should be 2n;
-	 *
-	 *   exp_s = RHS1 - SHR1 + Toffset;
-	 *   exp_s should be even value;
-	 *
+	 *   exp_s = RHS1 - SHR1;
+	 *   SHR1 should be 4n + 2 and 10 <= SHR1 <= RHS1 - 4;
+	 *   RHS1 should be 4n + 2 and SHR1 + 4 <= RHS1 <= SHR0 - 10;
 	 *   RHS1 < BRL * 2;
-	 *   RHS1 <= SHR0 - 9;
-	 *   RHS1 >= SHR1 + 8;
-	 *   SHR1 >= 9;
-	 *   RHS1(n+1) >= RHS1(n) + BRL * 2 -FSC + 2;
 	 *
-	 *   SHR1 should be 2n+1 and RHS1 should be 4n+1;
+	 *   Dynamic change during streaming:
+	 *   RHS1(n+1) >= RHS1(n) + BRL * 2 - FSC + 2;
 	 */
 
 	/* The HDR mode vts is double by default to workaround T-line */
-	fsc = imx585->cur_vts;
-	shr0 = fsc - l_exp_time;
+	fsc = imx585->cur_vts & ~0x3;
+	brl = imx585_get_brl(imx585->cur_mode);
+	l_exp_time = min_t(u32, l_exp_time, fsc - 4);
+	shr0 = imx585_align_up_to_step(fsc - l_exp_time, 4, 0);
+	shr0 = clamp_t(int, shr0, imx585->rhs1_old + 10, fsc - 4);
+	shr0 &= ~0x3;
 
-	if (imx585->cur_mode->height == 2180) {
-		rhs1_max = min(RHS1_MAX_X2(BRL_ALL), ((shr0 - 9u) / 4 * 4 + 1));
-		rhs1_min = max(SHR1_MIN_X2 + 8u, imx585->rhs1_old + 2 * BRL_ALL - fsc + 2);
-	} else {
-		rhs1_max = min(RHS1_MAX_X2(BRL_BINNING), ((shr0 - 9u) / 4 * 4 + 1));
-		rhs1_min = max(SHR1_MIN_X2 + 8u, imx585->rhs1_old + 2 * BRL_BINNING - fsc + 2);
-	}
-	rhs1_min = (rhs1_min + 3) / 4 * 4 + 1;
-	rhs1 = (SHR1_MIN_X2 + s_exp_time + 3) / 4 * 4 + 1;/* shall be 4n + 1 */
-	dev_dbg(&client->dev,
-		"line(%d) rhs1 %d, rhs1 min %d rhs1 max %d\n",
-		__LINE__, rhs1, rhs1_min, rhs1_max);
+	 rhs1_max = min_t(int, RHS1_MAX_X2(brl),
+			  imx585_align_down_to_step(shr0 - 10, 4, 2));
+	 rhs1_min = max_t(int, SHR1_MIN_X2 + 4u,
+			  imx585->rhs1_old + 2 * brl - fsc + 2);
+	 rhs1_min = imx585_align_up_to_step(rhs1_min, 4, 2);
+	 rhs1 = imx585_align_up_to_step(SHR1_MIN_X2 + s_exp_time, 4, 2);
+	 dev_dbg(&client->dev,
+		 "line(%d) brl %u, rhs1 %d, rhs1 min %d rhs1 max %d, shr0 %d\n",
+		 __LINE__, brl, rhs1, rhs1_min, rhs1_max, shr0);
+
 	if (rhs1_max < rhs1_min) {
 		dev_err(&client->dev,
 			"The total exposure limit makes rhs1 max is %d,but old rhs1 limit makes rhs1 min is %d\n",
@@ -3019,20 +3138,24 @@ static int imx585_set_hdrae(struct imx585 *imx585,
 		"line(%d) rhs1 %d, short time %d rhs1_old %d, rhs1_new %d\n",
 		__LINE__, rhs1, s_exp_time, imx585->rhs1_old, rhs1);
 
-		imx585->rhs1_old = rhs1;
+	imx585->rhs1_old = rhs1;
 
-	/* shr1 = rhs1 - s_exp_time */
-	if (rhs1 - s_exp_time <= SHR1_MIN_X2) {
-		shr1 = SHR1_MIN_X2;
-		s_exp_time = rhs1 - shr1;
-	} else {
-		shr1 = rhs1 - s_exp_time;
-	}
 
-	if (shr0 < rhs1 + 9)
-		shr0 = rhs1 + 9;
-	else if (shr0 > fsc - 8)
-		shr0 = fsc - 8;
+	/* shr1 = rhs1 - s_exp_time, shall be 4n + 2 */
+	if (rhs1 - s_exp_time <= SHR1_MIN_X2)
+	    shr1 = SHR1_MIN_X2;
+	else
+	    shr1 = imx585_align_up_to_step(rhs1 - s_exp_time, 4, 2);
+
+	if (shr1 > rhs1 - 4)
+	    shr1 = rhs1 - 4;
+	shr1 = imx585_align_up_to_step(shr1, 4, 2);
+
+	if (shr0 < rhs1 + 10)
+	    shr0 = rhs1 + 10;
+	else if (shr0 > fsc - 4)
+	    shr0 = fsc - 4;
+	shr0 &= ~0x3;
 
 	dev_dbg(&client->dev,
 		"fsc=%d,RHS1_MAX=%d,SHR1_MIN=%d,rhs1_max=%d\n",
@@ -3081,6 +3204,7 @@ static int imx585_set_hdrae(struct imx585 *imx585,
 
 	ret |= imx585_write_reg(client, IMX585_GROUP_HOLD_REG,
 		IMX585_REG_VALUE_08BIT, IMX585_GROUP_HOLD_END);
+
 	imx585_hdr_exposure_readback(imx585);
 	return ret;
 }
@@ -3107,9 +3231,6 @@ static long imx585_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	u64 pixel_rate = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
 	u8 lanes = imx585->bus_cfg.bus.mipi_csi2.num_data_lanes;
-	struct rkmodule_exp_delay *exp_delay;
-	struct rkmodule_exp_info *exp_info;
-	int idx_max = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -3202,30 +3323,6 @@ static long imx585_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		} else
 			ret = -EINVAL;
 		break;
-	case RKMODULE_GET_EXP_DELAY:
-		exp_delay = (struct rkmodule_exp_delay *)arg;
-		exp_delay->exp_delay = 2;
-		exp_delay->gain_delay = 2;
-		exp_delay->vts_delay = 1;
-		break;
-	case RKMODULE_GET_EXP_INFO:
-		exp_info = (struct rkmodule_exp_info *)arg;
-		if (imx585->cur_mode->hdr_mode == NO_HDR)
-			idx_max = 1;
-		else if (imx585->cur_mode->hdr_mode == HDR_X2)
-			idx_max = 2;
-		else
-			idx_max = 3;
-		for (i = 0; i < idx_max; i++) {
-			exp_info->exp[i] = imx585->cur_exposure[i];
-			exp_info->gain[i] = imx585->cur_gain[i];
-		}
-		exp_info->hts = imx585->cur_mode->hts_def;
-		exp_info->vts = imx585->cur_vts;
-		exp_info->pclk = imx585->pclk;
-		exp_info->gain_mode.gain_mode = RKMODULE_GAIN_MODE_DB;
-		exp_info->gain_mode.factor = 1000;
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3248,8 +3345,6 @@ static long imx585_compat_ioctl32(struct v4l2_subdev *sd,
 	u32  stream;
 	u32 brl = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
-	struct rkmodule_exp_delay *exp_delay;
-	struct rkmodule_exp_info *exp_info;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -3368,36 +3463,7 @@ static long imx585_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(dphy_param);
 		break;
-	case RKMODULE_GET_EXP_DELAY:
-		exp_delay = kzalloc(sizeof(*exp_delay), GFP_KERNEL);
-		if (!exp_delay) {
-			ret = -ENOMEM;
-			return ret;
-		}
 
-		ret = imx585_ioctl(sd, cmd, exp_delay);
-		if (!ret) {
-			ret = copy_to_user(up, exp_delay, sizeof(*exp_delay));
-			if (ret)
-				ret = -EFAULT;
-		}
-		kfree(exp_delay);
-		break;
-	case RKMODULE_GET_EXP_INFO:
-		exp_info = kzalloc(sizeof(*exp_info), GFP_KERNEL);
-		if (!exp_info) {
-			ret = -ENOMEM;
-			return ret;
-		}
-
-		ret = imx585_ioctl(sd, cmd, exp_info);
-		if (!ret) {
-			ret = copy_to_user(up, exp_info, sizeof(*exp_info));
-			if (ret)
-				ret = -EFAULT;
-		}
-		kfree(exp_info);
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3427,8 +3493,6 @@ static int __imx585_start_stream(struct imx585 *imx585)
 	if (ret)
 		return ret;
 	if (imx585->has_init_exp && imx585->cur_mode->hdr_mode != NO_HDR) {
-		imx585->rhs1_old = IMX585_RHS1_DEFAULT;
-		imx585->rhs2_old = IMX585_RHS2_DEFAULT;
 		ret = imx585_ioctl(&imx585->subdev, PREISP_CMD_SET_HDRAE_EXP,
 			&imx585->init_hdrae_exp);
 		if (ret) {
@@ -3447,6 +3511,7 @@ static int __imx585_stop_stream(struct imx585 *imx585)
 	if (imx585->is_thunderboot)
 		imx585->is_first_streamoff = true;
 	imx585->is_tline_init = false;
+
 	return imx585_write_reg(imx585->client, IMX585_REG_CTRL_MODE,
 				IMX585_REG_VALUE_08BIT, 1);
 }
@@ -3555,7 +3620,6 @@ int __imx585_power_on(struct imx585 *imx585)
 	if (clk_get_rate(imx585->xvclk) != imx585->cur_mode->xvclk)
 		dev_warn(dev, "xvclk mismatched\n");
 	ret = clk_prepare_enable(imx585->xvclk);
-	dev_info(dev, "clk_prepare_enable:%d\n",ret);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		goto err_clk;
@@ -3810,41 +3874,41 @@ static void imx585_exposure_readback(struct imx585 *imx585)
 	u32 shr, shr_l, shr_m, shr_h;
 	int ret = 0;
 
-	if (!imx585->is_tline_init) {
+    if (!imx585->is_tline_init) {
 		imx585_get_pclk_and_tline(imx585);
 		imx585->is_tline_init = true;
-	}
+    }
 
-	ret = imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_L,
-			      IMX585_REG_VALUE_08BIT, &shr_l);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_M,
-			       IMX585_REG_VALUE_08BIT, &shr_m);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_H,
-			       IMX585_REG_VALUE_08BIT, &shr_h);
-	if (!ret) {
+    ret = imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_L,
+				IMX585_REG_VALUE_08BIT, &shr_l);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_M,
+				IMX585_REG_VALUE_08BIT, &shr_m);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_EXPO_REG_H,
+				IMX585_REG_VALUE_08BIT, &shr_h);
+    if (!ret) {
 		shr = (shr_h << 16) | (shr_m << 8) | shr_l;
 		imx585->cur_exposure[0] = (imx585->cur_vts - shr) * imx585->tline;
-	}
+    }
 }
 
 static void imx585_gain_readback(struct imx585 *imx585)
 {
 	int ret = 0;
-	u32 gain, gain_l, gain_h;
+    u32 gain, gain_l, gain_h;
 
-	if (!imx585->is_tline_init) {
+    if (!imx585->is_tline_init) {
 		imx585_get_pclk_and_tline(imx585);
 		imx585->is_tline_init = true;
-	}
+    }
 
-	ret = imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_H,
-			      IMX585_REG_VALUE_08BIT,
-			      &gain_h);
-	ret |= imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_L,
-			       IMX585_REG_VALUE_08BIT,
-			       &gain_l);
-	gain = (gain_h << 8) | gain_l;
-	imx585->cur_gain[0] = gain * 300;//step=0.3db,factor=1000
+    ret = imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_H,
+				IMX585_REG_VALUE_08BIT,
+				&gain_h);
+    ret |= imx585_read_reg(imx585->client, IMX585_LF_GAIN_REG_L,
+				IMX585_REG_VALUE_08BIT,
+				&gain_l);
+    gain = (gain_h << 8) | gain_l;
+    imx585->cur_gain[0] = gain * 300;//step=0.3db,factor=1000
 }
 
 static int imx585_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -4078,7 +4142,6 @@ static int imx585_initialize_controls(struct imx585 *imx585)
 
 	imx585->subdev.ctrl_handler = handler;
 	imx585->has_init_exp = false;
-	imx585->is_tline_init = false;
 
 	return 0;
 
@@ -4100,16 +4163,16 @@ static int imx585_check_sensor_id(struct imx585 *imx585,
 		return 0;
 	}
 
-	ret = imx585_read_reg(client,  IMX585_REG_CHIP_ID, IMX585_REG_VALUE_08BIT, &pid);
+	ret = imx585_read_reg(client, IMX585_REG_CHIP_ID, IMX585_REG_VALUE_08BIT, &pid);
 	ret |= imx585_read_reg(client, IMX585_REG_CHIP_ID + 1, IMX585_REG_VALUE_08BIT, &vid);
 	reg = (vid << 8) | pid;
 
 	if (reg != CHIP_ID) {
-		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", reg, ret);
+		dev_err(dev, "Unexpected sensor id(%04x), ret(%d)\n", reg, ret);
 		return -ENODEV;
 	}
 
-	dev_info(dev, "khadas camera detected imx585 id %06x\n", reg);
+	dev_info(dev, "Detected imx585 id %06x\n", reg);
 
 	return 0;
 }
@@ -4198,6 +4261,14 @@ static int imx585_probe(struct i2c_client *client,
 		}
 	}
 
+	if (!imx585->cur_mode) {
+		imx585->cur_mode = &imx585->supported_modes[0];
+		dev_warn(dev,
+			"hdr mode %u not found, fallback to mode %ux%u hdr=%u\n",
+			hdr_mode, imx585->cur_mode->width, imx585->cur_mode->height,
+			imx585->cur_mode->hdr_mode);
+	 }
+
 	of_property_read_u32(node, RKMODULE_CAMERA_FASTBOOT_ENABLE,
 		&imx585->is_thunderboot);
 
@@ -4210,7 +4281,7 @@ static int imx585_probe(struct i2c_client *client,
 	imx585->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(imx585->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
-	imx585->power_gpio = devm_gpiod_get(dev, "power", GPIOD_ASIS);
+	imx585->power_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(imx585->power_gpio))
 		dev_warn(dev, "Failed to get power-gpios\n");
 	imx585->pinctrl = devm_pinctrl_get(dev);
